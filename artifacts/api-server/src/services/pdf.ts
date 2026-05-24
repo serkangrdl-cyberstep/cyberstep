@@ -1,4 +1,9 @@
 import PDFDocument from "pdfkit";
+import path from "path";
+
+const FONT_DIR = "/usr/share/fonts/truetype/dejavu";
+const FONT_REGULAR = path.join(FONT_DIR, "DejaVuSans.ttf");
+const FONT_BOLD    = path.join(FONT_DIR, "DejaVuSans-Bold.ttf");
 
 interface ReportData {
   assessmentId: number;
@@ -62,9 +67,9 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
 
     // ─── HEADER ──────────────────────────────────────────
     doc.rect(0, 0, W, 90).fill(DARK);
-    doc.fillColor(WHITE).fontSize(20).font("Helvetica-Bold")
+    doc.fillColor(WHITE).fontSize(20).font(FONT_BOLD)
       .text("CyberStep.io", MARGIN, 28, { lineBreak: false });
-    doc.fillColor([148, 163, 184]).fontSize(10).font("Helvetica")
+    doc.fillColor([148, 163, 184]).fontSize(10).font(FONT_REGULAR)
       .text("Siber Güvenlik Risk Değerlendirme Raporu", MARGIN, 56);
 
     const dateStr = data.createdAt
@@ -78,9 +83,9 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
     // ─── COMPANY INFO BOX ────────────────────────────────
     const infoBoxTop = doc.y;
     doc.rect(MARGIN, infoBoxTop, CONTENT_W, 64).fillAndStroke(LIGHT, [226, 232, 240]);
-    doc.fillColor(DARK).fontSize(13).font("Helvetica-Bold")
+    doc.fillColor(DARK).fontSize(13).font(FONT_BOLD)
       .text(data.companyName, MARGIN + 16, infoBoxTop + 12, { width: CONTENT_W - 32 });
-    doc.fillColor(GRAY).fontSize(9).font("Helvetica")
+    doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
       .text(`${data.contactName}   ·   ${data.sector}   ·   ${data.employeeCount} çalışan`, MARGIN + 16, infoBoxTop + 32, { width: CONTENT_W - 32 });
     doc.y = infoBoxTop + 80;
 
@@ -90,17 +95,17 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
 
     // Score box
     doc.rect(MARGIN, doc.y, scoreBoxW, 72).fillAndStroke(LIGHT, [226, 232, 240]);
-    doc.fillColor(PRIMARY).fontSize(32).font("Helvetica-Bold")
+    doc.fillColor(PRIMARY).fontSize(32).font(FONT_BOLD)
       .text(`%${data.scorePercent}`, MARGIN, doc.y + 10, { width: scoreBoxW, align: "center" });
-    doc.fillColor(GRAY).fontSize(9).font("Helvetica")
+    doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
       .text(`${data.totalScore} / ${data.maxScore} puan`, MARGIN, doc.y + 52, { width: scoreBoxW, align: "center" });
 
     const riskBoxX = MARGIN + scoreBoxW + 12;
     const riskBoxY = doc.y - 62;
     doc.rect(riskBoxX, riskBoxY, scoreBoxW, 72).fillAndStroke(LIGHT, [226, 232, 240]);
-    doc.fillColor(riskColor).fontSize(20).font("Helvetica-Bold")
+    doc.fillColor(riskColor).fontSize(20).font(FONT_BOLD)
       .text(data.riskLevel, riskBoxX, riskBoxY + 16, { width: scoreBoxW, align: "center" });
-    doc.fillColor(GRAY).fontSize(9).font("Helvetica")
+    doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
       .text(`${data.redAlarmCount} kırmızı alarm`, riskBoxX, riskBoxY + 44, { width: scoreBoxW, align: "center" });
 
     doc.y = riskBoxY + 88;
@@ -116,9 +121,9 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
       const y = domTop + row * 56;
       const domColor: [number, number, number] = d.percent >= 70 ? [22, 163, 74] : d.percent >= 40 ? [217, 119, 6] : [220, 38, 38];
       doc.rect(x, y, colW, 48).fillAndStroke(LIGHT, [226, 232, 240]);
-      doc.fillColor(domColor).fontSize(14).font("Helvetica-Bold")
+      doc.fillColor(domColor).fontSize(14).font(FONT_BOLD)
         .text(`%${d.percent}`, x, y + 6, { width: colW, align: "center" });
-      doc.fillColor(GRAY).fontSize(6.5).font("Helvetica")
+      doc.fillColor(GRAY).fontSize(6.5).font(FONT_REGULAR)
         .text(d.domain, x + 2, y + 30, { width: colW - 4, align: "center" });
     });
     const domRows = Math.ceil(data.domainScores.length / 5);
@@ -127,7 +132,7 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
     // ─── AI ANALİZ ────────────────────────────────────────
     sectionTitle(doc, "Uzman Analizi", MARGIN, CONTENT_W);
     const cleanAnalysis = stripMarkdown(data.aiAnalysis);
-    doc.fillColor(DARK).fontSize(10).font("Helvetica")
+    doc.fillColor(DARK).fontSize(10).font(FONT_REGULAR)
       .text(cleanAnalysis, MARGIN, doc.y, { width: CONTENT_W, lineGap: 3, paragraphGap: 6 });
     doc.y += 16;
 
@@ -138,9 +143,9 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
         const recY = doc.y;
         // Number badge
         doc.circle(MARGIN + 8, recY + 8, 8).fill(PRIMARY);
-        doc.fillColor(WHITE).fontSize(8).font("Helvetica-Bold")
+        doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD)
           .text(`${i + 1}`, MARGIN + 4, recY + 4, { width: 10, align: "center" });
-        doc.fillColor(DARK).fontSize(10).font("Helvetica")
+        doc.fillColor(DARK).fontSize(10).font(FONT_REGULAR)
           .text(stripMarkdown(rec), MARGIN + 22, recY + 1, { width: CONTENT_W - 22, lineGap: 2 });
         doc.y += 6;
       });
@@ -155,13 +160,13 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
       doc.rect(MARGIN, noteY, 4, 999).fill([59, 130, 246]);
       doc.rect(MARGIN + 4, noteY, CONTENT_W - 4, 999).fill([239, 246, 255]);
       const noteText = stripMarkdown(data.adminNotes);
-      doc.fillColor([30, 64, 175]).fontSize(10).font("Helvetica")
+      doc.fillColor([30, 64, 175]).fontSize(10).font(FONT_REGULAR)
         .text(noteText, MARGIN + 16, noteY + 10, { width: CONTENT_W - 28, lineGap: 3 });
       const noteH = doc.y - noteY + 16;
       // Redraw note bg with correct height
       doc.rect(MARGIN, noteY, 4, noteH).fill([59, 130, 246]);
       doc.rect(MARGIN + 4, noteY, CONTENT_W - 4, noteH).fill([239, 246, 255]);
-      doc.fillColor([30, 64, 175]).fontSize(10).font("Helvetica")
+      doc.fillColor([30, 64, 175]).fontSize(10).font(FONT_REGULAR)
         .text(noteText, MARGIN + 16, noteY + 10, { width: CONTENT_W - 28, lineGap: 3 });
       doc.y = noteY + noteH + 16;
     }
@@ -170,7 +175,7 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
     checkPageBreak(doc, 60);
     const footerY = doc.page.height - 50;
     doc.rect(0, footerY, W, 50).fill(DARK);
-    doc.fillColor([148, 163, 184]).fontSize(8).font("Helvetica")
+    doc.fillColor([148, 163, 184]).fontSize(8).font(FONT_REGULAR)
       .text(
         `CyberStep.io  ·  Bu rapor uzman incelemesinden geçmiştir  ·  Değerlendirme #${data.assessmentId}`,
         MARGIN, footerY + 18, { width: CONTENT_W, align: "center" }
@@ -184,7 +189,7 @@ function sectionTitle(doc: InstanceType<typeof PDFDocument>, title: string, x: n
   checkPageBreak(doc, 40);
   doc.rect(x, doc.y, w, 1).fill(PRIMARY);
   doc.y += 6;
-  doc.fillColor(DARK).fontSize(12).font("Helvetica-Bold")
+  doc.fillColor(DARK).fontSize(12).font(FONT_BOLD)
     .text(title, x, doc.y);
   doc.y += 12;
 }

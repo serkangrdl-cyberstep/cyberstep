@@ -58,7 +58,7 @@ router.put("/admin/review/:token", async (req, res) => {
     return;
   }
 
-  const updates: Partial<typeof reportsTable.$inferInsert> = {};
+  const updates: Record<string, unknown> = {};
   if (aiAnalysis !== undefined) updates.aiAnalysis = aiAnalysis;
   if (recommendations !== undefined) updates.recommendations = recommendations;
   if (adminNotes !== undefined) updates.adminNotes = adminNotes;
@@ -76,6 +76,12 @@ router.put("/admin/review/:token", async (req, res) => {
 // POST /api/admin/review/:token/approve
 router.post("/admin/review/:token/approve", async (req, res) => {
   const { token } = req.params;
+  // Accept current editor state from frontend so nothing is lost even if not saved
+  const { aiAnalysis, recommendations, adminNotes } = req.body as {
+    aiAnalysis?: string;
+    recommendations?: string[];
+    adminNotes?: string;
+  };
 
   const [report] = await db
     .select()
@@ -102,24 +108,40 @@ router.post("/admin/review/:token/approve", async (req, res) => {
     return;
   }
 
-  // Mark as approved first
+  // Merge frontend edits into DB before sending
+  const finalAnalysis      = aiAnalysis      ?? report.aiAnalysis;
+  const finalRecommendations = recommendations ?? report.recommendations;
+  const finalAdminNotes    = adminNotes      ?? report.adminNotes ?? null;
+
   await db
     .update(reportsTable)
-    .set({ reviewStatus: "approved", reviewedAt: new Date() })
+    .set({
+      aiAnalysis: finalAnalysis,
+      recommendations: finalRecommendations,
+      adminNotes: finalAdminNotes ?? undefined,
+      reviewStatus: "approved",
+      reviewedAt: new Date(),
+    })
     .where(eq(reportsTable.reviewToken, token));
 
-  // Send customer email
+  // Send customer email + PDF
   await sendCustomerReportEmail({
     assessmentId: assessment.id,
-    companyName: assessment.companyName,
-    contactName: assessment.contactName,
+    companyName:  assessment.companyName,
+    contactName:  assessment.contactName,
     customerEmail: assessment.email,
-    riskLevel: report.riskLevel,
-    scorePercent: report.scorePercent,
+    sector:        assessment.sector,
+    employeeCount: assessment.employeeCount,
+    riskLevel:     report.riskLevel,
+    scorePercent:  report.scorePercent,
+    totalScore:    report.totalScore,
+    maxScore:      report.maxScore,
     redAlarmCount: report.redAlarmCount,
-    aiAnalysis: report.aiAnalysis,
-    recommendations: report.recommendations,
-    adminNotes: report.adminNotes ?? null,
+    aiAnalysis:    finalAnalysis,
+    recommendations: finalRecommendations,
+    domainScores:  report.domainScores,
+    adminNotes:    finalAdminNotes,
+    createdAt:     report.createdAt.toISOString(),
   });
 
   // Mark as emailed

@@ -239,7 +239,7 @@ async function generateAIReport(
     })
     .join("\n");
 
-  const prompt = `Sen bir siber güvenlik uzmanısın. Aşağıdaki KOBİ'nin siber güvenlik değerlendirme sonuçlarını analiz et ve Türkçe kapsamlı bir rapor oluştur.
+  const prompt = `Sen bir siber güvenlik uzmanısın. Aşağıdaki KOBİ'nin siber güvenlik değerlendirme sonuçlarını analiz et.
 
 Firma: ${assessment.companyName}
 Sektör: ${assessment.sector}
@@ -258,11 +258,20 @@ ${scoring.domainScores.map((d) => `- ${d.domain}: ${d.score}/${d.maxScore} (%${d
 CEVAPLAR:
 ${answersText}
 
-Lütfen şu formatta JSON yanıt ver (başka hiçbir şey yazma, sadece JSON):
+KURALLAR (kesinlikle uy):
+- Yanıtın SADECE geçerli bir JSON nesnesi olmalı, başka hiçbir şey yazma
+- Düşünce süreci, açıklama, yorum, başlık YAZMA — sadece JSON
+- aiAnalysis içinde markdown kullanma: #, ##, **, *, -, liste numarası KULLANMA
+- aiAnalysis düz paragraf metni olmalı, birden fazla paragraf için sadece \\n\\n kullan
+- recommendations dizisindeki her eleman düz Türkçe cümle, markdown yok
+- Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
+
+JSON şablonu:
 {
-  "aiAnalysis": "500-800 kelimelik detaylı analiz. Firmanın güçlü ve zayıf yönlerini, kırmızı alarm alanlarını, sektöre özgü riskleri açıkla. Profesyonel ama anlaşılır bir dil kullan.",
+  "aiAnalysis": "Burada 400-600 kelimelik Türkçe analiz. Firmanın güçlü/zayıf yönleri, kırmızı alarm alanları, sektöre özgü riskler. Düz paragraf, markdown yok.",
   "recommendations": [
-    "Öncelikli 5-8 somut eylem önerisi. Her öneri tek cümle, uygulanabilir ve spesifik olmalı."
+    "Türkçe somut öneri 1.",
+    "Türkçe somut öneri 2."
   ]
 }`;
 
@@ -270,7 +279,10 @@ Lütfen şu formatta JSON yanıt ver (başka hiçbir şey yazma, sadece JSON):
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 8192 },
+      config: {
+        maxOutputTokens: 4096,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
 
     const text = response.text ?? "";

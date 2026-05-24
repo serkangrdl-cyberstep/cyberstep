@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
+import { generateReportPDF } from "./pdf";
 
 const ADMIN_EMAIL = "serkangrdl@gmail.com";
 
@@ -54,49 +55,23 @@ export async function sendAdminNotificationEmail(params: {
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
     <div style="background:#0f172a;padding:24px 32px">
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
-        <span style="background:#1e293b;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:20px">Admin Bildirimi</span>
-      </div>
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+      <span style="background:#1e293b;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:20px;margin-left:12px">Admin Bildirimi</span>
     </div>
     <div style="padding:32px">
       <h2 style="margin:0 0 4px;font-size:20px;color:#0f172a">Yeni Değerlendirme Raporu Hazir</h2>
       <p style="margin:0 0 24px;color:#64748b;font-size:14px">AI analizi tamamlandı. Raporu inceleyip onaylamanız bekleniyor.</p>
-
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px">
         <table style="width:100%;border-collapse:collapse">
-          <tr>
-            <td style="padding:6px 0;color:#64748b;font-size:13px;width:140px">Firma</td>
-            <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">${params.companyName}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#64748b;font-size:13px">İletişim</td>
-            <td style="padding:6px 0;color:#0f172a;font-size:13px">${params.contactName}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#64748b;font-size:13px">E-posta</td>
-            <td style="padding:6px 0;color:#0f172a;font-size:13px">${params.customerEmail}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#64748b;font-size:13px">Sektör</td>
-            <td style="padding:6px 0;color:#0f172a;font-size:13px">${params.sector} · ${params.employeeCount} çalışan</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#64748b;font-size:13px">Risk Seviyesi</td>
-            <td style="padding:6px 0">
-              <span style="background:${riskColor}20;color:${riskColor};font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">${params.riskLevel}</span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#64748b;font-size:13px">Skor</td>
-            <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">%${params.scorePercent} · ${params.redAlarmCount} kırmızı alarm</td>
-          </tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:140px">Firma</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">${params.companyName}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">İletişim</td><td style="padding:6px 0;color:#0f172a;font-size:13px">${params.contactName}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">E-posta</td><td style="padding:6px 0;color:#0f172a;font-size:13px">${params.customerEmail}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Sektör</td><td style="padding:6px 0;color:#0f172a;font-size:13px">${params.sector} · ${params.employeeCount} çalışan</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Risk Seviyesi</td><td style="padding:6px 0"><span style="background:${riskColor}20;color:${riskColor};font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">${params.riskLevel}</span></td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Skor</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">%${params.scorePercent} · ${params.redAlarmCount} kırmızı alarm</td></tr>
         </table>
       </div>
-
-      <a href="${reviewUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">
-        Raporu Incele ve Onayla
-      </a>
+      <a href="${reviewUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">Raporu Incele ve Onayla</a>
       <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">Veya bu linki kopyalayın: <span style="color:#64748b">${reviewUrl}</span></p>
     </div>
     <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
@@ -124,25 +99,35 @@ export async function sendCustomerReportEmail(params: {
   companyName: string;
   contactName: string;
   customerEmail: string;
+  sector: string;
+  employeeCount: string;
   riskLevel: string;
   scorePercent: number;
+  totalScore: number;
+  maxScore: number;
   redAlarmCount: number;
   aiAnalysis: string;
   recommendations: string[];
+  domainScores: Array<{ domain: string; score: number; maxScore: number; percent: number }>;
   adminNotes: string | null;
+  createdAt?: string;
 }): Promise<void> {
   const transport = getTransport();
   if (!transport) return;
 
   const riskColor = params.riskLevel === "Kritik" ? "#dc2626" : params.riskLevel === "Yüksek" ? "#ea580c" : params.riskLevel === "Orta" ? "#d97706" : "#16a34a";
+
+  const cleanText = (t: string) =>
+    t.replace(/^#{1,6}\s+/gm, "").replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").replace(/^\s*[-*+]\s+/gm, "• ").trim();
+
   const recList = params.recommendations
-    .map((r, i) => `<tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#334155;vertical-align:top"><span style="color:#10b981;font-weight:700;margin-right:8px">${i + 1}.</span>${r}</td></tr>`)
+    .map((r, i) => `<tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#334155;vertical-align:top"><span style="color:#10b981;font-weight:700;margin-right:8px">${i + 1}.</span>${cleanText(r)}</td></tr>`)
     .join("");
 
-  const adminNotesSection = params.adminNotes
+  const adminNotesSection = params.adminNotes?.trim()
     ? `<div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0">
         <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#1d4ed8">Uzman Notu</p>
-        <p style="margin:0;font-size:13px;color:#1e40af;line-height:1.6">${params.adminNotes.replace(/\n/g, "<br>")}</p>
+        <p style="margin:0;font-size:13px;color:#1e40af;line-height:1.6">${cleanText(params.adminNotes).replace(/\n/g, "<br>")}</p>
        </div>`
     : "";
 
@@ -158,8 +143,7 @@ export async function sendCustomerReportEmail(params: {
     </div>
     <div style="padding:32px">
       <h2 style="margin:0 0 4px;font-size:20px;color:#0f172a">Sayın ${params.contactName},</h2>
-      <p style="margin:0 0 24px;color:#64748b;font-size:14px">${params.companyName} firması için siber güvenlik değerlendirme raporunuz hazır ve uzman tarafından incelenerek onaylanmıştır.</p>
-
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px">${params.companyName} firması için siber güvenlik değerlendirme raporunuz hazır ve uzman tarafından incelenerek onaylanmıştır. Raporunuzun PDF'i bu e-postaya eklenmiştir.</p>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;display:flex;align-items:center;gap:20px">
         <div style="text-align:center;min-width:100px">
           <div style="font-size:40px;font-weight:800;color:${riskColor}">%${params.scorePercent}</div>
@@ -170,17 +154,10 @@ export async function sendCustomerReportEmail(params: {
           <p style="margin:8px 0 0;font-size:13px;color:#64748b">${params.redAlarmCount} kritik güvenlik açığı tespit edildi.</p>
         </div>
       </div>
-
       <h3 style="font-size:16px;color:#0f172a;margin:0 0 12px">Uzman Analizi</h3>
-      <p style="margin:0 0 24px;font-size:13px;color:#334155;line-height:1.7">${params.aiAnalysis.replace(/\n/g, "<br>")}</p>
-
+      <p style="margin:0 0 24px;font-size:13px;color:#334155;line-height:1.7">${cleanText(params.aiAnalysis).replace(/\n\n/g, "</p><p style='margin:8px 0 0;font-size:13px;color:#334155;line-height:1.7'>").replace(/\n/g, "<br>")}</p>
       ${adminNotesSection}
-
-      ${params.recommendations.length > 0 ? `
-      <h3 style="font-size:16px;color:#0f172a;margin:0 0 12px">Öncelikli Aksiyon Planı</h3>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:24px">${recList}</table>
-      ` : ""}
-
+      ${params.recommendations.length > 0 ? `<h3 style="font-size:16px;color:#0f172a;margin:0 0 12px">Öncelikli Aksiyon Planı</h3><table style="width:100%;border-collapse:collapse;margin-bottom:24px">${recList}</table>` : ""}
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px">
         <p style="margin:0;font-size:13px;color:#166534">Sorularınız için <a href="mailto:${process.env["SMTP_USER"]}" style="color:#16a34a">${process.env["SMTP_USER"]}</a> adresine e-posta gönderebilirsiniz.</p>
       </div>
@@ -192,6 +169,32 @@ export async function sendCustomerReportEmail(params: {
 </body>
 </html>`;
 
+  // Generate PDF
+  let pdfBuffer: Buffer | null = null;
+  try {
+    pdfBuffer = await generateReportPDF({
+      assessmentId: params.assessmentId,
+      companyName: params.companyName,
+      contactName: params.contactName,
+      sector: params.sector,
+      employeeCount: params.employeeCount,
+      riskLevel: params.riskLevel,
+      scorePercent: params.scorePercent,
+      totalScore: params.totalScore,
+      maxScore: params.maxScore,
+      redAlarmCount: params.redAlarmCount,
+      aiAnalysis: params.aiAnalysis,
+      recommendations: params.recommendations,
+      domainScores: params.domainScores,
+      adminNotes: params.adminNotes,
+      createdAt: params.createdAt,
+    });
+  } catch (err) {
+    logger.error({ err, assessmentId: params.assessmentId }, "PDF generation failed, sending without attachment");
+  }
+
+  const safeCompanyName = params.companyName.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ\s]/g, "").replace(/\s+/g, "_");
+
   try {
     await transport.sendMail({
       from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
@@ -199,8 +202,11 @@ export async function sendCustomerReportEmail(params: {
       bcc: ADMIN_EMAIL,
       subject: `Siber Güvenlik Değerlendirme Raporunuz Hazır — ${params.companyName}`,
       html,
+      attachments: pdfBuffer
+        ? [{ filename: `CyberStep_Rapor_${safeCompanyName}.pdf`, content: pdfBuffer, contentType: "application/pdf" }]
+        : [],
     });
-    logger.info({ assessmentId: params.assessmentId }, "Customer report email sent");
+    logger.info({ assessmentId: params.assessmentId }, "Customer report email sent with PDF");
   } catch (err) {
     logger.error({ err, assessmentId: params.assessmentId }, "Failed to send customer report email");
   }

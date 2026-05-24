@@ -93,17 +93,19 @@ export default function AdminReview() {
   };
 
   const handleApprove = async () => {
-    if (!window.confirm(`${data?.assessment.companyName} için raporu onaylayıp müşteriye göndermek istiyor musunuz?`)) return;
+    if (!window.confirm(`${data?.assessment.companyName} için raporu onaylayıp müşteriye göndermek istiyor musunuz?\n\nRapor ${data?.assessment.email} adresine PDF eki ile gönderilecek.`)) return;
     setApproving(true);
     try {
+      // Send current editor state so nothing is lost if admin didn't manually save
       const r = await fetch(`/api/admin/review/${token}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiAnalysis, recommendations, adminNotes }),
       });
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       setData(prev => prev ? { ...prev, report: d.report } : prev);
-      toast({ title: "Gönderildi!", description: `Rapor ${data?.assessment.email} adresine iletildi.` });
+      toast({ title: "Gönderildi!", description: `Rapor ${data?.assessment.email} adresine PDF eki ile iletildi.` });
     } catch (e: any) {
       toast({ title: "Hata", description: e.message, variant: "destructive" });
     } finally {

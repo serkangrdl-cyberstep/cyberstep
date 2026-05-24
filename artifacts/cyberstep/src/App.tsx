@@ -9,6 +9,9 @@ import AssessmentStart from "./pages/assessment-start";
 import AssessmentRunner from "./pages/assessment-runner";
 import AssessmentReport from "./pages/assessment-report";
 import Dashboard from "./pages/dashboard";
+import Pricing from "./pages/pricing";
+import FullAssessmentStart from "./pages/full-assessment-start";
+import FullAssessmentRunner from "./pages/full-assessment-runner";
 import { Layout } from "./components/layout";
 
 const queryClient = new QueryClient();
@@ -18,7 +21,10 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/fiyatlar" component={Pricing} />
         <Route path="/assessment/start" component={AssessmentStart} />
+        <Route path="/assessment/full/start" component={FullAssessmentStart} />
+        <Route path="/assessment/full/:id" component={FullAssessmentRunner} />
         <Route path="/assessment/:id" component={AssessmentRunner} />
         <Route path="/assessment/:id/report" component={AssessmentReport} />
         <Route path="/dashboard" component={Dashboard} />

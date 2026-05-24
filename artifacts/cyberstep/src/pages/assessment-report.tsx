@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AlertOctagon, ArrowRight, Lock, Clock, Mail, Phone, User, Building2,
+  AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
   CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert
 } from "lucide-react";
+import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { MINI_ASSESSMENT_SECTIONS } from "@/lib/constants";
 
@@ -91,31 +92,7 @@ export default function AssessmentReport() {
   const isPending = !reportData || ("status" in reportData);
 
   if (isLoading || isPending) {
-    return (
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
-        <div className="flex flex-col items-center justify-center text-center space-y-6 mb-12">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-            <div className="relative bg-primary/10 p-6 rounded-full">
-              <Lock className="h-12 w-12 text-primary animate-pulse" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold">Sonuçlarınız Hesaplanıyor...</h2>
-          <p className="text-muted-foreground max-w-md">
-            Cevaplarınız analiz ediliyor ve risk skorunuz hesaplanıyor. Bu işlem birkaç saniye sürebilir.
-          </p>
-        </div>
-        <div className="space-y-6">
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Skeleton className="h-32 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
-          </div>
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
-      </div>
-    );
+    return <ReportLoading />;
   }
 
   const report = reportData as any;

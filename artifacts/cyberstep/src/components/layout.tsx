@@ -13,6 +13,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-bold text-xl tracking-tight text-foreground">CyberStep.io</span>
           </Link>
           <nav className="flex items-center gap-6">
+            <Link
+              href="/fiyatlar"
+              className={`text-sm font-medium transition-colors hover:text-primary ${location === '/fiyatlar' ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              Fiyatlar
+            </Link>
             <Link 
               href="/dashboard" 
               className={`text-sm font-medium transition-colors hover:text-primary ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}

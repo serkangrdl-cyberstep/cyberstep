@@ -4,7 +4,7 @@ import { CheckCircle2, Loader2, Shield, BarChart2, Brain, FileText } from "lucid
 const STEPS = [
   { icon: Shield,    label: "Cevaplar doğrulandı",           detail: "20 soruya verilen yanıtlar işlendi",           delay: 0 },
   { icon: BarChart2, label: "Risk skoru hesaplanıyor",        detail: "Ağırlıklı puanlama modeli çalıştırılıyor",      delay: 1800 },
-  { icon: Brain,     label: "Yapay zeka analizi yapılıyor",   detail: "Gemini 2.5 Flash güvenlik zafiyetlerini analiz ediyor", delay: 4000 },
+  { icon: Brain,     label: "Yapay zeka analizi yapılıyor",   detail: "Yapay zeka güvenlik zafiyetlerini analiz ediyor",      delay: 4000 },
   { icon: FileText,  label: "Rapor hazırlanıyor",             detail: "Uzman değerlendirmesi kuyruğa alındı",         delay: 7000 },
 ];
 

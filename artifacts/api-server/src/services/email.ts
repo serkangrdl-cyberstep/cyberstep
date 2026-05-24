@@ -30,6 +30,13 @@ function getBaseUrl(): string {
   return "http://localhost:80";
 }
 
+const ANSWER_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  evet:        { label: "Evet",        color: "#166534", bg: "#dcfce7" },
+  kismen:      { label: "Kısmen",      color: "#854d0e", bg: "#fef9c3" },
+  bilmiyorum:  { label: "Bilmiyorum",  color: "#1e40af", bg: "#dbeafe" },
+  hayir:       { label: "Hayır",       color: "#991b1b", bg: "#fee2e2" },
+};
+
 export async function sendAdminNotificationEmail(params: {
   assessmentId: number;
   companyName: string;
@@ -41,6 +48,8 @@ export async function sendAdminNotificationEmail(params: {
   scorePercent: number;
   redAlarmCount: number;
   reviewToken: string;
+  aiAnalysis: string;
+  answers: Array<{ questionNumber: number; answer: string; text: string; domain: string; isRedAlarm: boolean }>;
 }): Promise<void> {
   const transport = getTransport();
   if (!transport) return;
@@ -48,19 +57,52 @@ export async function sendAdminNotificationEmail(params: {
   const reviewUrl = `${getBaseUrl()}/admin/review/${params.reviewToken}`;
   const riskColor = params.riskLevel === "Kritik" ? "#dc2626" : params.riskLevel === "Yüksek" ? "#ea580c" : params.riskLevel === "Orta" ? "#d97706" : "#16a34a";
 
+  // Group answers by domain
+  const domainGroups: Record<string, typeof params.answers> = {};
+  for (const a of params.answers) {
+    if (!domainGroups[a.domain]) domainGroups[a.domain] = [];
+    domainGroups[a.domain].push(a);
+  }
+
+  const answersHtml = Object.entries(domainGroups).map(([domain, qs]) => {
+    const rows = qs.map((q) => {
+      const badge = ANSWER_LABELS[q.answer] ?? { label: q.answer, color: "#334155", bg: "#f1f5f9" };
+      const alarmBadge = q.isRedAlarm && q.answer === "hayir"
+        ? `<span style="background:#fee2e2;color:#991b1b;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px">ALARM</span>`
+        : "";
+      return `<tr>
+        <td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;width:28px;text-align:center;font-weight:600;color:#94a3b8">${q.questionNumber}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155">${q.text}${alarmBadge}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;white-space:nowrap;text-align:right">
+          <span style="background:${badge.bg};color:${badge.color};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">${badge.label}</span>
+        </td>
+      </tr>`;
+    }).join("");
+    return `
+      <div style="margin-bottom:16px">
+        <div style="background:#e2e8f0;padding:5px 10px;font-size:11px;font-weight:700;color:#475569;border-radius:4px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">${domain}</div>
+        <table style="width:100%;border-collapse:collapse">${rows}</table>
+      </div>`;
+  }).join("");
+
+  const cleanAiAnalysis = params.aiAnalysis
+    .replace(/^#{1,6}\s+/gm, "").replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
+
   const html = `
 <!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+  <div style="max-width:680px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
     <div style="background:#0f172a;padding:24px 32px">
       <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
       <span style="background:#1e293b;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:20px;margin-left:12px">Admin Bildirimi</span>
     </div>
     <div style="padding:32px">
-      <h2 style="margin:0 0 4px;font-size:20px;color:#0f172a">Yeni Değerlendirme Raporu Hazir</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;color:#0f172a">Yeni Değerlendirme Raporu Hazır</h2>
       <p style="margin:0 0 24px;color:#64748b;font-size:14px">AI analizi tamamlandı. Raporu inceleyip onaylamanız bekleniyor.</p>
+
+      <!-- Firma Bilgileri -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px">
         <table style="width:100%;border-collapse:collapse">
           <tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:140px">Firma</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">${params.companyName}</td></tr>
@@ -71,7 +113,18 @@ export async function sendAdminNotificationEmail(params: {
           <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Skor</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">%${params.scorePercent} · ${params.redAlarmCount} kırmızı alarm</td></tr>
         </table>
       </div>
-      <a href="${reviewUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">Raporu Incele ve Onayla</a>
+
+      <!-- Anket Cevapları -->
+      <h3 style="margin:0 0 12px;font-size:15px;color:#0f172a;border-bottom:2px solid #10b981;padding-bottom:8px">Anket Cevapları</h3>
+      ${answersHtml}
+
+      <!-- AI Analizi -->
+      <h3 style="margin:24px 0 12px;font-size:15px;color:#0f172a;border-bottom:2px solid #10b981;padding-bottom:8px">AI Analizi</h3>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:24px;font-size:13px;color:#334155;line-height:1.7">
+        ${cleanAiAnalysis.replace(/\n\n/g, "</p><p style='margin:8px 0 0;font-size:13px;color:#334155;line-height:1.7'>").replace(/\n/g, "<br>")}
+      </div>
+
+      <a href="${reviewUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">Raporu İncele ve Onayla</a>
       <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">Veya bu linki kopyalayın: <span style="color:#64748b">${reviewUrl}</span></p>
     </div>
     <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">

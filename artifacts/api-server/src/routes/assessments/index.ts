@@ -329,6 +329,18 @@ JSON şablonu:
       });
     }
 
+    // Build enriched answers with question text for the admin email
+    const enrichedAnswers = answers.map((a) => {
+      const q = questionMap.get(a.questionNumber);
+      return {
+        questionNumber: a.questionNumber,
+        answer: a.answer,
+        text: q?.text ?? `Soru ${a.questionNumber}`,
+        domain: q?.domain ?? "",
+        isRedAlarm: q?.isRedAlarm ?? false,
+      };
+    });
+
     // Notify admin
     await sendAdminNotificationEmail({
       assessmentId,
@@ -341,6 +353,8 @@ JSON şablonu:
       scorePercent: scoring.scorePercent,
       redAlarmCount: scoring.redAlarmCount,
       reviewToken,
+      aiAnalysis,
+      answers: enrichedAnswers,
     });
   } catch (err) {
     logger.error({ err, assessmentId }, "Failed to generate AI report");
@@ -377,6 +391,17 @@ JSON şablonu:
         scorePercent: scoring.scorePercent,
         redAlarmCount: scoring.redAlarmCount,
         reviewToken,
+        aiAnalysis: "AI analizi oluşturulamadı.",
+        answers: answers.map((a) => {
+          const q = new Map(MINI_QUESTIONS.map((q) => [q.number, q])).get(a.questionNumber);
+          return {
+            questionNumber: a.questionNumber,
+            answer: a.answer,
+            text: q?.text ?? `Soru ${a.questionNumber}`,
+            domain: q?.domain ?? "",
+            isRedAlarm: q?.isRedAlarm ?? false,
+          };
+        }),
       }).catch(() => {});
     }
   }

@@ -4,32 +4,33 @@ export const MINI_QUESTIONS: Array<{
   weight: 1 | 2;
   isRedAlarm: boolean;
   domain: string;
+  text: string;
 }> = [
   // A. Firma ve Yönetişim
-  { number: 1, weight: 1, isRedAlarm: false, domain: "Firma ve Yönetişim" },
-  { number: 2, weight: 1, isRedAlarm: false, domain: "Firma ve Yönetişim" },
-  { number: 3, weight: 2, isRedAlarm: true, domain: "Firma ve Yönetişim" },
-  { number: 4, weight: 1, isRedAlarm: false, domain: "Firma ve Yönetişim" },
+  { number: 1,  weight: 1, isRedAlarm: false, domain: "Firma ve Yönetişim",        text: "Şirketinizde siber güvenlikten ana sorumlu bir kişi veya rol net olarak tanımlı mı?" },
+  { number: 2,  weight: 1, isRedAlarm: false, domain: "Firma ve Yönetişim",        text: "Kritik iş uygulamalarınızın ve temel sistemlerinizin listesi güncel olarak mevcut mu?" },
+  { number: 3,  weight: 2, isRedAlarm: true,  domain: "Firma ve Yönetişim",        text: "Yeni işe giren ve işten ayrılan çalışanlar için kullanıcı hesabı açma/kapama süreci tanımlı mı?" },
+  { number: 4,  weight: 1, isRedAlarm: false, domain: "Firma ve Yönetişim",        text: "Şirketinizde hassas bilgilerin hangi sistemlerde tutulduğu güncel bir envanterle takip ediliyor mu?" },
   // B. Kimlik, Erişim ve Uzak Erişim
-  { number: 5, weight: 2, isRedAlarm: true, domain: "Kimlik ve Erişim" },
-  { number: 6, weight: 2, isRedAlarm: true, domain: "Kimlik ve Erişim" },
-  { number: 7, weight: 2, isRedAlarm: true, domain: "Kimlik ve Erişim" },
-  { number: 8, weight: 1, isRedAlarm: false, domain: "Kimlik ve Erişim" },
+  { number: 5,  weight: 2, isRedAlarm: true,  domain: "Kimlik ve Erişim",          text: "Çalışanlar e-posta ve iş uygulamalarına girerken MFA/2FA kullanıyor mu?" },
+  { number: 6,  weight: 2, isRedAlarm: true,  domain: "Kimlik ve Erişim",          text: "Uzak erişim, VPN, yönetici yetkili hesaplarda ek doğrulama zorunlu mu?" },
+  { number: 7,  weight: 2, isRedAlarm: true,  domain: "Kimlik ve Erişim",          text: "İşten ayrılan çalışanların sistem erişimleri aynı gün kaldırılıyor mu?" },
+  { number: 8,  weight: 1, isRedAlarm: false, domain: "Kimlik ve Erişim",          text: "Aynı kullanıcı hesabının birden fazla kişi tarafından kullanımı engelleniyor mu?" },
   // C. E-posta ve Kullanıcı Kaynaklı Riskler
-  { number: 9, weight: 1, isRedAlarm: false, domain: "E-posta ve İnsan Faktörü" },
-  { number: 10, weight: 1, isRedAlarm: false, domain: "E-posta ve İnsan Faktörü" },
-  { number: 11, weight: 2, isRedAlarm: true, domain: "E-posta ve İnsan Faktörü" },
-  { number: 12, weight: 2, isRedAlarm: true, domain: "E-posta ve İnsan Faktörü" },
+  { number: 9,  weight: 1, isRedAlarm: false, domain: "E-posta ve İnsan Faktörü",  text: "Çalışanlara şüpheli e-posta ve parola hırsızlığı riskleri hakkında farkındalık eğitimi veriliyor mu?" },
+  { number: 10, weight: 1, isRedAlarm: false, domain: "E-posta ve İnsan Faktörü",  text: "Şüpheli e-posta geldiğinde çalışanların bunu kime bildireceği biliniyor mu?" },
+  { number: 11, weight: 2, isRedAlarm: true,  domain: "E-posta ve İnsan Faktörü",  text: "IBAN değişikliği veya acil para transferi gibi durumlarda e-posta dışında ikinci doğrulama uygulanıyor mu?" },
+  { number: 12, weight: 2, isRedAlarm: true,  domain: "E-posta ve İnsan Faktörü",  text: "E-posta alan adınız üzerinden sahte mail gönderilmesini engelleyecek (SPF, DKIM, DMARC) yapılandırmalar devrede mi?" },
   // D. Cihaz ve Uç Nokta Güvenliği
-  { number: 13, weight: 1, isRedAlarm: false, domain: "Cihaz Güvenliği" },
-  { number: 14, weight: 2, isRedAlarm: true, domain: "Cihaz Güvenliği" },
-  { number: 15, weight: 1, isRedAlarm: false, domain: "Cihaz Güvenliği" },
-  { number: 16, weight: 1, isRedAlarm: false, domain: "Cihaz Güvenliği" },
+  { number: 13, weight: 1, isRedAlarm: false, domain: "Cihaz Güvenliği",           text: "Şirkette kullanılan bilgisayarların güncel bir listesi tutuluyor mu?" },
+  { number: 14, weight: 2, isRedAlarm: true,  domain: "Cihaz Güvenliği",           text: "Çalışan bilgisayarlarında zararlı yazılımlara karşı merkezi bir güvenlik çözümü bulunuyor mu?" },
+  { number: 15, weight: 1, isRedAlarm: false, domain: "Cihaz Güvenliği",           text: "Bilgisayarlar ve iş uygulamaları düzenli olarak güncelleniyor mu?" },
+  { number: 16, weight: 1, isRedAlarm: false, domain: "Cihaz Güvenliği",           text: "Dizüstü veya mobil cihazlarda ekran kilidi ve güçlü parola uygulanıyor mu?" },
   // E. Veri Koruma, Yedekleme ve Olay Hazırlığı
-  { number: 17, weight: 2, isRedAlarm: true, domain: "Veri Koruma ve Yedekleme" },
-  { number: 18, weight: 2, isRedAlarm: true, domain: "Veri Koruma ve Yedekleme" },
-  { number: 19, weight: 1, isRedAlarm: false, domain: "Veri Koruma ve Yedekleme" },
-  { number: 20, weight: 1, isRedAlarm: false, domain: "Veri Koruma ve Yedekleme" },
+  { number: 17, weight: 2, isRedAlarm: true,  domain: "Veri Koruma ve Yedekleme",  text: "Kritik verileriniz düzenli olarak (tercihen otomatik) yedekleniyor mu?" },
+  { number: 18, weight: 2, isRedAlarm: true,  domain: "Veri Koruma ve Yedekleme",  text: "Alınan yedeklerin geri yüklenip çalışabildiği son 12 ayda test edildi mi?" },
+  { number: 19, weight: 1, isRedAlarm: false, domain: "Veri Koruma ve Yedekleme",  text: "Bir siber olay yaşanırsa ilk kimin devreye gireceği ve ne yapılacağı yazılı olarak belli mi?" },
+  { number: 20, weight: 1, isRedAlarm: false, domain: "Veri Koruma ve Yedekleme",  text: "Hassas dosyalara kimlerin erişebildiği düzenli olarak kontrol ediliyor mu?" },
 ];
 
 export const ANSWER_SCORES: Record<string, number> = {

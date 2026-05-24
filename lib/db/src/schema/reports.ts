@@ -15,6 +15,10 @@ export const reportsTable = pgTable("reports", {
   aiAnalysis: text("ai_analysis").notNull().default(""),
   recommendations: jsonb("recommendations").$type<string[]>().notNull().default([]),
   domainScores: jsonb("domain_scores").$type<Array<{domain: string; score: number; maxScore: number; percent: number}>>().notNull().default([]),
+  reviewToken: text("review_token"),
+  adminNotes: text("admin_notes"),
+  reviewStatus: text("review_status").notNull().default("pending_review"),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

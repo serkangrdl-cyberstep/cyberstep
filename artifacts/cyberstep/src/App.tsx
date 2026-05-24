@@ -12,6 +12,7 @@ import Dashboard from "./pages/dashboard";
 import Pricing from "./pages/pricing";
 import FullAssessmentStart from "./pages/full-assessment-start";
 import FullAssessmentRunner from "./pages/full-assessment-runner";
+import AdminReview from "./pages/admin-review";
 import { Layout } from "./components/layout";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ function Router() {
         <Route path="/assessment/full/:id" component={FullAssessmentRunner} />
         <Route path="/assessment/:id" component={AssessmentRunner} />
         <Route path="/assessment/:id/report" component={AssessmentReport} />
+        <Route path="/admin/review/:token" component={AdminReview} />
         <Route path="/dashboard" component={Dashboard} />
         <Route component={NotFound} />
       </Switch>

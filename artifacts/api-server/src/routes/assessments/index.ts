@@ -17,6 +17,7 @@ import { eq, desc, sql, count, avg } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { calculateScore, MINI_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
+import { sendAdminNotificationEmail } from "../../services/email";
 
 const router = Router();
 
@@ -292,10 +293,12 @@ Lütfen şu formatta JSON yanıt ver (başka hiçbir şey yazma, sadece JSON):
       .from(reportsTable)
       .where(eq(reportsTable.assessmentId, assessmentId));
 
+    const reviewToken = crypto.randomUUID();
+
     if (existingReport) {
       await db
         .update(reportsTable)
-        .set({ aiAnalysis, recommendations })
+        .set({ aiAnalysis, recommendations, reviewToken, reviewStatus: "pending_review" })
         .where(eq(reportsTable.assessmentId, assessmentId));
     } else {
       await db.insert(reportsTable).values({
@@ -309,8 +312,24 @@ Lütfen şu formatta JSON yanıt ver (başka hiçbir şey yazma, sadece JSON):
         aiAnalysis,
         recommendations,
         domainScores: scoring.domainScores,
+        reviewToken,
+        reviewStatus: "pending_review",
       });
     }
+
+    // Notify admin
+    await sendAdminNotificationEmail({
+      assessmentId,
+      companyName: assessment.companyName,
+      contactName: assessment.contactName,
+      customerEmail: assessment.email,
+      sector: assessment.sector,
+      employeeCount: assessment.employeeCount,
+      riskLevel: scoring.riskLevel,
+      scorePercent: scoring.scorePercent,
+      redAlarmCount: scoring.redAlarmCount,
+      reviewToken,
+    });
   } catch (err) {
     logger.error({ err, assessmentId }, "Failed to generate AI report");
     const [existingReport] = await db
@@ -318,6 +337,7 @@ Lütfen şu formatta JSON yanıt ver (başka hiçbir şey yazma, sadece JSON):
       .from(reportsTable)
       .where(eq(reportsTable.assessmentId, assessmentId));
 
+    const reviewToken = crypto.randomUUID();
     if (!existingReport) {
       await db.insert(reportsTable).values({
         assessmentId,
@@ -330,7 +350,22 @@ Lütfen şu formatta JSON yanıt ver (başka hiçbir şey yazma, sadece JSON):
         aiAnalysis: "AI analizi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
         recommendations: [],
         domainScores: scoring.domainScores,
+        reviewToken,
+        reviewStatus: "pending_review",
       });
+
+      await sendAdminNotificationEmail({
+        assessmentId,
+        companyName: assessment.companyName,
+        contactName: assessment.contactName,
+        customerEmail: assessment.email,
+        sector: assessment.sector,
+        employeeCount: assessment.employeeCount,
+        riskLevel: scoring.riskLevel,
+        scorePercent: scoring.scorePercent,
+        redAlarmCount: scoring.redAlarmCount,
+        reviewToken,
+      }).catch(() => {});
     }
   }
 }

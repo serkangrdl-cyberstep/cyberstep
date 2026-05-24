@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CyberStep.io"
+version = "1.0.0"
+id = "artifacts/cyberstep"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24710
+
+[services.development]
+run = "pnpm --filter @workspace/cyberstep run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cyberstep", "run", "build" ]
+publicDir = "artifacts/cyberstep/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24710"
+BASE_PATH = "/"

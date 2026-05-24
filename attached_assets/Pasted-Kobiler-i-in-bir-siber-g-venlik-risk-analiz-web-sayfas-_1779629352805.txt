@@ -1,0 +1,102 @@
+Kobiler için bir siber güvenlik risk analiz web sayfası yapmak istiyorum. Web sitesi ve uygulamanın adını cyberstep.io düşünüyorum. Domain boşta.ilk 20 soruluk test ücretsiz olacak. Müşteri girip bilgilerini doldurup 20 soruluk ücretsiz testi dolduracak. Test arka planda otomatik test sonuçlarını bir prompt ile Gemini ve chatgot AI ile paylaşıp değerlendirmesini isteyecek. Gelen cevaplar Replit tarafından konsolide edilip, bir rapor haline getirilip, bana onaya gönderilecek. Ben raporu değerlendirdikten sonra, ilgili düzeltme taleplerimi ekleyeceğim. Replit bunu düzeltip, düzgün bir PDF formatında müşteriye gönderilecek. Ücretli 2. Aşamada 55 soruluk yeni bir assesment gönderilecek. Bunun sonuçları da aynı şekilde değerlendirilip, müşterinin siber güvenlik risk skoru ve iyileştirme önerileri sunulacak. 3. Aşama müşteriye özel isterse iyileştirme çalışmaları için teklif çalışılacak veya kendi çalıştığı entegratör teklifinin değerlendirilmesi olacak. Projeyi değerlendir, sorular sorarak önerilerde bulun.Önce Türkiye sonra global hedef
+
+Sorular bu şekilde olacak.
+
+​MİNİ ASSESSMENT (NİHAİ 20 SORU)
+​Puanlama: Evet=5, Kısmen=3, Bilmiyorum=1, Hayır=0
+Ağırlık: Normal=1, Kritik=2 (Maksimum 140 Puan)
+Kırmızı Alarmlar: 3, 5, 6, 7, 11, 12, 14, 17, 18
+​A. Firma ve Yönetişim
+​Şirketinizde siber güvenlikten ana sorumlu bir kişi veya rol net olarak tanımlı mı? [Normal]
+​Kritik iş uygulamalarınızın ve temel sistemlerinizin listesi güncel olarak mevcut mu? [Normal]
+​Yeni işe giren ve işten ayrılan çalışanlar için kullanıcı hesabı açma/kapama süreci tanımlı mı? [Kritik]
+​Şirketinizde müşteri, personel veya finansal veri gibi hassas bilgilerin hangi sistemlerde tutulduğu güncel bir envanterle takip ediliyor mu? [Normal]
+​B. Kimlik, Erişim ve Uzak Erişim
+5) Çalışanlar e-posta ve iş uygulamalarına giriş yaparken, parola dışında ek bir doğrulama adımı (MFA/2FA) kullanıyor mu? [Kritik]
+6) Uzak erişim, VPN, yönetici yetkili hesaplar veya kritik sistem erişimlerinde ek doğrulama zorunlu mu? [Kritik]
+7) İşten ayrılan çalışanların sistem ve uygulama erişimleri aynı gün veya çok kısa sürede (derhal) kaldırılıyor mu? [Kritik]
+8) Aynı kullanıcı hesabının birden fazla kişi tarafından ortak kullanılması engelleniyor veya çok sınırlı tutuluyor mu? [Normal]
+​C. E-posta ve Kullanıcı Kaynaklı Riskler
+9) Çalışanlara şüpheli e-postalar, sahte linkler ve parola hırsızlığı gibi riskler hakkında temel farkındalık eğitimi düzenli veriliyor mu? [Normal]
+10) Şüpheli bir e-posta geldiğinde çalışanların bunu kime bildireceği net bir prosedürle biliniyor mu? [Normal]
+11) IBAN değişikliği, ödeme talebi veya acil para transferi gibi durumlarda e-posta dışında ikinci bir doğrulama (telefon vb.) uygulanıyor mu? [Kritik]
+12) E-posta alan adınız üzerinden sahte mail gönderilmesini engelleyecek (SPF, DKIM, DMARC vb.) güvenlik yapılandırmaları devrede mi? [Kritik]
+​D. Cihaz ve Uç Nokta Güvenliği
+13) Şirkette kullanılan bilgisayarların ve kritik cihazların güncel bir listesi (envanteri) tutuluyor mu? [Normal]
+14) Çalışan bilgisayarlarında zararlı yazılımlara (fidye yazılımı vb.) karşı koruma sağlayan merkezi bir güvenlik çözümü bulunuyor mu? [Kritik]
+15) Bilgisayarlar ve temel iş uygulamaları düzenli olarak güncelleniyor (yama yönetimi) mu? [Normal]
+16) Şirket verisine erişen dizüstü veya mobil cihazlarda ekran kilidi, güçlü parola ve mümkünse cihaz şifreleme önlemleri uygulanıyor mu? [Normal]
+​E. Veri Koruma, Yedekleme ve Olay Hazırlığı
+17) Kritik verileriniz, dosyalarınız ve sistemleriniz düzenli olarak (tercihen otomatik) yedekleniyor mu? [Kritik]
+18) Alınan yedeklerin gerçekten geri yüklenip çalışabildiği son 12 ay içinde en az bir kez test edildi mi? [Kritik]
+19) Bir siber olay yaşanırsa (hesap ele geçirilmesi, veri sızıntısı vb.) ilk kimin devreye gireceği ve ne yapılacağı yazılı olarak belli mi? [Normal]
+20) Hassas dosyalara ortak alanlarda kimlerin erişebildiği ve kimlerle paylaşıldığı düzenli olarak kontrol ediliyor mu? [Normal]
+​FULL ASSESSMENT (NİHAİ 55 SORU / 10 DOMAIN)
+​Puanlama: Evet=5, Kısmen=3, Bilmiyorum=1, Hayır=0
+Ağırlık: Normal=1, Yüksek=2, Kritik=3
+Kırmızı Alarmlar: 8, 10, 12, 13, 14, 16, 19, 20, 21, 23, 27, 29, 30, 31, 39, 41, 42, 45, 50.
+​DOMAIN 1 — Firma Profili ve Risk Bağlamı
+​Kritik iş süreçlerinizi destekleyen temel uygulama ve sistemlerin listesi mevcut mu? [2]
+​Şirketinizde müşteri verisi, kişisel veri, finansal veri veya ticari sır niteliğinde hassas bilgi işlendiği biliniyor mu? [2]
+​Hangi ekiplerin veya kişilerin hangi kritik sistemleri kullandığı genel olarak biliniyor mu? [1]
+​Sistemlerinizde yaşanabilecek olası bir güvenlik olayını (hesap ele geçirilmesi, veri sızıntısı vb.) tespit edebilecek bir izleme veya uyarı mekanizmanız var mı? [2]
+​Regülasyonlardan veya müşterilerinizden gelen siber güvenlik beklentilerini (sözleşme şartları, KVKK uyumu vb.) düzenli olarak takip edip uyguluyor musunuz? [1]
+​DOMAIN 2 — Yönetişim ve Sorumluluk
+6) Şirketinizde siber güvenlikten ana sorumlu kişi veya rol net olarak tanımlı mı? [2]
+7) Bilgi güvenliği, veri koruma veya kullanıcı davranışıyla ilgili temel kurallar yazılı veya açık şekilde tanımlı mı? [2]
+8) Yeni işe başlayan, rol değiştiren ve işten ayrılan çalışanlar için erişim açma/kapama süreci tanımlı ve işletiliyor mu? [3]
+9) Kritik sistemler ve uygulamalar için içeride bir sahiplik (sorumlu yönetici) belirlenmiş mi? [2]
+10) Yöneticiler veya iş birimi sahipleri, belirli aralıklarla güvenlik veya risk durumu hakkında özet bilgi alıyor mu? [3]
+​DOMAIN 3 — Kimlik ve Erişim Güvenliği
+11) Çalışanlar e-posta ve temel iş uygulamalarına girişte parola dışında ek doğrulama adımı kullanıyor mu? [2]
+12) Yönetici yetkili hesaplarda ek doğrulama uygulanıyor mu? [3]
+13) Uzak erişim veya VPN erişimlerinde ek doğrulama var mı? [3]
+14) İşten ayrılan çalışanların erişimleri aynı gün veya çok kısa sürede kaldırılıyor mu? [3]
+15) Aynı kullanıcı hesabının birden fazla kişi tarafından ortak kullanımı engelleniyor veya çok sınırlı mı? [2]
+16) Yönetici yetkisine sahip hesaplar ayrı kontrol ediliyor ve gereksiz yönetici yetkileri azaltılıyor mu? [3]
+​DOMAIN 4 — E-posta ve İnsan Faktörü
+17) Çalışanlara şüpheli e-posta, sahte bağlantı ve parola hırsızlığı gibi riskler hakkında temel farkındalık eğitimi veriliyor mu? [2]
+18) Şüpheli e-posta veya mesaj geldiğinde çalışanların bunu kime bildireceği genel olarak biliniyor mu? [2]
+19) Finansal işlem, ödeme onayı veya IBAN değişikliği gibi durumlarda ikinci doğrulama (farklı kanal üzerinden) yapılıyor mu? [3]
+20) Yönetici taklidi, sahte ödeme talebi veya tedarikçi sahtekarlığı gibi senaryolar için kontrol mekanizması var mı? [3]
+21) E-posta alan adınız üzerinden sahte mail gönderilmesini önleyecek SPF, DKIM ve DMARC gibi güvenlik yapılandırmaları devrede mi? [3]
+​DOMAIN 5 — Cihaz / Uç Nokta Güvenliği
+22) Şirkette kullanılan bilgisayarların ve kritik cihazların güncel bir listesi tutuluyor mu? [2]
+23) Kurumsal bilgisayarların büyük bölümünde zararlı yazılım veya tehdit koruması sağlayan bir güvenlik çözümü bulunuyor mu? [3]
+24) Dizüstü bilgisayarlar ve kritik cihazlar düzenli olarak güncelleniyor mu? [2]
+25) Destek süresi bitmiş (ömrünü tamamlamış) veya kontrol dışı ağa bağlanan cihazlar tespit edilip izole ediliyor mu? [3]
+26) Kullanıcıların cihazlarında yerel yönetici yetkisi sınırlandırılmış mı? [2]
+27) Şirket verisine erişen dizüstü cihazlarda en azından temel cihaz koruma önlemleri (ekran kilidi, şifreleme) uygulanıyor mu? [3]
+​DOMAIN 6 — Ağ ve Uzak Bağlantı Güvenliği
+28) İnternet çıkışı ve temel ağ erişimi güvenlik cihazları veya güvenlik kurallarıyla korunuyor mu? [2]
+29) Şirket içinde kritik sistemlere erişim belirli kurallar ve ayrımlar ile sınırlandırılıyor mu? [3]
+30) Misafir ağları, çalışan ağları veya kritik sistemler arasında temel ayrıştırma (segmentasyon) bulunuyor mu? [3]
+31) İnternete açık kritik sistemler veya yönetim arayüzleri kontrol altında ve minimum seviyede tutuluyor mu? [3]
+32) Ağ güvenliği veya internet erişim kuralları ihtiyaç oldukça gözden geçiriliyor mu? [1]
+​DOMAIN 7 — Veri Koruma ve Paylaşım Güvenliği
+33) Hangi verilerin hassas, kişisel, finansal veya kritik olduğu genel olarak tanımlanmış mı? [2]
+34) Hassas dosya ve verilerin kimlerle paylaşıldığı ve kimlerin erişebildiği genel olarak kontrol altında mı? [2]
+35) Ortak klasör, paylaşım alanı veya ağ dosya yapılarında gereğinden fazla erişim düzenli olarak azaltılıyor mu? [2]
+36) Kişisel verilere erişebilen roller ve kişiler tanımlı mı? [2]
+37) Kişisel veri veya hassas bilgi barındıran süreçlerde gereğinden fazla veri işleme ve paylaşımı sınırlandırılıyor mu? [1]
+38) Saklama süresi, paylaşım, erişim ve gizlilik konularında idari kurallar uygulanıyor mu? [2]
+​DOMAIN 8 — Yedekleme ve Kurtarma
+39) Kritik veriler ve sistemler düzenli olarak yedekleniyor mu? [3]
+40) Yedekler ana ortamdan bağımsız (örneğin çevrimdışı veya farklı lokasyonda) korunuyor mu? [2]
+41) Alınan yedeklerin gerçekten geri yüklendiği son 12 ay içinde en az bir kez test edildi mi? [3]
+42) Veri kaybı veya fidye yazılımı durumunda hangi sistemlerin önce geri döndürülmesi gerektiği (önceliklendirme) biliniyor mu? [3]
+43) Veri saklama süresi dolan veya gereksiz hale gelen veriler için güvenli silme / imha yaklaşımı bulunuyor mu? [2]
+​DOMAIN 9 — Bulut / SaaS ve Üçüncü Taraflar
+44) Kullanılan temel bulut uygulamaları ve SaaS servisleri envanter olarak biliniyor mu? [1]
+45) Kritik bulut uygulamalarında kullanıcı erişimi ve yönetici erişimi güvenli şekilde yönetiliyor mu? [3]
+46) Bulut ortamlarındaki dosya paylaşım linkleri, "herkese açık" yerine yalnızca yetkili kişilerin erişebileceği şekilde sınırlandırılmış mı? [2]
+47) Dış tedarikçi veya üçüncü tarafların bulut uygulamalarına olan erişimleri düzenli olarak gözden geçiriliyor mu? [2]
+48) Dış hizmet sağlayıcılarla veri güvenliği veya gizlilik beklentileri sözleşmesel olarak güvence altına alınmış mı? [2]
+49) Dış IT firması veya teknik partner ile güvenlik sorumlulukları yazılı veya net şekilde tanımlanmış mı? [2]
+​DOMAIN 10 — Olay Müdahalesi, Süreklilik ve KVKK İdari Tedbirler
+50) Bir güvenlik olayı yaşandığında ilk kimin devreye gireceği ve temel ilk adımların ne olacağı biliniyor mu? [2]
+51) Hesap ele geçirilmesi, zararlı yazılım veya veri sızıntısı gibi olaylar için özel müdahale senaryolarınız var mı? [2]
+52) Kritik iş süreçlerinin kabul edilebilir duruş süresi biliniyor mu? [2]
+53) Çalışanlara kişisel veri, gizlilik ve veri paylaşımı konusunda bilgilendirme/farkındalık sağlanıyor mu? [2]
+54) Sistemlerdeki kritik kullanıcı işlem kayıtları (loglar), yetkisiz silinme veya değiştirilmeye karşı güvenli bir alanda tutuluyor mu? [2]
+55) Mevcut log, erişim kaydı veya temel iz kayıtlarının şüpheli bir durumda geriye dönük incelenebilir olduğuna dair güveniniz tam mı? [2]

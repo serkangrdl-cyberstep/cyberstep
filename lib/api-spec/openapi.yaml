@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CyberStep.io - KOBİ Siber Güvenlik Risk Analizi API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: assessments
+    description: Siber güvenlik değerlendirme işlemleri
+  - name: reports
+    description: Rapor işlemleri
+  - name: gemini
+    description: Gemini AI chat and image operations
 paths:
   /healthz:
     get:
@@ -24,6 +30,306 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /assessments:
+    post:
+      operationId: createAssessment
+      tags: [assessments]
+      summary: Yeni değerlendirme başlat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssessmentInput"
+      responses:
+        "201":
+          description: Oluşturulan değerlendirme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        "400":
+          description: Geçersiz istek
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}:
+    get:
+      operationId: getAssessment
+      tags: [assessments]
+      summary: Değerlendirme detayını getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Değerlendirme detayı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentWithAnswers"
+        "404":
+          description: Bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}/answers:
+    post:
+      operationId: submitAnswers
+      tags: [assessments]
+      summary: Cevapları kaydet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswersInput"
+      responses:
+        "200":
+          description: Cevaplar kaydedildi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        "400":
+          description: Geçersiz istek
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}/complete:
+    post:
+      operationId: completeAssessment
+      tags: [assessments]
+      summary: Değerlendirmeyi tamamla ve rapor oluştur
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Değerlendirme tamamlandı, rapor oluşturuluyor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        "400":
+          description: Geçersiz istek
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}/report:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Değerlendirme raporunu getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rapor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "202":
+          description: Rapor henüz hazırlanıyor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportPending"
+        "404":
+          description: Bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/stats/summary:
+    get:
+      operationId: getStatsSummary
+      tags: [assessments]
+      summary: İstatistik özeti
+      responses:
+        "200":
+          description: İstatistikler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsSummary"
+
+  /gemini/conversations:
+    get:
+      operationId: listGeminiConversations
+      tags: [gemini]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeminiConversation"
+    post:
+      operationId: createGeminiConversation
+      tags: [gemini]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeminiConversationInput"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiConversation"
+
+  /gemini/conversations/{id}:
+    get:
+      operationId: getGeminiConversation
+      tags: [gemini]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiError"
+    delete:
+      operationId: deleteGeminiConversation
+      tags: [gemini]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiError"
+
+  /gemini/conversations/{id}/messages:
+    get:
+      operationId: listGeminiMessages
+      tags: [gemini]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeminiMessage"
+    post:
+      operationId: sendGeminiMessage
+      tags: [gemini]
+      summary: Send a message and receive an AI response (SSE stream)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeminiMessageInput"
+      responses:
+        "200":
+          description: SSE stream of assistant response chunks
+          content:
+            text/event-stream: {}
+
+  /gemini/generate-image:
+    post:
+      operationId: generateGeminiImage
+      tags: [gemini]
+      summary: Generate an image from a text prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeminiImageInput"
+      responses:
+        "200":
+          description: Generated image data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiImageOutput"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +340,385 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    AssessmentInput:
+      type: object
+      properties:
+        companyName:
+          type: string
+        contactName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        sector:
+          type: string
+        employeeCount:
+          type: string
+        assessmentType:
+          type: string
+          enum: [mini, full]
+      required:
+        - companyName
+        - contactName
+        - email
+        - sector
+        - employeeCount
+        - assessmentType
+
+    Assessment:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        contactName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        sector:
+          type: string
+        employeeCount:
+          type: string
+        assessmentType:
+          type: string
+        status:
+          type: string
+          enum: [in_progress, completed, report_ready]
+        totalScore:
+          type: ["integer", "null"]
+        maxScore:
+          type: ["integer", "null"]
+        riskLevel:
+          type: ["string", "null"]
+        redAlarmCount:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - companyName
+        - contactName
+        - email
+        - sector
+        - employeeCount
+        - assessmentType
+        - status
+        - createdAt
+
+    AssessmentAnswer:
+      type: object
+      properties:
+        id:
+          type: integer
+        assessmentId:
+          type: integer
+        questionNumber:
+          type: integer
+        answer:
+          type: string
+          enum: [evet, kismen, bilmiyorum, hayir]
+        score:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assessmentId
+        - questionNumber
+        - answer
+        - score
+        - createdAt
+
+    AssessmentWithAnswers:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        contactName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        sector:
+          type: string
+        employeeCount:
+          type: string
+        assessmentType:
+          type: string
+        status:
+          type: string
+        totalScore:
+          type: ["integer", "null"]
+        maxScore:
+          type: ["integer", "null"]
+        riskLevel:
+          type: ["string", "null"]
+        redAlarmCount:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: ["string", "null"]
+          format: date-time
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentAnswer"
+      required:
+        - id
+        - companyName
+        - contactName
+        - email
+        - sector
+        - employeeCount
+        - assessmentType
+        - status
+        - createdAt
+        - answers
+
+    SingleAnswer:
+      type: object
+      properties:
+        questionNumber:
+          type: integer
+        answer:
+          type: string
+          enum: [evet, kismen, bilmiyorum, hayir]
+      required:
+        - questionNumber
+        - answer
+
+    AnswersInput:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/SingleAnswer"
+      required:
+        - answers
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        assessmentId:
+          type: integer
+        totalScore:
+          type: integer
+        maxScore:
+          type: integer
+        scorePercent:
+          type: number
+        riskLevel:
+          type: string
+        redAlarmCount:
+          type: integer
+        redAlarmQuestions:
+          type: array
+          items:
+            type: integer
+        aiAnalysis:
+          type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        domainScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainScore"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assessmentId
+        - totalScore
+        - maxScore
+        - scorePercent
+        - riskLevel
+        - redAlarmCount
+        - redAlarmQuestions
+        - aiAnalysis
+        - recommendations
+        - domainScores
+        - createdAt
+
+    ReportPending:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+      required:
+        - status
+        - message
+
+    DomainScore:
+      type: object
+      properties:
+        domain:
+          type: string
+        score:
+          type: integer
+        maxScore:
+          type: integer
+        percent:
+          type: number
+      required:
+        - domain
+        - score
+        - maxScore
+        - percent
+
+    StatsSummary:
+      type: object
+      properties:
+        totalAssessments:
+          type: integer
+        completedAssessments:
+          type: integer
+        averageScore:
+          type: number
+        riskDistribution:
+          type: object
+          properties:
+            kritik:
+              type: integer
+            yuksek:
+              type: integer
+            orta:
+              type: integer
+            dusuk:
+              type: integer
+          required:
+            - kritik
+            - yuksek
+            - orta
+            - dusuk
+        recentAssessments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Assessment"
+      required:
+        - totalAssessments
+        - completedAssessments
+        - averageScore
+        - riskDistribution
+        - recentAssessments
+
+    GeminiConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+    GeminiMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+    GeminiConversationInput:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+    GeminiMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+    GeminiConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeminiMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+    GeminiImageInput:
+      type: object
+      properties:
+        prompt:
+          type: string
+      required:
+        - prompt
+    GeminiImageOutput:
+      type: object
+      properties:
+        b64_json:
+          type: string
+        mimeType:
+          type: string
+      required:
+        - b64_json
+        - mimeType
+    GeminiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

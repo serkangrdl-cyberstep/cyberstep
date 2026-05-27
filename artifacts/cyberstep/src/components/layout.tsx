@@ -1,8 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { Shield } from "lucide-react";
+import { Footer } from "./footer";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+
+  const isAdminPanel = location.startsWith("/panel");
+
+  if (isAdminPanel) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
@@ -19,17 +26,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
             >
               Fiyatlar
             </Link>
-            <Link 
-              href="/dashboard" 
-              className={`text-sm font-medium transition-colors hover:text-primary ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}
+            <Link
+              href="/hakkimizda"
+              className={`text-sm font-medium transition-colors hover:text-primary ${location === '/hakkimizda' ? 'text-primary' : 'text-muted-foreground'}`}
             >
-              Dashboard
+              Hakkimizda
             </Link>
-            <Link 
-              href="/assessment/start" 
+            <Link
+              href="/iletisim"
+              className={`text-sm font-medium transition-colors hover:text-primary ${location === '/iletisim' ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              Iletisim
+            </Link>
+            <Link
+              href="/assessment/start"
               className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
             >
-              Ücretsiz Değerlendirme
+              Ucretsiz Degerlendirme
             </Link>
           </nav>
         </div>
@@ -37,6 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 flex flex-col">
         {children}
       </main>
+      <Footer />
     </div>
   );
 }

@@ -22,3 +22,4 @@ export * from "./messages";
 export * from "./assessments";
 export * from "./assessment_answers";
 export * from "./reports";
+export * from "./admin";

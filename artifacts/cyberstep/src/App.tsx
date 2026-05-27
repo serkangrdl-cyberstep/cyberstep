@@ -34,6 +34,7 @@ import AdminPartnerlar from "./pages/admin-panel/partnerlar";
 import AdminWhitelabel from "./pages/admin-panel/whitelabel";
 import AdminBlog from "./pages/admin-panel/blog";
 import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
+import AdminSpecialMessages from "./pages/admin-panel/special-messages";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
@@ -92,6 +93,7 @@ function Router() {
       <Route path="/panel/partnerlar" component={AdminPartnerlar} />
       <Route path="/panel/whitelabel" component={AdminWhitelabel} />
       <Route path="/panel/blog" component={AdminBlog} />
+      <Route path="/panel/ozel-gunler" component={AdminSpecialMessages} />
       <Route path="/panel/sosyal-medya" component={AdminSosyalMedya} />
       <Route path="/panel" component={AdminDashboard} />
 

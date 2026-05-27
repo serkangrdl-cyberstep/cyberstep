@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
-  BookOpen, Share2
+  BookOpen, Share2, CalendarHeart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { icon: FileText, label: "Değerlendirmeler", href: "/panel/degerlendiirmeler" },
   { icon: DollarSign, label: "Ödemeler", href: "/panel/odemeler" },
   { icon: BookOpen, label: "Blog", href: "/panel/blog" },
+  { icon: CalendarHeart, label: "Ozel Gun Mesajlari", href: "/panel/ozel-gunler" },
   { icon: Share2, label: "Sosyal Medya", href: "/panel/sosyal-medya" },
   { icon: Settings, label: "Site Ayarları", href: "/panel/ayarlar" },
   { icon: CreditCard, label: "Fiyatlandırma", href: "/panel/fiyatlar" },

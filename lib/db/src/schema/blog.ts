@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
 
 export const blogPostsTable = pgTable("blog_posts", {
   id: serial("id").primaryKey(),
@@ -38,6 +38,25 @@ export const socialMediaLinksTable = pgTable("social_media_links", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const specialDayMessagesTable = pgTable("special_day_messages", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  messageTr: text("message_tr").notNull(),
+  messageEn: text("message_en"),
+  imageBase64: text("image_base64"),
+  bgColor: text("bg_color").notNull().default("#0f172a"),
+  textColor: text("text_color").notNull().default("#ffffff"),
+  startAt: timestamp("start_at").notNull(),
+  endAt: timestamp("end_at").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  sendNewsletter: boolean("send_newsletter").notNull().default(false),
+  newsletterSent: boolean("newsletter_sent").notNull().default(false),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export type BlogPost = typeof blogPostsTable.$inferSelect;
 export type NewsletterSubscriber = typeof newsletterSubscribersTable.$inferSelect;
 export type SocialMediaLink = typeof socialMediaLinksTable.$inferSelect;
+export type SpecialDayMessage = typeof specialDayMessagesTable.$inferSelect;

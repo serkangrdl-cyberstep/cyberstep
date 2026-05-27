@@ -332,6 +332,69 @@ export async function sendCustomerReportEmail(params: {
   }
 }
 
+export async function sendSpecialDayEmail(params: {
+  message: {
+    id: number;
+    title: string;
+    messageTr: string;
+    messageEn: string | null;
+    imageBase64: string | null;
+    bgColor: string;
+    textColor: string;
+  };
+  subscribers: Array<{ email: string; unsubscribeToken: string }>;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+  const base = getBaseUrl();
+
+  const { message } = params;
+  const hasTurkish = !!message.messageTr;
+  const hasEnglish = !!message.messageEn;
+
+  const imgHtml = message.imageBase64
+    ? `<div style="text-align:center;margin-bottom:24px"><img src="${message.imageBase64}" alt="${message.title}" style="max-height:120px;max-width:200px;object-fit:contain;border-radius:8px"/></div>`
+    : "";
+
+  for (const sub of params.subscribers) {
+    const unsubUrl = `${base}/api/public/newsletter/unsubscribe/${sub.unsubscribeToken}`;
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:${message.bgColor};padding:28px 32px;text-align:center">
+      <span style="font-size:22px;font-weight:700;color:${message.textColor}">CyberStep.io</span>
+      <span style="background:rgba(255,255,255,0.15);color:${message.textColor};font-size:12px;padding:4px 10px;border-radius:20px;margin-left:12px;opacity:.9">Ozel Gun</span>
+    </div>
+    <div style="padding:32px;text-align:center">
+      ${imgHtml}
+      <h2 style="margin:0 0 16px;font-size:26px;color:#0f172a;line-height:1.3">${message.title}</h2>
+      ${hasTurkish ? `<p style="margin:0 0 12px;font-size:16px;color:#334155;line-height:1.7">${message.messageTr}</p>` : ""}
+      ${hasEnglish ? `<p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;padding-top:12px;border-top:1px solid #e2e8f0">${message.messageEn}</p>` : ""}
+    </div>
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+        CyberStep.io bültenine abonesiniz · You are subscribed to CyberStep.io newsletter.<br>
+        <a href="${unsubUrl}" style="color:#64748b">Abonelikten çık / Unsubscribe</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+    try {
+      await transport.sendMail({
+        from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+        to: sub.email,
+        subject: message.title,
+        html,
+      });
+    } catch (err) {
+      logger.error({ err, email: sub.email }, "Special day email send failed");
+    }
+  }
+}
+
 export async function sendNewsletterEmail(params: {
   post: {
     id: number;

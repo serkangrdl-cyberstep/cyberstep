@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SpecialDayBanner } from "@/components/special-day-banner";
 import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/language-context";
@@ -211,6 +212,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col flex-1">
+      <SpecialDayBanner />
       {/* Hero */}
       <section className="py-20 md:py-32 bg-secondary text-secondary-foreground relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />

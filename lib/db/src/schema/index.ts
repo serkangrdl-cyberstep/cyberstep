@@ -27,3 +27,4 @@ export * from "./customers";
 export * from "./services";
 export * from "./blog";
 export * from "./questions";
+export * from "./domain-scans";

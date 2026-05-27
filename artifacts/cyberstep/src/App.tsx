@@ -39,6 +39,7 @@ import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
 import VerifyPage from "./pages/verify";
+import DomainScan from "./pages/domain-scan";
 import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
@@ -121,6 +122,7 @@ function Router() {
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/admin/review/:token" component={AdminReview} />
             <Route path="/verify/:token" component={VerifyPage} />
+            <Route path="/domain-tarama" component={DomainScan} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

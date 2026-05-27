@@ -493,6 +493,29 @@ export default function AssessmentReport() {
         );
       })()}
 
+      {/* Alan Adı Tarama CTA */}
+      <Card className="shadow-sm mb-6 border-blue-200 bg-blue-50/40 dark:bg-blue-950/20 dark:border-blue-900">
+        <CardContent className="p-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="shrink-0 bg-blue-100 dark:bg-blue-900/40 p-3 rounded-xl">
+              <Shield className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm mb-1">Alan Adı Güvenlik Taraması</h3>
+              <p className="text-xs text-muted-foreground">
+                SPF, DMARC, DKIM ve SSL kayıtlarınızı otomatik kontrol edin. Hiçbir kurulum gerektirmez — sadece alan adınızı girin.
+              </p>
+            </div>
+            <a
+              href="/domain-tarama"
+              className="shrink-0 inline-flex items-center gap-1.5 text-xs text-blue-700 font-medium bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              Tara <ArrowRight className="h-3 w-3" />
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* CyberStep Verified Rozeti */}
       {report.verificationToken && (() => {
         const base = window.location.origin;

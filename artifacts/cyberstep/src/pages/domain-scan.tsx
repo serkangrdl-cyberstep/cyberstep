@@ -1,0 +1,376 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
+  Mail, Lock, Server, Loader2, ArrowRight, Info
+} from "lucide-react";
+
+interface ScanResult {
+  id: number;
+  domain: string;
+  email: string | null;
+  spfPass: boolean;
+  spfRecord: string | null;
+  dmarcPass: boolean;
+  dmarcRecord: string | null;
+  dkimPass: boolean;
+  dkimSelectors: string[];
+  mxPass: boolean;
+  mxRecords: Array<{ exchange: string; priority: number }>;
+  sslPass: boolean;
+  sslExpiry: string | null;
+  sslIssuer: string | null;
+  sslDaysUntilExpiry: number | null;
+  overallScore: number;
+  createdAt: string;
+}
+
+const CHECK_META = {
+  spf: {
+    icon: Mail,
+    label: "SPF Kaydı",
+    passText: "Sahte gönderici koruması aktif",
+    failText: "Sahte gönderici koruması yok",
+    passDesc: "Başka sunucuların alan adınız adına sahte mail göndermesi engelleniyor.",
+    failDesc: "Saldırganlar şirketiniz adına sahte fatura veya ödeme talebi maili gönderebilir. SPF kaydı eklemek hosting panelinizden birkaç dakika sürer.",
+    score: 20,
+  },
+  dmarc: {
+    icon: Shield,
+    label: "DMARC Politikası",
+    passText: "E-posta kimlik doğrulama politikası tanımlı",
+    failText: "E-posta kimlik doğrulama politikası yok",
+    passDesc: "Alıcı mail sunucularına sahte maillere nasıl davranacağı söyleniyor.",
+    failDesc: "SPF ve DKIM kayıtlarınız olsa bile DMARC olmadan tam koruma sağlanamaz. Phishing maillerini engellemenin en etkili yolu budur.",
+    score: 25,
+  },
+  dkim: {
+    icon: Lock,
+    label: "DKIM İmzası",
+    passText: "E-posta dijital imzası bulundu",
+    failText: "E-posta dijital imzası bulunamadı",
+    passDesc: "Gönderilen maillerinizin değiştirilmediği kriptografik imzayla kanıtlanıyor.",
+    failDesc: "DKIM olmadan mailinizin içeriği aktarım sırasında değiştirilebilir ve pek çok alıcı tarafından spam olarak işaretlenebilir.",
+    score: 20,
+  },
+  mx: {
+    icon: Server,
+    label: "MX Kayıtları",
+    passText: "Mail sunucu kayıtları mevcut",
+    failText: "Mail sunucu kaydı bulunamadı",
+    passDesc: "Alan adınız üzerinden mail alabilecek şekilde yapılandırılmış.",
+    failDesc: "Bu alan adına gönderilen mailler teslim edilemeyebilir. Doğrulama için domain sağlayıcınızı kontrol edin.",
+    score: 10,
+  },
+  ssl: {
+    icon: Globe,
+    label: "SSL/TLS Sertifikası",
+    passText: "Geçerli HTTPS sertifikası",
+    failText: "SSL sertifikası yok veya süresi dolmuş",
+    passDesc: "Web siteniz güvenli bağlantı ile erişilebilir durumda.",
+    failDesc: "HTTPS olmayan web siteleri tarayıcılar tarafından 'güvensiz' olarak işaretlenir ve ziyaretçiler veri çalmaya açık hale gelir.",
+    score: 25,
+  },
+};
+
+function ScoreColor(score: number) {
+  if (score >= 80) return { text: "text-green-600", bg: "bg-green-50 border-green-200", label: "İyi" };
+  if (score >= 60) return { text: "text-yellow-600", bg: "bg-yellow-50 border-yellow-200", label: "Orta" };
+  if (score >= 40) return { text: "text-orange-600", bg: "bg-orange-50 border-orange-200", label: "Zayıf" };
+  return { text: "text-red-600", bg: "bg-red-50 border-red-200", label: "Kritik" };
+}
+
+function CheckCard({
+  meta,
+  pass,
+  detail,
+}: {
+  meta: typeof CHECK_META.spf;
+  pass: boolean;
+  detail?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const Icon = meta.icon;
+  return (
+    <div className={`rounded-xl border p-4 ${pass ? "bg-green-50/50 border-green-200" : "bg-red-50/50 border-red-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${pass ? "bg-green-100" : "bg-red-100"}`}>
+          <Icon className={`h-4 w-4 ${pass ? "text-green-600" : "text-red-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="font-semibold text-sm">{meta.label}</span>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${pass ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+            >
+              {pass ? "Geçti" : "Başarısız"}
+            </Badge>
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">+{meta.score} puan</span>
+          </div>
+          <p className="text-xs text-muted-foreground">{pass ? meta.passText : meta.failText}</p>
+          {detail && (
+            <p className="text-xs text-muted-foreground mt-1 font-mono truncate" title={detail}>
+              {detail}
+            </p>
+          )}
+          <button
+            onClick={() => setOpen(!open)}
+            className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Info className="h-3 w-3" /> {open ? "Kapat" : "Bu ne anlama geliyor?"}
+          </button>
+          {open && (
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed border-t pt-2">
+              {pass ? meta.passDesc : meta.failDesc}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {pass
+            ? <CheckCircle2 className="h-5 w-5 text-green-500" />
+            : <XCircle className="h-5 w-5 text-red-500" />
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DomainScanPage() {
+  const [domain, setDomain] = useState("");
+  const [email, setEmail] = useState("");
+
+  const scanMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/domain-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domain.trim(), email: email.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error ?? "Tarama başarısız");
+      }
+      return res.json() as Promise<ScanResult>;
+    },
+  });
+
+  const result = scanMutation.data;
+  const scoreInfo = result ? ScoreColor(result.overallScore) : null;
+
+  return (
+    <div className="container mx-auto px-4 py-10 max-w-3xl">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe className="h-5 w-5 text-primary" />
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+            Dış Ağ Taraması
+          </Badge>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Alan Adı Güvenlik Taraması</h1>
+        <p className="text-muted-foreground leading-relaxed">
+          Alan adınızın e-posta güvenlik kayıtlarını ve SSL sertifikasını otomatik kontrol edin.
+          Hiçbir yazılım kurmanıza gerek yok — sadece alan adınızı girin.
+        </p>
+      </div>
+
+      {/* Form */}
+      <Card className="shadow-sm mb-6">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="domain">Alan Adı</Label>
+              <Input
+                id="domain"
+                placeholder="sirketiniz.com"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !scanMutation.isPending && domain.trim() && scanMutation.mutate()}
+                disabled={scanMutation.isPending}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">
+                E-posta <span className="text-muted-foreground text-xs">(opsiyonel — 30 günde bir bildirim)</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="siz@sirket.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={scanMutation.isPending}
+              />
+            </div>
+          </div>
+          <Button
+            onClick={() => scanMutation.mutate()}
+            disabled={!domain.trim() || scanMutation.isPending}
+            className="w-full sm:w-auto"
+          >
+            {scanMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Taranıyor...
+              </>
+            ) : (
+              <>
+                <Globe className="h-4 w-4 mr-2" />
+                Taramayı Başlat
+              </>
+            )}
+          </Button>
+          {scanMutation.isPending && (
+            <p className="text-xs text-muted-foreground mt-2">
+              DNS kayıtları ve SSL sertifikası kontrol ediliyor, birkaç saniye sürebilir...
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Error */}
+      {scanMutation.isError && (
+        <Card className="shadow-sm mb-6 border-red-200 bg-red-50/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+            <p className="text-sm text-red-700">{(scanMutation.error as Error).message}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Results */}
+      {result && scoreInfo && (
+        <>
+          {/* Overall score */}
+          <Card className={`shadow-sm mb-6 border ${scoreInfo.bg}`}>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                <div className="text-center shrink-0">
+                  <div className={`text-5xl font-black ${scoreInfo.text}`}>{result.overallScore}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">/ 100 puan</div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h2 className="font-bold text-lg">{result.domain}</h2>
+                    <Badge variant="outline" className={`font-bold border ${scoreInfo.bg} ${scoreInfo.text}`}>
+                      {scoreInfo.label}
+                    </Badge>
+                  </div>
+                  <Progress value={result.overallScore} className="h-2.5 mb-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {result.overallScore >= 80
+                      ? "E-posta güvenliğiniz iyi durumda. Aşağıdaki detayları inceleyin."
+                      : result.overallScore >= 60
+                      ? "Birkaç önemli güvenlik kaydı eksik. Aşağıdaki başarısız kontrolleri düzeltin."
+                      : "Kritik güvenlik açıkları tespit edildi. Aşağıdaki adımları mümkün olan en kısa sürede tamamlayın."}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Check cards */}
+          <div className="space-y-3 mb-6">
+            <CheckCard
+              meta={CHECK_META.spf}
+              pass={result.spfPass}
+              detail={result.spfRecord ?? undefined}
+            />
+            <CheckCard
+              meta={CHECK_META.dmarc}
+              pass={result.dmarcPass}
+              detail={result.dmarcRecord ?? undefined}
+            />
+            <CheckCard
+              meta={CHECK_META.dkim}
+              pass={result.dkimPass}
+              detail={result.dkimSelectors.length > 0 ? `Bulunan selector'lar: ${result.dkimSelectors.join(", ")}` : undefined}
+            />
+            <CheckCard
+              meta={CHECK_META.mx}
+              pass={result.mxPass}
+              detail={result.mxRecords[0] ? `${result.mxRecords[0].exchange}` : undefined}
+            />
+            <CheckCard
+              meta={CHECK_META.ssl}
+              pass={result.sslPass}
+              detail={
+                result.sslDaysUntilExpiry !== null
+                  ? `${result.sslIssuer ?? "Sertifika"} — ${result.sslDaysUntilExpiry} gün geçerli`
+                  : undefined
+              }
+            />
+          </div>
+
+          {/* CTA */}
+          {!result.email && (
+            <Card className="shadow-sm border-primary/20 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Değişiklikleri Otomatik Takip Edin</CardTitle>
+                <CardDescription>
+                  E-posta adresinizi bırakın, 30 günde bir yeniden tarama yaparak değişiklik olursa sizi bilgilendirelim.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="siz@sirket.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (email.trim()) {
+                        setDomain(result.domain);
+                        scanMutation.mutate();
+                      }
+                    }}
+                    disabled={!email.trim() || scanMutation.isPending}
+                  >
+                    Kaydet <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {result.email && (
+            <Card className="shadow-sm border-green-200 bg-green-50/50">
+              <CardContent className="p-4 flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                <p className="text-sm text-green-700">
+                  <strong>{result.email}</strong> adresine 30 günde bir tarama raporu gönderilecek.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Empty state */}
+      {!result && !scanMutation.isPending && !scanMutation.isError && (
+        <Card className="shadow-sm border-dashed">
+          <CardContent className="p-8 text-center">
+            <Globe className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">
+              Alan adınızı girin ve taramayı başlatın.
+              <br />
+              SPF, DMARC, DKIM, MX ve SSL kayıtlarınız saniyeler içinde kontrol edilir.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

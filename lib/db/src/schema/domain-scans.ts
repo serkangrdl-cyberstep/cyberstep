@@ -1,0 +1,28 @@
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const domainScansTable = pgTable("domain_scans", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull(),
+  email: text("email"),
+  spfPass: boolean("spf_pass").notNull().default(false),
+  spfRecord: text("spf_record"),
+  dmarcPass: boolean("dmarc_pass").notNull().default(false),
+  dmarcRecord: text("dmarc_record"),
+  dkimPass: boolean("dkim_pass").notNull().default(false),
+  dkimSelectors: jsonb("dkim_selectors").$type<string[]>().notNull().default([]),
+  mxPass: boolean("mx_pass").notNull().default(false),
+  mxRecords: jsonb("mx_records").$type<Array<{ exchange: string; priority: number }>>().notNull().default([]),
+  sslPass: boolean("ssl_pass").notNull().default(false),
+  sslExpiry: text("ssl_expiry"),
+  sslIssuer: text("ssl_issuer"),
+  sslDaysUntilExpiry: integer("ssl_days_until_expiry"),
+  overallScore: integer("overall_score").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  notifiedAt: timestamp("notified_at"),
+});
+
+export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });
+export type InsertDomainScan = z.infer<typeof insertDomainScanSchema>;
+export type DomainScan = typeof domainScansTable.$inferSelect;

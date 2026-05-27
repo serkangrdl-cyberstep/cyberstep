@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const TRUST_ITEMS = [
   { icon: Shield, text: "256-bit SSL şifreli güvenli ödeme" },
@@ -26,6 +27,10 @@ const COMPARISON_ROWS = [
 ];
 
 export default function Pricing() {
+  usePageMeta({
+    title: "Fiyatlar | CyberStep.io",
+    description: "KOBİ'ler icin siber guvenlik degerlendirme paketleri. Ucretsiz Mini Degerlendirme ile baslayin, tam analizle buyumeye devam edin.",
+  });
   return (
     <div className="flex flex-col flex-1">
       {/* Header */}

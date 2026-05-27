@@ -9,6 +9,8 @@ export const blogPostsTable = pgTable("blog_posts", {
   titleEn: text("title_en"),
   excerptEn: text("excerpt_en"),
   contentEn: text("content_en"),
+  socialTextTr: text("social_text_tr"),
+  socialTextEn: text("social_text_en"),
   coverImageBase64: text("cover_image_base64"),
   authorName: text("author_name").notNull().default("CyberStep.io"),
   status: text("status").notNull().default("draft"),

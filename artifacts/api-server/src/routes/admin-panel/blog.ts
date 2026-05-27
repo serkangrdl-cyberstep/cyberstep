@@ -50,9 +50,10 @@ router.get("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
 });
 
 router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Response) => {
-  const { title, excerpt, content, titleEn, excerptEn, contentEn, coverImageBase64, authorName } = req.body as {
+  const { title, excerpt, content, titleEn, excerptEn, contentEn, socialTextTr, socialTextEn, coverImageBase64, authorName } = req.body as {
     title: string; excerpt: string; content: string;
     titleEn?: string; excerptEn?: string; contentEn?: string;
+    socialTextTr?: string; socialTextEn?: string;
     coverImageBase64?: string; authorName?: string;
   };
   if (!title || !excerpt || !content) {
@@ -68,6 +69,8 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
     titleEn: titleEn || null,
     excerptEn: excerptEn || null,
     contentEn: contentEn || null,
+    socialTextTr: socialTextTr || null,
+    socialTextEn: socialTextEn || null,
     coverImageBase64: coverImageBase64 ?? null,
     authorName: authorName ?? "CyberStep.io",
     status: "draft",
@@ -78,9 +81,10 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
 
 router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { title, excerpt, content, titleEn, excerptEn, contentEn, coverImageBase64, authorName } = req.body as {
+  const { title, excerpt, content, titleEn, excerptEn, contentEn, socialTextTr, socialTextEn, coverImageBase64, authorName } = req.body as {
     title?: string; excerpt?: string; content?: string;
     titleEn?: string; excerptEn?: string; contentEn?: string;
+    socialTextTr?: string; socialTextEn?: string;
     coverImageBase64?: string; authorName?: string;
   };
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
@@ -90,6 +94,8 @@ router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
   if (titleEn !== undefined) updateData.titleEn = titleEn || null;
   if (excerptEn !== undefined) updateData.excerptEn = excerptEn || null;
   if (contentEn !== undefined) updateData.contentEn = contentEn || null;
+  if (socialTextTr !== undefined) updateData.socialTextTr = socialTextTr || null;
+  if (socialTextEn !== undefined) updateData.socialTextEn = socialTextEn || null;
   if (coverImageBase64 !== undefined) updateData.coverImageBase64 = coverImageBase64;
   if (authorName !== undefined) updateData.authorName = authorName;
 
@@ -211,6 +217,8 @@ router.get("/public/blog", async (_req, res) => {
     slug: blogPostsTable.slug,
     excerpt: blogPostsTable.excerpt,
     excerptEn: blogPostsTable.excerptEn,
+    content: blogPostsTable.content,
+    contentEn: blogPostsTable.contentEn,
     coverImageBase64: blogPostsTable.coverImageBase64,
     authorName: blogPostsTable.authorName,
     publishedAt: blogPostsTable.publishedAt,
@@ -218,7 +226,20 @@ router.get("/public/blog", async (_req, res) => {
     .from(blogPostsTable)
     .where(eq(blogPostsTable.status, "published"))
     .orderBy(desc(blogPostsTable.publishedAt));
-  res.json(rows);
+
+  const result = rows.map(r => {
+    const stripHtml = (html: string) => html.replace(/<[^>]+>/g, " ");
+    const trWords = stripHtml(r.content).trim().split(/\s+/).filter(Boolean).length;
+    const enWords = r.contentEn ? stripHtml(r.contentEn).trim().split(/\s+/).filter(Boolean).length : 0;
+    return {
+      id: r.id, title: r.title, titleEn: r.titleEn, slug: r.slug,
+      excerpt: r.excerpt, excerptEn: r.excerptEn,
+      coverImageBase64: r.coverImageBase64, authorName: r.authorName, publishedAt: r.publishedAt,
+      readingMinutesTr: Math.max(1, Math.round(trWords / 200)),
+      readingMinutesEn: enWords > 0 ? Math.max(1, Math.round(enWords / 200)) : Math.max(1, Math.round(trWords / 200)),
+    };
+  });
+  res.json(result);
 });
 
 router.get("/public/blog/:slug", async (req: Request, res: Response) => {

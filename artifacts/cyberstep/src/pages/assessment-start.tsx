@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -42,6 +43,11 @@ const formSchema = z.object({
 export default function AssessmentStart() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  usePageMeta({
+    title: "Ucretsiz Degerlendirme Basla | CyberStep.io",
+    description: "Sirket bilgilerinizi girin, 20 soruluk Mini Degerlendirmeyi tamamlayin ve kisisellestirilmis siber guvenlik raporunuzu alin.",
+    noIndex: true,
+  });
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

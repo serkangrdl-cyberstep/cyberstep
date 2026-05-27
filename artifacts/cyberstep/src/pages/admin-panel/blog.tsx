@@ -29,6 +29,8 @@ interface BlogPost {
   excerptEn: string | null;
   content?: string;
   contentEn?: string | null;
+  socialTextTr?: string | null;
+  socialTextEn?: string | null;
   coverImageBase64: string | null;
   authorName: string;
   status: string;
@@ -141,6 +143,7 @@ function RichEditor({ value, onChange, placeholder }: { value: string; onChange:
 type PostSaveData = {
   title: string; excerpt: string; content: string;
   titleEn: string; excerptEn: string; contentEn: string;
+  socialTextTr: string; socialTextEn: string;
   coverImageBase64: string | null; authorName: string;
 };
 
@@ -162,6 +165,8 @@ function PostForm({
   const [titleEn, setTitleEn] = useState(initial?.titleEn ?? "");
   const [excerptEn, setExcerptEn] = useState(initial?.excerptEn ?? "");
   const [contentEn, setContentEn] = useState(initial?.contentEn ?? "");
+  const [socialTextTr, setSocialTextTr] = useState(initial?.socialTextTr ?? "");
+  const [socialTextEn, setSocialTextEn] = useState(initial?.socialTextEn ?? "");
   const [authorName, setAuthorName] = useState(initial?.authorName ?? "CyberStep.io");
   const [coverImageBase64, setCoverImageBase64] = useState<string | null>(initial?.coverImageBase64 ?? null);
   const coverRef = useRef<HTMLInputElement>(null);
@@ -214,18 +219,56 @@ function PostForm({
                 <label className="block text-sm font-medium text-slate-300 mb-1">Ozet (TR) *</label>
                 <Textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Kisa Turkce ozet" rows={3} className="bg-slate-800 border-slate-700 text-white resize-none" />
               </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-300">
+                    Sosyal Medya Metni (TR)
+                    <span className="text-slate-500 font-normal ml-1">— X, LinkedIn, WhatsApp paylasimlari icin</span>
+                  </label>
+                  <span className={`text-xs ${socialTextTr.length > 280 ? "text-red-400" : "text-slate-500"}`}>
+                    {socialTextTr.length}/280
+                  </span>
+                </div>
+                <Textarea
+                  value={socialTextTr}
+                  onChange={e => setSocialTextTr(e.target.value)}
+                  placeholder="Kisa Turkce tanitim metni (X icin 280 karakter limiti, Instagram icin kopyalanir)"
+                  rows={3}
+                  className="bg-slate-800 border-slate-700 text-white resize-none"
+                />
+                <p className="text-xs text-slate-500 mt-1">Instagram icin bu metin + link otomatik kopyalanir.</p>
+              </div>
             </div>
           )}
 
           {langTab === "en" && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Title (EN) <span className="text-slate-500">isteğe bağlı</span></label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Title (EN) <span className="text-slate-500">istege bagli</span></label>
                 <Input value={titleEn} onChange={e => setTitleEn(e.target.value)} placeholder="English blog post title" className="bg-slate-800 border-slate-700 text-white" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Excerpt (EN) <span className="text-slate-500">isteğe bağlı</span></label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Excerpt (EN) <span className="text-slate-500">istege bagli</span></label>
                 <Textarea value={excerptEn} onChange={e => setExcerptEn(e.target.value)} placeholder="Short English excerpt" rows={3} className="bg-slate-800 border-slate-700 text-white resize-none" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-300">
+                    Social Media Text (EN)
+                    <span className="text-slate-500 font-normal ml-1">— for X, LinkedIn, WhatsApp shares</span>
+                  </label>
+                  <span className={`text-xs ${socialTextEn.length > 280 ? "text-red-400" : "text-slate-500"}`}>
+                    {socialTextEn.length}/280
+                  </span>
+                </div>
+                <Textarea
+                  value={socialTextEn}
+                  onChange={e => setSocialTextEn(e.target.value)}
+                  placeholder="Short English promo text (280 char limit for X, copied for Instagram)"
+                  rows={3}
+                  className="bg-slate-800 border-slate-700 text-white resize-none"
+                />
+                <p className="text-xs text-slate-500 mt-1">For Instagram: this text + link is copied to clipboard.</p>
               </div>
             </div>
           )}
@@ -277,7 +320,7 @@ function PostForm({
       <div className="flex justify-end gap-3">
         <Button variant="outline" onClick={onCancel} className="border-slate-600 text-slate-300 hover:bg-slate-700">Iptal</Button>
         <Button
-          onClick={() => onSave({ title, excerpt, content, titleEn, excerptEn, contentEn, coverImageBase64, authorName })}
+          onClick={() => onSave({ title, excerpt, content, titleEn, excerptEn, contentEn, socialTextTr, socialTextEn, coverImageBase64, authorName })}
           disabled={isSaving || !title || !excerpt || !content}
           className="bg-emerald-500 hover:bg-emerald-400 text-white"
         >

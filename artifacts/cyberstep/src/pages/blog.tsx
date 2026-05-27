@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useState } from "react";
-import { Calendar, User, ArrowRight, Mail, CheckCircle } from "lucide-react";
+import { Calendar, User, ArrowRight, Mail, CheckCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,8 @@ interface BlogPost {
   coverImageBase64: string | null;
   authorName: string;
   publishedAt: string | null;
+  readingMinutesTr: number;
+  readingMinutesEn: number;
 }
 
 function NewsletterWidget() {
@@ -169,6 +171,12 @@ export default function Blog() {
                             {format(new Date(post.publishedAt), "d MMM yyyy", { locale: dateLocale })}
                           </span>
                         )}
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {lang === "en"
+                            ? `${post.readingMinutesEn} min`
+                            : `${post.readingMinutesTr} dk`}
+                        </span>
                       </div>
                       <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>

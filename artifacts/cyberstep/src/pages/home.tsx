@@ -5,6 +5,7 @@ import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, Ch
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/language-context";
 import { TRANSLATIONS as T, t } from "@/lib/translations";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Shield, CheckCircle, ShieldAlert, Building2,
@@ -47,6 +48,14 @@ const scoreColor: Record<string, string> = {
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { lang } = useLanguage();
+  usePageMeta({
+    title: lang === "en"
+      ? "Free Cybersecurity Risk Analysis for SMBs | CyberStep.io"
+      : "KOBİ'ler icin Ucretsiz Siber Guvenlik Risk Analizi | CyberStep.io",
+    description: lang === "en"
+      ? "Measure your company's cybersecurity maturity in 5 minutes. Discover vulnerabilities and get a personalized action roadmap."
+      : "Sirketinizin siber guvenlik olgunlugunu 5 dakikada olcun. Zayif noktalarinizi kesfedin ve kisisellestirilmis yol haritasi alin.",
+  });
 
   const { data: pricingPlans, isLoading: pricingLoading } = useQuery<PricingPlan[]>({
     queryKey: ["public-pricing"],

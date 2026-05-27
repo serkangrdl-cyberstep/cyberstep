@@ -9,6 +9,10 @@ import QRCode from "qrcode";
 
 const router = Router();
 
+function sess(req: Request) {
+  return req.session as unknown as Record<string, unknown>;
+}
+
 router.post("/admin-panel/auth/login", async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) { res.status(400).json({ error: "E-posta ve şifre gerekli" }); return; }
@@ -17,11 +21,11 @@ router.post("/admin-panel/auth/login", async (req: Request, res: Response) => {
   if (!user) { res.status(401).json({ error: "Geçersiz kimlik bilgileri" }); return; }
 
   if (user.totpEnabled) {
-    (req.session as Record<string, unknown>)["pendingAdminId"] = user.id;
+    sess(req)["pendingAdminId"] = user.id;
     res.json({ requiresTotp: true });
   } else {
-    (req.session as Record<string, unknown>)["adminId"] = user.id;
-    (req.session as Record<string, unknown>)["pendingAdminId"] = undefined;
+    sess(req)["adminId"] = user.id;
+    sess(req)["pendingAdminId"] = undefined;
     await updateLastLogin(user.id);
     logger.info({ userId: user.id }, "Admin login");
     res.json({ success: true });
@@ -29,7 +33,7 @@ router.post("/admin-panel/auth/login", async (req: Request, res: Response) => {
 });
 
 router.post("/admin-panel/auth/totp-verify", async (req: Request, res: Response) => {
-  const pendingId = (req.session as Record<string, unknown>)["pendingAdminId"] as number | undefined;
+  const pendingId = sess(req)["pendingAdminId"] as number | undefined;
   if (!pendingId) { res.status(401).json({ error: "Önce giriş yapın" }); return; }
 
   const { token } = req.body as { token?: string };
@@ -41,19 +45,23 @@ router.post("/admin-panel/auth/totp-verify", async (req: Request, res: Response)
   const ok = await verifyTotp(user.totpSecret, token);
   if (!ok) { res.status(401).json({ error: "Geçersiz TOTP kodu" }); return; }
 
-  (req.session as Record<string, unknown>)["adminId"] = user.id;
-  (req.session as Record<string, unknown>)["pendingAdminId"] = undefined;
+  sess(req)["adminId"] = user.id;
+  sess(req)["pendingAdminId"] = undefined;
   await updateLastLogin(user.id);
   logger.info({ userId: user.id }, "Admin TOTP verified, login complete");
   res.json({ success: true });
 });
 
 router.post("/admin-panel/auth/logout", (req: Request, res: Response) => {
-  req.session.destroy(() => res.json({ success: true }));
+  req.session.destroy((err) => {
+    if (err) logger.error({ err }, "Session destroy error on admin logout");
+    res.clearCookie("cstep.sid");
+    res.json({ success: true });
+  });
 });
 
 router.get("/admin-panel/auth/me", async (req: Request, res: Response) => {
-  const adminId = (req.session as Record<string, unknown>)["adminId"] as number | undefined;
+  const adminId = sess(req)["adminId"] as number | undefined;
   if (!adminId) { res.status(401).json({ error: "Giriş yapılmamış" }); return; }
 
   const [user] = await db.select({
@@ -68,7 +76,7 @@ router.get("/admin-panel/auth/me", async (req: Request, res: Response) => {
 });
 
 router.post("/admin-panel/auth/totp-setup", async (req: Request, res: Response) => {
-  const adminId = (req.session as Record<string, unknown>)["adminId"] as number | undefined;
+  const adminId = sess(req)["adminId"] as number | undefined;
   if (!adminId) { res.status(401).json({ error: "Giriş yapılmamış" }); return; }
 
   const [user] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.id, adminId));
@@ -78,12 +86,12 @@ router.post("/admin-panel/auth/totp-setup", async (req: Request, res: Response) 
   const otpauthUrl = await generateTotpQrUrl(user.email, secret);
   const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
 
-  (req.session as Record<string, unknown>)["pendingTotpSecret"] = secret;
+  sess(req)["pendingTotpSecret"] = secret;
   res.json({ secret, qrDataUrl });
 });
 
 router.post("/admin-panel/auth/totp-disable", async (req: Request, res: Response) => {
-  const adminId = (req.session as Record<string, unknown>)["adminId"] as number | undefined;
+  const adminId = sess(req)["adminId"] as number | undefined;
   if (!adminId) { res.status(401).json({ error: "Giriş yapılmamış" }); return; }
 
   await db.update(adminUsersTable)
@@ -95,18 +103,18 @@ router.post("/admin-panel/auth/totp-disable", async (req: Request, res: Response
 });
 
 router.post("/admin-panel/auth/totp-confirm", async (req: Request, res: Response) => {
-  const adminId = (req.session as Record<string, unknown>)["adminId"] as number | undefined;
+  const adminId = sess(req)["adminId"] as number | undefined;
   if (!adminId) { res.status(401).json({ error: "Giriş yapılmamış" }); return; }
 
   const { token } = req.body as { token?: string };
-  const secret = (req.session as Record<string, unknown>)["pendingTotpSecret"] as string | undefined;
+  const secret = sess(req)["pendingTotpSecret"] as string | undefined;
   if (!token || !secret) { res.status(400).json({ error: "Geçersiz istek" }); return; }
 
   const ok = await verifyTotp(secret, token);
   if (!ok) { res.status(401).json({ error: "TOTP kodu geçersiz" }); return; }
 
   await enableTotp(adminId, secret);
-  (req.session as Record<string, unknown>)["pendingTotpSecret"] = undefined;
+  sess(req)["pendingTotpSecret"] = undefined;
   logger.info({ userId: adminId }, "TOTP enabled for admin");
   res.json({ success: true });
 });

@@ -14,17 +14,18 @@ import { eq } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
 import { logger } from "../../lib/logger";
+import { requireAdmin } from "../../middleware/auth";
 
 const router = Router();
 
 // GET /api/gemini/conversations
-router.get("/gemini/conversations", async (_req, res) => {
+router.get("/gemini/conversations", requireAdmin, async (_req, res) => {
   const result = await db.select().from(conversations).orderBy(conversations.createdAt);
   res.json(result);
 });
 
 // POST /api/gemini/conversations
-router.post("/gemini/conversations", async (req, res) => {
+router.post("/gemini/conversations", requireAdmin, async (req, res) => {
   const parsed = CreateGeminiConversationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -38,7 +39,7 @@ router.post("/gemini/conversations", async (req, res) => {
 });
 
 // GET /api/gemini/conversations/:id
-router.get("/gemini/conversations/:id", async (req, res) => {
+router.get("/gemini/conversations/:id", requireAdmin, async (req, res) => {
   const params = GetGeminiConversationParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -61,7 +62,7 @@ router.get("/gemini/conversations/:id", async (req, res) => {
 });
 
 // DELETE /api/gemini/conversations/:id
-router.delete("/gemini/conversations/:id", async (req, res) => {
+router.delete("/gemini/conversations/:id", requireAdmin, async (req, res) => {
   const params = DeleteGeminiConversationParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -81,7 +82,7 @@ router.delete("/gemini/conversations/:id", async (req, res) => {
 });
 
 // GET /api/gemini/conversations/:id/messages
-router.get("/gemini/conversations/:id/messages", async (req, res) => {
+router.get("/gemini/conversations/:id/messages", requireAdmin, async (req, res) => {
   const params = ListGeminiMessagesParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -96,7 +97,7 @@ router.get("/gemini/conversations/:id/messages", async (req, res) => {
 });
 
 // POST /api/gemini/conversations/:id/messages (SSE)
-router.post("/gemini/conversations/:id/messages", async (req, res) => {
+router.post("/gemini/conversations/:id/messages", requireAdmin, async (req, res) => {
   const params = SendGeminiMessageParams.safeParse({ id: Number(req.params.id) });
   const body = SendGeminiMessageBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -165,7 +166,7 @@ router.post("/gemini/conversations/:id/messages", async (req, res) => {
 });
 
 // POST /api/gemini/generate-image
-router.post("/gemini/generate-image", async (req, res) => {
+router.post("/gemini/generate-image", requireAdmin, async (req, res) => {
   const parsed = GenerateGeminiImageBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });

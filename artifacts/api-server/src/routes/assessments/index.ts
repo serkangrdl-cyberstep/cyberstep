@@ -19,6 +19,7 @@ import { calculateScore, MINI_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
 import { sendAdminNotificationEmail, sendCustomerConfirmationEmail } from "../../services/email";
 import { generateReportPDF } from "../../services/pdf";
+import { requireAdmin, requireAssessmentOwner, addAssessmentToSession } from "../../middleware/auth";
 
 const router = Router();
 
@@ -45,12 +46,15 @@ router.post("/assessments", async (req, res) => {
     })
     .returning();
 
+  // Track ownership in session so only this browser can access/modify this assessment
+  addAssessmentToSession(req, assessment.id);
+
   res.status(201).json(assessment);
 });
 
-// GET /api/assessments/stats/summary — must come before /:id
+// GET /api/assessments/stats/summary — must come before /:id — admin only
 // Supports optional query params: sector, dateFrom, dateTo, limit
-router.get("/assessments/stats/summary", async (req, res) => {
+router.get("/assessments/stats/summary", requireAdmin, async (req, res) => {
   const { sector, dateFrom, dateTo, limit: limitParam } = req.query;
   const tableLimit = Math.min(parseInt(String(limitParam ?? "20"), 10) || 20, 100);
 
@@ -124,7 +128,7 @@ router.get("/assessments/stats/summary", async (req, res) => {
 });
 
 // GET /api/assessments/:id
-router.get("/assessments/:id", async (req, res) => {
+router.get("/assessments/:id", requireAssessmentOwner, async (req, res) => {
   const id = Number(req.params.id);
   const params = GetAssessmentParams.safeParse({ id });
   if (!params.success) {
@@ -152,7 +156,7 @@ router.get("/assessments/:id", async (req, res) => {
 });
 
 // POST /api/assessments/:id/answers
-router.post("/assessments/:id/answers", async (req, res) => {
+router.post("/assessments/:id/answers", requireAssessmentOwner, async (req, res) => {
   const params = SubmitAnswersParams.safeParse({ id: Number(req.params.id) });
   const body = SubmitAnswersBody.safeParse(req.body);
 
@@ -195,7 +199,7 @@ router.post("/assessments/:id/answers", async (req, res) => {
 });
 
 // POST /api/assessments/:id/complete
-router.post("/assessments/:id/complete", async (req, res) => {
+router.post("/assessments/:id/complete", requireAssessmentOwner, async (req, res) => {
   const params = CompleteAssessmentParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Geçersiz ID" });
@@ -445,7 +449,7 @@ JSON şablonu:
 }
 
 // GET /api/assessments/:id/report
-router.get("/assessments/:id/report", async (req, res) => {
+router.get("/assessments/:id/report", requireAssessmentOwner, async (req, res) => {
   const params = GetReportParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Geçersiz ID" });
@@ -476,7 +480,7 @@ router.get("/assessments/:id/report", async (req, res) => {
 });
 
 // GET /api/assessments/:id/report/pdf
-router.get("/assessments/:id/report/pdf", async (req, res) => {
+router.get("/assessments/:id/report/pdf", requireAssessmentOwner, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id) || id <= 0) {
     res.status(400).json({ error: "Geçersiz ID" });

@@ -1,0 +1,56 @@
+import type { Request, Response, NextFunction } from "express";
+
+function sess(req: Request) {
+  return req.session as unknown as Record<string, unknown>;
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  const adminId = sess(req)["adminId"] as number | undefined;
+  if (!adminId) {
+    res.status(401).json({ error: "Yetkisiz erişim" });
+    return;
+  }
+  next();
+}
+
+export function requireCustomer(req: Request, res: Response, next: NextFunction): void {
+  const customerId = sess(req)["customerId"] as number | undefined;
+  if (!customerId) {
+    res.status(401).json({ error: "Giriş yapmanız gerekiyor" });
+    return;
+  }
+  next();
+}
+
+export function requireAssessmentOwner(req: Request, res: Response, next: NextFunction): void {
+  // Admin bypasses ownership check
+  const adminId = sess(req)["adminId"] as number | undefined;
+  if (adminId) { next(); return; }
+
+  const id = Number(req.params["id"]);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Geçersiz ID" });
+    return;
+  }
+
+  const owned = (sess(req)["ownedAssessmentIds"] as number[] | undefined) ?? [];
+  if (!owned.includes(id)) {
+    res.status(403).json({ error: "Bu değerlendirmeye erişim izniniz yok" });
+    return;
+  }
+  next();
+}
+
+export function addAssessmentToSession(req: Request, assessmentId: number): void {
+  const s = sess(req);
+  const existing = (s["ownedAssessmentIds"] as number[] | undefined) ?? [];
+  s["ownedAssessmentIds"] = [...new Set([...existing, assessmentId])];
+}
+
+export function getAdminId(req: Request): number | undefined {
+  return sess(req)["adminId"] as number | undefined;
+}
+
+export function getCustomerId(req: Request): number | undefined {
+  return sess(req)["customerId"] as number | undefined;
+}

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import QRCode from "qrcode";
 import { db } from "@workspace/db";
@@ -7,17 +7,15 @@ import { customersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { generateTotpSecret, generateTotpQrUrl, verifyTotp } from "../../services/auth";
 import { logger } from "../../lib/logger";
+import { requireCustomer, getCustomerId } from "../../middleware/auth";
+
+// Re-export for other modules that import from here
+export { requireCustomer };
 
 const router = Router();
 
 function getSession(req: Request) {
   return req.session as unknown as Record<string, unknown>;
-}
-
-export async function requireCustomer(req: Request, res: Response, next: NextFunction) {
-  const customerId = getSession(req)["customerId"] as number | undefined;
-  if (!customerId) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
-  next();
 }
 
 // POST /api/auth/register
@@ -112,7 +110,7 @@ router.post("/auth/totp-verify", async (req: Request, res: Response) => {
 
 // GET /api/auth/me
 router.get("/auth/me", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = getSession(req)["customerId"] as number;
+  const customerId = getCustomerId(req) as number;
   const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId));
   if (!customer) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
   const { passwordHash: _, totpSecret: __, ...safe } = customer;
@@ -120,14 +118,17 @@ router.get("/auth/me", requireCustomer, async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/logout
-router.post("/auth/logout", async (req: Request, res: Response) => {
-  getSession(req)["customerId"] = undefined;
-  res.json({ success: true });
+router.post("/auth/logout", (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) logger.error({ err }, "Session destroy error on customer logout");
+    res.clearCookie("cstep.sid");
+    res.json({ success: true });
+  });
 });
 
 // POST /api/auth/totp-setup
 router.post("/auth/totp-setup", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = getSession(req)["customerId"] as number;
+  const customerId = getCustomerId(req) as number;
   const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId));
   if (!customer) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
 
@@ -141,7 +142,7 @@ router.post("/auth/totp-setup", requireCustomer, async (req: Request, res: Respo
 
 // POST /api/auth/totp-confirm
 router.post("/auth/totp-confirm", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = getSession(req)["customerId"] as number;
+  const customerId = getCustomerId(req) as number;
   const secret = getSession(req)["pendingTotpSecret"] as string | undefined;
   if (!secret) { res.status(400).json({ error: "Önce TOTP kurulumu başlatın" }); return; }
 
@@ -162,7 +163,7 @@ router.post("/auth/totp-confirm", requireCustomer, async (req: Request, res: Res
 
 // POST /api/auth/totp-disable
 router.post("/auth/totp-disable", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = getSession(req)["customerId"] as number;
+  const customerId = getCustomerId(req) as number;
   await db.update(customersTable)
     .set({ totpSecret: null, totpEnabled: false })
     .where(eq(customersTable.id, customerId));

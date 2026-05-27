@@ -36,5 +36,8 @@ externalPort = 3000
 [userenv.shared]
 SMTP_USER = "serkangrdl@gmail.com"
 
+[userenv.production]
+ADMIN_RESET_PASSWORD = "CyberStep2024!"
+
 [nix]
 channel = "stable-25_05"

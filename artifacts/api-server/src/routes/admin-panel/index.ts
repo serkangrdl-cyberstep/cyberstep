@@ -5,6 +5,7 @@ import analyticsRouter from "./analytics";
 import paymentRouter from "./payment";
 import setupRouter from "./setup";
 import contentRouter from "./content";
+import blogRouter from "./blog";
 
 const router = Router();
 router.use(authRouter);
@@ -13,5 +14,6 @@ router.use(analyticsRouter);
 router.use(paymentRouter);
 router.use(setupRouter);
 router.use(contentRouter);
+router.use(blogRouter);
 
 export default router;

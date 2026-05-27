@@ -2,7 +2,8 @@ import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
-  FileText, Users, Briefcase, Award, Building2, DollarSign
+  FileText, Users, Briefcase, Award, Building2, DollarSign,
+  BookOpen, Share2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -11,6 +12,8 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Genel Bakış", href: "/panel" },
   { icon: FileText, label: "Değerlendirmeler", href: "/panel/degerlendiirmeler" },
   { icon: DollarSign, label: "Ödemeler", href: "/panel/odemeler" },
+  { icon: BookOpen, label: "Blog", href: "/panel/blog" },
+  { icon: Share2, label: "Sosyal Medya", href: "/panel/sosyal-medya" },
   { icon: Settings, label: "Site Ayarları", href: "/panel/ayarlar" },
   { icon: CreditCard, label: "Fiyatlandırma", href: "/panel/fiyatlar" },
   { icon: Users, label: "Soru Yönetimi", href: "/panel/sorular" },

@@ -331,3 +331,65 @@ export async function sendCustomerReportEmail(params: {
     logger.error({ err, assessmentId: params.assessmentId }, "Failed to send customer report email");
   }
 }
+
+export async function sendNewsletterEmail(params: {
+  post: {
+    id: number;
+    title: string;
+    slug: string;
+    excerpt: string;
+    authorName: string;
+    publishedAt: Date | null;
+  };
+  subscribers: Array<{ email: string; unsubscribeToken: string }>;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const base = getBaseUrl();
+  const postUrl = `${base}/blog/${params.post.slug}`;
+  const dateStr = params.post.publishedAt
+    ? new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(params.post.publishedAt))
+    : "";
+
+  for (const sub of params.subscribers) {
+    const unsubUrl = `${base}/api/public/newsletter/unsubscribe/${sub.unsubscribeToken}`;
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px">
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+      <span style="background:#1e293b;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:20px;margin-left:12px">Blog</span>
+    </div>
+    <div style="padding:32px">
+      <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px">Yeni Blog Yazisi</p>
+      <h2 style="margin:0 0 16px;font-size:24px;color:#0f172a;line-height:1.3">${params.post.title}</h2>
+      ${dateStr ? `<p style="margin:0 0 16px;font-size:12px;color:#94a3b8">${dateStr} · ${params.post.authorName}</p>` : ""}
+      <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7">${params.post.excerpt}</p>
+      <a href="${postUrl}" style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">Devamini Oku</a>
+    </div>
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+        CyberStep.io bultenine abonesiniz.
+        <a href="${unsubUrl}" style="color:#64748b">Abonelikten cik</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      await transport.sendMail({
+        from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+        to: sub.email,
+        subject: `[CyberStep Blog] ${params.post.title}`,
+        html,
+      });
+    } catch (err) {
+      logger.error({ err, email: sub.email }, "Newsletter email send failed");
+    }
+  }
+  logger.info({ postId: params.post.id, count: params.subscribers.length }, "Newsletter batch sent");
+}

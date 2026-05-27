@@ -31,6 +31,10 @@ import AdminTotp from "./pages/admin-panel/totp";
 import AdminDanismanlik from "./pages/admin-panel/danismanlik";
 import AdminPartnerlar from "./pages/admin-panel/partnerlar";
 import AdminWhitelabel from "./pages/admin-panel/whitelabel";
+import AdminBlog from "./pages/admin-panel/blog";
+import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
+import BlogList from "./pages/blog";
+import BlogPost from "./pages/blog-post";
 
 import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
@@ -84,6 +88,8 @@ function Router() {
       <Route path="/panel/danismanlik" component={AdminDanismanlik} />
       <Route path="/panel/partnerlar" component={AdminPartnerlar} />
       <Route path="/panel/whitelabel" component={AdminWhitelabel} />
+      <Route path="/panel/blog" component={AdminBlog} />
+      <Route path="/panel/sosyal-medya" component={AdminSosyalMedya} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* All other routes use shared Layout */}
@@ -98,6 +104,8 @@ function Router() {
             <Route path="/kullanim-kosullari" component={KullanimKosullari} />
             <Route path="/gizlilik-politikasi" component={GizlilikPolitikasi} />
             <Route path="/cerez-politikasi" component={CerezPolitikasi} />
+            <Route path="/blog/:slug" component={BlogPost} />
+            <Route path="/blog" component={BlogList} />
             <Route path="/assessment/start" component={AssessmentStart} />
             <Route path="/assessment/full/start" component={FullAssessmentStart} />
             <Route path="/assessment/full/:id" component={FullAssessmentRunner} />

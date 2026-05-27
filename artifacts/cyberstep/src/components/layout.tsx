@@ -50,6 +50,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {!wl && (
               <>
                 <Link
+                  href="/blog"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${location.startsWith('/blog') ? 'text-primary' : 'text-muted-foreground'}`}
+                >
+                  Blog
+                </Link>
+                <Link
                   href="/fiyatlar"
                   className={`text-sm font-medium transition-colors hover:text-primary ${location === '/fiyatlar' ? 'text-primary' : 'text-muted-foreground'}`}
                 >

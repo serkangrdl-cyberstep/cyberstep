@@ -16,6 +16,9 @@ import AdminReview from "./pages/admin-review";
 import Hakkimizda from "./pages/hakkimizda";
 import Iletisim from "./pages/iletisim";
 import Kvkk from "./pages/kvkk";
+import KullanimKosullari from "./pages/kullanim-kosullari";
+import GizlilikPolitikasi from "./pages/gizlilik-politikasi";
+import CerezPolitikasi from "./pages/cerez-politikasi";
 
 import AdminLogin from "./pages/admin-panel/login";
 import AdminDashboard from "./pages/admin-panel/index";
@@ -26,6 +29,7 @@ import AdminPayments from "./pages/admin-panel/payments";
 import AdminQuestions from "./pages/admin-panel/questions";
 
 import { Layout } from "./components/layout";
+import { CookieBanner } from "./components/cookie-banner";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +43,9 @@ function Router() {
         <Route path="/hakkimizda" component={Hakkimizda} />
         <Route path="/iletisim" component={Iletisim} />
         <Route path="/kvkk" component={Kvkk} />
+        <Route path="/kullanim-kosullari" component={KullanimKosullari} />
+        <Route path="/gizlilik-politikasi" component={GizlilikPolitikasi} />
+        <Route path="/cerez-politikasi" component={CerezPolitikasi} />
 
         {/* Assessment flow */}
         <Route path="/assessment/start" component={AssessmentStart} />
@@ -73,6 +80,7 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
+        <CookieBanner />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

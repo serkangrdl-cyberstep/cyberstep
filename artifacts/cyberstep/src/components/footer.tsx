@@ -63,9 +63,12 @@ export function Footer() {
 
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-500 text-xs">
-            {new Date().getFullYear()} {company}. Tüm hakları saklıdır.
+            {new Date().getFullYear()} {company}. Tum haklari saklidir.
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5 flex-wrap justify-center">
+            <Link href="/gizlilik-politikasi" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Gizlilik Politikasi</Link>
+            <Link href="/kullanim-kosullari" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Kullanim Kosullari</Link>
+            <Link href="/cerez-politikasi" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Cerez Politikasi</Link>
             <Link href="/kvkk" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">KVKK</Link>
             <Link href="/iletisim" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Iletisim</Link>
           </div>

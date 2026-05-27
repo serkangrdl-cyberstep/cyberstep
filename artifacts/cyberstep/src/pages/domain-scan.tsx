@@ -24,6 +24,14 @@ interface BlacklistResult {
   listed: boolean;
 }
 
+interface ShadowItService {
+  name: string;
+  category: string;
+  risk: string;
+  description: string;
+  version?: string;
+}
+
 interface ScanResult {
   id: number;
   domain: string;
@@ -46,6 +54,7 @@ interface ScanResult {
   blacklisted: boolean;
   blacklistCount: number;
   blacklistResults: BlacklistResult[];
+  shadowItServices: ShadowItService[];
   createdAt: string;
 }
 
@@ -230,6 +239,99 @@ function HibpCard({ breachCount, breaches }: { breachCount: number; breaches: Hi
           {safe
             ? <ShieldCheck className="h-5 w-5 text-green-500" />
             : <ShieldAlert className="h-5 w-5 text-orange-500" />
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const RISK_STYLE: Record<string, string> = {
+  "Düşük": "bg-green-100 text-green-700 border-green-200",
+  "Orta": "bg-yellow-100 text-yellow-700 border-yellow-200",
+  "Yüksek": "bg-red-100 text-red-700 border-red-200",
+};
+
+function ShadowItCard({ services }: { services: ShadowItService[] }) {
+  const [open, setOpen] = useState(false);
+  const highCount = services.filter((s) => s.risk === "Yüksek").length;
+  const medCount = services.filter((s) => s.risk === "Orta").length;
+  const empty = services.length === 0;
+  const alertLevel = highCount > 0 ? "high" : medCount > 0 ? "medium" : "clean";
+  const bgStyle = alertLevel === "high" ? "bg-red-50/50 border-red-200" : alertLevel === "medium" ? "bg-yellow-50/50 border-yellow-200" : "bg-green-50/50 border-green-200";
+  const iconStyle = alertLevel === "high" ? "bg-red-100" : alertLevel === "medium" ? "bg-yellow-100" : "bg-green-100";
+  const iconColor = alertLevel === "high" ? "text-red-600" : alertLevel === "medium" ? "text-yellow-600" : "text-green-600";
+
+  const categories = [...new Set(services.map((s) => s.category))];
+
+  return (
+    <div className={`rounded-xl border p-4 ${bgStyle}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${iconStyle}`}>
+          <Globe className={`h-4 w-4 ${iconColor}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Gölge BT / Üçüncü Parti Servisler</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
+            </Badge>
+            {!empty && (
+              <Badge variant="outline" className={`text-xs px-2 py-0 border ${alertLevel === "high" ? "bg-red-100 text-red-700 border-red-200" : alertLevel === "medium" ? "bg-yellow-100 text-yellow-700 border-yellow-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+                {services.length} servis
+              </Badge>
+            )}
+          </div>
+          {empty ? (
+            <p className="text-xs text-muted-foreground">Site kaynak kodu çözümlenemedi veya harici servis tespit edilemedi.</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {highCount > 0
+                  ? `${highCount} yüksek riskli servis dahil ${services.length} üçüncü parti araç tespit edildi.`
+                  : medCount > 0
+                  ? `${services.length} servis tespit edildi — ${medCount} tanesi KVKK uyumu gerektiriyor.`
+                  : `${services.length} servis tespit edildi. Bilinen bir güvenlik riski yok.`}
+                {" "}Kategoriler: {categories.join(", ")}.
+              </p>
+              <button
+                onClick={() => setOpen(!open)}
+                className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Info className="h-3 w-3" /> {open ? "Gizle" : `Tüm servisleri göster (${services.length})`}
+              </button>
+              {open && (
+                <div className="mt-2 border-t pt-2 space-y-2">
+                  {services.map((svc) => (
+                    <div key={svc.name} className="text-xs bg-white/70 rounded-lg p-2.5 border border-border">
+                      <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold">{svc.name}</span>
+                          {svc.version && (
+                            <span className="text-muted-foreground font-mono">v{svc.version}</span>
+                          )}
+                          <Badge variant="outline" className="text-xs px-1.5 py-0 border text-muted-foreground border-border">
+                            {svc.category}
+                          </Badge>
+                        </div>
+                        <Badge variant="outline" className={`text-xs px-1.5 py-0 border shrink-0 ${RISK_STYLE[svc.risk] ?? "bg-gray-100 text-gray-600"}`}>
+                          {svc.risk} risk
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground leading-relaxed">{svc.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="shrink-0">
+          {alertLevel === "high"
+            ? <ShieldAlert className="h-5 w-5 text-red-500" />
+            : alertLevel === "medium"
+            ? <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            : <ShieldCheck className="h-5 w-5 text-green-500" />
           }
         </div>
       </div>
@@ -492,6 +594,7 @@ export default function DomainScanPage() {
               blacklistCount={result.blacklistCount}
               results={result.blacklistResults}
             />
+            <ShadowItCard services={result.shadowItServices} />
           </div>
 
           {/* CTA */}

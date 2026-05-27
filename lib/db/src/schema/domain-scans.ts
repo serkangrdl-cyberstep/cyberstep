@@ -24,6 +24,7 @@ export const domainScansTable = pgTable("domain_scans", {
   blacklisted: boolean("blacklisted").notNull().default(false),
   blacklistCount: integer("blacklist_count").notNull().default(0),
   blacklistResults: jsonb("blacklist_results").$type<Array<{ list: string; listed: boolean }>>().notNull().default([]),
+  shadowItServices: jsonb("shadow_it_services").$type<Array<{ name: string; category: string; risk: string; description: string; version?: string }>>().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import dns from "dns/promises";
 import https from "https";
+import http from "http";
 import { db } from "@workspace/db";
 import { domainScansTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
@@ -111,6 +112,108 @@ async function checkSSL(domain: string): Promise<{
 
 function calcScore(spf: boolean, dmarc: boolean, dkim: boolean, mx: boolean, ssl: boolean): number {
   return (spf ? 20 : 0) + (dmarc ? 25 : 0) + (dkim ? 20 : 0) + (mx ? 10 : 0) + (ssl ? 25 : 0);
+}
+
+// ─── Shadow IT katalog ───────────────────────────────────────────────────────
+
+interface ShadowItService {
+  name: string;
+  category: string;
+  risk: "Düşük" | "Orta" | "Yüksek";
+  description: string;
+  version?: string;
+}
+
+const SHADOW_IT_CATALOG: Array<{
+  name: string;
+  category: string;
+  pattern: RegExp;
+  risk: "Düşük" | "Orta" | "Yüksek";
+  desc: string;
+  versionExtract?: RegExp;
+}> = [
+  { name: "Google Analytics / Tag Manager", category: "Analitik", pattern: /google-analytics\.com|googletagmanager\.com|gtag\/js/i, risk: "Düşük", desc: "Web sitesi ziyaretçi analizi. KVKK kapsamında veri işleme sözleşmesi (DPA) gerektirir." },
+  { name: "Hotjar", category: "Analitik", pattern: /hotjar\.com/i, risk: "Orta", desc: "Kullanıcı oturum kaydı ve ısı haritaları. Ziyaretçi davranışlarını kaydeder — KVKK uyumu kritik, gizlilik politikasında belirtilmeli." },
+  { name: "Microsoft Clarity", category: "Analitik", pattern: /clarity\.ms/i, risk: "Orta", desc: "Microsoft oturum kaydı. Kullanıcı tıklamaları ve kaydırmalarını kaydeder, KVKK bildirimi gerekli." },
+  { name: "Mixpanel", category: "Analitik", pattern: /mixpanel\.com/i, risk: "Düşük", desc: "Kullanıcı davranışı analiz platformu. ABD sunucularında veri işler." },
+  { name: "Facebook / Meta Pixel", category: "Pazarlama", pattern: /connect\.facebook\.net|fbevents\.js|facebook\.net\/tr/i, risk: "Yüksek", desc: "Facebook reklam izleme pikseli. Ziyaretçi verilerini Meta'ya iletir. KVKK'da açık rıza ve bildirim zorunlu." },
+  { name: "Google Ads", category: "Pazarlama", pattern: /googleadservices\.com|googlesyndication\.com|google_conversion/i, risk: "Düşük", desc: "Google reklam dönüşüm takibi." },
+  { name: "HubSpot", category: "Pazarlama / CRM", pattern: /hs-scripts\.com|hubspot\.com|hubapi\.com|hs-analytics\.net/i, risk: "Düşük", desc: "CRM ve inbound marketing platformu. Form verileri HubSpot sunucularına gönderilir." },
+  { name: "Mailchimp", category: "Pazarlama", pattern: /list-manage\.com|mailchimp\.com|chimpstatic\.com/i, risk: "Düşük", desc: "E-posta pazarlama servisi. Abone listesi ABD'de saklanır." },
+  { name: "Intercom", category: "Canlı Destek", pattern: /intercom\.io|intercomcdn\.com|widget\.intercom\.io/i, risk: "Orta", desc: "Müşteri mesajlaşma platformu. Ziyaretçi kimliği ve davranış verilerini toplar." },
+  { name: "Zendesk", category: "Canlı Destek", pattern: /zendesk\.com|zdassets\.com|ekr\.zdassets\.com/i, risk: "Düşük", desc: "Müşteri destek yönetimi. Destek talepleri Zendesk bulutunda saklanır." },
+  { name: "Tawk.to", category: "Canlı Destek", pattern: /tawk\.to/i, risk: "Orta", desc: "Ücretsiz canlı destek widget'ı. Sohbet verileri üçüncü taraf sunucularda saklanır; ücretsiz planlarda veri gizliliği sınırlı." },
+  { name: "Crisp Chat", category: "Canlı Destek", pattern: /crisp\.chat/i, risk: "Düşük", desc: "Canlı destek ve chatbot platformu." },
+  { name: "WordPress", category: "CMS", pattern: /wp-content\/|wp-includes\/|wordpress/i, risk: "Yüksek", desc: "WordPress CMS tespit edildi. Güncel tutulmayan WordPress, eklenti ve temalar en yaygın web saldırısı hedefidir. Tüm güncellemelerin yapıldığından emin olun." },
+  { name: "Wix", category: "CMS", pattern: /wix\.com|wixstatic\.com/i, risk: "Düşük", desc: "Wix bulut web sitesi oluşturucu. Altyapı Wix tarafından yönetilir." },
+  { name: "Shopify", category: "E-ticaret", pattern: /cdn\.shopify\.com|shopifycdn\.com/i, risk: "Düşük", desc: "Shopify e-ticaret platformu. PCI DSS Level 1 uyumlu, güvenli ödeme altyapısı." },
+  { name: "WooCommerce", category: "E-ticaret", pattern: /woocommerce/i, risk: "Orta", desc: "WordPress üzerine kurulu e-ticaret eklentisi. Ödeme verilerinin güvenliği kritik — PCI DSS uyumunu ve SSL'i doğrulayın." },
+  { name: "Cloudflare", category: "Güvenlik / CDN", pattern: /cloudflare\.com|cloudflareinsights\.com|__cf_bm/i, risk: "Düşük", desc: "CDN ve DDoS koruma servisi. Siteniz Cloudflare arkasında — bu güvenlik açısından olumlu." },
+  { name: "Google reCAPTCHA", category: "Güvenlik", pattern: /google\.com\/recaptcha|recaptcha\/api\.js/i, risk: "Düşük", desc: "Bot ve spam koruması." },
+  { name: "Stripe", category: "Ödeme", pattern: /js\.stripe\.com|stripe\.com\/v3/i, risk: "Düşük", desc: "Stripe ödeme altyapısı. PCI DSS Level 1 uyumlu." },
+  { name: "PayPal", category: "Ödeme", pattern: /paypal\.com\/sdk|paypalobjects\.com/i, risk: "Düşük", desc: "PayPal ödeme entegrasyonu." },
+  { name: "iyzico", category: "Ödeme", pattern: /iyzico\.com/i, risk: "Düşük", desc: "Türkiye'nin yaygın ödeme altyapısı. PCI DSS uyumlu." },
+  { name: "jQuery", category: "Kütüphane", pattern: /jquery[\.\-]\d+\.\d+|jquery\.min\.js/i, risk: "Orta", desc: "jQuery JavaScript kütüphanesi. Eski sürümler bilinen açıklar içerebilir — sürümü güncel tutun.", versionExtract: /jquery[\.\-](\d+\.\d+(?:\.\d+)?)/i },
+  { name: "Google Fonts", category: "Tasarım", pattern: /fonts\.googleapis\.com|fonts\.gstatic\.com/i, risk: "Düşük", desc: "Google Fonts servisi. Ziyaretçi IP adresleri Google'a iletilir — KVKK kapsamında değerlendirin." },
+  { name: "YouTube Embed", category: "Medya", pattern: /youtube\.com\/embed|youtube-nocookie\.com/i, risk: "Düşük", desc: "YouTube video gömme. Ziyaretçi izleme verisi Google'a iletilir." },
+  { name: "Typeform", category: "Form", pattern: /typeform\.com/i, risk: "Orta", desc: "Typeform form servisi. Form verileri Typeform sunucularında işlenir — hassas veriler için dikkatli kullanın." },
+  { name: "Calendly", category: "Randevu", pattern: /calendly\.com/i, risk: "Düşük", desc: "Online randevu alma aracı. Toplantı verileri Calendly'de saklanır." },
+];
+
+async function fetchHomepage(domain: string): Promise<string> {
+  return new Promise((resolve) => {
+    const makeRequest = (url: string, redirectCount = 0) => {
+      if (redirectCount > 5) { resolve(""); return; }
+      const isHttps = url.startsWith("https");
+      const mod = isHttps ? https : http;
+      const req = mod.request(
+        url,
+        { method: "GET", timeout: 8000, headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberStep.io Scanner)", "Accept": "text/html" } },
+        (res) => {
+          if ([301, 302, 303, 307, 308].includes(res.statusCode ?? 0) && res.headers.location) {
+            const loc = res.headers.location;
+            const next = loc.startsWith("http") ? loc : `${isHttps ? "https" : "http"}://${domain}${loc}`;
+            res.destroy();
+            makeRequest(next, redirectCount + 1);
+            return;
+          }
+          let data = "";
+          let size = 0;
+          res.on("data", (chunk: Buffer) => {
+            size += chunk.length;
+            if (size > 512 * 1024) { res.destroy(); resolve(data); return; }
+            data += chunk.toString();
+          });
+          res.on("end", () => resolve(data));
+        }
+      );
+      req.on("error", () => resolve(""));
+      req.on("timeout", () => { req.destroy(); resolve(""); });
+      req.end();
+    };
+    makeRequest(`https://${domain}`);
+  });
+}
+
+async function checkShadowIT(domain: string): Promise<{ services: ShadowItService[] }> {
+  try {
+    const html = await fetchHomepage(domain);
+    if (!html) return { services: [] };
+    const detected: ShadowItService[] = [];
+    for (const svc of SHADOW_IT_CATALOG) {
+      if (svc.pattern.test(html)) {
+        const entry: ShadowItService = { name: svc.name, category: svc.category, risk: svc.risk, description: svc.desc };
+        if (svc.versionExtract) {
+          const m = html.match(svc.versionExtract);
+          if (m?.[1]) entry.version = m[1];
+        }
+        detected.push(entry);
+      }
+    }
+    return { services: detected };
+  } catch {
+    return { services: [] };
+  }
 }
 
 // ─── HIBP domain breach check ─────────────────────────────────────────────────
@@ -238,7 +341,7 @@ router.post("/domain-scan", async (req, res) => {
   logger.info({ domain }, "Starting domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -246,6 +349,7 @@ router.post("/domain-scan", async (req, res) => {
       checkSSL(domain),
       checkHIBP(domain),
       checkBlacklists(domain),
+      checkShadowIT(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -273,6 +377,7 @@ router.post("/domain-scan", async (req, res) => {
         blacklisted: blacklist.blacklisted,
         blacklistCount: blacklist.blacklistCount,
         blacklistResults: blacklist.results,
+        shadowItServices: shadowIt.services,
       })
       .returning();
 

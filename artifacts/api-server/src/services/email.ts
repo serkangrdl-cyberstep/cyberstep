@@ -332,6 +332,82 @@ export async function sendCustomerReportEmail(params: {
   }
 }
 
+export async function sendReminderEmail(params: {
+  assessmentId: number;
+  companyName: string;
+  contactName: string;
+  customerEmail: string;
+  riskLevel: string;
+  scorePercent: number;
+  assessmentUrl: string;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const riskColor = params.riskLevel === "Kritik" ? "#dc2626" : params.riskLevel === "Yüksek" ? "#ea580c" : params.riskLevel === "Orta" ? "#d97706" : "#16a34a";
+  const base = getBaseUrl();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px">
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+    </div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Sayın ${params.contactName},</h2>
+      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">
+        ${params.companyName} için son siber güvenlik değerlendirmenizin üzerinden <strong>30 gün</strong> geçti.
+        Siber tehditler sürekli değişiyor — güvenlik durumunuzu güncel tutmak için yeni bir değerlendirme yapmanızı öneriyoruz.
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
+        <div style="font-size:12px;color:#64748b;margin-bottom:6px">30 Gün Önceki Skorunuz</div>
+        <div style="font-size:42px;font-weight:800;color:${riskColor}">%${params.scorePercent}</div>
+        <span style="background:${riskColor}20;color:${riskColor};font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px">${params.riskLevel} Risk</span>
+        <p style="margin:12px 0 0;font-size:13px;color:#64748b;line-height:1.5">
+          Yeni değerlendirme ile iyileştirmelerinizin etkisini ölçün ve güncel risk durumunuzu öğrenin.
+        </p>
+      </div>
+
+      <a href="${base}/assessment/start" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">
+        Yeni Değerlendirme Başlat (Ücretsiz)
+      </a>
+      <a href="${params.assessmentUrl}" style="display:block;border:1px solid #e2e8f0;color:#475569;text-align:center;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px">
+        Önceki Raporu Görüntüle
+      </a>
+
+      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:14px 18px;border-radius:0 8px 8px 0">
+        <p style="margin:0;font-size:13px;color:#1e40af;line-height:1.5">
+          <strong>Hatırlatıcı:</strong> Siber güvenlik sadece bir rapor değil, sürekli bir süreçtir.
+          Düzenli değerlendirmeler riskleri erkenden tespit etmenizi sağlar.
+        </p>
+      </div>
+    </div>
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+        CyberStep.io · Bu e-postayı almak istemiyorsanız <a href="mailto:${process.env["SMTP_USER"]}" style="color:#64748b">buraya yazın</a>.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    await transport.sendMail({
+      from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+      to: params.customerEmail,
+      subject: `30 Gün Geçti — Siber Güvenlik Durumunuzu Güncelleyin | ${params.companyName}`,
+      html,
+    });
+    logger.info({ assessmentId: params.assessmentId }, "Reminder email sent");
+  } catch (err) {
+    logger.error({ err, assessmentId: params.assessmentId }, "Failed to send reminder email");
+  }
+}
+
 export async function sendSpecialDayEmail(params: {
   message: {
     id: number;

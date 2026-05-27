@@ -411,6 +411,48 @@ export default function AssessmentReport() {
         );
       })()}
 
+      {/* CyberStep Verified Rozeti */}
+      {report.verificationToken && (() => {
+        const base = window.location.origin;
+        const verifyUrl = `${base}/verify/${report.verificationToken}`;
+        return (
+          <Card className="shadow-sm mb-6 border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900">
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="shrink-0 bg-emerald-100 dark:bg-emerald-900/40 p-3 rounded-xl">
+                  <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-sm">CyberStep Doğrulandı</h3>
+                    <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200" variant="outline">Verified</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Bu bağlantıyı tekliflerde, web sitenizde veya müşterilerinizle paylaşarak siber güvenlik değerlendirmenizi tamamladığınızı kanıtlayın.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <a
+                      href={verifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Doğrulama Sayfasını Gör <ArrowRight className="h-3 w-3" />
+                    </a>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(verifyUrl)}
+                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border hover:border-foreground/20 transition-colors"
+                    >
+                      Bağlantıyı Kopyala
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Expert review notice */}
       <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">
         <CardContent className="p-6">

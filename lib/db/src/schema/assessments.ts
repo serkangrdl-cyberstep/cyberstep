@@ -22,6 +22,7 @@ export const assessmentsTable = pgTable("assessments", {
   redAlarmCount: integer("red_alarm_count"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
+  reminderSentAt: timestamp("reminder_sent_at"),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessmentsTable).omit({ id: true, createdAt: true });

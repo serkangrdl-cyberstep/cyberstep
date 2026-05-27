@@ -355,6 +355,7 @@ JSON şablonu:
       .where(eq(reportsTable.assessmentId, assessmentId));
 
     const reviewToken = crypto.randomUUID();
+    const verificationToken = crypto.randomUUID();
 
     if (existingReport) {
       await db
@@ -374,6 +375,7 @@ JSON şablonu:
         recommendations,
         domainScores: scoring.domainScores,
         reviewToken,
+        verificationToken,
         reviewStatus: "pending_review",
       });
     }
@@ -426,6 +428,7 @@ JSON şablonu:
         recommendations: [],
         domainScores: scoring.domainScores,
         reviewToken,
+        verificationToken: crypto.randomUUID(),
         reviewStatus: "pending_review",
       });
 
@@ -595,6 +598,58 @@ router.get("/assessments/:id/report/pdf", requireAssessmentOwner, async (req, re
     logger.error({ err, assessmentId: id }, "PDF generation failed");
     res.status(500).json({ error: "PDF oluşturulamadı" });
   }
+});
+
+// GET /api/verify/:token  — public verification page data (no auth required)
+router.get("/verify/:token", async (req, res) => {
+  const token = req.params.token?.trim();
+  if (!token) {
+    res.status(400).json({ error: "Geçersiz token" });
+    return;
+  }
+
+  const [report] = await db
+    .select({
+      id: reportsTable.id,
+      assessmentId: reportsTable.assessmentId,
+      scorePercent: reportsTable.scorePercent,
+      riskLevel: reportsTable.riskLevel,
+      createdAt: reportsTable.createdAt,
+      verificationToken: reportsTable.verificationToken,
+    })
+    .from(reportsTable)
+    .where(eq(reportsTable.verificationToken, token))
+    .limit(1);
+
+  if (!report) {
+    res.status(404).json({ error: "Doğrulama bulunamadı" });
+    return;
+  }
+
+  const [assessment] = await db
+    .select({
+      companyName: assessmentsTable.companyName,
+      sector: assessmentsTable.sector,
+      employeeCount: assessmentsTable.employeeCount,
+      completedAt: assessmentsTable.completedAt,
+    })
+    .from(assessmentsTable)
+    .where(eq(assessmentsTable.id, report.assessmentId));
+
+  if (!assessment) {
+    res.status(404).json({ error: "Değerlendirme bulunamadı" });
+    return;
+  }
+
+  res.json({
+    companyName: assessment.companyName,
+    sector: assessment.sector,
+    employeeCount: assessment.employeeCount,
+    riskLevel: report.riskLevel,
+    scorePercent: report.scorePercent,
+    completedAt: assessment.completedAt ?? report.createdAt,
+    verifiedAt: report.createdAt,
+  });
 });
 
 export default router;

@@ -38,6 +38,7 @@ import AdminSpecialMessages from "./pages/admin-panel/special-messages";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
+import VerifyPage from "./pages/verify";
 import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
@@ -119,6 +120,7 @@ function Router() {
             <Route path="/assessment/:id" component={AssessmentRunner} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/admin/review/:token" component={AdminReview} />
+            <Route path="/verify/:token" component={VerifyPage} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

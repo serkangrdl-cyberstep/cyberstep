@@ -16,6 +16,7 @@ export const reportsTable = pgTable("reports", {
   recommendations: jsonb("recommendations").$type<string[]>().notNull().default([]),
   domainScores: jsonb("domain_scores").$type<Array<{domain: string; score: number; maxScore: number; percent: number}>>().notNull().default([]),
   reviewToken: text("review_token"),
+  verificationToken: text("verification_token"),
   adminNotes: text("admin_notes"),
   reviewStatus: text("review_status").notNull().default("pending_review"),
   reviewedAt: timestamp("reviewed_at"),

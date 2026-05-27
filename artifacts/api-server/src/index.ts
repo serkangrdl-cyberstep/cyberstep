@@ -1,8 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable } from "@workspace/db";
-import { eq, count, sql } from "drizzle-orm";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable } from "@workspace/db";
+import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
+import cron from "node-cron";
+import { sendReminderEmail } from "./services/email";
 import bcrypt from "bcryptjs";
 
 const rawPort = process.env["PORT"];
@@ -141,6 +143,72 @@ async function maybeSeedQuestions() {
   logger.info("Mini assessment questions seeded (table was empty)");
 }
 
+// ─── Cron: 30-günlük hatırlatıcı e-postası (her gün 09:00'da çalışır) ─────────
+function startReminderCron() {
+  cron.schedule("0 9 * * *", async () => {
+    logger.info("Running 30-day reminder cron job");
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyOneDaysAgo = new Date();
+      thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
+
+      const due = await db
+        .select({
+          id: assessmentsTable.id,
+          companyName: assessmentsTable.companyName,
+          contactName: assessmentsTable.contactName,
+          email: assessmentsTable.email,
+          riskLevel: assessmentsTable.riskLevel,
+          totalScore: assessmentsTable.totalScore,
+          maxScore: assessmentsTable.maxScore,
+        })
+        .from(assessmentsTable)
+        .where(
+          and(
+            sql`${assessmentsTable.status} = 'report_ready'`,
+            isNull(assessmentsTable.reminderSentAt),
+            lte(assessmentsTable.completedAt, thirtyDaysAgo),
+            sql`${assessmentsTable.completedAt} >= ${thirtyOneDaysAgo}`,
+          )
+        );
+
+      const base = process.env["REPLIT_DOMAINS"]
+        ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+        : "http://localhost:80";
+
+      for (const a of due) {
+        const scorePercent = a.totalScore && a.maxScore
+          ? Math.round((a.totalScore / a.maxScore) * 100)
+          : 0;
+        await sendReminderEmail({
+          assessmentId: a.id,
+          companyName: a.companyName,
+          contactName: a.contactName,
+          customerEmail: a.email,
+          riskLevel: a.riskLevel ?? "Bilinmiyor",
+          scorePercent,
+          assessmentUrl: `${base}/assessment/${a.id}/report`,
+        });
+        await db
+          .update(assessmentsTable)
+          .set({ reminderSentAt: new Date() })
+          .where(eq(assessmentsTable.id, a.id));
+
+        logger.info({ assessmentId: a.id }, "Reminder email sent and reminderSentAt updated");
+      }
+
+      if (due.length === 0) {
+        logger.info("No reminders due today");
+      }
+    } catch (err) {
+      logger.error({ err }, "Reminder cron job failed");
+    }
+  }, { timezone: "Europe/Istanbul" });
+
+  logger.info("30-day reminder cron scheduled (09:00 Istanbul)");
+}
+
 async function startup() {
   await maybeResetAdminPassword();
   await ensureQuestionsTable();
@@ -150,6 +218,7 @@ async function startup() {
 
 startup()
   .then(() => {
+    startReminderCron();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

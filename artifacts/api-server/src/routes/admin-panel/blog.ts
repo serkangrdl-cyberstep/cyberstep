@@ -50,8 +50,9 @@ router.get("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
 });
 
 router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Response) => {
-  const { title, excerpt, content, coverImageBase64, authorName } = req.body as {
+  const { title, excerpt, content, titleEn, excerptEn, contentEn, coverImageBase64, authorName } = req.body as {
     title: string; excerpt: string; content: string;
+    titleEn?: string; excerptEn?: string; contentEn?: string;
     coverImageBase64?: string; authorName?: string;
   };
   if (!title || !excerpt || !content) {
@@ -64,6 +65,9 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
 
   const [row] = await db.insert(blogPostsTable).values({
     title, slug, excerpt, content,
+    titleEn: titleEn || null,
+    excerptEn: excerptEn || null,
+    contentEn: contentEn || null,
     coverImageBase64: coverImageBase64 ?? null,
     authorName: authorName ?? "CyberStep.io",
     status: "draft",
@@ -74,14 +78,18 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
 
 router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { title, excerpt, content, coverImageBase64, authorName } = req.body as {
+  const { title, excerpt, content, titleEn, excerptEn, contentEn, coverImageBase64, authorName } = req.body as {
     title?: string; excerpt?: string; content?: string;
+    titleEn?: string; excerptEn?: string; contentEn?: string;
     coverImageBase64?: string; authorName?: string;
   };
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (title !== undefined) updateData.title = title;
   if (excerpt !== undefined) updateData.excerpt = excerpt;
   if (content !== undefined) updateData.content = content;
+  if (titleEn !== undefined) updateData.titleEn = titleEn || null;
+  if (excerptEn !== undefined) updateData.excerptEn = excerptEn || null;
+  if (contentEn !== undefined) updateData.contentEn = contentEn || null;
   if (coverImageBase64 !== undefined) updateData.coverImageBase64 = coverImageBase64;
   if (authorName !== undefined) updateData.authorName = authorName;
 
@@ -199,8 +207,10 @@ router.get("/public/blog", async (_req, res) => {
   const rows = await db.select({
     id: blogPostsTable.id,
     title: blogPostsTable.title,
+    titleEn: blogPostsTable.titleEn,
     slug: blogPostsTable.slug,
     excerpt: blogPostsTable.excerpt,
+    excerptEn: blogPostsTable.excerptEn,
     coverImageBase64: blogPostsTable.coverImageBase64,
     authorName: blogPostsTable.authorName,
     publishedAt: blogPostsTable.publishedAt,

@@ -12,7 +12,6 @@ import {
   Plus, Pencil, Trash2, Globe, EyeOff, Users, ArrowLeft, ImagePlus, X
 } from "lucide-react";
 
-// ─── TipTap ───────────────────────────────────────────────────────────────────
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
@@ -21,13 +20,15 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface BlogPost {
   id: number;
   title: string;
+  titleEn: string | null;
   slug: string;
   excerpt: string;
+  excerptEn: string | null;
   content?: string;
+  contentEn?: string | null;
   coverImageBase64: string | null;
   authorName: string;
   status: string;
@@ -35,7 +36,6 @@ interface BlogPost {
   createdAt: string;
 }
 
-// ─── Toolbar ─────────────────────────────────────────────────────────────────
 function ToolbarBtn({
   onClick, active, children, title,
 }: { onClick: () => void; active?: boolean; children: React.ReactNode; title?: string }) {
@@ -93,8 +93,7 @@ function EditorToolbar({ editor, onImageInsert }: {
   );
 }
 
-// ─── Editor ───────────────────────────────────────────────────────────────────
-function RichEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+function RichEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -104,7 +103,7 @@ function RichEditor({ value, onChange }: { value: string; onChange: (html: strin
       ImageExtension.configure({ inline: false, allowBase64: true }),
       Link.configure({ openOnClick: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Placeholder.configure({ placeholder: "Yazi icerigini buraya yazin..." }),
+      Placeholder.configure({ placeholder: placeholder ?? "Icerik buraya..." }),
     ],
     content: value || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -112,10 +111,7 @@ function RichEditor({ value, onChange }: { value: string; onChange: (html: strin
 
   const handleImageFile = useCallback((file: File) => {
     if (!editor) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Gorsel boyutu 2MB'dan kucuk olmalidir");
-      return;
-    }
+    if (file.size > 2 * 1024 * 1024) { alert("Gorsel boyutu 2MB'dan kucuk olmalidir"); return; }
     const reader = new FileReader();
     reader.onload = e => {
       const src = e.target?.result as string;
@@ -142,7 +138,12 @@ function RichEditor({ value, onChange }: { value: string; onChange: (html: strin
   );
 }
 
-// ─── Post Form ────────────────────────────────────────────────────────────────
+type PostSaveData = {
+  title: string; excerpt: string; content: string;
+  titleEn: string; excerptEn: string; contentEn: string;
+  coverImageBase64: string | null; authorName: string;
+};
+
 function PostForm({
   initial,
   onSave,
@@ -150,13 +151,17 @@ function PostForm({
   isSaving,
 }: {
   initial?: Partial<BlogPost>;
-  onSave: (data: { title: string; excerpt: string; content: string; coverImageBase64: string | null; authorName: string }) => void;
+  onSave: (data: PostSaveData) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
+  const [langTab, setLangTab] = useState<"tr" | "en">("tr");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
+  const [titleEn, setTitleEn] = useState(initial?.titleEn ?? "");
+  const [excerptEn, setExcerptEn] = useState(initial?.excerptEn ?? "");
+  const [contentEn, setContentEn] = useState(initial?.contentEn ?? "");
   const [authorName, setAuthorName] = useState(initial?.authorName ?? "CyberStep.io");
   const [coverImageBase64, setCoverImageBase64] = useState<string | null>(initial?.coverImageBase64 ?? null);
   const coverRef = useRef<HTMLInputElement>(null);
@@ -178,17 +183,54 @@ function PostForm({
         <h2 className="text-lg font-semibold text-white">{initial?.id ? "Yaziyi Duzenle" : "Yeni Yazi"}</h2>
       </div>
 
+      {/* Sidebar fields — shared */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Baslik *</label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Blog yazisi basligi" className="bg-slate-800 border-slate-700 text-white" />
+        <div className="md:col-span-2">
+          {/* Language tabs */}
+          <div className="flex gap-1 mb-4 bg-slate-800 p-1 rounded-lg w-fit">
+            <button
+              type="button"
+              onClick={() => setLangTab("tr")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${langTab === "tr" ? "bg-emerald-500 text-white" : "text-slate-400 hover:text-white"}`}
+            >
+              Turkce (TR)
+            </button>
+            <button
+              type="button"
+              onClick={() => setLangTab("en")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${langTab === "en" ? "bg-blue-500 text-white" : "text-slate-400 hover:text-white"}`}
+            >
+              English (EN)
+            </button>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Ozet *</label>
-            <Textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Kisa ozet (listede ve e-postada gozukur)" rows={3} className="bg-slate-800 border-slate-700 text-white resize-none" />
-          </div>
+
+          {langTab === "tr" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Baslik (TR) *</label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Turkce blog yazisi basligi" className="bg-slate-800 border-slate-700 text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Ozet (TR) *</label>
+                <Textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Kisa Turkce ozet" rows={3} className="bg-slate-800 border-slate-700 text-white resize-none" />
+              </div>
+            </div>
+          )}
+
+          {langTab === "en" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Title (EN) <span className="text-slate-500">isteğe bağlı</span></label>
+                <Input value={titleEn} onChange={e => setTitleEn(e.target.value)} placeholder="English blog post title" className="bg-slate-800 border-slate-700 text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Excerpt (EN) <span className="text-slate-500">isteğe bağlı</span></label>
+                <Textarea value={excerptEn} onChange={e => setExcerptEn(e.target.value)} placeholder="Short English excerpt" rows={3} className="bg-slate-800 border-slate-700 text-white resize-none" />
+              </div>
+            </div>
+          )}
         </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">Yazar</label>
@@ -218,17 +260,24 @@ function PostForm({
         </div>
       </div>
 
+      {/* Content editor — per language */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Icerik *</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          {langTab === "tr" ? "Icerik (TR) *" : "Content (EN)"} {langTab === "en" && <span className="text-slate-500">isteğe bağlı</span>}
+        </label>
         <div className="bg-white rounded-lg">
-          <RichEditor value={content} onChange={setContent} />
+          {langTab === "tr" ? (
+            <RichEditor key="tr" value={content} onChange={setContent} placeholder="Turkce icerik..." />
+          ) : (
+            <RichEditor key="en" value={contentEn} onChange={setContentEn} placeholder="English content..." />
+          )}
         </div>
       </div>
 
       <div className="flex justify-end gap-3">
         <Button variant="outline" onClick={onCancel} className="border-slate-600 text-slate-300 hover:bg-slate-700">Iptal</Button>
         <Button
-          onClick={() => onSave({ title, excerpt, content, coverImageBase64, authorName })}
+          onClick={() => onSave({ title, excerpt, content, titleEn, excerptEn, contentEn, coverImageBase64, authorName })}
           disabled={isSaving || !title || !excerpt || !content}
           className="bg-emerald-500 hover:bg-emerald-400 text-white"
         >
@@ -239,7 +288,6 @@ function PostForm({
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function AdminBlog() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -324,7 +372,6 @@ export default function AdminBlog() {
   return (
     <AdminLayout title="Blog Yonetimi" description="Yazi olustur, yayinla ve abone istatistiklerini gorun">
       <div className="space-y-6">
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-slate-800 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">Toplam Yazi</div>
@@ -343,7 +390,6 @@ export default function AdminBlog() {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex justify-end">
           <Button onClick={() => setView("new")} className="bg-emerald-500 hover:bg-emerald-400 text-white">
             <Plus className="h-4 w-4 mr-2" />
@@ -351,7 +397,6 @@ export default function AdminBlog() {
           </Button>
         </div>
 
-        {/* Posts list */}
         {isLoading && <div className="text-slate-400">Yukleniyor...</div>}
         {!isLoading && posts?.length === 0 && (
           <div className="text-center py-16 text-slate-500">Henuz yazi yok. Ilk yazinizi olusturun.</div>
@@ -365,6 +410,9 @@ export default function AdminBlog() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-semibold text-white truncate">{post.title}</span>
+                  {post.titleEn && (
+                    <Badge variant="outline" className="border-blue-500/40 text-blue-400 text-xs">EN</Badge>
+                  )}
                   <Badge variant={post.status === "published" ? "default" : "secondary"} className={post.status === "published" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-slate-700 text-slate-400"}>
                     {post.status === "published" ? "Yayinda" : "Taslak"}
                   </Badge>

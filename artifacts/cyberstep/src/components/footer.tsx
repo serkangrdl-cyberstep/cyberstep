@@ -1,6 +1,8 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
+import { TRANSLATIONS as T, t } from "@/lib/translations";
 
 interface SocialLink {
   id: number;
@@ -43,6 +45,8 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function Footer() {
+  const { lang } = useLanguage();
+
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],
     queryFn: () => fetch("/api/public/settings").then(r => r.json()),
@@ -56,7 +60,7 @@ export function Footer() {
   });
 
   const company = settings?.["footer.company"] ?? "CyberStep.io";
-  const tagline = settings?.["footer.tagline"] ?? "KOBIler icin siber guvenlik risk analizi";
+  const tagline = settings?.["footer.tagline"] ?? (lang === "en" ? "Cybersecurity risk analysis for SMEs" : "KOBİ'ler için siber güvenlik risk analizi");
   const email = settings?.["contact.email"] ?? "info@cyberstep.io";
 
   return (
@@ -95,14 +99,14 @@ export function Footer() {
 
           {/* Platform */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Platform</h4>
+            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.platform, lang)}</h4>
             <ul className="space-y-2.5">
               {[
-                { label: "Mini Degerlendirme", href: "/assessment/start" },
-                { label: "Tam Degerlendirme", href: "/assessment/full/start" },
-                { label: "Fiyatlar", href: "/fiyatlar" },
-                { label: "Dashboard", href: "/dashboard" },
-                { label: "Blog", href: "/blog" },
+                { label: t(T.footer.miniAssessment, lang), href: "/assessment/start" },
+                { label: t(T.footer.fullAssessment, lang), href: "/assessment/full/start" },
+                { label: t(T.footer.pricing, lang), href: "/fiyatlar" },
+                { label: t(T.footer.dashboard, lang), href: "/dashboard" },
+                { label: t(T.footer.blog, lang), href: "/blog" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
@@ -111,14 +115,14 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Kurumsal */}
+          {/* Kurumsal / Company */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Kurumsal</h4>
+            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.corporate, lang)}</h4>
             <ul className="space-y-2.5">
               {[
-                { label: "Hakkimizda", href: "/hakkimizda" },
-                { label: "Iletisim", href: "/iletisim" },
-                { label: "KVKK", href: "/kvkk" },
+                { label: t(T.footer.about, lang), href: "/hakkimizda" },
+                { label: t(T.footer.contact, lang), href: "/iletisim" },
+                { label: t(T.footer.kvkk, lang), href: "/kvkk" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
@@ -130,14 +134,14 @@ export function Footer() {
 
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-500 text-xs">
-            {new Date().getFullYear()} {company}. Tum haklari saklidir.
+            {new Date().getFullYear()} {company}. {t(T.footer.allRights, lang)}
           </p>
           <div className="flex items-center gap-5 flex-wrap justify-center">
-            <Link href="/gizlilik-politikasi" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Gizlilik Politikasi</Link>
-            <Link href="/kullanim-kosullari" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Kullanim Kosullari</Link>
-            <Link href="/cerez-politikasi" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Cerez Politikasi</Link>
-            <Link href="/kvkk" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">KVKK</Link>
-            <Link href="/iletisim" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">Iletisim</Link>
+            <Link href="/gizlilik-politikasi" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">{t(T.footer.privacyPolicy, lang)}</Link>
+            <Link href="/kullanim-kosullari" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">{t(T.footer.termsOfService, lang)}</Link>
+            <Link href="/cerez-politikasi" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">{t(T.footer.cookiePolicy, lang)}</Link>
+            <Link href="/kvkk" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">{t(T.footer.kvkk, lang)}</Link>
+            <Link href="/iletisim" className="text-slate-500 text-xs hover:text-slate-300 transition-colors">{t(T.footer.contact, lang)}</Link>
           </div>
         </div>
       </div>

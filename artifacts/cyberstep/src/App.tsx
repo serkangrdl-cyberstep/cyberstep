@@ -44,6 +44,8 @@ import CustomerAccount from "./pages/customer/account";
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
 import { WhiteLabelProvider } from "./contexts/white-label-context";
+import { LanguageProvider } from "./contexts/language-context";
+import { ThemeProvider } from "next-themes";
 
 const queryClient = new QueryClient();
 
@@ -123,15 +125,19 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <CookieBanner />
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <CookieBanner />
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }
 

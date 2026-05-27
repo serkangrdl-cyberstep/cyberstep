@@ -1,106 +1,17 @@
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, TrendingUp, Award, ChevronDown, ChevronUp, Loader2, Lock, Search, Users, AlertTriangle, FileText, Globe, Server, Code, Eye } from "lucide-react";
+import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/language-context";
+import { TRANSLATIONS as T, t } from "@/lib/translations";
 
 const LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  Shield, Lock, Search, Users, AlertTriangle, FileText, Globe, Server, Code, Eye,
-  Building2, TrendingUp, Award, CheckCircle, ShieldAlert,
+  Shield, CheckCircle, ShieldAlert, Building2,
 };
 
 interface ConsultingService { id: number; title: string; description: string; icon: string; isActive: boolean; sortOrder: number; }
 interface TechPartner { id: number; name: string; logoUrl: string; websiteUrl: string | null; isActive: boolean; }
-
-const STATS = [
-  { value: "500+", label: "KOBİ Analiz Edildi" },
-  { value: "3.2dk", label: "Ortalama Test Süresi" },
-  { value: "%94", label: "Müşteri Memnuniyeti" },
-  { value: "20", label: "Kritik Kontrol Noktası" },
-];
-
-const TESTIMONIALS = [
-  {
-    name: "Ahmet Yılmaz",
-    title: "Genel Müdür",
-    company: "Yılmaz Tekstil A.Ş.",
-    sector: "Üretim",
-    text: "Siber güvenlik konusunda nerede durduğumuzu hiç bilmiyorduk. CyberStep testi sayesinde 3 kritik açığımızı fark ettik ve hemen aksiyon aldık. Uzman ekibin değerlendirmesi son derece aydınlatıcıydı.",
-    score: "Kritik",
-  },
-  {
-    name: "Fatma Demir",
-    title: "Finans Direktörü",
-    company: "Demir Muhasebe Yazılım",
-    sector: "Teknoloji",
-    text: "Müşteri verilerini işleyen bir şirket olarak güvenlik sorumluluğumuz büyük. Rapor, önceliklerimizi netleştirdi. Eksiklerimizi görsel olarak anlamak çok işe yaradı.",
-    score: "Yüksek",
-  },
-  {
-    name: "Mehmet Çelik",
-    title: "Operasyon Müdürü",
-    company: "Çelik Lojistik Ltd.",
-    sector: "Hizmet",
-    text: "Teknik bilgimiz sınırlı ama test sorular açık ve anlaşılırdı. Uzman değerlendirmesi geldikten sonra BT danışmanımızla birebir çalıştık. Kesinlikle tavsiye ediyorum.",
-    score: "Orta",
-  },
-];
-
-const SECTOR_RISKS = [
-  {
-    sector: "Finans & Sigorta",
-    icon: "🏦",
-    risks: ["IBAN sahtekarlığı ve BEC saldırıları", "Müşteri veri sızıntısı", "Fidye yazılımı ile iş sürekliliği kaybı"],
-    color: "border-blue-200 bg-blue-50/50",
-  },
-  {
-    sector: "Sağlık",
-    icon: "🏥",
-    risks: ["Hasta kayıtlarına yetkisiz erişim", "KVKK uyumsuzluk cezaları", "Tıbbi cihaz güvenlik açıkları"],
-    color: "border-red-200 bg-red-50/50",
-  },
-  {
-    sector: "Perakende & E-ticaret",
-    icon: "🛒",
-    risks: ["Ödeme sistemi veri hırsızlığı", "Müşteri hesabı ele geçirme", "Tedarik zinciri saldırıları"],
-    color: "border-orange-200 bg-orange-50/50",
-  },
-  {
-    sector: "Üretim & Sanayi",
-    icon: "🏭",
-    risks: ["OT/IT sistemlerinde güvenlik açıkları", "Üretim duruşuna yol açan fidye yazılımı", "Fikri mülkiyet hırsızlığı"],
-    color: "border-purple-200 bg-purple-50/50",
-  },
-];
-
-const FAQS = [
-  {
-    q: "Değerlendirme teknik bilgi gerektiriyor mu?",
-    a: "Hayır. Test, teknik olmayan yöneticiler için tasarlanmıştır. Sorular günlük iş süreçlerinizle ilgilidir ve herhangi bir teknik altyapı gerektirmez.",
-  },
-  {
-    q: "Cevaplarım güvende mi?",
-    a: "Verileriniz şifreli olarak saklanır ve yalnızca sizinle paylaşılır. Üçüncü taraflarla kesinlikle paylaşılmaz.",
-  },
-  {
-    q: "Sonuçları ne zaman alacağım?",
-    a: "Test tamamlandıktan sonra risk skorunuz ve kırmızı alarm sayınız anında gösterilir. Uzman ekibimiz sonuçlarınızı değerlendirip detaylı raporu 24-48 saat içinde iletir.",
-  },
-  {
-    q: "Raporun tamamını neden hemen göremiyorum?",
-    a: "Doğru ve yanıltıcı olmayan bir değerlendirme için uzman ekibimiz AI analizini inceleyip onaylar. Bu süreç raporun kalitesini garanti eder.",
-  },
-  {
-    q: "Mini ve Tam Değerlendirme arasındaki fark nedir?",
-    a: "Mini Değerlendirme 20 soru ile genel risk profilinizi ortaya koyar. Yakında sunulacak Tam Değerlendirme ise 55 soru, sektör karşılaştırması ve birebir uzman danışmanlığı içerir.",
-  },
-];
-
-const scoreColor: Record<string, string> = {
-  Kritik: "bg-red-100 text-red-700 border-red-200",
-  Yüksek: "bg-orange-100 text-orange-700 border-orange-200",
-  Orta: "bg-yellow-100 text-yellow-700 border-yellow-200",
-};
 
 interface PricingPlan {
   id: number;
@@ -116,55 +27,26 @@ interface PricingPlan {
 
 function formatPrice(plan: PricingPlan): string {
   const num = parseFloat(plan.price);
-  if (num === 0) return "Ücretsiz";
+  if (num === 0) return "";
   return new Intl.NumberFormat("tr-TR").format(num) + " ₺";
 }
 
-function getPlanMeta(plan: PricingPlan): { cta: string; href: string; highlight: boolean; badge?: string } {
+function getPlanMeta(plan: PricingPlan): { cta: "mini" | "full"; href: string; highlight: boolean; isFree: boolean } {
   if (plan.slug === "mini") {
-    return { cta: "Hemen Başla", href: "/assessment/start", highlight: false };
+    return { cta: "mini", href: "/assessment/start", highlight: false, isFree: parseFloat(plan.price) === 0 };
   }
-  return { cta: "Bildirim Al", href: "#", highlight: true, badge: "Yakında" };
+  return { cta: "full", href: "#", highlight: true, isFree: false };
 }
 
-const STATIC_PRICING = [
-  {
-    name: "Mini Değerlendirme",
-    displayPrice: "Ücretsiz",
-    description: "İlk adım olarak şirketinizin genel siber güvenlik durumunu hızlıca öğrenin.",
-    features: [
-      "20 kritik kontrol sorusu",
-      "5 temel güvenlik alanı",
-      "Anlık risk skoru",
-      "Kırmızı alarm tespiti",
-      "Uzman ön değerlendirmesi",
-    ],
-    cta: "Hemen Başla",
-    href: "/assessment/start",
-    highlight: false,
-    badge: undefined as string | undefined,
-  },
-  {
-    name: "Tam Değerlendirme",
-    displayPrice: "Yakında",
-    description: "Derinlemesine analiz ve tam kapsamlı aksiyon planı ile güvenliğinizi zirveye taşıyın.",
-    features: [
-      "55 kapsamlı soru",
-      "10 güvenlik alanı",
-      "PDF rapor indirme",
-      "Sektör karşılaştırması",
-      "Uzman danışmanlık görüşmesi",
-      "Öncelikli aksiyon yol haritası",
-    ],
-    cta: "Bildirim Al",
-    href: "#",
-    highlight: true,
-    badge: "Yakında",
-  },
-];
+const scoreColor: Record<string, string> = {
+  Kritik: "bg-red-100 text-red-700 border-red-200",
+  Yüksek: "bg-orange-100 text-orange-700 border-orange-200",
+  Orta: "bg-yellow-100 text-yellow-700 border-yellow-200",
+};
 
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const { lang } = useLanguage();
 
   const { data: pricingPlans, isLoading: pricingLoading } = useQuery<PricingPlan[]>({
     queryKey: ["public-pricing"],
@@ -184,18 +66,139 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const STATS = [
+    { value: "500+", label: t(T.home.statsAnalyzed, lang) },
+    { value: "3.2dk", label: t(T.home.statsTime, lang) },
+    { value: "%94", label: t(T.home.statsSatisfaction, lang) },
+    { value: "20", label: t(T.home.statsPoints, lang) },
+  ];
+
+  const SECTOR_RISKS = [
+    {
+      sector: t(T.home.financeLabel, lang),
+      icon: "🏦",
+      risks: [t(T.home.financeRisk1, lang), t(T.home.financeRisk2, lang), t(T.home.financeRisk3, lang)],
+      color: "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/20",
+    },
+    {
+      sector: t(T.home.healthLabel, lang),
+      icon: "🏥",
+      risks: [t(T.home.healthRisk1, lang), t(T.home.healthRisk2, lang), t(T.home.healthRisk3, lang)],
+      color: "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20",
+    },
+    {
+      sector: t(T.home.retailLabel, lang),
+      icon: "🛒",
+      risks: [t(T.home.retailRisk1, lang), t(T.home.retailRisk2, lang), t(T.home.retailRisk3, lang)],
+      color: "border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-900/20",
+    },
+    {
+      sector: t(T.home.mfgLabel, lang),
+      icon: "🏭",
+      risks: [t(T.home.mfgRisk1, lang), t(T.home.mfgRisk2, lang), t(T.home.mfgRisk3, lang)],
+      color: "border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-900/20",
+    },
+  ];
+
+  const FAQS = [
+    { q: t(T.home.faq1q, lang), a: t(T.home.faq1a, lang) },
+    { q: t(T.home.faq2q, lang), a: t(T.home.faq2a, lang) },
+    { q: t(T.home.faq3q, lang), a: t(T.home.faq3a, lang) },
+    { q: t(T.home.faq4q, lang), a: t(T.home.faq4a, lang) },
+    { q: t(T.home.faq5q, lang), a: t(T.home.faq5a, lang) },
+  ];
+
+  const TESTIMONIALS = [
+    {
+      name: "Ahmet Yılmaz",
+      title: lang === "en" ? "General Manager" : "Genel Müdür",
+      company: "Yılmaz Tekstil A.Ş.",
+      sector: lang === "en" ? "Manufacturing" : "Üretim",
+      text: lang === "en"
+        ? "We never knew where we stood on cybersecurity. Thanks to the CyberStep assessment, we identified 3 critical vulnerabilities and took immediate action."
+        : "Siber güvenlik konusunda nerede durduğumuzu hiç bilmiyorduk. CyberStep testi sayesinde 3 kritik açığımızı fark ettik ve hemen aksiyon aldık.",
+      score: lang === "en" ? "Critical" : "Kritik",
+    },
+    {
+      name: "Fatma Demir",
+      title: lang === "en" ? "Finance Director" : "Finans Direktörü",
+      company: "Demir Muhasebe Yazılım",
+      sector: lang === "en" ? "Technology" : "Teknoloji",
+      text: lang === "en"
+        ? "As a company handling customer data, we have a large security responsibility. The report clarified our priorities and helped us visualize our gaps."
+        : "Müşteri verilerini işleyen bir şirket olarak güvenlik sorumluluğumuz büyük. Rapor, önceliklerimizi netleştirdi.",
+      score: lang === "en" ? "High" : "Yüksek",
+    },
+    {
+      name: "Mehmet Çelik",
+      title: lang === "en" ? "Operations Manager" : "Operasyon Müdürü",
+      company: "Çelik Lojistik Ltd.",
+      sector: lang === "en" ? "Service" : "Hizmet",
+      text: lang === "en"
+        ? "Our technical knowledge is limited but the test questions were clear and understandable. After the expert assessment, we worked with our IT consultant. Highly recommended."
+        : "Teknik bilgimiz sınırlı ama test sorular açık ve anlaşılırdı. Uzman değerlendirmesi geldikten sonra BT danışmanımızla birebir çalıştık.",
+      score: lang === "en" ? "Medium" : "Orta",
+    },
+  ];
+
+  const scoreColorEn: Record<string, string> = {
+    Critical: "bg-red-100 text-red-700 border-red-200",
+    High: "bg-orange-100 text-orange-700 border-orange-200",
+    Medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  };
+
+  const STATIC_PLANS = [
+    {
+      name: t(T.home.miniName, lang),
+      displayPrice: t(T.home.free, lang),
+      description: t(T.home.miniDesc, lang),
+      features: [
+        t(T.home.miniFeature1, lang),
+        t(T.home.miniFeature2, lang),
+        t(T.home.miniFeature3, lang),
+        t(T.home.miniFeature4, lang),
+        t(T.home.miniFeature5, lang),
+      ],
+      cta: t(T.home.miniCta, lang),
+      href: "/assessment/start",
+      highlight: false,
+      badge: undefined as string | undefined,
+    },
+    {
+      name: t(T.home.fullName, lang),
+      displayPrice: t(T.home.comingSoon, lang),
+      description: t(T.home.fullDesc, lang),
+      features: [
+        t(T.home.fullFeature1, lang),
+        t(T.home.fullFeature2, lang),
+        t(T.home.fullFeature3, lang),
+        t(T.home.fullFeature4, lang),
+        t(T.home.fullFeature5, lang),
+        t(T.home.fullFeature6, lang),
+      ],
+      cta: t(T.home.fullCta, lang),
+      href: "#",
+      highlight: true,
+      badge: t(T.home.comingSoon, lang),
+    },
+  ];
+
   const displayPlans = pricingPlans && pricingPlans.length > 0
     ? pricingPlans.map(plan => {
         const meta = getPlanMeta(plan);
+        const priceStr = meta.isFree ? t(T.home.free, lang) : (formatPrice(plan) || t(T.home.comingSoon, lang));
         return {
           name: plan.name,
-          displayPrice: formatPrice(plan),
+          displayPrice: priceStr,
           description: plan.description,
           features: plan.features,
-          ...meta,
+          cta: meta.cta === "mini" ? t(T.home.miniCta, lang) : t(T.home.fullCta, lang),
+          href: meta.href,
+          highlight: meta.highlight,
+          badge: meta.highlight ? t(T.home.comingSoon, lang) : undefined,
         };
       })
-    : STATIC_PRICING;
+    : STATIC_PLANS;
 
   return (
     <div className="flex flex-col flex-1">
@@ -206,20 +209,20 @@ export default function Home() {
           <div className="max-w-3xl mx-auto text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-sm font-medium mb-4">
               <Shield className="h-4 w-4" />
-              <span>KOBİ'ler için Siber Güvenlik Analizi</span>
+              <span>{t(T.home.heroBadge, lang)}</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
-              Siber risklerinizi görünür kılın, önlem alın.
+              {t(T.home.heroTitle, lang)}
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground">
-              Şirketinizin siber güvenlik olgunluğunu 5 dakikada ölçün. Zayıf noktalarınızı keşfedin ve profesyonel bir yol haritası ile güvende kalın.
+              {t(T.home.heroSubtitle, lang)}
             </p>
             <div className="pt-4">
               <Link
                 href="/assessment/start"
                 className="inline-flex items-center justify-center rounded-md text-lg font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-14 px-8"
               >
-                Ücretsiz Değerlendirme Başla
+                {t(T.home.heroCta, lang)}
                 <ChevronRight className="ml-2 h-5 w-5" />
               </Link>
             </div>
@@ -245,8 +248,8 @@ export default function Home() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-foreground">Nasıl Çalışır?</h2>
-            <p className="text-muted-foreground mt-4">Sadece 3 adımda siber güvenlik durumunuzu analiz edin.</p>
+            <h2 className="text-3xl font-bold text-foreground">{t(T.home.howTitle, lang)}</h2>
+            <p className="text-muted-foreground mt-4">{t(T.home.howSub, lang)}</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -254,24 +257,24 @@ export default function Home() {
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <CheckCircle className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-semibold">1. Formu Doldurun</h3>
-              <p className="text-muted-foreground">İşletmenizle ilgili 20 kritik soruyu yanıtlayın. Teknik bilgi gerektirmez.</p>
+              <h3 className="text-xl font-semibold">{lang === "en" ? "1. Complete the Form" : "1. Formu Doldurun"}</h3>
+              <p className="text-muted-foreground">{t(T.home.step1sub, lang)}</p>
             </div>
 
             <div className="bg-card border rounded-lg p-6 shadow-sm flex flex-col items-center text-center space-y-4">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <BarChart className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-semibold">2. Risk Skorunuzu Görün</h3>
-              <p className="text-muted-foreground">Cevaplarınız analiz edilir, risk skorunuz ve kritik açıklarınız anında hesaplanır.</p>
+              <h3 className="text-xl font-semibold">{lang === "en" ? "2. See Your Risk Score" : "2. Risk Skorunuzu Görün"}</h3>
+              <p className="text-muted-foreground">{t(T.home.step2sub, lang)}</p>
             </div>
 
             <div className="bg-card border rounded-lg p-6 shadow-sm flex flex-col items-center text-center space-y-4">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <ShieldAlert className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-semibold">3. Uzman Raporunuzu Alın</h3>
-              <p className="text-muted-foreground">Uzman ekibimiz sonuçlarınızı değerlendirip 24-48 saat içinde kişiselleştirilmiş raporu iletir.</p>
+              <h3 className="text-xl font-semibold">{lang === "en" ? "3. Get Your Expert Report" : "3. Uzman Raporunuzu Alın"}</h3>
+              <p className="text-muted-foreground">{t(T.home.step3sub, lang)}</p>
             </div>
           </div>
         </div>
@@ -281,10 +284,10 @@ export default function Home() {
       <section className="py-20 bg-muted/30 border-y">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">Sektörel Riskler</Badge>
-            <h2 className="text-3xl font-bold">Sektörünüzü Etkileyen Tehditler</h2>
+            <Badge variant="outline" className="mb-4">{t(T.home.sectorBadge, lang)}</Badge>
+            <h2 className="text-3xl font-bold">{t(T.home.sectorTitle, lang)}</h2>
             <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-              Her sektörün kendine özgü siber güvenlik riskleri vardır. CyberStep, sektörünüze özel risk profilinizi çıkarır.
+              {t(T.home.sectorSub, lang)}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
@@ -311,10 +314,10 @@ export default function Home() {
         <section className="py-20 bg-background">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <Badge variant="outline" className="mb-4">Danışmanlık Hizmetleri</Badge>
-              <h2 className="text-3xl font-bold">Uzman Danışmanlık ile Güvenliğinizi Güçlendirin</h2>
+              <Badge variant="outline" className="mb-4">{t(T.home.consultingBadge, lang)}</Badge>
+              <h2 className="text-3xl font-bold">{t(T.home.consultingTitle, lang)}</h2>
               <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-                Değerlendirmenizin ardından ihtiyacınıza özel danışmanlık hizmetlerimizden yararlanın.
+                {t(T.home.consultingSub, lang)}
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -335,7 +338,7 @@ export default function Home() {
             </div>
             <div className="text-center mt-10">
               <Link href="/iletisim" className="inline-flex items-center gap-2 text-primary font-medium hover:underline">
-                Danışmanlık hakkında bilgi alın <ChevronRight className="h-4 w-4" />
+                {t(T.home.consultingCta, lang)} <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
@@ -346,10 +349,10 @@ export default function Home() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">Fiyatlandırma</Badge>
-            <h2 className="text-3xl font-bold">Şeffaf ve Erişilebilir</h2>
+            <Badge variant="outline" className="mb-4">{t(T.home.pricingBadge, lang)}</Badge>
+            <h2 className="text-3xl font-bold">{t(T.home.pricingTitle, lang)}</h2>
             <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              Mini değerlendirme tamamen ücretsiz. Daha derin analiz için Tam Değerlendirme yakında geliyor.
+              {t(T.home.pricingSub, lang)}
             </p>
           </div>
           {pricingLoading ? (
@@ -408,30 +411,30 @@ export default function Home() {
       <section className="py-20 bg-muted/30 border-y">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">Referanslar</Badge>
-            <h2 className="text-3xl font-bold">KOBİ'ler Ne Diyor?</h2>
+            <Badge variant="outline" className="mb-4">{t(T.home.testimonialsBadge, lang)}</Badge>
+            <h2 className="text-3xl font-bold">{t(T.home.testimonialsTitle, lang)}</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="bg-card rounded-xl border p-6 shadow-sm flex flex-col gap-4">
+            {TESTIMONIALS.map((test) => (
+              <div key={test.name} className="bg-card rounded-xl border p-6 shadow-sm flex flex-col gap-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                      {t.name.charAt(0)}
+                      {test.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.title}, {t.company}</p>
+                      <p className="font-semibold text-sm">{test.name}</p>
+                      <p className="text-xs text-muted-foreground">{test.title}, {test.company}</p>
                     </div>
                   </div>
-                  <span className={`text-xs border rounded-full px-2 py-0.5 font-medium ${scoreColor[t.score] ?? ""}`}>
-                    {t.score}
+                  <span className={`text-xs border rounded-full px-2 py-0.5 font-medium ${(scoreColor[test.score] ?? scoreColorEn[test.score]) ?? ""}`}>
+                    {test.score}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">"{t.text}"</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">"{test.text}"</p>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Building2 className="h-3 w-3" />
-                  {t.sector}
+                  {test.sector}
                 </div>
               </div>
             ))}
@@ -443,8 +446,8 @@ export default function Home() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">SSS</Badge>
-            <h2 className="text-3xl font-bold">Sık Sorulan Sorular</h2>
+            <Badge variant="outline" className="mb-4">{t(T.home.faqBadge, lang)}</Badge>
+            <h2 className="text-3xl font-bold">{t(T.home.faqTitle, lang)}</h2>
           </div>
           <div className="max-w-2xl mx-auto space-y-3">
             {FAQS.map((faq, i) => (
@@ -476,7 +479,7 @@ export default function Home() {
         <section className="py-16 bg-muted/20 border-y">
           <div className="container mx-auto px-4">
             <div className="text-center mb-10">
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Teknoloji Ortaklarımız</p>
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t(T.home.partnersBadge, lang)}</p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-10 max-w-5xl mx-auto">
               {techPartners.map(partner => (
@@ -505,15 +508,15 @@ export default function Home() {
       <section className="py-20 bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4 text-center">
           <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-white mb-4">Güvenliğinizi test etmek için bir dakikanız var mı?</h2>
+          <h2 className="text-3xl font-bold text-white mb-4">{t(T.home.ctaTitle, lang)}</h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Ücretsiz Mini Değerlendirme ile şirketinizin siber güvenlik açıklarını hemen keşfedin.
+            {t(T.home.ctaSub, lang)}
           </p>
           <Link
             href="/assessment/start"
             className="inline-flex items-center justify-center rounded-md text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-14 px-8 transition-colors"
           >
-            Ücretsiz Başla <ChevronRight className="ml-2 h-5 w-5" />
+            {t(T.home.ctaBtn, lang)} <ChevronRight className="ml-2 h-5 w-5" />
           </Link>
         </div>
       </section>

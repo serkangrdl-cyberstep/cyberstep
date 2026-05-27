@@ -336,8 +336,10 @@ export async function sendNewsletterEmail(params: {
   post: {
     id: number;
     title: string;
+    titleEn?: string | null;
     slug: string;
     excerpt: string;
+    excerptEn?: string | null;
     authorName: string;
     publishedAt: Date | null;
   };
@@ -348,9 +350,26 @@ export async function sendNewsletterEmail(params: {
 
   const base = getBaseUrl();
   const postUrl = `${base}/blog/${params.post.slug}`;
-  const dateStr = params.post.publishedAt
+
+  const dateStrTR = params.post.publishedAt
     ? new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(params.post.publishedAt))
     : "";
+  const dateStrEN = params.post.publishedAt
+    ? new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(new Date(params.post.publishedAt))
+    : "";
+
+  const hasTitleEn = !!params.post.titleEn;
+  const titleEn = params.post.titleEn ?? params.post.title;
+  const excerptEn = params.post.excerptEn ?? params.post.excerpt;
+
+  const enSection = `
+    <div style="margin-top:32px;padding-top:28px;border-top:2px dashed #e2e8f0">
+      <p style="margin:0 0 8px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px">New Blog Post</p>
+      <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a;line-height:1.3">${titleEn}</h2>
+      ${dateStrEN ? `<p style="margin:0 0 16px;font-size:12px;color:#94a3b8">${dateStrEN} · ${params.post.authorName}</p>` : ""}
+      <p style="margin:0 0 28px;font-size:14px;color:#475569;line-height:1.7">${excerptEn}</p>
+      <a href="${postUrl}" style="display:inline-block;background:#0f172a;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">Read More</a>
+    </div>`;
 
   for (const sub of params.subscribers) {
     const unsubUrl = `${base}/api/public/newsletter/unsubscribe/${sub.unsubscribeToken}`;
@@ -364,16 +383,23 @@ export async function sendNewsletterEmail(params: {
       <span style="background:#1e293b;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:20px;margin-left:12px">Blog</span>
     </div>
     <div style="padding:32px">
-      <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px">Yeni Blog Yazisi</p>
+      <!-- TÜRKÇE -->
+      <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px">Yeni Blog Yazısı</p>
       <h2 style="margin:0 0 16px;font-size:24px;color:#0f172a;line-height:1.3">${params.post.title}</h2>
-      ${dateStr ? `<p style="margin:0 0 16px;font-size:12px;color:#94a3b8">${dateStr} · ${params.post.authorName}</p>` : ""}
+      ${dateStrTR ? `<p style="margin:0 0 16px;font-size:12px;color:#94a3b8">${dateStrTR} · ${params.post.authorName}</p>` : ""}
       <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7">${params.post.excerpt}</p>
-      <a href="${postUrl}" style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">Devamini Oku</a>
+      <a href="${postUrl}" style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">Devamını Oku</a>
+
+      <!-- ENGLISH -->
+      ${hasTitleEn ? enSection : `
+      <div style="margin-top:32px;padding-top:28px;border-top:2px dashed #e2e8f0">
+        ${enSection}
+      </div>`}
     </div>
     <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
       <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
-        CyberStep.io bultenine abonesiniz.
-        <a href="${unsubUrl}" style="color:#64748b">Abonelikten cik</a>
+        CyberStep.io bültenine abonesiniz · You are subscribed to CyberStep.io newsletter.<br>
+        <a href="${unsubUrl}" style="color:#64748b">Abonelikten çık / Unsubscribe</a>
       </p>
     </div>
   </div>
@@ -384,7 +410,7 @@ export async function sendNewsletterEmail(params: {
       await transport.sendMail({
         from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
         to: sub.email,
-        subject: `[CyberStep Blog] ${params.post.title}`,
+        subject: `[CyberStep Blog] ${params.post.title}${hasTitleEn ? ` / ${titleEn}` : ""}`,
         html,
       });
     } catch (err) {

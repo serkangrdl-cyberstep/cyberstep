@@ -57,7 +57,7 @@ export default function FullAssessmentStart() {
           assessmentType: "full",
         },
       });
-      setLocation(`/assessment/full/${(result as any).id}`);
+      setLocation(`/payment/${(result as any).id}`);
     } catch {
       form.setError("root", { message: "Bir hata oluştu. Lütfen tekrar deneyin." });
     }

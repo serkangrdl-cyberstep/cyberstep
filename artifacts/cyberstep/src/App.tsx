@@ -12,6 +12,7 @@ import Dashboard from "./pages/dashboard";
 import Pricing from "./pages/pricing";
 import FullAssessmentStart from "./pages/full-assessment-start";
 import FullAssessmentRunner from "./pages/full-assessment-runner";
+import Payment from "./pages/payment";
 import AdminReview from "./pages/admin-review";
 import Hakkimizda from "./pages/hakkimizda";
 import Iletisim from "./pages/iletisim";
@@ -111,6 +112,7 @@ function Router() {
             <Route path="/assessment/start" component={AssessmentStart} />
             <Route path="/assessment/full/start" component={FullAssessmentStart} />
             <Route path="/assessment/full/:id" component={FullAssessmentRunner} />
+            <Route path="/payment/:id" component={Payment} />
             <Route path="/assessment/:id/report" component={AssessmentReport} />
             <Route path="/assessment/:id" component={AssessmentRunner} />
             <Route path="/dashboard" component={Dashboard} />

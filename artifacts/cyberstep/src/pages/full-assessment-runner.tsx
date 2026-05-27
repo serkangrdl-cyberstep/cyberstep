@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useGetAssessment, useSubmitAnswers, useCompleteAssessment } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { FULL_ASSESSMENT_SECTIONS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,6 +29,19 @@ export default function FullAssessmentRunner() {
   const { data: assessment, isLoading } = useGetAssessment(id, {
     query: { queryKey: ["assessment", id], enabled: !!id }
   });
+
+  const { data: paymentStatus, isLoading: paymentLoading } = useQuery<{ paid: boolean; status: string | null }>({
+    queryKey: ["payment-status", id],
+    queryFn: () => fetch(`/api/payments/status/${id}`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!id,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!paymentLoading && paymentStatus && !paymentStatus.paid) {
+      setLocation(`/payment/${id}`);
+    }
+  }, [paymentLoading, paymentStatus, id, setLocation]);
 
   const submitAnswers = useSubmitAnswers();
   const completeAssessment = useCompleteAssessment();
@@ -82,12 +96,12 @@ export default function FullAssessmentRunner() {
     }
   };
 
-  if (isLoading) return (
+  if (isLoading || paymentLoading) return (
     <div className="flex h-[50vh] items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  if (!assessment) return null;
+  if (!assessment || !paymentStatus?.paid) return null;
 
   return (
     <TooltipProvider>

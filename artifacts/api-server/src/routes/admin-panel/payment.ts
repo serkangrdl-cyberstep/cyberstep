@@ -11,8 +11,19 @@ const router = Router();
 const KDV_RATE = 0.20; // %20 KDV
 
 // POST /api/payments/initiate — start a payment
+// GET /api/payments/status/:assessmentId — check if an assessment has been paid
+router.get("/payments/status/:assessmentId", async (req: Request, res: Response) => {
+  const assessmentId = Number(req.params.assessmentId);
+  if (!assessmentId) { res.status(400).json({ paid: false }); return; }
+  const [payment] = await db.select()
+    .from(paymentsTable)
+    .where(eq(paymentsTable.assessmentId, assessmentId));
+  res.json({ paid: payment?.status === "success", status: payment?.status ?? null });
+});
+
 router.post("/payments/initiate", async (req: Request, res: Response) => {
-  const { planSlug, companyName, contactName, email, cardHolderName, cardNumber, expireYear, expireMonth, cvc, ip } = req.body as {
+  const { assessmentId, planSlug, companyName, contactName, email, cardHolderName, cardNumber, expireYear, expireMonth, cvc, ip } = req.body as {
+    assessmentId?: number;
     planSlug: string; companyName: string; contactName: string; email: string;
     cardHolderName: string; cardNumber: string; expireYear: string; expireMonth: string; cvc: string; ip?: string;
   };
@@ -64,6 +75,7 @@ router.post("/payments/initiate", async (req: Request, res: Response) => {
   });
 
   const [payment] = await db.insert(paymentsTable).values({
+    assessmentId: assessmentId ?? null,
     planSlug: plan.slug,
     companyName,
     contactName,

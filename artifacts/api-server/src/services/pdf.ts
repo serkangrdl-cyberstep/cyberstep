@@ -185,6 +185,107 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
   });
 }
 
+// ─── Domain Scan PDF ─────────────────────────────────────────────────────────
+
+interface DomainScanData {
+  id: number;
+  domain: string;
+  overallScore: number;
+  spfPass: boolean; spfRecord: string | null;
+  dmarcPass: boolean; dmarcRecord: string | null;
+  dkimPass: boolean; dkimSelectors: string[];
+  mxPass: boolean; mxRecords: Array<{ exchange: string; priority: number }>;
+  sslPass: boolean; sslExpiry: string | null; sslIssuer: string | null; sslDaysUntilExpiry: number | null;
+  hibpBreachCount: number;
+  blacklisted: boolean; blacklistCount: number;
+  shadowItServices: Array<{ name: string; category: string; risk: string }>;
+  createdAt: string;
+}
+
+export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 } });
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const W = doc.page.width;
+    const MARGIN = 48;
+    const CONTENT_W = W - MARGIN * 2;
+
+    // Header
+    doc.rect(0, 0, W, 90).fill(DARK);
+    doc.fillColor(WHITE).fontSize(20).font(FONT_BOLD).text("CyberStep.io", MARGIN, 28, { lineBreak: false });
+    doc.fillColor([148, 163, 184]).fontSize(10).font(FONT_REGULAR).text("Alan Adı Güvenlik Tarama Raporu", MARGIN, 56);
+    doc.fillColor([148, 163, 184]).fontSize(9).text(`#${data.id}  ·  ${new Date(data.createdAt).toLocaleDateString("tr-TR")}`, MARGIN, 56, { align: "right", width: CONTENT_W });
+    doc.y = 110;
+
+    // Domain + Score
+    const scoreColor: [number, number, number] = data.overallScore >= 80 ? [22, 163, 74] : data.overallScore >= 60 ? [217, 119, 6] : data.overallScore >= 40 ? [234, 88, 12] : [220, 38, 38];
+    const scoreLabel = data.overallScore >= 80 ? "İyi" : data.overallScore >= 60 ? "Orta" : data.overallScore >= 40 ? "Zayıf" : "Kritik";
+    const boxTop = doc.y;
+    doc.rect(MARGIN, boxTop, CONTENT_W, 64).fillAndStroke(LIGHT, [226, 232, 240]);
+    doc.fillColor(DARK).fontSize(15).font(FONT_BOLD).text(data.domain, MARGIN + 16, boxTop + 10, { width: CONTENT_W - 120 });
+    doc.fillColor(scoreColor).fontSize(28).font(FONT_BOLD).text(`${data.overallScore}`, W - MARGIN - 80, boxTop + 6, { width: 60, align: "right" });
+    doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR).text("/ 100 puan", W - MARGIN - 80, boxTop + 38, { width: 60, align: "right" });
+    doc.fillColor(scoreColor).fontSize(10).font(FONT_BOLD).text(scoreLabel, MARGIN + 16, boxTop + 36, { width: 80 });
+    doc.y = boxTop + 80;
+
+    // Checks
+    sectionTitle(doc, "Güvenlik Kontrolleri", MARGIN, CONTENT_W);
+    const checks = [
+      { label: "SPF Kaydı", pass: data.spfPass, detail: data.spfRecord, weight: "20 puan" },
+      { label: "DMARC Politikası", pass: data.dmarcPass, detail: data.dmarcRecord, weight: "25 puan" },
+      { label: "DKIM İmzası", pass: data.dkimPass, detail: data.dkimSelectors.join(", ") || null, weight: "20 puan" },
+      { label: "MX Kayıtları", pass: data.mxPass, detail: data.mxRecords[0]?.exchange ?? null, weight: "10 puan" },
+      { label: "SSL/TLS Sertifikası", pass: data.sslPass, detail: data.sslDaysUntilExpiry !== null ? `${data.sslIssuer ?? ""} — ${data.sslDaysUntilExpiry} gün geçerli` : null, weight: "25 puan" },
+    ];
+    for (const chk of checks) {
+      checkPageBreak(doc, 32);
+      const cy = doc.y;
+      const passColor: [number, number, number] = chk.pass ? [22, 163, 74] : [220, 38, 38];
+      doc.circle(MARGIN + 7, cy + 8, 7).fill(passColor);
+      doc.fillColor(WHITE).fontSize(9).font(FONT_BOLD).text(chk.pass ? "✓" : "✗", MARGIN + 3, cy + 4, { width: 9, align: "center" });
+      doc.fillColor(DARK).fontSize(10).font(FONT_BOLD).text(chk.label, MARGIN + 20, cy + 2, { width: 180, lineBreak: false });
+      doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(chk.weight, MARGIN + 20, cy + 2, { width: CONTENT_W - 20, align: "right" });
+      if (chk.detail) {
+        doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(chk.detail.substring(0, 80), MARGIN + 20, cy + 16, { width: CONTENT_W - 20 });
+        doc.y = cy + 30;
+      } else {
+        doc.y = cy + 22;
+      }
+    }
+    doc.y += 8;
+
+    // Risk Intelligence
+    sectionTitle(doc, "Risk İstihbaratı", MARGIN, CONTENT_W);
+    const intel = [
+      { label: "Veri Sızıntısı (HIBP)", value: data.hibpBreachCount === 0 ? "Temiz — kayıtlı sızıntı yok" : `${data.hibpBreachCount} sızıntı kaydı bulundu`, ok: data.hibpBreachCount === 0 },
+      { label: "Kara Liste Durumu", value: data.blacklisted ? `${data.blacklistCount} spam listesinde kayıtlı` : "Temiz — hiçbir listede yok", ok: !data.blacklisted },
+      { label: "Gölge BT Tespiti", value: `${data.shadowItServices.length} üçüncü parti servis — ${data.shadowItServices.filter(s => s.risk === "Yüksek").length} yüksek riskli`, ok: data.shadowItServices.filter(s => s.risk === "Yüksek").length === 0 },
+    ];
+    for (const item of intel) {
+      checkPageBreak(doc, 26);
+      const iy = doc.y;
+      const ic: [number, number, number] = item.ok ? [22, 163, 74] : [220, 38, 38];
+      doc.circle(MARGIN + 7, iy + 8, 7).fill(ic);
+      doc.fillColor(WHITE).fontSize(9).font(FONT_BOLD).text(item.ok ? "✓" : "!", MARGIN + 3, iy + 4, { width: 9, align: "center" });
+      doc.fillColor(DARK).fontSize(10).font(FONT_BOLD).text(item.label, MARGIN + 20, iy + 2, { lineBreak: false, width: 180 });
+      doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(item.value, MARGIN + 20, iy + 16, { width: CONTENT_W - 20 });
+      doc.y = iy + 30;
+    }
+
+    // Footer
+    checkPageBreak(doc, 60);
+    const footerY = doc.page.height - 50;
+    doc.rect(0, footerY, W, 50).fill(DARK);
+    doc.fillColor([148, 163, 184]).fontSize(8).font(FONT_REGULAR)
+      .text(`CyberStep.io  ·  Alan Adı Güvenlik Taraması  ·  Tarama #${data.id}`, MARGIN, footerY + 18, { width: CONTENT_W, align: "center" });
+    doc.end();
+  });
+}
+
 function sectionTitle(doc: InstanceType<typeof PDFDocument>, title: string, x: number, w: number) {
   checkPageBreak(doc, 40);
   doc.rect(x, doc.y, w, 1).fill(PRIMARY);

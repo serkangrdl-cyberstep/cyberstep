@@ -416,5 +416,38 @@ router.get("/domain-scan/history/:domain", async (req, res) => {
   res.json(scans);
 });
 
+// ─── GET /api/domain-scan/:id/pdf ────────────────────────────────────────────
+router.get("/domain-scan/:id/pdf", async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, id));
+  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+  try {
+    const { generateDomainScanPDF } = await import("../../services/pdf");
+    const buf = await generateDomainScanPDF({
+      id: scan.id,
+      domain: scan.domain,
+      overallScore: scan.overallScore,
+      spfPass: scan.spfPass, spfRecord: scan.spfRecord,
+      dmarcPass: scan.dmarcPass, dmarcRecord: scan.dmarcRecord,
+      dkimPass: scan.dkimPass, dkimSelectors: scan.dkimSelectors as string[],
+      mxPass: scan.mxPass, mxRecords: scan.mxRecords as Array<{ exchange: string; priority: number }>,
+      sslPass: scan.sslPass, sslExpiry: scan.sslExpiry, sslIssuer: scan.sslIssuer, sslDaysUntilExpiry: scan.sslDaysUntilExpiry,
+      hibpBreachCount: scan.hibpBreachCount,
+      blacklisted: scan.blacklisted, blacklistCount: scan.blacklistCount,
+      shadowItServices: (scan.shadowItServices as Array<{ name: string; category: string; risk: string }>) ?? [],
+      createdAt: scan.createdAt.toISOString(),
+    });
+    const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Domain_${safeDomain}.pdf"`);
+    res.setHeader("Content-Length", buf.length);
+    res.send(buf);
+  } catch (err) {
+    logger.error({ err, scanId: id }, "Domain scan PDF generation failed");
+    res.status(500).json({ error: "PDF oluşturulamadı" });
+  }
+});
+
 export default router;
 export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain };

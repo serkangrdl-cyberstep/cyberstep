@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,23 @@ export default function CustomerAccount() {
                 </Badge>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* My Reports */}
+        <Card className="bg-slate-900 border-slate-700">
+          <CardContent className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <FileText className="h-5 w-5 text-emerald-400" /> Raporlarım
+              </h3>
+              <p className="text-slate-400 text-sm mt-1">Geçmiş değerlendirmelerinizi ve alan adı taramalarınızı görün</p>
+            </div>
+            <Link href="/raporlarim">
+              <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800 shrink-0">
+                Raporları Gör <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 

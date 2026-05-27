@@ -3,8 +3,8 @@ import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import QRCode from "qrcode";
 import { db } from "@workspace/db";
-import { customersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { customersTable, assessmentsTable, reportsTable, domainScansTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 import { generateTotpSecret, generateTotpQrUrl, verifyTotp } from "../../services/auth";
 import { logger } from "../../lib/logger";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
@@ -169,6 +169,69 @@ router.post("/auth/totp-disable", requireCustomer, async (req: Request, res: Res
     .where(eq(customersTable.id, customerId));
   logger.info({ customerId }, "Customer TOTP disabled");
   res.json({ success: true });
+});
+
+// ─── GET /api/customer/assessments ──────────────────────────────────────────
+router.get("/customer/assessments", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req) as number;
+  const [customer] = await db.select({ email: customersTable.email })
+    .from(customersTable).where(eq(customersTable.id, customerId));
+  if (!customer) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
+
+  const rows = await db
+    .select({
+      id: assessmentsTable.id,
+      companyName: assessmentsTable.companyName,
+      sector: assessmentsTable.sector,
+      employeeCount: assessmentsTable.employeeCount,
+      assessmentType: assessmentsTable.assessmentType,
+      status: assessmentsTable.status,
+      createdAt: assessmentsTable.createdAt,
+      completedAt: assessmentsTable.completedAt,
+      riskLevel: reportsTable.riskLevel,
+      scorePercent: reportsTable.scorePercent,
+      totalScore: reportsTable.totalScore,
+      maxScore: reportsTable.maxScore,
+      redAlarmCount: reportsTable.redAlarmCount,
+      reportId: reportsTable.id,
+    })
+    .from(assessmentsTable)
+    .leftJoin(reportsTable, eq(reportsTable.assessmentId, assessmentsTable.id))
+    .where(eq(assessmentsTable.email, customer.email))
+    .orderBy(desc(assessmentsTable.createdAt))
+    .limit(50);
+
+  res.json(rows);
+});
+
+// ─── GET /api/customer/domain-scans ─────────────────────────────────────────
+router.get("/customer/domain-scans", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req) as number;
+  const [customer] = await db.select({ email: customersTable.email })
+    .from(customersTable).where(eq(customersTable.id, customerId));
+  if (!customer) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
+
+  const rows = await db
+    .select({
+      id: domainScansTable.id,
+      domain: domainScansTable.domain,
+      overallScore: domainScansTable.overallScore,
+      spfPass: domainScansTable.spfPass,
+      dmarcPass: domainScansTable.dmarcPass,
+      dkimPass: domainScansTable.dkimPass,
+      mxPass: domainScansTable.mxPass,
+      sslPass: domainScansTable.sslPass,
+      hibpBreachCount: domainScansTable.hibpBreachCount,
+      blacklisted: domainScansTable.blacklisted,
+      shadowItServices: domainScansTable.shadowItServices,
+      createdAt: domainScansTable.createdAt,
+    })
+    .from(domainScansTable)
+    .where(eq(domainScansTable.email, customer.email))
+    .orderBy(desc(domainScansTable.createdAt))
+    .limit(50);
+
+  res.json(rows);
 });
 
 export default router;

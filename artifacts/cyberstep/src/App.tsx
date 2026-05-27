@@ -44,6 +44,7 @@ import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
 import CustomerAccount from "./pages/customer/account";
+import CustomerReports from "./pages/customer/reports";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -82,6 +83,7 @@ function Router() {
       <Route path="/kayit" component={CustomerRegister} />
       <Route path="/totp-kurulum" component={CustomerTotpSetup} />
       <Route path="/hesabim" component={CustomerAccount} />
+      <Route path="/raporlarim" component={CustomerReports} />
 
       {/* Admin panel (full-page, no shared header/footer) */}
       <Route path="/panel/giris" component={AdminLogin} />

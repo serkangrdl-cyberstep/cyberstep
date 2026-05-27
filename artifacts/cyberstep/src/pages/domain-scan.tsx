@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -409,6 +410,22 @@ function BlacklistCard({ blacklisted, blacklistCount, results }: { blacklisted: 
 export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+
+  async function downloadScanPDF(id: number, domainName: string) {
+    setDownloadingPDF(true);
+    try {
+      const res = await fetch(`/api/domain-scan/${id}/pdf`);
+      if (!res.ok) throw new Error("PDF indirilemedi");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `CyberStep_Domain_${domainName}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingPDF(false);
+    }
+  }
 
   const scanMutation = useMutation({
     mutationFn: async () => {
@@ -545,6 +562,18 @@ export default function DomainScanPage() {
                       ? "Birkaç önemli güvenlik kaydı eksik. Aşağıdaki başarısız kontrolleri düzeltin."
                       : "Kritik güvenlik açıkları tespit edildi. Aşağıdaki adımları mümkün olan en kısa sürede tamamlayın."}
                   </p>
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"
+                      onClick={() => downloadScanPDF(result.id, result.domain)}
+                      disabled={downloadingPDF}
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      {downloadingPDF ? "PDF Hazırlanıyor..." : "PDF Olarak İndir"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

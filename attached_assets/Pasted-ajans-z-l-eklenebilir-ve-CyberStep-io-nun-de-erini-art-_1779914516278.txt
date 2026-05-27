@@ -1,0 +1,30 @@
+ajansız, ölçeklenebilir ve CyberStep.io'nun değerini artıracak "dıştan içe" (outside-in) stratejileri:
+​1. Dış Ağ (Public Perimeter) Taraması
+​Şirketin internete açık olan tüm varlıklarını, sanki bir hacker'mış gibi tarayabilirsiniz:
+​Açık Port ve Servis Analizi: Şirketin IP adresleri üzerinden hangi portların (RDP, FTP, SSH gibi) dışarıya açık olduğunu ve bu servislerin versiyonlarının güncel olup olmadığını tespit edin.
+​SSL/TLS Sertifika Kontrolü: SSL süresi dolmuş mu? Zayıf bir şifreleme (TLS 1.0 gibi) kullanılıyor mu? Bu, anında bir "güvenlik karnesi" puanı oluşturur.
+​DNS ve Mail Güvenliği (SPF, DKIM, DMARC): Bu, herhangi bir yazılım kurmadan yapılabilecek en değerli analizdir. E-posta sunucularının doğru yapılandırılıp yapılandırılmadığını (yani şirket adının başkaları tarafından "phishing" için kullanılma riskini) uzaktan kontrol edebilirsiniz.
+​2. "Dark Web" ve Sızıntı İstihbaratı (OSINT)
+​Şirket bilgisayarlarının içine girmeden, o şirkete ait verilerin zaten çalınıp çalınmadığını kontrol edebilirsiniz:
+​Email Sızıntısı: "Have I Been Pwned" benzeri bir API entegrasyonu ile şirketin domainindeki e-postaların geçmişte bir veri ihlalinde (örneğin LinkedIn veya başka bir platform sızıntısında) yer alıp almadığını raporlayın.
+​Domain İtibarı: Şirketin web sitesi veya e-posta sunucusu herhangi bir "blacklist" (karalisteye) alınmış mı?
+​3. Bulut Entegrasyonları (API tabanlı "Read-Only")
+​Ajan kurmak yerine, müşterinin kullandığı bulut servislerine (Microsoft 365, Google Workspace, AWS) "Read-Only API" yetkisi ile bağlanın.
+​Avantaj: Bu, ajan kurmaktan çok daha kolaydır (admin onayı yeterlidir).
+​Ne Görürsünüz?
+​Kaç kullanıcının MFA'sı (Çok Faktörlü Kimlik Doğrulama) kapalı?
+​Hangi dosyalar dışarıya (herkese açık şekilde) paylaşılmış?
+​Hangi cihazlar en son ne zaman bağlanmış?
+​Bu, KOBİ'ler için ajan kurmadan alınabilecek en derin güvenlik verisidir.
+​4. Shadow IT (Gölge BT) Keşfi
+​Şirketin web sitesindeki DNS kayıtlarını analiz ederek, kullandıkları üçüncü parti servisleri (CRM, Analytics, Marketing) görün.
+​Örneğin; "Sitenizde X chat eklentisini kullanıyorsunuz ve bu eklentinin şu an kritik bir açığı var." demek, müşterinin gözünde size olan güveni anında pekiştirir.
+​5. "CyberStep" İçin Bir Yol Haritası Önerisi:
+​Beta kullanıcısı için süreci şu şekilde kurgulayabilirsiniz:
+​Adım (Domain Girişi): Kullanıcı sadece şirket domainini girer.
+​Adım (Otomatik Tarama): Siz arka planda domainin DNS kayıtlarını, açık portlarını ve SSL durumunu tararsınız (Saniyeler sürer).
+​Adım (E-posta ile Derinleşme): "Daha detaylı analiz ister misin?" diyerek M365 veya Google Workspace için "Okuma İzni" (OAuth) istersiniz.
+​Adım (Dashboard): Kullanıcıya ajan kurmadan, yukarıdaki 3 veri kaynağından harmanlanmış bir "Güvenlik Karnesi" sunarsınız.
+​Neden bu yöntem?
+Bu yöntemle "ajan yükleme" korkusunu (hız, performans kaygısı, BT departmanı onayı) ortadan kaldırırsınız. Ayrıca, satış huninizde müşteriyi "domain girmek kadar kolay" bir yerden başlatıp, zamanla API entegrasyonuna ikna edebilirsiniz.
+​Soru: Şu anki beta sürümünüzde kullanıcılar sisteme nasıl giriş yapıyor? Sadece şirket domaini girerek mi yoksa başka bir yöntem mi kullanıyorsunuz?

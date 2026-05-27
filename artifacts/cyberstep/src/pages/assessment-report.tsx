@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
-  CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download
+  CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download,
+  TrendingUp, TrendingDown, Minus, Zap, Lock, Mail as MailIcon, Monitor, HardDrive
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -97,9 +98,38 @@ export default function AssessmentReport() {
   }
 
   const report = reportData as any;
-  const sectorBenchmark = SECTOR_BENCHMARKS[assessment?.sector ?? "Diğer"] ?? 58;
+  const staticBenchmark = SECTOR_BENCHMARKS[assessment?.sector ?? "Diğer"] ?? 58;
+  const sectorBenchmark: number = report.sectorAvg?.value ?? staticBenchmark;
   const scorePercent = report.scorePercent as number;
   const benchmarkDiff = scorePercent - sectorBenchmark;
+
+  const DOMAIN_SOLUTIONS: Record<string, { title: string; risk: string; icon: React.ElementType }> = {
+    "Firma ve Yönetişim": {
+      icon: Shield,
+      title: "Sorumluluk ve Envanter Yönetimi",
+      risk: "Güvenlik sorumluluğu net tanımlanmazsa bir siber saldırıda kimin ne yapacağı bilinmez, müdahale saatler sürer ve hasar büyür.",
+    },
+    "Kimlik ve Erişim": {
+      icon: Lock,
+      title: "Hesap ve Erişim Güvenliği",
+      risk: "Çalışan şifresi ele geçirilirse sisteme girilmesini engelleyecek ikinci bir güvence yoksa tüm iş verileri risk altına girer.",
+    },
+    "E-posta ve İnsan Faktörü": {
+      icon: MailIcon,
+      title: "E-posta Güvenliği ve Farkındalık",
+      risk: "Sahte e-posta ile IBAN değişikliği veya zararlı dosya gönderimi, KOBİ'lerde en yaygın finansal kayıp yöntemidir.",
+    },
+    "Cihaz Güvenliği": {
+      icon: Monitor,
+      title: "Cihaz ve Bilgisayar Koruma",
+      risk: "Güncellenmemiş bir bilgisayar veya antivirüssüz bir cihaz, fidye yazılımının tüm şirkete yayılması için yeterlidir.",
+    },
+    "Veri Koruma ve Yedekleme": {
+      icon: HardDrive,
+      title: "Veri Yedekleme ve İş Sürekliliği",
+      risk: "Yedek alınmayan veriler fidye yazılımı veya donanım arızasında tamamen yok olabilir; günler veya haftalar süren iş durması yaşanabilir.",
+    },
+  };
 
   const handlePdfDownload = async () => {
     setPdfLoading(true);
@@ -202,7 +232,10 @@ export default function AssessmentReport() {
                   <span className={benchmarkDiff >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
                     {benchmarkDiff >= 0 ? "+" : ""}{benchmarkDiff.toFixed(0)} puan
                   </span>
-                  <span className="text-muted-foreground"> (sektör ort. %{sectorBenchmark})</span>
+                  <span className="text-muted-foreground">
+                    {" "}(sektör ort. %{sectorBenchmark}
+                    {report.sectorAvg ? " — gerçek veri" : " — sektör tahmini"})
+                  </span>
                 </div>
               </div>
             </div>
@@ -227,6 +260,50 @@ export default function AssessmentReport() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Skor Takibi */}
+      {report.previousScore && (() => {
+        const prev = report.previousScore;
+        const delta = scorePercent - prev.scorePercent;
+        const improved = delta > 0;
+        const same = delta === 0;
+        return (
+          <Card className={`shadow-sm mb-6 border-t-4 ${improved ? "border-t-green-500" : same ? "border-t-slate-400" : "border-t-orange-500"}`}>
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className={`p-3 rounded-xl shrink-0 ${improved ? "bg-green-50" : same ? "bg-slate-100" : "bg-orange-50"}`}>
+                  {improved ? <TrendingUp className="h-6 w-6 text-green-600" /> : same ? <Minus className="h-6 w-6 text-slate-500" /> : <TrendingDown className="h-6 w-6 text-orange-600" />}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm mb-1">Önceki Değerlendirmeye Göre Değişim</h3>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="text-center">
+                      <div className="text-xs text-muted-foreground mb-0.5">Önceki Skor</div>
+                      <div className="text-2xl font-bold text-muted-foreground">%{prev.scorePercent}</div>
+                      <Badge variant="outline" className="text-xs mt-0.5">{prev.riskLevel}</Badge>
+                    </div>
+                    <div className="text-2xl text-muted-foreground">→</div>
+                    <div className="text-center">
+                      <div className="text-xs text-muted-foreground mb-0.5">Bu Skor</div>
+                      <div className="text-2xl font-bold">%{scorePercent.toFixed(0)}</div>
+                      <Badge className={getRiskColor(report.riskLevel)} variant="default">{report.riskLevel}</Badge>
+                    </div>
+                    <div className={`text-center ml-2 px-4 py-2 rounded-xl ${improved ? "bg-green-50" : same ? "bg-slate-100" : "bg-orange-50"}`}>
+                      <div className="text-xs text-muted-foreground mb-0.5">Değişim</div>
+                      <div className={`text-2xl font-bold ${improved ? "text-green-600" : same ? "text-slate-500" : "text-orange-600"}`}>
+                        {delta > 0 ? "+" : ""}{delta} puan
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Önceki değerlendirme: {new Date(prev.createdAt).toLocaleDateString("tr-TR")}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Domain cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
@@ -275,6 +352,64 @@ export default function AssessmentReport() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Partner Yönlendirme — zayıf alanlara göre çözüm önerileri */}
+      {(() => {
+        const weakDomains = (report.domainScores ?? []).filter((d: any) => d.percent < 60);
+        if (weakDomains.length === 0) return null;
+        const domainNameMap: Record<string, string> = {
+          A: "Firma ve Yönetişim",
+          B: "Kimlik ve Erişim",
+          C: "E-posta ve İnsan Faktörü",
+          D: "Cihaz Güvenliği",
+          E: "Veri Koruma ve Yedekleme",
+        };
+        return (
+          <Card className="shadow-sm mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Öncelikli Aksiyon Alanları
+              </CardTitle>
+              <CardDescription>
+                Skorunuza göre aşağıdaki alanlarda adım atmak işletmenizi korumada en büyük etkiyi yaratır.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {weakDomains.map((d: any) => {
+                  const domainName = domainNameMap[d.domain] ?? d.domain;
+                  const sol = DOMAIN_SOLUTIONS[domainName];
+                  if (!sol) return null;
+                  const Icon = sol.icon;
+                  return (
+                    <div key={d.domain} className="flex gap-4 p-4 rounded-xl border bg-muted/20">
+                      <div className="shrink-0 bg-primary/10 p-2.5 rounded-lg h-fit">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm">{sol.title}</span>
+                          <Badge variant="outline" className="text-xs shrink-0 text-orange-600 border-orange-300 bg-orange-50">
+                            %{d.percent.toFixed(0)} Skor
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{sol.risk}</p>
+                        <button
+                          className="mt-2 text-xs text-primary font-medium hover:underline flex items-center gap-1"
+                          onClick={() => document.getElementById("uzman-formu")?.scrollIntoView({ behavior: "smooth" })}
+                        >
+                          Uzman desteği al <ArrowRight className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Expert review notice */}
       <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">
@@ -370,7 +505,7 @@ export default function AssessmentReport() {
       </Card>
 
       {/* Contact / Expert form */}
-      <Card className="shadow-sm border-t-4 border-t-primary">
+      <Card id="uzman-formu" className="shadow-sm border-t-4 border-t-primary">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-primary" />

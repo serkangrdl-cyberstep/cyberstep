@@ -280,39 +280,47 @@ async function generateAIReport(
     })
     .join("\n");
 
-  const prompt = `Sen bir siber güvenlik uzmanısın. Aşağıdaki KOBİ'nin siber güvenlik değerlendirme sonuçlarını analiz et.
+  const prompt = `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan bir uzmansın. Görevin teknik jargon kullanmadan, iş sonuçlarına odaklanan sade Türkçe bir analiz yazmak.
 
 Firma: ${assessment.companyName}
 Sektör: ${assessment.sector}
 Çalışan Sayısı: ${assessment.employeeCount}
-Değerlendirme Türü: Mini (20 soru)
 
 SONUÇLAR:
-- Toplam Puan: ${scoring.totalScore}/${scoring.maxScore} (${scoring.scorePercent}%)
+- Toplam Puan: ${scoring.totalScore}/${scoring.maxScore} (%${scoring.scorePercent})
 - Risk Seviyesi: ${scoring.riskLevel}
-- Kırmızı Alarm Sayısı: ${scoring.redAlarmCount}
-- Kırmızı Alarm Sorular: ${redAlarmDetails || "Yok"}
+- Acil Müdahale Gerektiren Alan Sayısı: ${scoring.redAlarmCount}
+- Acil Alanlar: ${redAlarmDetails || "Yok"}
 
-DOMAIN PUANLARI:
-${scoring.domainScores.map((d) => `- ${d.domain}: ${d.score}/${d.maxScore} (%${d.percent})`).join("\n")}
+ALAN PUANLARI:
+${scoring.domainScores.map((d) => `- ${d.domain}: %${d.percent} (${d.score}/${d.maxScore})`).join("\n")}
 
 CEVAPLAR:
 ${answersText}
 
-KURALLAR (kesinlikle uy):
+YAZIM KURALLARI (kesinlikle uy):
 - Yanıtın SADECE geçerli bir JSON nesnesi olmalı, başka hiçbir şey yazma
-- Düşünce süreci, açıklama, yorum, başlık YAZMA — sadece JSON
-- aiAnalysis içinde markdown kullanma: #, ##, **, *, -, liste numarası KULLANMA
+- Düşünce süreci, açıklama, yorum YAZMA — sadece JSON
+- Teknik terim KULLANMA. Şu örnekleri izle:
+    * "MFA/2FA eksikliği" yerine → "çalışan hesaplarına şifre çalınırsa ikinci engel yok"
+    * "DKIM/SPF yapılandırması" yerine → "şirket adınıza sahte e-posta gönderilebilir"
+    * "endpoint protection" yerine → "bilgisayarlarda zararlı yazılım koruması"
+    * "access control" yerine → "kimin hangi bilgilere erişebildiği kontrol edilmiyor"
+- Her zayıflığı şöyle ifade et: ne olabilir → şirkete maliyeti ne olur
 - aiAnalysis düz paragraf metni olmalı, birden fazla paragraf için sadece \\n\\n kullan
-- recommendations dizisindeki her eleman düz Türkçe cümle, markdown yok
+- aiAnalysis içinde markdown yok: #, ##, **, *, - KULLANMA
+- recommendations: iş sahibinin anlayacağı, somut, uygulanabilir adımlar. Her madde tek cümle.
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
 
 JSON şablonu:
 {
-  "aiAnalysis": "Burada 400-600 kelimelik Türkçe analiz. Firmanın güçlü/zayıf yönleri, kırmızı alarm alanları, sektöre özgü riskler. Düz paragraf, markdown yok.",
+  "aiAnalysis": "400-600 kelimelik Türkçe analiz. Güçlü yönler → zayıf yönler (iş etkisiyle) → acil müdahale gerektiren durumlar → sektöre özgü değerlendirme. Düz paragraf, jargon yok.",
   "recommendations": [
-    "Türkçe somut öneri 1.",
-    "Türkçe somut öneri 2."
+    "İş sahibinin anlayacağı somut öneri 1.",
+    "İş sahibinin anlayacağı somut öneri 2.",
+    "İş sahibinin anlayacağı somut öneri 3.",
+    "İş sahibinin anlayacağı somut öneri 4.",
+    "İş sahibinin anlayacağı somut öneri 5."
   ]
 }`;
 
@@ -476,7 +484,59 @@ router.get("/assessments/:id/report", requireAssessmentOwner, async (req, res) =
     return;
   }
 
-  res.json(report);
+  // ─── Skor takibi: aynı e-postanın önceki tamamlanmış değerlendirmesi ─────────
+  const [previousAssessment] = await db
+    .select({
+      id: assessmentsTable.id,
+      totalScore: assessmentsTable.totalScore,
+      maxScore: assessmentsTable.maxScore,
+      riskLevel: assessmentsTable.riskLevel,
+      createdAt: assessmentsTable.createdAt,
+    })
+    .from(assessmentsTable)
+    .where(
+      and(
+        eq(assessmentsTable.email, assessment.email),
+        sql`${assessmentsTable.id} < ${params.data.id}`,
+        sql`${assessmentsTable.status} != 'in_progress'`,
+        sql`${assessmentsTable.totalScore} IS NOT NULL`,
+      )
+    )
+    .orderBy(desc(assessmentsTable.createdAt))
+    .limit(1);
+
+  // ─── Sektörel kıyaslama: gerçek DB ortalaması (≥3 kayıt varsa kullan) ────────
+  const [sectorStats] = await db
+    .select({
+      cnt: count(),
+      avgPct: sql<number>`ROUND(AVG(${assessmentsTable.totalScore}::float / NULLIF(${assessmentsTable.maxScore}::float,0) * 100))`,
+    })
+    .from(assessmentsTable)
+    .where(
+      and(
+        eq(assessmentsTable.sector, assessment.sector),
+        sql`${assessmentsTable.totalScore} IS NOT NULL`,
+        sql`${assessmentsTable.id} != ${params.data.id}`,
+      )
+    );
+
+  const sectorAvg =
+    Number(sectorStats?.cnt ?? 0) >= 3
+      ? { value: Number(sectorStats.avgPct), source: "real" as const }
+      : null; // frontend falls back to static table
+
+  const previousScore = previousAssessment
+    ? {
+        id: previousAssessment.id,
+        scorePercent: Math.round(
+          (Number(previousAssessment.totalScore) / Number(previousAssessment.maxScore)) * 100
+        ),
+        riskLevel: previousAssessment.riskLevel,
+        createdAt: previousAssessment.createdAt,
+      }
+    : null;
+
+  res.json({ ...report, previousScore, sectorAvg });
 });
 
 // GET /api/assessments/:id/report/pdf

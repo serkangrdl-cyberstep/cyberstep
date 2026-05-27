@@ -85,15 +85,20 @@ router.patch("/admin-panel/isr/deals/:id", requireAdmin, async (req: Request, re
   res.json({ ok: true });
 });
 
-// Manually trigger RFQ sending
+// Manually trigger RFQ sending — accepts optional distributorIds to target specific distributors
 router.post("/admin-panel/isr/deals/:id/send-rfq", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params.id));
-  const { vendorId } = req.body as { vendorId: number };
+  const { vendorId, distributorIds } = req.body as { vendorId?: number; distributorIds?: number[] };
   const [deal] = await db.select().from(isrDealsTable).where(eq(isrDealsTable.id, id));
   if (!deal) { res.status(404).json({ error: "Deal not found" }); return; }
   const vid = vendorId ?? deal.vendorId;
   if (!vid) { res.status(400).json({ error: "No vendor selected for this deal" }); return; }
-  await sendRfqsForDeal(id, vid, deal.productKeywords ?? deal.originalSubject ?? "", deal.originalBody ?? "");
+  // If a new vendorId was provided, update the deal
+  if (vendorId && vendorId !== deal.vendorId) {
+    const [vendor] = await db.select({ displayName: isrVendorsTable.displayName }).from(isrVendorsTable).where(eq(isrVendorsTable.id, vendorId));
+    await db.update(isrDealsTable).set({ vendorId, vendorName: vendor?.displayName ?? null, updatedAt: new Date() }).where(eq(isrDealsTable.id, id));
+  }
+  await sendRfqsForDeal(id, vid, deal.productKeywords ?? deal.originalSubject ?? "", deal.originalBody ?? "", distributorIds);
   res.json({ ok: true });
 });
 

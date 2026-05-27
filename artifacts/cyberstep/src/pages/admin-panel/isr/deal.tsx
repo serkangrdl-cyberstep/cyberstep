@@ -8,8 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
   ArrowLeft, Send, CheckCircle, XCircle, Plus, Trash2,
-  Mail, Building2, Package, FileText, Clock, RefreshCw,
+  Mail, Package, FileText, Clock,
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -54,6 +61,11 @@ export default function AdminIsrDeal() {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [kdvRate, setKdvRate] = useState(20);
 
+  // RFQ dialog state
+  const [rfqDialog, setRfqDialog] = useState(false);
+  const [rfqVendorId, setRfqVendorId] = useState<string>("");
+  const [rfqDistributorIds, setRfqDistributorIds] = useState<number[]>([]);
+
   const { data, isLoading, refetch } = useQuery<{
     deal: Record<string, unknown>;
     rfqs: Record<string, unknown>[];
@@ -67,14 +79,30 @@ export default function AdminIsrDeal() {
     enabled: !isNaN(dealId),
   });
 
+  const { data: vendorsData } = useQuery<Array<{
+    id: number; name: string; displayName: string;
+    distributors: Array<{ id: number; name: string; contactEmail: string; contactName: string | null }>;
+  }>>({
+    queryKey: ["isr-vendors"],
+    queryFn: () => fetch("/api/admin-panel/isr/vendors", { credentials: "include" }).then(r => r.json()),
+  });
+
   const sendRfqMutation = useMutation({
     mutationFn: () =>
       fetch(`/api/admin-panel/isr/deals/${dealId}/send-rfq`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorId: data?.deal["vendorId"] }),
+        body: JSON.stringify({
+          vendorId: rfqVendorId ? parseInt(rfqVendorId) : undefined,
+          distributorIds: rfqDistributorIds.length > 0 ? rfqDistributorIds : undefined,
+        }),
       }).then(r => r.json()),
-    onSuccess: () => { refetch(); qc.invalidateQueries({ queryKey: ["isr-stats"] }); },
+    onSuccess: () => {
+      setRfqDialog(false);
+      setRfqDistributorIds([]);
+      refetch();
+      qc.invalidateQueries({ queryKey: ["isr-stats"] });
+    },
   });
 
   const createQuoteMutation = useMutation({
@@ -159,12 +187,14 @@ export default function AdminIsrDeal() {
           </Button>
           <Badge className={`${status.color} border-0`}>{status.label}</Badge>
           <div className="ml-auto flex gap-2">
-            {deal["status"] === "new" && (
-              <Button size="sm" onClick={() => sendRfqMutation.mutate()} disabled={sendRfqMutation.isPending}>
-                <Send className="h-4 w-4 mr-1.5" />
-                RFQ Gönder
-              </Button>
-            )}
+            <Button size="sm" onClick={() => {
+              setRfqVendorId(deal["vendorId"] ? String(deal["vendorId"]) : "");
+              setRfqDistributorIds([]);
+              setRfqDialog(true);
+            }}>
+              <Send className="h-4 w-4 mr-1.5" />
+              RFQ Gönder
+            </Button>
             <Button size="sm" variant="outline" onClick={prefillFromResponse}>
               <Plus className="h-4 w-4 mr-1.5" />
               Teklif Hazırla
@@ -445,6 +475,104 @@ export default function AdminIsrDeal() {
           </div>
         </div>
       </div>
+
+      {/* RFQ Gönder Dialog */}
+      {(() => {
+        const selectedVendor = vendorsData?.find(v => String(v.id) === rfqVendorId);
+        const distributors = selectedVendor?.distributors ?? [];
+        const allSelected = distributors.length > 0 && distributors.every(d => rfqDistributorIds.includes(d.id));
+        return (
+          <Dialog open={rfqDialog} onOpenChange={o => setRfqDialog(o)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Send className="h-4 w-4 text-blue-500" /> RFQ Gönder
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-1">
+                {/* Vendor selector */}
+                <div>
+                  <Label className="text-xs font-medium text-slate-700">Satıcı (Vendor)</Label>
+                  <Select value={rfqVendorId} onValueChange={v => { setRfqVendorId(v); setRfqDistributorIds([]); }}>
+                    <SelectTrigger className="mt-1 text-sm">
+                      <SelectValue placeholder="Vendor seçin..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(vendorsData ?? []).filter(v => v.distributors.length > 0).map(v => (
+                        <SelectItem key={v.id} value={String(v.id)}>{v.displayName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Distributor list */}
+                {selectedVendor && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-xs font-medium text-slate-700">
+                        Distribütörler ({distributors.length})
+                      </Label>
+                      <button
+                        className="text-xs text-blue-500 hover:underline"
+                        onClick={() => allSelected
+                          ? setRfqDistributorIds([])
+                          : setRfqDistributorIds(distributors.map(d => d.id))
+                        }
+                      >
+                        {allSelected ? "Hiçbirini seçme" : "Tümünü seç"}
+                      </button>
+                    </div>
+                    {distributors.length === 0 ? (
+                      <p className="text-xs text-slate-400 py-2">
+                        Bu vendor altında distribütör yok. Önce distribütör ekleyin.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 max-h-52 overflow-y-auto border border-slate-200 rounded-md p-3">
+                        {distributors.map(d => (
+                          <div key={d.id} className="flex items-center gap-2.5">
+                            <Checkbox
+                              id={`dist-${d.id}`}
+                              checked={rfqDistributorIds.includes(d.id)}
+                              onCheckedChange={checked => {
+                                setRfqDistributorIds(prev =>
+                                  checked ? [...prev, d.id] : prev.filter(x => x !== d.id)
+                                );
+                              }}
+                            />
+                            <label htmlFor={`dist-${d.id}`} className="flex-1 cursor-pointer">
+                              <div className="text-sm font-medium text-slate-900">{d.name}</div>
+                              <div className="text-xs text-slate-400">
+                                {d.contactName ? `${d.contactName} · ` : ""}{d.contactEmail}
+                              </div>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {rfqDistributorIds.length === 0 && distributors.length > 0 && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        Seçim yapmazsanız tüm distribütörlere gönderilir.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRfqDialog(false)}>Iptal</Button>
+                <Button
+                  onClick={() => sendRfqMutation.mutate()}
+                  disabled={sendRfqMutation.isPending || !rfqVendorId}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  {sendRfqMutation.isPending ? "Gönderiliyor..." : `RFQ Gönder${rfqDistributorIds.length > 0 ? ` (${rfqDistributorIds.length})` : ""}`}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </AdminLayout>
   );
 }

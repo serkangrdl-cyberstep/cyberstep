@@ -296,6 +296,7 @@ export async function sendRfqsForDeal(
   vendorId: number,
   productKeywords: string,
   originalRequest: string,
+  distributorIds?: number[],
 ): Promise<void> {
   const transport = getSmtpTransport();
   if (!transport) {
@@ -306,9 +307,14 @@ export async function sendRfqsForDeal(
   const [vendor] = await db.select().from(isrVendorsTable).where(eq(isrVendorsTable.id, vendorId));
   if (!vendor) return;
 
-  const distributors = await db.select()
+  const allDistributors = await db.select()
     .from(isrDistributorsTable)
     .where(and(eq(isrDistributorsTable.vendorId, vendorId), eq(isrDistributorsTable.isActive, true)));
+
+  // Filter to selected distributors if specified, otherwise use all active ones
+  const distributors = distributorIds && distributorIds.length > 0
+    ? allDistributors.filter((d) => distributorIds.includes(d.id))
+    : allDistributors;
 
   const [deal] = await db.select({ customerCompany: isrDealsTable.customerCompany })
     .from(isrDealsTable).where(eq(isrDealsTable.id, dealId));
@@ -317,7 +323,8 @@ export async function sendRfqsForDeal(
     email: d.contactEmail, name: d.name, distributorId: d.id,
   }));
 
-  if (vendor.salesRepEmail) {
+  // Only add vendor sales rep if not using filtered distributor list
+  if (vendor.salesRepEmail && !distributorIds) {
     targets.push({ email: vendor.salesRepEmail, name: vendor.salesRepName ?? vendor.displayName });
   }
 

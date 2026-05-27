@@ -26,3 +26,4 @@ export * from "./admin";
 export * from "./customers";
 export * from "./services";
 export * from "./blog";
+export * from "./questions";

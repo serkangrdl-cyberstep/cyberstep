@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Save, Shield, Plus, X, ToggleLeft, ToggleRight, Pencil } from "lucide-react";
+import { Save, Plus, ToggleLeft, ToggleRight, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,18 +8,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useRequireAdmin } from "@/hooks/use-admin";
+import { AdminLayout } from "@/components/admin-layout";
 
 interface PricingPlan {
   id: number; slug: string; name: string; price: string; currency: string;
   description: string; features: string[]; isActive: boolean; sortOrder: number;
 }
 
+const EMPTY_NEW: Partial<PricingPlan> & { featuresText: string } = {
+  slug: "", name: "", price: "0", description: "", featuresText: "", isActive: true, sortOrder: 99,
+};
+
 export default function AdminPricing() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  useRequireAdmin();
 
   const { data: plans = [], isLoading } = useQuery<PricingPlan[]>({
     queryKey: ["admin-pricing"],
@@ -29,18 +30,44 @@ export default function AdminPricing() {
 
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<PricingPlan> & { featuresText?: string }>({});
+  const [showNew, setShowNew] = useState(false);
+  const [newForm, setNewForm] = useState({ ...EMPTY_NEW });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<PricingPlan> }) =>
+      fetch(`/api/admin-panel/pricing/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(data),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-pricing"] });
+      qc.invalidateQueries({ queryKey: ["public-pricing"] });
+      toast({ title: "Güncellendi" });
+      setEditId(null);
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Partial<PricingPlan>) =>
+      fetch("/api/admin-panel/pricing", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(data),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-pricing"] });
+      qc.invalidateQueries({ queryKey: ["public-pricing"] });
+      toast({ title: "Paket oluşturuldu" });
+      setShowNew(false);
+      setNewForm({ ...EMPTY_NEW });
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
 
   const startEdit = (plan: PricingPlan) => {
     setEditId(plan.id);
     setEditForm({ ...plan, featuresText: plan.features.join("\n") });
   };
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<PricingPlan> }) =>
-      fetch(`/api/admin-panel/pricing/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-pricing"] }); qc.invalidateQueries({ queryKey: ["public-pricing"] }); toast({ title: "Güncellendi" }); setEditId(null); },
-    onError: () => toast({ title: "Hata", variant: "destructive" }),
-  });
 
   const handleSave = () => {
     if (!editId) return;
@@ -48,32 +75,84 @@ export default function AdminPricing() {
     updateMutation.mutate({ id: editId, data: { name: editForm.name, price: editForm.price, description: editForm.description, features, isActive: editForm.isActive } });
   };
 
-  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">Yükleniyor...</div>;
+  const handleCreate = () => {
+    if (!newForm.slug || !newForm.name) { toast({ title: "Slug ve ad zorunludur", variant: "destructive" }); return; }
+    const features = (newForm.featuresText ?? "").split("\n").map(f => f.trim()).filter(Boolean);
+    createMutation.mutate({ slug: newForm.slug, name: newForm.name, price: newForm.price, description: newForm.description, features, isActive: newForm.isActive, sortOrder: newForm.sortOrder });
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 p-4 flex flex-col">
-        <div className="flex items-center gap-2 mb-6 px-2">
-          <Shield className="h-5 w-5 text-emerald-500" />
-          <span className="font-bold text-white text-sm">CyberStep Admin</span>
+    <AdminLayout title="Fiyatlandırma Yönetimi" description="Paket fiyatlarını ve içeriklerini düzenleyin">
+      <div className="max-w-5xl space-y-6">
+        <div className="flex justify-end">
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowNew(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Yeni Paket
+          </Button>
         </div>
-        <Button variant="ghost" className="justify-start text-slate-300 hover:text-white" onClick={() => navigate("/panel")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Genel Bakış
-        </Button>
-      </aside>
 
-      <main className="flex-1 overflow-auto">
-        <header className="bg-slate-900 border-b border-slate-800 px-8 py-4">
-          <h1 className="text-xl font-bold text-white">Fiyatlandırma Yönetimi</h1>
-          <p className="text-slate-400 text-sm">Paket fiyatlarını ve içeriklerini düzenleyin</p>
-        </header>
+        {showNew && (
+          <Card className="bg-slate-800 border-emerald-500/30">
+            <CardHeader>
+              <CardTitle className="text-white text-base">Yeni Fiyatlandırma Paketi</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Slug (tekil, değiştirilemez)</Label>
+                  <Input value={newForm.slug ?? ""} onChange={e => setNewForm(f => ({ ...f, slug: e.target.value }))} placeholder="ornek-paket" className="bg-slate-700 border-slate-600 text-white" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Paket Adı</Label>
+                  <Input value={newForm.name ?? ""} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} className="bg-slate-700 border-slate-600 text-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Fiyat (TRY, KDV hariç)</Label>
+                  <Input type="number" value={newForm.price ?? "0"} onChange={e => setNewForm(f => ({ ...f, price: e.target.value }))} className="bg-slate-700 border-slate-600 text-white" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Sıra</Label>
+                  <Input type="number" value={newForm.sortOrder ?? 99} onChange={e => setNewForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} className="bg-slate-700 border-slate-600 text-white" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Açıklama</Label>
+                <Input value={newForm.description ?? ""} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} className="bg-slate-700 border-slate-600 text-white" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Özellikler (her satıra bir özellik)</Label>
+                <Textarea value={newForm.featuresText ?? ""} onChange={e => setNewForm(f => ({ ...f, featuresText: e.target.value }))} className="bg-slate-700 border-slate-600 text-white min-h-[100px]" />
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setNewForm(f => ({ ...f, isActive: !f.isActive }))} className="text-slate-300 flex items-center gap-2 text-sm">
+                  {newForm.isActive ? <ToggleRight className="h-5 w-5 text-emerald-400" /> : <ToggleLeft className="h-5 w-5 text-slate-500" />}
+                  {newForm.isActive ? "Aktif" : "Pasif"}
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={handleCreate} disabled={createMutation.isPending} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Plus className="h-4 w-4 mr-2" /> Oluştur
+                </Button>
+                <Button variant="ghost" onClick={() => { setShowNew(false); setNewForm({ ...EMPTY_NEW }); }} className="text-slate-400">
+                  <X className="h-4 w-4 mr-1" /> İptal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <div className="p-8 space-y-6 max-w-5xl">
-          {plans.map(plan => (
+        {isLoading ? (
+          <div className="text-slate-400 text-center py-12">Yükleniyor...</div>
+        ) : plans.length === 0 ? (
+          <div className="text-slate-500 text-center py-12">Henüz fiyat planı yok. "Yeni Paket" ile ekleyin.</div>
+        ) : (
+          plans.map(plan => (
             <Card key={plan.id} className="bg-slate-800 border-slate-700">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CardTitle className="text-white">{plan.name}</CardTitle>
+                  <Badge variant="secondary" className="bg-slate-700 text-slate-400 text-xs">{plan.slug}</Badge>
                   <Badge className={plan.isActive ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-slate-700 text-slate-400"}>
                     {plan.isActive ? "Aktif" : "Pasif"}
                   </Badge>
@@ -127,9 +206,9 @@ export default function AdminPricing() {
                 </CardContent>
               )}
             </Card>
-          ))}
-        </div>
-      </main>
-    </div>
+          ))
+        )}
+      </div>
+    </AdminLayout>
   );
 }

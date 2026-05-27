@@ -141,7 +141,7 @@ export default function AdminPartnerlar() {
                 disabled={!addForm.name || !addForm.logoUrl || createMutation.isPending}>
                 <Check className="h-4 w-4 mr-1" /> Kaydet
               </Button>
-              <Button variant="ghost" className="text-slate-400" onClick={() => setShowAdd(false)}>
+              <Button variant="ghost" className="text-slate-400" onClick={() => { setShowAdd(false); setAddForm({ name: "", logoUrl: "", websiteUrl: "", sortOrder: 0 }); }}>
                 <X className="h-4 w-4 mr-1" /> İptal
               </Button>
             </div>

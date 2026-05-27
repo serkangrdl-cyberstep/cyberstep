@@ -7,6 +7,7 @@ import setupRouter from "./setup";
 import contentRouter from "./content";
 import blogRouter from "./blog";
 import specialMessagesRouter from "./special-messages";
+import questionsAdminRouter from "./questions-admin";
 
 const router = Router();
 router.use(authRouter);
@@ -17,5 +18,6 @@ router.use(setupRouter);
 router.use(contentRouter);
 router.use(blogRouter);
 router.use(specialMessagesRouter);
+router.use(questionsAdminRouter);
 
 export default router;

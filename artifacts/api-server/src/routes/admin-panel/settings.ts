@@ -51,6 +51,20 @@ router.put("/admin-panel/pricing/:id", requireAdmin, async (req: Request, res: R
   res.json(updated);
 });
 
+// POST /api/admin-panel/pricing — yeni plan oluştur
+router.post("/admin-panel/pricing", requireAdmin, async (req: Request, res: Response) => {
+  const { slug, name, price, description, features, isActive, sortOrder } = req.body as {
+    slug: string; name: string; price?: string; description?: string;
+    features?: string[]; isActive?: boolean; sortOrder?: number;
+  };
+  if (!slug || !name) { res.status(400).json({ error: "slug ve name zorunludur" }); return; }
+  const [created] = await db.insert(pricingPlansTable)
+    .values({ slug, name, price: price ?? "0", description: description ?? "", features: features ?? [], isActive: isActive ?? true, sortOrder: sortOrder ?? 99 })
+    .returning();
+  logger.info({ id: created.id, slug }, "Pricing plan created");
+  res.status(201).json(created);
+});
+
 // GET /api/admin-panel/pricing (public — no auth)
 router.get("/public/pricing", async (_req: Request, res: Response) => {
   const plans = await db.select().from(pricingPlansTable)

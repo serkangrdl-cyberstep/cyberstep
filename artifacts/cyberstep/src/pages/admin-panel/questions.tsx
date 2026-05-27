@@ -1,97 +1,286 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { ArrowLeft, Shield, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ChevronDown, ChevronUp, Pencil, Trash2, Plus, Check, X, ToggleLeft, ToggleRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useRequireAdmin } from "@/hooks/use-admin";
+import { useToast } from "@/hooks/use-toast";
+import { AdminLayout } from "@/components/admin-layout";
 
-const MINI_QUESTIONS = [
-  { number: 1, domain: "Firma ve Yönetişim", weight: 1, isRedAlarm: false, text: "Şirketinizde siber güvenlikten ana sorumlu bir kişi veya rol net olarak tanımlı mı?" },
-  { number: 2, domain: "Firma ve Yönetişim", weight: 1, isRedAlarm: false, text: "Kritik iş uygulamalarınızın ve temel sistemlerinizin listesi güncel olarak mevcut mu?" },
-  { number: 3, domain: "Firma ve Yönetişim", weight: 2, isRedAlarm: true, text: "Yeni işe giren ve işten ayrılan çalışanlar için kullanıcı hesabı açma/kapama süreci tanımlı mı?" },
-  { number: 4, domain: "Firma ve Yönetişim", weight: 1, isRedAlarm: false, text: "Şirketinizde hassas bilgilerin hangi sistemlerde tutulduğu güncel bir envanterle takip ediliyor mu?" },
-  { number: 5, domain: "Kimlik ve Erişim", weight: 2, isRedAlarm: true, text: "Çalışanlar e-posta ve iş uygulamalarına girerken MFA/2FA kullanıyor mu?" },
-  { number: 6, domain: "Kimlik ve Erişim", weight: 2, isRedAlarm: true, text: "Uzak erişim, VPN, yönetici yetkili hesaplarda ek doğrulama zorunlu mu?" },
-  { number: 7, domain: "Kimlik ve Erişim", weight: 2, isRedAlarm: true, text: "İşten ayrılan çalışanların sistem erişimleri aynı gün kaldırılıyor mu?" },
-  { number: 8, domain: "Kimlik ve Erişim", weight: 1, isRedAlarm: false, text: "Aynı kullanıcı hesabının birden fazla kişi tarafından kullanımı engelleniyor mu?" },
-  { number: 9, domain: "E-posta ve İnsan Faktörü", weight: 1, isRedAlarm: false, text: "Çalışanlara şüpheli e-posta ve parola hırsızlığı riskleri hakkında farkındalık eğitimi veriliyor mu?" },
-  { number: 10, domain: "E-posta ve İnsan Faktörü", weight: 1, isRedAlarm: false, text: "Şüpheli e-posta geldiğinde çalışanların bunu kime bildireceği biliniyor mu?" },
-  { number: 11, domain: "E-posta ve İnsan Faktörü", weight: 2, isRedAlarm: true, text: "IBAN değişikliği veya acil para transferi gibi durumlarda e-posta dışında ikinci doğrulama uygulanıyor mu?" },
-  { number: 12, domain: "E-posta ve İnsan Faktörü", weight: 2, isRedAlarm: true, text: "E-posta alan adınız üzerinden sahte mail gönderilmesini engelleyecek (SPF, DKIM, DMARC) yapılandırmalar devrede mi?" },
-  { number: 13, domain: "Cihaz Güvenliği", weight: 1, isRedAlarm: false, text: "Şirkette kullanılan bilgisayarların güncel bir listesi tutuluyor mu?" },
-  { number: 14, domain: "Cihaz Güvenliği", weight: 2, isRedAlarm: true, text: "Çalışan bilgisayarlarında zararlı yazılımlara karşı merkezi bir güvenlik çözümü bulunuyor mu?" },
-  { number: 15, domain: "Cihaz Güvenliği", weight: 1, isRedAlarm: false, text: "Bilgisayarlar ve iş uygulamaları düzenli olarak güncelleniyor mu?" },
-  { number: 16, domain: "Cihaz Güvenliği", weight: 1, isRedAlarm: false, text: "Dizüstü veya mobil cihazlarda ekran kilidi ve güçlü parola uygulanıyor mu?" },
-  { number: 17, domain: "Veri Koruma ve Yedekleme", weight: 2, isRedAlarm: true, text: "Kritik verileriniz düzenli olarak (tercihen otomatik) yedekleniyor mu?" },
-  { number: 18, domain: "Veri Koruma ve Yedekleme", weight: 2, isRedAlarm: true, text: "Alınan yedeklerin geri yüklenip çalışabildiği son 12 ayda test edildi mi?" },
-  { number: 19, domain: "Veri Koruma ve Yedekleme", weight: 1, isRedAlarm: false, text: "Bir siber olay yaşanırsa ilk kimin devreye gireceği ve ne yapılacağı yazılı olarak belli mi?" },
-  { number: 20, domain: "Veri Koruma ve Yedekleme", weight: 1, isRedAlarm: false, text: "Hassas dosyalara kimlerin erişebildiği düzenli olarak kontrol ediliyor mu?" },
+interface Question {
+  id: number; number: number; type: string; domain: string; text: string;
+  weight: number; isRedAlarm: boolean; isActive: boolean; sortOrder: number;
+}
+
+const DOMAINS_ORDER = [
+  "Firma ve Yönetişim",
+  "Kimlik ve Erişim",
+  "E-posta ve İnsan Faktörü",
+  "Cihaz Güvenliği",
+  "Veri Koruma ve Yedekleme",
 ];
 
-const DOMAINS = [...new Set(MINI_QUESTIONS.map(q => q.domain))];
+const EMPTY_NEW = { number: 0, domain: "", text: "", weight: 1, isRedAlarm: false, isActive: true };
 
 export default function AdminQuestions() {
-  const [, navigate] = useLocation();
-  const [openDomain, setOpenDomain] = useState<string | null>(DOMAINS[0] ?? null);
-  useRequireAdmin();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: questions = [], isLoading } = useQuery<Question[]>({
+    queryKey: ["admin-questions", "mini"],
+    queryFn: () =>
+      fetch("/api/admin-panel/questions?type=mini", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const [openDomain, setOpenDomain] = useState<string | null>(DOMAINS_ORDER[0] ?? null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Question>>({});
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ ...EMPTY_NEW });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Question> }) =>
+      fetch(`/api/admin-panel/questions/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(data),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-questions"] });
+      toast({ title: "Soru güncellendi" });
+      setEditId(null);
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof EMPTY_NEW) =>
+      fetch("/api/admin-panel/questions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify({ ...data, type: "mini" }),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-questions"] });
+      toast({ title: "Soru eklendi" });
+      setShowAdd(false);
+      setAddForm({ ...EMPTY_NEW });
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/admin-panel/questions/${id}`, { method: "DELETE", credentials: "include" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-questions"] });
+      toast({ title: "Soru silindi" });
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  const domains = [
+    ...DOMAINS_ORDER.filter(d => questions.some(q => q.domain === d)),
+    ...questions.map(q => q.domain).filter(d => !DOMAINS_ORDER.includes(d)).filter((d, i, arr) => arr.indexOf(d) === i),
+  ];
+
+  const totalQuestions = questions.length;
+  const alarmCount = questions.filter(q => q.isRedAlarm).length;
+  const criticalCount = questions.filter(q => q.weight >= 2).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 p-4 flex flex-col">
-        <div className="flex items-center gap-2 mb-6 px-2">
-          <Shield className="h-5 w-5 text-emerald-500" />
-          <span className="font-bold text-white text-sm">CyberStep Admin</span>
-        </div>
-        <Button variant="ghost" className="justify-start text-slate-300 hover:text-white" onClick={() => navigate("/panel")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Genel Bakış
-        </Button>
-      </aside>
-
-      <main className="flex-1 overflow-auto">
-        <header className="bg-slate-900 border-b border-slate-800 px-8 py-4">
-          <h1 className="text-xl font-bold text-white">Soru Yönetimi</h1>
-          <p className="text-slate-400 text-sm">Mini Assessment soruları — 20 soru, 5 alan</p>
-        </header>
-
-        <div className="p-8 max-w-4xl space-y-4">
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-300 text-sm flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-            <div>Soru metinleri şu an görüntüleme modundadır. Sorular backend kodunda tanımlıdır; değişiklik için kaynak kodu düzenlenmesi gerekir. Bu ekran mevcut soruları referans olarak gösterir.</div>
+    <AdminLayout
+      title="Soru Yönetimi"
+      description={`${totalQuestions} soru — ${alarmCount} kırmızı alarm — ${criticalCount} kritik`}
+    >
+      <div className="max-w-4xl space-y-4">
+        {/* ─── Özet & Yeni Soru ──────────────────────────────────────────── */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-3">
+            <Badge className="bg-slate-700 text-slate-300">{totalQuestions} soru</Badge>
+            <Badge className="bg-red-500/20 text-red-400 border-red-500/30">{alarmCount} kırmızı alarm</Badge>
+            <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30">{criticalCount} kritik x2</Badge>
           </div>
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Yeni Soru
+          </Button>
+        </div>
 
-          {DOMAINS.map(domain => {
-            const qs = MINI_QUESTIONS.filter(q => q.domain === domain);
+        {/* ─── Yeni Soru Formu ───────────────────────────────────────────── */}
+        {showAdd && (
+          <div className="bg-slate-800 border border-emerald-500/30 rounded-xl p-5 space-y-4">
+            <h3 className="text-white font-medium">Yeni Soru Ekle</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Soru Numarası</label>
+                <Input type="number" value={addForm.number || ""} onChange={e => setAddForm(f => ({ ...f, number: Number(e.target.value) }))}
+                  placeholder="21" className="bg-slate-900 border-slate-600 text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Alan (Domain)</label>
+                <Input value={addForm.domain} onChange={e => setAddForm(f => ({ ...f, domain: e.target.value }))}
+                  placeholder="Cihaz Güvenliği" list="domain-list" className="bg-slate-900 border-slate-600 text-white" />
+                <datalist id="domain-list">
+                  {domains.map(d => <option key={d} value={d} />)}
+                </datalist>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Soru Metni</label>
+              <Textarea value={addForm.text} onChange={e => setAddForm(f => ({ ...f, text: e.target.value }))}
+                placeholder="Şirketinizde..." className="bg-slate-900 border-slate-600 text-white min-h-[80px]" />
+            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Ağırlık</label>
+                <div className="flex gap-2">
+                  {[1, 2].map(w => (
+                    <button key={w} onClick={() => setAddForm(f => ({ ...f, weight: w }))}
+                      className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${addForm.weight === w ? "border-emerald-500 bg-emerald-500/20 text-emerald-300" : "border-slate-600 bg-slate-700 text-slate-300"}`}>
+                      {w === 1 ? "Normal (x1)" : "Kritik (x2)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setAddForm(f => ({ ...f, isRedAlarm: !f.isRedAlarm }))}
+                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-colors ${addForm.isRedAlarm ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-slate-600 bg-slate-700 text-slate-400"}`}>
+                  Kırmızı Alarm
+                </button>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => { if (!addForm.number || !addForm.domain || !addForm.text) { toast({ title: "Tüm alanlar zorunludur", variant: "destructive" }); return; } createMutation.mutate(addForm); }}
+                disabled={createMutation.isPending}>
+                <Check className="h-4 w-4 mr-1" /> Ekle
+              </Button>
+              <Button variant="ghost" className="text-slate-400" onClick={() => { setShowAdd(false); setAddForm({ ...EMPTY_NEW }); }}>
+                <X className="h-4 w-4 mr-1" /> İptal
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Sorular (alan bazlı) ──────────────────────────────────────── */}
+        {isLoading ? (
+          <div className="text-slate-400 text-center py-12">Yükleniyor...</div>
+        ) : (
+          domains.map(domain => {
+            const qs = questions.filter(q => q.domain === domain).sort((a, b) => a.number - b.number);
             const isOpen = openDomain === domain;
             return (
               <Card key={domain} className="bg-slate-800 border-slate-700 overflow-hidden">
-                <button className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-750 transition-colors" onClick={() => setOpenDomain(isOpen ? null : domain)}>
+                <button
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-750 transition-colors"
+                  onClick={() => setOpenDomain(isOpen ? null : domain)}
+                >
                   <div className="flex items-center gap-3">
                     <span className="text-white font-medium">{domain}</span>
                     <Badge className="bg-slate-700 text-slate-300">{qs.length} soru</Badge>
-                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30">{qs.filter(q => q.isRedAlarm).length} alarm</Badge>
+                    {qs.filter(q => q.isRedAlarm).length > 0 && (
+                      <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                        {qs.filter(q => q.isRedAlarm).length} alarm
+                      </Badge>
+                    )}
                   </div>
                   {isOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                 </button>
+
                 {isOpen && (
                   <CardContent className="border-t border-slate-700 divide-y divide-slate-700/50 p-0">
                     {qs.map(q => (
-                      <div key={q.number} className="px-6 py-4 flex items-start gap-4">
-                        <span className="text-slate-500 text-sm w-6 flex-shrink-0 pt-0.5">{q.number}.</span>
-                        <div className="flex-1 text-slate-200 text-sm">{q.text}</div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {q.weight === 2 && <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-xs">Kritik x2</Badge>}
-                          {q.isRedAlarm && <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Alarm</Badge>}
-                        </div>
+                      <div key={q.id}>
+                        {editId === q.id ? (
+                          /* ─── Düzenleme Modu ───────────────────────────────── */
+                          <div className="px-6 py-4 space-y-3 bg-slate-700/30">
+                            <Textarea
+                              value={editForm.text ?? ""}
+                              onChange={e => setEditForm(f => ({ ...f, text: e.target.value }))}
+                              className="bg-slate-900 border-slate-600 text-white min-h-[80px] text-sm"
+                            />
+                            <div>
+                              <label className="text-xs text-slate-400 mb-1 block">Alan</label>
+                              <Input value={editForm.domain ?? ""}
+                                onChange={e => setEditForm(f => ({ ...f, domain: e.target.value }))}
+                                list="domain-list-edit"
+                                className="bg-slate-900 border-slate-600 text-white text-sm" />
+                              <datalist id="domain-list-edit">
+                                {domains.map(d => <option key={d} value={d} />)}
+                              </datalist>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Ağırlık</label>
+                                <div className="flex gap-2">
+                                  {[1, 2].map(w => (
+                                    <button key={w} onClick={() => setEditForm(f => ({ ...f, weight: w }))}
+                                      className={`px-2.5 py-1 rounded text-xs border transition-colors ${editForm.weight === w ? "border-emerald-500 bg-emerald-500/20 text-emerald-300" : "border-slate-600 bg-slate-700 text-slate-300"}`}>
+                                      {w === 1 ? "x1" : "Kritik x2"}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <button onClick={() => setEditForm(f => ({ ...f, isRedAlarm: !f.isRedAlarm }))}
+                                className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border transition-colors ${editForm.isRedAlarm ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-slate-600 bg-slate-700 text-slate-400"}`}>
+                                Kırmızı Alarm
+                              </button>
+                              <button onClick={() => setEditForm(f => ({ ...f, isActive: !f.isActive }))}
+                                className="text-slate-400 flex items-center gap-1 text-xs">
+                                {editForm.isActive ? <ToggleRight className="h-4 w-4 text-emerald-400" /> : <ToggleLeft className="h-4 w-4" />}
+                                {editForm.isActive ? "Aktif" : "Pasif"}
+                              </button>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => updateMutation.mutate({ id: q.id, data: editForm })}
+                                disabled={updateMutation.isPending}>
+                                <Check className="h-3.5 w-3.5 mr-1" /> Kaydet
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-slate-400" onClick={() => setEditId(null)}>
+                                <X className="h-3.5 w-3.5 mr-1" /> İptal
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* ─── Görüntüleme Modu ─────────────────────────────── */
+                          <div className="px-6 py-4 flex items-start gap-4 group">
+                            <span className="text-slate-500 text-sm w-6 flex-shrink-0 pt-0.5 tabular-nums">{q.number}.</span>
+                            <div className="flex-1 text-slate-200 text-sm leading-relaxed">{q.text}</div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {!q.isActive && <Badge className="bg-slate-700 text-slate-500 text-xs">Pasif</Badge>}
+                              {q.weight === 2 && <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-xs">Kritik x2</Badge>}
+                              {q.isRedAlarm && <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Alarm</Badge>}
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-white"
+                                  onClick={() => { setEditId(q.id); setEditForm(q); }}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-red-400"
+                                  onClick={() => { if (confirm("Bu soruyu silmek istediğinize emin misiniz?")) deleteMutation.mutate(q.id); }}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </CardContent>
                 )}
               </Card>
             );
-          })}
-        </div>
-      </main>
-    </div>
+          })
+        )}
+
+        {!isLoading && questions.length === 0 && (
+          <div className="text-slate-500 text-center py-16">
+            Henüz soru eklenmemiş. "Yeni Soru" ile ekleyebilirsiniz.
+          </div>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

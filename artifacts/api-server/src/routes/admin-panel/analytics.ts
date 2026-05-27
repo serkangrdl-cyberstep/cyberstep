@@ -107,4 +107,44 @@ router.get("/admin-panel/analytics/assessments", requireAdmin, async (_req: Requ
   res.json(list);
 });
 
+// GET /api/admin-panel/analytics/by-plan — paket başına gelir
+router.get("/admin-panel/analytics/by-plan", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db.execute(sql`
+    SELECT
+      plan_slug,
+      COUNT(*)::int as payment_count,
+      COALESCE(SUM(amount), 0)::float as total_revenue,
+      COALESCE(SUM(kdv_amount), 0)::float as total_kdv,
+      COALESCE(SUM(net_amount), 0)::float as total_net
+    FROM payments
+    WHERE status = 'success'
+    GROUP BY plan_slug
+    ORDER BY total_revenue DESC
+  `);
+  res.json(rows.rows);
+});
+
+// GET /api/admin-panel/analytics/monthly-assessments — aylık değerlendirme türüne göre
+router.get("/admin-panel/analytics/monthly-assessments", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db.execute(sql`
+    SELECT
+      TO_CHAR(created_at, 'YYYY-MM') as month,
+      assessment_type,
+      COUNT(*)::int as count
+    FROM assessments
+    WHERE created_at >= NOW() - INTERVAL '12 months'
+    GROUP BY TO_CHAR(created_at, 'YYYY-MM'), assessment_type
+    ORDER BY month ASC, assessment_type ASC
+  `);
+
+  const pivoted: Record<string, { month: string; mini: number; full: number }> = {};
+  for (const row of rows.rows as { month: string; assessment_type: string; count: number }[]) {
+    if (!pivoted[row.month]) pivoted[row.month] = { month: row.month, mini: 0, full: 0 };
+    if (row.assessment_type === "mini") pivoted[row.month].mini = row.count;
+    else if (row.assessment_type === "full") pivoted[row.month].full = row.count;
+  }
+
+  res.json(Object.values(pivoted));
+});
+
 export default router;

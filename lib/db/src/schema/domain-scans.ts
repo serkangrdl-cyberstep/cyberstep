@@ -19,6 +19,11 @@ export const domainScansTable = pgTable("domain_scans", {
   sslIssuer: text("ssl_issuer"),
   sslDaysUntilExpiry: integer("ssl_days_until_expiry"),
   overallScore: integer("overall_score").notNull().default(0),
+  hibpBreachCount: integer("hibp_breach_count").notNull().default(0),
+  hibpBreaches: jsonb("hibp_breaches").$type<Array<{ name: string; breachDate: string; pwnCount: number; dataClasses: string[] }>>().notNull().default([]),
+  blacklisted: boolean("blacklisted").notNull().default(false),
+  blacklistCount: integer("blacklist_count").notNull().default(0),
+  blacklistResults: jsonb("blacklist_results").$type<Array<{ list: string; listed: boolean }>>().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

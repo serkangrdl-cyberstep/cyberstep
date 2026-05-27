@@ -113,6 +113,94 @@ function calcScore(spf: boolean, dmarc: boolean, dkim: boolean, mx: boolean, ssl
   return (spf ? 20 : 0) + (dmarc ? 25 : 0) + (dkim ? 20 : 0) + (mx ? 10 : 0) + (ssl ? 25 : 0);
 }
 
+// ─── HIBP domain breach check ─────────────────────────────────────────────────
+async function checkHIBP(domain: string): Promise<{
+  breachCount: number;
+  breaches: Array<{ name: string; breachDate: string; pwnCount: number; dataClasses: string[] }>;
+}> {
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: "haveibeenpwned.com",
+        path: `/api/v3/breaches?domain=${encodeURIComponent(domain)}`,
+        method: "GET",
+        timeout: 8000,
+        headers: {
+          "User-Agent": "CyberStep.io Security Scanner",
+          "Accept": "application/json",
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            if (res.statusCode === 200) {
+              const raw = JSON.parse(data) as Array<{ Name: string; BreachDate: string; PwnCount: number; DataClasses: string[] }>;
+              resolve({
+                breachCount: raw.length,
+                breaches: raw.slice(0, 10).map((b) => ({
+                  name: b.Name,
+                  breachDate: b.BreachDate,
+                  pwnCount: b.PwnCount,
+                  dataClasses: (b.DataClasses ?? []).slice(0, 4),
+                })),
+              });
+            } else {
+              resolve({ breachCount: 0, breaches: [] });
+            }
+          } catch {
+            resolve({ breachCount: 0, breaches: [] });
+          }
+        });
+      }
+    );
+    req.on("error", () => resolve({ breachCount: 0, breaches: [] }));
+    req.on("timeout", () => { req.destroy(); resolve({ breachCount: 0, breaches: [] }); });
+    req.end();
+  });
+}
+
+// ─── DNSBL blacklist check ────────────────────────────────────────────────────
+const DNSBLS = [
+  "zen.spamhaus.org",
+  "bl.spamcop.net",
+  "dnsbl.sorbs.net",
+  "b.barracudacentral.org",
+  "dnsbl-1.uceprotect.net",
+  "dnsbl.abuse.ch",
+  "spam.dnsbl.sorbs.net",
+];
+
+async function checkBlacklists(domain: string): Promise<{
+  blacklisted: boolean;
+  blacklistCount: number;
+  results: Array<{ list: string; listed: boolean }>;
+}> {
+  let ip: string | null = null;
+  try {
+    const addresses = await dns.resolve4(domain);
+    ip = addresses[0] ?? null;
+  } catch {
+    return { blacklisted: false, blacklistCount: 0, results: [] };
+  }
+  if (!ip) return { blacklisted: false, blacklistCount: 0, results: [] };
+
+  const reversed = ip.split(".").reverse().join(".");
+  const results = await Promise.all(
+    DNSBLS.map(async (dnsbl) => {
+      try {
+        await dns.resolve4(`${reversed}.${dnsbl}`);
+        return { list: dnsbl, listed: true };
+      } catch {
+        return { list: dnsbl, listed: false };
+      }
+    })
+  );
+  const listedCount = results.filter((r) => r.listed).length;
+  return { blacklisted: listedCount > 0, blacklistCount: listedCount, results };
+}
+
 function sanitizeDomain(raw: string): string {
   let d = raw.trim().toLowerCase();
   // strip protocol
@@ -150,12 +238,14 @@ router.post("/domain-scan", async (req, res) => {
   logger.info({ domain }, "Starting domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
       checkMX(domain),
       checkSSL(domain),
+      checkHIBP(domain),
+      checkBlacklists(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -178,10 +268,15 @@ router.post("/domain-scan", async (req, res) => {
         sslIssuer: ssl.issuer,
         sslDaysUntilExpiry: ssl.daysUntilExpiry,
         overallScore,
+        hibpBreachCount: hibp.breachCount,
+        hibpBreaches: hibp.breaches,
+        blacklisted: blacklist.blacklisted,
+        blacklistCount: blacklist.blacklistCount,
+        blacklistResults: blacklist.results,
       })
       .returning();
 
-    logger.info({ domain, overallScore, scanId: scan?.id }, "Domain scan complete");
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, scanId: scan?.id }, "Domain scan complete");
     res.json(scan);
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");

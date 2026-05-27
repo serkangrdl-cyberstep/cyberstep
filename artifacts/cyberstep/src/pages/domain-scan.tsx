@@ -8,8 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
-  Mail, Lock, Server, Loader2, ArrowRight, Info
+  Mail, Lock, Server, Loader2, ArrowRight, Info,
+  DatabaseZap, ShieldAlert, ShieldCheck, Sparkles,
 } from "lucide-react";
+
+interface HibpBreach {
+  name: string;
+  breachDate: string;
+  pwnCount: number;
+  dataClasses: string[];
+}
+
+interface BlacklistResult {
+  list: string;
+  listed: boolean;
+}
 
 interface ScanResult {
   id: number;
@@ -28,6 +41,11 @@ interface ScanResult {
   sslIssuer: string | null;
   sslDaysUntilExpiry: number | null;
   overallScore: number;
+  hibpBreachCount: number;
+  hibpBreaches: HibpBreach[];
+  blacklisted: boolean;
+  blacklistCount: number;
+  blacklistResults: BlacklistResult[];
   createdAt: string;
 }
 
@@ -143,6 +161,149 @@ function CheckCard({
   );
 }
 
+function HibpCard({ breachCount, breaches }: { breachCount: number; breaches: HibpBreach[] }) {
+  const [open, setOpen] = useState(false);
+  const safe = breachCount === 0;
+  return (
+    <div className={`rounded-xl border p-4 ${safe ? "bg-green-50/50 border-green-200" : "bg-orange-50/50 border-orange-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${safe ? "bg-green-100" : "bg-orange-100"}`}>
+          <DatabaseZap className={`h-4 w-4 ${safe ? "text-green-600" : "text-orange-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Veri Sızıntısı Geçmişi</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${safe ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}
+            >
+              {safe ? "Temiz" : `${breachCount} Sızıntı`}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {safe
+              ? "Bu alan adı bilinen büyük veri sızıntılarında kaynak olarak yer almıyor."
+              : `${breachCount} büyük veri ihlalinde bu alan adından veriler çalınmış. Aşağıdaki sızıntılar kamuya açık kaynaklarda kayıtlı.`}
+          </p>
+          {!safe && breaches.length > 0 && (
+            <button
+              onClick={() => setOpen(!open)}
+              className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Info className="h-3 w-3" /> {open ? "Gizle" : `${breachCount} sızıntıyı göster`}
+            </button>
+          )}
+          {open && (
+            <div className="mt-2 space-y-1.5 border-t pt-2">
+              {breaches.map((b) => (
+                <div key={b.name} className="text-xs bg-white/70 rounded-lg p-2 border border-orange-200">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="font-semibold">{b.name}</span>
+                    <span className="text-muted-foreground shrink-0">{b.breachDate}</span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    {(b.pwnCount ?? 0).toLocaleString("tr-TR")} hesap etkilendi
+                    {b.dataClasses?.length > 0 && ` — ${b.dataClasses.join(", ")}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {safe && (
+            <button
+              onClick={() => setOpen(!open)}
+              className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Info className="h-3 w-3" /> {open ? "Kapat" : "Bu ne anlama geliyor?"}
+            </button>
+          )}
+          {open && safe && (
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed border-t pt-2">
+              Have I Been Pwned veritabanı, milyarlarca çalınan hesabı içeren küresel sızıntı arşividir. Bu kontrol, alan adınızın geçmişteki büyük veri ihlallerinde kaynak olup olmadığını gösterir.
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {safe
+            ? <ShieldCheck className="h-5 w-5 text-green-500" />
+            : <ShieldAlert className="h-5 w-5 text-orange-500" />
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BlacklistCard({ blacklisted, blacklistCount, results }: { blacklisted: boolean; blacklistCount: number; results: BlacklistResult[] }) {
+  const [open, setOpen] = useState(false);
+  const listedOnes = results.filter((r) => r.listed);
+  return (
+    <div className={`rounded-xl border p-4 ${!blacklisted ? "bg-green-50/50 border-green-200" : "bg-red-50/50 border-red-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${!blacklisted ? "bg-green-100" : "bg-red-100"}`}>
+          <ShieldAlert className={`h-4 w-4 ${!blacklisted ? "text-green-600" : "text-red-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Kara Liste Kontrolü</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${!blacklisted ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+            >
+              {!blacklisted ? "Temiz" : `${blacklistCount} Listede`}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {results.length === 0
+              ? "IP adresi çözümlenemedi, kara liste kontrolü yapılamadı."
+              : !blacklisted
+              ? `${results.length} farklı spam ve kötü amaçlı yazılım listesi kontrol edildi. Herhangi birinde yer almıyor.`
+              : `Sunucu IP'si ${blacklistCount} spam listesinde kayıtlı. Bu durum mail teslim sorunlarına yol açabilir.`}
+          </p>
+          {results.length > 0 && (
+            <button
+              onClick={() => setOpen(!open)}
+              className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Info className="h-3 w-3" /> {open ? "Kapat" : "Detayları göster"}
+            </button>
+          )}
+          {open && results.length > 0 && (
+            <div className="mt-2 border-t pt-2">
+              {blacklisted && listedOnes.length > 0 && (
+                <div className="mb-2 space-y-1">
+                  {listedOnes.map((r) => (
+                    <div key={r.list} className="text-xs bg-red-100 text-red-700 rounded px-2 py-1 flex items-center gap-1.5">
+                      <XCircle className="h-3 w-3 shrink-0" /> {r.list}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {!blacklisted
+                  ? "Spamhaus, SpamCop, SORBS, Barracuda ve diğer listeler tarandı."
+                  : "Kara listeden çıkmak için ilgili liste sağlayıcısına başvurmanız gerekir."}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          {!blacklisted
+            ? <ShieldCheck className="h-5 w-5 text-green-500" />
+            : <XCircle className="h-5 w-5 text-red-500" />
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
@@ -177,8 +338,8 @@ export default function DomainScanPage() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Alan Adı Güvenlik Taraması</h1>
         <p className="text-muted-foreground leading-relaxed">
-          Alan adınızın e-posta güvenlik kayıtlarını ve SSL sertifikasını otomatik kontrol edin.
-          Hiçbir yazılım kurmanıza gerek yok — sadece alan adınızı girin.
+          Alan adınızın e-posta güvenlik kayıtlarını, SSL sertifikasını, veri sızıntısı geçmişini ve spam listesi
+          durumunu otomatik kontrol edin. Hiçbir yazılım kurmanıza gerek yok — sadece alan adınızı girin.
         </p>
       </div>
 
@@ -230,7 +391,7 @@ export default function DomainScanPage() {
           </Button>
           {scanMutation.isPending && (
             <p className="text-xs text-muted-foreground mt-2">
-              DNS kayıtları ve SSL sertifikası kontrol ediliyor, birkaç saniye sürebilir...
+              DNS kayıtları, SSL, veri sızıntısı ve kara listeler kontrol ediliyor...
             </p>
           )}
         </CardContent>
@@ -258,11 +419,21 @@ export default function DomainScanPage() {
                   <div className="text-xs text-muted-foreground mt-0.5">/ 100 puan</div>
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <h2 className="font-bold text-lg">{result.domain}</h2>
                     <Badge variant="outline" className={`font-bold border ${scoreInfo.bg} ${scoreInfo.text}`}>
                       {scoreInfo.label}
                     </Badge>
+                    {result.blacklisted && (
+                      <Badge variant="outline" className="font-bold border bg-red-100 text-red-700 border-red-200">
+                        Kara Listede
+                      </Badge>
+                    )}
+                    {result.hibpBreachCount > 0 && (
+                      <Badge variant="outline" className="font-bold border bg-orange-100 text-orange-700 border-orange-200">
+                        {result.hibpBreachCount} Sızıntı
+                      </Badge>
+                    )}
                   </div>
                   <Progress value={result.overallScore} className="h-2.5 mb-2" />
                   <p className="text-xs text-muted-foreground">
@@ -277,18 +448,13 @@ export default function DomainScanPage() {
             </CardContent>
           </Card>
 
-          {/* Check cards */}
+          {/* Temel kontroller */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">
+            E-posta ve SSL Güvenliği
+          </p>
           <div className="space-y-3 mb-6">
-            <CheckCard
-              meta={CHECK_META.spf}
-              pass={result.spfPass}
-              detail={result.spfRecord ?? undefined}
-            />
-            <CheckCard
-              meta={CHECK_META.dmarc}
-              pass={result.dmarcPass}
-              detail={result.dmarcRecord ?? undefined}
-            />
+            <CheckCard meta={CHECK_META.spf} pass={result.spfPass} detail={result.spfRecord ?? undefined} />
+            <CheckCard meta={CHECK_META.dmarc} pass={result.dmarcPass} detail={result.dmarcRecord ?? undefined} />
             <CheckCard
               meta={CHECK_META.dkim}
               pass={result.dkimPass}
@@ -307,6 +473,24 @@ export default function DomainScanPage() {
                   ? `${result.sslIssuer ?? "Sertifika"} — ${result.sslDaysUntilExpiry} gün geçerli`
                   : undefined
               }
+            />
+          </div>
+
+          {/* Risk İstihbaratı (Pro) */}
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Risk İstihbaratı
+            </p>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
+            </Badge>
+          </div>
+          <div className="space-y-3 mb-6">
+            <HibpCard breachCount={result.hibpBreachCount} breaches={result.hibpBreaches} />
+            <BlacklistCard
+              blacklisted={result.blacklisted}
+              blacklistCount={result.blacklistCount}
+              results={result.blacklistResults}
             />
           </div>
 
@@ -366,7 +550,7 @@ export default function DomainScanPage() {
             <p className="text-sm text-muted-foreground">
               Alan adınızı girin ve taramayı başlatın.
               <br />
-              SPF, DMARC, DKIM, MX ve SSL kayıtlarınız saniyeler içinde kontrol edilir.
+              SPF, DMARC, DKIM, MX, SSL, veri sızıntısı ve kara liste durumu kontrol edilir.
             </p>
           </CardContent>
         </Card>

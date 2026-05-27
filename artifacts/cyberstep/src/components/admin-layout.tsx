@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
-  BookOpen, Share2, CalendarHeart, Menu, X
+  BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -12,17 +12,19 @@ import { useRequireAdmin } from "@/hooks/use-admin";
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Genel Bakış",        href: "/panel" },
   { icon: FileText,        label: "Değerlendirmeler",   href: "/panel/degerlendiirmeler" },
+  { icon: UserSquare2,     label: "Müşteriler",         href: "/panel/musteriler" },
+  { icon: Globe,           label: "Alan Adı Taramaları",href: "/panel/domain-taramalar" },
   { icon: DollarSign,      label: "Ödemeler",           href: "/panel/odemeler" },
+  { icon: CreditCard,      label: "Fiyatlandırma",      href: "/panel/fiyatlar" },
+  { icon: Users,           label: "Soru Yönetimi",      href: "/panel/sorular" },
   { icon: BookOpen,        label: "Blog",               href: "/panel/blog" },
   { icon: CalendarHeart,   label: "Özel Gün Mesajları", href: "/panel/ozel-gunler" },
   { icon: Share2,          label: "Sosyal Medya",       href: "/panel/sosyal-medya" },
-  { icon: Settings,        label: "Site Ayarları",      href: "/panel/ayarlar" },
-  { icon: CreditCard,      label: "Fiyatlandırma",      href: "/panel/fiyatlar" },
-  { icon: Users,           label: "Soru Yönetimi",      href: "/panel/sorular" },
-  { icon: Shield,          label: "2FA Güvenlik",       href: "/panel/totp" },
   { icon: Briefcase,       label: "Danışmanlık",        href: "/panel/danismanlik" },
   { icon: Award,           label: "Teknoloji Ortakları",href: "/panel/partnerlar" },
   { icon: Building2,       label: "Beyaz Etiket",       href: "/panel/whitelabel" },
+  { icon: Settings,        label: "Site Ayarları",      href: "/panel/ayarlar" },
+  { icon: Shield,          label: "2FA Güvenlik",       href: "/panel/totp" },
 ];
 
 interface AdminLayoutProps {

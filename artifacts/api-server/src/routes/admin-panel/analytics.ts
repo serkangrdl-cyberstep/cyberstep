@@ -1,8 +1,8 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable, paymentsTable } from "@workspace/db";
-import { count, sum, avg, sql, desc, gte, and } from "drizzle-orm";
+import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable } from "@workspace/db";
+import { count, sum, avg, sql, desc, gte, and, eq } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 
 const router = Router();
@@ -52,6 +52,12 @@ router.get("/admin-panel/analytics/overview", requireAdmin, async (_req: Request
   const pendingReviews = await db.select({ count: count() }).from(reportsTable)
     .where(sql`${reportsTable.reviewStatus} = 'pending_review'`);
 
+  const [totalCustomers] = await db.select({ count: count() }).from(customersTable);
+  const [activeSubscriptions] = await db.select({ count: count() }).from(customersTable)
+    .where(eq(customersTable.subscriptionStatus, "active"));
+  const [totalDomainScans] = await db.select({ count: count() }).from(domainScansTable);
+  const [avgDomainScore] = await db.select({ avg: avg(domainScansTable.overallScore) }).from(domainScansTable);
+
   res.json({
     totalAssessments: Number(totalAssessments.count),
     completedAssessments: Number(completedAssessments.count),
@@ -65,6 +71,10 @@ router.get("/admin-panel/analytics/overview", requireAdmin, async (_req: Request
     avgScore: Number(avgScore.avg ?? 0),
     riskDistribution,
     pendingReviews: Number(pendingReviews[0]?.count ?? 0),
+    totalCustomers: Number(totalCustomers.count),
+    activeSubscriptions: Number(activeSubscriptions.count),
+    totalDomainScans: Number(totalDomainScans.count),
+    avgDomainScore: Math.round(Number(avgDomainScore.avg ?? 0)),
   });
 });
 

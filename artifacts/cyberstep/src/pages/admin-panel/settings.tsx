@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Globe, Phone, Mail, MapPin, FileText, Cookie, Scale, Shield } from "lucide-react";
+import { Save, Globe, Phone, Mail, MapPin, FileText, Cookie, Scale, Shield, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,12 +40,25 @@ export default function AdminSettings() {
 
   if (isLoading) return null;
 
+  const SERVICE_TOGGLES = [
+    { key: "service.domain_scan",    label: "Alan Adı Tarama",          desc: "SPF/DMARC/SSL/MX/DKIM tarama servisini etkinleştirir" },
+    { key: "service.shadow_it",      label: "Gölge BT Tespiti",         desc: "Web sitesi üzerindeki üçüncü taraf servisleri tespit eder" },
+    { key: "service.hibp",           label: "Veri Sızıntısı Kontrolü",  desc: "HIBP (Have I Been Pwned) ile e-posta sızıntısı tarar" },
+    { key: "service.dnsbl",          label: "Kara Liste Kontrolü",      desc: "Alan adının spam/kara listelerinde olup olmadığını kontrol eder" },
+    { key: "service.customer_portal",label: "Müşteri Portalı",          desc: "Müşterilerin /giris ve /raporlarim sayfalarına erişimini açar" },
+    { key: "service.full_assessment",label: "Tam Değerlendirme (55 soru)",desc: "Ücretli 55 soruluk tam değerlendirme modülünü etkinleştirir" },
+  ];
+
+  const togVal = (key: string) => (form[key] ?? "1") === "1";
+  const toggleService = (key: string) => set(key, togVal(key) ? "0" : "1");
+
   return (
     <AdminLayout title="Site Ayarları" description="Hakkımızda, İletişim, KVKK ve yasal sayfaları düzenleyin">
       <div className="max-w-4xl">
         <Tabs defaultValue="about">
           <TabsList className="bg-slate-800 border-slate-700 mb-6 flex-wrap h-auto gap-1 p-1">
             {[
+              { value: "services", label: "Servisler" },
               { value: "about",   label: "Hakkımızda" },
               { value: "contact", label: "İletişim" },
               { value: "kvkk",    label: "KVKK" },
@@ -60,6 +73,37 @@ export default function AdminSettings() {
               </TabsTrigger>
             ))}
           </TabsList>
+
+          <TabsContent value="services">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-emerald-400" /> Servis Yönetimi
+                </CardTitle>
+                <p className="text-slate-400 text-sm mt-1">Platforma ait özellikleri ve servisleri etkinleştirin veya devre dışı bırakın.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {SERVICE_TOGGLES.map(({ key, label, desc }) => {
+                  const on = togVal(key);
+                  return (
+                    <div key={key} className="flex items-center justify-between p-4 bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm">{label}</p>
+                        <p className="text-slate-400 text-xs mt-0.5">{desc}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleService(key)}
+                        className={`ml-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${on ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30" : "bg-slate-700 text-slate-400 border border-slate-600 hover:bg-slate-600"}`}
+                      >
+                        {on ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                        {on ? "Aktif" : "Pasif"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="about">
             <Card className="bg-slate-800 border-slate-700">

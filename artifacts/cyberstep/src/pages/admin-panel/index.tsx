@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   FileText, Settings, CreditCard,
   TrendingUp, CheckCircle, Clock,
-  BarChart3, DollarSign
+  BarChart3, DollarSign, Globe, Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,10 @@ interface OverviewData {
   avgScore: number;
   riskDistribution: Record<string, number>;
   pendingReviews: number;
+  totalCustomers?: number;
+  activeSubscriptions?: number;
+  totalDomainScans?: number;
+  avgDomainScore?: number;
 }
 
 interface MonthlyRow { month: string; assessment_count: number; completed_count: number; }
@@ -90,10 +94,18 @@ export default function AdminDashboard() {
           <StatCard title="Net Gelir (KDV hariç)" value={fmtCur(overview?.netRevenue ?? 0)} sub="Tüm zamanlar" icon={CheckCircle} color="text-violet-400" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard title="Tamamlanan Raporlar" value={fmt(overview?.completedAssessments ?? 0)} icon={CheckCircle} color="text-emerald-400" />
           <StatCard title="Bekleyen İnceleme" value={fmt(overview?.pendingReviews ?? 0)} icon={Clock} color="text-amber-400" />
-          <StatCard title="Ortalama Skor" value={`%${Math.round(overview?.avgScore ?? 0)}`} icon={BarChart3} color="text-blue-400" />
+          <StatCard title="Ortalama Değ. Skoru" value={`%${Math.round(overview?.avgScore ?? 0)}`} icon={BarChart3} color="text-blue-400" />
+          <StatCard title="Aktif Abonelik" value={fmt(overview?.activeSubscriptions ?? 0)} icon={TrendingUp} color="text-violet-400" />
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="Kayıtlı Müşteri" value={fmt(overview?.totalCustomers ?? 0)} icon={Users} color="text-sky-400" />
+          <StatCard title="Alan Adı Taraması" value={fmt(overview?.totalDomainScans ?? 0)} icon={Globe} color="text-emerald-400" />
+          <StatCard title="Ort. Domain Skoru" value={overview?.avgDomainScore !== undefined ? String(overview.avgDomainScore) : "—"} icon={BarChart3} color="text-teal-400" />
+          <StatCard title="Geçen Ay Değ." value={fmt(overview?.lastMonthAssessments ?? 0)} sub="Önceki ay" icon={FileText} color="text-slate-400" />
         </div>
 
         {/* Charts */}
@@ -141,7 +153,9 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             { label: "Değerlendirmeleri Yönet", desc: "Tüm anket sonuçlarını görüntüle", href: "/panel/degerlendiirmeler", icon: FileText },
-            { label: "Site Ayarlarını Düzenle", desc: "Hakkımızda, İletişim, KVKK", href: "/panel/ayarlar", icon: Settings },
+            { label: "Müşteri Yönetimi", desc: "Abonelikler, plan atamaları", href: "/panel/musteriler", icon: Users },
+            { label: "Alan Adı Taramaları", desc: "Tüm domain tarama geçmişi", href: "/panel/domain-taramalar", icon: Globe },
+            { label: "Site Ayarlarını Düzenle", desc: "Hakkımızda, servisler, KVKK", href: "/panel/ayarlar", icon: Settings },
             { label: "Fiyatları Güncelle", desc: "Paket fiyatları ve içerikleri", href: "/panel/fiyatlar", icon: CreditCard },
           ].map(({ label, desc, href, icon: Icon }) => (
             <button key={href} onClick={() => navigate(href)}

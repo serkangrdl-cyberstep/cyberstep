@@ -8,6 +8,8 @@ import contentRouter from "./content";
 import blogRouter from "./blog";
 import specialMessagesRouter from "./special-messages";
 import questionsAdminRouter from "./questions-admin";
+import customersAdminRouter from "./customers-admin";
+import domainScansAdminRouter from "./domain-scans-admin";
 
 const router = Router();
 router.use(authRouter);
@@ -19,5 +21,7 @@ router.use(contentRouter);
 router.use(blogRouter);
 router.use(specialMessagesRouter);
 router.use(questionsAdminRouter);
+router.use(customersAdminRouter);
+router.use(domainScansAdminRouter);
 
 export default router;

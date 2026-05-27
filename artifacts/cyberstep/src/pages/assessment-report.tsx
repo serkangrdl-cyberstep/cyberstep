@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
-  CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert
+  CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -71,6 +71,7 @@ export default function AssessmentReport() {
   const [showAnswers, setShowAnswers] = useState(false);
   const [contactForm, setContactForm] = useState<ContactForm>({ name: "", email: "", phone: "", note: "" });
   const [contactSent, setContactSent] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const { data: reportData, isLoading } = useGetReport(id, {
     query: {
@@ -100,6 +101,27 @@ export default function AssessmentReport() {
   const scorePercent = report.scorePercent as number;
   const benchmarkDiff = scorePercent - sectorBenchmark;
 
+  const handlePdfDownload = async () => {
+    setPdfLoading(true);
+    try {
+      const response = await fetch(`/api/assessments/${id}/report/pdf`);
+      if (!response.ok) throw new Error("PDF oluşturulamadı");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeCompany = (assessment?.companyName ?? "Rapor").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_");
+      a.download = `CyberStep_Rapor_${safeCompany}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       {/* Header */}
@@ -117,11 +139,28 @@ export default function AssessmentReport() {
             {assessment?.companyName || "Şirket"} — Siber Risk Özeti
           </h1>
         </div>
-        <Link href="/dashboard">
-          <Button variant="outline">
-            Dashboard'a Dön <ArrowRight className="ml-2 h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handlePdfDownload} disabled={pdfLoading}>
+            {pdfLoading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                PDF Hazırlanıyor
+              </span>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" /> PDF İndir
+              </>
+            )}
           </Button>
-        </Link>
+          <Link href="/dashboard">
+            <Button variant="outline">
+              Dashboard'a Dön <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Score + Red Alarms */}
@@ -237,7 +276,7 @@ export default function AssessmentReport() {
         </CardContent>
       </Card>
 
-      {/* Expert review notice - replaces AI content */}
+      {/* Expert review notice */}
       <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row items-start gap-5">

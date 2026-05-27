@@ -27,6 +27,7 @@ import AdminPricing from "./pages/admin-panel/pricing";
 import AdminAssessments from "./pages/admin-panel/assessments";
 import AdminPayments from "./pages/admin-panel/payments";
 import AdminQuestions from "./pages/admin-panel/questions";
+import AdminTotp from "./pages/admin-panel/totp";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -66,6 +67,7 @@ function Router() {
         <Route path="/panel/degerlendiirmeler" component={AdminAssessments} />
         <Route path="/panel/odemeler" component={AdminPayments} />
         <Route path="/panel/sorular" component={AdminQuestions} />
+        <Route path="/panel/totp" component={AdminTotp} />
 
         <Route component={NotFound} />
       </Switch>

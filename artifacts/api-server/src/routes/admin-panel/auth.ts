@@ -82,6 +82,18 @@ router.post("/admin-panel/auth/totp-setup", async (req: Request, res: Response) 
   res.json({ secret, qrDataUrl });
 });
 
+router.post("/admin-panel/auth/totp-disable", async (req: Request, res: Response) => {
+  const adminId = (req.session as Record<string, unknown>)["adminId"] as number | undefined;
+  if (!adminId) { res.status(401).json({ error: "Giriş yapılmamış" }); return; }
+
+  await db.update(adminUsersTable)
+    .set({ totpEnabled: false, totpSecret: null })
+    .where(eq(adminUsersTable.id, adminId));
+
+  logger.info({ userId: adminId }, "TOTP disabled for admin");
+  res.json({ success: true });
+});
+
 router.post("/admin-panel/auth/totp-confirm", async (req: Request, res: Response) => {
   const adminId = (req.session as Record<string, unknown>)["adminId"] as number | undefined;
   if (!adminId) { res.status(401).json({ error: "Giriş yapılmamış" }); return; }

@@ -147,6 +147,73 @@ export async function sendAdminNotificationEmail(params: {
   }
 }
 
+export async function sendCustomerConfirmationEmail(params: {
+  assessmentId: number;
+  companyName: string;
+  contactName: string;
+  customerEmail: string;
+  riskLevel: string;
+  scorePercent: number;
+  totalScore: number;
+  maxScore: number;
+  redAlarmCount: number;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const riskColor = params.riskLevel === "Kritik" ? "#dc2626" : params.riskLevel === "Yüksek" ? "#ea580c" : params.riskLevel === "Orta" ? "#d97706" : "#16a34a";
+
+  const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px">
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+    </div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Sayın ${params.contactName},</h2>
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6">${params.companyName} için siber güvenlik değerlendirmeniz başarıyla tamamlandı. Risk skorunuz hesaplandı.</p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
+        <div style="font-size:48px;font-weight:800;color:${riskColor};margin-bottom:4px">${params.totalScore}<span style="font-size:20px;font-weight:400;color:#94a3b8">/${params.maxScore}</span></div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:12px">Güvenlik Puanınız</div>
+        <span style="background:${riskColor}20;color:${riskColor};font-size:13px;font-weight:700;padding:5px 16px;border-radius:20px">${params.riskLevel} Risk</span>
+        <p style="margin:12px 0 0;font-size:13px;color:#64748b">${params.redAlarmCount} kritik güvenlik açığı tespit edildi.</p>
+      </div>
+
+      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
+        <p style="margin:0;font-size:13px;color:#1e40af;line-height:1.6">
+          Uzman ekibimiz yapay zeka ön analizini inceleyerek şirketinize özel detaylı değerlendirmeyi
+          <strong>24-48 saat içinde</strong> bu e-posta adresine iletecektir. PDF raporunuz da e-postaya ekli olarak gönderilecektir.
+        </p>
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6">
+        Sorularınız için <a href="mailto:${process.env["SMTP_USER"]}" style="color:#10b981">${process.env["SMTP_USER"]}</a> adresine yazabilirsiniz.
+      </p>
+    </div>
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">CyberStep.io · Değerlendirme #${params.assessmentId}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    await transport.sendMail({
+      from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+      to: params.customerEmail,
+      subject: `Siber Güvenlik Değerlendirmeniz Tamamlandı — ${params.companyName}`,
+      html,
+    });
+    logger.info({ assessmentId: params.assessmentId }, "Customer confirmation email sent");
+  } catch (err) {
+    logger.error({ err, assessmentId: params.assessmentId }, "Failed to send customer confirmation email");
+  }
+}
+
 export async function sendCustomerReportEmail(params: {
   assessmentId: number;
   companyName: string;

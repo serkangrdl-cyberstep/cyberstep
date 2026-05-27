@@ -13,11 +13,12 @@ import {
   CompleteAssessmentParams,
   GetReportParams,
 } from "@workspace/api-zod";
-import { eq, desc, sql, count, avg } from "drizzle-orm";
+import { eq, desc, sql, count, avg, gte, lte, and } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { calculateScore, MINI_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
-import { sendAdminNotificationEmail } from "../../services/email";
+import { sendAdminNotificationEmail, sendCustomerConfirmationEmail } from "../../services/email";
+import { generateReportPDF } from "../../services/pdf";
 
 const router = Router();
 
@@ -48,37 +49,56 @@ router.post("/assessments", async (req, res) => {
 });
 
 // GET /api/assessments/stats/summary — must come before /:id
-router.get("/assessments/stats/summary", async (_req, res) => {
-  const totalResult = await db
-    .select({ count: count() })
-    .from(assessmentsTable);
+// Supports optional query params: sector, dateFrom, dateTo, limit
+router.get("/assessments/stats/summary", async (req, res) => {
+  const { sector, dateFrom, dateTo, limit: limitParam } = req.query;
+  const tableLimit = Math.min(parseInt(String(limitParam ?? "20"), 10) || 20, 100);
 
-  const completedResult = await db
-    .select({ count: count() })
-    .from(assessmentsTable)
-    .where(sql`${assessmentsTable.status} != 'in_progress'`);
+  const sectorCond = sector && sector !== "all" ? eq(assessmentsTable.sector, sector as string) : undefined;
+  const fromCond = dateFrom ? gte(assessmentsTable.createdAt, new Date(dateFrom as string)) : undefined;
+  const toCond = dateTo ? lte(assessmentsTable.createdAt, new Date(dateTo as string)) : undefined;
+  const whereClause = and(sectorCond, fromCond, toCond);
 
-  const avgResult = await db
-    .select({ avg: avg(assessmentsTable.totalScore) })
-    .from(assessmentsTable)
-    .where(sql`${assessmentsTable.totalScore} IS NOT NULL`);
-
-  const riskResults = await db
-    .select({
-      riskLevel: assessmentsTable.riskLevel,
+  const [totalResult, completedResult, avgResult, riskResults, recentAssessments, sectorResult, scoreDistResult, allSectorsResult] = await Promise.all([
+    db.select({ count: count() }).from(assessmentsTable).where(whereClause),
+    db.select({ count: count() }).from(assessmentsTable)
+      .where(and(whereClause, sql`${assessmentsTable.status} != 'in_progress'`)),
+    db.select({ avg: avg(assessmentsTable.totalScore) }).from(assessmentsTable)
+      .where(and(whereClause, sql`${assessmentsTable.totalScore} IS NOT NULL`)),
+    db.select({ riskLevel: assessmentsTable.riskLevel, count: count() })
+      .from(assessmentsTable)
+      .where(and(whereClause, sql`${assessmentsTable.riskLevel} IS NOT NULL`))
+      .groupBy(assessmentsTable.riskLevel),
+    db.select().from(assessmentsTable)
+      .where(whereClause)
+      .orderBy(desc(assessmentsTable.createdAt))
+      .limit(tableLimit),
+    db.select({ sector: assessmentsTable.sector, count: count() })
+      .from(assessmentsTable)
+      .where(whereClause)
+      .groupBy(assessmentsTable.sector)
+      .orderBy(desc(count())),
+    db.select({
+      bucket: sql<string>`
+        CASE
+          WHEN ${assessmentsTable.totalScore}::float / NULLIF(${assessmentsTable.maxScore}::float, 0) < 0.26 THEN '0-25%'
+          WHEN ${assessmentsTable.totalScore}::float / NULLIF(${assessmentsTable.maxScore}::float, 0) < 0.51 THEN '26-50%'
+          WHEN ${assessmentsTable.totalScore}::float / NULLIF(${assessmentsTable.maxScore}::float, 0) < 0.76 THEN '51-75%'
+          ELSE '76-100%'
+        END`,
       count: count(),
     })
     .from(assessmentsTable)
-    .where(sql`${assessmentsTable.riskLevel} IS NOT NULL`)
-    .groupBy(assessmentsTable.riskLevel);
+    .where(and(whereClause, sql`${assessmentsTable.totalScore} IS NOT NULL`))
+    .groupBy(sql`1`)
+    .orderBy(sql`1`),
+    db.select({ sector: assessmentsTable.sector })
+      .from(assessmentsTable)
+      .groupBy(assessmentsTable.sector)
+      .orderBy(assessmentsTable.sector),
+  ]);
 
-  const riskDistribution = {
-    kritik: 0,
-    yuksek: 0,
-    orta: 0,
-    dusuk: 0,
-  };
-
+  const riskDistribution = { kritik: 0, yuksek: 0, orta: 0, dusuk: 0 };
   for (const row of riskResults) {
     if (row.riskLevel === "Kritik") riskDistribution.kritik = Number(row.count);
     else if (row.riskLevel === "Yüksek") riskDistribution.yuksek = Number(row.count);
@@ -86,11 +106,10 @@ router.get("/assessments/stats/summary", async (_req, res) => {
     else if (row.riskLevel === "Düşük") riskDistribution.dusuk = Number(row.count);
   }
 
-  const recentAssessments = await db
-    .select()
-    .from(assessmentsTable)
-    .orderBy(desc(assessmentsTable.createdAt))
-    .limit(5);
+  const BUCKET_ORDER = ["0-25%", "26-50%", "51-75%", "76-100%"];
+  const scoreDistMap: Record<string, number> = {};
+  for (const r of scoreDistResult) scoreDistMap[r.bucket] = Number(r.count);
+  const scoreDistribution = BUCKET_ORDER.map(b => ({ bucket: b, count: scoreDistMap[b] ?? 0 }));
 
   res.json({
     totalAssessments: Number(totalResult[0]?.count ?? 0),
@@ -98,6 +117,9 @@ router.get("/assessments/stats/summary", async (_req, res) => {
     averageScore: Number(avgResult[0]?.avg ?? 0),
     riskDistribution,
     recentAssessments,
+    sectorBreakdown: sectorResult.map(r => ({ sector: r.sector, count: Number(r.count) })),
+    scoreDistribution,
+    allSectors: allSectorsResult.map(r => r.sector),
   });
 });
 
@@ -212,6 +234,21 @@ router.post("/assessments/:id/complete", async (req, res) => {
     })
     .where(eq(assessmentsTable.id, params.data.id))
     .returning();
+
+  // Send customer confirmation email (fire-and-forget)
+  sendCustomerConfirmationEmail({
+    assessmentId: params.data.id,
+    companyName: assessment.companyName,
+    contactName: assessment.contactName,
+    customerEmail: assessment.email,
+    riskLevel: scoring.riskLevel,
+    scorePercent: scoring.scorePercent,
+    totalScore: scoring.totalScore,
+    maxScore: scoring.maxScore,
+    redAlarmCount: scoring.redAlarmCount,
+  }).catch((err) => {
+    logger.error({ err, assessmentId: params.data.id }, "Customer confirmation email failed");
+  });
 
   // Generate AI report asynchronously (don't await)
   generateAIReport(params.data.id, assessment, answers, scoring).catch((err) => {
@@ -436,6 +473,64 @@ router.get("/assessments/:id/report", async (req, res) => {
   }
 
   res.json(report);
+});
+
+// GET /api/assessments/:id/report/pdf
+router.get("/assessments/:id/report/pdf", async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) {
+    res.status(400).json({ error: "Geçersiz ID" });
+    return;
+  }
+
+  const [assessment] = await db
+    .select()
+    .from(assessmentsTable)
+    .where(eq(assessmentsTable.id, id));
+
+  if (!assessment) {
+    res.status(404).json({ error: "Değerlendirme bulunamadı" });
+    return;
+  }
+
+  const [report] = await db
+    .select()
+    .from(reportsTable)
+    .where(eq(reportsTable.assessmentId, id));
+
+  if (!report) {
+    res.status(404).json({ error: "Rapor henüz hazır değil" });
+    return;
+  }
+
+  try {
+    const pdfBuffer = await generateReportPDF({
+      assessmentId: id,
+      companyName: assessment.companyName,
+      contactName: assessment.contactName,
+      sector: assessment.sector,
+      employeeCount: assessment.employeeCount,
+      riskLevel: report.riskLevel,
+      scorePercent: report.scorePercent,
+      totalScore: report.totalScore,
+      maxScore: report.maxScore,
+      redAlarmCount: report.redAlarmCount,
+      aiAnalysis: report.aiAnalysis ?? "",
+      recommendations: (report.recommendations as string[]) ?? [],
+      domainScores: (report.domainScores as any[]) ?? [],
+      adminNotes: report.adminNotes ?? null,
+      createdAt: report.createdAt?.toISOString(),
+    });
+
+    const safeCompany = assessment.companyName.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Rapor_${safeCompany}.pdf"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) {
+    logger.error({ err, assessmentId: id }, "PDF generation failed");
+    res.status(500).json({ error: "PDF oluşturulamadı" });
+  }
 });
 
 export default router;

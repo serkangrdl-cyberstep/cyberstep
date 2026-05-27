@@ -110,6 +110,7 @@ export default function AdminDashboard() {
             { icon: Settings, label: "Site Ayarları", href: "/panel/ayarlar" },
             { icon: CreditCard, label: "Fiyatlandırma", href: "/panel/fiyatlar" },
             { icon: Users, label: "Soru Yönetimi", href: "/panel/sorular" },
+            { icon: Shield, label: "2FA Güvenlik", href: "/panel/totp" },
           ].map(({ icon: Icon, label, href }) => (
             <button key={href} onClick={() => navigate(href)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors text-sm text-left">

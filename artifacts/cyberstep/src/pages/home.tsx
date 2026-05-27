@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { useState } from "react";
-import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, Users, TrendingUp, Award, ChevronDown, ChevronUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, TrendingUp, Award, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const STATS = [
@@ -34,40 +35,6 @@ const TESTIMONIALS = [
     sector: "Hizmet",
     text: "Teknik bilgimiz sınırlı ama test sorular açık ve anlaşılırdı. Uzman değerlendirmesi geldikten sonra BT danışmanımızla birebir çalıştık. Kesinlikle tavsiye ediyorum.",
     score: "Orta",
-  },
-];
-
-const PRICING = [
-  {
-    name: "Mini Değerlendirme",
-    price: "Ücretsiz",
-    description: "İlk adım olarak şirketinizin genel siber güvenlik durumunu hızlıca öğrenin.",
-    features: [
-      "20 kritik kontrol sorusu",
-      "5 temel güvenlik alanı",
-      "Anlık risk skoru",
-      "Kırmızı alarm tespiti",
-      "Uzman ön değerlendirmesi",
-    ],
-    cta: "Hemen Başla",
-    href: "/assessment/start",
-    highlight: false,
-  },
-  {
-    name: "Tam Değerlendirme",
-    price: "Yakında",
-    description: "Derinlemesine analiz ve tam kapsamlı aksiyon planı ile güvenliğinizi zirveye taşıyın.",
-    features: [
-      "55 kapsamlı soru",
-      "10 güvenlik alanı",
-      "PDF rapor indirme",
-      "Sektör karşılaştırması",
-      "Uzman danışmanlık görüşmesi",
-      "Öncelikli aksiyon yol haritası",
-    ],
-    cta: "Bildirim Al",
-    href: "#",
-    highlight: true,
   },
 ];
 
@@ -127,8 +94,88 @@ const scoreColor: Record<string, string> = {
   Orta: "bg-yellow-100 text-yellow-700 border-yellow-200",
 };
 
+interface PricingPlan {
+  id: number;
+  slug: string;
+  name: string;
+  price: string;
+  currency: string;
+  description: string;
+  features: string[];
+  isActive: boolean;
+  sortOrder: number;
+}
+
+function formatPrice(plan: PricingPlan): string {
+  const num = parseFloat(plan.price);
+  if (num === 0) return "Ücretsiz";
+  return new Intl.NumberFormat("tr-TR").format(num) + " ₺";
+}
+
+function getPlanMeta(plan: PricingPlan): { cta: string; href: string; highlight: boolean; badge?: string } {
+  if (plan.slug === "mini") {
+    return { cta: "Hemen Başla", href: "/assessment/start", highlight: false };
+  }
+  return { cta: "Bildirim Al", href: "#", highlight: true, badge: "Yakında" };
+}
+
+const STATIC_PRICING = [
+  {
+    name: "Mini Değerlendirme",
+    displayPrice: "Ücretsiz",
+    description: "İlk adım olarak şirketinizin genel siber güvenlik durumunu hızlıca öğrenin.",
+    features: [
+      "20 kritik kontrol sorusu",
+      "5 temel güvenlik alanı",
+      "Anlık risk skoru",
+      "Kırmızı alarm tespiti",
+      "Uzman ön değerlendirmesi",
+    ],
+    cta: "Hemen Başla",
+    href: "/assessment/start",
+    highlight: false,
+    badge: undefined as string | undefined,
+  },
+  {
+    name: "Tam Değerlendirme",
+    displayPrice: "Yakında",
+    description: "Derinlemesine analiz ve tam kapsamlı aksiyon planı ile güvenliğinizi zirveye taşıyın.",
+    features: [
+      "55 kapsamlı soru",
+      "10 güvenlik alanı",
+      "PDF rapor indirme",
+      "Sektör karşılaştırması",
+      "Uzman danışmanlık görüşmesi",
+      "Öncelikli aksiyon yol haritası",
+    ],
+    cta: "Bildirim Al",
+    href: "#",
+    highlight: true,
+    badge: "Yakında",
+  },
+];
+
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const { data: pricingPlans, isLoading: pricingLoading } = useQuery<PricingPlan[]>({
+    queryKey: ["public-pricing"],
+    queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const displayPlans = pricingPlans && pricingPlans.length > 0
+    ? pricingPlans.map(plan => {
+        const meta = getPlanMeta(plan);
+        return {
+          name: plan.name,
+          displayPrice: formatPrice(plan),
+          description: plan.description,
+          features: plan.features,
+          ...meta,
+        };
+      })
+    : STATIC_PRICING;
 
   return (
     <div className="flex flex-col flex-1">
@@ -249,49 +296,55 @@ export default function Home() {
               Mini değerlendirme tamamen ücretsiz. Daha derin analiz için Tam Değerlendirme yakında geliyor.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            {PRICING.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl border p-8 flex flex-col gap-6 shadow-sm relative ${
-                  plan.highlight ? "border-primary/40 bg-primary/5 shadow-primary/10" : "bg-card"
-                }`}
-              >
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground px-3 py-1">Yakında</Badge>
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-bold text-lg">{plan.name}</h3>
-                  <div className="mt-2 flex items-end gap-1">
-                    <span className="text-3xl font-bold text-primary">{plan.price}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
-                </div>
-                <ul className="space-y-2 flex-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={plan.href}
-                  className={`inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-6 transition-colors ${
-                    plan.highlight
-                      ? "bg-muted text-muted-foreground cursor-not-allowed"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+          {pricingLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+              {displayPlans.map((plan) => (
+                <div
+                  key={plan.name}
+                  className={`rounded-2xl border p-8 flex flex-col gap-6 shadow-sm relative ${
+                    plan.highlight ? "border-primary/40 bg-primary/5 shadow-primary/10" : "bg-card"
                   }`}
-                  onClick={plan.highlight ? (e: React.MouseEvent) => e.preventDefault() : undefined}
                 >
-                  {plan.cta}
-                  {!plan.highlight && <ChevronRight className="ml-2 h-4 w-4" />}
-                </Link>
-              </div>
-            ))}
-          </div>
+                  {plan.badge && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-primary text-primary-foreground px-3 py-1">{plan.badge}</Badge>
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-lg">{plan.name}</h3>
+                    <div className="mt-2 flex items-end gap-1">
+                      <span className="text-3xl font-bold text-primary">{plan.displayPrice}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
+                  </div>
+                  <ul className="space-y-2 flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={plan.href}
+                    className={`inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-6 transition-colors ${
+                      plan.highlight
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    }`}
+                    onClick={plan.highlight ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+                  >
+                    {plan.cta}
+                    {!plan.highlight && <ChevronRight className="ml-2 h-4 w-4" />}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

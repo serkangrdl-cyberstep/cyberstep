@@ -278,9 +278,177 @@ function startReminderCron() {
   logger.info("Domain re-scan cron scheduled (09:30 Istanbul)");
 }
 
+async function ensureIsrTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_vendors (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      logo_url TEXT,
+      sales_rep_name TEXT,
+      sales_rep_email TEXT,
+      deal_reg_url TEXT,
+      notes TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_distributors (
+      id SERIAL PRIMARY KEY,
+      vendor_id INTEGER NOT NULL REFERENCES isr_vendors(id),
+      name TEXT NOT NULL,
+      contact_name TEXT,
+      contact_email TEXT NOT NULL,
+      phone TEXT,
+      notes TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_deals (
+      id SERIAL PRIMARY KEY,
+      customer_name TEXT,
+      customer_email TEXT NOT NULL,
+      customer_company TEXT,
+      customer_phone TEXT,
+      vendor_id INTEGER REFERENCES isr_vendors(id),
+      vendor_name TEXT,
+      product_keywords TEXT,
+      original_subject TEXT,
+      original_body TEXT,
+      ai_summary TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      assigned_rep_email TEXT,
+      priority TEXT NOT NULL DEFAULT 'normal',
+      notes TEXT,
+      email_message_id TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_rfqs (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER NOT NULL REFERENCES isr_deals(id),
+      distributor_id INTEGER REFERENCES isr_distributors(id),
+      sent_to_email TEXT NOT NULL,
+      sent_to_name TEXT,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'sent',
+      email_message_id TEXT,
+      sent_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      responded_at TIMESTAMP
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_rfq_responses (
+      id SERIAL PRIMARY KEY,
+      rfq_id INTEGER NOT NULL REFERENCES isr_rfqs(id),
+      deal_id INTEGER NOT NULL REFERENCES isr_deals(id),
+      from_email TEXT NOT NULL,
+      subject TEXT,
+      body TEXT,
+      ai_parsed JSONB,
+      currency TEXT NOT NULL DEFAULT 'TRY',
+      valid_until TEXT,
+      notes TEXT,
+      received_at TIMESTAMP NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_quote_lines (
+      id SERIAL PRIMARY KEY,
+      rfq_response_id INTEGER REFERENCES isr_rfq_responses(id),
+      quote_id INTEGER,
+      sku TEXT,
+      description TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      unit_cost NUMERIC(18,4),
+      unit_price NUMERIC(18,4),
+      discount NUMERIC(5,2) DEFAULT 0,
+      line_total NUMERIC(18,4),
+      currency TEXT NOT NULL DEFAULT 'TRY',
+      is_custom BOOLEAN NOT NULL DEFAULT false,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_quotes (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER NOT NULL REFERENCES isr_deals(id),
+      quote_number TEXT NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'TRY',
+      subtotal NUMERIC(18,4),
+      kdv_rate NUMERIC(5,2) DEFAULT 20,
+      kdv_amount NUMERIC(18,4),
+      total NUMERIC(18,4),
+      valid_days INTEGER NOT NULL DEFAULT 30,
+      notes TEXT,
+      terms TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      approved_by_email TEXT,
+      approved_at TIMESTAMP,
+      sent_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_margin_rules (
+      id SERIAL PRIMARY KEY,
+      vendor_id INTEGER REFERENCES isr_vendors(id),
+      name TEXT NOT NULL,
+      min_margin_pct NUMERIC(5,2) NOT NULL DEFAULT 15,
+      target_margin_pct NUMERIC(5,2) NOT NULL DEFAULT 25,
+      max_discount_pct NUMERIC(5,2) NOT NULL DEFAULT 10,
+      auto_approve_below NUMERIC(18,4),
+      require_approval_above NUMERIC(18,4),
+      is_default BOOLEAN NOT NULL DEFAULT false,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isr_email_inbox (
+      id SERIAL PRIMARY KEY,
+      message_id TEXT NOT NULL UNIQUE,
+      from_email TEXT NOT NULL,
+      from_name TEXT,
+      to_email TEXT,
+      subject TEXT,
+      body_text TEXT,
+      body_html TEXT,
+      processed_as TEXT,
+      deal_id INTEGER REFERENCES isr_deals(id),
+      rfq_id INTEGER REFERENCES isr_rfqs(id),
+      received_at TIMESTAMP NOT NULL,
+      processed_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+function startIsrImapCron() {
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const { processInbox } = await import("./services/isr-imap");
+      await processInbox();
+    } catch (err) {
+      logger.error({ err }, "ISR IMAP cron error");
+    }
+  });
+  logger.info("ISR IMAP poller scheduled (every 5 minutes)");
+}
+
 async function startup() {
   await maybeResetAdminPassword();
   await ensureQuestionsTable();
+  await ensureIsrTables();
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
 }
@@ -288,6 +456,7 @@ async function startup() {
 startup()
   .then(() => {
     startReminderCron();
+    startIsrImapCron();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

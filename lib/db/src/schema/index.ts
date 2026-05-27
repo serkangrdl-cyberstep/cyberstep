@@ -28,3 +28,4 @@ export * from "./services";
 export * from "./blog";
 export * from "./questions";
 export * from "./domain-scans";
+export * from "./isr";

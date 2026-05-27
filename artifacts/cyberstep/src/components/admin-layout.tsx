@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
-  BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2,
+  BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2, Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { icon: FileText,        label: "Değerlendirmeler",   href: "/panel/degerlendiirmeler" },
   { icon: UserSquare2,     label: "Müşteriler",         href: "/panel/musteriler" },
   { icon: Globe,           label: "Alan Adı Taramaları",href: "/panel/domain-taramalar" },
+  { icon: Bot,             label: "AI Satış Asistanı",  href: "/panel/isr" },
   { icon: DollarSign,      label: "Ödemeler",           href: "/panel/odemeler" },
   { icon: CreditCard,      label: "Fiyatlandırma",      href: "/panel/fiyatlar" },
   { icon: Users,           label: "Soru Yönetimi",      href: "/panel/sorular" },

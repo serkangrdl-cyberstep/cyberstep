@@ -37,6 +37,10 @@ import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
 import AdminSpecialMessages from "./pages/admin-panel/special-messages";
 import AdminMusteriler from "./pages/admin-panel/musteriler";
 import AdminDomainTaramalar from "./pages/admin-panel/domain-taramalar";
+import AdminIsrDashboard from "./pages/admin-panel/isr/index";
+import AdminIsrDeal from "./pages/admin-panel/isr/deal";
+import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
+import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
@@ -103,6 +107,10 @@ function Router() {
       <Route path="/panel/sosyal-medya" component={AdminSosyalMedya} />
       <Route path="/panel/musteriler" component={AdminMusteriler} />
       <Route path="/panel/domain-taramalar" component={AdminDomainTaramalar} />
+      <Route path="/panel/isr/vendors" component={AdminIsrVendors} />
+      <Route path="/panel/isr/kurallar" component={AdminIsrKurallar} />
+      <Route path="/panel/isr/deal/:id" component={AdminIsrDeal} />
+      <Route path="/panel/isr" component={AdminIsrDashboard} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* All other routes use shared Layout */}

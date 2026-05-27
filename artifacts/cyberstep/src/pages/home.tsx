@@ -1,8 +1,16 @@
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, TrendingUp, Award, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, TrendingUp, Award, ChevronDown, ChevronUp, Loader2, Lock, Search, Users, AlertTriangle, FileText, Globe, Server, Code, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+const LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Shield, Lock, Search, Users, AlertTriangle, FileText, Globe, Server, Code, Eye,
+  Building2, TrendingUp, Award, CheckCircle, ShieldAlert,
+};
+
+interface ConsultingService { id: number; title: string; description: string; icon: string; isActive: boolean; sortOrder: number; }
+interface TechPartner { id: number; name: string; logoUrl: string; websiteUrl: string | null; isActive: boolean; }
 
 const STATS = [
   { value: "500+", label: "KOBİ Analiz Edildi" },
@@ -164,6 +172,18 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: consultingServices = [] } = useQuery<ConsultingService[]>({
+    queryKey: ["public-consulting"],
+    queryFn: () => fetch("/api/public/consulting-services").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: techPartners = [] } = useQuery<TechPartner[]>({
+    queryKey: ["public-tech-partners"],
+    queryFn: () => fetch("/api/public/tech-partners").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const displayPlans = pricingPlans && pricingPlans.length > 0
     ? pricingPlans.map(plan => {
         const meta = getPlanMeta(plan);
@@ -285,6 +305,42 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Consulting Services */}
+      {consultingServices.length > 0 && (
+        <section className="py-20 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <Badge variant="outline" className="mb-4">Danışmanlık Hizmetleri</Badge>
+              <h2 className="text-3xl font-bold">Uzman Danışmanlık ile Güvenliğinizi Güçlendirin</h2>
+              <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+                Değerlendirmenizin ardından ihtiyacınıza özel danışmanlık hizmetlerimizden yararlanın.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {consultingServices.map(service => {
+                const Icon = LUCIDE_ICONS[service.icon] ?? Shield;
+                return (
+                  <div key={service.id} className="bg-card rounded-xl border p-6 shadow-sm flex flex-col gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-base mb-2">{service.title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{service.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-center mt-10">
+              <Link href="/iletisim" className="inline-flex items-center gap-2 text-primary font-medium hover:underline">
+                Danışmanlık hakkında bilgi alın <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Pricing */}
       <section className="py-20 bg-background">
@@ -414,6 +470,36 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Tech Partners */}
+      {techPartners.length > 0 && (
+        <section className="py-16 bg-muted/20 border-y">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Teknoloji Ortaklarımız</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-10 max-w-5xl mx-auto">
+              {techPartners.map(partner => (
+                <a
+                  key={partner.id}
+                  href={partner.websiteUrl ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="opacity-50 hover:opacity-100 transition-opacity"
+                  title={partner.name}
+                >
+                  <img
+                    src={partner.logoUrl}
+                    alt={partner.name}
+                    className="h-8 max-w-[120px] object-contain grayscale hover:grayscale-0 transition-all"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA Bottom */}
       <section className="py-20 bg-secondary text-secondary-foreground">

@@ -23,3 +23,5 @@ export * from "./assessments";
 export * from "./assessment_answers";
 export * from "./reports";
 export * from "./admin";
+export * from "./customers";
+export * from "./services";

@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import assessmentsRouter from "./assessments/index";
 import geminiRouter from "./gemini/index";
 import adminRouter from "./admin/index";
+import customerAuthRouter from "./customer-auth/index";
 
 const router: IRouter = Router();
 
@@ -10,5 +11,6 @@ router.use(healthRouter);
 router.use(assessmentsRouter);
 router.use(geminiRouter);
 router.use(adminRouter);
+router.use(customerAuthRouter);
 
 export default router;

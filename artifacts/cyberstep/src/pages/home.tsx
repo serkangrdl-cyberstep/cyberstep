@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SpecialDayBanner } from "@/components/special-day-banner";
 import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -56,7 +56,63 @@ export default function Home() {
     description: lang === "en"
       ? "Measure your company's cybersecurity maturity in 5 minutes. Discover vulnerabilities and get a personalized action roadmap."
       : "Sirketinizin siber guvenlik olgunlugunu 5 dakikada olcun. Zayif noktalarinizi kesfedin ve kisisellestirilmis yol haritasi alin.",
+    canonicalPath: "/",
+    lang,
   });
+
+  // FAQPage JSON-LD — Google'ın Rich Results (zengin sonuç) için
+  useEffect(() => {
+    const id = "ld-json-faqpage";
+    let el = document.getElementById(id) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = id;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    const faqs = [
+      {
+        q: lang === "en" ? "Does the assessment require technical knowledge?" : "Değerlendirme teknik bilgi gerektiriyor mu?",
+        a: lang === "en"
+          ? "No. The test is designed for non-technical managers. Questions relate to your daily business processes and require no technical background."
+          : "Hayır. Test, teknik olmayan yöneticiler için tasarlanmıştır. Sorular günlük iş süreçlerinizle ilgilidir ve herhangi bir teknik altyapı gerektirmez.",
+      },
+      {
+        q: lang === "en" ? "Are my answers secure?" : "Cevaplarım güvende mi?",
+        a: lang === "en"
+          ? "Your data is stored encrypted and shared only with you. It is never shared with third parties."
+          : "Verileriniz şifreli olarak saklanır ve yalnızca sizinle paylaşılır. Üçüncü taraflarla kesinlikle paylaşılmaz.",
+      },
+      {
+        q: lang === "en" ? "When will I receive my results?" : "Sonuçları ne zaman alacağım?",
+        a: lang === "en"
+          ? "Your risk score and red alarm count are shown instantly after completing the test. Our expert team delivers the detailed report within 24-48 hours."
+          : "Test tamamlandıktan sonra risk skorunuz anında gösterilir. Uzman ekibimiz detaylı raporu 24-48 saat içinde iletir.",
+      },
+      {
+        q: lang === "en" ? "Why can't I see the full report immediately?" : "Raporun tamamını neden hemen göremiyorum?",
+        a: lang === "en"
+          ? "For an accurate assessment, our expert team reviews and approves the AI analysis. This process guarantees report quality."
+          : "Doğru bir değerlendirme için uzman ekibimiz AI analizini inceleyip onaylar. Bu süreç raporun kalitesini garanti eder.",
+      },
+      {
+        q: lang === "en" ? "What is the difference between Mini and Full Assessment?" : "Mini ve Tam Değerlendirme arasındaki fark nedir?",
+        a: lang === "en"
+          ? "Mini Assessment reveals your general risk profile with 20 questions. Full Assessment includes 55 questions, sector comparison, and one-on-one expert consulting."
+          : "Mini Değerlendirme 20 soru ile genel risk profilinizi ortaya koyar. Tam Değerlendirme 55 soru, sektör karşılaştırması ve birebir uzman danışmanlığı içerir.",
+      },
+    ];
+    el.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqs.map(({ q, a }) => ({
+        "@type": "Question",
+        "name": q,
+        "acceptedAnswer": { "@type": "Answer", "text": a },
+      })),
+    });
+    return () => { el?.remove(); };
+  }, [lang]);
 
   const { data: pricingPlans, isLoading: pricingLoading } = useQuery<PricingPlan[]>({
     queryKey: ["public-pricing"],

@@ -1,2 +1,15 @@
 User-agent: *
 Allow: /
+
+# Admin paneli ve kullanıcı oturumu sayfaları taranmasın
+Disallow: /panel/
+Disallow: /giris
+Disallow: /kayit
+Disallow: /hesap
+Disallow: /totp-setup
+Disallow: /payment/
+Disallow: /assessment/
+Disallow: /full-assessment/
+Disallow: /w/
+
+Sitemap: https://cyberstep.io/sitemap.xml

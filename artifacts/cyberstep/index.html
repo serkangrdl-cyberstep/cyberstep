@@ -1,21 +1,113 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>CyberStep.io</title>
-    <meta name="description" content="CyberStep.io — built on Replit. Update this description to reflect the app." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- Primary SEO -->
+    <title>CyberStep.io — KOBİ'ler için Siber Güvenlik Risk Analizi</title>
+    <meta name="description" content="KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. 20 soruluk ücretsiz Mini Değerlendirme ile şirketinizin risk profilini öğrenin, AI destekli kişiselleştirilmiş rapor alın." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="CyberStep.io" />
-    <meta property="og:description" content="CyberStep.io — built on Replit. Update this description to reflect the app." />
+    <link rel="canonical" href="https://cyberstep.io/" />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="CyberStep.io" />
+    <meta property="og:title" content="CyberStep.io — KOBİ'ler için Siber Güvenlik Risk Analizi" />
+    <meta property="og:description" content="KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. 20 soruluk ücretsiz Mini Değerlendirme ile şirketinizin risk profilini öğrenin." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://cyberstep.io/" />
+    <meta property="og:locale" content="tr_TR" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="CyberStep.io" />
-    <meta name="twitter:description" content="CyberStep.io — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:title" content="CyberStep.io — KOBİ'ler için Siber Güvenlik Risk Analizi" />
+    <meta name="twitter:description" content="KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. Ücretsiz değerlendirme ile başlayın." />
+
+    <!-- Sitemap discovery -->
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Fonts — preconnect first, then stylesheet (Critical Path CSS pattern) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- JSON-LD: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "CyberStep.io",
+      "url": "https://cyberstep.io",
+      "logo": "https://cyberstep.io/favicon.svg",
+      "description": "KOBİ'ler için siber güvenlik risk analizi ve danışmanlık hizmetleri.",
+      "areaServed": "TR",
+      "knowsLanguage": ["tr", "en"],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "availableLanguage": ["Turkish", "English"]
+      }
+    }
+    </script>
+
+    <!-- JSON-LD: WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "CyberStep.io",
+      "url": "https://cyberstep.io",
+      "description": "KOBİ'ler için Türkçe siber güvenlik risk analizi platformu.",
+      "inLanguage": ["tr", "en"],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://cyberstep.io/blog?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- JSON-LD: Service -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "name": "Siber Güvenlik Risk Analizi",
+      "provider": {
+        "@type": "Organization",
+        "name": "CyberStep.io",
+        "url": "https://cyberstep.io"
+      },
+      "serviceType": "Siber Güvenlik Danışmanlığı",
+      "areaServed": "TR",
+      "description": "KOBİ'lere yönelik AI destekli siber güvenlik risk analizi. 20 soruluk Mini Değerlendirme ücretsiz, 55 soruluk Tam Değerlendirme kapsamlı rapor içerir.",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Mini Değerlendirme",
+          "price": "0",
+          "priceCurrency": "TRY",
+          "description": "20 soruluk ücretsiz siber güvenlik risk analizi"
+        },
+        {
+          "@type": "Offer",
+          "name": "Tam Değerlendirme",
+          "price": "4990",
+          "priceCurrency": "TRY",
+          "description": "55 soruluk kapsamlı siber güvenlik denetimi"
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

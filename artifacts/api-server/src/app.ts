@@ -43,6 +43,16 @@ app.use(
   }),
 );
 
+// ─── Permissions-Policy — tarayıcı özelliklerini kısıtla ─────────────────────
+// OWASP: Gereksiz tarayıcı API'larına erişimi engelle (kamera, mikrofon, konum vb.)
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  );
+  next();
+});
+
 // ─── CORS — restricted allowlist ─────────────────────────────────────────────
 const buildAllowedOrigins = (): Set<string> => {
   const origins = new Set<string>();
@@ -129,6 +139,24 @@ const generalLimiter = rateLimit({
   message: { error: "Çok fazla istek. Lütfen daha sonra tekrar deneyin." },
 });
 
+// Ödeme girişimi: saatte 5 (kart kötüye kullanım koruması)
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Saatte en fazla 5 ödeme girişimi yapabilirsiniz." },
+});
+
+// Bülten gönderimi: saatte 3 (e-posta spam koruması)
+const newsletterLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Bu mesaj için saatte en fazla 3 bülten gönderebilirsiniz." },
+});
+
 // Apply limiters
 // Auth brute-force protection
 app.use("/api/auth/login", authLimiter);
@@ -138,6 +166,10 @@ app.use("/api/admin-panel/auth/login", authLimiter);
 app.use("/api/admin-panel/auth/totp-verify", authLimiter);
 // Assessment creation spam protection (POST only)
 app.post("/api/assessments", assessmentCreateLimiter);
+// Payment abuse protection
+app.post("/api/payments/initiate", paymentLimiter);
+// Newsletter spam protection
+app.post("/api/admin-panel/special-messages/:id/send-newsletter", newsletterLimiter);
 // General API limit
 app.use("/api", generalLimiter);
 

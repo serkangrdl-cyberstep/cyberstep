@@ -1,0 +1,26 @@
+Yapay zeka destekli "Continuous Monitoring" (Sürekli İzleme), geleneksel, periyodik taramaların aksine, sistemin canlı bir organizma gibi sürekli dinlenmesi ve anormal davranışların gerçek zamanlı tespit edilmesidir. 2026 yılı teknolojileriyle, bunu bir KOBİ veya orta ölçekli şirket yapısında hayata geçirmek için izlemeniz gereken yol haritası şöyledir:
+​1. Veri Kaynağı (Data Ingestion)
+​Sürekli izlemenin temeli, sisteminizden akan veriyi (logları) merkezi bir yerde toplamaktır.
+​Log Yönetimi: Firewalls, Endpoint (EDR), Cloud (AWS/Azure/Google), ve SaaS (Salesforce, Microsoft 365) loglarını tek bir havuzda (Data Lake) toplayın.
+​API Entegrasyonları: Manuel yükleme yerine, popüler platformların API'lerini kullanarak verileri push yöntemiyle çekin.
+​Netflow İzleme: Sadece "içeri giren" değil, "içeriden dışarı çıkan" trafiği izlemek için ağ trafiği analizi (NDR - Network Detection and Response) verilerini kullanın.
+​2. Yapay Zeka ile Anomali Tespiti (Behavioral Analysis)
+​Burada "kural tabanlı" (örneğin: "yanlış şifre 5 kere girilirse uyar") sistemlerden "davranış tabanlı" sistemlere geçilir.
+​Baseline (Temel Çizgi) Oluşturma: AI, sistemin "normal" halini öğrenir. "Muhasebe departmanı sabah 09:00-18:00 arası sisteme girer ve İstanbul'dan bağlanır."
+​Anomali Tespiti: Eğer gece 03:00'te, farklı bir ülkeden veya alışılmadık bir dosya boyutuyla veritabanına erişim sağlanırsa, AI bunu "Low Probability Event" olarak işaretler.
+​Kendi Kendini Öğrenen Modeller: Kullanılan AI modelleri (Unsupervised Learning), yeni saldırı vektörleri ortaya çıktıkça sistemin "normal" tanımını otomatik günceller.
+​3. Otomatik Müdahale ve Önceliklendirme (SOAR)
+​Sürekli izleme, insanı "alarm yorgunluğundan" kurtarmalıdır.
+​Otomatik Triage: AI, gelen binlerce logu analiz edip hangisinin gerçek bir tehdit, hangisinin "false positive" (yanlış alarm) olduğunu ayırır.
+​SOAR (Security Orchestration, Automation and Response): Eğer bir saldırı tespit edilirse, AI'nın "ilk müdahale" yapmasını sağlayın.
+​Örnek: Şüpheli giriş tespit edilirse, AI otomatik olarak ilgili kullanıcının oturumunu sonlandırır ve yöneticiye tek tuşla onaylayabileceği bir bildirim gönderir.
+​4. Şirketler İçin Uygulama Adımları (MVP Modeli)
+​CyberStep.io içerisinde bunu "Continuous Monitoring" olarak sunmak isterseniz, şu mimariyi izleyebilirsiniz:
+​Lightweight Agent: Müşterinin uç noktalarına (PC/Sunucu) kurulan, CPU'yu yormayan küçük bir izleme ajanı.
+​Bulut Tabanlı Analiz Motoru: Toplanan verileri sizin sunucularınızda işleyen, LLM (Büyük Dil Modeli) destekli bir analiz motoru. (Örn: Log verisini alıp, "Bu logda şüpheli bir PowerShell komutu çalıştırılmış, risk seviyesi 8/10" şeklinde yorumlatmak).
+​Varlık Keşfi (Asset Discovery): Ağdaki yeni cihazları otomatik bulan bir tarayıcı. (KOBİ'ler genellikle kendi ağlarında ne olduğunu bilmezler).
+​5. AI ile Kullanıcıya "Dil" Katmak (İletişim)
+​Sürekli izlemenin en zor kısmı "Gürültü/Fayda" dengesidir. Kullanıcıya her şeyi raporlamayın:
+​Özet Raporlama: "Bu hafta 450.000 log incelendi, 3 adet kritik anomali bulundu ve 2 tanesi otomatik olarak engellendi." gibi yönetici seviyesinde özetler verin.
+​Proaktif Uyarı: "Yarınki güncelleme ile sisteminizde oluşabilecek güvenlik açığı riski %15 artacak, lütfen yamayı ertelemeyin" gibi tahminleyici (predictive) uyarılar sunun.
+​Sizin için kritik soru şu: Bu sistemi kurarken, müşterinin IT altyapısına ne kadar "içeriden" erişiminiz olacak? (Agent mı kuracaksınız, yoksa sadece dış ağ taraması mı yapacaksınız?) Agent kurmak veri kalitesini %100 artırır ancak kurulum zorluğu nedeniyle satış sürecini yavaşlatabilir. Hangi tarafa daha yakınsınız?

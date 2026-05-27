@@ -131,6 +131,64 @@ export default function AssessmentReport() {
     },
   };
 
+  const TOP_PRIORITY_MAP: Record<number, { action: string; why: string; domain: string }> = {
+    17: {
+      action: "Kritik verileriniz için otomatik yedekleme başlatın.",
+      why: "Yedek olmadan bir fidye saldırısı veya donanım arızası tüm iş verilerinizi kalıcı olarak silebilir.",
+      domain: "Veri Koruma ve Yedekleme",
+    },
+    5: {
+      action: "Tüm çalışan hesaplarında MFA (çok faktörlü doğrulama) aktif edin.",
+      why: "Ele geçirilen tek bir şifre, MFA olmadan sistemlerinize tam erişim sağlar. MFA bu riski %99 azaltır.",
+      domain: "Kimlik ve Erişim",
+    },
+    12: {
+      action: "E-posta alan adınıza SPF, DKIM ve DMARC kaydı ekleyin.",
+      why: "Bu kayıtlar olmadan saldırganlar şirketiniz adına sahte fatura ve ödeme talebi maili gönderebilir.",
+      domain: "E-posta ve İnsan Faktörü",
+    },
+    11: {
+      action: "IBAN değişikliği veya acil para transferi taleplerine telefon ile doğrulama zorunluluğu getirin.",
+      why: "BEC (iş e-postası dolandırıcılığı) KOBİ'lerin en yaygın finansal kayıp nedenidir — tek bir mail yeterlidir.",
+      domain: "E-posta ve İnsan Faktörü",
+    },
+    14: {
+      action: "Tüm bilgisayarlara merkezi antivirüs yazılımı yükleyin ve otomatik güncellemeyi aktif edin.",
+      why: "Korumasız bir bilgisayar fidye yazılımının tüm ağa yayılması için açık kapıdır.",
+      domain: "Cihaz Güvenliği",
+    },
+    7: {
+      action: "İşten ayrılan çalışanların tüm sistem erişimlerini ayrılış günü kaldırın.",
+      why: "Eski çalışan hesapları aktif kaldığında kasıtlı veya kazara veri sızıntısı riski doğar.",
+      domain: "Kimlik ve Erişim",
+    },
+    18: {
+      action: "Yedeklerinizi test edin — geri yükleme çalışmazsa yedek yoktur.",
+      why: "Yedek alıyor olmak yeterli değildir; test edilmemiş yedekler kriz anında işe yaramayabilir.",
+      domain: "Veri Koruma ve Yedekleme",
+    },
+    6: {
+      action: "VPN ve yönetici hesaplarda ek kimlik doğrulamayı (MFA) zorunlu hale getirin.",
+      why: "Yönetici yetkili hesaplar ele geçirildiğinde saldırgan tüm sisteme tam erişim kazanır.",
+      domain: "Kimlik ve Erişim",
+    },
+    3: {
+      action: "Yeni işe giren ve ayrılan çalışanlar için hesap açma/kapama sürecini yazıya döküp uygulayın.",
+      why: "Tanımsız bir süreç, kullanıcı hesaplarının yönetimsiz kalmasına ve güvenlik açıklarına neden olur.",
+      domain: "Firma ve Yönetişim",
+    },
+  };
+
+  const PRIORITY_ORDER = [17, 5, 12, 11, 14, 7, 18, 6, 3];
+
+  const topPriority = (() => {
+    const redAlarms: number[] = report.redAlarmQuestions ?? [];
+    for (const qNum of PRIORITY_ORDER) {
+      if (redAlarms.includes(qNum)) return TOP_PRIORITY_MAP[qNum] ?? null;
+    }
+    return null;
+  })();
+
   const handlePdfDownload = async () => {
     setPdfLoading(true);
     try {
@@ -260,6 +318,30 @@ export default function AssessmentReport() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bugün yapmanız gereken tek şey */}
+      {topPriority && (
+        <Card className="shadow-sm mb-6 border-l-4 border-l-red-500 bg-red-50/60 dark:bg-red-950/20 dark:border-l-red-700">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 bg-red-100 dark:bg-red-900/40 rounded-xl p-3">
+                <AlertOctagon className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Bugün yapmanız gereken tek şey</p>
+                <p className="text-base font-bold text-foreground mb-2 leading-snug">{topPriority.action}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{topPriority.why}</p>
+                <button
+                  className="mt-3 text-xs text-red-600 font-medium hover:underline flex items-center gap-1"
+                  onClick={() => document.getElementById("uzman-formu")?.scrollIntoView({ behavior: "smooth" })}
+                >
+                  Uzman yardımı talep et <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Skor Takibi */}
       {report.previousScore && (() => {

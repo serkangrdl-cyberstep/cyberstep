@@ -41,6 +41,7 @@ export default function AdminQuestions() {
   const [editForm, setEditForm] = useState<Partial<Question>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ ...EMPTY_NEW });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Question> }) =>
@@ -73,12 +74,14 @@ export default function AdminQuestions() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) =>
-      fetch(`/api/admin-panel/questions/${id}`, { method: "DELETE", credentials: "include" }),
+      fetch(`/api/admin-panel/questions/${id}`, { method: "DELETE", credentials: "include" })
+        .then(async r => { if (!r.ok) throw new Error((await r.json()).error ?? "Hata"); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-questions"] });
+      setConfirmDeleteId(null);
       toast({ title: "Soru silindi" });
     },
-    onError: () => toast({ title: "Hata", variant: "destructive" }),
+    onError: () => { setConfirmDeleteId(null); toast({ title: "Hata", variant: "destructive" }); },
   });
 
   const domains = [
@@ -246,23 +249,43 @@ export default function AdminQuestions() {
                           </div>
                         ) : (
                           /* ─── Görüntüleme Modu ─────────────────────────────── */
-                          <div className="px-6 py-4 flex items-start gap-4 group">
+                          <div className="px-4 lg:px-6 py-4 flex items-start gap-3">
                             <span className="text-slate-500 text-sm w-6 flex-shrink-0 pt-0.5 tabular-nums">{q.number}.</span>
-                            <div className="flex-1 text-slate-200 text-sm leading-relaxed">{q.text}</div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {!q.isActive && <Badge className="bg-slate-700 text-slate-500 text-xs">Pasif</Badge>}
-                              {q.weight === 2 && <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-xs">Kritik x2</Badge>}
-                              {q.isRedAlarm && <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Alarm</Badge>}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-white"
-                                  onClick={() => { setEditId(q.id); setEditForm(q); }}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-red-400"
-                                  onClick={() => { if (confirm("Bu soruyu silmek istediğinize emin misiniz?")) deleteMutation.mutate(q.id); }}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-slate-200 text-sm leading-relaxed">{q.text}</p>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                {!q.isActive && <Badge className="bg-slate-700 text-slate-500 text-xs">Pasif</Badge>}
+                                {q.weight === 2 && <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-xs">Kritik x2</Badge>}
+                                {q.isRedAlarm && <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Alarm</Badge>}
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {confirmDeleteId === q.id ? (
+                                /* ─── Silme onayı ──── */
+                                <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 rounded-lg px-2 py-1">
+                                  <span className="text-red-400 text-xs whitespace-nowrap">Emin misiniz?</span>
+                                  <Button size="sm" className="h-6 px-2 bg-red-600 hover:bg-red-700 text-white text-xs"
+                                    onClick={() => deleteMutation.mutate(q.id)}
+                                    disabled={deleteMutation.isPending}>
+                                    Evet
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-6 px-2 text-slate-400 text-xs"
+                                    onClick={() => setConfirmDeleteId(null)}>
+                                    Hayır
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-white"
+                                    onClick={() => { setEditId(q.id); setEditForm(q); setConfirmDeleteId(null); }}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-red-400"
+                                    onClick={() => setConfirmDeleteId(q.id)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         )}

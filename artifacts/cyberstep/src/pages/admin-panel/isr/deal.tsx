@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft, Send, CheckCircle, XCircle, Plus, Trash2,
   Mail, Package, FileText, Clock, AlertTriangle, ClipboardPaste, Bot, Loader2,
+  Phone, CalendarCheck, StickyNote, Zap, MessageSquare, CheckCircle2,
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -79,6 +80,18 @@ export default function AdminIsrDeal() {
   const [emailTemplateId, setEmailTemplateId] = useState<string>("");
   const [emailVars, setEmailVars] = useState<Record<string, string>>({});
 
+  // Activity form state
+  const [activityType, setActivityType] = useState<string>("note");
+  const [activityTitle, setActivityTitle] = useState("");
+  const [activityDesc, setActivityDesc] = useState("");
+  const [showActivityForm, setShowActivityForm] = useState(false);
+
+  // Next Best Action state
+  const [nbaActions, setNbaActions] = useState<Array<{
+    title: string; description: string; urgency: string; category: string;
+  }> | null>(null);
+  const [nbaLoading, setNbaLoading] = useState(false);
+
   const { data, isLoading, refetch } = useQuery<{
     deal: Record<string, unknown>;
     rfqs: Record<string, unknown>[];
@@ -101,6 +114,61 @@ export default function AdminIsrDeal() {
     queryKey: ["isr-vendors"],
     queryFn: () => fetch("/api/admin-panel/isr/vendors", { credentials: "include" }).then(r => r.json()),
   });
+
+  const { data: activitiesData, refetch: refetchActivities } = useQuery<{
+    activities: Array<{
+      id: number; type: string; title: string; description: string | null;
+      outcome: string | null; isCompleted: boolean; createdByEmail: string | null;
+      createdAt: string; completedAt: string | null;
+    }>;
+  }>({
+    queryKey: ["isr-activities", dealId],
+    queryFn: () => fetch(`/api/admin-panel/isr/deals/${dealId}/activities`, { credentials: "include" }).then(r => r.json()),
+    enabled: !isNaN(dealId),
+  });
+
+  const createActivityMutation = useMutation({
+    mutationFn: () => fetch(`/api/admin-panel/isr/deals/${dealId}/activities`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: activityType, title: activityTitle, description: activityDesc || undefined }),
+    }).then(r => r.json()),
+    onSuccess: () => {
+      setActivityTitle(""); setActivityDesc(""); setShowActivityForm(false);
+      refetchActivities();
+    },
+  });
+
+  const completeActivityMutation = useMutation({
+    mutationFn: (id: number) => fetch(`/api/admin-panel/isr/activities/${id}`, {
+      method: "PATCH", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isCompleted: true }),
+    }).then(r => r.json()),
+    onSuccess: () => refetchActivities(),
+  });
+
+  const deleteActivityMutation = useMutation({
+    mutationFn: (id: number) => fetch(`/api/admin-panel/isr/activities/${id}`, {
+      method: "DELETE", credentials: "include",
+    }).then(r => r.json()),
+    onSuccess: () => refetchActivities(),
+  });
+
+  const fetchNba = async () => {
+    setNbaLoading(true);
+    try {
+      const r = await fetch(`/api/admin-panel/isr/deals/${dealId}/next-action`, {
+        method: "POST", credentials: "include",
+      });
+      const d = await r.json();
+      setNbaActions(d.actions ?? []);
+    } catch {
+      setNbaActions([]);
+    } finally {
+      setNbaLoading(false);
+    }
+  };
 
   const sendRfqMutation = useMutation({
     mutationFn: () =>
@@ -601,6 +669,65 @@ export default function AdminIsrDeal() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+
+            {/* AI Next Best Action */}
+            <Card className="border-violet-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-violet-500" /> AI Asistan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {nbaActions === null && (
+                  <Button
+                    size="sm" className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+                    onClick={fetchNba} disabled={nbaLoading}
+                  >
+                    {nbaLoading
+                      ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Analiz ediliyor...</>
+                      : <><Zap className="h-3.5 w-3.5 mr-1.5" />Sonraki Adım Önerisi Al</>}
+                  </Button>
+                )}
+                {nbaActions !== null && (
+                  <>
+                    {nbaActions.map((a, i) => {
+                      const urgencyStyle: Record<string, string> = {
+                        urgent: "border-l-4 border-red-400 bg-red-50",
+                        high:   "border-l-4 border-orange-400 bg-orange-50",
+                        normal: "border-l-4 border-blue-400 bg-blue-50",
+                        low:    "border-l-4 border-slate-300 bg-slate-50",
+                      };
+                      const catIcon: Record<string, React.ReactNode> = {
+                        follow_up:  <MessageSquare className="h-3 w-3" />,
+                        send_offer: <Send className="h-3 w-3" />,
+                        contact:    <Phone className="h-3 w-3" />,
+                        internal:   <FileText className="h-3 w-3" />,
+                        close:      <CheckCircle2 className="h-3 w-3" />,
+                      };
+                      return (
+                        <div key={i} className={`rounded-lg p-3 space-y-1 ${urgencyStyle[a.urgency] ?? "border border-slate-200"}`}>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                            {catIcon[a.category]}
+                            {a.title}
+                          </div>
+                          <p className="text-xs text-slate-600 leading-relaxed">{a.description}</p>
+                        </div>
+                      );
+                    })}
+                    <button
+                      onClick={() => { setNbaActions(null); fetchNba(); }}
+                      disabled={nbaLoading}
+                      className="w-full text-xs text-violet-600 hover:text-violet-800 flex items-center justify-center gap-1 py-1"
+                    >
+                      {nbaLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      Yenile
+                    </button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Status update */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -628,6 +755,120 @@ export default function AdminIsrDeal() {
               </CardContent>
             </Card>
 
+            {/* Activities */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CalendarCheck className="h-4 w-4 text-emerald-500" /> Aktiviteler
+                    {(activitiesData?.activities.length ?? 0) > 0 && (
+                      <span className="text-xs font-normal text-slate-400">({activitiesData?.activities.length})</span>
+                    )}
+                  </CardTitle>
+                  <Button
+                    size="sm" variant="ghost"
+                    className="h-7 px-2 text-xs text-emerald-600 hover:bg-emerald-50"
+                    onClick={() => setShowActivityForm(v => !v)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Ekle
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Add activity form */}
+                {showActivityForm && (
+                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="grid grid-cols-4 gap-1">
+                      {[
+                        { type: "note",    label: "Not",      icon: StickyNote },
+                        { type: "call",    label: "Arama",    icon: Phone },
+                        { type: "meeting", label: "Toplantı", icon: CalendarCheck },
+                        { type: "email",   label: "E-posta",  icon: Mail },
+                      ].map(({ type, label, icon: Icon }) => (
+                        <button
+                          key={type}
+                          onClick={() => setActivityType(type)}
+                          className={`flex flex-col items-center gap-1 py-2 rounded text-xs font-medium transition-colors ${
+                            activityType === type ? "bg-slate-800 text-white" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      placeholder="Başlık *"
+                      value={activityTitle}
+                      onChange={e => setActivityTitle(e.target.value)}
+                      className="text-xs h-8"
+                    />
+                    <Textarea
+                      placeholder="Notlar (isteğe bağlı)"
+                      value={activityDesc}
+                      onChange={e => setActivityDesc(e.target.value)}
+                      rows={2}
+                      className="text-xs resize-none"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowActivityForm(false)}>İptal</Button>
+                      <Button
+                        size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => createActivityMutation.mutate()}
+                        disabled={!activityTitle.trim() || createActivityMutation.isPending}
+                      >
+                        Kaydet
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Activity timeline */}
+                {(activitiesData?.activities ?? []).length === 0 && !showActivityForm && (
+                  <p className="text-xs text-slate-400 text-center py-3">Henüz aktivite yok</p>
+                )}
+                {(activitiesData?.activities ?? []).map((a) => {
+                  const typeIcon: Record<string, React.ReactNode> = {
+                    note:    <StickyNote className="h-3.5 w-3.5 text-slate-400" />,
+                    call:    <Phone className="h-3.5 w-3.5 text-blue-400" />,
+                    meeting: <CalendarCheck className="h-3.5 w-3.5 text-emerald-400" />,
+                    email:   <Mail className="h-3.5 w-3.5 text-orange-400" />,
+                  };
+                  return (
+                    <div key={a.id} className={`flex gap-2.5 group ${a.isCompleted ? "opacity-60" : ""}`}>
+                      <div className="mt-0.5 shrink-0">{typeIcon[a.type] ?? <StickyNote className="h-3.5 w-3.5 text-slate-400" />}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs font-medium text-slate-800 ${a.isCompleted ? "line-through" : ""}`}>{a.title}</div>
+                        {a.description && <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>}
+                        <div className="text-xs text-slate-400 mt-0.5">
+                          {format(new Date(a.createdAt), "d MMM yyyy HH:mm", { locale: tr })}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
+                        {!a.isCompleted && (
+                          <button
+                            onClick={() => completeActivityMutation.mutate(a.id)}
+                            className="text-emerald-500 hover:text-emerald-700"
+                            title="Tamamlandı"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteActivityMutation.mutate(a.id)}
+                          className="text-red-400 hover:text-red-600"
+                          title="Sil"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* Summary */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Özet</CardTitle>
@@ -636,6 +877,7 @@ export default function AdminIsrDeal() {
                 <div className="flex justify-between"><span>RFQ Gönderilen</span><span className="font-medium">{data?.rfqs.length ?? 0}</span></div>
                 <div className="flex justify-between"><span>Gelen Yanıt</span><span className="font-medium">{data?.responses.length ?? 0}</span></div>
                 <div className="flex justify-between"><span>Hazır Teklif</span><span className="font-medium">{data?.quotes.length ?? 0}</span></div>
+                <div className="flex justify-between"><span>Aktivite</span><span className="font-medium">{activitiesData?.activities.length ?? 0}</span></div>
                 <div className="flex justify-between"><span>Oluşturma</span><span className="font-medium">{deal["createdAt"] ? format(new Date(String(deal["createdAt"])), "d MMM yyyy", { locale: tr }) : "—"}</span></div>
               </CardContent>
             </Card>

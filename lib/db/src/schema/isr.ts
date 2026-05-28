@@ -190,6 +190,28 @@ export const isrEmailInboxTable = pgTable("isr_email_inbox", {
 });
 
 // ─── Insert schemas ───────────────────────────────────────────────────────────
+// ─── Activities (CRM activity log) ───────────────────────────────────────────
+export const isrActivitiesTable = pgTable("isr_activities", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  dealId: integer("deal_id").references(() => isrDealsTable.id, { onDelete: "cascade" }),
+  customerId: integer("customer_id").references(() => isrCustomersTable.id, { onDelete: "set null" }),
+  type: text("type").notNull().default("note"), // call | meeting | note | email | task
+  title: text("title").notNull(),
+  description: text("description"),
+  outcome: text("outcome"),
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  createdByEmail: text("created_by_email"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertIsrActivitySchema = createInsertSchema(isrActivitiesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type IsrActivity = typeof isrActivitiesTable.$inferSelect;
+export type InsertIsrActivity = z.infer<typeof insertIsrActivitySchema>;
+
 export const insertIsrCustomerSchema = createInsertSchema(isrCustomersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrVendorSchema = createInsertSchema(isrVendorsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrDistributorSchema = createInsertSchema(isrDistributorsTable).omit({ id: true, createdAt: true, updatedAt: true });

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Bot, TrendingUp, Clock, Plus, RefreshCw,
   Mail, Building2, AlertCircle, ChevronRight, AlertTriangle, Users,
+  LayoutGrid, List,
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { NewDealModal } from "./new-deal-modal";
@@ -25,6 +26,16 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   lost:                 { label: "Kaybedildi",        color: "bg-red-100 text-red-700" },
   cancelled:            { label: "Iptal",             color: "bg-slate-100 text-slate-600" },
 };
+
+const KANBAN_COLUMNS = [
+  { id: "new",                label: "Yeni",            headerBg: "bg-blue-100",    headerText: "text-blue-800",    border: "border-blue-200" },
+  { id: "rfq_sent",           label: "RFQ Gönderildi",  headerBg: "bg-yellow-100",  headerText: "text-yellow-800",  border: "border-yellow-200" },
+  { id: "quoted",             label: "Teklif Hazır",    headerBg: "bg-purple-100",  headerText: "text-purple-800",  border: "border-purple-200" },
+  { id: "revision_requested", label: "Revizyon",        headerBg: "bg-orange-100",  headerText: "text-orange-800",  border: "border-orange-200" },
+  { id: "approved",           label: "Onaylandı",       headerBg: "bg-emerald-100", headerText: "text-emerald-800", border: "border-emerald-200" },
+  { id: "won",                label: "Kazanıldı",       headerBg: "bg-green-200",   headerText: "text-green-900",   border: "border-green-300" },
+  { id: "lost",               label: "Kaybedildi",      headerBg: "bg-red-100",     headerText: "text-red-800",     border: "border-red-200" },
+];
 
 const PRIORITY_COLORS: Record<string, string> = {
   low:    "bg-slate-100 text-slate-500",
@@ -70,6 +81,7 @@ export default function AdminIsrDashboard() {
   const [showNewDeal, setShowNewDeal] = useState(false);
   const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [onCooldown, setOnCooldown] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   const { data: stats } = useQuery<Stats>({
     queryKey: ["isr-stats"],
@@ -159,12 +171,28 @@ export default function AdminIsrDashboard() {
               </button>
             ))}
           </div>
-          <Input
-            placeholder="Ara..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-40 h-8 text-sm"
-          />
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              >
+                <List className="h-3.5 w-3.5" /> Liste
+              </button>
+              <button
+                onClick={() => setViewMode("kanban")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "kanban" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" /> Kanban
+              </button>
+            </div>
+            <Input
+              placeholder="Ara..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-36 h-8 text-sm"
+            />
+          </div>
         </div>
 
         {/* Action buttons — always full-width row */}
@@ -204,63 +232,119 @@ export default function AdminIsrDashboard() {
           </div>
         </div>
 
-        {/* Deals table */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Bot className="h-4 w-4 text-emerald-500" />
-              Deal Listesi
-              <span className="text-sm font-normal text-slate-500">({deals.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {deals.length === 0 ? (
-              <div className="text-center py-16 text-slate-500">
-                <Mail className="h-8 w-8 mx-auto mb-3 text-slate-300" />
-                <p className="text-sm">Henüz deal yok. Gelen kutusunu kontrol edin.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {deals.map((deal) => {
-                  const status = STATUS_LABELS[deal.status] ?? { label: deal.status, color: "bg-slate-100 text-slate-600" };
-                  return (
-                    <button
-                      key={deal.id}
-                      onClick={() => navigate(`/panel/isr/deal/${deal.id}`)}
-                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors text-left"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-medium text-slate-900 text-sm">
+        {/* Deals — List or Kanban */}
+        {viewMode === "list" ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bot className="h-4 w-4 text-emerald-500" />
+                Deal Listesi
+                <span className="text-sm font-normal text-slate-500">({deals.length})</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {deals.length === 0 ? (
+                <div className="text-center py-16 text-slate-500">
+                  <Mail className="h-8 w-8 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm">Henüz deal yok. Gelen kutusunu kontrol edin.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {deals.map((deal) => {
+                    const status = STATUS_LABELS[deal.status] ?? { label: deal.status, color: "bg-slate-100 text-slate-600" };
+                    return (
+                      <button
+                        key={deal.id}
+                        onClick={() => navigate(`/panel/isr/deal/${deal.id}`)}
+                        className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors text-left"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-medium text-slate-900 text-sm">
+                              {deal.customerCompany ?? deal.customerName ?? deal.customerEmail}
+                            </span>
+                            {deal.vendorName && (
+                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
+                                {deal.vendorName}
+                              </span>
+                            )}
+                            <Badge className={`text-xs ${status.color} border-0`}>{status.label}</Badge>
+                            <Badge className={`text-xs ${PRIORITY_COLORS[deal.priority] ?? ""} border-0`}>
+                              {PRIORITY_LABELS[deal.priority] ?? deal.priority}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-slate-500 truncate">
+                            {deal.aiSummary ?? deal.originalSubject ?? deal.productKeywords ?? "—"}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            {deal.customerEmail} · {format(new Date(deal.createdAt), "d MMM yyyy", { locale: tr })}
+                            {deal.rfqCount > 0 && ` · ${deal.rfqCount} RFQ`}
+                            {deal.quoteCount > 0 && ` · ${deal.quoteCount} teklif`}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          /* Kanban View */
+          <div className="overflow-x-auto pb-2">
+            <div className="flex gap-3" style={{ minWidth: "max-content" }}>
+              {KANBAN_COLUMNS.map((col) => {
+                const colDeals = deals.filter((d) => d.status === col.id);
+                return (
+                  <div
+                    key={col.id}
+                    className={`w-60 rounded-xl border-2 ${col.border} flex flex-col bg-white`}
+                  >
+                    <div className={`px-3 py-2.5 rounded-t-lg ${col.headerBg} flex items-center justify-between`}>
+                      <span className={`text-xs font-semibold ${col.headerText}`}>{col.label}</span>
+                      <span className={`text-xs font-bold ${col.headerText} bg-white/60 px-1.5 py-0.5 rounded-full`}>{colDeals.length}</span>
+                    </div>
+                    <div className="flex-1 p-2 space-y-2 min-h-[160px] max-h-[560px] overflow-y-auto">
+                      {colDeals.length === 0 && (
+                        <div className="text-center py-8 text-xs text-slate-300">Boş</div>
+                      )}
+                      {colDeals.map((deal) => (
+                        <button
+                          key={deal.id}
+                          onClick={() => navigate(`/panel/isr/deal/${deal.id}`)}
+                          className="w-full text-left bg-white rounded-lg p-3 shadow-sm border border-slate-100 hover:shadow-md hover:border-slate-200 transition-all space-y-1.5"
+                        >
+                          <div className="font-semibold text-slate-900 text-xs leading-snug">
                             {deal.customerCompany ?? deal.customerName ?? deal.customerEmail}
-                          </span>
+                          </div>
                           {deal.vendorName && (
-                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">
+                            <span className="inline-block text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
                               {deal.vendorName}
                             </span>
                           )}
-                          <Badge className={`text-xs ${status.color} border-0`}>{status.label}</Badge>
-                          <Badge className={`text-xs ${PRIORITY_COLORS[deal.priority] ?? ""} border-0`}>
-                            {PRIORITY_LABELS[deal.priority] ?? deal.priority}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-slate-500 truncate">
-                          {deal.aiSummary ?? deal.originalSubject ?? deal.productKeywords ?? "—"}
-                        </div>
-                        <div className="text-xs text-slate-400 mt-0.5">
-                          {deal.customerEmail} · {format(new Date(deal.createdAt), "d MMM yyyy", { locale: tr })}
-                          {deal.rfqCount > 0 && ` · ${deal.rfqCount} RFQ`}
-                          {deal.quoteCount > 0 && ` · ${deal.quoteCount} teklif`}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          {(deal.aiSummary ?? deal.productKeywords) && (
+                            <div className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                              {deal.aiSummary ?? deal.productKeywords}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-0.5">
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${PRIORITY_COLORS[deal.priority] ?? "bg-slate-100 text-slate-500"}`}>
+                              {PRIORITY_LABELS[deal.priority] ?? deal.priority}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {format(new Date(deal.createdAt), "d MMM", { locale: tr })}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       <NewDealModal
         open={showNewDeal}

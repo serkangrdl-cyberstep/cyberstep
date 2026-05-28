@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import {
   isrVendorsTable, isrDistributorsTable, isrDealsTable, isrRfqsTable,
   isrRfqResponsesTable, isrQuoteLinesTable, isrQuotesTable, isrMarginRulesTable,
-  isrEmailInboxTable, isrCustomersTable, isrVendorsTable as vt,
+  isrEmailInboxTable, isrCustomersTable, isrActivitiesTable, isrVendorsTable as vt,
 } from "@workspace/db";
 import { eq, desc, sql, and, count, ilike, or, inArray } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
@@ -561,6 +561,96 @@ interface MarginRuleBody {
   targetMarginPct: number; maxDiscountPct: number;
   autoApproveBelow?: number; requireApprovalAbove?: number; isDefault?: boolean;
 }
+
+// ─── Activities ──────────────────────────────────────────────────────────────
+
+router.get("/admin-panel/isr/deals/:id/activities", requireAdmin, async (req: Request, res: Response) => {
+  const dealId = parseInt(String(req.params.id));
+  const rows = await db.select().from(isrActivitiesTable)
+    .where(eq(isrActivitiesTable.dealId, dealId))
+    .orderBy(desc(isrActivitiesTable.createdAt));
+  res.json({ activities: rows });
+});
+
+router.post("/admin-panel/isr/deals/:id/activities", requireAdmin, async (req: Request, res: Response) => {
+  const dealId = parseInt(String(req.params.id));
+  const tenantId = getTenantId(req);
+  const adminEmail = (req.session as unknown as Record<string, unknown>)["adminEmail"] as string ?? "admin";
+  const { type = "note", title, description, outcome, scheduledAt } = req.body as {
+    type?: string; title: string; description?: string; outcome?: string; scheduledAt?: string;
+  };
+  if (!title) { res.status(400).json({ message: "Başlık zorunlu" }); return; }
+  const [row] = await db.insert(isrActivitiesTable).values({
+    tenantId,
+    dealId,
+    type,
+    title,
+    description: description ?? null,
+    outcome: outcome ?? null,
+    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+    createdByEmail: adminEmail,
+  }).returning();
+  res.json({ activity: row });
+});
+
+router.patch("/admin-panel/isr/activities/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params.id));
+  const { outcome, isCompleted, completedAt } = req.body as {
+    outcome?: string; isCompleted?: boolean; completedAt?: string;
+  };
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (outcome !== undefined) updates.outcome = outcome;
+  if (isCompleted !== undefined) updates.isCompleted = isCompleted;
+  if (completedAt !== undefined) updates.completedAt = new Date(completedAt);
+  else if (isCompleted === true) updates.completedAt = new Date();
+  await db.update(isrActivitiesTable).set(updates).where(eq(isrActivitiesTable.id, id));
+  res.json({ ok: true });
+});
+
+router.delete("/admin-panel/isr/activities/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params.id));
+  await db.delete(isrActivitiesTable).where(eq(isrActivitiesTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Next Best Action ─────────────────────────────────────────────────────────
+
+router.post("/admin-panel/isr/deals/:id/next-action", requireAdmin, async (req: Request, res: Response) => {
+  const dealId = parseInt(String(req.params.id));
+  const [deal] = await db.select().from(isrDealsTable).where(eq(isrDealsTable.id, dealId));
+  if (!deal) { res.status(404).json({ message: "Deal bulunamadı" }); return; }
+
+  const rfqs = await db.select({ id: isrRfqsTable.id }).from(isrRfqsTable).where(eq(isrRfqsTable.dealId, dealId));
+  const responses = await db.select({ id: isrRfqResponsesTable.id }).from(isrRfqResponsesTable).where(eq(isrRfqResponsesTable.dealId, dealId));
+  const recentActivities = await db.select({
+    type: isrActivitiesTable.type,
+    title: isrActivitiesTable.title,
+    createdAt: isrActivitiesTable.createdAt,
+  }).from(isrActivitiesTable)
+    .where(eq(isrActivitiesTable.dealId, dealId))
+    .orderBy(desc(isrActivitiesTable.createdAt))
+    .limit(5);
+
+  const { getNextBestAction } = await import("../../services/isr-ai");
+  const actions = await getNextBestAction({
+    deal: {
+      status: deal.status,
+      priority: deal.priority,
+      customerCompany: deal.customerCompany,
+      customerName: deal.customerName,
+      vendorName: deal.vendorName,
+      productKeywords: deal.productKeywords,
+      aiSummary: deal.aiSummary,
+      createdAt: deal.createdAt,
+      updatedAt: deal.updatedAt,
+    },
+    rfqCount: rfqs.length,
+    quoteCount: responses.length,
+    recentActivities,
+  });
+
+  res.json({ actions });
+});
 
 // Suppress unused import warning
 void getTenantId;

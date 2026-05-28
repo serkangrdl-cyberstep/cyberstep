@@ -349,6 +349,78 @@ Görevi: Notu analiz et ve aşağıdaki JSON formatında (SADECE JSON, markdown 
   }
 }
 
+// ─── getNextBestAction ────────────────────────────────────────────────────────
+export interface NextBestAction {
+  title: string;
+  description: string;
+  urgency: "low" | "normal" | "high" | "urgent";
+  category: "follow_up" | "send_offer" | "contact" | "internal" | "close";
+}
+
+export async function getNextBestAction(params: {
+  deal: {
+    status: string;
+    priority: string;
+    customerCompany?: string | null;
+    customerName?: string | null;
+    vendorName?: string | null;
+    productKeywords?: string | null;
+    aiSummary?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  rfqCount: number;
+  quoteCount: number;
+  lastActivityDate?: Date | null;
+  recentActivities?: Array<{ type: string; title: string; createdAt: Date }>;
+  aiFn?: AiGenerateFn;
+}): Promise<NextBestAction[]> {
+  const aiFn = params.aiFn ?? makeDefaultAiFn();
+  if (!aiFn) return [];
+
+  const daysSinceUpdate = Math.floor((Date.now() - params.deal.updatedAt.getTime()) / 86400000);
+  const daysSinceCreate = Math.floor((Date.now() - params.deal.createdAt.getTime()) / 86400000);
+  const lastActivitySummary = params.recentActivities?.slice(0, 3)
+    .map(a => `- ${a.type}: ${a.title} (${Math.floor((Date.now() - a.createdAt.getTime()) / 86400000)} gün önce)`)
+    .join("\n") ?? "Henüz aktivite yok";
+
+  const prompt = `Sen bir IT çözüm satış asistanısın. Aşağıdaki deal durumunu analiz et ve satış temsilcisine 3 somut "next best action" öner.
+
+DEAL BİLGİLERİ:
+- Müşteri: ${params.deal.customerCompany ?? params.deal.customerName ?? "Bilinmiyor"}
+- Vendor: ${params.deal.vendorName ?? "Belirsiz"}
+- Durum: ${params.deal.status}
+- Öncelik: ${params.deal.priority}
+- Ürün/Talep: ${params.deal.productKeywords ?? params.deal.aiSummary ?? "Belirtilmemiş"}
+- Son güncelleme: ${daysSinceUpdate} gün önce
+- Oluşturulma: ${daysSinceCreate} gün önce
+- RFQ sayısı: ${params.rfqCount}
+- Teklif sayısı: ${params.quoteCount}
+- Son aktiviteler:\n${lastActivitySummary}
+
+Durum açıklamaları: new=yeni talep, rfq_sent=distribütörden fiyat bekleniyor, quoted=teklif hazır müşteriye gönderilmedi, revision_requested=müşteri revizyon istedi, approved=onaylandı, sent=müşteriye gönderildi, won=kazanıldı, lost=kaybedildi
+
+3 aksiyon öner. JSON formatında yanıt ver (başka hiçbir şey yazma):
+[
+  {
+    "title": "Kısa aksiyon başlığı (maks 8 kelime)",
+    "description": "Ne yapılmalı ve neden (1-2 cümle)",
+    "urgency": "low|normal|high|urgent",
+    "category": "follow_up|send_offer|contact|internal|close"
+  }
+]`;
+
+  try {
+    const raw = await aiFn(prompt);
+    const jsonStr = raw.match(/\[[\s\S]*\]/)?.[0] ?? "[]";
+    const parsed = JSON.parse(jsonStr) as NextBestAction[];
+    return parsed.slice(0, 3);
+  } catch (err) {
+    logger.error({ err }, "Next best action generation failed");
+    return [];
+  }
+}
+
 // ─── generateRfqEmailBody ─────────────────────────────────────────────────────
 export async function generateRfqEmailBody(params: {
   dealId: number;

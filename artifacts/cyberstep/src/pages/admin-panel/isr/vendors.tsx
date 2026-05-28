@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Building2, Plus, Edit, Trash2, Users, Globe, Mail, ChevronDown, ChevronUp,
+  Building2, Plus, Edit, Trash2, Users, Globe, Mail,
   Phone, UserCircle, X,
 } from "lucide-react";
 import { useState } from "react";
@@ -52,7 +52,6 @@ const EMPTY_DIST = { name: "", contactName: "", contactEmail: "", phone: "", not
 
 export default function AdminIsrVendors() {
   const qc = useQueryClient();
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [vendorDialog, setVendorDialog] = useState<{ open: boolean; editing?: Vendor }>({ open: false });
   const [distDialog, setDistDialog] = useState<{ open: boolean; vendorId?: number; editing?: Distributor }>({ open: false });
   const [vForm, setVForm] = useState(EMPTY_VENDOR);
@@ -191,16 +190,12 @@ export default function AdminIsrVendors() {
                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => deleteVendor.mutate(vendor.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setExpanded(e => ({ ...e, [vendor.id]: !e[vendor.id] }))}>
-                      {expanded[vendor.id] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
 
-              {/* Distribütörler */}
-              {expanded[vendor.id] && (
-                <CardContent className="pt-0 border-t border-slate-100">
+              {/* Distribütörler — her zaman görünür */}
+              <CardContent className="pt-0 border-t border-slate-100">
                   <div className="flex items-center justify-between mb-3 mt-3">
                     <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
                       <Users className="h-4 w-4 text-slate-400" />
@@ -262,7 +257,6 @@ export default function AdminIsrVendors() {
                     </div>
                   )}
                 </CardContent>
-              )}
             </Card>
           ))
         )}

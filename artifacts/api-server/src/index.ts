@@ -501,11 +501,49 @@ function startIsrImapCron() {
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
+async function ensureEmailTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'custom',
+      subject TEXT NOT NULL,
+      body_html TEXT NOT NULL,
+      body_text TEXT,
+      variables JSONB DEFAULT '[]',
+      is_default BOOLEAN NOT NULL DEFAULT false,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS email_sends (
+      id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL,
+      template_id INTEGER,
+      to_email TEXT NOT NULL,
+      to_name TEXT,
+      subject TEXT NOT NULL,
+      body_html TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'sent',
+      related_type TEXT,
+      related_id INTEGER,
+      error TEXT,
+      sent_at TIMESTAMP DEFAULT NOW(),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function startup() {
   await maybeResetAdminPassword();
   await ensureQuestionsTable();
   await ensureTenantsTable();
   await ensureIsrTables();
+  await ensureEmailTables();
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
 }

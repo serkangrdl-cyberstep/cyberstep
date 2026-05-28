@@ -30,3 +30,4 @@ export * from "./questions";
 export * from "./domain-scans";
 export * from "./isr";
 export * from "./tenants";
+export * from "./emails";

@@ -21,6 +21,7 @@ import {
 import { useState } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   new:                  { label: "Yeni",                   color: "bg-blue-100 text-blue-700" },
@@ -66,6 +67,11 @@ export default function AdminIsrDeal() {
   const [rfqDialog, setRfqDialog] = useState(false);
   const [rfqVendorId, setRfqVendorId] = useState<string>("");
   const [rfqDistributorIds, setRfqDistributorIds] = useState<number[]>([]);
+
+  // Email send dialog state
+  const [emailDialog, setEmailDialog] = useState(false);
+  const [emailTemplateId, setEmailTemplateId] = useState<string>("");
+  const [emailVars, setEmailVars] = useState<Record<string, string>>({});
 
   const { data, isLoading, refetch } = useQuery<{
     deal: Record<string, unknown>;
@@ -199,6 +205,18 @@ export default function AdminIsrDeal() {
             <Button size="sm" variant="outline" onClick={prefillFromResponse}>
               <Plus className="h-4 w-4 mr-1.5" />
               Teklif Hazırla
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              setEmailVars({
+                companyName: String(deal["customerCompany"] ?? ""),
+                contactName: String(deal["customerContact"] ?? ""),
+                dealId: String(dealId),
+              });
+              setEmailTemplateId("");
+              setEmailDialog(true);
+            }}>
+              <Mail className="h-4 w-4 mr-1.5" />
+              E-posta Gönder
             </Button>
           </div>
         </div>
@@ -588,7 +606,7 @@ export default function AdminIsrDeal() {
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setRfqDialog(false)}>Iptal</Button>
+                <Button variant="outline" onClick={() => setRfqDialog(false)}>İptal</Button>
                 <Button
                   onClick={() => sendRfqMutation.mutate()}
                   disabled={sendRfqMutation.isPending || !rfqVendorId}
@@ -601,6 +619,127 @@ export default function AdminIsrDeal() {
           </Dialog>
         );
       })()}
+
+      {/* E-posta Gönder Dialog */}
+      <Dialog open={emailDialog} onOpenChange={setEmailDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>E-posta Gönder</DialogTitle>
+          </DialogHeader>
+          <EmailSendForm
+            dealId={dealId}
+            initialVars={emailVars}
+            initialTemplateId={emailTemplateId}
+            onTemplateChange={setEmailTemplateId}
+            onVarsChange={setEmailVars}
+            toEmail={String(deal["customerEmail"] ?? "")}
+            toName={String(deal["customerContact"] ?? "")}
+            onClose={() => setEmailDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
+  );
+}
+
+// ─── Inline EmailSendForm component ──────────────────────────────────────────
+function EmailSendForm({
+  dealId,
+  initialVars,
+  initialTemplateId,
+  onTemplateChange,
+  onVarsChange,
+  toEmail,
+  toName,
+  onClose,
+}: {
+  dealId: number;
+  initialVars: Record<string, string>;
+  initialTemplateId: string;
+  onTemplateChange: (v: string) => void;
+  onVarsChange: (v: Record<string, string>) => void;
+  toEmail: string;
+  toName: string;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [templateId, setTemplateId] = useState(initialTemplateId);
+  const [vars, setVars] = useState(initialVars);
+
+  const { data: templates = [] } = useQuery<Array<{ id: number; name: string; variables: string[] }>>({
+    queryKey: ["email-templates"],
+    queryFn: () => fetch("/api/admin-panel/email-templates", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/admin-panel/emails/send", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: templateId ? parseInt(templateId) : undefined,
+          toEmail,
+          toName: toName || undefined,
+          vars,
+          relatedType: "deal",
+          relatedId: dealId,
+        }),
+      }).then(r => r.json()),
+    onSuccess: (data: { ok?: boolean; error?: string }) => {
+      qc.invalidateQueries({ queryKey: ["email-history"] });
+      onClose();
+      if (data.ok) toast({ title: "E-posta gönderildi" });
+      else toast({ title: "Gönderilemedi", description: data.error, variant: "destructive" });
+    },
+  });
+
+  const selected = templates.find(t => t.id === parseInt(templateId));
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label>Şablon</Label>
+        <Select value={templateId} onValueChange={v => { setTemplateId(v); onTemplateChange(v); setVars(initialVars); }}>
+          <SelectTrigger><SelectValue placeholder="Şablon seç..." /></SelectTrigger>
+          <SelectContent>
+            {templates.map(t => (
+              <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-0.5">
+        <div>Alıcı: <span className="font-medium text-slate-700">{toEmail}</span></div>
+        {toName && <div>Ad: <span className="font-medium text-slate-700">{toName}</span></div>}
+      </div>
+
+      {selected && selected.variables.length > 0 && (
+        <div className="space-y-2 border border-slate-200 rounded-lg p-3 bg-slate-50">
+          <p className="text-xs font-medium text-slate-600">Değişkenler</p>
+          <div className="grid grid-cols-2 gap-2">
+            {selected.variables.map(v => (
+              <div key={v} className="space-y-1">
+                <Label className="text-xs font-mono text-blue-600">{`{{${v}}}`}</Label>
+                <Input
+                  className="h-7 text-xs"
+                  value={vars[v] ?? ""}
+                  onChange={e => { const nv = { ...vars, [v]: e.target.value }; setVars(nv); onVarsChange(nv); }}
+                  placeholder={v}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>İptal</Button>
+        <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending || !templateId}>
+          {sendMutation.isPending ? "Gönderiliyor..." : "Gönder"}
+        </Button>
+      </DialogFooter>
+    </div>
   );
 }

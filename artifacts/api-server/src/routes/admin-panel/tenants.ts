@@ -47,6 +47,9 @@ router.post("/admin-panel/tenants", requireAdmin, async (req: Request, res: Resp
   // Set as active tenant in session
   sess(req)["tenantId"] = tenant.id;
 
+  // Seed default email templates (fire-and-forget)
+  import("../../../services/email-templates-seed").then(m => m.seedDefaultTemplates(tenant.id)).catch(() => {});
+
   logger.info({ tenantId: tenant.id, adminId }, "Tenant created");
   res.status(201).json({ ...tenant, role: "owner" });
 });

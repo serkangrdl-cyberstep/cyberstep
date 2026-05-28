@@ -43,6 +43,8 @@ import AdminIsrDashboard from "./pages/admin-panel/isr/index";
 import AdminIsrDeal from "./pages/admin-panel/isr/deal";
 import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
 import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
+import AdminEmailTemplates from "./pages/admin-panel/email-templates";
+import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
@@ -116,6 +118,8 @@ function Router() {
       <Route path="/panel/isr/kurallar" component={AdminIsrKurallar} />
       <Route path="/panel/isr/deal/:id" component={AdminIsrDeal} />
       <Route path="/panel/isr" component={AdminIsrDashboard} />
+      <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />
+      <Route path="/panel/bildirimler" component={AdminEmailNotifications} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* All other routes use shared Layout */}

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Bot, TrendingUp, Clock, Plus, RefreshCw,
   Mail, Building2, AlertCircle, ChevronRight, AlertTriangle, Users,
-  LayoutGrid, List,
+  LayoutGrid, List, Bell,
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { NewDealModal } from "./new-deal-modal";
@@ -60,7 +60,26 @@ interface Deal {
   priority: string;
   quoteCount: number;
   rfqCount: number;
+  leadScore: number;
+  daysSinceUpdate: number;
   createdAt: string;
+}
+
+function LeadScoreBar({ score }: { score: number }) {
+  if (score === 0) return null;
+  const color =
+    score >= 80 ? "bg-red-500" :
+    score >= 65 ? "bg-orange-400" :
+    score >= 45 ? "bg-blue-400" :
+                  "bg-slate-300";
+  return (
+    <div className="flex items-center gap-1.5" title={`Lead skoru: ${score}`}>
+      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
+      </div>
+      <span className="text-xs text-slate-400 tabular-nums">{score}</span>
+    </div>
+  );
 }
 
 interface Stats {
@@ -70,6 +89,7 @@ interface Stats {
   totalRfqs: number;
   activeVendors: number;
   revisionRequests: number;
+  dueReminders: number;
 }
 
 export default function AdminIsrDashboard() {
@@ -129,6 +149,7 @@ export default function AdminIsrDashboard() {
     { label: "Onay Bekleyen", value: stats?.pendingApproval ?? 0, icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-50" },
     { label: "Revizyon Talebi", value: stats?.revisionRequests ?? 0, icon: AlertTriangle, color: "text-orange-700", bg: "bg-orange-50" },
     { label: "Aktif Satıcı", value: stats?.activeVendors ?? 0, icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Hatırlatma", value: stats?.dueReminders ?? 0, icon: Bell, color: "text-violet-600", bg: "bg-violet-50" },
   ];
 
   return (
@@ -276,10 +297,21 @@ export default function AdminIsrDashboard() {
                           <div className="text-xs text-slate-500 truncate">
                             {deal.aiSummary ?? deal.originalSubject ?? deal.productKeywords ?? "—"}
                           </div>
-                          <div className="text-xs text-slate-400 mt-0.5">
-                            {deal.customerEmail} · {format(new Date(deal.createdAt), "d MMM yyyy", { locale: tr })}
-                            {deal.rfqCount > 0 && ` · ${deal.rfqCount} RFQ`}
-                            {deal.quoteCount > 0 && ` · ${deal.quoteCount} teklif`}
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            <span className="text-xs text-slate-400">
+                              {deal.customerEmail} · {format(new Date(deal.createdAt), "d MMM yyyy", { locale: tr })}
+                              {deal.rfqCount > 0 && ` · ${deal.rfqCount} RFQ`}
+                              {deal.quoteCount > 0 && ` · ${deal.quoteCount} teklif`}
+                            </span>
+                            {!["won","lost","cancelled"].includes(deal.status) && deal.daysSinceUpdate >= 14 && (
+                              <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium ${
+                                deal.daysSinceUpdate >= 30 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                              }`}>
+                                <Clock className="h-3 w-3" />
+                                {deal.daysSinceUpdate}g hareketsiz
+                              </span>
+                            )}
+                            <LeadScoreBar score={deal.leadScore} />
                           </div>
                         </div>
                         <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
@@ -336,6 +368,9 @@ export default function AdminIsrDashboard() {
                               {format(new Date(deal.createdAt), "d MMM", { locale: tr })}
                             </span>
                           </div>
+                          {deal.leadScore > 0 && (
+                            <LeadScoreBar score={deal.leadScore} />
+                          )}
                         </button>
                       ))}
                     </div>

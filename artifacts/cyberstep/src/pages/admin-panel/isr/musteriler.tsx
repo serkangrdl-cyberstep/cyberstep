@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, Search, Plus, Building2, Mail, Phone, TrendingUp, Pencil, Trash2 } from "lucide-react";
+import { Users, Search, Plus, Building2, Mail, Phone, TrendingUp, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -93,6 +94,7 @@ function CustomerForm({
 
 export default function AdminIsrMusteriler() {
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -172,7 +174,7 @@ export default function AdminIsrMusteriler() {
         ) : (
           <div className="grid gap-3">
             {customers.map(c => (
-              <Card key={c.id} className="hover:shadow-sm transition-shadow">
+              <Card key={c.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => navigate(`/panel/isr/musteri/${c.id}`)}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -216,7 +218,7 @@ export default function AdminIsrMusteriler() {
                         <p className="text-xs text-slate-500 mt-1">{c.notes}</p>
                       )}
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
+                    <div className="flex gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditing(c)}>
                         <Pencil className="h-3.5 w-3.5 text-slate-400" />
                       </Button>
@@ -226,6 +228,7 @@ export default function AdminIsrMusteriler() {
                       >
                         <Trash2 className="h-3.5 w-3.5 text-slate-400 hover:text-red-500" />
                       </Button>
+                      <ChevronRight className="h-4 w-4 text-slate-300 self-center ml-1" />
                     </div>
                   </div>
                 </CardContent>

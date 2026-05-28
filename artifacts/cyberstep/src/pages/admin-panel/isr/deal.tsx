@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft, Send, CheckCircle, XCircle, Plus, Trash2,
   Mail, Package, FileText, Clock, AlertTriangle, ClipboardPaste, Bot, Loader2,
-  Phone, CalendarCheck, StickyNote, Zap, MessageSquare, CheckCircle2,
+  Phone, CalendarCheck, StickyNote, Zap, MessageSquare, CheckCircle2, Bell, BellRing, X,
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -86,6 +86,11 @@ export default function AdminIsrDeal() {
   const [activityDesc, setActivityDesc] = useState("");
   const [showActivityForm, setShowActivityForm] = useState(false);
 
+  // Reminder state
+  const [remindDate, setRemindDate] = useState("");
+  const [remindNote, setRemindNote] = useState("");
+  const [showReminderForm, setShowReminderForm] = useState(false);
+
   // Next Best Action state
   const [nbaActions, setNbaActions] = useState<Array<{
     title: string; description: string; urgency: string; category: string;
@@ -125,6 +130,35 @@ export default function AdminIsrDeal() {
     queryKey: ["isr-activities", dealId],
     queryFn: () => fetch(`/api/admin-panel/isr/deals/${dealId}/activities`, { credentials: "include" }).then(r => r.json()),
     enabled: !isNaN(dealId),
+  });
+
+  const { data: remindersData, refetch: refetchReminders } = useQuery<{
+    reminders: Array<{
+      id: number; remindAt: string; note: string | null; isDismissed: boolean;
+    }>;
+  }>({
+    queryKey: ["isr-reminders", dealId],
+    queryFn: () => fetch(`/api/admin-panel/isr/deals/${dealId}/reminders`, { credentials: "include" }).then(r => r.json()),
+    enabled: !isNaN(dealId),
+  });
+
+  const createReminderMutation = useMutation({
+    mutationFn: () => fetch(`/api/admin-panel/isr/deals/${dealId}/reminders`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ remindAt: remindDate, note: remindNote || undefined }),
+    }).then(r => r.json()),
+    onSuccess: () => {
+      setRemindDate(""); setRemindNote(""); setShowReminderForm(false);
+      refetchReminders();
+    },
+  });
+
+  const dismissReminderMutation = useMutation({
+    mutationFn: (id: number) => fetch(`/api/admin-panel/isr/reminders/${id}/dismiss`, {
+      method: "PATCH", credentials: "include",
+    }).then(r => r.json()),
+    onSuccess: () => refetchReminders(),
   });
 
   const createActivityMutation = useMutation({
@@ -862,6 +896,93 @@ export default function AdminIsrDeal() {
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* Reminders */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-violet-500" />
+                    Hatırlatmalar
+                    {(remindersData?.reminders.length ?? 0) > 0 && (
+                      <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">
+                        {remindersData!.reminders.length}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <Button
+                    size="sm" variant="ghost"
+                    className="h-7 px-2 text-xs text-violet-600 hover:bg-violet-50"
+                    onClick={() => setShowReminderForm(v => !v)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Ekle
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {showReminderForm && (
+                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-600">Tarih ve Saat</label>
+                      <input
+                        type="datetime-local"
+                        value={remindDate}
+                        onChange={e => setRemindDate(e.target.value)}
+                        className="w-full text-xs h-8 px-2 border border-slate-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
+                      />
+                    </div>
+                    <Input
+                      placeholder="Not (isteğe bağlı)"
+                      value={remindNote}
+                      onChange={e => setRemindNote(e.target.value)}
+                      className="text-xs h-8"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowReminderForm(false)}>İptal</Button>
+                      <Button
+                        size="sm" className="h-7 text-xs bg-violet-600 hover:bg-violet-700"
+                        onClick={() => createReminderMutation.mutate()}
+                        disabled={!remindDate || createReminderMutation.isPending}
+                      >
+                        Kaydet
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {(remindersData?.reminders ?? []).length === 0 && !showReminderForm && (
+                  <p className="text-xs text-slate-400 text-center py-3">Henüz hatırlatma yok</p>
+                )}
+
+                {(remindersData?.reminders ?? []).map((r) => {
+                  const due = new Date(r.remindAt) <= new Date();
+                  return (
+                    <div key={r.id} className={`flex gap-2.5 group rounded-lg p-2 ${due ? "bg-violet-50 border border-violet-200" : "bg-slate-50"}`}>
+                      <div className="mt-0.5 shrink-0">
+                        {due
+                          ? <BellRing className="h-3.5 w-3.5 text-violet-600 animate-pulse" />
+                          : <Bell className="h-3.5 w-3.5 text-slate-400" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs font-medium ${due ? "text-violet-800" : "text-slate-700"}`}>
+                          {format(new Date(r.remindAt), "d MMM yyyy HH:mm", { locale: tr })}
+                          {due && <span className="ml-1.5 text-violet-600 font-semibold">· Vadesini doldu</span>}
+                        </div>
+                        {r.note && <p className="text-xs text-slate-500 mt-0.5">{r.note}</p>}
+                      </div>
+                      <button
+                        onClick={() => dismissReminderMutation.mutate(r.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5 text-slate-400 hover:text-slate-600"
+                        title="Kapat"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   );
                 })}

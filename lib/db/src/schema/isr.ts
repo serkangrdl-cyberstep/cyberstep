@@ -208,6 +208,22 @@ export const isrActivitiesTable = pgTable("isr_activities", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ─── Reminders ────────────────────────────────────────────────────────────────
+export const isrRemindersTable = pgTable("isr_reminders", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  dealId: integer("deal_id").references(() => isrDealsTable.id, { onDelete: "cascade" }),
+  remindAt: timestamp("remind_at").notNull(),
+  note: text("note"),
+  isDismissed: boolean("is_dismissed").notNull().default(false),
+  createdByEmail: text("created_by_email"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertIsrReminderSchema = createInsertSchema(isrRemindersTable).omit({ id: true, createdAt: true });
+export type IsrReminder = typeof isrRemindersTable.$inferSelect;
+export type InsertIsrReminder = z.infer<typeof insertIsrReminderSchema>;
+
 export const insertIsrActivitySchema = createInsertSchema(isrActivitiesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type IsrActivity = typeof isrActivitiesTable.$inferSelect;
 export type InsertIsrActivity = z.infer<typeof insertIsrActivitySchema>;

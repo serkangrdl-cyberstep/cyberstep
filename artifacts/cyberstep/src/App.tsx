@@ -44,6 +44,7 @@ import AdminIsrDeal from "./pages/admin-panel/isr/deal";
 import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
 import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
 import AdminIsrMusteriler from "./pages/admin-panel/isr/musteriler";
+import AdminIsrMusteri360 from "./pages/admin-panel/isr/musteri-360";
 import AdminEmailTemplates from "./pages/admin-panel/email-templates";
 import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
 import { AdminLayout } from "./components/admin-layout";
@@ -139,6 +140,7 @@ function Router() {
       <Route path="/panel/isr/vendors" component={AdminIsrVendors} />
       <Route path="/panel/isr/kurallar" component={AdminIsrKurallar} />
       <Route path="/panel/isr/musteriler" component={AdminIsrMusteriler} />
+      <Route path="/panel/isr/musteri/:id" component={AdminIsrMusteri360} />
       <Route path="/panel/isr/deal/:id" component={AdminIsrDeal} />
       <Route path="/panel/isr" component={AdminIsrDashboard} />
       <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />

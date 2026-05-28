@@ -4,9 +4,10 @@ import { db } from "@workspace/db";
 import {
   isrVendorsTable, isrDistributorsTable, isrDealsTable, isrRfqsTable,
   isrRfqResponsesTable, isrQuoteLinesTable, isrQuotesTable, isrMarginRulesTable,
-  isrEmailInboxTable, isrCustomersTable, isrActivitiesTable, isrVendorsTable as vt,
+  isrEmailInboxTable, isrCustomersTable, isrActivitiesTable, isrRemindersTable,
+  isrVendorsTable as vt,
 } from "@workspace/db";
-import { eq, desc, sql, and, count, ilike, or, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, count, ilike, or, inArray, isNull } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { getTenantId } from "../../middleware/auth";
 import { sendRfqsForDeal, sendApprovedQuote, processInbox } from "../../services/isr-imap";
@@ -23,7 +24,7 @@ function requireTenantId(req: Request, res: Response): number | null {
 router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
 
-  const [totalDeals, openDeals, pendingApproval, totalRfqs, vendors, revisionRequests] = await Promise.all([
+  const [totalDeals, openDeals, pendingApproval, totalRfqs, vendors, revisionRequests, dueReminders] = await Promise.all([
     db.select({ count: count() }).from(isrDealsTable).where(eq(isrDealsTable.tenantId, tenantId)),
     db.select({ count: count() }).from(isrDealsTable)
       .where(and(eq(isrDealsTable.tenantId, tenantId), sql`${isrDealsTable.status} NOT IN ('won', 'lost', 'cancelled')`)),
@@ -37,6 +38,12 @@ router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Res
       .where(and(eq(isrVendorsTable.tenantId, tenantId), eq(isrVendorsTable.isActive, true))),
     db.select({ count: count() }).from(isrDealsTable)
       .where(and(eq(isrDealsTable.tenantId, tenantId), eq(isrDealsTable.status, "revision_requested"))),
+    db.select({ count: count() }).from(isrRemindersTable)
+      .where(and(
+        eq(isrRemindersTable.tenantId, tenantId),
+        eq(isrRemindersTable.isDismissed, false),
+        sql`${isrRemindersTable.remindAt} <= NOW()`,
+      )),
   ]);
 
   res.json({
@@ -46,6 +53,7 @@ router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Res
     totalRfqs: Number(totalRfqs[0].count),
     activeVendors: Number(vendors[0].count),
     revisionRequests: Number(revisionRequests[0].count),
+    dueReminders: Number(dueReminders[0].count),
   });
 });
 
@@ -88,6 +96,62 @@ router.delete("/admin-panel/isr/customers/:id", requireAdmin, async (req: Reques
   res.json({ ok: true });
 });
 
+// ─── Lead Score helper ────────────────────────────────────────────────────────
+function computeLeadScore(
+  status: string, priority: string, createdAt: Date, rfqCount: number, quoteCount: number,
+): number {
+  if (["won", "lost", "cancelled"].includes(status)) return 0;
+  const base: Record<string, number> = { urgent: 90, high: 75, normal: 50, low: 25 };
+  let score = base[priority] ?? 50;
+  if (rfqCount > 0) score += 5;
+  if (quoteCount > 0) score += 5;
+  const ageDays = (Date.now() - new Date(createdAt).getTime()) / 86400000;
+  if (ageDays < 7) score += 5;
+  else if (ageDays > 60) score -= 15;
+  else if (ageDays > 30) score -= 10;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+// ─── Customer 360 ─────────────────────────────────────────────────────────────
+router.get("/admin-panel/isr/customers/:id/360", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const customerId = parseInt(String(req.params.id));
+
+  const [customer] = await db.select().from(isrCustomersTable)
+    .where(and(eq(isrCustomersTable.id, customerId), eq(isrCustomersTable.tenantId, tenantId)));
+  if (!customer) { res.status(404).json({ message: "Müşteri bulunamadı" }); return; }
+
+  const deals = await db.select().from(isrDealsTable)
+    .where(and(eq(isrDealsTable.customerId, customerId), eq(isrDealsTable.tenantId, tenantId)))
+    .orderBy(desc(isrDealsTable.createdAt));
+
+  const dealIds = deals.map(d => d.id);
+  const activities = dealIds.length > 0
+    ? await db.select().from(isrActivitiesTable)
+        .where(inArray(isrActivitiesTable.dealId, dealIds))
+        .orderBy(desc(isrActivitiesTable.createdAt))
+        .limit(30)
+    : [];
+
+  const wonDeals = deals.filter(d => d.status === "won");
+  const lostDeals = deals.filter(d => d.status === "lost");
+  const openDeals = deals.filter(d => !["won", "lost", "cancelled"].includes(d.status));
+
+  res.json({
+    customer,
+    deals,
+    activities,
+    stats: {
+      totalDeals: deals.length,
+      openDeals: openDeals.length,
+      wonDeals: wonDeals.length,
+      lostDeals: lostDeals.length,
+      winRate: deals.length > 0 ? Math.round((wonDeals.length / deals.length) * 100) : 0,
+      totalActivities: activities.length,
+    },
+  });
+});
+
 // ─── Deals ────────────────────────────────────────────────────────────────────
 router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
@@ -104,7 +168,11 @@ router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Res
   const withCounts = await Promise.all(deals.map(async (d) => {
     const [quotes] = await db.select({ count: count() }).from(isrQuotesTable).where(eq(isrQuotesTable.dealId, d.id));
     const [rfqs] = await db.select({ count: count() }).from(isrRfqsTable).where(eq(isrRfqsTable.dealId, d.id));
-    return { ...d, quoteCount: Number(quotes.count), rfqCount: Number(rfqs.count) };
+    const qc = Number(quotes.count);
+    const rc = Number(rfqs.count);
+    const leadScore = computeLeadScore(d.status, d.priority, d.createdAt, rc, qc);
+    const daysSinceUpdate = Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / 86400000);
+    return { ...d, quoteCount: qc, rfqCount: rc, leadScore, daysSinceUpdate };
   }));
 
   res.json({ deals: withCounts, total: Number(total.count) });
@@ -561,6 +629,49 @@ interface MarginRuleBody {
   targetMarginPct: number; maxDiscountPct: number;
   autoApproveBelow?: number; requireApprovalAbove?: number; isDefault?: boolean;
 }
+
+// ─── Reminders ────────────────────────────────────────────────────────────────
+
+router.get("/admin-panel/isr/reminders", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const rows = await db.select().from(isrRemindersTable)
+    .where(and(
+      eq(isrRemindersTable.tenantId, tenantId),
+      eq(isrRemindersTable.isDismissed, false),
+    ))
+    .orderBy(isrRemindersTable.remindAt);
+  res.json({ reminders: rows });
+});
+
+router.get("/admin-panel/isr/deals/:id/reminders", requireAdmin, async (req: Request, res: Response) => {
+  const dealId = parseInt(String(req.params.id));
+  const rows = await db.select().from(isrRemindersTable)
+    .where(and(eq(isrRemindersTable.dealId, dealId), eq(isrRemindersTable.isDismissed, false)))
+    .orderBy(isrRemindersTable.remindAt);
+  res.json({ reminders: rows });
+});
+
+router.post("/admin-panel/isr/deals/:id/reminders", requireAdmin, async (req: Request, res: Response) => {
+  const dealId = parseInt(String(req.params.id));
+  const tenantId = getTenantId(req);
+  const adminEmail = (req.session as unknown as Record<string, unknown>)["adminEmail"] as string ?? "admin";
+  const { remindAt, note } = req.body as { remindAt: string; note?: string };
+  if (!remindAt) { res.status(400).json({ message: "remindAt zorunlu" }); return; }
+  const [row] = await db.insert(isrRemindersTable).values({
+    tenantId: tenantId ?? 1,
+    dealId,
+    remindAt: new Date(remindAt),
+    note: note ?? null,
+    createdByEmail: adminEmail,
+  }).returning();
+  res.json({ reminder: row });
+});
+
+router.patch("/admin-panel/isr/reminders/:id/dismiss", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params.id));
+  await db.update(isrRemindersTable).set({ isDismissed: true }).where(eq(isrRemindersTable.id, id));
+  res.json({ ok: true });
+});
 
 // ─── Activities ──────────────────────────────────────────────────────────────
 

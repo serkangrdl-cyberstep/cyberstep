@@ -55,9 +55,16 @@ async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig
     await client.connect();
     await client.mailboxOpen("INBOX");
 
+    // Only fetch unseen messages (avoids re-processing entire inbox on every poll)
+    const uids = await client.search({ seen: false }, { uid: true });
     const messages = [];
-    for await (const msg of client.fetch("1:*", { envelope: true, source: true }, { uid: true })) {
-      messages.push(msg);
+    if (uids.length > 0) {
+      // Process at most 20 at a time to avoid timeouts
+      const batch = uids.slice(-20);
+      const uidRange = batch.join(",");
+      for await (const msg of client.fetch(uidRange, { envelope: true, source: true }, { uid: true })) {
+        messages.push(msg);
+      }
     }
 
     for (const msg of messages) {

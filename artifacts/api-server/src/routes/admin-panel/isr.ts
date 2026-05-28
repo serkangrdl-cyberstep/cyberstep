@@ -9,7 +9,7 @@ import {
 import { eq, desc, sql, and, count } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { getTenantId } from "../../middleware/auth";
-import { sendRfqsForDeal, sendApprovedQuote } from "../../services/isr-imap";
+import { sendRfqsForDeal, sendApprovedQuote, processInbox } from "../../services/isr-imap";
 
 const router = Router();
 
@@ -251,6 +251,16 @@ router.delete("/admin-panel/isr/distributors/:id", requireAdmin, async (req: Req
   await db.update(isrDistributorsTable).set({ isActive: false })
     .where(and(eq(isrDistributorsTable.id, id), eq(isrDistributorsTable.tenantId, tenantId)));
   res.json({ ok: true });
+});
+
+// ─── IMAP Test Trigger ────────────────────────────────────────────────────────
+router.post("/admin-panel/isr/trigger-imap", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    await processInbox();
+    res.json({ ok: true, message: "IMAP polling tamamlandı" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
 });
 
 // ─── Margin Rules ─────────────────────────────────────────────────────────────

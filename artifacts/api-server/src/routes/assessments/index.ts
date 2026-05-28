@@ -16,7 +16,6 @@ import {
   GetReportParams,
 } from "@workspace/api-zod";
 import { eq, desc, sql, count, avg, gte, lte, and } from "drizzle-orm";
-import { ai } from "@workspace/integrations-gemini-ai";
 import { getTenantAiFn } from "../../services/ai-client";
 import { calculateScore, MINI_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
@@ -298,7 +297,7 @@ async function generateAIReport(
   assessment: typeof assessmentsTable.$inferSelect,
   answers: (typeof assessmentAnswersTable.$inferSelect)[],
   scoring: ReturnType<typeof calculateScore>
-) {
+): Promise<void> {
   const questionMap = new Map(MINI_QUESTIONS.map((q) => [q.number, q]));
   const redAlarmDetails = scoring.redAlarmQuestions
     .map((qNum) => `Soru ${qNum}`)
@@ -356,16 +355,8 @@ JSON şablonu:
 }`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        maxOutputTokens: 4096,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
-
-    const text = response.text ?? "";
+    const aiFn = await getTenantAiFn(assessment.tenantId ?? undefined);
+    const text = await aiFn(prompt);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     let aiAnalysis = "AI analizi yüklenemedi.";
     let recommendations: string[] = [];

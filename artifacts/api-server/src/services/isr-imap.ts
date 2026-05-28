@@ -8,6 +8,7 @@ import {
 } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { classifyEmail, parseRfqResponseEmail, parseRevisionRequest, generateRfqEmailBody } from "./isr-ai";
+import { getTenantAiFn } from "./ai-client";
 import nodemailer from "nodemailer";
 
 interface TenantMailConfig {
@@ -85,7 +86,8 @@ async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig
         .from(isrVendorsTable).where(and(eq(isrVendorsTable.isActive, true), eq(isrVendorsTable.tenantId, tenantId)));
       const vendorNames = vendors.map((v) => v.name);
 
-      const classification = await classifyEmail({ fromEmail, fromName, subject, bodyText: bodyText.slice(0, 3000), vendorNames });
+      const aiFn = await getTenantAiFn(tenantId);
+      const classification = await classifyEmail({ fromEmail, fromName, subject, bodyText: bodyText.slice(0, 3000), vendorNames, aiFn });
       logger.info({ tenantId, messageId, fromEmail, subject, type: classification.type }, "ISR email classified");
 
       if (classification.type === "new_deal") {

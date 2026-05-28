@@ -57,12 +57,14 @@ router.get("/admin-panel/tech-partners", requireAdmin, async (_req, res) => {
 });
 
 router.post("/admin-panel/tech-partners", requireAdmin, async (req: Request, res: Response) => {
-  const { name, logoUrl, websiteUrl, sortOrder } = req.body as {
-    name: string; logoUrl: string; websiteUrl?: string; sortOrder?: number;
+  const { name, logoUrl, websiteUrl, salesRepName, salesRepEmail, additionalContacts, sortOrder } = req.body as {
+    name: string; logoUrl: string; websiteUrl?: string;
+    salesRepName?: string; salesRepEmail?: string; additionalContacts?: unknown[];
+    sortOrder?: number;
   };
   if (!name || !logoUrl) { res.status(400).json({ error: "İsim ve logo URL zorunludur" }); return; }
   const [row] = await db.insert(techPartnersTable)
-    .values({ name, logoUrl, websiteUrl: websiteUrl ?? null, sortOrder: sortOrder ?? 0 })
+    .values({ name, logoUrl, websiteUrl: websiteUrl ?? null, salesRepName: salesRepName ?? null, salesRepEmail: salesRepEmail ?? null, additionalContacts: additionalContacts ?? [], sortOrder: sortOrder ?? 0 })
     .returning();
   logger.info({ id: row.id }, "Tech partner created");
   res.status(201).json(row);
@@ -70,11 +72,23 @@ router.post("/admin-panel/tech-partners", requireAdmin, async (req: Request, res
 
 router.put("/admin-panel/tech-partners/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { name, logoUrl, websiteUrl, isActive, sortOrder } = req.body as {
-    name?: string; logoUrl?: string; websiteUrl?: string; isActive?: boolean; sortOrder?: number;
+  const { name, logoUrl, websiteUrl, salesRepName, salesRepEmail, additionalContacts, isActive, sortOrder } = req.body as {
+    name?: string; logoUrl?: string; websiteUrl?: string;
+    salesRepName?: string | null; salesRepEmail?: string | null; additionalContacts?: unknown[];
+    isActive?: boolean; sortOrder?: number;
   };
   const [row] = await db.update(techPartnersTable)
-    .set({ ...(name !== undefined && { name }), ...(logoUrl !== undefined && { logoUrl }), ...(websiteUrl !== undefined && { websiteUrl }), ...(isActive !== undefined && { isActive }), ...(sortOrder !== undefined && { sortOrder }), updatedAt: new Date() })
+    .set({
+      ...(name !== undefined && { name }),
+      ...(logoUrl !== undefined && { logoUrl }),
+      ...(websiteUrl !== undefined && { websiteUrl }),
+      ...(salesRepName !== undefined && { salesRepName }),
+      ...(salesRepEmail !== undefined && { salesRepEmail }),
+      ...(additionalContacts !== undefined && { additionalContacts }),
+      ...(isActive !== undefined && { isActive }),
+      ...(sortOrder !== undefined && { sortOrder }),
+      updatedAt: new Date(),
+    })
     .where(eq(techPartnersTable.id, id))
     .returning();
   if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }

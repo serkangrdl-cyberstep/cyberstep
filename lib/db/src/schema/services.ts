@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
 
 export const consultingServicesTable = pgTable("consulting_services", {
   id: serial("id").primaryKey(),
@@ -15,6 +15,9 @@ export const techPartnersTable = pgTable("tech_partners", {
   name: text("name").notNull(),
   logoUrl: text("logo_url").notNull(),
   websiteUrl: text("website_url"),
+  salesRepName: text("sales_rep_name"),
+  salesRepEmail: text("sales_rep_email"),
+  additionalContacts: jsonb("additional_contacts").notNull().default([]),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

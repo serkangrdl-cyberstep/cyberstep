@@ -327,8 +327,14 @@ router.get("/admin-panel/isr/inbox", requireAdmin, async (req: Request, res: Res
 router.post("/admin-panel/isr/inbox/check", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { processInboxForTenant } = await import("../../services/isr-imap");
-  processInboxForTenant(tenantId).catch((err: unknown) => console.error("ISR inbox error", err));
-  res.json({ ok: true, message: "Gelen kutusu kontrolü başlatıldı" });
+  try {
+    await processInboxForTenant(tenantId);
+    res.json({ ok: true, message: "Gelen kutusu kontrol edildi" });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    req.log.error({ err, tenantId }, "ISR inbox check failed");
+    res.status(502).json({ ok: false, message: `IMAP bağlantı hatası: ${msg}` });
+  }
 });
 
 // ─── Types (local) ────────────────────────────────────────────────────────────

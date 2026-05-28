@@ -9,7 +9,7 @@ import {
   Bot, TrendingUp, Clock, CheckCircle, Send, Plus, RefreshCw,
   Mail, Building2, AlertCircle, ChevronRight, AlertTriangle,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -64,6 +64,9 @@ export default function AdminIsrDashboard() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [inboxMsg, setInboxMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [onCooldown, setOnCooldown] = useState(false);
 
   const { data: stats } = useQuery<Stats>({
     queryKey: ["isr-stats"],
@@ -76,9 +79,23 @@ export default function AdminIsrDashboard() {
   });
 
   const checkInboxMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/admin-panel/isr/inbox/check", { method: "POST", credentials: "include" }).then(r => r.json()),
-    onSuccess: () => setTimeout(() => refetch(), 3000),
+    mutationFn: async () => {
+      const r = await fetch("/api/admin-panel/isr/inbox/check", { method: "POST", credentials: "include" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message ?? "Bilinmeyen hata");
+      return data;
+    },
+    onSuccess: (data) => {
+      setInboxMsg({ ok: true, text: data.message ?? "Kontrol tamamlandı" });
+      setOnCooldown(true);
+      cooldownRef.current = setTimeout(() => { setOnCooldown(false); setInboxMsg(null); }, 30_000);
+      setTimeout(() => refetch(), 2000);
+    },
+    onError: (err: Error) => {
+      setInboxMsg({ ok: false, text: err.message });
+      setOnCooldown(true);
+      cooldownRef.current = setTimeout(() => { setOnCooldown(false); setInboxMsg(null); }, 15_000);
+    },
   });
 
   const deals = (dealsData?.deals ?? []).filter((d) => {
@@ -148,14 +165,14 @@ export default function AdminIsrDashboard() {
         </div>
 
         {/* Action buttons — always full-width row */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Button
             onClick={() => checkInboxMutation.mutate()}
-            disabled={checkInboxMutation.isPending}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            disabled={checkInboxMutation.isPending || onCooldown}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${checkInboxMutation.isPending ? "animate-spin" : ""}`} />
-            {checkInboxMutation.isPending ? "Kontrol ediliyor..." : "Postaları Kontrol Et"}
+            {checkInboxMutation.isPending ? "Kontrol ediliyor..." : onCooldown ? "Bekleniyor..." : "Postaları Kontrol Et"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/vendors")}>
             <Building2 className="h-4 w-4 mr-1.5" /> Satıcı & Distribütör
@@ -163,6 +180,11 @@ export default function AdminIsrDashboard() {
           <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/kurallar")}>
             <TrendingUp className="h-4 w-4 mr-1.5" /> Marj Kuralları
           </Button>
+          {inboxMsg && (
+            <span className={`text-sm font-medium ${inboxMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+              {inboxMsg.ok ? "✓" : "✗"} {inboxMsg.text}
+            </span>
+          )}
         </div>
 
         {/* Deals table */}

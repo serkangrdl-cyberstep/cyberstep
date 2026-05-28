@@ -4,9 +4,9 @@ import { db } from "@workspace/db";
 import {
   isrVendorsTable, isrDistributorsTable, isrDealsTable, isrRfqsTable,
   isrRfqResponsesTable, isrQuoteLinesTable, isrQuotesTable, isrMarginRulesTable,
-  isrEmailInboxTable, isrVendorsTable as vt,
+  isrEmailInboxTable, isrCustomersTable, isrVendorsTable as vt,
 } from "@workspace/db";
-import { eq, desc, sql, and, count } from "drizzle-orm";
+import { eq, desc, sql, and, count, ilike, or } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { getTenantId } from "../../middleware/auth";
 import { sendRfqsForDeal, sendApprovedQuote, processInbox } from "../../services/isr-imap";
@@ -49,6 +49,45 @@ router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Res
   });
 });
 
+// ─── Customers ────────────────────────────────────────────────────────────────
+router.get("/admin-panel/isr/customers", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const { q } = req.query as Record<string, string>;
+  const where = q
+    ? and(eq(isrCustomersTable.tenantId, tenantId), eq(isrCustomersTable.isActive, true),
+        or(ilike(isrCustomersTable.companyName, `%${q}%`), ilike(isrCustomersTable.contactName, `%${q}%`)))
+    : and(eq(isrCustomersTable.tenantId, tenantId), eq(isrCustomersTable.isActive, true));
+  const customers = await db.select().from(isrCustomersTable).where(where).orderBy(isrCustomersTable.companyName);
+  res.json(customers);
+});
+
+router.post("/admin-panel/isr/customers", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const { companyName, contactName, email, phone, sector, notes } = req.body as Record<string, string>;
+  const [c] = await db.insert(isrCustomersTable)
+    .values({ tenantId, companyName, contactName, email, phone, sector, notes })
+    .returning({ id: isrCustomersTable.id });
+  res.json({ ok: true, id: c?.id });
+});
+
+router.patch("/admin-panel/isr/customers/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const id = parseInt(String(req.params.id));
+  const { companyName, contactName, email, phone, sector, notes, isActive } = req.body as Record<string, string> & { isActive?: boolean };
+  await db.update(isrCustomersTable)
+    .set({ companyName, contactName, email, phone, sector, notes, isActive, updatedAt: new Date() })
+    .where(and(eq(isrCustomersTable.id, id), eq(isrCustomersTable.tenantId, tenantId)));
+  res.json({ ok: true });
+});
+
+router.delete("/admin-panel/isr/customers/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const id = parseInt(String(req.params.id));
+  await db.update(isrCustomersTable).set({ isActive: false, updatedAt: new Date() })
+    .where(and(eq(isrCustomersTable.id, id), eq(isrCustomersTable.tenantId, tenantId)));
+  res.json({ ok: true });
+});
+
 // ─── Deals ────────────────────────────────────────────────────────────────────
 router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
@@ -69,6 +108,98 @@ router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Res
   }));
 
   res.json({ deals: withCounts, total: Number(total.count) });
+});
+
+// ─── Parse deal request with AI ──────────────────────────────────────────────
+router.post("/admin-panel/isr/deals/parse", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const { requestText } = req.body as { requestText: string };
+  if (!requestText?.trim()) { res.status(400).json({ error: "requestText gerekli" }); return; }
+
+  const { parseDealRequest } = await import("../../services/isr-ai");
+
+  const [vendors, customers] = await Promise.all([
+    db.select({ name: isrVendorsTable.name, displayName: isrVendorsTable.displayName })
+      .from(isrVendorsTable).where(and(eq(isrVendorsTable.tenantId, tenantId), eq(isrVendorsTable.isActive, true))),
+    db.select({ companyName: isrCustomersTable.companyName, contactName: isrCustomersTable.contactName })
+      .from(isrCustomersTable).where(and(eq(isrCustomersTable.tenantId, tenantId), eq(isrCustomersTable.isActive, true))),
+  ]);
+
+  const result = await parseDealRequest({
+    requestText,
+    vendorNames: vendors.map(v => v.displayName),
+    existingCustomers: customers,
+  });
+
+  res.json(result);
+});
+
+// ─── Create deal manually ─────────────────────────────────────────────────────
+router.post("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const {
+    customerId, customerCompany, contactName, contactEmail, contactPhone,
+    vendorId, vendorName, productKeywords, requestText,
+    priority = "normal", intakeChannel = "manual",
+    aiSummary, aiPriorityReason,
+  } = req.body as Record<string, string | number | undefined>;
+
+  const adminEmail = (req.session as unknown as Record<string, unknown>)["adminEmail"] as string ?? undefined;
+
+  // Resolve vendor display name if only id given
+  let resolvedVendorName = vendorName as string | undefined;
+  if (vendorId && !resolvedVendorName) {
+    const [v] = await db.select({ displayName: isrVendorsTable.displayName }).from(isrVendorsTable).where(eq(isrVendorsTable.id, Number(vendorId)));
+    resolvedVendorName = v?.displayName;
+  }
+
+  // Auto-create or update customer if companyName provided
+  let resolvedCustomerId = customerId ? Number(customerId) : undefined;
+  if (!resolvedCustomerId && customerCompany) {
+    const [existing] = await db.select({ id: isrCustomersTable.id })
+      .from(isrCustomersTable)
+      .where(and(eq(isrCustomersTable.tenantId, tenantId), ilike(isrCustomersTable.companyName, String(customerCompany))));
+    if (existing) {
+      resolvedCustomerId = existing.id;
+      await db.update(isrCustomersTable).set({
+        contactName: contactName as string ?? undefined,
+        email: contactEmail as string ?? undefined,
+        phone: contactPhone as string ?? undefined,
+        updatedAt: new Date(),
+      }).where(eq(isrCustomersTable.id, existing.id));
+    } else {
+      const [newCust] = await db.insert(isrCustomersTable).values({
+        tenantId,
+        companyName: String(customerCompany),
+        contactName: contactName as string ?? undefined,
+        email: contactEmail as string ?? undefined,
+        phone: contactPhone as string ?? undefined,
+      }).returning({ id: isrCustomersTable.id });
+      resolvedCustomerId = newCust?.id;
+    }
+  }
+
+  const [deal] = await db.insert(isrDealsTable).values({
+    tenantId,
+    customerId: resolvedCustomerId ?? null,
+    customerName: contactName as string ?? undefined,
+    customerEmail: contactEmail as string ?? "",
+    customerCompany: customerCompany as string ?? undefined,
+    customerPhone: contactPhone as string ?? undefined,
+    vendorId: vendorId ? Number(vendorId) : null,
+    vendorName: resolvedVendorName,
+    productKeywords: productKeywords as string ?? undefined,
+    requestText: requestText as string ?? undefined,
+    aiSummary: aiSummary as string ?? undefined,
+    aiPriorityReason: aiPriorityReason as string ?? undefined,
+    priority: priority as string,
+    intakeChannel: intakeChannel as string,
+    assignedRepEmail: adminEmail,
+    status: "new",
+  }).returning({ id: isrDealsTable.id });
+
+  req.log.info({ tenantId, dealId: deal?.id }, "ISR deal created manually");
+  res.json({ ok: true, id: deal?.id });
 });
 
 router.get("/admin-panel/isr/deals/:id", requireAdmin, async (req: Request, res: Response) => {

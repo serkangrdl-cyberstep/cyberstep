@@ -6,6 +6,7 @@ export const adminUsersTable = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  name: text("name"),
   totpSecret: text("totp_secret"),
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),

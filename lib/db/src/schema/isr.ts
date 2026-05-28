@@ -2,6 +2,26 @@ import { pgTable, serial, text, timestamp, boolean, integer, numeric, jsonb } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+// ─── ISR Customers (müşteri rehberi per tenant) ───────────────────────────────
+export const isrCustomersTable = pgTable("isr_customers", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  companyName: text("company_name").notNull(),
+  contactName: text("contact_name"),
+  email: text("email"),
+  phone: text("phone"),
+  sector: text("sector"),
+  notes: text("notes"),
+  // AI-generated customer intelligence
+  aiProfile: text("ai_profile"),
+  preferredVendorIds: jsonb("preferred_vendor_ids").$type<number[]>().default([]),
+  avgDecisionDays: integer("avg_decision_days"),
+  dealsCount: integer("deals_count").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ─── Vendors (Fortinet, Cisco, Palo Alto...) ─────────────────────────────────
 export const isrVendorsTable = pgTable("isr_vendors", {
   id: serial("id").primaryKey(),
@@ -38,22 +58,28 @@ export const isrDistributorsTable = pgTable("isr_distributors", {
 export const isrDealsTable = pgTable("isr_deals", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
-  // Customer info (from incoming email)
+  // Customer info
+  customerId: integer("customer_id").references(() => isrCustomersTable.id),
   customerName: text("customer_name"),
-  customerEmail: text("customer_email").notNull(),
+  customerEmail: text("customer_email").notNull().default(""),
   customerCompany: text("customer_company"),
   customerPhone: text("customer_phone"),
   // Deal info
   vendorId: integer("vendor_id").references(() => isrVendorsTable.id),
   vendorName: text("vendor_name"),
   productKeywords: text("product_keywords"),
+  requestText: text("request_text"),       // raw free-text input from rep
   originalSubject: text("original_subject"),
   originalBody: text("original_body"),
   aiSummary: text("ai_summary"),
+  aiPriorityReason: text("ai_priority_reason"),
   status: text("status").notNull().default("new"),
-  // new | rfq_sent | quoted | approved | sent | won | lost | cancelled
-  assignedRepEmail: text("assigned_rep_email"),
+  // new | rfq_sent | quoted | revision_requested | approved | sent | won | lost | cancelled
+  intakeChannel: text("intake_channel").notNull().default("manual"), // manual | web_form | email
+  assignedRepId: integer("assigned_rep_id"),   // FK to admin_users.id
+  assignedRepEmail: text("assigned_rep_email"), // kept for legacy compat
   priority: text("priority").notNull().default("normal"), // low | normal | high | urgent
+  lostReason: text("lost_reason"),
   notes: text("notes"),
   emailMessageId: text("email_message_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -164,11 +190,13 @@ export const isrEmailInboxTable = pgTable("isr_email_inbox", {
 });
 
 // ─── Insert schemas ───────────────────────────────────────────────────────────
+export const insertIsrCustomerSchema = createInsertSchema(isrCustomersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrVendorSchema = createInsertSchema(isrVendorsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrDistributorSchema = createInsertSchema(isrDistributorsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrDealSchema = createInsertSchema(isrDealsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrMarginRuleSchema = createInsertSchema(isrMarginRulesTable).omit({ id: true, createdAt: true, updatedAt: true });
 
+export type IsrCustomer = typeof isrCustomersTable.$inferSelect;
 export type IsrVendor = typeof isrVendorsTable.$inferSelect;
 export type IsrDistributor = typeof isrDistributorsTable.$inferSelect;
 export type IsrDeal = typeof isrDealsTable.$inferSelect;
@@ -178,6 +206,7 @@ export type IsrQuoteLine = typeof isrQuoteLinesTable.$inferSelect;
 export type IsrQuote = typeof isrQuotesTable.$inferSelect;
 export type IsrMarginRule = typeof isrMarginRulesTable.$inferSelect;
 export type IsrEmailInbox = typeof isrEmailInboxTable.$inferSelect;
+export type InsertIsrCustomer = z.infer<typeof insertIsrCustomerSchema>;
 export type InsertIsrVendor = z.infer<typeof insertIsrVendorSchema>;
 export type InsertIsrDistributor = z.infer<typeof insertIsrDistributorSchema>;
 export type InsertIsrDeal = z.infer<typeof insertIsrDealSchema>;

@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Bot, TrendingUp, Clock, CheckCircle, Send, Plus, RefreshCw,
-  Mail, Building2, AlertCircle, ChevronRight, AlertTriangle,
+  Bot, TrendingUp, Clock, Plus, RefreshCw,
+  Mail, Building2, AlertCircle, ChevronRight, AlertTriangle, Users,
 } from "lucide-react";
 import { useState, useRef } from "react";
+import { NewDealModal } from "./new-deal-modal";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -62,9 +63,11 @@ interface Stats {
 
 export default function AdminIsrDashboard() {
   const [, navigate] = useLocation();
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [inboxMsg, setInboxMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [showNewDeal, setShowNewDeal] = useState(false);
   const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [onCooldown, setOnCooldown] = useState(false);
 
@@ -165,26 +168,40 @@ export default function AdminIsrDashboard() {
         </div>
 
         {/* Action buttons — always full-width row */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button
-            onClick={() => checkInboxMutation.mutate()}
-            disabled={checkInboxMutation.isPending || onCooldown}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${checkInboxMutation.isPending ? "animate-spin" : ""}`} />
-            {checkInboxMutation.isPending ? "Kontrol ediliyor..." : onCooldown ? "Bekleniyor..." : "Postaları Kontrol Et"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/vendors")}>
-            <Building2 className="h-4 w-4 mr-1.5" /> Satıcı & Distribütör
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/kurallar")}>
-            <TrendingUp className="h-4 w-4 mr-1.5" /> Marj Kuralları
-          </Button>
-          {inboxMsg && (
-            <span className={`text-sm font-medium ${inboxMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
-              {inboxMsg.ok ? "✓" : "✗"} {inboxMsg.text}
-            </span>
-          )}
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Button
+              onClick={() => setShowNewDeal(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-1.5" /> Yeni Deal Ac
+            </Button>
+            <Button
+              onClick={() => checkInboxMutation.mutate()}
+              disabled={checkInboxMutation.isPending || onCooldown}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${checkInboxMutation.isPending ? "animate-spin" : ""}`} />
+              {checkInboxMutation.isPending ? "Kontrol ediliyor..." : onCooldown ? "Bekleniyor..." : "Postaları Kontrol Et"}
+            </Button>
+            {inboxMsg && (
+              <span className={`text-sm font-medium ${inboxMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                {inboxMsg.ok ? "✓" : "✗"} {inboxMsg.text}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/musteriler")}>
+              <Users className="h-4 w-4 mr-1.5" /> Musteri Rehberi
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/vendors")}>
+              <Building2 className="h-4 w-4 mr-1.5" /> Satici & Distributor
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/kurallar")}>
+              <TrendingUp className="h-4 w-4 mr-1.5" /> Marj Kurallari
+            </Button>
+          </div>
         </div>
 
         {/* Deals table */}
@@ -245,6 +262,14 @@ export default function AdminIsrDashboard() {
           </CardContent>
         </Card>
       </div>
+      <NewDealModal
+        open={showNewDeal}
+        onClose={() => setShowNewDeal(false)}
+        onCreated={() => {
+          qc.invalidateQueries({ queryKey: ["isr-deals"] });
+          qc.invalidateQueries({ queryKey: ["isr-stats"] });
+        }}
+      />
     </AdminLayout>
   );
 }

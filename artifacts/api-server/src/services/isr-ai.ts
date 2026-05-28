@@ -252,6 +252,103 @@ Notlar:
   }
 }
 
+// ─── parseDealRequest ─────────────────────────────────────────────────────────
+export interface ParsedDealRequest {
+  customerCompany?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  vendorName?: string;
+  productKeywords?: string;
+  quantity?: string;
+  priority: "low" | "normal" | "high" | "urgent";
+  aiSummary: string;
+  aiPriorityReason: string;
+  isCompetitiveDeal: boolean;
+  estimatedCloseWeeks?: number;
+}
+
+export async function parseDealRequest(params: {
+  requestText: string;
+  vendorNames: string[];
+  existingCustomers: Array<{ companyName: string; contactName?: string | null }>;
+  aiFn?: AiGenerateFn;
+}): Promise<ParsedDealRequest> {
+  const aiFn = params.aiFn ?? makeDefaultAiFn();
+  if (!aiFn) {
+    return {
+      priority: "normal",
+      aiSummary: params.requestText.slice(0, 200),
+      aiPriorityReason: "AI yapılandırılmamış",
+      isCompetitiveDeal: false,
+    };
+  }
+
+  const customerList = params.existingCustomers.slice(0, 20)
+    .map((c) => `${c.companyName}${c.contactName ? ` (${c.contactName})` : ""}`)
+    .join(", ");
+
+  const prompt = `Sen deneyimli bir B2B satış asistanısın. Satış temsilcisinin kısa notunu analiz et.
+
+Satış Temsilcisi Notu:
+"${params.requestText}"
+
+Bilinen Vendorlar: ${params.vendorNames.join(", ") || "belirtilmemiş"}
+Kayıtlı Müşteriler (referans): ${customerList || "henüz yok"}
+
+Görevi: Notu analiz et ve aşağıdaki JSON formatında (SADECE JSON, markdown olmadan) döndür:
+
+{
+  "customerCompany": "Şirket adı (bulunamazsa null)",
+  "contactName": "İletişim kişisi adı (bulunamazsa null)",
+  "contactEmail": "E-posta (bulunamazsa null)",
+  "contactPhone": "Telefon (bulunamazsa null)",
+  "vendorName": "Eşleşen vendor adı, bilinen vendorlardan biri veya metinden çıkar (bulunamazsa null)",
+  "productKeywords": "Ürün/hizmet özeti — örn: 'FortiGate 100F x50, 1 yıl destek'",
+  "quantity": "Miktar — örn: '50 adet' (bulunamazsa null)",
+  "priority": "low|normal|high|urgent",
+  "aiSummary": "1-2 cümle özet: kim, ne istiyor, önemli not (Türkçe)",
+  "aiPriorityReason": "Neden bu öncelik? (Türkçe, kısa)",
+  "isCompetitiveDeal": true/false,
+  "estimatedCloseWeeks": null
+}
+
+Öncelik belirleme kuralları:
+- urgent: deadline var, acil, bugün/yarın gibi ifadeler
+- high: rakip var, fiyat hassasiyeti, müşteri karar aşamasında
+- normal: standart talep
+- low: bilgi amaçlı, bütçe yok, erken araştırma`;
+
+  try {
+    const text = await aiFn(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return {
+        aiSummary: params.requestText.slice(0, 200),
+        priority: "normal",
+        aiPriorityReason: "Parse edilemedi",
+        isCompetitiveDeal: false,
+      };
+    }
+    const parsed = JSON.parse(jsonMatch[0]) as ParsedDealRequest;
+    return {
+      ...parsed,
+      priority: (["low", "normal", "high", "urgent"].includes(parsed.priority) ? parsed.priority : "normal"),
+      aiSummary: parsed.aiSummary ?? params.requestText.slice(0, 200),
+      aiPriorityReason: parsed.aiPriorityReason ?? "",
+      isCompetitiveDeal: parsed.isCompetitiveDeal ?? false,
+    };
+  } catch (err) {
+    logger.error({ err }, "Deal request parsing failed");
+    return {
+      aiSummary: params.requestText.slice(0, 200),
+      priority: "normal",
+      aiPriorityReason: "Parse hatası",
+      isCompetitiveDeal: false,
+    };
+  }
+}
+
 // ─── generateRfqEmailBody ─────────────────────────────────────────────────────
 export async function generateRfqEmailBody(params: {
   dealId: number;

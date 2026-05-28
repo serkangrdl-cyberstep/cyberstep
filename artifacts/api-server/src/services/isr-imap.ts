@@ -262,7 +262,7 @@ async function handleRfqResponse(params: {
   const parsed = await parseRfqResponseEmail({ subject: params.subject, bodyText: params.bodyText });
 
   const [response] = await db.insert(isrRfqResponsesTable).values({
-    rfqId: rfqId ?? 0,
+    rfqId: rfqId ?? null,
     dealId: dealRefId,
     fromEmail: params.fromEmail,
     subject: params.subject,

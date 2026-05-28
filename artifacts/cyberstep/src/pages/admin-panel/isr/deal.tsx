@@ -90,6 +90,8 @@ export default function AdminIsrDeal() {
     queryKey: ["isr-deal", dealId],
     queryFn: () => fetch(`/api/admin-panel/isr/deals/${dealId}`, { credentials: "include" }).then(r => r.json()),
     enabled: !isNaN(dealId),
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
   });
 
   const { data: vendorsData } = useQuery<Array<{

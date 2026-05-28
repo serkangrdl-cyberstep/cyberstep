@@ -104,7 +104,7 @@ export const isrRfqsTable = pgTable("isr_rfqs", {
 // ─── RFQ Responses (incoming quote from distributor) ─────────────────────────
 export const isrRfqResponsesTable = pgTable("isr_rfq_responses", {
   id: serial("id").primaryKey(),
-  rfqId: integer("rfq_id").notNull().references(() => isrRfqsTable.id),
+  rfqId: integer("rfq_id").references(() => isrRfqsTable.id),
   dealId: integer("deal_id").notNull().references(() => isrDealsTable.id),
   fromEmail: text("from_email").notNull(),
   subject: text("subject"),

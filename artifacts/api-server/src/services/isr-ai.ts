@@ -6,7 +6,7 @@ function getClient() {
   const apiKey = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
   const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
   if (!apiKey || !baseUrl) return null;
-  return new GoogleGenAI({ apiKey, httpOptions: { baseUrl } });
+  return new GoogleGenAI({ apiKey, httpOptions: { apiVersion: "", baseUrl } });
 }
 
 type AiGenerateFn = (prompt: string) => Promise<string>;

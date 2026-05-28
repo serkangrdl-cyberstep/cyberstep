@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { ArrowLeft, Save, Building2, Cpu, Mail, FileText } from "lucide-react";
+import { Save, Building2, Cpu, Mail, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/contexts/tenant-context";
+import { AdminLayout } from "@/components/admin-layout";
 
 export default function TenantSettings() {
-  const [, navigate] = useLocation();
   const { tenant, refresh } = useTenant();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -35,9 +34,9 @@ export default function TenantSettings() {
 
   if (!tenant) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-400">Workspace seçilmedi</div>
-      </div>
+      <AdminLayout title="Workspace Ayarları">
+        <div className="text-slate-400 text-center py-16">Workspace seçilmedi</div>
+      </AdminLayout>
     );
   }
 
@@ -75,14 +74,8 @@ export default function TenantSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3 mb-2">
-          <button onClick={() => navigate("/panel")} className="text-slate-400 hover:text-white">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="text-xl font-bold text-white">Workspace Ayarlari</h1>
-        </div>
+    <AdminLayout title="Workspace Ayarları" description="Workspace yapılandırması ve entegrasyon ayarları">
+      <div className="max-w-2xl space-y-5">
 
         <form onSubmit={handleSave} className="space-y-5">
           {/* Firma Bilgileri */}
@@ -266,6 +259,6 @@ export default function TenantSettings() {
           </Button>
         </form>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

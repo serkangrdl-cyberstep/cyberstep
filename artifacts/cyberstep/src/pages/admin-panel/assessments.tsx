@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { useLocation } from "wouter";
+import { Eye, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export default function AdminAssessments() {
+  const [, navigate] = useLocation();
   const { data: assessments = [], isLoading } = useQuery<Assessment[]>({
     queryKey: ["admin-assessments"],
     queryFn: () => fetch("/api/admin-panel/analytics/assessments", { credentials: "include" }).then(r => r.json()),
@@ -80,8 +82,8 @@ export default function AdminAssessments() {
                     <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{fmt(a.createdAt)}</td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white h-7 w-7 p-0"
-                        onClick={() => window.open(`/assessment/${a.id}/report`, "_blank")}>
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        onClick={() => navigate(`/assessment/${a.id}/report`)}>
+                        <Eye className="h-3.5 w-3.5" />
                       </Button>
                     </td>
                   </tr>

@@ -45,6 +45,11 @@ function getSenderEmail(tenant?: TenantMailConfig) {
   return tenant?.smtpUser ?? process.env["ISR_SMTP_USER"] ?? process.env["SMTP_USER"] ?? "sales@cyberstep.io";
 }
 
+// The inbox we actually monitor via IMAP — distributor replies must land here
+function getReplyToEmail(tenant?: TenantMailConfig) {
+  return tenant?.imapUser ?? process.env["ISR_IMAP_USER"] ?? getSenderEmail(tenant);
+}
+
 async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig): Promise<void> {
   const imapConfig = getImapConfig(tenantConfig);
   if (!imapConfig) return;
@@ -441,8 +446,10 @@ export async function sendRfqsForDeal(
     const subject = `[ISR-REF:DEAL-${dealId}] Teklif Talebi — ${vendor.displayName} — ${productKeywords.slice(0, 40)}`;
 
     try {
+      const replyToEmail = getReplyToEmail(tenantConfig);
       const info = await transport.sendMail({
         from: `"CyberStep.io Satış" <${senderEmail}>`,
+        replyTo: replyToEmail,
         to: target.email,
         subject,
         text: body,

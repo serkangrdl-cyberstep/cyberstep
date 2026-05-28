@@ -623,3 +623,136 @@ export async function sendNewsletterEmail(params: {
   }
   logger.info({ postId: params.post.id, count: params.subscribers.length }, "Newsletter batch sent");
 }
+
+export async function sendDomainRescanEmail(params: {
+  email: string;
+  domain: string;
+  oldScore: number;
+  newScore: number;
+  spfPass: boolean;
+  dmarcPass: boolean;
+  dkimPass: boolean;
+  mxPass: boolean;
+  sslPass: boolean;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const { email, domain, oldScore, newScore, spfPass, dmarcPass, dkimPass, mxPass, sslPass } = params;
+  const scoreDiff = newScore - oldScore;
+  const improved = scoreDiff > 0;
+  const declined = scoreDiff < 0;
+  const unchanged = scoreDiff === 0;
+
+  const scoreColor = newScore >= 80 ? "#166534" : newScore >= 50 ? "#854d0e" : "#991b1b";
+  const scoreBg = newScore >= 80 ? "#dcfce7" : newScore >= 50 ? "#fef9c3" : "#fee2e2";
+  const scoreLabel = newScore >= 80 ? "Düşük Risk" : newScore >= 50 ? "Orta Risk" : "Yüksek Risk";
+
+  const changeText = improved
+    ? `+${scoreDiff} puan iyileşme`
+    : declined
+    ? `${scoreDiff} puan düşüş`
+    : "Puan değişmedi";
+  const changeColor = improved ? "#166534" : declined ? "#991b1b" : "#475569";
+
+  function checkRow(label: string, pass: boolean) {
+    return `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;color:#334155">${label}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right">
+          <span style="background:${pass ? "#dcfce7" : "#fee2e2"};color:${pass ? "#166534" : "#991b1b"};padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600">
+            ${pass ? "Geçti" : "Başarısız"}
+          </span>
+        </td>
+      </tr>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:32px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:#38bdf8;letter-spacing:-0.5px">CyberStep.io</div>
+      <div style="color:#94a3b8;font-size:13px;margin-top:4px">Alan Adı Güvenlik Raporu</div>
+    </div>
+
+    <div style="padding:32px">
+      <h2 style="margin:0 0 4px;font-size:18px;color:#0f172a">${domain}</h2>
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px">30 günlük periyodik güvenlik taramanız tamamlandı.</p>
+
+      <div style="display:flex;gap:12px;margin-bottom:24px">
+        <div style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Önceki Skor</div>
+          <div style="font-size:28px;font-weight:700;color:#64748b">${oldScore}</div>
+        </div>
+        <div style="flex:1;border:2px solid ${scoreColor};border-radius:8px;padding:16px;text-align:center;background:${scoreBg}">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:${scoreColor};margin-bottom:4px">Güncel Skor</div>
+          <div style="font-size:28px;font-weight:700;color:${scoreColor}">${newScore}</div>
+          <div style="font-size:11px;color:${scoreColor};font-weight:600">${scoreLabel}</div>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:8px;padding:12px 16px;margin-bottom:24px;text-align:center;font-size:14px;color:${changeColor};font-weight:600">
+        ${unchanged ? "Puan değişmedi" : `${improved ? "▲" : "▼"} ${changeText}`}
+      </div>
+
+      <h3 style="font-size:14px;font-weight:600;color:#0f172a;margin:0 0 12px">Kontrol Detayları</h3>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        ${checkRow("SPF Kaydı", spfPass)}
+        ${checkRow("DMARC Politikası", dmarcPass)}
+        ${checkRow("DKIM İmzası", dkimPass)}
+        ${checkRow("MX Kaydı", mxPass)}
+        ${checkRow("SSL Sertifikası", sslPass)}
+      </table>
+
+      ${(!spfPass || !dmarcPass || !dkimPass || !mxPass || !sslPass) ? `
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin-top:20px">
+        <div style="font-size:13px;font-weight:600;color:#9a3412;margin-bottom:6px">Dikkat Gerektiren Kontroller</div>
+        <ul style="margin:0;padding-left:18px;color:#7c2d12;font-size:13px">
+          ${!spfPass ? "<li>SPF kaydı eksik veya hatalı — e-posta sahteciliğine karşı koruma sağlayın</li>" : ""}
+          ${!dmarcPass ? "<li>DMARC politikası yapılandırılmamış — e-posta kimlik doğrulamasını güçlendirin</li>" : ""}
+          ${!dkimPass ? "<li>DKIM imzası bulunamadı — e-posta bütünlüğü doğrulaması eksik</li>" : ""}
+          ${!mxPass ? "<li>MX kaydı hatalı veya eksik — e-posta alımı etkilenebilir</li>" : ""}
+          ${!sslPass ? "<li>SSL sertifikası geçersiz veya süresi dolmak üzere — acil yenileme gerekiyor</li>" : ""}
+        </ul>
+      </div>` : `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-top:20px;text-align:center">
+        <div style="font-size:13px;font-weight:600;color:#166534">Tüm güvenlik kontrolleri başarıyla geçildi!</div>
+      </div>`}
+
+      <div style="margin-top:28px;text-align:center">
+        <a href="${getBaseUrl()}/alan-tarama" style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600">
+          Yeni Tarama Başlat
+        </a>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+        Bu e-posta ${domain} alan adı için otomatik periyodik tarama sonucu gönderilmiştir.<br>
+        CyberStep.io &mdash; KOBİ'ler için Siber Güvenlik
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const subjectText = unchanged
+      ? `Alan adı taraması tamamlandı: ${domain} — Skor: ${newScore}/100`
+      : improved
+      ? `Alan adı güvenliği iyileşti: ${domain} — ${oldScore} → ${newScore} puan`
+      : `Alan adı güvenlik uyarısı: ${domain} — Skor düştü (${oldScore} → ${newScore})`;
+
+    await transport.sendMail({
+      from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+      to: email,
+      subject: subjectText,
+      html,
+    });
+    logger.info({ domain, email, oldScore, newScore }, "Domain rescan email sent");
+  } catch (err) {
+    logger.error({ err, domain, email }, "Domain rescan email send failed");
+  }
+}

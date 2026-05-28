@@ -1,6 +1,14 @@
 import { logger } from "../lib/logger";
 
-const BASE_URL = "https://sandbox-api.iyzipay.com";
+function getBaseUrl(): string {
+  // Production URL when real API keys are configured, sandbox otherwise
+  const apiKey = process.env["IYZICO_API_KEY"] ?? "";
+  return apiKey && apiKey !== "sandbox" ? "https://api.iyzipay.com" : "https://sandbox-api.iyzipay.com";
+}
+
+export function isIyzicoConfigured(): boolean {
+  return !!(process.env["IYZICO_API_KEY"] && process.env["IYZICO_SECRET_KEY"]);
+}
 
 function getCredentials() {
   return {
@@ -73,7 +81,7 @@ export async function createPayment(req: IyzicoPaymentRequest): Promise<{ succes
   const body = JSON.stringify({ ...req, locale: "tr" });
 
   try {
-    const response = await fetch(`${BASE_URL}/payment/auth`, {
+    const response = await fetch(`${getBaseUrl()}/payment/auth`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -102,7 +110,7 @@ export async function checkPayment(paymentId: string): Promise<{ success: boolea
   const body = JSON.stringify({ locale: "tr", paymentId });
 
   try {
-    const response = await fetch(`${BASE_URL}/payment/detail`, {
+    const response = await fetch(`${getBaseUrl()}/payment/detail`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -33,11 +33,12 @@ function formatPrice(plan: PricingPlan): string {
   return new Intl.NumberFormat("tr-TR").format(num) + " ₺";
 }
 
-function getPlanMeta(plan: PricingPlan): { cta: "mini" | "full"; href: string; highlight: boolean; isFree: boolean } {
+function getPlanMeta(plan: PricingPlan): { cta: "mini" | "full"; href: string; highlight: boolean; isFree: boolean; available: boolean } {
   if (plan.slug === "mini") {
-    return { cta: "mini", href: "/assessment/start", highlight: false, isFree: parseFloat(plan.price) === 0 };
+    return { cta: "mini", href: "/assessment/start", highlight: false, isFree: parseFloat(plan.price) === 0, available: true };
   }
-  return { cta: "full", href: "#", highlight: true, isFree: false };
+  const hasPrice = parseFloat(plan.price) > 0;
+  return { cta: "full", href: hasPrice ? "/assessment/full/start" : "#", highlight: true, isFree: false, available: hasPrice };
 }
 
 const scoreColor: Record<string, string> = {
@@ -246,6 +247,7 @@ export default function Home() {
       href: "#",
       highlight: true,
       badge: t(T.home.comingSoon, lang),
+      disabled: true,
     },
   ];
 
@@ -261,7 +263,8 @@ export default function Home() {
           cta: meta.cta === "mini" ? t(T.home.miniCta, lang) : t(T.home.fullCta, lang),
           href: meta.href,
           highlight: meta.highlight,
-          badge: meta.highlight ? t(T.home.comingSoon, lang) : undefined,
+          badge: (meta.highlight && !meta.available) ? t(T.home.comingSoon, lang) : undefined,
+          disabled: meta.highlight && !meta.available,
         };
       })
     : STATIC_PLANS;
@@ -458,14 +461,14 @@ export default function Home() {
                   <Link
                     href={plan.href}
                     className={`inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-6 transition-colors ${
-                      plan.highlight
-                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                      (plan as { disabled?: boolean }).disabled
+                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
                         : "bg-primary text-primary-foreground hover:bg-primary/90"
                     }`}
-                    onClick={plan.highlight ? (e: React.MouseEvent) => e.preventDefault() : undefined}
+                    onClick={(plan as { disabled?: boolean }).disabled ? (e: React.MouseEvent) => e.preventDefault() : undefined}
                   >
                     {plan.cta}
-                    {!plan.highlight && <ChevronRight className="ml-2 h-4 w-4" />}
+                    {!(plan as { disabled?: boolean }).disabled && <ChevronRight className="ml-2 h-4 w-4" />}
                   </Link>
                 </div>
               ))}

@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore } from "./routes/domain-scan/index";
-import { sendReminderEmail } from "./services/email";
+import { sendReminderEmail, sendDomainRescanEmail } from "./services/email";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -262,8 +262,21 @@ function startReminderCron() {
             .set({ notifiedAt: new Date() })
             .where(eq(domainScansTable.id, scan.id));
 
-          if (scoreChanged && scan.email) {
-            logger.info({ domain: scan.domain, oldScore: scan.overallScore, newScore }, "Domain score changed — email notification skipped (TODO: implement domain change email)");
+          if (scan.email) {
+            await sendDomainRescanEmail({
+              email: scan.email,
+              domain: scan.domain,
+              oldScore: scan.overallScore ?? 0,
+              newScore,
+              spfPass: spf.pass,
+              dmarcPass: dmarc.pass,
+              dkimPass: dkim.pass,
+              mxPass: mx.pass,
+              sslPass: ssl.pass,
+            });
+            if (scoreChanged) {
+              logger.info({ domain: scan.domain, oldScore: scan.overallScore, newScore }, "Domain score changed — rescan email sent");
+            }
           }
           logger.info({ domain: scan.domain, newScore }, "Domain re-scan complete");
         } catch (err) {

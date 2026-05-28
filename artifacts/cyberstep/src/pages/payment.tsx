@@ -22,9 +22,15 @@ const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 12 }, (_, i) => String(currentYear + i));
 const KDV_RATE = 0.20;
-const BASE_PRICE = 4900;
-const KDV_AMOUNT = +(BASE_PRICE * KDV_RATE).toFixed(2);
-const TOTAL_PRICE = BASE_PRICE + KDV_AMOUNT;
+
+interface PricingPlan {
+  id: number;
+  slug: string;
+  name: string;
+  price: string;
+  currency: string;
+  isActive: boolean;
+}
 
 function formatCardNumber(value: string) {
   return value.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
@@ -47,6 +53,15 @@ export default function Payment() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const { data: plans = [] } = useQuery<PricingPlan[]>({
+    queryKey: ["pricing-plans"],
+    queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
+  });
+  const fullPlan = plans.find(p => p.slug === "full" && p.isActive);
+  const basePrice = fullPlan ? parseFloat(fullPlan.price) : 4900;
+  const kdvAmount = +(basePrice * KDV_RATE).toFixed(2);
+  const totalPrice = +(basePrice + kdvAmount).toFixed(2);
 
   const { data: assessment, isLoading: assessmentLoading } = useQuery<AssessmentInfo>({
     queryKey: ["assessment-info", assessmentId],
@@ -162,16 +177,16 @@ export default function Payment() {
               )}
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tam Degerlendirme</span>
-                  <span>{BASE_PRICE.toLocaleString("tr-TR")} TL</span>
+                  <span className="text-muted-foreground">Tam Değerlendirme</span>
+                  <span>{basePrice.toLocaleString("tr-TR")} TL</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">KDV (%20)</span>
-                  <span>{KDV_AMOUNT.toLocaleString("tr-TR")} TL</span>
+                  <span>{kdvAmount.toLocaleString("tr-TR")} TL</span>
                 </div>
                 <div className="flex justify-between font-bold text-foreground pt-2 border-t border-border text-base">
                   <span>Toplam</span>
-                  <span>₺{TOTAL_PRICE.toLocaleString("tr-TR")}</span>
+                  <span>₺{totalPrice.toLocaleString("tr-TR")}</span>
                 </div>
               </div>
             </CardContent>
@@ -285,7 +300,8 @@ export default function Payment() {
                   {loading ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Odeme Isleniyor...</>
                   ) : (
-                    <><Lock className="mr-2 h-5 w-5" /> ₺{TOTAL_PRICE.toLocaleString("tr-TR")} Guvenli Ode</>
+                    <><Lock className="mr-2 h-5 w-5" /> ₺{totalPrice.toLocaleString("tr-TR")} Güvenli Öde</>
+
                   )}
                 </Button>
 

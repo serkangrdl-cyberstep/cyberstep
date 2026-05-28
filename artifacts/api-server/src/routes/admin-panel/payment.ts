@@ -1,10 +1,14 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { paymentsTable, pricingPlansTable } from "@workspace/db";
+import { paymentsTable, pricingPlansTable, customersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { createPayment } from "../../services/iyzico";
+import { createPayment, isIyzicoConfigured } from "../../services/iyzico";
 import { logger } from "../../lib/logger";
+
+function getSession(req: Request) {
+  return req.session as unknown as Record<string, unknown>;
+}
 
 const router = Router();
 
@@ -12,6 +16,11 @@ const KDV_RATE = 0.20; // %20 KDV
 
 // POST /api/payments/initiate — start a payment
 // GET /api/payments/status/:assessmentId — check if an assessment has been paid
+// GET /api/payments/config — returns whether iyzico is configured
+router.get("/payments/config", (_req: Request, res: Response) => {
+  res.json({ configured: isIyzicoConfigured() });
+});
+
 router.get("/payments/status/:assessmentId", async (req: Request, res: Response) => {
   const assessmentId = Number(req.params.assessmentId);
   if (!assessmentId) { res.status(400).json({ paid: false }); return; }
@@ -90,6 +99,17 @@ router.post("/payments/initiate", async (req: Request, res: Response) => {
 
   if (result.success) {
     logger.info({ paymentId: payment.id, planSlug }, "Payment successful");
+
+    // Update customer subscription if logged in
+    const customerId = getSession(req)["customerId"] as number | undefined;
+    if (customerId) {
+      await db.update(customersTable)
+        .set({ subscriptionPlan: planSlug, subscriptionStatus: "active", updatedAt: new Date() })
+        .where(eq(customersTable.id, customerId))
+        .catch(err => logger.warn({ err, customerId }, "Failed to update customer subscription after payment"));
+      logger.info({ customerId, planSlug }, "Customer subscription updated after payment");
+    }
+
     res.json({ success: true, paymentId: payment.id });
   } else {
     logger.warn({ error: result.errorMessage, planSlug }, "Payment failed");

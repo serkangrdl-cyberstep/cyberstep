@@ -228,9 +228,9 @@ router.delete("/admin-panel/isr/vendors/:id", requireAdmin, async (req: Request,
 // ─── Distributors ─────────────────────────────────────────────────────────────
 router.post("/admin-panel/isr/distributors", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
-  const { vendorId, name, contactName, contactEmail, phone, notes } = req.body as IsrDistributorBody;
+  const { vendorId, name, contactName, contactEmail, phone, notes, additionalContacts } = req.body as IsrDistributorBody;
   const [d] = await db.insert(isrDistributorsTable)
-    .values({ tenantId, vendorId: parseInt(String(vendorId)), name, contactName, contactEmail, phone, notes })
+    .values({ tenantId, vendorId: parseInt(String(vendorId)), name, contactName, contactEmail, phone, notes, additionalContacts: additionalContacts ?? [] })
     .returning({ id: isrDistributorsTable.id });
   res.json({ ok: true, id: d?.id });
 });
@@ -238,9 +238,9 @@ router.post("/admin-panel/isr/distributors", requireAdmin, async (req: Request, 
 router.patch("/admin-panel/isr/distributors/:id", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
-  const { name, contactName, contactEmail, phone, notes, isActive } = req.body as IsrDistributorBody & { isActive?: boolean };
+  const { name, contactName, contactEmail, phone, notes, additionalContacts, isActive } = req.body as IsrDistributorBody & { isActive?: boolean };
   await db.update(isrDistributorsTable)
-    .set({ name, contactName, contactEmail, phone, notes, isActive, updatedAt: new Date() })
+    .set({ name, contactName, contactEmail, phone, notes, additionalContacts: additionalContacts ?? [], isActive, updatedAt: new Date() })
     .where(and(eq(isrDistributorsTable.id, id), eq(isrDistributorsTable.tenantId, tenantId)));
   res.json({ ok: true });
 });

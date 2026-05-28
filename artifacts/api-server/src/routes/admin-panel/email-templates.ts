@@ -42,6 +42,17 @@ router.get("/admin-panel/email-templates", requireAdmin, async (req: Request, re
     .where(where)
     .orderBy(desc(emailTemplatesTable.createdAt));
 
+  // Auto-seed defaults for tenants that existed before this feature shipped
+  if (templates.length === 0 && !category) {
+    const { seedDefaultTemplates } = await import("../../services/email-templates-seed");
+    await seedDefaultTemplates(tenantId);
+    const seeded = await db.select().from(emailTemplatesTable)
+      .where(eq(emailTemplatesTable.tenantId, tenantId))
+      .orderBy(desc(emailTemplatesTable.createdAt));
+    res.json(seeded);
+    return;
+  }
+
   res.json(templates);
 });
 

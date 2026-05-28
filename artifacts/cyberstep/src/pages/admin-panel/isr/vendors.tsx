@@ -189,7 +189,10 @@ export default function AdminIsrVendors() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => openDist(vendor.id)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Distribütör Ekle
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => openVendor(vendor)}>
                       <Edit className="h-3.5 w-3.5" />
                     </Button>
@@ -200,17 +203,12 @@ export default function AdminIsrVendors() {
                 </div>
               </CardHeader>
 
-              {/* Distribütörler — her zaman görünür */}
+              {/* Distribütörler listesi */}
               <CardContent className="pt-0 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-3 mt-3">
-                    <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                      <Users className="h-4 w-4 text-slate-400" />
-                      Distribütörler
-                      <Badge variant="outline" className="text-xs">{vendor.distributors.length}</Badge>
-                    </span>
-                    <Button variant="outline" size="sm" onClick={() => openDist(vendor.id)}>
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Distribütör Ekle
-                    </Button>
+                  <div className="flex items-center gap-2 mb-3 mt-3">
+                    <Users className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-700">Distribütörler</span>
+                    <Badge variant="outline" className="text-xs">{vendor.distributors.length}</Badge>
                   </div>
 
                   {vendor.distributors.length === 0 ? (

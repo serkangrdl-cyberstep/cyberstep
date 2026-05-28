@@ -38,6 +38,7 @@ const formSchema = z.object({
   sector: z.string({ required_error: "Lütfen bir sektör seçiniz." }),
   employeeCount: z.string({ required_error: "Lütfen çalışan sayısını seçiniz." }),
   assessmentType: z.enum(["mini", "full"], { required_error: "Lütfen değerlendirme tipi seçiniz." }),
+  companyDomain: z.string().optional(),
 });
 
 export default function AssessmentStart() {
@@ -59,6 +60,7 @@ export default function AssessmentStart() {
       sector: "",
       employeeCount: "",
       assessmentType: "mini",
+      companyDomain: "",
     },
   });
 
@@ -75,7 +77,7 @@ export default function AssessmentStart() {
     }
 
     createAssessment.mutate(
-      { data: values },
+      { data: { ...values, companyDomain: values.companyDomain?.trim() || null } },
       {
         onSuccess: (data) => {
           setLocation(`/assessment/${data.id}`);
@@ -209,6 +211,21 @@ export default function AssessmentStart() {
                       <FormControl>
                         <Input type="tel" placeholder="0555 555 55 55" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="companyDomain"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Web Alan Adı (İsteğe bağlı)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="sirketiniz.com" {...field} />
+                      </FormControl>
+                      <FormDescription>Girerseniz alan adınızın e-posta ve SSL güvenliği de taranır.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

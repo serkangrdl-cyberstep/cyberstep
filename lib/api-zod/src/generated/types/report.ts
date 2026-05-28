@@ -5,6 +5,7 @@
  * CyberStep.io - KOBİ Siber Güvenlik Risk Analizi API
  * OpenAPI spec version: 0.1.0
  */
+import type { DomainScanResult } from './domainScanResult';
 import type { DomainScore } from './domainScore';
 
 export interface Report {
@@ -19,5 +20,8 @@ export interface Report {
   aiAnalysis: string;
   recommendations: string[];
   domainScores: DomainScore[];
+  /** @nullable */
+  domainScanId?: number | null;
+  domainScan?: DomainScanResult | null;
   createdAt: Date;
 }

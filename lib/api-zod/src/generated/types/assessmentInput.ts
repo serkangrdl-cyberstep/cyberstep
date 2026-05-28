@@ -16,4 +16,6 @@ export interface AssessmentInput {
   sector: string;
   employeeCount: string;
   assessmentType: AssessmentInputAssessmentType;
+  /** @nullable */
+  companyDomain?: string | null;
 }

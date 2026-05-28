@@ -21,6 +21,7 @@ export const reportsTable = pgTable("reports", {
   reviewStatus: text("review_status").notNull().default("pending_review"),
   reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  domainScanId: integer("domain_scan_id"),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true });

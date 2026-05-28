@@ -30,6 +30,8 @@ export interface AssessmentInput {
   sector: string;
   employeeCount: string;
   assessmentType: AssessmentInputAssessmentType;
+  /** @nullable */
+  companyDomain?: string | null;
 }
 
 export type AssessmentStatus = typeof AssessmentStatus[keyof typeof AssessmentStatus];
@@ -60,6 +62,8 @@ export interface Assessment {
   riskLevel?: string | null;
   /** @nullable */
   redAlarmCount?: number | null;
+  /** @nullable */
+  companyDomain?: string | null;
   createdAt: string;
   /** @nullable */
   completedAt?: string | null;
@@ -128,6 +132,40 @@ export interface AnswersInput {
   answers: SingleAnswer[];
 }
 
+export type DomainScanResultHibpBreachesItem = { [key: string]: unknown };
+
+export type DomainScanResultShadowItServicesItem = { [key: string]: unknown };
+
+export interface DomainScanResult {
+  id: number;
+  domain: string;
+  overallScore: number;
+  spfPass: boolean;
+  /** @nullable */
+  spfRecord?: string | null;
+  dmarcPass: boolean;
+  /** @nullable */
+  dmarcRecord?: string | null;
+  dkimPass: boolean;
+  dkimSelectors: string[];
+  mxPass: boolean;
+  sslPass: boolean;
+  /** @nullable */
+  sslExpiry?: string | null;
+  /** @nullable */
+  sslIssuer?: string | null;
+  /** @nullable */
+  sslDaysUntilExpiry?: number | null;
+  hibpBreachCount: number;
+  hibpBreaches: DomainScanResultHibpBreachesItem[];
+  blacklisted: boolean;
+  blacklistCount: number;
+  shadowItServices: DomainScanResultShadowItServicesItem[];
+  /** @nullable */
+  domainAiSuggestions?: string | null;
+  createdAt: string;
+}
+
 export interface DomainScore {
   domain: string;
   score: number;
@@ -147,6 +185,9 @@ export interface Report {
   aiAnalysis: string;
   recommendations: string[];
   domainScores: DomainScore[];
+  /** @nullable */
+  domainScanId?: number | null;
+  domainScan?: DomainScanResult | null;
   createdAt: string;
 }
 

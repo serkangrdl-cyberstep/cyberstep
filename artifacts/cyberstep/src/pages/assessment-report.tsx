@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
   CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download,
-  TrendingUp, TrendingDown, Minus, Zap, Lock, Mail as MailIcon, Monitor, HardDrive
+  TrendingUp, TrendingDown, Minus, Zap, Lock, Mail as MailIcon, Monitor, HardDrive,
+  Globe, AtSign, Server, KeyRound, XCircle
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -501,28 +502,132 @@ function AssessmentReportCore({ id }: { id: number }) {
         );
       })()}
 
-      {/* Alan Adı Tarama CTA */}
-      <Card className="shadow-sm mb-6 border-blue-200 bg-blue-50/40 dark:bg-blue-950/20 dark:border-blue-900">
-        <CardContent className="p-5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="shrink-0 bg-blue-100 dark:bg-blue-900/40 p-3 rounded-xl">
-              <Shield className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-sm mb-1">Alan Adı Güvenlik Taraması</h3>
-              <p className="text-xs text-muted-foreground">
-                SPF, DMARC, DKIM ve SSL kayıtlarınızı otomatik kontrol edin. Hiçbir kurulum gerektirmez — sadece alan adınızı girin.
-              </p>
-            </div>
-            <a
-              href="/domain-tarama"
-              className="shrink-0 inline-flex items-center gap-1.5 text-xs text-blue-700 font-medium bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
-            >
-              Tara <ArrowRight className="h-3 w-3" />
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Alan Adı Güvenlik Taraması */}
+      {(() => {
+        const scan = report.domainScan as any;
+        if (!scan) {
+          // No domain provided — show CTA
+          return (
+            <Card className="shadow-sm mb-6 border-blue-200 bg-blue-50/40 dark:bg-blue-950/20 dark:border-blue-900">
+              <CardContent className="p-5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="shrink-0 bg-blue-100 dark:bg-blue-900/40 p-3 rounded-xl">
+                    <Globe className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm mb-1">Alan Adı Güvenlik Taraması</h3>
+                    <p className="text-xs text-muted-foreground">
+                      SPF, DMARC, DKIM ve SSL kayıtlarınızı otomatik kontrol edin. Hiçbir kurulum gerektirmez — sadece alan adınızı girin.
+                    </p>
+                  </div>
+                  <a
+                    href="/domain-tarama"
+                    className="shrink-0 inline-flex items-center gap-1.5 text-xs text-blue-700 font-medium bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Tara <ArrowRight className="h-3 w-3" />
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+
+        // For full plan, we have all fields; for mini (free), only id/domain/overallScore/createdAt
+        const hasFullDetails = typeof scan.spfPass !== "undefined";
+
+        const scoreColor = scan.overallScore >= 70 ? "text-emerald-600" : scan.overallScore >= 40 ? "text-amber-600" : "text-red-600";
+        const scoreBg = scan.overallScore >= 70 ? "bg-emerald-50 border-emerald-200" : scan.overallScore >= 40 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
+
+        const checks = hasFullDetails ? [
+          { label: "SPF (Sahte E-posta)", icon: AtSign, pass: scan.spfPass, detail: scan.spfPass ? "Aktif" : "Eksik — şirket adınıza sahte e-posta gönderilebilir" },
+          { label: "DMARC (E-posta Kimlik Doğrulama)", icon: MailIcon, pass: scan.dmarcPass, detail: scan.dmarcPass ? "Aktif" : "Eksik — phishing saldırıları tespit edilemiyor" },
+          { label: "DKIM (E-posta İmzalama)", icon: KeyRound, pass: scan.dkimPass, detail: scan.dkimPass ? "Aktif" : "Eksik — e-postalarınız değiştirilebilir" },
+          { label: "SSL Sertifikası", icon: Lock, pass: scan.sslPass, detail: scan.sslPass ? `Geçerli (${scan.sslDaysUntilExpiry ?? "?"} gün kaldı)` : "Hatalı veya süresi dolmuş" },
+          { label: "Kara Liste", icon: Shield, pass: !scan.blacklisted, detail: scan.blacklisted ? `${scan.blacklistCount} spam listesinde kayıtlı` : "Temiz" },
+          { label: "Veri İhlali Geçmişi", icon: ShieldAlert, pass: scan.hibpBreachCount === 0, detail: scan.hibpBreachCount > 0 ? `${scan.hibpBreachCount} önceki ihlal tespit edildi` : "Bilinen ihlal yok" },
+        ] : [];
+
+        const shadowItServices = hasFullDetails ? ((scan.shadowItServices ?? []) as any[]) : [];
+
+        return (
+          <Card className={`shadow-sm mb-6 border ${scoreBg}`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Globe className="h-5 w-5 text-primary" />
+                  Alan Adı Güvenlik Taraması
+                  <span className="font-normal text-sm text-muted-foreground">— {scan.domain}</span>
+                </CardTitle>
+                <div className={`flex items-center gap-1.5 font-bold text-2xl ${scoreColor}`}>
+                  {scan.overallScore}
+                  <span className="text-sm font-normal text-muted-foreground">/100</span>
+                </div>
+              </div>
+              {!hasFullDetails && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Alan adınızın genel güvenlik skoru hesaplandı. Detaylı SPF, DMARC, DKIM, SSL ve kara liste sonuçları tam plan ile görüntülenebilir.
+                </p>
+              )}
+            </CardHeader>
+
+            {hasFullDetails && (
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  {checks.map(({ label, icon: Icon, pass, detail }) => (
+                    <div key={label} className="flex items-start gap-3 p-3 rounded-lg border bg-background">
+                      <div className={`shrink-0 mt-0.5 ${pass ? "text-emerald-500" : "text-red-500"}`}>
+                        {pass ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs font-medium">{label}</span>
+                        </div>
+                        <p className={`text-xs ${pass ? "text-muted-foreground" : "text-red-600"}`}>{detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {shadowItServices.length > 0 && (
+                  <div className="p-3 rounded-lg border bg-background">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Server className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">Tespit Edilen 3. Taraf Servisler ({shadowItServices.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {shadowItServices.map((s: any) => (
+                        <Badge
+                          key={s.name}
+                          variant="outline"
+                          className={`text-xs ${s.risk === "high" ? "border-red-300 text-red-700 bg-red-50" : s.risk === "medium" ? "border-amber-300 text-amber-700 bg-amber-50" : "border-slate-300 text-slate-600"}`}
+                        >
+                          {s.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Yüksek riskli servisler için erişim kontrolü ve güvenlik politikası oluşturmanız önerilir.</p>
+                  </div>
+                )}
+              </CardContent>
+            )}
+
+            {!hasFullDetails && (
+              <CardContent className="pt-0">
+                <div className="p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 text-center">
+                  <p className="text-xs text-muted-foreground mb-2">SPF, DMARC, DKIM, SSL, kara liste ve veri ihlali detayları tam plan ile erişilebilir.</p>
+                  <button
+                    onClick={() => document.getElementById("uzman-formu")?.scrollIntoView({ behavior: "smooth" })}
+                    className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline"
+                  >
+                    Tam Planı Keşfet <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* CyberStep Verified Rozeti */}
       {report.verificationToken && (() => {

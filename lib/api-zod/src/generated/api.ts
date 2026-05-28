@@ -27,7 +27,8 @@ export const CreateAssessmentBody = zod.object({
   "phone": zod.string().nullish(),
   "sector": zod.string(),
   "employeeCount": zod.string(),
-  "assessmentType": zod.enum(['mini', 'full'])
+  "assessmentType": zod.enum(['mini', 'full']),
+  "companyDomain": zod.string().nullish()
 })
 
 
@@ -93,6 +94,7 @@ export const SubmitAnswersResponse = zod.object({
   "maxScore": zod.number().nullish(),
   "riskLevel": zod.string().nullish(),
   "redAlarmCount": zod.number().nullish(),
+  "companyDomain": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish()
 })
@@ -119,6 +121,7 @@ export const CompleteAssessmentResponse = zod.object({
   "maxScore": zod.number().nullish(),
   "riskLevel": zod.string().nullish(),
   "redAlarmCount": zod.number().nullish(),
+  "companyDomain": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish()
 })
@@ -148,6 +151,34 @@ export const GetReportResponse = zod.object({
   "maxScore": zod.number(),
   "percent": zod.number()
 })),
+  "domainScanId": zod.number().nullish(),
+  "domainScan": zod.union([zod.object({
+  "id": zod.number(),
+  "domain": zod.string(),
+  "overallScore": zod.number(),
+  "spfPass": zod.boolean(),
+  "spfRecord": zod.string().nullish(),
+  "dmarcPass": zod.boolean(),
+  "dmarcRecord": zod.string().nullish(),
+  "dkimPass": zod.boolean(),
+  "dkimSelectors": zod.array(zod.string()),
+  "mxPass": zod.boolean(),
+  "sslPass": zod.boolean(),
+  "sslExpiry": zod.string().nullish(),
+  "sslIssuer": zod.string().nullish(),
+  "sslDaysUntilExpiry": zod.number().nullish(),
+  "hibpBreachCount": zod.number(),
+  "hibpBreaches": zod.array(zod.object({
+
+}).passthrough()),
+  "blacklisted": zod.boolean(),
+  "blacklistCount": zod.number(),
+  "shadowItServices": zod.array(zod.object({
+
+}).passthrough()),
+  "domainAiSuggestions": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]).optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -179,6 +210,7 @@ export const GetStatsSummaryResponse = zod.object({
   "maxScore": zod.number().nullish(),
   "riskLevel": zod.string().nullish(),
   "redAlarmCount": zod.number().nullish(),
+  "companyDomain": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish()
 }))

@@ -26,6 +26,8 @@ export interface Assessment {
   riskLevel?: string | null;
   /** @nullable */
   redAlarmCount?: number | null;
+  /** @nullable */
+  companyDomain?: string | null;
   createdAt: Date;
   /** @nullable */
   completedAt?: Date | null;

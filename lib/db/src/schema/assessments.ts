@@ -24,6 +24,7 @@ export const assessmentsTable = pgTable("assessments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
   reminderSentAt: timestamp("reminder_sent_at"),
+  companyDomain: text("company_domain"),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessmentsTable).omit({ id: true, createdAt: true });

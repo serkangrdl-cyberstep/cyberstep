@@ -6,7 +6,12 @@ import {
   assessmentAnswersTable,
   reportsTable,
   tenantsTable,
+  domainScansTable,
 } from "@workspace/db";
+import {
+  checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL,
+  calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT,
+} from "../domain-scan/index";
 import {
   CreateAssessmentBody,
   SubmitAnswersBody,
@@ -71,6 +76,7 @@ router.post("/assessments", async (req, res) => {
       assessmentType: data.assessmentType as "mini" | "full",
       status: "in_progress",
       tenantId: tenantId ?? null,
+      companyDomain: data.companyDomain ?? null,
     })
     .returning();
 
@@ -299,6 +305,40 @@ async function generateAIReport(
   answers: (typeof assessmentAnswersTable.$inferSelect)[],
   scoring: ReturnType<typeof calculateScore>
 ): Promise<void> {
+  // ─── Domain scan (fire alongside AI if company domain provided) ──────────────
+  let domainScan: typeof domainScansTable.$inferSelect | null = null;
+  if (assessment.companyDomain) {
+    try {
+      const domain = sanitizeDomain(assessment.companyDomain);
+      if (/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/.test(domain)) {
+        logger.info({ domain, assessmentId }, "Running domain scan for assessment");
+        const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt] = await Promise.all([
+          checkSPF(domain), checkDMARC(domain), checkDKIM(domain), checkMX(domain),
+          checkSSL(domain), checkHIBP(domain), checkBlacklists(domain), checkShadowIT(domain),
+        ]);
+        const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+        const [inserted] = await db.insert(domainScansTable).values({
+          domain,
+          email: assessment.email,
+          tenantId: assessment.tenantId,
+          spfPass: spf.pass, spfRecord: spf.record ?? null,
+          dmarcPass: dmarc.pass, dmarcRecord: dmarc.record ?? null,
+          dkimPass: dkim.pass, dkimSelectors: dkim.selectors,
+          mxPass: mx.pass, mxRecords: mx.records,
+          sslPass: ssl.pass, sslExpiry: ssl.expiryDate ?? null, sslIssuer: ssl.issuer ?? null, sslDaysUntilExpiry: ssl.daysUntilExpiry ?? null,
+          overallScore,
+          hibpBreachCount: hibp.breachCount, hibpBreaches: hibp.breaches,
+          blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
+          shadowItServices: shadowIt.services,
+        }).returning();
+        domainScan = inserted ?? null;
+        logger.info({ domain, overallScore, scanId: domainScan?.id }, "Domain scan complete for assessment");
+      }
+    } catch (err) {
+      logger.warn({ err, assessmentId }, "Domain scan failed during assessment report generation");
+    }
+  }
+
   const questionMap = new Map(MINI_QUESTIONS.map((q) => [q.number, q]));
   const redAlarmDetails = scoring.redAlarmQuestions
     .map((qNum) => `Soru ${qNum}`)
@@ -310,6 +350,18 @@ async function generateAIReport(
       return `S${a.questionNumber} [${q?.domain ?? ""}/${q?.weight === 2 ? "Kritik" : "Normal"}]: ${a.answer}`;
     })
     .join("\n");
+
+  const domainScanSection = domainScan ? `
+
+ALAN ADI GÜVENLİK TARAMASI (${domainScan.domain}):
+- SPF (sahte e-posta koruması): ${domainScan.spfPass ? "Aktif" : "Eksik — şirket adınıza sahte e-posta gönderilebilir"}
+- DMARC (e-posta kimlik doğrulama): ${domainScan.dmarcPass ? "Aktif" : "Eksik — phishing saldırıları tespit edilemiyor"}
+- DKIM (e-posta imzalama): ${domainScan.dkimPass ? "Aktif" : "Eksik — e-postalarınız değiştirilebilir"}
+- SSL Sertifikası: ${domainScan.sslPass ? `Geçerli (${domainScan.sslDaysUntilExpiry ?? "?"} gün kaldı)` : "Hatalı veya süresi dolmuş — ziyaretçiler güvenlik uyarısı görüyor"}
+- Kara Liste: ${domainScan.blacklisted ? `${domainScan.blacklistCount} spam listesinde kayıtlı — e-postalar müşterilere ulaşmıyor olabilir` : "Temiz"}
+- Veri İhlali Geçmişi: ${domainScan.hibpBreachCount > 0 ? `${domainScan.hibpBreachCount} önceki veri ihlali tespit edildi — çalınan veriler hâlâ dolaşımda olabilir` : "Bilinen ihlal bulunamadı"}
+- Tespit Edilen 3. Taraf Servisler (${(domainScan.shadowItServices as any[]).length}): ${(domainScan.shadowItServices as any[]).length > 0 ? (domainScan.shadowItServices as any[]).map((s: any) => `${s.name} (${s.risk} risk)`).join(", ") : "Yok"}
+- Alan Adı Güvenlik Skoru: ${domainScan.overallScore}/100` : "";
 
   const prompt = `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan bir uzmansın. Görevin teknik jargon kullanmadan, iş sonuçlarına odaklanan sade Türkçe bir analiz yazmak.
 
@@ -325,6 +377,7 @@ SONUÇLAR:
 
 ALAN PUANLARI:
 ${scoring.domainScores.map((d) => `- ${d.domain}: %${d.percent} (${d.score}/${d.maxScore})`).join("\n")}
+${domainScanSection}
 
 CEVAPLAR:
 ${answersText}
@@ -337,15 +390,15 @@ YAZIM KURALLARI (kesinlikle uy):
     * "DKIM/SPF yapılandırması" yerine → "şirket adınıza sahte e-posta gönderilebilir"
     * "endpoint protection" yerine → "bilgisayarlarda zararlı yazılım koruması"
     * "access control" yerine → "kimin hangi bilgilere erişebildiği kontrol edilmiyor"
-- Her zayıflığı şöyle ifade et: ne olabilir → şirkete maliyeti ne olur
+- Her zayıflığı şöyle ifade et: ne olabilir → şirkete maliyeti ne olur${domainScan ? "\n- Alan adı tarama sonuçlarındaki eksiklikleri de analize dahil et" : ""}
 - aiAnalysis düz paragraf metni olmalı, birden fazla paragraf için sadece \\n\\n kullan
 - aiAnalysis içinde markdown yok: #, ##, **, *, - KULLANMA
-- recommendations: iş sahibinin anlayacağı, somut, uygulanabilir adımlar. Her madde tek cümle.
+- recommendations: iş sahibinin anlayacağı, somut, uygulanabilir adımlar. Her madde tek cümle.${domainScan ? " Alan adı sorunları için somut teknik adımlar da ekle." : ""}
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
 
 JSON şablonu:
 {
-  "aiAnalysis": "400-600 kelimelik Türkçe analiz. Güçlü yönler → zayıf yönler (iş etkisiyle) → acil müdahale gerektiren durumlar → sektöre özgü değerlendirme. Düz paragraf, jargon yok.",
+  "aiAnalysis": "400-600 kelimelik Türkçe analiz. Güçlü yönler → zayıf yönler (iş etkisiyle) → acil müdahale gerektiren durumlar → sektöre özgü değerlendirme${domainScan ? " → alan adı güvenlik değerlendirmesi" : ""}. Düz paragraf, jargon yok.",
   "recommendations": [
     "İş sahibinin anlayacağı somut öneri 1.",
     "İş sahibinin anlayacağı somut öneri 2.",
@@ -383,7 +436,7 @@ JSON şablonu:
     if (existingReport) {
       await db
         .update(reportsTable)
-        .set({ aiAnalysis, recommendations, reviewToken, reviewStatus: "pending_review" })
+        .set({ aiAnalysis, recommendations, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
         .where(eq(reportsTable.assessmentId, assessmentId));
     } else {
       await db.insert(reportsTable).values({
@@ -400,6 +453,7 @@ JSON şablonu:
         reviewToken,
         verificationToken,
         reviewStatus: "pending_review",
+        ...(domainScan ? { domainScanId: domainScan.id } : {}),
       });
     }
 
@@ -453,6 +507,7 @@ JSON şablonu:
         reviewToken,
         verificationToken: crypto.randomUUID(),
         reviewStatus: "pending_review",
+        ...(domainScan ? { domainScanId: domainScan.id } : {}),
       });
 
       await sendAdminNotificationEmail({
@@ -510,6 +565,26 @@ router.get("/assessments/:id/report", requireAssessmentOwner, async (req, res) =
     return;
   }
 
+  // ─── Domain scan (fetch if linked, filter by plan) ────────────────────────────
+  let domainScanData: Record<string, unknown> | null = null;
+  if (report.domainScanId) {
+    const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, report.domainScanId));
+    if (scan) {
+      if (assessment.assessmentType === "full") {
+        // Paid: full details
+        domainScanData = scan as unknown as Record<string, unknown>;
+      } else {
+        // Free: only overview score
+        domainScanData = {
+          id: scan.id,
+          domain: scan.domain,
+          overallScore: scan.overallScore,
+          createdAt: scan.createdAt,
+        };
+      }
+    }
+  }
+
   // ─── Skor takibi: aynı e-postanın önceki tamamlanmış değerlendirmesi ─────────
   const [previousAssessment] = await db
     .select({
@@ -562,7 +637,7 @@ router.get("/assessments/:id/report", requireAssessmentOwner, async (req, res) =
       }
     : null;
 
-  res.json({ ...report, previousScore, sectorAvg });
+  res.json({ ...report, previousScore, sectorAvg, domainScan: domainScanData });
 });
 
 // GET /api/assessments/:id/report/pdf

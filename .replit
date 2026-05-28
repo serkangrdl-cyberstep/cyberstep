@@ -39,7 +39,11 @@ externalPort = 3000
 
 [userenv.shared]
 SMTP_USER = "serkangrdl@gmail.com"
-ISR_IMAP_HOST = "imap.gmail.com"
+ISR_IMAP_HOST = "imap.mail.yahoo.com"
+ISR_IMAP_USER = "serkangrdl@yahoo.com"
+ISR_SMTP_USER = "serkangrdl@yahoo.com"
+ISR_SMTP_HOST = "smtp.mail.yahoo.com"
+ISR_SMTP_PORT = "587"
 
 [userenv.production]
 

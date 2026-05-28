@@ -30,16 +30,16 @@ function getImapConfig(tenant?: TenantMailConfig) {
 }
 
 function getSmtpTransport(tenant?: TenantMailConfig) {
-  const user = tenant?.smtpUser ?? process.env["SMTP_USER"];
-  const pass = tenant?.smtpPass ?? process.env["SMTP_PASS"];
-  const host = tenant?.smtpHost ?? "smtp.gmail.com";
-  const port = tenant?.smtpPort ?? 587;
+  const user = tenant?.smtpUser ?? process.env["ISR_SMTP_USER"] ?? process.env["SMTP_USER"];
+  const pass = tenant?.smtpPass ?? process.env["ISR_IMAP_PASS"] ?? process.env["SMTP_PASS"];
+  const host = tenant?.smtpHost ?? process.env["ISR_SMTP_HOST"] ?? "smtp.gmail.com";
+  const port = tenant?.smtpPort ?? Number(process.env["ISR_SMTP_PORT"] ?? "587");
   if (!user || !pass) return null;
   return nodemailer.createTransport({ host, port, secure: false, auth: { user, pass } });
 }
 
 function getSenderEmail(tenant?: TenantMailConfig) {
-  return tenant?.smtpUser ?? process.env["SMTP_USER"] ?? "sales@cyberstep.io";
+  return tenant?.smtpUser ?? process.env["ISR_SMTP_USER"] ?? process.env["SMTP_USER"] ?? "sales@cyberstep.io";
 }
 
 async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig): Promise<void> {

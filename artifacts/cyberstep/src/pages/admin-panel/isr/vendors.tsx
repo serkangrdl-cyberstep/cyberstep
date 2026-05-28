@@ -142,10 +142,16 @@ export default function AdminIsrVendors() {
         </div>
 
         {vendors.length === 0 ? (
-          <Card>
+          <Card className="border-dashed">
             <CardContent className="text-center py-16 text-slate-500">
-              <Building2 className="h-8 w-8 mx-auto mb-3 text-slate-300" />
-              <p className="text-sm">Henüz vendor eklenmedi. Fortinet, Cisco gibi teknoloji ortaklarını buraya ekleyin.</p>
+              <Building2 className="h-10 w-10 mx-auto mb-4 text-slate-300" />
+              <p className="text-sm font-medium text-slate-700 mb-1">Henüz vendor eklenmedi</p>
+              <p className="text-xs text-slate-400 mb-5 max-w-xs mx-auto">
+                Fortinet, Cisco gibi teknoloji ortaklarını ekleyin. Her vendor altına distribütör ve kontak kişiler ekleyebilirsiniz.
+              </p>
+              <Button onClick={() => openVendor()}>
+                <Plus className="h-4 w-4 mr-2" /> Yeni Vendor Ekle
+              </Button>
             </CardContent>
           </Card>
         ) : (

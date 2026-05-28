@@ -82,7 +82,7 @@ export default function AdminAssessments() {
                     <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{fmt(a.createdAt)}</td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white h-7 w-7 p-0"
-                        onClick={() => navigate(`/assessment/${a.id}/report`)}>
+                        onClick={() => navigate(`/panel/degerlendirmeler/${a.id}/rapor`)}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                     </td>

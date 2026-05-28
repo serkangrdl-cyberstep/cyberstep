@@ -13,7 +13,7 @@ import { useTenant } from "@/contexts/tenant-context";
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Genel Bakış",         href: "/panel" },
-  { icon: FileText,        label: "Değerlendirmeler",    href: "/panel/degerlendiirmeler" },
+  { icon: FileText,        label: "Değerlendirmeler",    href: "/panel/degerlendirmeler" },
   { icon: UserSquare2,     label: "Müşteriler",          href: "/panel/musteriler" },
   { icon: Globe,           label: "Alan Adı Taramaları", href: "/panel/domain-taramalar" },
   { icon: Bot,             label: "AI Satış Asistanı",   href: "/panel/isr" },

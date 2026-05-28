@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, useRoute } from "wouter";
+import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,7 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "./pages/home";
 import AssessmentStart from "./pages/assessment-start";
 import AssessmentRunner from "./pages/assessment-runner";
-import AssessmentReport from "./pages/assessment-report";
+import AssessmentReport, { AssessmentReportById } from "./pages/assessment-report";
 import Dashboard from "./pages/dashboard";
 import Pricing from "./pages/pricing";
 import FullAssessmentStart from "./pages/full-assessment-start";
@@ -45,6 +45,7 @@ import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
 import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
 import AdminEmailTemplates from "./pages/admin-panel/email-templates";
 import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
+import { AdminLayout } from "./components/admin-layout";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
@@ -64,6 +65,25 @@ import { ThemeProvider } from "next-themes";
 import { TenantProvider } from "./contexts/tenant-context";
 
 const queryClient = new QueryClient();
+
+function AdminAssessmentReport() {
+  const [, params] = useRoute("/panel/degerlendirmeler/:id/rapor");
+  const [, navigate] = useLocation();
+  const id = parseInt(params?.id || "0", 10);
+  return (
+    <AdminLayout title="Değerlendirme Raporu" description={`#${id} numaralı değerlendirme`}>
+      <div className="mb-4">
+        <button
+          onClick={() => navigate("/panel/degerlendirmeler")}
+          className="text-sm text-slate-400 hover:text-white flex items-center gap-1"
+        >
+          ← Değerlendirmelere Dön
+        </button>
+      </div>
+      <AssessmentReportById id={id} />
+    </AdminLayout>
+  );
+}
 
 function WhiteLabelRouter() {
   const [, params] = useRoute("/w/:slug/*?");
@@ -102,7 +122,8 @@ function Router() {
       <Route path="/panel/workspace-ayarlari" component={TenantSettingsPage} />
       <Route path="/panel/ayarlar" component={AdminSettings} />
       <Route path="/panel/fiyatlar" component={AdminPricing} />
-      <Route path="/panel/degerlendiirmeler" component={AdminAssessments} />
+      <Route path="/panel/degerlendirmeler/:id/rapor" component={AdminAssessmentReport} />
+      <Route path="/panel/degerlendirmeler" component={AdminAssessments} />
       <Route path="/panel/odemeler" component={AdminPayments} />
       <Route path="/panel/sorular" component={AdminQuestions} />
       <Route path="/panel/totp" component={AdminTotp} />

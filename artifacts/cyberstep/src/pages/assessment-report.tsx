@@ -66,9 +66,17 @@ const getRiskBorderColor = (level: string) => {
 
 type ContactForm = { name: string; email: string; phone: string; note: string };
 
+export function AssessmentReportById({ id }: { id: number }) {
+  return <AssessmentReportCore id={id} />;
+}
+
 export default function AssessmentReport() {
   const [, params] = useRoute("/assessment/:id/report");
   const id = parseInt(params?.id || "0", 10);
+  return <AssessmentReportCore id={id} />;
+}
+
+function AssessmentReportCore({ id }: { id: number }) {
   const [showAnswers, setShowAnswers] = useState(false);
   const [contactForm, setContactForm] = useState<ContactForm>({ name: "", email: "", phone: "", note: "" });
   const [contactSent, setContactSent] = useState(false);

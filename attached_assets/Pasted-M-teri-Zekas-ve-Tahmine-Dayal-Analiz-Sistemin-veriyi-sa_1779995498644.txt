@@ -1,0 +1,24 @@
+Müşteri Zekası ve Tahmine Dayalı Analiz
+​Sistemin veriyi sadece göstermesi değil, yorumlaması gerekir:
+​Akıllı Lead Skorlama (Dinamik Puanlama): Müşteri adaylarını sadece demografik özelliklerine göre değil; etkileşim geçmişi, web sitesi davranışı ve dönüşüm olasılığına göre anlık olarak puanlamalıdır.
+​Churn (Müşteri Kaybı) Tahmini: Hangi müşterilerin etkileşimlerinin azaldığını veya hizmeti bırakma riski taşıdığını önceden tespit edip uyarı vermelidir.
+​Yaşam Boyu Değer (CLV) Analizi: Hangi müşterinin uzun vadede en karlı olacağını öngörerek satış ekibinin odağını belirlemesine yardımcı olmalıdır.
+​2. Otomasyon ve Verimlilik
+​Manuel iş yükünü minimize eden özellikler, ekibinizin asıl işine odaklanmasını sağlar:
+​Otomatik Veri Girişi: E-posta, telefon görüşmeleri ve toplantı notlarından verileri otomatik olarak çekip ilgili müşteri kartına işlemelidir.
+​İçerik Üretimi: Müşteri segmentine özel kişiselleştirilmiş e-posta taslakları, teklif metinleri veya sosyal medya içerikleri oluşturabilmelidir.
+​"Next Best Action" (En İyi Sonraki Adım): Satış temsilcisine, o anki müşteri için "şimdi ara", "özel bir teklif gönder" veya "demoya davet et" gibi yönlendirmeler yapmalıdır.
+​3. İletişim ve Duygu Analizi
+​Müşterinin "ne söylediği" kadar "nasıl hissettiği" de önemlidir:
+​Duygu Analizi (Sentiment Analysis): Gelen e-posta, sohbet (chat) veya ses kayıtlarındaki müşteri memnuniyetini (veya öfkesini) analiz ederek destek ekiplerini önceliklendirmelidir.
+​Akıllı Çağrı/Sohbet Asistanları: Rutin sorguları (fiyat bilgisi, randevu durumu vb.) otonom olarak çözen ve karmaşık sorunları ilgili temsilciye aktaran akıllı ajanlar.
+​4. Entegrasyon ve Bağlamsal İşbirliği
+​Bir CRM'in izole olması, verimliliği düşürür:
+​ERP/Muhasebe Entegrasyonu: Envanter, faturalama ve sipariş durumu gibi arka plan verileriyle entegre çalışarak müşteriye "360 derece" hakimiyet sağlamalıdır.
+​Bağlamsal İşbirliği: Bir satış temsilcisi bir not bıraktığında veya dosya eklediğinde, o müşteriyle ilgili tüm geçmişin tek bir akışta, güncel haliyle ekip arkadaşları tarafından görülebilmesi.
+​5. Stratejik Seçim Rehberi
+​Projeniz için değerlendirme yaparken şu kriterleri göz önünde bulundurabilirsiniz:
+​Veri Kalitesi (GIGO): "Garbage In, Garbage Out" prensibi. Sistemin verileri temizleme ve mükerrer kayıtları birleştirme yeteneği var mı?
+​Esneklik: Kod yazmadan (no-code) iş akışlarınızı değiştirebiliyor musunuz?
+​Güvenlik ve Uyum: Veri gizliliği standartlarına uyum, kurumsal müşteriler için bir zorunluluktur.
+​Özetle: İyi bir AI CRM, "ne oldu?" sorusunu yanıtlamaktan ziyade, "ne olacak?" (tahminleme) ve "ne yapmalıyım?" (yönlendirme) sorularına cevap veren bir yapıya sahip olmalıdır.

@@ -23,15 +23,18 @@ interface TenantMailConfig {
 
 function getImapConfig(tenant?: TenantMailConfig) {
   const host = tenant?.imapHost ?? process.env["ISR_IMAP_HOST"] ?? "imap.gmail.com";
-  const user = tenant?.imapUser ?? process.env["ISR_IMAP_USER"] ?? process.env["SMTP_USER"];
-  const pass = tenant?.imapPass ?? process.env["ISR_IMAP_PASS"] ?? process.env["SMTP_PASS"];
+  // If a dedicated ISR IMAP user is set, use its own password; otherwise fall back to shared SMTP credentials
+  const isrUser = tenant?.imapUser ?? process.env["ISR_IMAP_USER"];
+  const user = isrUser ?? process.env["SMTP_USER"];
+  const pass = tenant?.imapPass ?? (isrUser ? process.env["ISR_IMAP_PASS"] : null) ?? process.env["SMTP_PASS"];
   if (!user || !pass) return null;
   return { host, port: 993, secure: true, auth: { user, pass } };
 }
 
 function getSmtpTransport(tenant?: TenantMailConfig) {
-  const user = tenant?.smtpUser ?? process.env["ISR_SMTP_USER"] ?? process.env["SMTP_USER"];
-  const pass = tenant?.smtpPass ?? process.env["ISR_IMAP_PASS"] ?? process.env["SMTP_PASS"];
+  const isrUser = tenant?.smtpUser ?? process.env["ISR_SMTP_USER"];
+  const user = isrUser ?? process.env["SMTP_USER"];
+  const pass = tenant?.smtpPass ?? (isrUser ? process.env["ISR_IMAP_PASS"] : null) ?? process.env["SMTP_PASS"];
   const host = tenant?.smtpHost ?? process.env["ISR_SMTP_HOST"] ?? "smtp.gmail.com";
   const port = tenant?.smtpPort ?? Number(process.env["ISR_SMTP_PORT"] ?? "587");
   if (!user || !pass) return null;

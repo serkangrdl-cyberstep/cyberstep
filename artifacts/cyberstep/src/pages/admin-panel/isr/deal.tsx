@@ -16,7 +16,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft, Send, CheckCircle, XCircle, Plus, Trash2,
-  Mail, Package, FileText, Clock, AlertTriangle,
+  Mail, Package, FileText, Clock, AlertTriangle, ClipboardPaste, Bot, Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -67,6 +67,12 @@ export default function AdminIsrDeal() {
   const [rfqDialog, setRfqDialog] = useState(false);
   const [rfqVendorId, setRfqVendorId] = useState<string>("");
   const [rfqDistributorIds, setRfqDistributorIds] = useState<number[]>([]);
+
+  // Paste response state
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteFrom, setPasteFrom] = useState("");
+  const [pasteResult, setPasteResult] = useState<{ lineCount: number; currency: string } | null>(null);
 
   // Email send dialog state
   const [emailDialog, setEmailDialog] = useState(false);
@@ -146,6 +152,22 @@ export default function AdminIsrDeal() {
         body: JSON.stringify({ status }),
       }).then(r => r.json()),
     onSuccess: () => refetch(),
+  });
+
+  const pasteResponseMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/admin-panel/isr/deals/${dealId}/paste-response`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailText: pasteText, fromEmail: pasteFrom || undefined }),
+      }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; }),
+    onSuccess: (data) => {
+      setPasteResult({ lineCount: data.lineCount, currency: data.parsed?.currency ?? "TRY" });
+      setPasteText("");
+      setPasteFrom("");
+      refetch();
+      qc.invalidateQueries({ queryKey: ["isr-stats"] });
+    },
   });
 
   if (isLoading) return (
@@ -310,6 +332,103 @@ export default function AdminIsrDeal() {
                   </div>
                 )}
               </CardContent>
+            </Card>
+
+            {/* Paste distributor reply */}
+            <Card className={showPaste ? "border-2 border-blue-200" : ""}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <ClipboardPaste className="h-4 w-4 text-blue-500" />
+                    Distributor Cevabini Yapistir
+                  </CardTitle>
+                  <Button
+                    variant="ghost" size="sm"
+                    onClick={() => { setShowPaste(v => !v); setPasteResult(null); }}
+                    className="text-xs h-7"
+                  >
+                    {showPaste ? "Kapat" : "Ac"}
+                  </Button>
+                </div>
+              </CardHeader>
+              {showPaste && (
+                <CardContent className="space-y-3">
+                  {pasteResult ? (
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <CheckCircle className="h-10 w-10 text-emerald-500" />
+                      <div className="text-center">
+                        <p className="font-semibold text-slate-900">Basariyla islendi</p>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {pasteResult.lineCount > 0
+                            ? `${pasteResult.lineCount} fiyat kalemi AI tarafindan cikarildi ve marj uygulanarak hazir hale getirildi.`
+                            : "Mail kaydedildi fakat fiyat kalemi bulunamadi. Teklifi manuel olusturabilirsiniz."}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {pasteResult.lineCount > 0 && (
+                          <Button size="sm" onClick={prefillFromResponse} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            <FileText className="h-3.5 w-3.5 mr-1.5" />
+                            Teklifi Duzenle ve Onayla
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => { setPasteResult(null); }}>
+                          Baska Bir Cevap Yapistir
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <Label className="text-xs text-slate-500 mb-1.5 block">
+                          Distributor'un mail cevabini buraya kopyala-yapistir
+                        </Label>
+                        <Textarea
+                          placeholder={"Merhaba,\n\nFiyat teklifimizi asagida bulabilirsiniz:\n\nFG-100F x50 — 12.500 TL/adet\n...\n\nSaygilarimizla"}
+                          value={pasteText}
+                          onChange={e => setPasteText(e.target.value)}
+                          rows={7}
+                          className="text-xs font-mono resize-none"
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500 mb-1.5 block">
+                          Gonderen e-posta (opsiyonel)
+                        </Label>
+                        <Input
+                          value={pasteFrom}
+                          onChange={e => setPasteFrom(e.target.value)}
+                          placeholder="distributor@firma.com"
+                          className="text-sm h-8"
+                        />
+                      </div>
+                      {pasteResponseMutation.isError && (
+                        <p className="text-xs text-red-600">
+                          {String((pasteResponseMutation.error as Error)?.message ?? "Bir hata olustu")}
+                        </p>
+                      )}
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline" size="sm"
+                          onClick={() => { setShowPaste(false); setPasteText(""); setPasteFrom(""); }}
+                        >
+                          Vazgec
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => pasteResponseMutation.mutate()}
+                          disabled={!pasteText.trim() || pasteResponseMutation.isPending}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          {pasteResponseMutation.isPending
+                            ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />AI Parse Ediyor...</>
+                            : <><Bot className="h-3.5 w-3.5 mr-1.5" />AI ile Parse Et ve Kaydet</>}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              )}
             </Card>
 
             {/* RFQ Responses + lines */}

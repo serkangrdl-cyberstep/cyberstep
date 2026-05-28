@@ -110,6 +110,81 @@ router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Res
   res.json({ deals: withCounts, total: Number(total.count) });
 });
 
+// ─── Paste & parse distributor reply ─────────────────────────────────────────
+router.post("/admin-panel/isr/deals/:id/paste-response", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const dealId = parseInt(String(req.params.id));
+  const { emailText, fromEmail = "manuel", fromName = "Manuel Giriş" } = req.body as {
+    emailText: string; fromEmail?: string; fromName?: string;
+  };
+  if (!emailText?.trim()) { res.status(400).json({ error: "emailText gerekli" }); return; }
+
+  const { parseRfqResponseEmail } = await import("../../services/isr-ai");
+
+  const [deal] = await db.select({ id: isrDealsTable.id, tenantId: isrDealsTable.tenantId })
+    .from(isrDealsTable).where(and(eq(isrDealsTable.id, dealId), eq(isrDealsTable.tenantId, tenantId)));
+  if (!deal) { res.status(404).json({ error: "Deal bulunamadı" }); return; }
+
+  // Find most recent RFQ for this deal (to link response)
+  const [latestRfq] = await db.select({ id: isrRfqsTable.id })
+    .from(isrRfqsTable).where(eq(isrRfqsTable.dealId, dealId))
+    .orderBy(desc(isrRfqsTable.id)).limit(1);
+
+  const parsed = await parseRfqResponseEmail({ subject: `Paste — Deal #${dealId}`, bodyText: emailText });
+
+  const [response] = await db.insert(isrRfqResponsesTable).values({
+    rfqId: latestRfq?.id ?? 0,
+    dealId,
+    fromEmail,
+    subject: `Manuel Yapıştırma — Deal #${dealId}`,
+    body: emailText.slice(0, 5000),
+    aiParsed: parsed as unknown as Record<string, unknown>,
+    currency: parsed.currency,
+    validUntil: parsed.validUntil ?? null,
+    notes: parsed.notes ?? null,
+    receivedAt: new Date(),
+  }).returning({ id: isrRfqResponsesTable.id });
+
+  let lines: unknown[] = [];
+  if (response && parsed.lines.length > 0) {
+    const [marginRule] = await db.select()
+      .from(isrMarginRulesTable)
+      .where(and(eq(isrMarginRulesTable.isDefault, true), eq(isrMarginRulesTable.tenantId, tenantId)))
+      .limit(1);
+    const targetMargin = parseFloat(String(marginRule?.targetMarginPct ?? "25")) / 100;
+
+    for (let i = 0; i < parsed.lines.length; i++) {
+      const line = parsed.lines[i];
+      const unitCost = line.unitCost;
+      const unitPrice = unitCost > 0 ? unitCost / (1 - targetMargin) : 0;
+      const [inserted] = await db.insert(isrQuoteLinesTable).values({
+        rfqResponseId: response.id,
+        sku: line.sku ?? null,
+        description: line.description,
+        quantity: line.quantity,
+        unitCost: String(unitCost),
+        unitPrice: String(Math.round(unitPrice * 100) / 100),
+        lineTotal: String(Math.round(unitPrice * line.quantity * 100) / 100),
+        currency: parsed.currency,
+        sortOrder: i,
+      }).returning();
+      lines.push(inserted);
+    }
+
+    if (latestRfq) {
+      await db.update(isrRfqsTable)
+        .set({ status: "responded", respondedAt: new Date() })
+        .where(eq(isrRfqsTable.id, latestRfq.id));
+    }
+    await db.update(isrDealsTable)
+      .set({ status: "quoted", updatedAt: new Date() })
+      .where(eq(isrDealsTable.id, dealId));
+  }
+
+  req.log.info({ dealId, lineCount: parsed.lines.length }, "ISR paste-response processed");
+  res.json({ ok: true, responseId: response?.id, parsed, lineCount: parsed.lines.length, lines });
+});
+
 // ─── Parse deal request with AI ──────────────────────────────────────────────
 router.post("/admin-panel/isr/deals/parse", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;

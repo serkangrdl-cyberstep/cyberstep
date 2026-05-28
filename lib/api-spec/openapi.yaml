@@ -722,3 +722,96 @@ components:
           type: string
       required:
         - error
+    EmailTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        tenantId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [deal, assessment, custom]
+        subject:
+          type: string
+        bodyHtml:
+          type: string
+        bodyText:
+          type: string
+          nullable: true
+        variables:
+          type: array
+          items:
+            type: string
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tenantId
+        - name
+        - category
+        - subject
+        - bodyHtml
+        - isDefault
+        - isActive
+        - createdAt
+        - updatedAt
+    EmailSend:
+      type: object
+      properties:
+        id:
+          type: integer
+        tenantId:
+          type: integer
+        templateId:
+          type: integer
+          nullable: true
+        toEmail:
+          type: string
+        toName:
+          type: string
+          nullable: true
+        subject:
+          type: string
+        bodyHtml:
+          type: string
+        status:
+          type: string
+          enum: [sent, failed, queued]
+        relatedType:
+          type: string
+          nullable: true
+        relatedId:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tenantId
+        - toEmail
+        - subject
+        - bodyHtml
+        - status
+        - createdAt

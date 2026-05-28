@@ -149,6 +149,7 @@ export async function sendAdminNotificationEmail(params: {
 
 export async function sendCustomerConfirmationEmail(params: {
   assessmentId: number;
+  tenantId?: number;
   companyName: string;
   contactName: string;
   customerEmail: string;
@@ -160,6 +161,70 @@ export async function sendCustomerConfirmationEmail(params: {
 }): Promise<void> {
   const transport = getTransport();
   if (!transport) return;
+
+  // Try tenant-specific assessment template first
+  if (params.tenantId) {
+    try {
+      const { db } = await import("@workspace/db");
+      const { emailTemplatesTable, emailSendsTable, tenantsTable } = await import("@workspace/db");
+      const { renderTemplate } = await import("./email-template-renderer");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [tpl] = await db.select().from(emailTemplatesTable)
+        .where(and(
+          eq(emailTemplatesTable.tenantId, params.tenantId),
+          eq(emailTemplatesTable.category, "assessment"),
+          eq(emailTemplatesTable.isActive, true),
+        ))
+        .limit(1);
+
+      if (tpl) {
+        const [tenant] = await db.select({ name: tenantsTable.name, smtpUser: tenantsTable.smtpUser })
+          .from(tenantsTable).where(eq(tenantsTable.id, params.tenantId));
+
+        const vars: Record<string, string> = {
+          companyName: params.companyName,
+          contactName: params.contactName,
+          assessmentId: String(params.assessmentId),
+          riskLevel: params.riskLevel,
+          scorePercent: String(params.scorePercent),
+          tenantName: tenant?.name ?? "CyberStep.io",
+          senderName: tenant?.name ?? "CyberStep.io",
+          senderEmail: tenant?.smtpUser ?? process.env["SMTP_USER"] ?? "",
+          baseUrl: getBaseUrl(),
+          date: new Date().toLocaleDateString("tr-TR"),
+        };
+
+        const subject = renderTemplate(tpl.subject, vars);
+        const bodyHtml = renderTemplate(tpl.bodyHtml, vars);
+
+        await transport.sendMail({
+          from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+          to: params.customerEmail,
+          subject,
+          html: bodyHtml,
+        });
+
+        await db.insert(emailSendsTable).values({
+          tenantId: params.tenantId,
+          templateId: tpl.id,
+          toEmail: params.customerEmail,
+          toName: params.contactName,
+          subject,
+          bodyHtml,
+          status: "sent",
+          relatedType: "assessment",
+          relatedId: params.assessmentId,
+          sentAt: new Date(),
+        });
+
+        logger.info({ assessmentId: params.assessmentId, tenantId: params.tenantId, templateId: tpl.id }, "Assessment confirmation sent via tenant template");
+        return;
+      }
+    } catch (err) {
+      logger.warn({ err }, "Tenant template lookup failed, falling back to default email");
+    }
+  }
 
   const riskColor = params.riskLevel === "Kritik" ? "#dc2626" : params.riskLevel === "Yüksek" ? "#ea580c" : params.riskLevel === "Orta" ? "#d97706" : "#16a34a";
 

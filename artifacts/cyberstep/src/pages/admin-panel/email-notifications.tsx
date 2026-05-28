@@ -11,8 +11,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Mail, Send, CheckCircle, XCircle, Clock, Eye } from "lucide-react";
-import { useState } from "react";
+import { Mail, Send, CheckCircle, XCircle, Eye, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -51,11 +51,28 @@ export default function AdminEmailNotifications() {
     toName: "",
     vars: {} as Record<string, string>,
   });
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
 
   const { data: history = [], isLoading } = useQuery<EmailSend[]>({
-    queryKey: ["email-history"],
-    queryFn: () => fetch("/api/admin-panel/emails/history?limit=100", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["email-history", page],
+    queryFn: () =>
+      fetch(`/api/admin-panel/emails/history?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`, { credentials: "include" })
+        .then(r => r.json()),
   });
+
+  const [allHistory, setAllHistory] = useState<EmailSend[]>([]);
+
+  // Accumulate pages for "load more" behaviour
+  useEffect(() => {
+    if (history.length > 0) {
+      setAllHistory(prev => {
+        const existingIds = new Set(prev.map(h => h.id));
+        const newItems = history.filter(h => !existingIds.has(h.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
+  }, [history]);
 
   const { data: templates = [] } = useQuery<EmailTemplate[]>({
     queryKey: ["email-templates"],
@@ -93,11 +110,12 @@ export default function AdminEmailNotifications() {
   });
 
   const selectedTemplate = templates.find(t => t.id === parseInt(sendForm.templateId));
+  const hasMore = history.length === PAGE_SIZE;
 
   const stats = {
-    total: history.length,
-    sent: history.filter(h => h.status === "sent").length,
-    failed: history.filter(h => h.status === "failed").length,
+    total: allHistory.length,
+    sent: allHistory.filter(h => h.status === "sent").length,
+    failed: allHistory.filter(h => h.status === "failed").length,
   };
 
   return (
@@ -137,16 +155,16 @@ export default function AdminEmailNotifications() {
         {/* History list */}
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="text-center py-12 text-slate-400 text-sm">Yukleniyor...</div>
-            ) : history.length === 0 ? (
+            {isLoading && allHistory.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-sm">Yükleniyor...</div>
+            ) : allHistory.length === 0 ? (
               <div className="text-center py-12">
                 <Mail className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-                <p className="text-sm text-slate-400">Henuz gonderim yok.</p>
+                <p className="text-sm text-slate-400">Henüz gönderim yok.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {history.map(row => (
+                {allHistory.map(row => (
                   <div key={row.id} className="flex items-start gap-3 p-4 hover:bg-slate-50 transition-colors">
                     <div className={`mt-0.5 p-1.5 rounded-full flex-shrink-0 ${
                       row.status === "sent" ? "bg-green-100" : "bg-red-100"
@@ -190,6 +208,15 @@ export default function AdminEmailNotifications() {
             )}
           </CardContent>
         </Card>
+
+        {hasMore && (
+          <div className="text-center">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={isLoading}>
+              <ChevronDown className="h-4 w-4 mr-1.5" />
+              {isLoading ? "Yükleniyor..." : "Daha Fazla Göster"}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Send dialog */}

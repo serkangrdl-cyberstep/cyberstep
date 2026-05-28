@@ -16,7 +16,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Mail, Plus, Pencil, Trash2, Eye, Lock } from "lucide-react";
+import { Mail, Plus, Pencil, Trash2, Eye, Lock, Copy, PowerOff, Power } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -77,10 +77,13 @@ export default function AdminEmailTemplates() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showInactive, setShowInactive] = useState(false);
 
   const { data: templates = [] } = useQuery<EmailTemplate[]>({
-    queryKey: ["email-templates"],
-    queryFn: () => fetch("/api/admin-panel/email-templates", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["email-templates", showInactive],
+    queryFn: () =>
+      fetch(`/api/admin-panel/email-templates${showInactive ? "?showInactive=true" : ""}`, { credentials: "include" })
+        .then(r => r.json()),
   });
 
   const createMutation = useMutation({
@@ -93,7 +96,7 @@ export default function AdminEmailTemplates() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email-templates"] });
       setShowEditor(false);
-      toast({ title: "Sablon olusturuldu" });
+      toast({ title: "Şablon oluşturuldu" });
     },
   });
 
@@ -107,7 +110,7 @@ export default function AdminEmailTemplates() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email-templates"] });
       setShowEditor(false);
-      toast({ title: "Sablon guncellendi" });
+      toast({ title: "Şablon güncellendi" });
     },
   });
 
@@ -117,7 +120,7 @@ export default function AdminEmailTemplates() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email-templates"] });
       setDeleteId(null);
-      toast({ title: "Sablon silindi" });
+      toast({ title: "Şablon silindi" });
     },
   });
 
@@ -129,6 +132,23 @@ export default function AdminEmailTemplates() {
         body: JSON.stringify({}),
       }).then(r => r.json()),
     onSuccess: (data: { bodyHtml: string }) => setPreviewHtml(data.bodyHtml),
+  });
+
+  const cloneMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/admin-panel/email-templates/${id}/clone`, { method: "POST", credentials: "include" }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["email-templates"] });
+      toast({ title: "Şablon kopyalandı" });
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/admin-panel/email-templates/${id}/toggle-active`, { method: "PATCH", credentials: "include" }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["email-templates"] });
+    },
   });
 
   function openCreate() {
@@ -161,18 +181,26 @@ export default function AdminEmailTemplates() {
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {["all", "deal", "assessment", "custom"].map(c => (
               <button key={c} onClick={() => setCategoryFilter(c)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   categoryFilter === c ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}>
-                {c === "all" ? "Tumü" : CATEGORY_LABELS[c]?.label ?? c}
+                {c === "all" ? "Tümü" : CATEGORY_LABELS[c]?.label ?? c}
               </button>
             ))}
+            <button
+              onClick={() => setShowInactive(v => !v)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                showInactive ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              {showInactive ? "Pasifleri Gizle" : "Pasifleri Göster"}
+            </button>
           </div>
           <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1.5" /> Yeni Sablon
+            <Plus className="h-4 w-4 mr-1.5" /> Yeni Şablon
           </Button>
         </div>
 
@@ -189,16 +217,19 @@ export default function AdminEmailTemplates() {
             {filtered.map(tpl => {
               const cat = CATEGORY_LABELS[tpl.category] ?? { label: tpl.category, color: "bg-slate-100 text-slate-600" };
               return (
-                <Card key={tpl.id} className="flex flex-col">
+                <Card key={tpl.id} className={`flex flex-col ${!tpl.isActive ? "opacity-60" : ""}`}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                           <Badge className={`${cat.color} border-0 text-xs`}>{cat.label}</Badge>
                           {tpl.isDefault && (
                             <span className="flex items-center gap-0.5 text-xs text-slate-400">
-                              <Lock className="h-3 w-3" /> Varsayilan
+                              <Lock className="h-3 w-3" /> Varsayılan
                             </span>
+                          )}
+                          {!tpl.isActive && (
+                            <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Pasif</span>
                           )}
                         </div>
                         <CardTitle className="text-sm leading-tight line-clamp-2">{tpl.name}</CardTitle>
@@ -225,12 +256,27 @@ export default function AdminEmailTemplates() {
                     <p className="text-xs text-slate-400 mt-auto">
                       {format(new Date(tpl.updatedAt), "d MMM yyyy", { locale: tr })}
                     </p>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 flex-wrap">
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => previewMutation.mutate(tpl.id)}>
-                        <Eye className="h-3.5 w-3.5 mr-1" /> Onizle
+                        <Eye className="h-3.5 w-3.5 mr-1" /> Önizle
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => openEdit(tpl)}>
                         <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        title={tpl.isActive ? "Pasif yap" : "Aktif yap"}
+                        onClick={() => toggleActiveMutation.mutate(tpl.id)}
+                        className={tpl.isActive ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50" : "text-green-600 hover:text-green-700 hover:bg-green-50"}
+                      >
+                        {tpl.isActive ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        title="Kopyala"
+                        onClick={() => cloneMutation.mutate(tpl.id)}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
                       </Button>
                       {!tpl.isDefault && (
                         <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50"

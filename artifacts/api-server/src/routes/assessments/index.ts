@@ -272,6 +272,7 @@ router.post("/assessments/:id/complete", requireAssessmentOwner, async (req, res
   // Send customer confirmation email (fire-and-forget)
   sendCustomerConfirmationEmail({
     assessmentId: params.data.id,
+    tenantId: assessment.tenantId ?? undefined,
     companyName: assessment.companyName,
     contactName: assessment.contactName,
     customerEmail: assessment.email,

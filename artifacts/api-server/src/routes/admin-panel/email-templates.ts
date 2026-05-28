@@ -34,9 +34,13 @@ router.get("/admin-panel/email-templates", requireAdmin, async (req: Request, re
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { category } = req.query as Record<string, string>;
 
-  const where = category
-    ? and(eq(emailTemplatesTable.tenantId, tenantId), eq(emailTemplatesTable.category, category))
-    : eq(emailTemplatesTable.tenantId, tenantId);
+  const showInactive = req.query["showInactive"] === "true";
+
+  const where = and(
+    eq(emailTemplatesTable.tenantId, tenantId),
+    ...(category ? [eq(emailTemplatesTable.category, category)] : []),
+    ...(showInactive ? [] : [eq(emailTemplatesTable.isActive, true)]),
+  );
 
   const templates = await db.select().from(emailTemplatesTable)
     .where(where)
@@ -291,6 +295,51 @@ router.get("/admin-panel/emails/history", requireAdmin, async (req: Request, res
     .offset(offset);
 
   res.json(rows);
+});
+
+// ─── Clone template ────────────────────────────────────────────────────────────
+router.post("/admin-panel/email-templates/:id/clone", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const id = parseInt(String(req.params["id"]));
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [src] = await db.select().from(emailTemplatesTable)
+    .where(and(eq(emailTemplatesTable.id, id), eq(emailTemplatesTable.tenantId, tenantId)));
+  if (!src) { res.status(404).json({ error: "Şablon bulunamadı" }); return; }
+
+  const [cloned] = await db.insert(emailTemplatesTable).values({
+    tenantId,
+    name: `${src.name} — Kopya`,
+    description: src.description,
+    category: src.category,
+    subject: src.subject,
+    bodyHtml: src.bodyHtml,
+    bodyText: src.bodyText,
+    variables: src.variables,
+    isDefault: false,
+    isActive: src.isActive,
+  }).returning();
+
+  res.status(201).json(cloned);
+});
+
+// ─── Toggle active/inactive ────────────────────────────────────────────────────
+router.patch("/admin-panel/email-templates/:id/toggle-active", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const id = parseInt(String(req.params["id"]));
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [tpl] = await db.select({ isActive: emailTemplatesTable.isActive })
+    .from(emailTemplatesTable)
+    .where(and(eq(emailTemplatesTable.id, id), eq(emailTemplatesTable.tenantId, tenantId)));
+  if (!tpl) { res.status(404).json({ error: "Şablon bulunamadı" }); return; }
+
+  const [updated] = await db.update(emailTemplatesTable)
+    .set({ isActive: !tpl.isActive, updatedAt: new Date() })
+    .where(and(eq(emailTemplatesTable.id, id), eq(emailTemplatesTable.tenantId, tenantId)))
+    .returning();
+
+  res.json(updated);
 });
 
 // ─── Available variables metadata ─────────────────────────────────────────────

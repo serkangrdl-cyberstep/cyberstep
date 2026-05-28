@@ -212,3 +212,53 @@ export interface GeminiError {
   error: string;
 }
 
+export type EmailTemplateCategory = typeof EmailTemplateCategory[keyof typeof EmailTemplateCategory];
+
+
+export const EmailTemplateCategory = {
+  deal: 'deal',
+  assessment: 'assessment',
+  custom: 'custom',
+} as const;
+
+export interface EmailTemplate {
+  id: number;
+  tenantId: number;
+  name: string;
+  description?: string | null;
+  category: EmailTemplateCategory;
+  subject: string;
+  bodyHtml: string;
+  bodyText?: string | null;
+  variables?: string[];
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EmailSendStatus = typeof EmailSendStatus[keyof typeof EmailSendStatus];
+
+
+export const EmailSendStatus = {
+  sent: 'sent',
+  failed: 'failed',
+  queued: 'queued',
+} as const;
+
+export interface EmailSend {
+  id: number;
+  tenantId: number;
+  templateId?: number | null;
+  toEmail: string;
+  toName?: string | null;
+  subject: string;
+  bodyHtml: string;
+  status: EmailSendStatus;
+  relatedType?: string | null;
+  relatedId?: number | null;
+  error?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+}
+

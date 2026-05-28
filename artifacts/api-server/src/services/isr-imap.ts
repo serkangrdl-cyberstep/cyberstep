@@ -7,7 +7,7 @@ import {
   isrRfqsTable, isrRfqResponsesTable, isrQuoteLinesTable, isrMarginRulesTable, isrQuotesTable,
 } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
-import { classifyEmail, parseRfqResponseEmail, generateRfqEmailBody } from "./isr-ai";
+import { classifyEmail, parseRfqResponseEmail, parseRevisionRequest, generateRfqEmailBody } from "./isr-ai";
 import nodemailer from "nodemailer";
 
 interface TenantMailConfig {
@@ -92,6 +92,8 @@ async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig
         await handleNewDeal({ tenantId, messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
       } else if (classification.type === "rfq_response") {
         await handleRfqResponse({ tenantId, messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
+      } else if (classification.type === "quote_revision_request") {
+        await handleQuoteRevision({ tenantId, messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
       } else {
         await db.insert(isrEmailInboxTable).values({
           tenantId, messageId, fromEmail, fromName, subject,
@@ -292,6 +294,77 @@ async function handleRfqResponse(params: {
   });
 
   logger.info({ dealId: dealRefId, rfqId }, "ISR RFQ response processed");
+}
+
+async function handleQuoteRevision(params: {
+  tenantId: number;
+  messageId: string;
+  fromEmail: string;
+  fromName: string;
+  subject: string;
+  bodyText: string;
+  receivedAt: Date;
+  classification: Awaited<ReturnType<typeof classifyEmail>>;
+}) {
+  const { classification, tenantId } = params;
+
+  const refMatch = params.subject.match(/\[ISR-REF:DEAL-(\d+)\]/i);
+  const dealRefId = refMatch ? parseInt(refMatch[1]) : classification.dealRefId;
+
+  // If we can't identify the deal, log as ignored
+  if (!dealRefId) {
+    await db.insert(isrEmailInboxTable).values({
+      tenantId, messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
+      subject: params.subject, bodyText: params.bodyText.slice(0, 5000),
+      processedAs: "ignored", receivedAt: params.receivedAt,
+    });
+    logger.warn({ tenantId, fromEmail: params.fromEmail }, "Quote revision request has no dealRefId — ignored");
+    return;
+  }
+
+  const [deal] = await db.select({ id: isrDealsTable.id, notes: isrDealsTable.notes })
+    .from(isrDealsTable)
+    .where(and(eq(isrDealsTable.id, dealRefId), eq(isrDealsTable.tenantId, tenantId)))
+    .limit(1);
+
+  if (!deal) {
+    await db.insert(isrEmailInboxTable).values({
+      tenantId, messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
+      subject: params.subject, bodyText: params.bodyText.slice(0, 5000),
+      processedAs: "ignored", receivedAt: params.receivedAt,
+    });
+    logger.warn({ tenantId, dealRefId }, "Quote revision deal not found for tenant — ignored");
+    return;
+  }
+
+  // Parse detailed revision request via AI
+  const parsed = await parseRevisionRequest({ subject: params.subject, bodyText: params.bodyText });
+
+  // Build a human-readable revision note to append
+  const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+  const discountLine = parsed.requestedDiscountPct ? ` İndirim talebi: %${parsed.requestedDiscountPct}.` : "";
+  const revisionEntry = `[${timestamp}] Revizyon Talebi (${params.fromEmail}):${discountLine} ${parsed.notes}`;
+  const updatedNotes = deal.notes ? `${deal.notes}\n\n${revisionEntry}` : revisionEntry;
+
+  await db.update(isrDealsTable)
+    .set({
+      status: "revision_requested",
+      notes: updatedNotes,
+      updatedAt: new Date(),
+    })
+    .where(eq(isrDealsTable.id, deal.id));
+
+  await db.insert(isrEmailInboxTable).values({
+    tenantId, messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
+    subject: params.subject, bodyText: params.bodyText.slice(0, 5000),
+    processedAs: "revision_request", dealId: deal.id,
+    receivedAt: params.receivedAt,
+  });
+
+  logger.info(
+    { tenantId, dealId: deal.id, discountPct: parsed.requestedDiscountPct, urgency: parsed.urgency },
+    "ISR quote revision request processed",
+  );
 }
 
 export async function sendRfqsForDeal(

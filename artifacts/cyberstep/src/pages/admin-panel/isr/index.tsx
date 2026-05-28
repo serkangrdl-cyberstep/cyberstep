@@ -7,21 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Bot, TrendingUp, Clock, CheckCircle, Send, Plus, RefreshCw,
-  Mail, Building2, AlertCircle, ChevronRight,
+  Mail, Building2, AlertCircle, ChevronRight, AlertTriangle,
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  new:              { label: "Yeni",         color: "bg-blue-100 text-blue-700" },
-  rfq_sent:         { label: "RFQ Gönderildi", color: "bg-yellow-100 text-yellow-700" },
-  quoted:           { label: "Teklif Hazır", color: "bg-purple-100 text-purple-700" },
-  approved:         { label: "Onaylandı",    color: "bg-emerald-100 text-emerald-700" },
-  sent:             { label: "Gönderildi",   color: "bg-green-100 text-green-700" },
-  won:              { label: "Kazanildi",    color: "bg-green-200 text-green-800" },
-  lost:             { label: "Kaybedildi",   color: "bg-red-100 text-red-700" },
-  cancelled:        { label: "Iptal",        color: "bg-slate-100 text-slate-600" },
+  new:                  { label: "Yeni",              color: "bg-blue-100 text-blue-700" },
+  rfq_sent:             { label: "RFQ Gönderildi",    color: "bg-yellow-100 text-yellow-700" },
+  quoted:               { label: "Teklif Hazır",      color: "bg-purple-100 text-purple-700" },
+  revision_requested:   { label: "Revizyon Talebi",   color: "bg-orange-100 text-orange-700 font-semibold" },
+  approved:             { label: "Onaylandı",         color: "bg-emerald-100 text-emerald-700" },
+  sent:                 { label: "Gönderildi",        color: "bg-green-100 text-green-700" },
+  won:                  { label: "Kazanildi",         color: "bg-green-200 text-green-800" },
+  lost:                 { label: "Kaybedildi",        color: "bg-red-100 text-red-700" },
+  cancelled:            { label: "Iptal",             color: "bg-slate-100 text-slate-600" },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -56,6 +57,7 @@ interface Stats {
   pendingApproval: number;
   totalRfqs: number;
   activeVendors: number;
+  revisionRequests: number;
 }
 
 export default function AdminIsrDashboard() {
@@ -93,6 +95,7 @@ export default function AdminIsrDashboard() {
     { label: "Toplam Deal", value: stats?.totalDeals ?? 0, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
     { label: "Açık Deal", value: stats?.openDeals ?? 0, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
     { label: "Onay Bekleyen", value: stats?.pendingApproval ?? 0, icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "Revizyon Talebi", value: stats?.revisionRequests ?? 0, icon: AlertTriangle, color: "text-orange-700", bg: "bg-orange-50" },
     { label: "Aktif Satıcı", value: stats?.activeVendors ?? 0, icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
   ];
 
@@ -122,7 +125,7 @@ export default function AdminIsrDashboard() {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex gap-2 flex-wrap">
-            {["all", "new", "rfq_sent", "quoted", "approved", "sent", "won", "lost"].map((s) => (
+            {["all", "new", "rfq_sent", "quoted", "revision_requested", "approved", "sent", "won", "lost"].map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}

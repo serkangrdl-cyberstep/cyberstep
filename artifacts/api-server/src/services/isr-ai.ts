@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { logger } from "../lib/logger";
 
+// ─── Replit-managed Gemini client (for ISR email tasks) ───────────────────────
 function getClient() {
   const apiKey = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
   const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
@@ -8,8 +9,24 @@ function getClient() {
   return new GoogleGenAI({ apiKey, httpOptions: { baseUrl } });
 }
 
+type AiGenerateFn = (prompt: string) => Promise<string>;
+
+function makeDefaultAiFn(): AiGenerateFn | null {
+  const client = getClient();
+  if (!client) return null;
+  return async (prompt: string) => {
+    const result = await client.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { temperature: 0.1 },
+    });
+    return result.text?.trim() ?? "";
+  };
+}
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
 export interface EmailClassification {
-  type: "new_deal" | "rfq_response" | "ignored";
+  type: "new_deal" | "rfq_response" | "quote_revision_request" | "ignored";
   dealRefId?: number;
   customerName?: string;
   customerCompany?: string;
@@ -18,6 +35,9 @@ export interface EmailClassification {
   productKeywords?: string;
   priority?: "low" | "normal" | "high" | "urgent";
   summary?: string;
+  // quote_revision_request fields
+  requestedDiscountPct?: number;
+  revisionNotes?: string;
 }
 
 export interface ParsedRfqResponse {
@@ -33,16 +53,27 @@ export interface ParsedRfqResponse {
   notes?: string;
 }
 
+export interface ParsedRevisionRequest {
+  requestedDiscountPct?: number;
+  removedItems?: string[];
+  addedItems?: string[];
+  changedItems?: Array<{ description: string; change: string }>;
+  notes: string;
+  urgency: "low" | "normal" | "high";
+}
+
+// ─── classifyEmail ────────────────────────────────────────────────────────────
 export async function classifyEmail(params: {
   fromEmail: string;
   fromName: string;
   subject: string;
   bodyText: string;
   vendorNames: string[];
+  aiFn?: AiGenerateFn;
 }): Promise<EmailClassification> {
-  const client = getClient();
-  if (!client) {
-    logger.warn("Gemini not configured — skipping email classification");
+  const aiFn = params.aiFn ?? makeDefaultAiFn();
+  if (!aiFn) {
+    logger.warn("AI not configured — skipping email classification");
     return { type: "ignored" };
   }
 
@@ -64,6 +95,7 @@ Görevin:
 1. E-posta türünü belirle:
    - "new_deal": Müşteriden gelen yeni ürün/fiyat teklifi talebi
    - "rfq_response": Distribütör veya satıcıdan gelen fiyat teklifi yanıtı (konuda [ISR-REF:DEAL-X] varsa büyük ihtimalle bu)
+   - "quote_revision_request": Müşteriden gelen mevcut teklife itiraz, indirim talebi veya içerik değişikliği isteği ([ISR-REF:DEAL-X] varsa ve müşteri tarafından geldiyse)
    - "ignored": Spam, abonelik, bildirim veya alakasız
 
 2. Aşağıdaki JSON formatında yanıt ver (sadece JSON, başka hiçbir şey ekleme):
@@ -87,22 +119,30 @@ Eğer "rfq_response" ise:
   "summary": "..."
 }
 
+Eğer "quote_revision_request" ise:
+{
+  "type": "quote_revision_request",
+  "dealRefId": ${dealRefId ?? "null"},
+  "requestedDiscountPct": 10,
+  "revisionNotes": "Müşteri %10 indirim talep ediyor, ürün X'i Y ile değiştirmek istiyor",
+  "summary": "..."
+}
+
 Eğer "ignored" ise:
 {
   "type": "ignored"
 }
 
-priority değerleri: "low", "normal", "high", "urgent"
-vendorName olarak bilinen satıcılardan birini kullan, yoksa ham metni kullan.
+Notlar:
+- priority değerleri: "low", "normal", "high", "urgent"
+- vendorName olarak bilinen satıcılardan birini kullan, yoksa ham metni kullan
+- quote_revision_request için requestedDiscountPct: indirim yüzdesi bulunamazsa null bırak
+- Distribütör/satıcıdan gelen e-posta ve konuda [ISR-REF] varsa "rfq_response"
+- Müşteriden gelen e-posta ve konuda [ISR-REF] varsa + indirim/değişiklik talebi varsa "quote_revision_request"
 `;
 
   try {
-    const result = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { temperature: 0.1 },
-    });
-    const text = result.text?.trim() ?? "";
+    const text = await aiFn(prompt);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { type: "ignored" };
     return JSON.parse(jsonMatch[0]) as EmailClassification;
@@ -112,13 +152,15 @@ vendorName olarak bilinen satıcılardan birini kullan, yoksa ham metni kullan.
   }
 }
 
+// ─── parseRfqResponseEmail ────────────────────────────────────────────────────
 export async function parseRfqResponseEmail(params: {
   subject: string;
   bodyText: string;
   currency?: string;
+  aiFn?: AiGenerateFn;
 }): Promise<ParsedRfqResponse> {
-  const client = getClient();
-  if (!client) return { lines: [], currency: params.currency ?? "TRY" };
+  const aiFn = params.aiFn ?? makeDefaultAiFn();
+  if (!aiFn) return { lines: [], currency: params.currency ?? "TRY" };
 
   const prompt = `
 Sen bir satış uzmanısın. Distribütörden veya satıcıdan gelen fiyat teklifi e-postasını analiz et.
@@ -153,12 +195,7 @@ Notlar:
 `;
 
   try {
-    const result = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { temperature: 0.1 },
-    });
-    const text = result.text?.trim() ?? "";
+    const text = await aiFn(prompt);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { lines: [], currency: params.currency ?? "TRY" };
     return JSON.parse(jsonMatch[0]) as ParsedRfqResponse;
@@ -168,6 +205,54 @@ Notlar:
   }
 }
 
+// ─── parseRevisionRequest ─────────────────────────────────────────────────────
+export async function parseRevisionRequest(params: {
+  subject: string;
+  bodyText: string;
+  aiFn?: AiGenerateFn;
+}): Promise<ParsedRevisionRequest> {
+  const aiFn = params.aiFn ?? makeDefaultAiFn();
+  if (!aiFn) return { notes: params.bodyText.slice(0, 500), urgency: "normal" };
+
+  const prompt = `
+Sen bir satış uzmanısın. Müşteriden gelen teklif revizyon talebini analiz et.
+
+E-posta Konusu: ${params.subject}
+E-posta İçeriği:
+${params.bodyText.slice(0, 2000)}
+
+Görevin: Müşterinin ne istediğini JSON formatında çıkar (SADECE JSON):
+
+{
+  "requestedDiscountPct": 10,
+  "removedItems": ["Ürün A"],
+  "addedItems": ["Ürün B"],
+  "changedItems": [
+    { "description": "Ürün C", "change": "Miktarı 3'ten 5'e çıkar" }
+  ],
+  "notes": "Müşteri %10 indirim istiyor ve teslimat süresini öğrenmek istiyor",
+  "urgency": "normal"
+}
+
+Notlar:
+- requestedDiscountPct: indirim yüzdesi bulamazsan null
+- removedItems / addedItems / changedItems: ilgili değişiklik yoksa boş dizi []
+- urgency: "low" | "normal" | "high" (aciliyet ifadesi varsa high)
+- notes: kısa özet, Türkçe
+`;
+
+  try {
+    const text = await aiFn(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { notes: params.bodyText.slice(0, 500), urgency: "normal" };
+    return JSON.parse(jsonMatch[0]) as ParsedRevisionRequest;
+  } catch (err) {
+    logger.error({ err }, "Revision request parsing failed");
+    return { notes: params.bodyText.slice(0, 500), urgency: "normal" };
+  }
+}
+
+// ─── generateRfqEmailBody ─────────────────────────────────────────────────────
 export async function generateRfqEmailBody(params: {
   dealId: number;
   customerCompany: string;

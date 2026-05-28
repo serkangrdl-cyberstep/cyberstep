@@ -16,21 +16,22 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft, Send, CheckCircle, XCircle, Plus, Trash2,
-  Mail, Package, FileText, Clock,
+  Mail, Package, FileText, Clock, AlertTriangle,
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  new:           { label: "Yeni",             color: "bg-blue-100 text-blue-700" },
-  rfq_sent:      { label: "RFQ Gönderildi",   color: "bg-yellow-100 text-yellow-700" },
-  quoted:        { label: "Teklif Hazır",      color: "bg-purple-100 text-purple-700" },
-  approved:      { label: "Onaylandı",         color: "bg-emerald-100 text-emerald-700" },
-  sent:          { label: "Müşteriye Gönderildi", color: "bg-green-100 text-green-700" },
-  won:           { label: "Kazanildi",         color: "bg-green-200 text-green-800" },
-  lost:          { label: "Kaybedildi",        color: "bg-red-100 text-red-700" },
-  cancelled:     { label: "Iptal",             color: "bg-slate-100 text-slate-600" },
+  new:                  { label: "Yeni",                   color: "bg-blue-100 text-blue-700" },
+  rfq_sent:             { label: "RFQ Gönderildi",         color: "bg-yellow-100 text-yellow-700" },
+  quoted:               { label: "Teklif Hazır",           color: "bg-purple-100 text-purple-700" },
+  revision_requested:   { label: "Revizyon Talebi",        color: "bg-orange-100 text-orange-700 font-semibold" },
+  approved:             { label: "Onaylandı",              color: "bg-emerald-100 text-emerald-700" },
+  sent:                 { label: "Müşteriye Gönderildi",   color: "bg-green-100 text-green-700" },
+  won:                  { label: "Kazanildi",              color: "bg-green-200 text-green-800" },
+  lost:                 { label: "Kaybedildi",             color: "bg-red-100 text-red-700" },
+  cancelled:            { label: "Iptal",                  color: "bg-slate-100 text-slate-600" },
 };
 
 const QUOTE_STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -201,6 +202,33 @@ export default function AdminIsrDeal() {
             </Button>
           </div>
         </div>
+
+        {/* Revision request alert */}
+        {String(deal["status"]) === "revision_requested" && (
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <div className="font-semibold text-orange-800">Revizyon Talebi Alindi</div>
+              <div className="text-sm text-orange-700">
+                Musteri bu teklif icin indirim veya icin degisikligi talep etti. Asagidaki notlari inceleyin ve yeni bir teklif hazirlayin.
+              </div>
+              {deal["notes"] ? (
+                <pre className="mt-2 text-xs text-orange-900 bg-orange-100 rounded p-2 whitespace-pre-wrap font-mono">
+                  {String(deal["notes"])}
+                </pre>
+              ) : null}
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={prefillFromResponse} className="bg-orange-600 hover:bg-orange-700 text-white">
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Revize Teklif Hazirla
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => updateStatusMutation.mutate("quoted")} className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                  Teklif Hazir Olarak Isaretle
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Deal info */}

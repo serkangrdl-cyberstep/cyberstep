@@ -1,9 +1,11 @@
 import { Router } from "express";
+import type { Request } from "express";
 import { db } from "@workspace/db";
 import {
   assessmentsTable,
   assessmentAnswersTable,
   reportsTable,
+  tenantsTable,
 } from "@workspace/db";
 import {
   CreateAssessmentBody,
@@ -15,11 +17,16 @@ import {
 } from "@workspace/api-zod";
 import { eq, desc, sql, count, avg, gte, lte, and } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
+import { getTenantAiFn } from "../../services/ai-client";
 import { calculateScore, MINI_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
 import { sendAdminNotificationEmail, sendCustomerConfirmationEmail } from "../../services/email";
 import { generateReportPDF } from "../../services/pdf";
 import { requireAdmin, requireAssessmentOwner, addAssessmentToSession } from "../../middleware/auth";
+
+function getSessionTenantId(req: Request): number | undefined {
+  return (req.session as unknown as Record<string, unknown>)["tenantId"] as number | undefined;
+}
 
 const router = Router();
 
@@ -29,6 +36,27 @@ router.post("/assessments", async (req, res) => {
   if (!parsed.success) {
     res.status(400).json({ error: "Geçersiz istek verisi" });
     return;
+  }
+
+  const tenantId = getSessionTenantId(req);
+
+  // Plan limit enforcement for tenant-scoped requests
+  if (tenantId) {
+    const [tenant] = await db
+      .select({ maxAssessments: tenantsTable.maxAssessments })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.id, tenantId));
+
+    if (tenant?.maxAssessments != null) {
+      const [countResult] = await db
+        .select({ count: count() })
+        .from(assessmentsTable)
+        .where(eq(assessmentsTable.tenantId, tenantId));
+      if (Number(countResult?.count ?? 0) >= tenant.maxAssessments) {
+        res.status(403).json({ error: "Plan limitine ulaşıldı. Lütfen planınızı yükseltin.", code: "PLAN_LIMIT" });
+        return;
+      }
+    }
   }
 
   const data = parsed.data;
@@ -43,6 +71,7 @@ router.post("/assessments", async (req, res) => {
       employeeCount: data.employeeCount,
       assessmentType: data.assessmentType as "mini" | "full",
       status: "in_progress",
+      tenantId: tenantId ?? null,
     })
     .returning();
 
@@ -58,10 +87,12 @@ router.get("/assessments/stats/summary", requireAdmin, async (req, res) => {
   const { sector, dateFrom, dateTo, limit: limitParam } = req.query;
   const tableLimit = Math.min(parseInt(String(limitParam ?? "20"), 10) || 20, 100);
 
+  const tenantId = getSessionTenantId(req);
+  const tenantCond = tenantId ? eq(assessmentsTable.tenantId, tenantId) : undefined;
   const sectorCond = sector && sector !== "all" ? eq(assessmentsTable.sector, sector as string) : undefined;
   const fromCond = dateFrom ? gte(assessmentsTable.createdAt, new Date(dateFrom as string)) : undefined;
   const toCond = dateTo ? lte(assessmentsTable.createdAt, new Date(dateTo as string)) : undefined;
-  const whereClause = and(sectorCond, fromCond, toCond);
+  const whereClause = and(tenantCond, sectorCond, fromCond, toCond);
 
   const [totalResult, completedResult, avgResult, riskResults, recentAssessments, sectorResult, scoreDistResult, allSectorsResult] = await Promise.all([
     db.select({ count: count() }).from(assessmentsTable).where(whereClause),

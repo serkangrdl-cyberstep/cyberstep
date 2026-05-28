@@ -23,24 +23,29 @@ function requireTenantId(req: Request, res: Response): number | null {
 router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
 
-  const [totalDeals] = await db.select({ count: count() }).from(isrDealsTable).where(eq(isrDealsTable.tenantId, tenantId));
-  const [openDeals] = await db.select({ count: count() }).from(isrDealsTable)
-    .where(and(eq(isrDealsTable.tenantId, tenantId), sql`${isrDealsTable.status} NOT IN ('won', 'lost', 'cancelled')`));
-  const [pendingApproval] = await db.select({ count: count() }).from(isrQuotesTable)
-    .innerJoin(isrDealsTable, eq(isrQuotesTable.dealId, isrDealsTable.id))
-    .where(and(eq(isrDealsTable.tenantId, tenantId), eq(isrQuotesTable.status, "pending_approval")));
-  const [totalRfqs] = await db.select({ count: count() }).from(isrRfqsTable)
-    .innerJoin(isrDealsTable, eq(isrRfqsTable.dealId, isrDealsTable.id))
-    .where(eq(isrDealsTable.tenantId, tenantId));
-  const [vendors] = await db.select({ count: count() }).from(isrVendorsTable)
-    .where(and(eq(isrVendorsTable.tenantId, tenantId), eq(isrVendorsTable.isActive, true)));
+  const [totalDeals, openDeals, pendingApproval, totalRfqs, vendors, revisionRequests] = await Promise.all([
+    db.select({ count: count() }).from(isrDealsTable).where(eq(isrDealsTable.tenantId, tenantId)),
+    db.select({ count: count() }).from(isrDealsTable)
+      .where(and(eq(isrDealsTable.tenantId, tenantId), sql`${isrDealsTable.status} NOT IN ('won', 'lost', 'cancelled')`)),
+    db.select({ count: count() }).from(isrQuotesTable)
+      .innerJoin(isrDealsTable, eq(isrQuotesTable.dealId, isrDealsTable.id))
+      .where(and(eq(isrDealsTable.tenantId, tenantId), eq(isrQuotesTable.status, "pending_approval"))),
+    db.select({ count: count() }).from(isrRfqsTable)
+      .innerJoin(isrDealsTable, eq(isrRfqsTable.dealId, isrDealsTable.id))
+      .where(eq(isrDealsTable.tenantId, tenantId)),
+    db.select({ count: count() }).from(isrVendorsTable)
+      .where(and(eq(isrVendorsTable.tenantId, tenantId), eq(isrVendorsTable.isActive, true))),
+    db.select({ count: count() }).from(isrDealsTable)
+      .where(and(eq(isrDealsTable.tenantId, tenantId), eq(isrDealsTable.status, "revision_requested"))),
+  ]);
 
   res.json({
-    totalDeals: Number(totalDeals.count),
-    openDeals: Number(openDeals.count),
-    pendingApproval: Number(pendingApproval.count),
-    totalRfqs: Number(totalRfqs.count),
-    activeVendors: Number(vendors.count),
+    totalDeals: Number(totalDeals[0].count),
+    openDeals: Number(openDeals[0].count),
+    pendingApproval: Number(pendingApproval[0].count),
+    totalRfqs: Number(totalRfqs[0].count),
+    activeVendors: Number(vendors[0].count),
+    revisionRequests: Number(revisionRequests[0].count),
   });
 });
 

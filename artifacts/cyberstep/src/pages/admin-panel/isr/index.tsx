@@ -122,8 +122,8 @@ export default function AdminIsrDashboard() {
           ))}
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        {/* Toolbar */}
+        <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex gap-2 flex-wrap">
             {["all", "new", "rfq_sent", "quoted", "revision_requested", "approved", "sent", "won", "lost"].map((s) => (
               <button
@@ -139,33 +139,26 @@ export default function AdminIsrDashboard() {
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Ara..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-48 h-8 text-sm"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => checkInboxMutation.mutate()}
-              disabled={checkInboxMutation.isPending}
-            >
-              <RefreshCw className={`h-4 w-4 mr-1.5 ${checkInboxMutation.isPending ? "animate-spin" : ""}`} />
-              Postaları Kontrol Et
-            </Button>
-            <Button size="sm" onClick={() => navigate("/panel/isr/vendors")}>
-              <Building2 className="h-4 w-4 mr-1.5" />
-              Satıcılar
-            </Button>
-          </div>
+          <Input
+            placeholder="Ara..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-40 h-8 text-sm"
+          />
         </div>
 
-        {/* Quick links */}
-        <div className="flex gap-3">
+        {/* Action buttons — always full-width row */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => checkInboxMutation.mutate()}
+            disabled={checkInboxMutation.isPending}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${checkInboxMutation.isPending ? "animate-spin" : ""}`} />
+            {checkInboxMutation.isPending ? "Kontrol ediliyor..." : "Postaları Kontrol Et"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/vendors")}>
-            <Building2 className="h-4 w-4 mr-1.5" /> Satıcı & Distribütör Yönetimi
+            <Building2 className="h-4 w-4 mr-1.5" /> Satıcı & Distribütör
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate("/panel/isr/kurallar")}>
             <TrendingUp className="h-4 w-4 mr-1.5" /> Marj Kuralları

@@ -124,7 +124,14 @@ async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig
 export async function processInboxForTenant(tenantId: number): Promise<void> {
   const { tenantsTable } = await import("@workspace/db");
   const [tenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, tenantId));
-  if (!tenant || !tenant.isrEnabled) return;
+  if (!tenant) return;
+  // If ISR not enabled on tenant, still process if env-level IMAP credentials are present
+  if (!tenant.isrEnabled) {
+    const envConfig = getImapConfig();
+    if (!envConfig) return;
+    await runImapForTenant(tenantId, {});
+    return;
+  }
   await runImapForTenant(tenantId, tenant);
 }
 

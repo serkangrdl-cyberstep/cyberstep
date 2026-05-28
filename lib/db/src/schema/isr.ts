@@ -28,6 +28,7 @@ export const isrDistributorsTable = pgTable("isr_distributors", {
   contactEmail: text("contact_email").notNull(),
   phone: text("phone"),
   notes: text("notes"),
+  additionalContacts: jsonb("additional_contacts").notNull().default([]),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

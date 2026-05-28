@@ -326,9 +326,13 @@ interface IsrVendorBody {
   name: string; displayName: string; salesRepName?: string;
   salesRepEmail?: string; dealRegUrl?: string; notes?: string;
 }
+interface AdditionalContact {
+  name?: string; email: string; phone?: string; role?: string;
+}
 interface IsrDistributorBody {
   vendorId: number | string; name: string; contactName?: string;
   contactEmail: string; phone?: string; notes?: string;
+  additionalContacts?: AdditionalContact[];
 }
 interface MarginRuleBody {
   vendorId?: number | string; name: string; minMarginPct: number;

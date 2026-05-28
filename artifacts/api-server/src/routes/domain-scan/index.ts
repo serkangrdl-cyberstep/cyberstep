@@ -450,4 +450,4 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
 });
 
 export default router;
-export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain };
+export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT };

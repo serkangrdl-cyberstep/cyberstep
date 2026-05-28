@@ -2,12 +2,13 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { domainScansTable } from "@workspace/db";
-import { count, avg, sql, desc, ilike, or } from "drizzle-orm";
+import { count, avg, sql, desc, ilike, or, eq } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 
-// GET /api/admin-panel/domain-scans/stats
+// ─── Stats ─────────────────────────────────────────────────────────────────────
 router.get("/admin-panel/domain-scans/stats", requireAdmin, async (_req: Request, res: Response) => {
   const [total] = await db.select({ count: count() }).from(domainScansTable);
   const [avgScore] = await db.select({ avg: avg(domainScansTable.overallScore) }).from(domainScansTable);
@@ -53,7 +54,54 @@ router.get("/admin-panel/domain-scans/stats", requireAdmin, async (_req: Request
   });
 });
 
-// GET /api/admin-panel/domain-scans
+// ─── CSV Export ────────────────────────────────────────────────────────────────
+router.get("/admin-panel/domain-scans/export", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db
+    .select({
+      id: domainScansTable.id,
+      domain: domainScansTable.domain,
+      email: domainScansTable.email,
+      overallScore: domainScansTable.overallScore,
+      spfPass: domainScansTable.spfPass,
+      dmarcPass: domainScansTable.dmarcPass,
+      dkimPass: domainScansTable.dkimPass,
+      mxPass: domainScansTable.mxPass,
+      sslPass: domainScansTable.sslPass,
+      sslExpiry: domainScansTable.sslExpiry,
+      hibpBreachCount: domainScansTable.hibpBreachCount,
+      blacklisted: domainScansTable.blacklisted,
+      blacklistCount: domainScansTable.blacklistCount,
+      createdAt: domainScansTable.createdAt,
+    })
+    .from(domainScansTable)
+    .orderBy(desc(domainScansTable.createdAt));
+
+  const header = "id,domain,email,skor,spf,dmarc,dkim,mx,ssl,ssl_bitis,hibp_ihlal,karalisteye_alinmis,karalisteye_alinmis_sayi,tarih\n";
+  const csvRows = rows.map(r =>
+    [
+      r.id,
+      `"${r.domain}"`,
+      `"${r.email ?? ""}"`,
+      r.overallScore,
+      r.spfPass ? "evet" : "hayir",
+      r.dmarcPass ? "evet" : "hayir",
+      r.dkimPass ? "evet" : "hayir",
+      r.mxPass ? "evet" : "hayir",
+      r.sslPass ? "evet" : "hayir",
+      `"${r.sslExpiry ?? ""}"`,
+      r.hibpBreachCount,
+      r.blacklisted ? "evet" : "hayir",
+      r.blacklistCount ?? 0,
+      new Date(r.createdAt).toISOString(),
+    ].join(",")
+  );
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="domain-taramalar-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send("\uFEFF" + header + csvRows.join("\n"));
+});
+
+// ─── List ─────────────────────────────────────────────────────────────────────
 router.get("/admin-panel/domain-scans", requireAdmin, async (req: Request, res: Response) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const page = Math.max(1, Number(req.query.page ?? 1));
@@ -90,6 +138,84 @@ router.get("/admin-panel/domain-scans", requireAdmin, async (req: Request, res: 
     .offset(offset);
 
   res.json({ total: Number(cnt), page, rows });
+});
+
+// ─── Detail ───────────────────────────────────────────────────────────────────
+router.get("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, id));
+  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+
+  res.json(scan);
+});
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+router.delete("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [deleted] = await db.delete(domainScansTable).where(eq(domainScansTable.id, id)).returning({ id: domainScansTable.id });
+  if (!deleted) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+
+  logger.info({ scanId: id }, "Domain scan deleted by admin");
+  res.json({ ok: true });
+});
+
+// ─── Manual scan trigger ──────────────────────────────────────────────────────
+router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request, res: Response) => {
+  const rawDomain: unknown = req.body?.domain;
+  if (!rawDomain || typeof rawDomain !== "string" || rawDomain.trim().length < 3) {
+    res.status(400).json({ error: "Geçersiz alan adı" });
+    return;
+  }
+
+  const { sanitizeDomain, checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, checkHIBP, checkBlacklists, checkShadowIT, calcScore } =
+    await import("../domain-scan/index");
+
+  const domain = sanitizeDomain(rawDomain);
+  if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/.test(domain)) {
+    res.status(400).json({ error: "Geçersiz alan adı formatı" });
+    return;
+  }
+
+  logger.info({ domain }, "Admin triggered domain scan");
+
+  try {
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt] = await Promise.all([
+      checkSPF(domain),
+      checkDMARC(domain),
+      checkDKIM(domain),
+      checkMX(domain),
+      checkSSL(domain),
+      checkHIBP(domain),
+      checkBlacklists(domain),
+      checkShadowIT(domain),
+    ]);
+
+    const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+
+    const [scan] = await db.insert(domainScansTable).values({
+      domain,
+      email: req.body?.email || null,
+      spfPass: spf.pass, spfRecord: spf.record,
+      dmarcPass: dmarc.pass, dmarcRecord: dmarc.record,
+      dkimPass: dkim.pass, dkimSelectors: dkim.selectors,
+      mxPass: mx.pass, mxRecords: mx.records,
+      sslPass: ssl.pass, sslExpiry: ssl.expiryDate, sslIssuer: ssl.issuer, sslDaysUntilExpiry: ssl.daysUntilExpiry,
+      overallScore,
+      hibpBreachCount: hibp.breachCount, hibpBreaches: hibp.breaches,
+      blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
+      shadowItServices: shadowIt.services,
+    }).returning();
+
+    logger.info({ domain, overallScore, scanId: scan?.id }, "Admin domain scan complete");
+    res.json(scan);
+  } catch (err) {
+    logger.error({ err, domain }, "Admin domain scan failed");
+    res.status(500).json({ error: "Tarama sırasında bir hata oluştu" });
+  }
 });
 
 export default router;

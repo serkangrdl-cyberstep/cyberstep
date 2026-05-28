@@ -6,7 +6,7 @@ import {
   isrRfqResponsesTable, isrQuoteLinesTable, isrQuotesTable, isrMarginRulesTable,
   isrEmailInboxTable, isrCustomersTable, isrVendorsTable as vt,
 } from "@workspace/db";
-import { eq, desc, sql, and, count, ilike, or } from "drizzle-orm";
+import { eq, desc, sql, and, count, ilike, or, inArray } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { getTenantId } from "../../middleware/auth";
 import { sendRfqsForDeal, sendApprovedQuote, processInbox } from "../../services/isr-imap";
@@ -289,14 +289,14 @@ router.get("/admin-panel/isr/deals/:id", requireAdmin, async (req: Request, res:
   const responseIds = responses.map((r) => r.id);
   const lines = responseIds.length > 0
     ? await db.select().from(isrQuoteLinesTable)
-        .where(sql`${isrQuoteLinesTable.rfqResponseId} = ANY(${responseIds}::int[])`)
+        .where(inArray(isrQuoteLinesTable.rfqResponseId, responseIds))
         .orderBy(isrQuoteLinesTable.sortOrder)
     : [];
   const quotes = await db.select().from(isrQuotesTable).where(eq(isrQuotesTable.dealId, id)).orderBy(desc(isrQuotesTable.createdAt));
   const quoteIds = quotes.map((q) => q.id);
   const quoteLines = quoteIds.length > 0
     ? await db.select().from(isrQuoteLinesTable)
-        .where(sql`${isrQuoteLinesTable.quoteId} = ANY(${quoteIds}::int[])`)
+        .where(inArray(isrQuoteLinesTable.quoteId, quoteIds))
         .orderBy(isrQuoteLinesTable.sortOrder)
     : [];
 

@@ -4,23 +4,36 @@ import { db } from "@workspace/db";
 import {
   isrVendorsTable, isrDistributorsTable, isrDealsTable, isrRfqsTable,
   isrRfqResponsesTable, isrQuoteLinesTable, isrQuotesTable, isrMarginRulesTable,
-  isrEmailInboxTable,
+  isrEmailInboxTable, isrVendorsTable as vt,
 } from "@workspace/db";
 import { eq, desc, sql, and, count } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
+import { getTenantId } from "../../middleware/auth";
 import { sendRfqsForDeal, sendApprovedQuote } from "../../services/isr-imap";
 
 const router = Router();
 
+function requireTenantId(req: Request, res: Response): number | null {
+  const tid = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | undefined;
+  if (!tid) { res.status(403).json({ error: "Workspace seçilmedi", code: "NO_TENANT" }); return null; }
+  return tid;
+}
+
 // ─── Dashboard overview ───────────────────────────────────────────────────────
-router.get("/admin-panel/isr/stats", requireAdmin, async (_req: Request, res: Response) => {
-  const [totalDeals] = await db.select({ count: count() }).from(isrDealsTable);
+router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+
+  const [totalDeals] = await db.select({ count: count() }).from(isrDealsTable).where(eq(isrDealsTable.tenantId, tenantId));
   const [openDeals] = await db.select({ count: count() }).from(isrDealsTable)
-    .where(sql`${isrDealsTable.status} NOT IN ('won', 'lost', 'cancelled')`);
+    .where(and(eq(isrDealsTable.tenantId, tenantId), sql`${isrDealsTable.status} NOT IN ('won', 'lost', 'cancelled')`));
   const [pendingApproval] = await db.select({ count: count() }).from(isrQuotesTable)
-    .where(eq(isrQuotesTable.status, "pending_approval"));
-  const [totalRfqs] = await db.select({ count: count() }).from(isrRfqsTable);
-  const [vendors] = await db.select({ count: count() }).from(isrVendorsTable).where(eq(isrVendorsTable.isActive, true));
+    .innerJoin(isrDealsTable, eq(isrQuotesTable.dealId, isrDealsTable.id))
+    .where(and(eq(isrDealsTable.tenantId, tenantId), eq(isrQuotesTable.status, "pending_approval")));
+  const [totalRfqs] = await db.select({ count: count() }).from(isrRfqsTable)
+    .innerJoin(isrDealsTable, eq(isrRfqsTable.dealId, isrDealsTable.id))
+    .where(eq(isrDealsTable.tenantId, tenantId));
+  const [vendors] = await db.select({ count: count() }).from(isrVendorsTable)
+    .where(and(eq(isrVendorsTable.tenantId, tenantId), eq(isrVendorsTable.isActive, true)));
 
   res.json({
     totalDeals: Number(totalDeals.count),
@@ -33,16 +46,17 @@ router.get("/admin-panel/isr/stats", requireAdmin, async (_req: Request, res: Re
 
 // ─── Deals ────────────────────────────────────────────────────────────────────
 router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { status, limit = "50", offset = "0" } = req.query as Record<string, string>;
-  let q = db.select().from(isrDealsTable).orderBy(desc(isrDealsTable.createdAt))
-    .limit(parseInt(limit)).offset(parseInt(offset));
-  if (status) {
-    // Filter not directly chainable in this form; fetch all then filter client-side for simplicity
-  }
-  const deals = await q;
-  const [total] = await db.select({ count: count() }).from(isrDealsTable);
 
-  // Attach quote count per deal
+  const where = status
+    ? and(eq(isrDealsTable.tenantId, tenantId), eq(isrDealsTable.status, status))
+    : eq(isrDealsTable.tenantId, tenantId);
+
+  const deals = await db.select().from(isrDealsTable).where(where)
+    .orderBy(desc(isrDealsTable.createdAt)).limit(parseInt(limit)).offset(parseInt(offset));
+  const [total] = await db.select({ count: count() }).from(isrDealsTable).where(where);
+
   const withCounts = await Promise.all(deals.map(async (d) => {
     const [quotes] = await db.select({ count: count() }).from(isrQuotesTable).where(eq(isrQuotesTable.dealId, d.id));
     const [rfqs] = await db.select({ count: count() }).from(isrRfqsTable).where(eq(isrRfqsTable.dealId, d.id));
@@ -53,8 +67,10 @@ router.get("/admin-panel/isr/deals", requireAdmin, async (req: Request, res: Res
 });
 
 router.get("/admin-panel/isr/deals/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
-  const [deal] = await db.select().from(isrDealsTable).where(eq(isrDealsTable.id, id));
+  const [deal] = await db.select().from(isrDealsTable)
+    .where(and(eq(isrDealsTable.id, id), eq(isrDealsTable.tenantId, tenantId)));
   if (!deal) { res.status(404).json({ error: "Deal not found" }); return; }
 
   const rfqs = await db.select().from(isrRfqsTable).where(eq(isrRfqsTable.dealId, id)).orderBy(desc(isrRfqsTable.sentAt));
@@ -77,34 +93,42 @@ router.get("/admin-panel/isr/deals/:id", requireAdmin, async (req: Request, res:
 });
 
 router.patch("/admin-panel/isr/deals/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
   const { status, notes, assignedRepEmail, priority } = req.body as Record<string, string>;
   await db.update(isrDealsTable)
     .set({ status, notes, assignedRepEmail, priority, updatedAt: new Date() })
-    .where(eq(isrDealsTable.id, id));
+    .where(and(eq(isrDealsTable.id, id), eq(isrDealsTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
-// Manually trigger RFQ sending — accepts optional distributorIds to target specific distributors
+// Manually trigger RFQ sending
 router.post("/admin-panel/isr/deals/:id/send-rfq", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
   const { vendorId, distributorIds } = req.body as { vendorId?: number; distributorIds?: number[] };
-  const [deal] = await db.select().from(isrDealsTable).where(eq(isrDealsTable.id, id));
+  const [deal] = await db.select().from(isrDealsTable)
+    .where(and(eq(isrDealsTable.id, id), eq(isrDealsTable.tenantId, tenantId)));
   if (!deal) { res.status(404).json({ error: "Deal not found" }); return; }
   const vid = vendorId ?? deal.vendorId;
-  if (!vid) { res.status(400).json({ error: "No vendor selected for this deal" }); return; }
-  // If a new vendorId was provided, update the deal
+  if (!vid) { res.status(400).json({ error: "Vendor seçilmedi" }); return; }
   if (vendorId && vendorId !== deal.vendorId) {
-    const [vendor] = await db.select({ displayName: isrVendorsTable.displayName }).from(isrVendorsTable).where(eq(isrVendorsTable.id, vendorId));
-    await db.update(isrDealsTable).set({ vendorId, vendorName: vendor?.displayName ?? null, updatedAt: new Date() }).where(eq(isrDealsTable.id, id));
+    const [vendor] = await db.select({ displayName: vt.displayName }).from(vt).where(eq(vt.id, vendorId));
+    await db.update(isrDealsTable).set({ vendorId, vendorName: vendor?.displayName ?? null, updatedAt: new Date() })
+      .where(and(eq(isrDealsTable.id, id), eq(isrDealsTable.tenantId, tenantId)));
   }
-  await sendRfqsForDeal(id, vid, deal.productKeywords ?? deal.originalSubject ?? "", deal.originalBody ?? "", distributorIds);
+  await sendRfqsForDeal(id, vid, deal.productKeywords ?? deal.originalSubject ?? "", deal.originalBody ?? "", distributorIds, tenantId);
   res.json({ ok: true });
 });
 
 // ─── Quotes ───────────────────────────────────────────────────────────────────
 router.post("/admin-panel/isr/deals/:id/quotes", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const dealId = parseInt(String(req.params.id));
+  const [deal] = await db.select().from(isrDealsTable)
+    .where(and(eq(isrDealsTable.id, dealId), eq(isrDealsTable.tenantId, tenantId)));
+  if (!deal) { res.status(404).json({ error: "Deal not found" }); return; }
+
   const { lines, notes, terms, validDays = 30, kdvRate = 20, currency = "TRY" } = req.body as {
     lines: Array<{ sku?: string; description: string; quantity: number; unitPrice: number; unitCost?: number; currency?: string }>;
     notes?: string; terms?: string; validDays?: number; kdvRate?: number; currency?: string;
@@ -113,7 +137,6 @@ router.post("/admin-panel/isr/deals/:id/quotes", requireAdmin, async (req: Reque
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const kdvAmount = subtotal * (kdvRate / 100);
   const total = subtotal + kdvAmount;
-
   const quoteNumber = `ISR-${dealId}-${Date.now().toString(36).toUpperCase()}`;
 
   const [quote] = await db.insert(isrQuotesTable).values({
@@ -128,21 +151,15 @@ router.post("/admin-panel/isr/deals/:id/quotes", requireAdmin, async (req: Reque
       const l = lines[i];
       const lineTotal = l.unitPrice * l.quantity;
       await db.insert(isrQuoteLinesTable).values({
-        quoteId: quote.id,
-        sku: l.sku ?? null,
-        description: l.description,
-        quantity: l.quantity,
-        unitCost: l.unitCost != null ? String(l.unitCost) : null,
-        unitPrice: String(l.unitPrice),
-        lineTotal: String(lineTotal),
-        currency: l.currency ?? currency,
-        isCustom: true,
-        sortOrder: i,
+        quoteId: quote.id, sku: l.sku ?? null, description: l.description,
+        quantity: l.quantity, unitCost: l.unitCost != null ? String(l.unitCost) : null,
+        unitPrice: String(l.unitPrice), lineTotal: String(lineTotal),
+        currency: l.currency ?? currency, isCustom: true, sortOrder: i,
       });
     }
     await db.update(isrDealsTable)
       .set({ status: "quoted", updatedAt: new Date() })
-      .where(eq(isrDealsTable.id, dealId));
+      .where(and(eq(isrDealsTable.id, dealId), eq(isrDealsTable.tenantId, tenantId)));
   }
 
   res.json({ ok: true, quoteId: quote?.id });
@@ -150,7 +167,7 @@ router.post("/admin-panel/isr/deals/:id/quotes", requireAdmin, async (req: Reque
 
 router.post("/admin-panel/isr/quotes/:id/approve", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params.id));
-  const adminEmail = (req as Request & { admin?: { email: string } }).admin?.email ?? "admin";
+  const adminEmail = (req.session as unknown as Record<string, unknown>)["adminEmail"] as string ?? "admin";
   await db.update(isrQuotesTable)
     .set({ status: "approved", approvedByEmail: adminEmail, approvedAt: new Date() })
     .where(eq(isrQuotesTable.id, id));
@@ -165,68 +182,88 @@ router.post("/admin-panel/isr/quotes/:id/reject", requireAdmin, async (req: Requ
 });
 
 // ─── Vendors ──────────────────────────────────────────────────────────────────
-router.get("/admin-panel/isr/vendors", requireAdmin, async (_req: Request, res: Response) => {
-  const vendors = await db.select().from(isrVendorsTable).orderBy(isrVendorsTable.name);
+router.get("/admin-panel/isr/vendors", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const vendors = await db.select().from(isrVendorsTable)
+    .where(eq(isrVendorsTable.tenantId, tenantId)).orderBy(isrVendorsTable.name);
   const withDists = await Promise.all(vendors.map(async (v) => {
     const distributors = await db.select().from(isrDistributorsTable)
-      .where(eq(isrDistributorsTable.vendorId, v.id)).orderBy(isrDistributorsTable.name);
+      .where(and(eq(isrDistributorsTable.vendorId, v.id), eq(isrDistributorsTable.tenantId, tenantId)))
+      .orderBy(isrDistributorsTable.name);
     return { ...v, distributors };
   }));
   res.json(withDists);
 });
 
 router.post("/admin-panel/isr/vendors", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { name, displayName, salesRepName, salesRepEmail, dealRegUrl, notes } = req.body as IsrVendorBody;
-  const [v] = await db.insert(isrVendorsTable).values({ name, displayName, salesRepName, salesRepEmail, dealRegUrl, notes }).returning({ id: isrVendorsTable.id });
+  const [v] = await db.insert(isrVendorsTable).values({ tenantId, name, displayName, salesRepName, salesRepEmail, dealRegUrl, notes }).returning({ id: isrVendorsTable.id });
   res.json({ ok: true, id: v?.id });
 });
 
 router.patch("/admin-panel/isr/vendors/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
   const { name, displayName, salesRepName, salesRepEmail, dealRegUrl, notes, isActive } = req.body as IsrVendorBody & { isActive?: boolean };
-  await db.update(isrVendorsTable).set({ name, displayName, salesRepName, salesRepEmail, dealRegUrl, notes, isActive, updatedAt: new Date() }).where(eq(isrVendorsTable.id, id));
+  await db.update(isrVendorsTable)
+    .set({ name, displayName, salesRepName, salesRepEmail, dealRegUrl, notes, isActive, updatedAt: new Date() })
+    .where(and(eq(isrVendorsTable.id, id), eq(isrVendorsTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
 router.delete("/admin-panel/isr/vendors/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
-  await db.update(isrVendorsTable).set({ isActive: false }).where(eq(isrVendorsTable.id, id));
+  await db.update(isrVendorsTable).set({ isActive: false })
+    .where(and(eq(isrVendorsTable.id, id), eq(isrVendorsTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
 // ─── Distributors ─────────────────────────────────────────────────────────────
 router.post("/admin-panel/isr/distributors", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { vendorId, name, contactName, contactEmail, phone, notes } = req.body as IsrDistributorBody;
-  const [d] = await db.insert(isrDistributorsTable).values({ vendorId: parseInt(String(vendorId)), name, contactName, contactEmail, phone, notes }).returning({ id: isrDistributorsTable.id });
+  const [d] = await db.insert(isrDistributorsTable)
+    .values({ tenantId, vendorId: parseInt(String(vendorId)), name, contactName, contactEmail, phone, notes })
+    .returning({ id: isrDistributorsTable.id });
   res.json({ ok: true, id: d?.id });
 });
 
 router.patch("/admin-panel/isr/distributors/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
   const { name, contactName, contactEmail, phone, notes, isActive } = req.body as IsrDistributorBody & { isActive?: boolean };
-  await db.update(isrDistributorsTable).set({ name, contactName, contactEmail, phone, notes, isActive, updatedAt: new Date() }).where(eq(isrDistributorsTable.id, id));
+  await db.update(isrDistributorsTable)
+    .set({ name, contactName, contactEmail, phone, notes, isActive, updatedAt: new Date() })
+    .where(and(eq(isrDistributorsTable.id, id), eq(isrDistributorsTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
 router.delete("/admin-panel/isr/distributors/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
-  await db.update(isrDistributorsTable).set({ isActive: false }).where(eq(isrDistributorsTable.id, id));
+  await db.update(isrDistributorsTable).set({ isActive: false })
+    .where(and(eq(isrDistributorsTable.id, id), eq(isrDistributorsTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
 // ─── Margin Rules ─────────────────────────────────────────────────────────────
-router.get("/admin-panel/isr/margin-rules", requireAdmin, async (_req: Request, res: Response) => {
-  const rules = await db.select().from(isrMarginRulesTable).orderBy(isrMarginRulesTable.name);
+router.get("/admin-panel/isr/margin-rules", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const rules = await db.select().from(isrMarginRulesTable)
+    .where(eq(isrMarginRulesTable.tenantId, tenantId)).orderBy(isrMarginRulesTable.name);
   res.json(rules);
 });
 
 router.post("/admin-panel/isr/margin-rules", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { vendorId, name, minMarginPct, targetMarginPct, maxDiscountPct, autoApproveBelow, requireApprovalAbove, isDefault } = req.body as MarginRuleBody;
   if (isDefault) {
-    await db.update(isrMarginRulesTable).set({ isDefault: false });
+    await db.update(isrMarginRulesTable).set({ isDefault: false }).where(eq(isrMarginRulesTable.tenantId, tenantId));
   }
   const [r] = await db.insert(isrMarginRulesTable).values({
-    vendorId: vendorId ? parseInt(String(vendorId)) : null,
+    tenantId, vendorId: vendorId ? parseInt(String(vendorId)) : null,
     name, isDefault: !!isDefault, isActive: true,
     minMarginPct: String(minMarginPct), targetMarginPct: String(targetMarginPct),
     maxDiscountPct: String(maxDiscountPct),
@@ -237,10 +274,11 @@ router.post("/admin-panel/isr/margin-rules", requireAdmin, async (req: Request, 
 });
 
 router.patch("/admin-panel/isr/margin-rules/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
   const { name, minMarginPct, targetMarginPct, maxDiscountPct, autoApproveBelow, requireApprovalAbove, isDefault, isActive } = req.body as MarginRuleBody & { isActive?: boolean };
   if (isDefault) {
-    await db.update(isrMarginRulesTable).set({ isDefault: false });
+    await db.update(isrMarginRulesTable).set({ isDefault: false }).where(eq(isrMarginRulesTable.tenantId, tenantId));
   }
   await db.update(isrMarginRulesTable).set({
     name, isDefault: !!isDefault, isActive,
@@ -250,26 +288,31 @@ router.patch("/admin-panel/isr/margin-rules/:id", requireAdmin, async (req: Requ
     autoApproveBelow: autoApproveBelow ? String(autoApproveBelow) : null,
     requireApprovalAbove: requireApprovalAbove ? String(requireApprovalAbove) : null,
     updatedAt: new Date(),
-  }).where(eq(isrMarginRulesTable.id, id));
+  }).where(and(eq(isrMarginRulesTable.id, id), eq(isrMarginRulesTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
 router.delete("/admin-panel/isr/margin-rules/:id", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const id = parseInt(String(req.params.id));
-  await db.delete(isrMarginRulesTable).where(eq(isrMarginRulesTable.id, id));
+  await db.delete(isrMarginRulesTable)
+    .where(and(eq(isrMarginRulesTable.id, id), eq(isrMarginRulesTable.tenantId, tenantId)));
   res.json({ ok: true });
 });
 
 // ─── Inbox log ────────────────────────────────────────────────────────────────
-router.get("/admin-panel/isr/inbox", requireAdmin, async (_req: Request, res: Response) => {
-  const inbox = await db.select().from(isrEmailInboxTable).orderBy(desc(isrEmailInboxTable.receivedAt)).limit(100);
+router.get("/admin-panel/isr/inbox", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const inbox = await db.select().from(isrEmailInboxTable)
+    .where(eq(isrEmailInboxTable.tenantId, tenantId))
+    .orderBy(desc(isrEmailInboxTable.receivedAt)).limit(100);
   res.json(inbox);
 });
 
-// Manually trigger inbox check
-router.post("/admin-panel/isr/inbox/check", requireAdmin, async (_req: Request, res: Response) => {
-  const { processInbox } = await import("../../services/isr-imap");
-  processInbox().catch((err: unknown) => console.error("ISR inbox error", err));
+router.post("/admin-panel/isr/inbox/check", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const { processInboxForTenant } = await import("../../services/isr-imap");
+  processInboxForTenant(tenantId).catch((err: unknown) => console.error("ISR inbox error", err));
   res.json({ ok: true, message: "Gelen kutusu kontrolü başlatıldı" });
 });
 
@@ -287,5 +330,8 @@ interface MarginRuleBody {
   targetMarginPct: number; maxDiscountPct: number;
   autoApproveBelow?: number; requireApprovalAbove?: number; isDefault?: boolean;
 }
+
+// Suppress unused import warning
+void getTenantId;
 
 export default router;

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authRouter from "./auth";
+import tenantsRouter from "./tenants";
 import settingsRouter from "./settings";
 import analyticsRouter from "./analytics";
 import paymentRouter from "./payment";
@@ -14,6 +15,7 @@ import isrRouter from "./isr";
 
 const router = Router();
 router.use(authRouter);
+router.use(tenantsRouter);
 router.use(settingsRouter);
 router.use(analyticsRouter);
 router.use(paymentRouter);

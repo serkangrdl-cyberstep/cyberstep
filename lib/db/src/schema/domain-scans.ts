@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const domainScansTable = pgTable("domain_scans", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id"),
   domain: text("domain").notNull(),
   email: text("email"),
   spfPass: boolean("spf_pass").notNull().default(false),

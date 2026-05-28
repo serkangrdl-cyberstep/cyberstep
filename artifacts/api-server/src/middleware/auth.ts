@@ -13,6 +13,18 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
+export function requireTenant(req: Request, res: Response, next: NextFunction): void {
+  const adminId = sess(req)["adminId"] as number | undefined;
+  const tenantId = sess(req)["tenantId"] as number | undefined;
+  if (!adminId) { res.status(401).json({ error: "Yetkisiz erişim" }); return; }
+  if (!tenantId) { res.status(403).json({ error: "Workspace seçilmedi", code: "NO_TENANT" }); return; }
+  next();
+}
+
+export function getTenantId(req: Request): number {
+  return sess(req)["tenantId"] as number;
+}
+
 export function requireCustomer(req: Request, res: Response, next: NextFunction): void {
   const customerId = sess(req)["customerId"] as number | undefined;
   if (!customerId) {

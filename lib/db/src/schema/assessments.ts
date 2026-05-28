@@ -8,6 +8,7 @@ export const answerEnum = pgEnum("answer_type", ["evet", "kismen", "bilmiyorum",
 
 export const assessmentsTable = pgTable("assessments", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id"),
   companyName: text("company_name").notNull(),
   contactName: text("contact_name").notNull(),
   email: text("email").notNull(),

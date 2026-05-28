@@ -278,10 +278,62 @@ function startReminderCron() {
   logger.info("Domain re-scan cron scheduled (09:30 Istanbul)");
 }
 
+async function ensureTenantsTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS tenants (
+      id SERIAL PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      plan TEXT NOT NULL DEFAULT 'free',
+      max_users INTEGER NOT NULL DEFAULT 1,
+      max_assessments INTEGER NOT NULL DEFAULT 10,
+      isr_enabled BOOLEAN NOT NULL DEFAULT false,
+      logo_url TEXT,
+      primary_color TEXT,
+      ai_provider TEXT NOT NULL DEFAULT 'gemini-replit',
+      ai_api_key TEXT,
+      ai_model TEXT,
+      quote_terms TEXT,
+      quote_valid_days INTEGER NOT NULL DEFAULT 30,
+      quote_footer TEXT,
+      imap_host TEXT,
+      imap_user TEXT,
+      imap_pass TEXT,
+      smtp_host TEXT,
+      smtp_user TEXT,
+      smtp_pass TEXT,
+      smtp_port INTEGER NOT NULL DEFAULT 587,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      settings JSONB DEFAULT '{}',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS tenant_users (
+      id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+      admin_user_id INTEGER NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      invited_by_admin_user_id INTEGER,
+      joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE(tenant_id, admin_user_id)
+    )
+  `);
+}
+
 async function ensureIsrTables() {
+  // Add tenant_id columns to existing ISR tables if missing
+  await db.execute(sql`ALTER TABLE IF EXISTS isr_vendors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
+  await db.execute(sql`ALTER TABLE IF EXISTS isr_distributors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
+  await db.execute(sql`ALTER TABLE IF EXISTS isr_deals ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
+  await db.execute(sql`ALTER TABLE IF EXISTS isr_margin_rules ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
+  await db.execute(sql`ALTER TABLE IF EXISTS isr_email_inbox ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
+
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS isr_vendors (
       id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL DEFAULT 1,
       name TEXT NOT NULL,
       display_name TEXT NOT NULL,
       logo_url TEXT,
@@ -297,6 +349,7 @@ async function ensureIsrTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS isr_distributors (
       id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL DEFAULT 1,
       vendor_id INTEGER NOT NULL REFERENCES isr_vendors(id),
       name TEXT NOT NULL,
       contact_name TEXT,
@@ -311,6 +364,7 @@ async function ensureIsrTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS isr_deals (
       id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL DEFAULT 1,
       customer_name TEXT,
       customer_email TEXT NOT NULL,
       customer_company TEXT,
@@ -401,6 +455,7 @@ async function ensureIsrTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS isr_margin_rules (
       id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL DEFAULT 1,
       vendor_id INTEGER REFERENCES isr_vendors(id),
       name TEXT NOT NULL,
       min_margin_pct NUMERIC(5,2) NOT NULL DEFAULT 15,
@@ -417,6 +472,7 @@ async function ensureIsrTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS isr_email_inbox (
       id SERIAL PRIMARY KEY,
+      tenant_id INTEGER NOT NULL DEFAULT 1,
       message_id TEXT NOT NULL UNIQUE,
       from_email TEXT NOT NULL,
       from_name TEXT,
@@ -448,6 +504,7 @@ function startIsrImapCron() {
 async function startup() {
   await maybeResetAdminPassword();
   await ensureQuestionsTable();
+  await ensureTenantsTable();
   await ensureIsrTables();
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();

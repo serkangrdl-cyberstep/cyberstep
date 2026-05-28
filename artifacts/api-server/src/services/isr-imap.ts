@@ -10,33 +10,40 @@ import { eq, and, sql } from "drizzle-orm";
 import { classifyEmail, parseRfqResponseEmail, generateRfqEmailBody } from "./isr-ai";
 import nodemailer from "nodemailer";
 
-function getImapConfig() {
-  const host = process.env["ISR_IMAP_HOST"] ?? "imap.gmail.com";
-  const user = process.env["ISR_IMAP_USER"] ?? process.env["SMTP_USER"];
-  const pass = process.env["ISR_IMAP_PASS"] ?? process.env["SMTP_PASS"];
+interface TenantMailConfig {
+  imapHost?: string | null;
+  imapUser?: string | null;
+  imapPass?: string | null;
+  smtpHost?: string | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpPort?: number | null;
+}
+
+function getImapConfig(tenant?: TenantMailConfig) {
+  const host = tenant?.imapHost ?? process.env["ISR_IMAP_HOST"] ?? "imap.gmail.com";
+  const user = tenant?.imapUser ?? process.env["ISR_IMAP_USER"] ?? process.env["SMTP_USER"];
+  const pass = tenant?.imapPass ?? process.env["ISR_IMAP_PASS"] ?? process.env["SMTP_PASS"];
   if (!user || !pass) return null;
   return { host, port: 993, secure: true, auth: { user, pass } };
 }
 
-function getSmtpTransport() {
-  const user = process.env["SMTP_USER"];
-  const pass = process.env["SMTP_PASS"];
+function getSmtpTransport(tenant?: TenantMailConfig) {
+  const user = tenant?.smtpUser ?? process.env["SMTP_USER"];
+  const pass = tenant?.smtpPass ?? process.env["SMTP_PASS"];
+  const host = tenant?.smtpHost ?? "smtp.gmail.com";
+  const port = tenant?.smtpPort ?? 587;
   if (!user || !pass) return null;
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com", port: 587, secure: false, auth: { user, pass },
-  });
+  return nodemailer.createTransport({ host, port, secure: false, auth: { user, pass } });
 }
 
-function getSenderEmail() {
-  return process.env["SMTP_USER"] ?? "sales@cyberstep.io";
+function getSenderEmail(tenant?: TenantMailConfig) {
+  return tenant?.smtpUser ?? process.env["SMTP_USER"] ?? "sales@cyberstep.io";
 }
 
-export async function processInbox(): Promise<void> {
-  const imapConfig = getImapConfig();
-  if (!imapConfig) {
-    logger.warn("ISR IMAP credentials not configured — skipping inbox check");
-    return;
-  }
+async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig): Promise<void> {
+  const imapConfig = getImapConfig(tenantConfig);
+  if (!imapConfig) return;
 
   const client = new ImapFlow({ ...imapConfig, logger: false });
 
@@ -44,22 +51,15 @@ export async function processInbox(): Promise<void> {
     await client.connect();
     await client.mailboxOpen("INBOX");
 
-    // Fetch unseen messages
     const messages = [];
     for await (const msg of client.fetch("1:*", { envelope: true, source: true }, { uid: true })) {
       messages.push(msg);
     }
 
-    // Filter unseen (we track by message-id in DB)
     for (const msg of messages) {
       if (!msg.source) continue;
-
       let parsed;
-      try {
-        parsed = await simpleParser(msg.source);
-      } catch {
-        continue;
-      }
+      try { parsed = await simpleParser(msg.source); } catch { continue; }
 
       const messageId = parsed.messageId ?? `uid-${msg.uid}`;
       const fromEmail = (parsed.from?.value?.[0]?.address ?? "").toLowerCase();
@@ -68,62 +68,76 @@ export async function processInbox(): Promise<void> {
       const bodyText = parsed.text ?? (parsed.html ? parsed.html.replace(/<[^>]+>/g, " ") : "") ?? "";
       const receivedAt = parsed.date ?? new Date();
 
-      // Skip if already processed
       const existing = await db.select({ id: isrEmailInboxTable.id })
-        .from(isrEmailInboxTable)
-        .where(eq(isrEmailInboxTable.messageId, messageId))
-        .limit(1);
+        .from(isrEmailInboxTable).where(eq(isrEmailInboxTable.messageId, messageId)).limit(1);
       if (existing.length > 0) continue;
 
-      // Skip our own outgoing emails
-      const ourEmail = getSenderEmail().toLowerCase();
+      const ourEmail = getSenderEmail(tenantConfig).toLowerCase();
       if (fromEmail === ourEmail) {
         await db.insert(isrEmailInboxTable).values({
-          messageId, fromEmail, fromName, subject,
-          bodyText: bodyText.slice(0, 5000),
-          processedAs: "ignored",
-          receivedAt,
+          tenantId, messageId, fromEmail, fromName, subject,
+          bodyText: bodyText.slice(0, 5000), processedAs: "ignored", receivedAt,
         });
         continue;
       }
 
-      // Get active vendors for classification context
       const vendors = await db.select({ name: isrVendorsTable.name })
-        .from(isrVendorsTable)
-        .where(eq(isrVendorsTable.isActive, true));
+        .from(isrVendorsTable).where(and(eq(isrVendorsTable.isActive, true), eq(isrVendorsTable.tenantId, tenantId)));
       const vendorNames = vendors.map((v) => v.name);
 
-      // Classify the email
-      const classification = await classifyEmail({
-        fromEmail, fromName, subject,
-        bodyText: bodyText.slice(0, 3000),
-        vendorNames,
-      });
-
-      logger.info({ messageId, fromEmail, subject, type: classification.type }, "ISR email classified");
+      const classification = await classifyEmail({ fromEmail, fromName, subject, bodyText: bodyText.slice(0, 3000), vendorNames });
+      logger.info({ tenantId, messageId, fromEmail, subject, type: classification.type }, "ISR email classified");
 
       if (classification.type === "new_deal") {
-        await handleNewDeal({ messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
+        await handleNewDeal({ tenantId, messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
       } else if (classification.type === "rfq_response") {
-        await handleRfqResponse({ messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
+        await handleRfqResponse({ tenantId, messageId, fromEmail, fromName, subject, bodyText, receivedAt, classification });
       } else {
         await db.insert(isrEmailInboxTable).values({
-          messageId, fromEmail, fromName, subject,
-          bodyText: bodyText.slice(0, 5000),
-          processedAs: "ignored",
-          receivedAt,
+          tenantId, messageId, fromEmail, fromName, subject,
+          bodyText: bodyText.slice(0, 5000), processedAs: "ignored", receivedAt,
         });
       }
     }
 
     await client.logout();
   } catch (err) {
-    logger.error({ err }, "ISR IMAP processing error");
+    logger.error({ err, tenantId }, "ISR IMAP processing error");
     try { await client.logout(); } catch { /* ignore */ }
   }
 }
 
+export async function processInboxForTenant(tenantId: number): Promise<void> {
+  const { tenantsTable } = await import("@workspace/db");
+  const [tenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, tenantId));
+  if (!tenant || !tenant.isrEnabled) return;
+  await runImapForTenant(tenantId, tenant);
+}
+
+// Legacy: process for all ISR-enabled tenants (used by cron)
+export async function processInbox(): Promise<void> {
+  const { tenantsTable } = await import("@workspace/db");
+  const tenants = await db.select().from(tenantsTable)
+    .where(and(eq(tenantsTable.isActive, true), eq(tenantsTable.isrEnabled, true)));
+
+  if (tenants.length === 0) {
+    // Fallback to env-based config for backward compatibility (no tenants yet)
+    const fallbackConfig = getImapConfig();
+    if (!fallbackConfig) {
+      logger.warn("ISR IMAP credentials not configured — skipping inbox check");
+      return;
+    }
+    await runImapForTenant(1, {});
+    return;
+  }
+
+  for (const tenant of tenants) {
+    await runImapForTenant(tenant.id, tenant);
+  }
+}
+
 async function handleNewDeal(params: {
+  tenantId: number;
   messageId: string;
   fromEmail: string;
   fromName: string;
@@ -132,23 +146,24 @@ async function handleNewDeal(params: {
   receivedAt: Date;
   classification: Awaited<ReturnType<typeof classifyEmail>>;
 }) {
-  const { classification } = params;
+  const { classification, tenantId } = params;
 
-  // Find matching vendor
   let vendorId: number | null = null;
   if (classification.vendorName) {
     const [vendor] = await db.select({ id: isrVendorsTable.id })
       .from(isrVendorsTable)
-      .where(sql`lower(${isrVendorsTable.name}) like ${`%${classification.vendorName.toLowerCase()}%`}`)
+      .where(and(
+        eq(isrVendorsTable.tenantId, tenantId),
+        sql`lower(${isrVendorsTable.name}) like ${`%${classification.vendorName.toLowerCase()}%`}`,
+      ))
       .limit(1);
     if (vendor) vendorId = vendor.id;
   }
 
-  // Get assigned rep (first admin email for now)
   const adminEmail = process.env["SMTP_USER"] ?? undefined;
 
-  // Create deal
   const [deal] = await db.insert(isrDealsTable).values({
+    tenantId,
     customerEmail: params.fromEmail,
     customerName: classification.customerName ?? params.fromName,
     customerCompany: classification.customerCompany,
@@ -166,8 +181,8 @@ async function handleNewDeal(params: {
 
   if (!deal) return;
 
-  // Log inbox
   await db.insert(isrEmailInboxTable).values({
+    tenantId,
     messageId: params.messageId,
     fromEmail: params.fromEmail,
     fromName: params.fromName,
@@ -178,15 +193,15 @@ async function handleNewDeal(params: {
     receivedAt: params.receivedAt,
   });
 
-  logger.info({ dealId: deal.id, fromEmail: params.fromEmail }, "New ISR deal created from email");
+  logger.info({ tenantId, dealId: deal.id, fromEmail: params.fromEmail }, "New ISR deal created from email");
 
-  // Auto-send RFQ to distributors if vendor found
   if (vendorId) {
-    await sendRfqsForDeal(deal.id, vendorId, classification.productKeywords ?? params.subject, params.bodyText);
+    await sendRfqsForDeal(deal.id, vendorId, classification.productKeywords ?? params.subject, params.bodyText, undefined, tenantId);
   }
 }
 
 async function handleRfqResponse(params: {
+  tenantId: number;
   messageId: string;
   fromEmail: string;
   fromName: string;
@@ -195,22 +210,20 @@ async function handleRfqResponse(params: {
   receivedAt: Date;
   classification: Awaited<ReturnType<typeof classifyEmail>>;
 }) {
-  const { classification } = params;
+  const { classification, tenantId } = params;
 
-  // Extract deal ID from subject [ISR-REF:DEAL-X]
   const refMatch = params.subject.match(/\[ISR-REF:DEAL-(\d+)\]/i);
   const dealRefId = refMatch ? parseInt(refMatch[1]) : classification.dealRefId;
 
   if (!dealRefId) {
     await db.insert(isrEmailInboxTable).values({
-      messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
+      tenantId, messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
       subject: params.subject, bodyText: params.bodyText.slice(0, 5000),
       processedAs: "ignored", receivedAt: params.receivedAt,
     });
     return;
   }
 
-  // Find the open RFQ for this deal from this sender
   const [rfq] = await db.select({ id: isrRfqsTable.id })
     .from(isrRfqsTable)
     .where(and(
@@ -220,14 +233,8 @@ async function handleRfqResponse(params: {
     .limit(1);
 
   const rfqId = rfq?.id;
+  const parsed = await parseRfqResponseEmail({ subject: params.subject, bodyText: params.bodyText });
 
-  // Parse pricing from email
-  const parsed = await parseRfqResponseEmail({
-    subject: params.subject,
-    bodyText: params.bodyText,
-  });
-
-  // Store RFQ response
   const [response] = await db.insert(isrRfqResponsesTable).values({
     rfqId: rfqId ?? 0,
     dealId: dealRefId,
@@ -241,18 +248,16 @@ async function handleRfqResponse(params: {
     receivedAt: params.receivedAt,
   }).returning({ id: isrRfqResponsesTable.id });
 
-  // Update RFQ status
   if (rfqId) {
     await db.update(isrRfqsTable)
       .set({ status: "responded", respondedAt: new Date() })
       .where(eq(isrRfqsTable.id, rfqId));
   }
 
-  // Insert quote lines
   if (response && parsed.lines.length > 0) {
     const [marginRule] = await db.select()
       .from(isrMarginRulesTable)
-      .where(eq(isrMarginRulesTable.isDefault, true))
+      .where(and(eq(isrMarginRulesTable.isDefault, true), eq(isrMarginRulesTable.tenantId, tenantId)))
       .limit(1);
 
     const targetMargin = parseFloat(String(marginRule?.targetMarginPct ?? "25")) / 100;
@@ -274,15 +279,13 @@ async function handleRfqResponse(params: {
       });
     }
 
-    // Update deal status
     await db.update(isrDealsTable)
       .set({ status: "quoted", updatedAt: new Date() })
-      .where(eq(isrDealsTable.id, dealRefId));
+      .where(and(eq(isrDealsTable.id, dealRefId), eq(isrDealsTable.tenantId, tenantId)));
   }
 
-  // Log inbox
   await db.insert(isrEmailInboxTable).values({
-    messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
+    tenantId, messageId: params.messageId, fromEmail: params.fromEmail, fromName: params.fromName,
     subject: params.subject, bodyText: params.bodyText.slice(0, 5000),
     processedAs: "rfq_response", dealId: dealRefId, rfqId: rfqId ?? null,
     receivedAt: params.receivedAt,
@@ -297,8 +300,17 @@ export async function sendRfqsForDeal(
   productKeywords: string,
   originalRequest: string,
   distributorIds?: number[],
+  tenantId?: number,
 ): Promise<void> {
-  const transport = getSmtpTransport();
+  // Load tenant config for SMTP if tenantId provided
+  let tenantConfig: TenantMailConfig = {};
+  if (tenantId) {
+    const { tenantsTable } = await import("@workspace/db");
+    const [t] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, tenantId));
+    if (t) tenantConfig = t;
+  }
+
+  const transport = getSmtpTransport(tenantConfig);
   if (!transport) {
     logger.warn("SMTP not configured — skipping RFQ sending");
     return;
@@ -311,7 +323,6 @@ export async function sendRfqsForDeal(
     .from(isrDistributorsTable)
     .where(and(eq(isrDistributorsTable.vendorId, vendorId), eq(isrDistributorsTable.isActive, true)));
 
-  // Filter to selected distributors if specified, otherwise use all active ones
   const distributors = distributorIds && distributorIds.length > 0
     ? allDistributors.filter((d) => distributorIds.includes(d.id))
     : allDistributors;
@@ -323,10 +334,11 @@ export async function sendRfqsForDeal(
     email: d.contactEmail, name: d.name, distributorId: d.id,
   }));
 
-  // Only add vendor sales rep if not using filtered distributor list
   if (vendor.salesRepEmail && !distributorIds) {
     targets.push({ email: vendor.salesRepEmail, name: vendor.salesRepName ?? vendor.displayName });
   }
+
+  const senderEmail = getSenderEmail(tenantConfig);
 
   for (const target of targets) {
     const body = await generateRfqEmailBody({
@@ -338,7 +350,7 @@ export async function sendRfqsForDeal(
 
     try {
       const info = await transport.sendMail({
-        from: `"CyberStep.io Satış" <${getSenderEmail()}>`,
+        from: `"CyberStep.io Satış" <${senderEmail}>`,
         to: target.email,
         subject,
         text: body,

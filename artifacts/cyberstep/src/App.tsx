@@ -22,6 +22,8 @@ import GizlilikPolitikasi from "./pages/gizlilik-politikasi";
 import CerezPolitikasi from "./pages/cerez-politikasi";
 
 import AdminLogin from "./pages/admin-panel/login";
+import WorkspacePicker from "./pages/admin-panel/workspace-picker";
+import TenantSettingsPage from "./pages/admin-panel/tenant-settings";
 import AdminDashboard from "./pages/admin-panel/index";
 import AdminSettings from "./pages/admin-panel/settings";
 import AdminPricing from "./pages/admin-panel/pricing";
@@ -57,6 +59,7 @@ import { CookieBanner } from "./components/cookie-banner";
 import { WhiteLabelProvider } from "./contexts/white-label-context";
 import { LanguageProvider } from "./contexts/language-context";
 import { ThemeProvider } from "next-themes";
+import { TenantProvider } from "./contexts/tenant-context";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +96,8 @@ function Router() {
 
       {/* Admin panel (full-page, no shared header/footer) */}
       <Route path="/panel/giris" component={AdminLogin} />
+      <Route path="/panel/workspace" component={WorkspacePicker} />
+      <Route path="/panel/workspace-ayarlari" component={TenantSettingsPage} />
       <Route path="/panel/ayarlar" component={AdminSettings} />
       <Route path="/panel/fiyatlar" component={AdminPricing} />
       <Route path="/panel/degerlendiirmeler" component={AdminAssessments} />
@@ -152,7 +157,9 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
+              <TenantProvider>
+                <Router />
+              </TenantProvider>
             </WouterRouter>
             <CookieBanner />
             <Toaster />

@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 // ─── Vendors (Fortinet, Cisco, Palo Alto...) ─────────────────────────────────
 export const isrVendorsTable = pgTable("isr_vendors", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
   name: text("name").notNull(),
   displayName: text("display_name").notNull(),
   logoUrl: text("logo_url"),
@@ -20,6 +21,7 @@ export const isrVendorsTable = pgTable("isr_vendors", {
 // ─── Distributors (per vendor) ───────────────────────────────────────────────
 export const isrDistributorsTable = pgTable("isr_distributors", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
   vendorId: integer("vendor_id").notNull().references(() => isrVendorsTable.id),
   name: text("name").notNull(),
   contactName: text("contact_name"),
@@ -34,6 +36,7 @@ export const isrDistributorsTable = pgTable("isr_distributors", {
 // ─── Deals (main opportunity record) ────────────────────────────────────────
 export const isrDealsTable = pgTable("isr_deals", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
   // Customer info (from incoming email)
   customerName: text("customer_name"),
   customerEmail: text("customer_email").notNull(),
@@ -127,6 +130,7 @@ export const isrQuotesTable = pgTable("isr_quotes", {
 // ─── Margin Rules ─────────────────────────────────────────────────────────────
 export const isrMarginRulesTable = pgTable("isr_margin_rules", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
   vendorId: integer("vendor_id").references(() => isrVendorsTable.id),
   name: text("name").notNull(),
   minMarginPct: numeric("min_margin_pct", { precision: 5, scale: 2 }).notNull().default("15"),
@@ -143,6 +147,7 @@ export const isrMarginRulesTable = pgTable("isr_margin_rules", {
 // ─── Email Inbox Log ──────────────────────────────────────────────────────────
 export const isrEmailInboxTable = pgTable("isr_email_inbox", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
   messageId: text("message_id").notNull().unique(),
   fromEmail: text("from_email").notNull(),
   fromName: text("from_name"),

@@ -5,27 +5,30 @@ import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
   BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2, Bot,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
+import { useTenant } from "@/contexts/tenant-context";
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Genel Bakış",        href: "/panel" },
-  { icon: FileText,        label: "Değerlendirmeler",   href: "/panel/degerlendiirmeler" },
-  { icon: UserSquare2,     label: "Müşteriler",         href: "/panel/musteriler" },
-  { icon: Globe,           label: "Alan Adı Taramaları",href: "/panel/domain-taramalar" },
-  { icon: Bot,             label: "AI Satış Asistanı",  href: "/panel/isr" },
-  { icon: DollarSign,      label: "Ödemeler",           href: "/panel/odemeler" },
-  { icon: CreditCard,      label: "Fiyatlandırma",      href: "/panel/fiyatlar" },
-  { icon: Users,           label: "Soru Yönetimi",      href: "/panel/sorular" },
-  { icon: BookOpen,        label: "Blog",               href: "/panel/blog" },
-  { icon: CalendarHeart,   label: "Özel Gün Mesajları", href: "/panel/ozel-gunler" },
-  { icon: Share2,          label: "Sosyal Medya",       href: "/panel/sosyal-medya" },
-  { icon: Briefcase,       label: "Danışmanlık",        href: "/panel/danismanlik" },
-  { icon: Award,           label: "Teknoloji Ortakları",href: "/panel/partnerlar" },
-  { icon: Building2,       label: "Beyaz Etiket",       href: "/panel/whitelabel" },
-  { icon: Settings,        label: "Site Ayarları",      href: "/panel/ayarlar" },
-  { icon: Shield,          label: "2FA Güvenlik",       href: "/panel/totp" },
+  { icon: LayoutDashboard, label: "Genel Bakış",         href: "/panel" },
+  { icon: FileText,        label: "Değerlendirmeler",    href: "/panel/degerlendiirmeler" },
+  { icon: UserSquare2,     label: "Müşteriler",          href: "/panel/musteriler" },
+  { icon: Globe,           label: "Alan Adı Taramaları", href: "/panel/domain-taramalar" },
+  { icon: Bot,             label: "AI Satış Asistanı",   href: "/panel/isr" },
+  { icon: DollarSign,      label: "Ödemeler",            href: "/panel/odemeler" },
+  { icon: CreditCard,      label: "Fiyatlandırma",       href: "/panel/fiyatlar" },
+  { icon: Users,           label: "Soru Yönetimi",       href: "/panel/sorular" },
+  { icon: BookOpen,        label: "Blog",                href: "/panel/blog" },
+  { icon: CalendarHeart,   label: "Özel Gün Mesajları",  href: "/panel/ozel-gunler" },
+  { icon: Share2,          label: "Sosyal Medya",        href: "/panel/sosyal-medya" },
+  { icon: Briefcase,       label: "Danışmanlık",         href: "/panel/danismanlik" },
+  { icon: Award,           label: "Teknoloji Ortakları", href: "/panel/partnerlar" },
+  { icon: Building2,       label: "Beyaz Etiket",        href: "/panel/whitelabel" },
+  { icon: Settings,        label: "Site Ayarları",       href: "/panel/ayarlar" },
+  { icon: Shield,          label: "2FA Güvenlik",        href: "/panel/totp" },
+  { icon: Building2,       label: "Workspace Ayarları",  href: "/panel/workspace-ayarlari" },
 ];
 
 interface AdminLayoutProps {
@@ -38,6 +41,7 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
   const [location, navigate] = useLocation();
   const qc = useQueryClient();
   const { data: admin } = useRequireAdmin();
+  const { tenant } = useTenant();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const logoutMutation = useMutation({
@@ -53,20 +57,41 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
 
   const sidebarContent = (
     <>
-      <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-        <div>
+      <div className="p-5 border-b border-slate-800">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-emerald-500" />
             <span className="font-bold text-white text-sm">CyberStep Admin</span>
           </div>
-          <div className="text-slate-400 text-xs mt-0.5 truncate max-w-[160px]">{admin?.email}</div>
+          <button
+            className="lg:hidden text-slate-400 hover:text-white p-1"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          className="lg:hidden text-slate-400 hover:text-white p-1"
-          onClick={() => setSidebarOpen(false)}
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {tenant ? (
+          <button
+            onClick={() => { navigate("/panel/workspace"); setSidebarOpen(false); }}
+            className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded-md px-3 py-2 transition-colors text-left"
+          >
+            <Building2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-xs font-medium truncate">{tenant.name}</div>
+              <div className="text-slate-500 text-xs truncate">{tenant.plan} · {tenant.role}</div>
+            </div>
+            <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
+          </button>
+        ) : (
+          <button
+            onClick={() => { navigate("/panel/workspace"); setSidebarOpen(false); }}
+            className="w-full flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-md px-3 py-2 transition-colors text-left"
+          >
+            <Building2 className="h-4 w-4 text-amber-400 shrink-0" />
+            <span className="text-amber-400 text-xs">Workspace seciniz</span>
+          </button>
+        )}
+        <div className="text-slate-500 text-xs mt-2 truncate">{admin?.email}</div>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map(({ icon: Icon, label, href }) => {

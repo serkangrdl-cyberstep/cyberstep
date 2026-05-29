@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable } from "@workspace/db";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore } from "./routes/domain-scan/index";
 import { sendReminderEmail, sendDomainRescanEmail } from "./services/email";
@@ -551,6 +551,38 @@ async function ensureEmailTables() {
   `);
 }
 
+// ─── Startup: demo müşteri hesabını oluştur (yoksa veya şifre yanlışsa) ───────
+async function maybeSeedDemoCustomer() {
+  const DEMO_EMAIL = "demo@cyberstep.io";
+  const DEMO_PASSWORD = "Demo2024!";
+
+  const [existing] = await db.select({ id: customersTable.id, passwordHash: customersTable.passwordHash })
+    .from(customersTable)
+    .where(eq(customersTable.email, DEMO_EMAIL));
+
+  const correctHash = "$2b$12$KRWNZYbJaAvqMH8GoDhJteL830QrbCj3oa.cNwew0XkGEH5UACZsy";
+
+  if (!existing) {
+    await db.insert(customersTable).values({
+      email: DEMO_EMAIL,
+      passwordHash: correctHash,
+      fullName: "Demo Kullanici",
+      companyName: "Demo Sirket",
+    });
+    logger.info("Demo customer created");
+    return;
+  }
+
+  // Şifre hash'i yanlışsa güncelle
+  const ok = await bcrypt.compare(DEMO_PASSWORD, existing.passwordHash);
+  if (!ok) {
+    await db.update(customersTable)
+      .set({ passwordHash: correctHash, updatedAt: new Date() })
+      .where(eq(customersTable.id, existing.id));
+    logger.info("Demo customer password reset to Demo2024!");
+  }
+}
+
 async function startup() {
   await maybeResetAdminPassword();
   await ensureQuestionsTable();
@@ -559,6 +591,7 @@ async function startup() {
   await ensureEmailTables();
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
+  await maybeSeedDemoCustomer();
 }
 
 startup()

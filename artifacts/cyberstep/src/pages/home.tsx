@@ -2,8 +2,10 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SpecialDayBanner } from "@/components/special-day-banner";
-import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2, Globe, Search, XCircle, CheckCircle2, AlertCircle, Lock, AtSign, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/language-context";
 import { TRANSLATIONS as T, t } from "@/lib/translations";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -47,9 +49,49 @@ const scoreColor: Record<string, string> = {
   Orta: "bg-yellow-100 text-yellow-700 border-yellow-200",
 };
 
+interface QuickScanResult {
+  id: number;
+  domain: string;
+  overallScore: number;
+  spfPass: boolean;
+  dmarcPass: boolean;
+  sslPass: boolean;
+  blacklisted: boolean;
+}
+
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [quickDomain, setQuickDomain] = useState("");
+  const [quickLoading, setQuickLoading] = useState(false);
+  const [quickResult, setQuickResult] = useState<QuickScanResult | null>(null);
+  const [quickError, setQuickError] = useState<string | null>(null);
   const { lang } = useLanguage();
+
+  async function handleQuickScan(e: React.FormEvent) {
+    e.preventDefault();
+    const d = quickDomain.trim();
+    if (!d) return;
+    setQuickLoading(true);
+    setQuickResult(null);
+    setQuickError(null);
+    try {
+      const res = await fetch("/api/domain-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: d }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        throw new Error(err.error ?? "Tarama başarısız oldu");
+      }
+      const data = await res.json() as QuickScanResult;
+      setQuickResult(data);
+    } catch (err) {
+      setQuickError(err instanceof Error ? err.message : "Bir hata oluştu");
+    } finally {
+      setQuickLoading(false);
+    }
+  }
   usePageMeta({
     title: lang === "en"
       ? "Free Cybersecurity Risk Analysis for SMBs | CyberStep.io"
@@ -414,6 +456,114 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* Domain Scan Live Widget */}
+      <section className="py-20 bg-secondary text-secondary-foreground">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-sm font-medium mb-4">
+                <Globe className="h-4 w-4" />
+                <span>{lang === "en" ? "Free Domain Security Check" : "Ücretsiz Alan Adı Güvenlik Kontrolü"}</span>
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-4">
+                {lang === "en" ? "What Is Your Domain Security Score?" : "Alan Adınızın Güvenlik Skoru Kaç?"}
+              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                {lang === "en"
+                  ? "Instantly check SPF, DMARC, SSL and blacklist status of your company's domain — no registration required."
+                  : "Şirketinizin alan adında SPF, DMARC, SSL ve kara liste durumunu anında kontrol edin. Kayıt gerekmez."}
+              </p>
+            </div>
+
+            <form onSubmit={handleQuickScan} className="flex flex-col sm:flex-row gap-3 mb-8">
+              <Input
+                value={quickDomain}
+                onChange={(e) => { setQuickDomain(e.target.value); setQuickResult(null); setQuickError(null); }}
+                placeholder={lang === "en" ? "yourcompany.com" : "sirketiniz.com"}
+                className="flex-1 h-12 bg-card/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-primary"
+                disabled={quickLoading}
+              />
+              <Button type="submit" disabled={quickLoading || !quickDomain.trim()} className="h-12 px-6 font-medium shrink-0">
+                {quickLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{lang === "en" ? "Scanning..." : "Taranıyor..."}</> : <><Search className="h-4 w-4 mr-2" />{lang === "en" ? "Scan" : "Tara"}</>}
+              </Button>
+            </form>
+
+            {quickError && (
+              <div className="flex items-center gap-2 text-sm text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg px-4 py-3 mb-4">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {quickError}
+              </div>
+            )}
+
+            {quickResult && (
+              <div className="bg-card/10 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <p className="text-sm text-white/60 mb-0.5">{lang === "en" ? "Scanned domain" : "Taranan alan adı"}</p>
+                    <p className="font-semibold text-white">{quickResult.domain}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-white/50 mb-0.5">{lang === "en" ? "Security Score" : "Güvenlik Skoru"}</p>
+                    <span className={`text-4xl font-bold ${quickResult.overallScore >= 70 ? "text-emerald-400" : quickResult.overallScore >= 40 ? "text-amber-400" : "text-red-400"}`}>
+                      {quickResult.overallScore}
+                      <span className="text-base font-normal text-white/40">/100</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                  {[
+                    { label: "SPF", pass: quickResult.spfPass, icon: AtSign },
+                    { label: "DMARC", pass: quickResult.dmarcPass, icon: Mail },
+                    { label: "SSL", pass: quickResult.sslPass, icon: Lock },
+                    { label: lang === "en" ? "Blacklist" : "Kara Liste", pass: !quickResult.blacklisted, icon: Shield },
+                  ].map(({ label, pass, icon: Icon }) => (
+                    <div key={label} className={`flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 border ${pass ? "bg-emerald-950/40 border-emerald-700/30" : "bg-red-950/40 border-red-700/30"}`}>
+                      <Icon className={`h-5 w-5 ${pass ? "text-emerald-400" : "text-red-400"}`} />
+                      <span className="text-xs font-medium text-white/80">{label}</span>
+                      {pass
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        : <XCircle className="h-3.5 w-3.5 text-red-400" />}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <Link
+                    href={`/domain-tarama?id=${quickResult.id}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-10 text-sm font-medium transition-colors"
+                  >
+                    {lang === "en" ? "View Full Report" : "Tam Raporu Görüntüle"} <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <button
+                    onClick={() => { setQuickResult(null); setQuickDomain(""); }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white rounded-lg h-10 text-sm font-medium transition-colors"
+                  >
+                    {lang === "en" ? "Scan Another Domain" : "Başka Alan Adı Tara"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!quickResult && !quickError && !quickLoading && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                {[
+                  { label: lang === "en" ? "Email Security" : "E-posta Güvenliği", desc: "SPF / DMARC / DKIM" },
+                  { label: "SSL / HTTPS", desc: lang === "en" ? "Certificate Check" : "Sertifika Kontrolü" },
+                  { label: lang === "en" ? "Blacklist" : "Kara Liste", desc: lang === "en" ? "7 DNSBL" : "7 DNSBL Listesi" },
+                  { label: lang === "en" ? "HTTP Headers" : "HTTP Başlıkları", desc: "HSTS / CSP / XFO" },
+                ].map(({ label, desc }) => (
+                  <div key={label} className="bg-white/5 border border-white/10 rounded-xl px-3 py-4">
+                    <p className="text-sm font-semibold text-white mb-1">{label}</p>
+                    <p className="text-xs text-white/50">{desc}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Pricing */}
       <section className="py-20 bg-background">

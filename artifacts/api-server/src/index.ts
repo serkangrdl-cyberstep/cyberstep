@@ -514,6 +514,13 @@ function startIsrImapCron() {
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
+async function ensureDomainScanEnrichmentColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS http_headers_score INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS http_headers_details JSONB DEFAULT '{}'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS urlhaus_listed BOOLEAN NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS urlhaus_threat TEXT`);
+}
+
 async function ensureEmailTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS email_templates (
@@ -592,6 +599,7 @@ async function startup() {
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
   await maybeSeedDemoCustomer();
+  await ensureDomainScanEnrichmentColumns();
 }
 
 startup()

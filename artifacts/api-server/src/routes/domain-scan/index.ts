@@ -313,6 +313,65 @@ function sanitizeDomain(raw: string): string {
   return d;
 }
 
+// ─── HTTP Security Headers check ─────────────────────────────────────────────
+async function checkHTTPHeaders(domain: string): Promise<{
+  score: number;
+  hsts: boolean;
+  xFrameOptions: boolean;
+  xContentTypeOptions: boolean;
+  csp: boolean;
+  referrerPolicy: boolean;
+}> {
+  const empty = { score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false };
+  return new Promise((resolve) => {
+    const req = https.request(
+      { hostname: domain, port: 443, method: "HEAD", timeout: 6000, rejectUnauthorized: false },
+      (res) => {
+        const h = res.headers;
+        const hsts = !!h["strict-transport-security"];
+        const xfo  = !!(h["x-frame-options"]);
+        const xcto = !!(h["x-content-type-options"]);
+        const csp  = !!(h["content-security-policy"]);
+        const rp   = !!(h["referrer-policy"]);
+        resolve({ score: [hsts, xfo, xcto, csp, rp].filter(Boolean).length, hsts, xFrameOptions: xfo, xContentTypeOptions: xcto, csp, referrerPolicy: rp });
+      }
+    );
+    req.on("error", () => resolve(empty));
+    req.on("timeout", () => { req.destroy(); resolve(empty); });
+    req.end();
+  });
+}
+
+// ─── URLhaus malware DB check (abuse.ch) — no API key required ───────────────
+async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: string | null }> {
+  return new Promise((resolve) => {
+    const body = `url=https%3A%2F%2F${encodeURIComponent(domain)}`;
+    const reqOpts = {
+      hostname: "urlhaus-api.abuse.ch",
+      path: "/v1/lookup/",
+      method: "POST",
+      timeout: 8000,
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(body) },
+    };
+    const r = https.request(reqOpts, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data) as { query_status?: string; threat?: string };
+          resolve({ listed: parsed.query_status === "is_host", threat: parsed.threat ?? null });
+        } catch {
+          resolve({ listed: false, threat: null });
+        }
+      });
+    });
+    r.on("error", () => resolve({ listed: false, threat: null }));
+    r.on("timeout", () => { r.destroy(); resolve({ listed: false, threat: null }); });
+    r.write(body);
+    r.end();
+  });
+}
+
 // ─── POST /api/domain-scan ───────────────────────────────────────────────────
 router.post("/domain-scan", async (req, res) => {
   const rawDomain: unknown = req.body?.domain;
@@ -341,7 +400,7 @@ router.post("/domain-scan", async (req, res) => {
   logger.info({ domain }, "Starting domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -350,6 +409,8 @@ router.post("/domain-scan", async (req, res) => {
       checkHIBP(domain),
       checkBlacklists(domain),
       checkShadowIT(domain),
+      checkHTTPHeaders(domain),
+      checkURLhaus(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -378,10 +439,14 @@ router.post("/domain-scan", async (req, res) => {
         blacklistCount: blacklist.blacklistCount,
         blacklistResults: blacklist.results,
         shadowItServices: shadowIt.services,
+        httpHeadersScore: httpHeaders.score,
+        httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy },
+        urlhausListed: urlhaus.listed,
+        urlhausThreat: urlhaus.threat,
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, scanId: scan?.id }, "Domain scan complete");
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, scanId: scan?.id }, "Domain scan complete");
     res.json(scan);
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
@@ -450,4 +515,4 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
 });
 
 export default router;
-export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT };
+export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT, checkHTTPHeaders, checkURLhaus };

@@ -26,6 +26,10 @@ export const domainScansTable = pgTable("domain_scans", {
   blacklistCount: integer("blacklist_count").notNull().default(0),
   blacklistResults: jsonb("blacklist_results").$type<Array<{ list: string; listed: boolean }>>().notNull().default([]),
   shadowItServices: jsonb("shadow_it_services").$type<Array<{ name: string; category: string; risk: string; description: string; version?: string }>>().notNull().default([]),
+  httpHeadersScore: integer("http_headers_score").notNull().default(0),
+  httpHeadersDetails: jsonb("http_headers_details").$type<{ hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean }>().default({ hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false }),
+  urlhausListed: boolean("urlhaus_listed").notNull().default(false),
+  urlhausThreat: text("urlhaus_threat"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

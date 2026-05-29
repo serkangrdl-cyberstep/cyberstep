@@ -363,14 +363,16 @@ ALAN ADI GÜVENLİK TARAMASI (${domainScan.domain}):
 - Tespit Edilen 3. Taraf Servisler (${(domainScan.shadowItServices as any[]).length}): ${(domainScan.shadowItServices as any[]).length > 0 ? (domainScan.shadowItServices as any[]).map((s: any) => `${s.name} (${s.risk} risk)`).join(", ") : "Yok"}
 - Alan Adı Güvenlik Skoru: ${domainScan.overallScore}/100` : "";
 
-  const prompt = `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan bir uzmansın. Görevin teknik jargon kullanmadan, iş sonuçlarına odaklanan sade Türkçe bir analiz yazmak.
+  const prompt = `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; iş sürekliliği, fidye saldırısı riski ve yasal uyum (KVKK vb.) odaklı bir Siber Sağlık Karnesi analizi yazmak.
+
+ÖNEMLİ BAĞLAM: Bu analiz bir KOBİ sahibine sunulacak. "MFA", "EDR", "SPF", "DMARC", "endpoint", "patch", "vulnerability", "zero-day" gibi teknik terimler KOBİ sahibi için anlamsızdır. Her zayıflığı şu çerçevede ifade et: "Bu açık varsa → şirkete şu iş sonucu çıkar (üretim durur / fidye ödenir / müşteri verisi sızar / KVKK cezası gelir)".
 
 Firma: ${assessment.companyName}
 Sektör: ${assessment.sector}
 Çalışan Sayısı: ${assessment.employeeCount}
 
 SONUÇLAR:
-- Toplam Puan: ${scoring.totalScore}/${scoring.maxScore} (%${scoring.scorePercent})
+- Siber Sağlık Skoru: ${scoring.totalScore}/${scoring.maxScore} (%${scoring.scorePercent})
 - Risk Seviyesi: ${scoring.riskLevel}
 - Acil Müdahale Gerektiren Alan Sayısı: ${scoring.redAlarmCount}
 - Acil Alanlar: ${redAlarmDetails || "Yok"}
@@ -382,29 +384,53 @@ ${domainScanSection}
 CEVAPLAR:
 ${answersText}
 
+JARGON DÖNÜŞÜM SÖZLÜĞÜ — bu listedeki teknik terimleri ASLA kullanma, karşısındaki iş dilini kullan:
+- "MFA / 2FA / çift faktör" → "şifre çalınsa bile sisteme girilemez hale getirme"
+- "MFA eksik" → "bir çalışanın şifresi ele geçirilirse sisteme doğrudan girilebilir, fidye yazılımı bu yolla yayılır"
+- "EDR / antivirüs / endpoint koruma" → "bilgisayarlarda zararlı yazılım tespit ve engelleme sistemi"
+- "EDR yok" → "bilgisayarlara bulaşan fidye yazılımı tüm sisteme yayılana kadar fark edilmez"
+- "SPF / DKIM / DMARC" → "e-posta güvenlik kayıtları"
+- "SPF/DMARC eksik" → "şirket adınıza sahte e-posta gönderilebilir, çalışanlarınız veya müşterileriniz dolandırılabilir"
+- "patch / güncelleme eksikliği" → "bilinen güvenlik açıkları kapatılmamış, saldırganlar bu açıklardan sisteme girebilir"
+- "access control / least privilege" → "kimin hangi bilgilere erişebildiği kontrol edilmiyor"
+- "ayrıcalıklı hesap / admin hesabı açığı" → "yönetici yetkisine sahip hesap ele geçirilirse tüm sistem kontrol altına alınır"
+- "yedek ayrımı yok / offline backup yok" → "fidye saldırısında yedekler de şifrelenir, sıfırdan başlamak zorunda kalırsınız"
+- "BIA / business impact analysis" → "hangi sistemin durması işi ne kadar etkiler analizi"
+- "penetrasyon testi / pentest" → "güvenlik uzmanlarının gerçek saldırı senaryolarıyla sistemi test etmesi"
+- "VLAN / ağ segmentasyonu" → "kritik sistemlerin diğer bilgisayarlardan ayrılması"
+- "firewall" → "dış dünyadan gelen saldırıları engelleyen ağ güvenlik duvarı"
+- "phishing" → "sahte e-posta veya link yoluyla şifre/para çalma"
+- "BEC / business email compromise" → "muhasebe veya yöneticiden geliyormuş gibi görünen sahte e-postayla para transferi"
+- "ransomware / fidye yazılımı" → "sisteminizi kilitleyen ve şifreyi açmak için para talep eden zararlı yazılım"
+- "KVKK ihlali" → "kişisel veri ihlali nedeniyle KVKK kapsamında idari para cezası ve müşteri güveni kaybı"
+- "SSL sertifikası süresi dolmuş" → "web sitenizi ziyaret edenler güvenlik uyarısıyla karşılaşıyor, müşteri güveni zedeleniyor"
+- "shadow IT" → "şirket onayı olmadan kullanılan uygulamalar, veri nereye gittiği bilinmiyor"
+
 YAZIM KURALLARI (kesinlikle uy):
 - Yanıtın SADECE geçerli bir JSON nesnesi olmalı, başka hiçbir şey yazma
 - Düşünce süreci, açıklama, yorum YAZMA — sadece JSON
-- Teknik terim KULLANMA. Şu örnekleri izle:
-    * "MFA/2FA eksikliği" yerine → "çalışan hesaplarına şifre çalınırsa ikinci engel yok"
-    * "DKIM/SPF yapılandırması" yerine → "şirket adınıza sahte e-posta gönderilebilir"
-    * "endpoint protection" yerine → "bilgisayarlarda zararlı yazılım koruması"
-    * "access control" yerine → "kimin hangi bilgilere erişebildiği kontrol edilmiyor"
-- Her zayıflığı şöyle ifade et: ne olabilir → şirkete maliyeti ne olur${domainScan ? "\n- Alan adı tarama sonuçlarındaki eksiklikleri de analize dahil et" : ""}
+- Yukarıdaki jargon sözlüğündeki teknik terimleri KULLANMA
+- Her zayıflığı şu formatta ifade et: "X eksik/yok → bu durumda Y iş sonucu çıkar"
+- İş sonuçlarını somutlaştır: üretim durması, fidye ödeme, KVKK cezası, müşteri kaybı, banka/sigorta güvensizliği
+- Fidye yazılımı riskini her değerlendirmede öne çıkar — özellikle yedekleme ve erişim kontrolü zayıfsa
+- KVKK uyumunu sektöre göre vurgula (sağlık, finans, perakende için daha kritik)
+- Analizi "Bu rapor, işletmenizin siber sağlık karnesinin ilk adımıdır" cümlesiyle kapat${domainScan ? "\n- Alan adı tarama sonuçlarındaki eksiklikleri iş etkisiyle birlikte analize dahil et" : ""}
 - aiAnalysis düz paragraf metni olmalı, birden fazla paragraf için sadece \\n\\n kullan
 - aiAnalysis içinde markdown yok: #, ##, **, *, - KULLANMA
-- recommendations: iş sahibinin anlayacağı, somut, uygulanabilir adımlar. Her madde tek cümle.${domainScan ? " Alan adı sorunları için somut teknik adımlar da ekle." : ""}
+- recommendations: iş sahibinin o gün uygulayabileceği veya IT/danışmana verebileceği somut talimatlar. Her madde "X yapın/yaptırın" formatında tek cümle. Teknik terim yok.${domainScan ? " Alan adı sorunları için somut adımlar ekle." : ""}
+- Önerileri öncelik sırasına göre listele: önce iş sürekliliğini en çok tehdit eden açık
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
 
 JSON şablonu:
 {
-  "aiAnalysis": "400-600 kelimelik Türkçe analiz. Güçlü yönler → zayıf yönler (iş etkisiyle) → acil müdahale gerektiren durumlar → sektöre özgü değerlendirme${domainScan ? " → alan adı güvenlik değerlendirmesi" : ""}. Düz paragraf, jargon yok.",
+  "aiAnalysis": "500-700 kelimelik Türkçe analiz. Genel değerlendirme → güçlü yönler → kritik açıklar (iş etkisiyle) → fidye/iş sürekliliği riski → KVKK/regülasyon uyum değerlendirmesi → sektöre özgü riskler${domainScan ? " → alan adı/e-posta güvenlik değerlendirmesi" : ""}. Son cümle: 'Bu rapor, işletmenizin siber sağlık karnesinin ilk adımıdır.' Düz paragraf, jargon yok.",
   "recommendations": [
-    "İş sahibinin anlayacağı somut öneri 1.",
-    "İş sahibinin anlayacağı somut öneri 2.",
-    "İş sahibinin anlayacağı somut öneri 3.",
-    "İş sahibinin anlayacağı somut öneri 4.",
-    "İş sahibinin anlayacağı somut öneri 5."
+    "En kritik iş sürekliliği önlemi — somut, uygulanabilir talimat.",
+    "İkinci öncelikli öneri.",
+    "Üçüncü öneri.",
+    "Dördüncü öneri.",
+    "Beşinci öneri.",
+    "Altıncı öneri (varsa)."
   ]
 }`;
 

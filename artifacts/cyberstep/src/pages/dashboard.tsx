@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowRight, ShieldCheck, Activity, AlertTriangle, Filter, X } from "lucide-react";
-import { Link } from "wouter";
+import { Loader2, ArrowRight, ShieldCheck, Activity, AlertTriangle, Filter, X, Lock } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, PieChart, Pie, Legend
@@ -61,6 +61,7 @@ const getRiskColor = (level: string) => {
 };
 
 export default function Dashboard() {
+  const [, navigate] = useLocation();
   const [selectedSector, setSelectedSector] = useState<string>("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
 
@@ -74,11 +75,16 @@ export default function Dashboard() {
     return params.toString();
   }, [selectedSector, datePreset]);
 
-  const { data: stats, isLoading } = useQuery<StatsData>({
+  const { data: stats, isLoading, error } = useQuery<StatsData>({
     queryKey: ["stats-summary", queryParams],
     queryFn: () =>
-      fetch(`/api/assessments/stats/summary?${queryParams}`).then(r => r.json()),
+      fetch(`/api/assessments/stats/summary?${queryParams}`).then(async r => {
+        if (r.status === 401 || r.status === 403) throw Object.assign(new Error("unauthorized"), { status: r.status });
+        if (!r.ok) throw new Error("Veri yüklenemedi");
+        return r.json();
+      }),
     staleTime: 30_000,
+    retry: false,
   });
 
   const hasFilters = selectedSector !== "all" || datePreset !== "all";
@@ -96,7 +102,31 @@ export default function Dashboard() {
     );
   }
 
-  if (!stats) return null;
+  if (error || !stats) {
+    const isUnauth = error && (error as Error & { status?: number }).status === 401;
+    return (
+      <div className="flex h-[60vh] items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="mx-auto h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+            <Lock className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold">
+            {isUnauth ? "Giriş Gerekiyor" : "Veri Yüklenemedi"}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {isUnauth
+              ? "Dashboard'a erişmek için yönetici girişi gereklidir."
+              : "İstatistikler şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin."}
+          </p>
+          {isUnauth && (
+            <Button onClick={() => navigate("/panel/giris")} className="mt-2">
+              Yönetici Girişi
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const riskData = [
     { name: "Kritik", value: stats.riskDistribution.kritik, color: "hsl(0 84.2% 60.2%)" },

@@ -1,11 +1,13 @@
 User-agent: *
 Allow: /
 
-# Admin paneli ve kullanıcı oturumu sayfaları taranmasın
+# Yonetim paneli ve kullanici oturumu sayfalarinın taranmasi engelleniyor
 Disallow: /panel/
 Disallow: /giris
 Disallow: /kayit
 Disallow: /hesap
+Disallow: /hesabim/
+Disallow: /musteri/
 Disallow: /totp-setup
 Disallow: /payment/
 Disallow: /assessment/

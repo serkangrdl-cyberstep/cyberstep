@@ -48,7 +48,7 @@ app.use(
 app.use((_req, res, next) => {
   res.setHeader(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()",
   );
   next();
 });
@@ -148,6 +148,15 @@ const paymentLimiter = rateLimit({
   message: { error: "Saatte en fazla 5 ödeme girişimi yapabilirsiniz." },
 });
 
+// Domain tarama: saatte 10 — harici API (HIBP, VirusTotal vb.) kötüye kullanım koruması
+const domainScanLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Saatte en fazla 10 domain taraması yapabilirsiniz." },
+});
+
 // Bülten gönderimi: saatte 3 (e-posta spam koruması)
 const newsletterLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -168,10 +177,17 @@ app.use("/api/admin-panel/auth/totp-verify", authLimiter);
 app.post("/api/assessments", assessmentCreateLimiter);
 // Payment abuse protection
 app.post("/api/payments/initiate", paymentLimiter);
+// Domain scan abuse protection (harici API maliyeti ve kötüye kullanım)
+app.post("/api/domain-scan", domainScanLimiter);
 // Newsletter spam protection
 app.post("/api/admin-panel/special-messages/:id/send-newsletter", newsletterLimiter);
 // General API limit
 app.use("/api", generalLimiter);
+// X-Robots-Tag: arama motorlarının API yanıtlarını dizine eklemesini engelle
+app.use("/api", (_req, res, next) => {
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
 
 // ─── Sessions with PostgreSQL store ──────────────────────────────────────────
 const PgStore = connectPgSimple(session);

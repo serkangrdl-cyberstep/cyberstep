@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
     <meta name="theme-color" content="#0f172a" />
+    <meta name="author" content="CyberStep.io" />
 
     <!-- Primary SEO -->
     <title>CyberStep.io — KOBİ'ler için Siber Güvenlik Risk Analizi</title>
@@ -19,17 +20,23 @@
     <meta property="og:url" content="https://cyberstep.io/" />
     <meta property="og:locale" content="tr_TR" />
     <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image" content="https://cyberstep.io/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CyberStep.io — KOBİ Siber Güvenlik Platformu" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="CyberStep.io — KOBİ'ler için Siber Güvenlik Risk Analizi" />
     <meta name="twitter:description" content="KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. Ücretsiz değerlendirme ile başlayın." />
+    <meta name="twitter:image" content="https://cyberstep.io/og-image.png" />
 
     <!-- Sitemap discovery -->
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
-    <!-- Favicon -->
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!-- Fonts — preconnect first, then stylesheet (Critical Path CSS pattern) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -37,33 +44,43 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-    <!-- JSON-LD: Organization -->
+    <!-- JSON-LD: Organization — OWASP/W3C: @id ile cross-entity referans, foundingDate ile zengin snippet -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Organization",
+      "@id": "https://cyberstep.io/#organization",
       "name": "CyberStep.io",
       "url": "https://cyberstep.io",
-      "logo": "https://cyberstep.io/favicon.svg",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://cyberstep.io/favicon.svg",
+        "width": 512,
+        "height": 512
+      },
       "description": "KOBİ'ler için siber güvenlik risk analizi ve danışmanlık hizmetleri.",
+      "foundingDate": "2024",
       "areaServed": "TR",
       "knowsLanguage": ["tr", "en"],
       "contactPoint": {
         "@type": "ContactPoint",
         "contactType": "customer support",
+        "url": "https://cyberstep.io/iletisim",
         "availableLanguage": ["Turkish", "English"]
       }
     }
     </script>
 
-    <!-- JSON-LD: WebSite -->
+    <!-- JSON-LD: WebSite — publisher ile Organization'a bağlı -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
+      "@id": "https://cyberstep.io/#website",
       "name": "CyberStep.io",
       "url": "https://cyberstep.io",
       "description": "KOBİ'ler için Türkçe siber güvenlik risk analizi platformu.",
+      "publisher": { "@id": "https://cyberstep.io/#organization" },
       "inLanguage": ["tr", "en"],
       "potentialAction": {
         "@type": "SearchAction",
@@ -76,19 +93,18 @@
     }
     </script>
 
-    <!-- JSON-LD: Service -->
+    <!-- JSON-LD: ProfessionalService — fiyat 4900 TL (doğru değer), Offer URL'leri eklendi -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Service",
+      "@type": "ProfessionalService",
+      "@id": "https://cyberstep.io/#service",
       "name": "Siber Güvenlik Risk Analizi",
-      "provider": {
-        "@type": "Organization",
-        "name": "CyberStep.io",
-        "url": "https://cyberstep.io"
-      },
+      "provider": { "@id": "https://cyberstep.io/#organization" },
       "serviceType": "Siber Güvenlik Danışmanlığı",
+      "category": "Cybersecurity",
       "areaServed": "TR",
+      "url": "https://cyberstep.io/fiyatlar",
       "description": "KOBİ'lere yönelik AI destekli siber güvenlik risk analizi. 20 soruluk Mini Değerlendirme ücretsiz, 55 soruluk Tam Değerlendirme kapsamlı rapor içerir.",
       "offers": [
         {
@@ -96,14 +112,16 @@
           "name": "Mini Değerlendirme",
           "price": "0",
           "priceCurrency": "TRY",
-          "description": "20 soruluk ücretsiz siber güvenlik risk analizi"
+          "url": "https://cyberstep.io/assessment/start",
+          "description": "20 soruluk ücretsiz siber güvenlik risk analizi, AI destekli temel rapor"
         },
         {
           "@type": "Offer",
           "name": "Tam Değerlendirme",
-          "price": "4990",
+          "price": "4900",
           "priceCurrency": "TRY",
-          "description": "55 soruluk kapsamlı siber güvenlik denetimi"
+          "url": "https://cyberstep.io/fiyatlar",
+          "description": "55 soruluk kapsamlı siber güvenlik denetimi, AI raporu ve uzman görüşmesi"
         }
       ]
     }

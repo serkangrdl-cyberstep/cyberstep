@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable } from "@workspace/db";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable, blogPostsTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail } from "./services/email";
@@ -810,6 +810,175 @@ async function maybeSeedDemoCustomer() {
   }
 }
 
+async function seedBlogPosts() {
+  const [{ cnt }] = await db.select({ cnt: count() })
+    .from(blogPostsTable)
+    .where(eq(blogPostsTable.slug, "kobi-siber-guvenlik-temel-onlemler"));
+  if (Number(cnt) > 0) return;
+
+  const now = new Date();
+  const posts = [
+    {
+      slug: "kobi-siber-guvenlik-temel-onlemler",
+      title: "KOBİ'ler İçin 10 Temel Siber Güvenlik Önlemi",
+      excerpt: "Küçük ve orta ölçekli işletmelerin siber saldırılara karşı hemen alabileceği, düşük maliyetli ama yüksek etkili 10 güvenlik adımı.",
+      content: `<h2>Neden KOBİ'ler Hedef Alınıyor?</h2>
+<p>Siber saldırganlar büyük şirketleri değil, daha kolay hedefleri tercih eder. KOBİ'lerin %43'ü her yıl siber saldırıya uğruyor; ancak bunların yalnızca %14'ü savunmaya yeterince hazırlıklı. Sebebi basit: büyük kurumsal güvenlik bütçesi olmaksızın dijital varlıklar korunmaya çalışılıyor.</p>
+<p>İyi haber şu ki temel güvenlik önlemlerinin büyük çoğunluğu ücretsiz ya da çok düşük maliyetlidir ve teknik bilgi gerektirmez.</p>
+<h2>1. Güçlü ve Benzersiz Parolalar Kullanın</h2>
+<p>Her hesap için farklı, en az 12 karakter uzunluğunda bir parola belirleyin. Rakam, büyük-küçük harf ve özel karakter içermeli. Bitwarden veya KeePass gibi ücretsiz bir parola yöneticisi bu işi kolaylaştırır.</p>
+<h2>2. İki Faktörlü Kimlik Doğrulama (2FA) Açın</h2>
+<p>E-posta, banka ve bulut sistemlerinizde 2FA'yı etkinleştirin. SMS yerine Google Authenticator veya Authy gibi bir uygulama kullanmak çok daha güvenlidir.</p>
+<h2>3. Yazılımları Güncel Tutun</h2>
+<p>Yamalar çıktıkça güncelleyin. Siber saldırıların %60'ı bilinen güvenlik açıklarını hedef alır ve bu açıkların çoğu aylar önce kapatılmıştır — yalnızca güncelleme yapılmamıştır.</p>
+<h2>4. E-posta Filtrelerinizi Yapılandırın</h2>
+<p>SPF, DKIM ve DMARC kayıtlarını DNS'inize ekleyin. Bu üç kayıt, alan adınızın sahte e-postalarda kullanılmasını engelleyen en temel korumadır.</p>
+<h2>5. Çalışanlarınızı Eğitin</h2>
+<p>Phishing saldırıları hâlâ en yaygın giriş noktası. Yılda en az bir kez bilinçlendirme eğitimi yapın; çalışanlarınıza şüpheli e-postaları nasıl tanıyacaklarını öğretin.</p>
+<h2>6. Düzenli Yedekleme Yapın</h2>
+<p>3-2-1 kuralını uygulayın: 3 kopya, 2 farklı ortam, 1 kopya tesis dışında. Yedekleri en az haftada bir test edin.</p>
+<h2>7. Wi-Fi Ağınızı Ayırın</h2>
+<p>Misafir, iş ve IoT cihazları için ayrı ağ segmentleri oluşturun. Yazıcı veya kameranız saldırıya uğrasa bile diğer sistemleriniz korunmuş olur.</p>
+<h2>8. Antivirüs ve EDR Kullanın</h2>
+<p>Ücretsiz antivirüsler temel koruma sağlar; ancak orta ve büyük KOBİ'ler için EDR (Endpoint Detection and Response) çözümleri çok daha etkilidir.</p>
+<h2>9. Erişim Yetkilerini Sınırlayın</h2>
+<p>Her çalışana yalnızca işini yapabilmesi için gereken en az yetkiyi verin. Ayrılan çalışanların erişimlerini aynı gün kapatın.</p>
+<h2>10. Risk Değerlendirmesi Yaptırın</h2>
+<p>Yılda en az bir kez profesyonel bir siber güvenlik risk değerlendirmesi yapın. CyberStep.io'nun ücretsiz Mini Değerlendirme aracıyla 10 dakikada mevcut durumunuzu öğrenebilirsiniz.</p>
+<h2>Sonuç</h2>
+<p>Siber güvenlik bir kerelik yapılıp biten bir proje değil, sürekli bir süreçtir. Yukarıdaki 10 adımı hayata geçirerek saldırganların büyük çoğunluğunu engellemiş olursunuz. Küçük adımlar, büyük fark yaratır.</p>`,
+      authorName: "CyberStep.io",
+      status: "published",
+      publishedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+      readingMinutesTr: 5,
+      readingMinutesEn: 5,
+    },
+    {
+      slug: "kvkk-uyumlulugu-kobi-rehberi",
+      title: "KVKK Uyumluluğu: KOBİ'ler İçin Adım Adım Rehber",
+      excerpt: "Kişisel Verilerin Korunması Kanunu kapsamında KOBİ'lerin yerine getirmesi gereken yükümlülükler ve pratik uygulama adımları.",
+      content: `<h2>KVKK Nedir ve KOBİ'leri Neden İlgilendiriyor?</h2>
+<p>6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK), çalışan, müşteri veya tedarikçi verisi işleyen her kuruluşu kapsar. Şirket büyüklüğünden bağımsız olarak kişisel veri işliyorsanız KVKK'ya tabissiniz. İhlaller için 1 milyon TL'ye kadar idari para cezası söz konusu olabilir.</p>
+<h2>Hangi Veriler "Kişisel Veri" Sayılır?</h2>
+<p>Ad-soyad, T.C. kimlik numarası, e-posta adresi, telefon numarası, konum verisi, IP adresi ve daha fazlası kişisel veri kapsamındadır. Sağlık, din ve biyometrik veriler ise "özel nitelikli kişisel veri" olarak çok daha sıkı kurallara tabidir.</p>
+<h2>KOBİ'ler İçin 5 Temel Adım</h2>
+<h3>1. Veri Envanteri Çıkarın</h3>
+<p>Hangi verileri topladığınızı, nerede sakladığınızı, kimlerle paylaştığınızı ve ne kadar süre tuttuğunuzu bir tabloda belgeleyin. Bu "Veri İşleme Envanteri" KVKK'nın temel belgesidir.</p>
+<h3>2. Aydınlatma Metinlerini Hazırlayın</h3>
+<p>Müşterilerinize, çalışanlarınıza ve tedarikçilerinize hangi verileri neden topladığınızı açıklayan aydınlatma metinleri hazırlayın. Bu metinler web sitenizde, sözleşmelerde ve başvuru formlarında yer almalıdır.</p>
+<h3>3. Açık Rıza Yönetimi Kurun</h3>
+<p>Pazarlama e-postaları veya çerezler gibi rızaya dayalı işlemler için açık onay alın ve bu onayları kayıt altında tutun.</p>
+<h3>4. Teknik Önlemler Alın</h3>
+<p>Kişisel verileri şifreleyin, erişim yetkilerini kısıtlayın ve düzenli güvenlik testleri yapın. KVKK yalnızca hukuki değil, teknik uyum da ister.</p>
+<h3>5. İhlal Bildirimi Prosedürü Oluşturun</h3>
+<p>Veri ihlali durumunda 72 saat içinde Kişisel Verileri Koruma Kurumu'na (KVKK) bildirim yapmanız gerekiyor. Bu prosedürü önceden hazırlayın.</p>
+<h2>Ceza Riski Gerçek Mi?</h2>
+<p>Evet. Kurul, 2023 yılında yüzlerce şirkete toplamda onlarca milyon TL para cezası kesti. KOBİ'ler de bu denetimlerden muaf değil. Ancak uyum belgesi oluşturmuş ve iyi niyet gösteren şirketlere verilen cezaların çok daha düşük olduğu gözlemleniyor.</p>
+<h2>Neden Şimdi Başlamalısınız?</h2>
+<p>KVKK uyumu bir defada tamamlanan bir proje değildir; devam eden bir süreçtir. Ne kadar erken başlarsanız, olası denetimde o kadar güçlü konumda olursunuz. CyberStep.io'nun risk değerlendirme aracı KVKK'ya dair açık noktalarınızı tespit etmenize yardımcı olur.</p>`,
+      authorName: "CyberStep.io",
+      status: "published",
+      publishedAt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
+      readingMinutesTr: 6,
+      readingMinutesEn: 6,
+    },
+    {
+      slug: "fidye-yazilimi-saldirilarindan-korunma",
+      title: "Fidye Yazılımı Saldırıları: İşletmenizi Nasıl Korursunuz?",
+      excerpt: "Ransomware saldırıları KOBİ'leri giderek daha fazla hedef alıyor. Saldırı nasıl gerçekleşir, nasıl önlenir ve saldırı sonrası ne yapılır?",
+      content: `<h2>Fidye Yazılımı Nedir?</h2>
+<p>Fidye yazılımı (ransomware), sisteminize sızan ve dosyalarınızı şifreleyerek erişiminizi engelleyen bir kötü amaçlı yazılım türüdür. Saldırganlar, dosyaları geri vermek için genellikle kripto para cinsinden fidye talep eder. Ödeme yapsanız bile verilerinizi geri almanızın garantisi yoktur.</p>
+<h2>KOBİ'ler Neden Özellikle Risk Altında?</h2>
+<p>2023 verilerine göre fidye yazılımı saldırılarının %82'si 1.000'den az çalışana sahip şirketleri hedef aldı. Sebep açık: büyük şirketlere kıyasla daha zayıf savunma, ama yeterince değerli veri ve ödeme kapasitesi.</p>
+<h2>Saldırı Nasıl Gerçekleşir?</h2>
+<p>En yaygın giriş noktaları şunlardır:</p>
+<ul>
+<li><strong>Phishing e-postaları:</strong> Sahte fatura, kargo bildirimi veya iş teklifi görünümlü e-postalar</li>
+<li><strong>Uzak masaüstü (RDP) açıkları:</strong> Zayıf parola veya yama yapılmamış RDP portları</li>
+<li><strong>Yazılım açıkları:</strong> Güncellenmemiş işletim sistemi veya uygulamalar</li>
+<li><strong>Tedarikçi zinciri saldırıları:</strong> Güvendiğiniz bir tedarikçi üzerinden giriş</li>
+</ul>
+<h2>Önleme Stratejileri</h2>
+<h3>Yedekleme — En Kritik Savunma</h3>
+<p>3-2-1 yedekleme kuralını uygulayın: en az 3 kopya, 2 farklı ortam, 1 kopya çevrimdışı veya bulutta izole. Yedekleri haftada bir test edin. Fidye yazılımı bulaştıktan sonra tek kurtuluş yolunuz temiz yedektir.</p>
+<h3>E-posta Güvenliği</h3>
+<p>SPF, DKIM, DMARC kayıtlarını yapılandırın. E-posta filtreleme çözümü kullanın. Çalışanlarınızı phishing simülasyonlarıyla eğitin.</p>
+<h3>Yama Yönetimi</h3>
+<p>İşletim sistemleri ve uygulamaları otomatik güncelleyin. RDP portu varsa VPN arkasına alın veya kapatın.</p>
+<h3>Ağ Segmentasyonu</h3>
+<p>Kritik sistemleri ayrı ağ segmentlerinde tutun. Böylece bir cihaz bulaşsa bile tüm sisteme yayılmasını yavaşlatabilirsiniz.</p>
+<h2>Saldırı Gerçekleşirse Ne Yapmalısınız?</h2>
+<ol>
+<li><strong>Sistemi izole edin:</strong> Etkilenen cihazları ağdan hemen kesin</li>
+<li><strong>Fidye ödemeyin:</strong> Ödeme, dosyaların geri geleceğini garantilemez ve sizi tekrar hedef yapar</li>
+<li><strong>Yetkililere bildirin:</strong> BTK ve KVKK'ya bildirim zorunluluğunuz olabilir</li>
+<li><strong>Yedekten geri yükleyin:</strong> Temiz yedekten sistemleri sıfırdan kurun</li>
+<li><strong>Forensic analiz yaptırın:</strong> Giriş noktasını tespit etmeden sistemi açmayın</li>
+</ol>
+<h2>Sonuç</h2>
+<p>Fidye yazılımına karşı %100 güvenli bir sistem yoktur. Ancak doğru önlemlerle saldırıyı çok daha zorlaştırabilir ve saldırı gerçekleşse bile zararı minimize edebilirsiniz. Güçlü yedekleme + e-posta güvenliği + çalışan eğitimi üçlüsü, en etkili savunma hattını oluşturur.</p>`,
+      authorName: "CyberStep.io",
+      status: "published",
+      publishedAt: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000),
+      readingMinutesTr: 7,
+      readingMinutesEn: 7,
+    },
+    {
+      slug: "e-posta-guvenligi-spf-dmarc-dkim",
+      title: "E-posta Güvenliği: SPF, DKIM ve DMARC Nedir, Nasıl Kurulur?",
+      excerpt: "İşletme e-postanızın sahte gönderilere karşı korunması için kritik üç DNS kaydı — SPF, DKIM ve DMARC — adım adım açıklaması.",
+      content: `<h2>E-posta Sahteciliği (Spoofing) Nedir?</h2>
+<p>E-posta sahteciliği, bir saldırganın sizin alan adınızı (@sirketiniz.com) kullanarak sanki sizden gönderiliyormuş gibi e-posta göndermesidir. Bu teknik; müşterilerinizi kandırmak, tedarikçilerle sahte fatura iletişimi kurmak veya çalışanlarınızı hedef almak için kullanılır. İyi haber: SPF, DKIM ve DMARC kayıtlarıyla bu saldırıların büyük çoğunluğunu önleyebilirsiniz.</p>
+<h2>SPF (Sender Policy Framework)</h2>
+<p>SPF, alan adınız adına e-posta göndermeye yetkili IP adreslerini listeleyen bir DNS kaydıdır. Alıcı sunucu, e-posta geldiğinde "Bu IP adresine bu alan adı adına e-posta gönderme izni var mı?" diye kontrol eder.</p>
+<p><strong>Örnek SPF kaydı:</strong></p>
+<pre><code>v=spf1 include:_spf.google.com include:mail.sirketiniz.com ~all</code></pre>
+<p>TXT kaydı olarak DNS'inize ekleyin. <code>~all</code> "yumuşak ret" (soft fail), <code>-all</code> ise "sert ret" (hard fail) anlamına gelir. Başlangıç için <code>~all</code> önerilir.</p>
+<h2>DKIM (DomainKeys Identified Mail)</h2>
+<p>DKIM, e-postanın gönderilirken kriptografik olarak imzalanmasını sağlar. Alıcı sunucu bu imzayı doğrulayarak e-postanın yolda değiştirilmediğini ve gerçekten sizin sunucunuzdan geldiğini teyit eder.</p>
+<p>E-posta servis sağlayıcınız (Google Workspace, Microsoft 365, vb.) DKIM anahtarlarını sizin için oluşturur. Sağlayıcınızın yönetim panelinden "DKIM" ayarlarına girerek oluşturulan TXT kaydını DNS'inize ekleyin.</p>
+<h2>DMARC (Domain-based Message Authentication)</h2>
+<p>DMARC, SPF ve DKIM'den birinin başarısız olması durumunda ne yapılacağını tanımlar. Ayrıca size raporlama imkânı sunar.</p>
+<p><strong>Örnek DMARC kaydı:</strong></p>
+<pre><code>v=DMARC1; p=quarantine; rua=mailto:dmarc-raporlar@sirketiniz.com; pct=100</code></pre>
+<p><code>_dmarc.sirketiniz.com</code> adıyla TXT kaydı olarak ekleyin.</p>
+<ul>
+<li><code>p=none</code> — sadece raporla, aksiyon alma (başlangıç için ideal)</li>
+<li><code>p=quarantine</code> — başarısız e-postaları spam klasörüne gönder</li>
+<li><code>p=reject</code> — başarısız e-postaları tamamen reddet (hedef politika)</li>
+</ul>
+<h2>Doğrulama Adımları</h2>
+<ol>
+<li>MXToolbox.com adresinden alan adınızın SPF, DKIM ve DMARC kayıtlarını kontrol edin</li>
+<li>CyberStep.io'nun Alan Tarama aracıyla e-posta güvenlik skorunuzu görün</li>
+<li>DMARC raporlarını birkaç hafta izleyin, ardından politikayı <code>reject</code>'e yükseltin</li>
+</ol>
+<h2>Ne Kadar Sürer?</h2>
+<p>Teknik bilgiye sahip biri için SPF ve DMARC kurulumu 15-30 dakika alır. DKIM, e-posta sağlayıcınıza göre değişir ancak genellikle bir saatten fazla sürmez. Yayılma (propagation) için 24-48 saat beklenebilir.</p>
+<h2>Sonuç</h2>
+<p>Bu üç kayıt, e-posta güvenliğinin temel katmanını oluşturur ve tamamen ücretsizdir. Kurulu olmayan her alan adı, saldırganların kolayca kullanabileceği açık bir kapı bırakmaktadır. Alan adınızın durumunu hemen kontrol edin.</p>`,
+      authorName: "CyberStep.io",
+      status: "published",
+      publishedAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+      readingMinutesTr: 6,
+      readingMinutesEn: 6,
+    },
+  ];
+
+  for (const p of posts) {
+    await db.insert(blogPostsTable).values({
+      title: p.title,
+      slug: p.slug,
+      excerpt: p.excerpt,
+      content: p.content,
+      authorName: p.authorName,
+      status: p.status,
+      publishedAt: p.publishedAt,
+    });
+  }
+  logger.info({ count: posts.length }, "Blog seed: inserted starter posts");
+}
+
 async function ensurePartnerEcosystemTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS partners (
@@ -876,6 +1045,7 @@ async function startup() {
   await ensureSecurityAdvisoriesTable();
   await updatePricingPlanFeatures();
   await ensurePartnerEcosystemTables();
+  await seedBlogPosts();
 }
 
 startup()

@@ -224,6 +224,10 @@ router.get("/customer/domain-scans", requireCustomer, async (req: Request, res: 
       hibpBreachCount: domainScansTable.hibpBreachCount,
       blacklisted: domainScansTable.blacklisted,
       shadowItServices: domainScansTable.shadowItServices,
+      urlhausListed: domainScansTable.urlhausListed,
+      usomListed: domainScansTable.usomListed,
+      httpHeadersScore: domainScansTable.httpHeadersScore,
+      ctSubdomainCount: domainScansTable.ctSubdomainCount,
       createdAt: domainScansTable.createdAt,
     })
     .from(domainScansTable)

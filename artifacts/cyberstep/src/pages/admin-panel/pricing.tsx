@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, Plus, ToggleLeft, ToggleRight, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -208,6 +208,74 @@ export default function AdminPricing() {
             </Card>
           ))
         )}
+        {/* Hizmet Eşleme Tablosu */}
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white text-base">Hizmet ve Plan Eşleme Tablosu</CardTitle>
+            <p className="text-slate-400 text-sm">Hangi hizmetlerin hangi plana dahil olduğunu gösteren referans tablosu. Özellikleri düzenlemek için yukarıdaki planları kullanın.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-slate-700 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-700 border-b border-slate-600">
+                    <th className="text-left px-4 py-3 text-slate-300 font-semibold w-1/2">Hizmet / Özellik</th>
+                    <th className="text-center px-4 py-3 text-slate-300 font-semibold">Mini (Ücretsiz)</th>
+                    <th className="text-center px-4 py-3 text-emerald-400 font-semibold">Tam (Ücretli)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { category: "Değerlendirme", rows: [
+                      { label: "Soru sayısı", mini: "20", full: "55" },
+                      { label: "Güvenlik alanı", mini: "5 (A-E)", full: "10 (A-J)" },
+                      { label: "Yapay zeka raporu", mini: "Temel", full: "Detaylı" },
+                      { label: "PDF rapor indirme", mini: false, full: true },
+                      { label: "Sektörel karşılaştırma", mini: false, full: true },
+                      { label: "30 günlük yeniden tarama", mini: false, full: true },
+                      { label: "Uzman danışmanlık görüşmesi", mini: false, full: true },
+                    ]},
+                    { category: "Alan Adı Tarama", rows: [
+                      { label: "SPF / DMARC / DKIM / MX / SSL", mini: true, full: true },
+                      { label: "HIBP veri sızıntısı kontrolü", mini: true, full: true },
+                      { label: "Kara liste ve Shadow IT tespiti", mini: true, full: true },
+                      { label: "HTTP güvenlik başlıkları analizi", mini: false, full: true },
+                      { label: "URLhaus zararlı URL kontrolü", mini: false, full: true },
+                      { label: "USOM kara liste domain taraması", mini: false, full: true },
+                      { label: "crt.sh Alt Alan Şeffaflığı", mini: false, full: true },
+                      { label: "NIST NVD CVE güvenlik açığı taraması", mini: false, full: true },
+                    ]},
+                    { category: "Uyumluluk", rows: [
+                      { label: "KVKK Madde 12 Teknik Tedbir Haritası", mini: false, full: true },
+                      { label: "NIST CSF 2.0 Uyum Seviyesi", mini: false, full: true },
+                    ]},
+                  ].map(({ category, rows }) => (
+                    <Fragment key={category}>
+                      <tr className="bg-slate-700/50 border-b border-slate-600">
+                        <td colSpan={3} className="px-4 py-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">{category}</td>
+                      </tr>
+                      {rows.map((row, i) => (
+                        <tr key={row.label} className={`border-b border-slate-700 ${i % 2 === 0 ? "bg-slate-800" : "bg-slate-800/50"}`}>
+                          <td className="px-4 py-2.5 text-slate-300">{row.label}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            {typeof row.mini === "boolean"
+                              ? row.mini ? <span className="text-emerald-400 text-base">✓</span> : <span className="text-slate-600">—</span>
+                              : <span className="text-slate-300 text-xs">{row.mini}</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            {typeof row.full === "boolean"
+                              ? row.full ? <span className="text-emerald-400 text-base">✓</span> : <span className="text-slate-600">—</span>
+                              : <span className="text-emerald-300 text-xs font-semibold">{row.full}</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

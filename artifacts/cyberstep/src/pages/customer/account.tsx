@@ -156,22 +156,77 @@ export default function CustomerAccount() {
           </CardContent>
         </Card>
 
-        {/* Full Assessment CTA */}
-        <Card className="bg-emerald-500/5 border-emerald-500/30">
-          <CardContent className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-white font-semibold flex items-center gap-2">
-                <Shield className="h-5 w-5 text-emerald-400" /> Tam Değerlendirme
-              </h3>
-              <p className="text-slate-400 text-sm mt-1">55 soruluk derinlemesine siber güvenlik analizi</p>
-            </div>
-            <Link href="/assessment/full/start">
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0">
-                Başla <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        {/* Plan Features Card */}
+        {(() => {
+          const isFullPlan = customer.subscriptionPlan === "full" || customer.subscriptionPlan === "premium";
+          const miniFeatures = [
+            "20 soruluk hızlı risk değerlendirmesi",
+            "5 güvenlik alanı (A-E)",
+            "Yapay zeka destekli temel rapor",
+            "Domain tarama: SPF, DMARC, DKIM, MX, SSL",
+            "HIBP veri sızıntısı & kara liste kontrolü",
+            "Shadow IT servis tespiti",
+          ];
+          const fullOnlyFeatures = [
+            "55 soruluk kapsamlı değerlendirme",
+            "HTTP güvenlik başlıkları analizi",
+            "URLhaus & USOM zararlı alan taraması",
+            "crt.sh Alt Alan Şeffaflığı (subdomain tespiti)",
+            "NIST NVD CVE güvenlik açığı taraması",
+            "KVKK Madde 12 Teknik Tedbir Haritası",
+            "NIST CSF 2.0 Uyum Seviyesi",
+            "PDF rapor indirme",
+            "Sektörel karşılaştırma",
+            "Birebir uzman danışmanlık görüşmesi",
+          ];
+          return (
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-emerald-400" /> Hizmet Planım
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  {isFullPlan
+                    ? "Tam Değerlendirme — tüm özellikler aktif"
+                    : "Mini Değerlendirme (Ücretsiz) — Tam Değerlendirme ile genişletin"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">Aktif Özellikler</p>
+                  <div className="space-y-1.5">
+                    {(isFullPlan ? [...miniFeatures, ...fullOnlyFeatures] : miniFeatures).map(f => (
+                      <div key={f} className="flex items-center gap-2 text-sm text-slate-300">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {!isFullPlan && (
+                  <>
+                    <div className="border-t border-slate-700 pt-4">
+                      <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">Tam Değerlendirme ile Açılır</p>
+                      <div className="space-y-1.5">
+                        {fullOnlyFeatures.map(f => (
+                          <div key={f} className="flex items-center gap-2 text-sm text-slate-600">
+                            <ShieldOff className="h-3.5 w-3.5 text-slate-700 shrink-0" />
+                            {f}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Link href="/assessment/full/start">
+                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                        Tam Değerlendirmeye Geç <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* TOTP Management */}
         <Card className="bg-slate-900 border-slate-700">

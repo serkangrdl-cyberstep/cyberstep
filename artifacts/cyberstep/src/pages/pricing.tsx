@@ -11,19 +11,33 @@ const TRUST_ITEMS = [
   { icon: Award, text: "KVKK uyumlu veri işleme" },
 ];
 
-const COMPARISON_ROWS = [
+type CompRow =
+  | { header: true; label: string }
+  | { header?: false; label: string; mini: string | boolean; full: string | boolean };
+
+const COMPARISON_ROWS: CompRow[] = [
+  { header: true, label: "Değerlendirme" },
   { label: "Soru sayısı", mini: "20", full: "55" },
   { label: "Güvenlik alanı", mini: "5", full: "10" },
-  { label: "Anlık risk skoru", mini: true, full: true },
-  { label: "Kırmızı alarm tespiti", mini: true, full: true },
-  { label: "Sektör karşılaştırması", mini: true, full: true },
-  { label: "Uzman ön değerlendirmesi", mini: true, full: true },
+  { label: "Anlık risk skoru ve kırmızı alarm", mini: true, full: true },
+  { label: "Yapay zeka raporu", mini: "Temel", full: "Detaylı" },
+  { label: "Sektörel karşılaştırma", mini: false, full: true },
   { label: "PDF rapor indirme", mini: false, full: true },
-  { label: "Detaylı aksiyon planı", mini: false, full: true },
-  { label: "KVKK uyumluluk analizi", mini: false, full: true },
-  { label: "Ağ güvenliği değerlendirmesi", mini: false, full: true },
-  { label: "Tedarik zinciri analizi", mini: false, full: true },
+  { label: "Detaylı öncelikli aksiyon planı", mini: false, full: true },
   { label: "Birebir uzman görüşmesi (1 saat)", mini: false, full: true },
+  { label: "30 günlük otomatik yeniden tarama", mini: false, full: true },
+  { header: true, label: "Alan Adı Tarama" },
+  { label: "SPF / DMARC / DKIM / MX / SSL", mini: true, full: true },
+  { label: "HIBP veri sızıntısı kontrolü", mini: true, full: true },
+  { label: "Kara liste ve Shadow IT tespiti", mini: true, full: true },
+  { label: "HTTP güvenlik başlıkları analizi", mini: false, full: true },
+  { label: "URLhaus zararlı URL kontrolü", mini: false, full: true },
+  { label: "USOM kara liste domain taraması", mini: false, full: true },
+  { label: "crt.sh Alt Alan Şeffaflığı (subdomain)", mini: false, full: true },
+  { label: "NIST NVD CVE güvenlik açığı taraması", mini: false, full: true },
+  { header: true, label: "Uyumluluk" },
+  { label: "KVKK Madde 12 Teknik Tedbir Haritası", mini: false, full: true },
+  { label: "NIST CSF 2.0 Uyum Seviyesi", mini: false, full: true },
 ];
 
 export default function Pricing() {
@@ -134,29 +148,37 @@ export default function Pricing() {
                 </tr>
               </thead>
               <tbody>
-                {COMPARISON_ROWS.map((row, i) => (
-                  <tr key={row.label} className={`border-b last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
-                    <td className="px-6 py-3.5 font-medium">{row.label}</td>
-                    <td className="px-6 py-3.5 text-center">
-                      {typeof row.mini === "boolean" ? (
-                        row.mini
-                          ? <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
-                          : <XCircle className="h-5 w-5 text-muted-foreground/40 mx-auto" />
-                      ) : (
-                        <span className="font-semibold">{row.mini}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3.5 text-center">
-                      {typeof row.full === "boolean" ? (
-                        row.full
-                          ? <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
-                          : <XCircle className="h-5 w-5 text-muted-foreground/40 mx-auto" />
-                      ) : (
-                        <span className="font-bold text-primary">{row.full}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {COMPARISON_ROWS.map((row, i) =>
+                  row.header ? (
+                    <tr key={row.label}>
+                      <td colSpan={3} className="px-6 py-2.5 text-xs font-bold text-primary uppercase tracking-wider bg-primary/5 border-b">
+                        {row.label}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={row.label} className={`border-b last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
+                      <td className="px-6 py-3.5 font-medium">{row.label}</td>
+                      <td className="px-6 py-3.5 text-center">
+                        {typeof row.mini === "boolean" ? (
+                          row.mini
+                            ? <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
+                            : <XCircle className="h-5 w-5 text-muted-foreground/40 mx-auto" />
+                        ) : (
+                          <span className="font-semibold">{row.mini}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-center">
+                        {typeof row.full === "boolean" ? (
+                          row.full
+                            ? <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
+                            : <XCircle className="h-5 w-5 text-muted-foreground/40 mx-auto" />
+                        ) : (
+                          <span className="font-bold text-primary">{row.full}</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>

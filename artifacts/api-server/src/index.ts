@@ -525,6 +525,40 @@ async function ensureDomainScanEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS cve_summary JSONB NOT NULL DEFAULT '[]'`);
 }
 
+async function updatePricingPlanFeatures() {
+  await db.update(pricingPlansTable).set({
+    features: [
+      "20 soruluk hızlı risk değerlendirmesi",
+      "5 güvenlik alanı (A-E)",
+      "Anlık risk skoru ve seviyesi",
+      "Kırmızı alarm tespiti",
+      "Yapay zeka destekli temel rapor",
+      "Domain tarama: SPF, DMARC, DKIM, MX, SSL",
+      "HIBP veri sızıntısı kontrolü",
+      "Kara liste ve Shadow IT tespiti",
+    ],
+  }).where(eq(pricingPlansTable.slug, "mini"));
+
+  await db.update(pricingPlansTable).set({
+    features: [
+      "55 soruluk kapsamlı risk değerlendirmesi",
+      "10 güvenlik alanı (A-J)",
+      "Detaylı Gemini AI raporu",
+      "Mini değerlendirmedeki tüm özellikler dahil",
+      "HTTP güvenlik başlıkları analizi",
+      "URLhaus & USOM zararlı alan taraması",
+      "crt.sh Alt Alan Şeffaflığı (subdomain tespiti)",
+      "NIST NVD CVE güvenlik açığı taraması",
+      "KVKK Madde 12 Teknik Tedbir Haritası",
+      "NIST CSF 2.0 Uyum Seviyesi",
+      "PDF rapor indirme",
+      "30 günlük otomatik yeniden tarama bildirimi",
+      "Sektörel karşılaştırma",
+      "Birebir uzman danışmanlık görüşmesi (1 saat)",
+    ],
+  }).where(eq(pricingPlansTable.slug, "full"));
+}
+
 async function ensureSecurityAdvisoriesTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS security_advisories (
@@ -641,6 +675,7 @@ async function startup() {
   await maybeSeedDemoCustomer();
   await ensureDomainScanEnrichmentColumns();
   await ensureSecurityAdvisoriesTable();
+  await updatePricingPlanFeatures();
 }
 
 startup()

@@ -42,6 +42,10 @@ interface CustomerDomainScan {
   hibpBreachCount: number;
   blacklisted: boolean;
   shadowItServices: Array<{ name: string; category: string; risk: string }>;
+  urlhausListed: boolean;
+  usomListed: boolean;
+  httpHeadersScore: number;
+  ctSubdomainCount: number;
   createdAt: string;
 }
 
@@ -350,11 +354,15 @@ export default function CustomerReports() {
                             </span>
                           ))}
                         </div>
-                        <p className="text-slate-500 text-xs mt-2 flex items-center gap-3">
+                        <p className="text-slate-500 text-xs mt-2 flex items-center gap-3 flex-wrap">
                           <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{new Date(scan.createdAt).toLocaleDateString("tr-TR")}</span>
                           {scan.hibpBreachCount > 0 && <span className="text-red-400">{scan.hibpBreachCount} sızıntı</span>}
                           {scan.blacklisted && <span className="text-red-400">Kara listede</span>}
+                          {scan.urlhausListed && <span className="text-red-400">URLhaus</span>}
+                          {scan.usomListed && <span className="text-red-400">USOM listesinde</span>}
                           {highRiskShadow > 0 && <span className="text-orange-400">{highRiskShadow} yüksek riskli servis</span>}
+                          {scan.ctSubdomainCount > 0 && <span className="text-slate-400">{scan.ctSubdomainCount} alt alan</span>}
+                          {scan.httpHeadersScore > 0 && <span className="text-slate-400">Baslik skoru: {scan.httpHeadersScore}/100</span>}
                         </p>
                       </div>
                       <div className="flex items-center gap-4">

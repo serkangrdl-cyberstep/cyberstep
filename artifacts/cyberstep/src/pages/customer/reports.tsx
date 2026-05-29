@@ -46,6 +46,12 @@ interface CustomerDomainScan {
   usomListed: boolean;
   httpHeadersScore: number;
   ctSubdomainCount: number;
+  virusTotalReputation: number | null;
+  virusTotalMalicious: number;
+  abuseIpdbScore: number | null;
+  abuseIpdbTotalReports: number;
+  shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  shodanVulnCount: number;
   createdAt: string;
 }
 

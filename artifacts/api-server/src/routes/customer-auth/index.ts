@@ -228,6 +228,12 @@ router.get("/customer/domain-scans", requireCustomer, async (req: Request, res: 
       usomListed: domainScansTable.usomListed,
       httpHeadersScore: domainScansTable.httpHeadersScore,
       ctSubdomainCount: domainScansTable.ctSubdomainCount,
+      virusTotalReputation: domainScansTable.virusTotalReputation,
+      virusTotalMalicious: domainScansTable.virusTotalMalicious,
+      abuseIpdbScore: domainScansTable.abuseIpdbScore,
+      abuseIpdbTotalReports: domainScansTable.abuseIpdbTotalReports,
+      shodanOpenPorts: domainScansTable.shodanOpenPorts,
+      shodanVulnCount: domainScansTable.shodanVulnCount,
       createdAt: domainScansTable.createdAt,
     })
     .from(domainScansTable)

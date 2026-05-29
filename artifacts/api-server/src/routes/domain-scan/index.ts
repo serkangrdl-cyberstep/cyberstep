@@ -652,6 +652,83 @@ async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: 
   });
 }
 
+// ─── Google Safe Browsing API ────────────────────────────────────────────────
+async function checkGoogleSafeBrowsing(domain: string): Promise<{ flagged: boolean; threats: string[] } | null> {
+  const apiKey = process.env["GOOGLE_SAFE_BROWSING_API_KEY"];
+  if (!apiKey) return null;
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      client: { clientId: "cyberstep", clientVersion: "1.0" },
+      threatInfo: {
+        threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+        platformTypes: ["ANY_PLATFORM"],
+        threatEntryTypes: ["URL"],
+        threatEntries: [{ url: `https://${domain}/` }, { url: `http://${domain}/` }],
+      },
+    });
+    const reqOpts = {
+      hostname: "safebrowsing.googleapis.com",
+      path: `/v4/threatMatches:find?key=${encodeURIComponent(apiKey)}`,
+      method: "POST",
+      timeout: 8000,
+      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+    };
+    const r = https.request(reqOpts, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data) as { matches?: Array<{ threatType: string }> };
+          const threats = (parsed.matches ?? []).map((m) => m.threatType);
+          resolve({ flagged: threats.length > 0, threats });
+        } catch {
+          resolve({ flagged: false, threats: [] });
+        }
+      });
+    });
+    r.on("error", () => resolve({ flagged: false, threats: [] }));
+    r.on("timeout", () => { r.destroy(); resolve({ flagged: false, threats: [] }); });
+    r.write(body);
+    r.end();
+  });
+}
+
+// ─── SSLLabs grade (fromCache — fast, non-blocking) ──────────────────────────
+async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
+  return new Promise((resolve) => {
+    const path = `/api/v3/analyze?host=${encodeURIComponent(domain)}&publish=off&fromCache=on&maxAge=24&all=done`;
+    const r = https.request(
+      { hostname: "api.ssllabs.com", path, method: "GET", timeout: 12000,
+        headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", "Accept": "application/json" } },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(data) as { status?: string; endpoints?: Array<{ grade?: string }> };
+            if (parsed.status === "READY" && parsed.endpoints?.length) {
+              const gradeOrder = ["A+", "A", "A-", "B", "C", "D", "E", "F", "T", "M"];
+              const grades = parsed.endpoints.map((e) => e.grade).filter(Boolean) as string[];
+              let worst: string | null = null;
+              for (let i = gradeOrder.length - 1; i >= 0; i--) {
+                if (grades.includes(gradeOrder[i])) { worst = gradeOrder[i]; break; }
+              }
+              resolve({ grade: worst ?? grades[0] ?? null });
+            } else {
+              resolve({ grade: null });
+            }
+          } catch {
+            resolve({ grade: null });
+          }
+        });
+      }
+    );
+    r.on("error", () => resolve({ grade: null }));
+    r.on("timeout", () => { r.destroy(); resolve({ grade: null }); });
+    r.end();
+  });
+}
+
 // ─── POST /api/domain-scan ───────────────────────────────────────────────────
 router.post("/domain-scan", async (req, res) => {
   const rawDomain: unknown = req.body?.domain;
@@ -680,7 +757,7 @@ router.post("/domain-scan", async (req, res) => {
   logger.info({ domain }, "Starting domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans, shodan, virusTotal, abuseIpdb] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans, shodan, virusTotal, abuseIpdb, safeBrowsing, sslLabs] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -696,6 +773,8 @@ router.post("/domain-scan", async (req, res) => {
       checkShodan(domain),
       checkVirusTotal(domain),
       checkAbuseIPDB(domain),
+      checkGoogleSafeBrowsing(domain),
+      checkSSLLabs(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -744,10 +823,13 @@ router.post("/domain-scan", async (req, res) => {
         abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0,
         abuseIpdbCountry: abuseIpdb?.countryCode ?? null,
         abuseIpdbIsp: abuseIpdb?.isp ?? null,
+        safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
+        safeBrowsingThreats: safeBrowsing?.threats ?? [],
+        sslLabsGrade: sslLabs.grade,
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, shodanConfigured: shodan !== null, virusTotalConfigured: virusTotal !== null, abuseIpdbConfigured: abuseIpdb !== null, scanId: scan?.id }, "Domain scan complete");
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, shodanConfigured: shodan !== null, virusTotalConfigured: virusTotal !== null, abuseIpdbConfigured: abuseIpdb !== null, safeBrowsingChecked: safeBrowsing !== null, sslLabsGrade: sslLabs.grade, scanId: scan?.id }, "Domain scan complete");
     res.json(scan);
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
@@ -833,4 +915,4 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
 });
 
 export default router;
-export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT, checkHTTPHeaders, checkURLhaus, checkUsomList, checkCertTransparency };
+export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT, checkHTTPHeaders, checkURLhaus, checkUsomList, checkCertTransparency, checkGoogleSafeBrowsing, checkSSLLabs };

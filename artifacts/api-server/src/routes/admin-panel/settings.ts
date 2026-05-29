@@ -86,12 +86,15 @@ router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: 
     { name: "DNSBL",          category: "E-posta",    always: true,  active: true, desc: "DNS tabanlı kara liste kontrolü (Spamhaus, Barracuda vb.)" },
     { name: "SSL/TLS",        category: "Altyapı",    always: true,  active: true, desc: "Sertifika geçerlilik, zincir ve sona erme tarihi kontrolü" },
     { name: "SPF/DMARC/DKIM", category: "E-posta",    always: true,  active: true, desc: "E-posta kimlik doğrulama kayıtları analizi" },
+    { name: "SSLLabs",        category: "Altyapı",    always: true,  active: true,                           alacart: false, desc: "Qualys SSLLabs — TLS protokol versiyonu, şifreleme zayıflığı ve sertifika zinciri analizi (ücretsiz, ön bellek kullanılır)" },
     // ─── API anahtarı gerektiren servisler ──────────────────────────────────
-    { name: "VirusTotal",     category: "Tehdit",     always: false, active: !!env["VIRUSTOTAL_API_KEY"],  desc: "Alan adı zararlı yazılım ve tehdit istihbarat taraması" },
-    { name: "AbuseIPDB",      category: "Tehdit",     always: false, active: !!env["ABUSEIPDB_API_KEY"],  desc: "IP adresi kötüye kullanım geçmişi ve itibar kontrolü" },
-    { name: "Shodan",         category: "Altyapı",    always: false, active: !!env["SHODAN_API_KEY"],     desc: "Açık port ve servis keşfi" },
-    { name: "SMTP E-posta",   category: "İletişim",   always: false, active: !!env["SMTP_PASS"],          desc: "Bülten ve bildirim e-postası gönderimi" },
-    { name: "ISR IMAP",       category: "İletişim",   always: false, active: !!env["ISR_IMAP_PASS"],      desc: "AI Satış Asistanı — gelen kutusu okuma ve yanıtlama" },
+    { name: "Google Safe Browsing", category: "İtibar", always: false, active: !!env["GOOGLE_SAFE_BROWSING_API_KEY"], alacart: false, desc: "Google'ın kötü amaçlı yazılım ve phishing tespiti — domain 'güvensiz' işaretlenmiş mi?" },
+    { name: "VirusTotal",     category: "Tehdit",     always: false, active: !!env["VIRUSTOTAL_API_KEY"],  alacart: false, desc: "Alan adı zararlı yazılım ve tehdit istihbarat taraması" },
+    { name: "AbuseIPDB",      category: "Tehdit",     always: false, active: !!env["ABUSEIPDB_API_KEY"],  alacart: false, desc: "IP adresi kötüye kullanım geçmişi ve itibar kontrolü" },
+    { name: "Shodan",         category: "Altyapı",    always: false, active: !!env["SHODAN_API_KEY"],     alacart: true,  desc: "A-la-cart servis: Açık port ve servis keşfi, donanım parmak izi, bilinen CVE eşleştirme. Shodan API anahtarı gerektirir (shodan.io ücretsiz/ücretli plan)." },
+    { name: "WhoisXML",       category: "Altyapı",    always: false, active: !!env["WHOISXML_API_KEY"],   alacart: true,  desc: "A-la-cart servis: Domain kayıt geçmişi, sahiplik bilgileri ve DNS değişikliği takibi (Domain Hijacking tespiti). WhoisXML API aboneliği gerektirir (whoisxmlapi.com)." },
+    { name: "SMTP E-posta",   category: "İletişim",   always: false, active: !!env["SMTP_PASS"],          alacart: false, desc: "Bülten ve bildirim e-postası gönderimi" },
+    { name: "ISR IMAP",       category: "İletişim",   always: false, active: !!env["ISR_IMAP_PASS"],      alacart: false, desc: "AI Satış Asistanı — gelen kutusu okuma ve yanıtlama" },
   ];
   res.json(services);
 });

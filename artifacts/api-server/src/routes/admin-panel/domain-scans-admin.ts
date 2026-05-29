@@ -171,7 +171,7 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
     return;
   }
 
-  const { sanitizeDomain, checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, checkHIBP, checkBlacklists, checkShadowIT, calcScore } =
+  const { sanitizeDomain, checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, checkHIBP, checkBlacklists, checkShadowIT, calcScore, checkGoogleSafeBrowsing, checkSSLLabs } =
     await import("../domain-scan/index");
 
   const domain = sanitizeDomain(rawDomain);
@@ -183,7 +183,7 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
   logger.info({ domain }, "Admin triggered domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, safeBrowsing, sslLabs] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -192,6 +192,8 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
       checkHIBP(domain),
       checkBlacklists(domain),
       checkShadowIT(domain),
+      checkGoogleSafeBrowsing(domain),
+      checkSSLLabs(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -208,6 +210,9 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
       hibpBreachCount: hibp.breachCount, hibpBreaches: hibp.breaches,
       blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
       shadowItServices: shadowIt.services,
+      safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
+      safeBrowsingThreats: safeBrowsing?.threats ?? [],
+      sslLabsGrade: sslLabs.grade,
     }).returning();
 
     logger.info({ domain, overallScore, scanId: scan?.id }, "Admin domain scan complete");

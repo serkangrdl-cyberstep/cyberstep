@@ -57,6 +57,67 @@ interface DomainScanDetail extends DomainScanRow {
   hibpBreaches: Array<{ name: string; breachDate: string; pwnCount: number; dataClasses: string[] }>;
   blacklistCount: number;
   blacklistResults: Array<{ list: string; listed: boolean }>;
+  httpHeadersScore: number;
+  httpHeadersDetails: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean } | null;
+  urlhausListed: boolean;
+  urlhausThreat: string | null;
+  usomListed: boolean;
+  virusTotalReputation: number | null;
+  virusTotalMalicious: number;
+  virusTotalSuspicious: number;
+  abuseIpdbScore: number | null;
+  abuseIpdbTotalReports: number;
+  shodanVulnCount: number;
+  shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
+  safeBrowsingFlagged: boolean | null;
+  safeBrowsingThreats: string[];
+  sslLabsGrade: string | null;
+}
+
+interface SmartCheck {
+  label: string;
+  pass: boolean;
+  critical: boolean;
+  category: string;
+}
+
+function buildSmartMatrix(scan: DomainScanDetail): SmartCheck[] {
+  const checks: SmartCheck[] = [
+    { label: "SPF Kaydı", pass: scan.spfPass, critical: !scan.spfPass, category: "DNS" },
+    { label: "DMARC Kaydı", pass: scan.dmarcPass, critical: !scan.dmarcPass, category: "DNS" },
+    { label: "DKIM Kaydı", pass: scan.dkimPass, critical: !scan.dkimPass, category: "DNS" },
+    { label: "MX Kayıtları", pass: scan.mxPass, critical: false, category: "DNS" },
+    { label: "SSL Sertifikası", pass: scan.sslPass, critical: !scan.sslPass, category: "SSL" },
+    { label: "DNSBL Kara Liste Temiz", pass: !scan.blacklisted, critical: scan.blacklisted, category: "İtibar" },
+    { label: "Veri İhlali Yok (HIBP)", pass: scan.hibpBreachCount === 0, critical: scan.hibpBreachCount > 0, category: "İtibar" },
+    { label: "URLhaus Temiz", pass: !scan.urlhausListed, critical: scan.urlhausListed, category: "Tehdit" },
+    { label: "USOM Temiz", pass: !scan.usomListed, critical: scan.usomListed, category: "Tehdit" },
+    { label: "HTTP Güvenlik Başlıkları", pass: scan.httpHeadersScore >= 3, critical: scan.httpHeadersScore === 0, category: "Web" },
+  ];
+  if (scan.sslDaysUntilExpiry !== null) {
+    const days = scan.sslDaysUntilExpiry ?? 999;
+    checks.push({ label: "SSL Sona Erme (>30 gün)", pass: days > 30, critical: days < 14, category: "SSL" });
+  }
+  if (scan.virusTotalReputation !== null) {
+    checks.push({ label: "VirusTotal Temiz", pass: scan.virusTotalMalicious === 0, critical: scan.virusTotalMalicious > 0, category: "Tehdit" });
+  }
+  if (scan.abuseIpdbScore !== null) {
+    const score = scan.abuseIpdbScore ?? 0;
+    checks.push({ label: "AbuseIPDB İtibarı", pass: score < 25, critical: score >= 50, category: "İtibar" });
+  }
+  if (scan.shodanOpenPorts !== null) {
+    checks.push({ label: "Kritik Açık Yok (Shodan)", pass: scan.shodanVulnCount === 0, critical: scan.shodanVulnCount > 0, category: "Altyapı" });
+  }
+  if (scan.safeBrowsingFlagged !== null) {
+    checks.push({ label: "Google Safe Browsing", pass: !scan.safeBrowsingFlagged, critical: scan.safeBrowsingFlagged === true, category: "İtibar" });
+  }
+  if (scan.sslLabsGrade) {
+    const gradeOk = ["A+", "A", "A-", "B"].includes(scan.sslLabsGrade);
+    const gradeCrit = ["D", "E", "F", "T", "M"].includes(scan.sslLabsGrade);
+    checks.push({ label: `SSLLabs Notu (${scan.sslLabsGrade})`, pass: gradeOk, critical: gradeCrit, category: "SSL" });
+  }
+  return checks;
 }
 
 interface ScanList {
@@ -135,6 +196,50 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
 
         {scan && (
           <div className="space-y-5">
+            {/* Smart Matrix */}
+            {(() => {
+              const checks = buildSmartMatrix(scan);
+              const total = checks.length;
+              const passed = checks.filter(c => c.pass).length;
+              const failed = checks.filter(c => !c.pass);
+              const criticalCount = failed.filter(c => c.critical).length;
+              const warningCount = failed.filter(c => !c.critical).length;
+              return (
+                <div className="p-4 rounded-lg bg-slate-800 border border-slate-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{total} güvenlik denetimi tamamlandı</div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        {passed} başarılı
+                        {criticalCount > 0 && <span className="text-red-400 ml-1">· {criticalCount} acil müdahale gerektiriyor</span>}
+                        {warningCount > 0 && <span className="text-amber-400 ml-1">· {warningCount} öneri</span>}
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-black ${passed === total ? "text-emerald-400" : criticalCount > 0 ? "text-red-400" : "text-amber-400"}`}>
+                      {passed}/{total}
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden flex gap-0.5">
+                    <div className="h-full bg-emerald-500 rounded-l-full" style={{ width: `${(passed / total) * 100}%` }} />
+                    <div className="h-full bg-red-500" style={{ width: `${(criticalCount / total) * 100}%` }} />
+                    <div className="h-full bg-amber-500 rounded-r-full" style={{ width: `${(warningCount / total) * 100}%` }} />
+                  </div>
+                  {failed.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {failed.map(c => (
+                        <div key={c.label} className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded ${c.critical ? "bg-red-500/10 border border-red-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
+                          <XCircle className={`h-3 w-3 shrink-0 ${c.critical ? "text-red-400" : "text-amber-400"}`} />
+                          <span className={c.critical ? "text-red-300" : "text-amber-300"}>{c.label}</span>
+                          <span className="text-slate-600 text-xs ml-1">{c.category}</span>
+                          {c.critical && <span className="ml-auto text-red-500 font-semibold text-xs">Acil</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Score */}
             <div className={`flex items-center gap-4 p-4 rounded-lg ${scoreBg(scan.overallScore)}`}>
               <div className={`text-5xl font-black ${scoreColor(scan.overallScore)}`}>{scan.overallScore}</div>
@@ -208,9 +313,37 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                     </p>
                   )}
                   {!scan.sslPass && !scan.sslIssuer && <p className="text-xs text-red-400">SSL sertifikası geçersiz veya bulunamadı</p>}
+                {scan.sslLabsGrade && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-xs text-slate-400">SSLLabs Notu:</span>
+                    <span className={`text-sm font-bold px-2 py-0.5 rounded ${["A+", "A"].includes(scan.sslLabsGrade) ? "bg-emerald-500/15 text-emerald-400" : ["A-", "B"].includes(scan.sslLabsGrade) ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
+                      {scan.sslLabsGrade}
+                    </span>
+                  </div>
+                )}
                 </div>
               </div>
             </div>
+
+            {/* Google Safe Browsing */}
+            {scan.safeBrowsingFlagged === true && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  <AlertTriangle className="h-3.5 w-3.5 inline mr-1 text-red-400" />
+                  Google Safe Browsing — Tehdit Tespit Edildi
+                </h3>
+                <div className="p-3 rounded-lg bg-slate-800 border border-red-500/30">
+                  <p className="text-sm text-red-300 font-medium">Bu domain Google tarafından tehlikeli olarak işaretlenmiş</p>
+                  {scan.safeBrowsingThreats.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {scan.safeBrowsingThreats.map(t => (
+                        <span key={t} className="bg-red-500/10 text-red-400 text-xs px-2 py-0.5 rounded border border-red-500/20">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* HIBP */}
             {scan.hibpBreachCount > 0 && (

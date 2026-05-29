@@ -45,6 +45,9 @@ export const domainScansTable = pgTable("domain_scans", {
   abuseIpdbTotalReports: integer("abuseipdb_total_reports").notNull().default(0),
   abuseIpdbCountry: text("abuseipdb_country"),
   abuseIpdbIsp: text("abuseipdb_isp"),
+  safeBrowsingFlagged: boolean("safe_browsing_flagged"),
+  safeBrowsingThreats: jsonb("safe_browsing_threats").$type<string[]>().notNull().default([]),
+  sslLabsGrade: text("ssl_labs_grade"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

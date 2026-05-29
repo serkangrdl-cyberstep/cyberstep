@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AdminLayout } from "@/components/admin-layout";
 
 interface ExternalService {
-  name: string; category: string; always: boolean; active: boolean; desc: string;
+  name: string; category: string; always: boolean; active: boolean; desc: string; alacart?: boolean;
 }
 
 export default function AdminSettings() {
@@ -133,7 +133,7 @@ export default function AdminSettings() {
                     <div className="text-slate-500 text-sm py-4 text-center">Yükleniyor...</div>
                   ) : (
                     <div className="space-y-2">
-                      {(["AI", "Tehdit", "E-posta", "Altyapı", "İletişim"] as const).map(cat => {
+                      {(["AI", "İtibar", "Tehdit", "E-posta", "Altyapı", "İletişim"] as const).map(cat => {
                         const items = extServices.filter(s => s.category === cat);
                         if (items.length === 0) return null;
                         return (
@@ -150,9 +150,13 @@ export default function AdminSettings() {
                                       <span className={`text-sm font-medium ${svc.active ? "text-white" : "text-slate-500"}`}>{svc.name}</span>
                                       {svc.always
                                         ? <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">Anahtarsız</span>
-                                        : <span className={`text-xs px-1.5 py-0.5 rounded ${svc.active ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-700 text-slate-500"}`}>
-                                            {svc.active ? "API Anahtarı Bağlı" : "API Anahtarı Yok"}
-                                          </span>}
+                                        : svc.alacart
+                                          ? <span className={`text-xs px-1.5 py-0.5 rounded ${svc.active ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "bg-amber-500/5 text-amber-600 border border-amber-700/30"}`}>
+                                              {svc.active ? "A-la-cart (Aktif)" : "A-la-cart"}
+                                            </span>
+                                          : <span className={`text-xs px-1.5 py-0.5 rounded ${svc.active ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-700 text-slate-500"}`}>
+                                              {svc.active ? "API Anahtarı Bağlı" : "API Anahtarı Yok"}
+                                            </span>}
                                     </div>
                                     <p className="text-slate-500 text-xs mt-0.5">{svc.desc}</p>
                                   </div>

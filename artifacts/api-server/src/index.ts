@@ -810,6 +810,35 @@ async function maybeSeedDemoCustomer() {
   }
 }
 
+async function maybeSeedPaidTestCustomer() {
+  const TEST_EMAIL = "test@cyberstep.io";
+  const TEST_HASH = "$2b$12$l/8PXqA3HJIDhY9igm5BSugQMPcpvqXE47nMN.Hdb72o43IwigVzq";
+
+  const [existing] = await db.select({ id: customersTable.id, subscriptionPlan: customersTable.subscriptionPlan })
+    .from(customersTable)
+    .where(eq(customersTable.email, TEST_EMAIL));
+
+  if (!existing) {
+    await db.insert(customersTable).values({
+      email: TEST_EMAIL,
+      passwordHash: TEST_HASH,
+      fullName: "Test Kullanici",
+      companyName: "CyberStep Test A.S.",
+      subscriptionPlan: "full",
+      subscriptionStatus: "active",
+    });
+    logger.info("Paid test customer created: test@cyberstep.io");
+    return;
+  }
+
+  if (existing.subscriptionPlan !== "full") {
+    await db.update(customersTable)
+      .set({ subscriptionPlan: "full", subscriptionStatus: "active", updatedAt: new Date() })
+      .where(eq(customersTable.id, existing.id));
+    logger.info("Paid test customer plan upgraded to full");
+  }
+}
+
 async function seedBlogPosts() {
   const [{ cnt }] = await db.select({ cnt: count() })
     .from(blogPostsTable)
@@ -1039,6 +1068,7 @@ async function startup() {
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
   await maybeSeedDemoCustomer();
+  await maybeSeedPaidTestCustomer();
   await ensureBlogContentColumns();
   await ensureDomainScanEnrichmentColumns();
   await ensureReportEnrichmentColumns();

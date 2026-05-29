@@ -470,6 +470,120 @@ async function checkNvdCve(services: Array<{ name: string; risk: string }>): Pro
   return results;
 }
 
+// ─── Shodan internet exposure check ──────────────────────────────────────────
+interface ShodanPort { port: number; protocol: string; service: string; product: string; version: string; }
+
+async function checkShodan(domain: string): Promise<{
+  openPorts: ShodanPort[];
+  vulnCount: number;
+  country: string | null;
+  isp: string | null;
+} | null> {
+  const apiKey = process.env["SHODAN_API_KEY"];
+  if (!apiKey) return null;
+  try {
+    const ips = await dns.resolve4(domain);
+    if (!ips || ips.length === 0) return { openPorts: [], vulnCount: 0, country: null, isp: null };
+    const ip = ips[0]!;
+    return new Promise((resolve) => {
+      const req = https.request(
+        { hostname: "api.shodan.io", path: `/shodan/host/${encodeURIComponent(ip)}?key=${encodeURIComponent(apiKey)}`, method: "GET", timeout: 10000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },
+        (res) => {
+          let data = ""; let size = 0;
+          res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
+          res.on("end", () => {
+            try {
+              if (res.statusCode !== 200) { resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }); return; }
+              type ShodanHost = { data?: Array<{ port: number; transport?: string; product?: string; version?: string; _shodan?: { module: string } }>; vulns?: Record<string, unknown>; country_code?: string; org?: string; };
+              const json = JSON.parse(data) as ShodanHost;
+              const HIGH_RISK_PORTS = new Set([21, 22, 23, 25, 135, 139, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 8080, 27017]);
+              const openPorts = (json.data ?? []).slice(0, 20).map((d) => ({
+                port: d.port,
+                protocol: d.transport ?? "tcp",
+                service: d._shodan?.module ?? "",
+                product: d.product ?? "",
+                version: d.version ?? "",
+                isHighRisk: HIGH_RISK_PORTS.has(d.port),
+              })).sort((a, b) => (b.isHighRisk ? 1 : 0) - (a.isHighRisk ? 1 : 0)).map(({ isHighRisk: _, ...rest }) => rest);
+              resolve({ openPorts, vulnCount: Object.keys(json.vulns ?? {}).length, country: json.country_code ?? null, isp: json.org ?? null });
+            } catch { resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }); }
+          });
+        }
+      );
+      req.on("error", () => resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }));
+      req.on("timeout", () => { req.destroy(); resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }); });
+      req.end();
+    });
+  } catch { return { openPorts: [], vulnCount: 0, country: null, isp: null }; }
+}
+
+// ─── VirusTotal domain reputation check ──────────────────────────────────────
+async function checkVirusTotal(domain: string): Promise<{
+  malicious: number;
+  suspicious: number;
+  reputation: number;
+} | null> {
+  const apiKey = process.env["VIRUSTOTAL_API_KEY"];
+  if (!apiKey) return null;
+  return new Promise((resolve) => {
+    const req = https.request(
+      { hostname: "www.virustotal.com", path: `/api/v3/domains/${encodeURIComponent(domain)}`, method: "GET", timeout: 10000, headers: { "x-apikey": apiKey, "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 200 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            if (res.statusCode !== 200) { resolve({ malicious: 0, suspicious: 0, reputation: 0 }); return; }
+            type VTResponse = { data?: { attributes?: { last_analysis_stats?: { malicious?: number; suspicious?: number }; reputation?: number } } };
+            const json = JSON.parse(data) as VTResponse;
+            const stats = json.data?.attributes?.last_analysis_stats ?? {};
+            resolve({ malicious: stats.malicious ?? 0, suspicious: stats.suspicious ?? 0, reputation: json.data?.attributes?.reputation ?? 0 });
+          } catch { resolve({ malicious: 0, suspicious: 0, reputation: 0 }); }
+        });
+      }
+    );
+    req.on("error", () => resolve({ malicious: 0, suspicious: 0, reputation: 0 }));
+    req.on("timeout", () => { req.destroy(); resolve({ malicious: 0, suspicious: 0, reputation: 0 }); });
+    req.end();
+  });
+}
+
+// ─── AbuseIPDB IP abuse history check ────────────────────────────────────────
+async function checkAbuseIPDB(domain: string): Promise<{
+  score: number;
+  totalReports: number;
+  countryCode: string | null;
+  isp: string | null;
+} | null> {
+  const apiKey = process.env["ABUSEIPDB_API_KEY"];
+  if (!apiKey) return null;
+  try {
+    const ips = await dns.resolve4(domain);
+    if (!ips || ips.length === 0) return { score: 0, totalReports: 0, countryCode: null, isp: null };
+    const ip = ips[0]!;
+    return new Promise((resolve) => {
+      const req = https.request(
+        { hostname: "api.abuseipdb.com", path: `/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`, method: "GET", timeout: 8000, headers: { "Key": apiKey, "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },
+        (res) => {
+          let data = ""; let size = 0;
+          res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 100 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
+          res.on("end", () => {
+            try {
+              if (res.statusCode !== 200) { resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); return; }
+              type AbuseIPDBResp = { data?: { abuseConfidenceScore?: number; totalReports?: number; countryCode?: string; isp?: string } };
+              const json = JSON.parse(data) as AbuseIPDBResp;
+              resolve({ score: json.data?.abuseConfidenceScore ?? 0, totalReports: json.data?.totalReports ?? 0, countryCode: json.data?.countryCode ?? null, isp: json.data?.isp ?? null });
+            } catch { resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); }
+          });
+        }
+      );
+      req.on("error", () => resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }));
+      req.on("timeout", () => { req.destroy(); resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); });
+      req.end();
+    });
+  } catch { return { score: 0, totalReports: 0, countryCode: null, isp: null }; }
+}
+
 function sanitizeDomain(raw: string): string {
   let d = raw.trim().toLowerCase();
   // strip protocol
@@ -566,7 +680,7 @@ router.post("/domain-scan", async (req, res) => {
   logger.info({ domain }, "Starting domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans, shodan, virusTotal, abuseIpdb] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -579,6 +693,9 @@ router.post("/domain-scan", async (req, res) => {
       checkURLhaus(domain),
       checkUsomList(domain),
       checkCertTransparency(domain),
+      checkShodan(domain),
+      checkVirusTotal(domain),
+      checkAbuseIPDB(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -616,10 +733,21 @@ router.post("/domain-scan", async (req, res) => {
         ctSubdomains: certTrans.subdomains,
         ctSubdomainCount: certTrans.count,
         cveSummary,
+        shodanOpenPorts: shodan?.openPorts ?? null,
+        shodanVulnCount: shodan?.vulnCount ?? 0,
+        shodanCountry: shodan?.country ?? null,
+        shodanIsp: shodan?.isp ?? null,
+        virusTotalReputation: virusTotal?.reputation ?? null,
+        virusTotalMalicious: virusTotal?.malicious ?? 0,
+        virusTotalSuspicious: virusTotal?.suspicious ?? 0,
+        abuseIpdbScore: abuseIpdb?.score ?? null,
+        abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0,
+        abuseIpdbCountry: abuseIpdb?.countryCode ?? null,
+        abuseIpdbIsp: abuseIpdb?.isp ?? null,
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, scanId: scan?.id }, "Domain scan complete");
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, shodanConfigured: shodan !== null, virusTotalConfigured: virusTotal !== null, abuseIpdbConfigured: abuseIpdb !== null, scanId: scan?.id }, "Domain scan complete");
     res.json(scan);
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");

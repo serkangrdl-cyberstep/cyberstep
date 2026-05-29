@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
   Mail, Lock, Server, Loader2, ArrowRight, Info,
-  DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network,
+  DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network, Wifi, Flag,
 } from "lucide-react";
 
 interface HibpBreach {
@@ -70,7 +70,215 @@ interface ScanResult {
   ctSubdomains: string[];
   ctSubdomainCount: number;
   cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
+  shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  shodanVulnCount: number;
+  shodanCountry: string | null;
+  shodanIsp: string | null;
+  virusTotalReputation: number | null;
+  virusTotalMalicious: number;
+  virusTotalSuspicious: number;
+  abuseIpdbScore: number | null;
+  abuseIpdbTotalReports: number;
+  abuseIpdbCountry: string | null;
+  abuseIpdbIsp: string | null;
   createdAt: string;
+}
+
+function ShodanCard({ openPorts, vulnCount, country, isp }: {
+  openPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  vulnCount: number;
+  country: string | null;
+  isp: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const notConfigured = openPorts === null;
+  const hasRisk = !notConfigured && (openPorts.length > 5 || vulnCount > 0);
+  return (
+    <div className={`rounded-xl border p-4 ${notConfigured ? "bg-slate-50/50 border-slate-200" : hasRisk ? "bg-orange-50/50 border-orange-200" : "bg-green-50/50 border-green-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${notConfigured ? "bg-slate-100" : hasRisk ? "bg-orange-100" : "bg-green-100"}`}>
+          <Wifi className={`h-4 w-4 ${notConfigured ? "text-slate-400" : hasRisk ? "text-orange-600" : "text-green-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Shodan Internet Maruziyeti</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Katman 1
+            </Badge>
+            {notConfigured ? (
+              <Badge variant="outline" className="text-xs px-2 py-0 border bg-slate-100 text-slate-500 border-slate-200">
+                API anahtari gerekli
+              </Badge>
+            ) : (
+              <>
+                <Badge variant="outline" className={`text-xs px-2 py-0 border ${openPorts.length === 0 ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
+                  {openPorts.length === 0 ? "Acik port yok" : `${openPorts.length} acik port`}
+                </Badge>
+                {vulnCount > 0 && (
+                  <Badge variant="outline" className="text-xs px-2 py-0 border bg-red-100 text-red-700 border-red-200">
+                    {vulnCount} guvenlik acigi
+                  </Badge>
+                )}
+              </>
+            )}
+          </div>
+          {notConfigured ? (
+            <p className="text-xs text-muted-foreground">
+              Shodan API anahtari yapilandirildiginda sunucularinizda internet uzerinden eriselebilen port ve servisleri gorebilirsiniz.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {openPorts.length === 0
+                  ? "Shodan veritabaninda bu IP icin acik port kaydi bulunamadi."
+                  : `Internete acik ${openPorts.length} port tespit edildi.${vulnCount > 0 ? ` ${vulnCount} bilinen guvenlik acigi mevcut.` : ""}`}
+                {country ? ` Sunucu konumu: ${country}.` : ""}
+                {isp ? ` Saglayici: ${isp}.` : ""}
+              </p>
+              {openPorts.length > 0 && (
+                <button onClick={() => setOpen(!open)} className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline">
+                  <Info className="h-3 w-3" /> {open ? "Kapat" : "Acik portlari listele"}
+                </button>
+              )}
+              {open && openPorts.length > 0 && (
+                <div className="mt-2 border-t pt-2 space-y-1">
+                  {openPorts.map((p) => {
+                    const highRisk = [21, 22, 23, 25, 135, 139, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 27017].includes(p.port);
+                    const webPort = [80, 443, 8080, 8443].includes(p.port);
+                    return (
+                      <div key={`${p.port}-${p.protocol}`} className="flex items-center gap-2 text-xs">
+                        <span className={`font-mono px-1.5 py-0.5 rounded ${highRisk ? "bg-red-100 text-red-700" : webPort ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+                          {p.port}/{p.protocol}
+                        </span>
+                        {p.product && <span className="text-muted-foreground">{p.product}</span>}
+                        {p.version && <span className="text-muted-foreground text-xs">v{p.version}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="shrink-0">
+          {notConfigured ? <Lock className="h-5 w-5 text-slate-300" /> :
+           openPorts.length === 0 && vulnCount === 0 ? <ShieldCheck className="h-5 w-5 text-green-500" /> :
+           <AlertTriangle className="h-5 w-5 text-orange-500" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VirusTotalCard({ malicious, suspicious, reputation }: {
+  malicious: number;
+  suspicious: number;
+  reputation: number | null;
+}) {
+  const notConfigured = reputation === null;
+  return (
+    <div className={`rounded-xl border p-4 ${notConfigured ? "bg-slate-50/50 border-slate-200" : malicious > 0 ? "bg-red-50/50 border-red-200" : suspicious > 0 ? "bg-orange-50/50 border-orange-200" : "bg-green-50/50 border-green-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${notConfigured ? "bg-slate-100" : malicious > 0 ? "bg-red-100" : suspicious > 0 ? "bg-orange-100" : "bg-green-100"}`}>
+          <ShieldAlert className={`h-4 w-4 ${notConfigured ? "text-slate-400" : malicious > 0 ? "text-red-600" : suspicious > 0 ? "text-orange-600" : "text-green-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">VirusTotal Domain Reputasyonu</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Katman 1
+            </Badge>
+            {notConfigured ? (
+              <Badge variant="outline" className="text-xs px-2 py-0 border bg-slate-100 text-slate-500 border-slate-200">
+                API anahtari gerekli
+              </Badge>
+            ) : (
+              <>
+                <Badge variant="outline" className={`text-xs px-2 py-0 border ${malicious > 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+                  {malicious > 0 ? `${malicious} zararli` : "Zararli degil"}
+                </Badge>
+                {suspicious > 0 && (
+                  <Badge variant="outline" className="text-xs px-2 py-0 border bg-orange-100 text-orange-700 border-orange-200">
+                    {suspicious} supheli
+                  </Badge>
+                )}
+                <Badge variant="outline" className={`text-xs px-2 py-0 border ${(reputation ?? 0) < 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                  Skor: {reputation}
+                </Badge>
+              </>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {notConfigured
+              ? "VirusTotal API anahtari yapilandirildiginda 70+ antivirusu motoru ile domain reputation analizini goruntuleyebilirsiniz."
+              : malicious > 0
+              ? `${malicious} antivirusu motoru bu alan adini zararli olarak isaretledi. Acil inceleme gerekiyor.`
+              : `70+ antivirusu motoru bu alan adini zararli olarak isaretlemedi. Reputation skoru: ${reputation}.`}
+          </p>
+        </div>
+        <div className="shrink-0">
+          {notConfigured ? <Lock className="h-5 w-5 text-slate-300" /> :
+           malicious > 0 ? <XCircle className="h-5 w-5 text-red-500" /> :
+           <ShieldCheck className="h-5 w-5 text-green-500" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AbuseIPDBCard({ score, totalReports, countryCode, isp }: {
+  score: number | null;
+  totalReports: number;
+  countryCode: string | null;
+  isp: string | null;
+}) {
+  const notConfigured = score === null;
+  const riskLevel = notConfigured ? null : score >= 75 ? "high" : score >= 25 ? "medium" : "low";
+  return (
+    <div className={`rounded-xl border p-4 ${notConfigured ? "bg-slate-50/50 border-slate-200" : riskLevel === "high" ? "bg-red-50/50 border-red-200" : riskLevel === "medium" ? "bg-orange-50/50 border-orange-200" : "bg-green-50/50 border-green-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${notConfigured ? "bg-slate-100" : riskLevel === "high" ? "bg-red-100" : riskLevel === "medium" ? "bg-orange-100" : "bg-green-100"}`}>
+          <Flag className={`h-4 w-4 ${notConfigured ? "text-slate-400" : riskLevel === "high" ? "text-red-600" : riskLevel === "medium" ? "text-orange-600" : "text-green-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">AbuseIPDB IP Kutuye Kullanim Gecmisi</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Katman 1
+            </Badge>
+            {notConfigured ? (
+              <Badge variant="outline" className="text-xs px-2 py-0 border bg-slate-100 text-slate-500 border-slate-200">
+                API anahtari gerekli
+              </Badge>
+            ) : (
+              <>
+                <Badge variant="outline" className={`text-xs px-2 py-0 border ${riskLevel === "high" ? "bg-red-100 text-red-700 border-red-200" : riskLevel === "medium" ? "bg-orange-100 text-orange-700 border-orange-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+                  Risk: %{score}
+                </Badge>
+                {totalReports > 0 && (
+                  <Badge variant="outline" className="text-xs px-2 py-0 border bg-slate-100 text-slate-600 border-slate-200">
+                    {totalReports} rapor
+                  </Badge>
+                )}
+              </>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {notConfigured
+              ? "AbuseIPDB API anahtari yapilandirildiginda alan adinin barindirildi IP'nin kuresel kotuye kullanim raporlama gecmisini goruntuleyebilirsiniz."
+              : totalReports === 0
+              ? `Bu IP icin son 90 gunde kotuye kullanim raporu bulunamadi.${countryCode ? ` Konum: ${countryCode}` : ""}${isp ? `, ${isp}` : ""}.`
+              : `Bu IP son 90 gunde ${totalReports} kez kotuye kullanim icin raporlandi. Guven skoru: %${score}.${countryCode ? ` Konum: ${countryCode}` : ""}${isp ? `, ${isp}` : ""}.`}
+          </p>
+        </div>
+        <div className="shrink-0">
+          {notConfigured ? <Lock className="h-5 w-5 text-slate-300" /> :
+           riskLevel === "high" || riskLevel === "medium" ? <XCircle className="h-5 w-5 text-red-500" /> :
+           <ShieldCheck className="h-5 w-5 text-green-500" />}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const CHECK_META = {
@@ -921,6 +1129,9 @@ export default function DomainScanPage() {
             <UsomCard listed={result.usomListed} />
             <CertTransparencyCard subdomains={result.ctSubdomains} count={result.ctSubdomainCount} />
             <CveCard cveSummary={result.cveSummary ?? []} />
+            <ShodanCard openPorts={result.shodanOpenPorts} vulnCount={result.shodanVulnCount} country={result.shodanCountry} isp={result.shodanIsp} />
+            <VirusTotalCard malicious={result.virusTotalMalicious} suspicious={result.virusTotalSuspicious} reputation={result.virusTotalReputation} />
+            <AbuseIPDBCard score={result.abuseIpdbScore} totalReports={result.abuseIpdbTotalReports} countryCode={result.abuseIpdbCountry} isp={result.abuseIpdbIsp} />
           </div>
 
           {/* CTA */}

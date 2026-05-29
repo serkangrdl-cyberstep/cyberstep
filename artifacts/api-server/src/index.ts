@@ -514,6 +514,26 @@ function startIsrImapCron() {
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
+async function ensureBlogContentColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_title TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_title_en TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS meta_description TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS meta_description_en TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS focus_keyword TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS focus_keyword_en TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_tags JSONB DEFAULT '[]'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_tags_en JSONB DEFAULT '[]'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS linkedin_post_tr TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS linkedin_post_en TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS instagram_carousel_tr JSONB DEFAULT '[]'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS instagram_carousel_en JSONB DEFAULT '[]'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS instagram_caption_tr TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS instagram_caption_en TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS visual_prompts_tr JSONB`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS visual_prompts_en JSONB`);
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS refs_json JSONB DEFAULT '[]'`);
+}
+
 async function ensureDomainScanEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS http_headers_score INTEGER NOT NULL DEFAULT 0`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS http_headers_details JSONB DEFAULT '{}'`);
@@ -687,6 +707,7 @@ async function startup() {
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
   await maybeSeedDemoCustomer();
+  await ensureBlogContentColumns();
   await ensureDomainScanEnrichmentColumns();
   await ensureSecurityAdvisoriesTable();
   await updatePricingPlanFeatures();

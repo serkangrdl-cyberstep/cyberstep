@@ -10,6 +10,10 @@ import crypto from "crypto";
 
 const router = Router();
 
+interface CarouselSlide { slide: number; text: string; }
+interface VisualPrompts { blog: string; linkedin: string; instagram: string; x: string; }
+interface BlogRef { title: string; url: string; }
+
 // ─── Helper: generate URL-safe slug ───────────────────────────────────────────
 function toSlug(title: string): string {
   return title
@@ -21,6 +25,22 @@ function toSlug(title: string): string {
     .replace(/-+/g, "-")
     .slice(0, 80);
 }
+
+type BlogBodyFull = {
+  title?: string; excerpt?: string; content?: string;
+  titleEn?: string; excerptEn?: string; contentEn?: string;
+  socialTextTr?: string; socialTextEn?: string;
+  linkedinPostTr?: string; linkedinPostEn?: string;
+  seoTitle?: string; seoTitleEn?: string;
+  metaDescription?: string; metaDescriptionEn?: string;
+  focusKeyword?: string; focusKeywordEn?: string;
+  seoTags?: string[]; seoTagsEn?: string[];
+  instagramCarouselTr?: CarouselSlide[]; instagramCarouselEn?: CarouselSlide[];
+  instagramCaptionTr?: string; instagramCaptionEn?: string;
+  visualPromptsTr?: VisualPrompts; visualPromptsEn?: VisualPrompts;
+  refsJson?: BlogRef[];
+  coverImageBase64?: string; authorName?: string;
+};
 
 // ─── ADMIN: Blog Posts ─────────────────────────────────────────────────────────
 
@@ -36,6 +56,8 @@ router.get("/admin-panel/blog", requireAdmin, async (_req, res) => {
       publishedAt: blogPostsTable.publishedAt,
       createdAt: blogPostsTable.createdAt,
       updatedAt: blogPostsTable.updatedAt,
+      titleEn: blogPostsTable.titleEn,
+      coverImageBase64: blogPostsTable.coverImageBase64,
     })
     .from(blogPostsTable)
     .orderBy(desc(blogPostsTable.createdAt));
@@ -50,12 +72,8 @@ router.get("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
 });
 
 router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Response) => {
-  const { title, excerpt, content, titleEn, excerptEn, contentEn, socialTextTr, socialTextEn, coverImageBase64, authorName } = req.body as {
-    title: string; excerpt: string; content: string;
-    titleEn?: string; excerptEn?: string; contentEn?: string;
-    socialTextTr?: string; socialTextEn?: string;
-    coverImageBase64?: string; authorName?: string;
-  };
+  const body = req.body as BlogBodyFull;
+  const { title, excerpt, content } = body;
   if (!title || !excerpt || !content) {
     res.status(400).json({ error: "Başlık, özet ve içerik zorunludur" });
     return;
@@ -66,13 +84,30 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
 
   const [row] = await db.insert(blogPostsTable).values({
     title, slug, excerpt, content,
-    titleEn: titleEn || null,
-    excerptEn: excerptEn || null,
-    contentEn: contentEn || null,
-    socialTextTr: socialTextTr || null,
-    socialTextEn: socialTextEn || null,
-    coverImageBase64: coverImageBase64 ?? null,
-    authorName: authorName ?? "CyberStep.io",
+    titleEn: body.titleEn || null,
+    excerptEn: body.excerptEn || null,
+    contentEn: body.contentEn || null,
+    socialTextTr: body.socialTextTr || null,
+    socialTextEn: body.socialTextEn || null,
+    linkedinPostTr: body.linkedinPostTr || null,
+    linkedinPostEn: body.linkedinPostEn || null,
+    seoTitle: body.seoTitle || null,
+    seoTitleEn: body.seoTitleEn || null,
+    metaDescription: body.metaDescription || null,
+    metaDescriptionEn: body.metaDescriptionEn || null,
+    focusKeyword: body.focusKeyword || null,
+    focusKeywordEn: body.focusKeywordEn || null,
+    seoTags: body.seoTags?.length ? body.seoTags : null,
+    seoTagsEn: body.seoTagsEn?.length ? body.seoTagsEn : null,
+    instagramCarouselTr: body.instagramCarouselTr?.length ? body.instagramCarouselTr : null,
+    instagramCarouselEn: body.instagramCarouselEn?.length ? body.instagramCarouselEn : null,
+    instagramCaptionTr: body.instagramCaptionTr || null,
+    instagramCaptionEn: body.instagramCaptionEn || null,
+    visualPromptsTr: body.visualPromptsTr ?? null,
+    visualPromptsEn: body.visualPromptsEn ?? null,
+    refsJson: body.refsJson?.length ? body.refsJson : null,
+    coverImageBase64: body.coverImageBase64 ?? null,
+    authorName: body.authorName ?? "CyberStep.io",
     status: "draft",
   }).returning();
   logger.info({ id: row.id }, "Blog post created");
@@ -81,25 +116,38 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
 
 router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { title, excerpt, content, titleEn, excerptEn, contentEn, socialTextTr, socialTextEn, coverImageBase64, authorName } = req.body as {
-    title?: string; excerpt?: string; content?: string;
-    titleEn?: string; excerptEn?: string; contentEn?: string;
-    socialTextTr?: string; socialTextEn?: string;
-    coverImageBase64?: string; authorName?: string;
-  };
-  const updateData: Record<string, unknown> = { updatedAt: new Date() };
-  if (title !== undefined) updateData.title = title;
-  if (excerpt !== undefined) updateData.excerpt = excerpt;
-  if (content !== undefined) updateData.content = content;
-  if (titleEn !== undefined) updateData.titleEn = titleEn || null;
-  if (excerptEn !== undefined) updateData.excerptEn = excerptEn || null;
-  if (contentEn !== undefined) updateData.contentEn = contentEn || null;
-  if (socialTextTr !== undefined) updateData.socialTextTr = socialTextTr || null;
-  if (socialTextEn !== undefined) updateData.socialTextEn = socialTextEn || null;
-  if (coverImageBase64 !== undefined) updateData.coverImageBase64 = coverImageBase64;
-  if (authorName !== undefined) updateData.authorName = authorName;
+  const body = req.body as BlogBodyFull;
+  const u: Record<string, unknown> = { updatedAt: new Date() };
 
-  const [row] = await db.update(blogPostsTable).set(updateData).where(eq(blogPostsTable.id, id)).returning();
+  if (body.title !== undefined) u.title = body.title;
+  if (body.excerpt !== undefined) u.excerpt = body.excerpt;
+  if (body.content !== undefined) u.content = body.content;
+  if (body.titleEn !== undefined) u.titleEn = body.titleEn || null;
+  if (body.excerptEn !== undefined) u.excerptEn = body.excerptEn || null;
+  if (body.contentEn !== undefined) u.contentEn = body.contentEn || null;
+  if (body.socialTextTr !== undefined) u.socialTextTr = body.socialTextTr || null;
+  if (body.socialTextEn !== undefined) u.socialTextEn = body.socialTextEn || null;
+  if (body.linkedinPostTr !== undefined) u.linkedinPostTr = body.linkedinPostTr || null;
+  if (body.linkedinPostEn !== undefined) u.linkedinPostEn = body.linkedinPostEn || null;
+  if (body.seoTitle !== undefined) u.seoTitle = body.seoTitle || null;
+  if (body.seoTitleEn !== undefined) u.seoTitleEn = body.seoTitleEn || null;
+  if (body.metaDescription !== undefined) u.metaDescription = body.metaDescription || null;
+  if (body.metaDescriptionEn !== undefined) u.metaDescriptionEn = body.metaDescriptionEn || null;
+  if (body.focusKeyword !== undefined) u.focusKeyword = body.focusKeyword || null;
+  if (body.focusKeywordEn !== undefined) u.focusKeywordEn = body.focusKeywordEn || null;
+  if (body.seoTags !== undefined) u.seoTags = body.seoTags?.length ? body.seoTags : null;
+  if (body.seoTagsEn !== undefined) u.seoTagsEn = body.seoTagsEn?.length ? body.seoTagsEn : null;
+  if (body.instagramCarouselTr !== undefined) u.instagramCarouselTr = body.instagramCarouselTr?.length ? body.instagramCarouselTr : null;
+  if (body.instagramCarouselEn !== undefined) u.instagramCarouselEn = body.instagramCarouselEn?.length ? body.instagramCarouselEn : null;
+  if (body.instagramCaptionTr !== undefined) u.instagramCaptionTr = body.instagramCaptionTr || null;
+  if (body.instagramCaptionEn !== undefined) u.instagramCaptionEn = body.instagramCaptionEn || null;
+  if (body.visualPromptsTr !== undefined) u.visualPromptsTr = body.visualPromptsTr ?? null;
+  if (body.visualPromptsEn !== undefined) u.visualPromptsEn = body.visualPromptsEn ?? null;
+  if (body.refsJson !== undefined) u.refsJson = body.refsJson?.length ? body.refsJson : null;
+  if (body.coverImageBase64 !== undefined) u.coverImageBase64 = body.coverImageBase64;
+  if (body.authorName !== undefined) u.authorName = body.authorName;
+
+  const [row] = await db.update(blogPostsTable).set(u).where(eq(blogPostsTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
   res.json(row);
 });
@@ -119,7 +167,6 @@ router.post("/admin-panel/blog/:id/publish", requireAdmin, async (req: Request, 
     .returning();
   if (!post) { res.status(404).json({ error: "Bulunamadı" }); return; }
 
-  // Send newsletter async (fire-and-forget)
   void (async () => {
     try {
       const subscribers = await db.select()
@@ -222,6 +269,12 @@ router.get("/public/blog", async (_req, res) => {
     coverImageBase64: blogPostsTable.coverImageBase64,
     authorName: blogPostsTable.authorName,
     publishedAt: blogPostsTable.publishedAt,
+    seoTitle: blogPostsTable.seoTitle,
+    seoTitleEn: blogPostsTable.seoTitleEn,
+    metaDescription: blogPostsTable.metaDescription,
+    metaDescriptionEn: blogPostsTable.metaDescriptionEn,
+    focusKeyword: blogPostsTable.focusKeyword,
+    seoTags: blogPostsTable.seoTags,
   })
     .from(blogPostsTable)
     .where(eq(blogPostsTable.status, "published"))
@@ -235,6 +288,9 @@ router.get("/public/blog", async (_req, res) => {
       id: r.id, title: r.title, titleEn: r.titleEn, slug: r.slug,
       excerpt: r.excerpt, excerptEn: r.excerptEn,
       coverImageBase64: r.coverImageBase64, authorName: r.authorName, publishedAt: r.publishedAt,
+      seoTitle: r.seoTitle, seoTitleEn: r.seoTitleEn,
+      metaDescription: r.metaDescription, metaDescriptionEn: r.metaDescriptionEn,
+      focusKeyword: r.focusKeyword, seoTags: r.seoTags,
       readingMinutesTr: Math.max(1, Math.round(trWords / 200)),
       readingMinutesEn: enWords > 0 ? Math.max(1, Math.round(enWords / 200)) : Math.max(1, Math.round(trWords / 200)),
     };
@@ -261,7 +317,6 @@ router.post("/public/newsletter/subscribe", async (req: Request, res: Response) 
   const normalized = email.toLowerCase().trim();
   const token = crypto.randomBytes(32).toString("hex");
 
-  // Upsert: reactivate if already exists
   const existing = await db.select().from(newsletterSubscribersTable)
     .where(eq(newsletterSubscribersTable.email, normalized));
 

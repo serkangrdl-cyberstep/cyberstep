@@ -1,5 +1,9 @@
 import { pgTable, serial, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
 
+interface CarouselSlide { slide: number; text: string; }
+interface VisualPrompts { blog: string; linkedin: string; instagram: string; x: string; }
+interface BlogRef { title: string; url: string; }
+
 export const blogPostsTable = pgTable("blog_posts", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -17,6 +21,26 @@ export const blogPostsTable = pgTable("blog_posts", {
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  // SEO
+  seoTitle: text("seo_title"),
+  seoTitleEn: text("seo_title_en"),
+  metaDescription: text("meta_description"),
+  metaDescriptionEn: text("meta_description_en"),
+  focusKeyword: text("focus_keyword"),
+  focusKeywordEn: text("focus_keyword_en"),
+  seoTags: jsonb("seo_tags").$type<string[]>(),
+  seoTagsEn: jsonb("seo_tags_en").$type<string[]>(),
+  // Social media
+  linkedinPostTr: text("linkedin_post_tr"),
+  linkedinPostEn: text("linkedin_post_en"),
+  instagramCarouselTr: jsonb("instagram_carousel_tr").$type<CarouselSlide[]>(),
+  instagramCarouselEn: jsonb("instagram_carousel_en").$type<CarouselSlide[]>(),
+  instagramCaptionTr: text("instagram_caption_tr"),
+  instagramCaptionEn: text("instagram_caption_en"),
+  visualPromptsTr: jsonb("visual_prompts_tr").$type<VisualPrompts>(),
+  visualPromptsEn: jsonb("visual_prompts_en").$type<VisualPrompts>(),
+  // Shared references
+  refsJson: jsonb("refs_json").$type<BlogRef[]>(),
 });
 
 export const newsletterSubscribersTable = pgTable("newsletter_subscribers", {

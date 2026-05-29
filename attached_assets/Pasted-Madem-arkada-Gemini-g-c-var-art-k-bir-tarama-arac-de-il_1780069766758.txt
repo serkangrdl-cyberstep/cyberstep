@@ -1,0 +1,23 @@
+Madem arkada Gemini gücü var, artık bir "tarama aracı" değil, bir "Siber Güvenlik Analisti ve CFO Yardımcısı" geliştiriyorsunuz demektir. Standart tarayıcılar "Sisteminizde port 80 açık" der; CyberStep ise "Bu portun açık olması, finansal tablolarınızda X oranında bir risk açığı yaratıyor" diyebilir.
+​Gemini'ı bir "kasa" gibi kullanıp, teknik veriyi ticari bir dilden süzerek sunmak için şu 3 stratejik katmanı eklemeliyiz:
+​1. Gemini ile "Finansal Risk Modelleme" (CFO Dili)
+​Teknik zafiyetleri, bir KOBİ'nin finansal diline çevirin.
+​Gemini Komutu: "Bu tarama sonucunda DMARC eksikliği ve açık RDP portu tespit edildi. KOBİ'nin yıllık cirosu X, sektör verisi Y. Bu zafiyetin olası bir fidye yazılımı (ransomware) saldırısında şirkete maliyetini ve iş durdurma süresini tahmini olarak hesapla."
+​Sonuç: Raporun başında teknik puan yerine "Tahmini Finansal Risk: 120.000$" ibaresi yer almalı. Bu, KOBİ sahibinin "bunu hemen düzeltmeliyim" demesini sağlar.
+​2. Gemini ile "Sektörel Kıyaslama" (Benchmarking)
+​KOBİ patronu "iyiyim" ya da "kötüyüm" demenin tek yolunu, rakipleriyle kıyaslamak olduğunu bilir.
+​Gemini Komutu: "Türkiye'deki lojistik sektörü firmalarının ortalama güvenlik skoru 65/100. Bu müşterimizin skoru 42/100. Bu açığı, sektör ortalamasına getirmek için öncelikli yapması gereken 3 teknik adımı, bir IT danışmanı üslubuyla basitçe yaz."
+​Sonuç: Kişiselleştirilmiş bir "Yol Haritası" (Roadmap). Bu, CyberStep'i bir raporlama aracından, bir "Sanal CISO" (Chief Information Security Officer) konumuna yükseltir.
+​3. "Dinamik Aksiyon Planı" ve "Partner Yönlendirmesi"
+​Teknik rapor bittiğinde, kullanıcıyı "ne yapacağım şimdi?" boşluğunda bırakmayın.
+​Gemini Komutu: "Tespit edilen bu 3 kritik açığı (SSL, DMARC, Port) kapatmak için en kolay yöntemleri (örneğin; Cloudflare kullanımı, Microsoft 365 panelinden ayar vb.) içeren bir adım adım kılavuz hazırla. Eğer firma bunları kendi yapamıyorsa, Türkiye'deki iş ortaklarımıza yönlendirmek için bir 'Teklif Al' butonu oluştur."
+​Sonuç: CyberStep, sadece sorunu değil, çözümün satışını da (Lead Gen) organize eden bir platforma dönüşür.
+​"Çarpıcı Rapor" İçin Gemini'a Yaptırabileceğiniz 3 Farklı Format:
+​"Yönetici Özeti" (CEO View): Sadece 3 cümle: Risk ne? Ne kadar para kaybettirebilir? Çözmek ne kadar sürer?
+​"Teknik İtfaiye" (IT View): Teknik ekibin (varsa) veya dış destek aldığı firmanın yapması gereken "to-do list".
+​"İtibar Sertifikası" (Marketing View): Gemini'a "Bu müşterinin güvenlik skoru 90/100, bunu müşterilerine pazarlayabileceği bir 'Güvenli Hizmet Veriyoruz' metni yaz" talimatı verin.
+​Editörün Tavsiyesi:
+​Raporlarınızı **"Sertlik Seviyesi"**ne göre ayarlayın.
+​Nazik: "Skorunuzu artırmak için DMARC ayarlarını yapabilirsiniz."
+​Otoriter (Gemini'a söyleyin): "Bu açığın varlığı, saldırganların e-postalarınızı taklit etmesine olanak tanıyor. Müşterilerinizin dolandırılmaması için 24 saat içinde bunu düzeltin."
+​Stratejik Soru: Şu an raporlarda sadece "açıkları" mı gösteriyorsunuz, yoksa Gemini'ın bu "finansal risk ve sektör kıyaslaması" yorumlarını doğrudan raporun en üstüne (Executive Summary) koydunuz mu? (Bunu yaparsanız, rakiplerinizle aranızda uçurum açarsınız.)

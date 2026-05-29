@@ -158,6 +158,22 @@ const SHADOW_IT_CATALOG: Array<{
   { name: "YouTube Embed", category: "Medya", pattern: /youtube\.com\/embed|youtube-nocookie\.com/i, risk: "Düşük", desc: "YouTube video gömme. Ziyaretçi izleme verisi Google'a iletilir." },
   { name: "Typeform", category: "Form", pattern: /typeform\.com/i, risk: "Orta", desc: "Typeform form servisi. Form verileri Typeform sunucularında işlenir — hassas veriler için dikkatli kullanın." },
   { name: "Calendly", category: "Randevu", pattern: /calendly\.com/i, risk: "Düşük", desc: "Online randevu alma aracı. Toplantı verileri Calendly'de saklanır." },
+  // ─── Yapay Zeka / AI ─────────────────────────────────────────────────────
+  { name: "ChatGPT / OpenAI Widget", category: "Yapay Zeka / AI", pattern: /openai\.com|chatgpt\.com|cdn\.openai\.com/i, risk: "Orta", desc: "OpenAI / ChatGPT entegrasyonu tespit edildi. Kullanıcı sorguları OpenAI sunucularına iletilebilir — KVKK kapsamında veri işleme sözleşmesi ve açık rıza gerektirir." },
+  { name: "Tidio AI", category: "Yapay Zeka / AI", pattern: /tidio\.com|tidio\.co/i, risk: "Orta", desc: "Tidio AI chatbot. Ziyaretçi sohbet verileri Tidio sunucularında saklanır ve AI analizi için kullanılır — gizlilik politikanızda belirtilmeli, KVKK bildirimi zorunlu." },
+  { name: "Drift", category: "Yapay Zeka / AI", pattern: /drift\.com|js\.driftt\.com|widget\.drift\.com/i, risk: "Orta", desc: "Drift AI satış chatbotu. Ziyaretçi kimliği ve davranış verisi ABD sunucularına iletilir — KVKK bildirimi zorunlu." },
+  { name: "LiveChat", category: "Yapay Zeka / AI", pattern: /livechatinc\.com|cdn\.livechat\.com|livechat\.com\/tracking/i, risk: "Düşük", desc: "LiveChat AI destekli canlı destek sistemi. Sohbet geçmişi ve müşteri verileri bulutta saklanır." },
+  { name: "ManyChat", category: "Yapay Zeka / AI", pattern: /manychat\.com/i, risk: "Orta", desc: "ManyChat WhatsApp/Instagram AI otomasyon platformu. Müşteri iletişim verileri ManyChat altyapısında işlenir — KVKK kapsamında belirtilmeli." },
+  { name: "Botpress", category: "Yapay Zeka / AI", pattern: /botpress\.com|cdn\.botpress\.cloud/i, risk: "Orta", desc: "Botpress AI chatbot platformu. Konuşma verileri bulut altyapısında işlenir — KVKK uyumu için veri işleme sözleşmesi gerektirir." },
+  { name: "Landbot", category: "Yapay Zeka / AI", pattern: /landbot\.io|landbot\.com/i, risk: "Orta", desc: "Landbot AI form ve chatbot platformu. Kullanıcı yanıtları Landbot sunucularında saklanır." },
+  // ─── Türkiye'ye özgü SaaS ─────────────────────────────────────────────────
+  { name: "WhatsApp Business", category: "İletişim / Yerel", pattern: /wa\.me\/|api\.whatsapp\.com|whatsapp\.com\/send/i, risk: "Düşük", desc: "WhatsApp Business yönlendirme butonu. Müşteri iletişim verileri Meta altyapısından geçer — KVKK kapsamında değerlendirin." },
+  { name: "ikas E-ticaret", category: "E-ticaret / Yerel", pattern: /ikas\.com|cdn\.ikas\.com|ikas\.co/i, risk: "Düşük", desc: "ikas Türk e-ticaret altyapısı. Müşteri sipariş ve ödeme verileri ikas sisteminde saklanır, Türkiye'de veri işleme." },
+  { name: "ideasoft", category: "E-ticaret / Yerel", pattern: /ideasoft\.com\.tr|ideasoft\.net/i, risk: "Düşük", desc: "ideasoft Türk e-ticaret platformu. Müşteri sipariş ve ödeme verileri ideasoft altyapısında saklanır." },
+  { name: "Ticimax", category: "E-ticaret / Yerel", pattern: /ticimax\.com/i, risk: "Düşük", desc: "Ticimax Türk e-ticaret altyapısı. Ödeme ve müşteri verileri Ticimax sisteminde işlenir." },
+  { name: "Shopier", category: "Ödeme / Yerel", pattern: /shopier\.com/i, risk: "Düşük", desc: "Shopier Türk ödeme ve e-ticaret platformu. PCI DSS uyumlu, Türkiye'de veri işleme." },
+  { name: "Paraşüt", category: "Muhasebe / Yerel", pattern: /parasut\.com/i, risk: "Orta", desc: "Paraşüt bulut muhasebe platformu. Şirketin mali verileri Paraşüt bulutunda saklanır — finansal veri güvenliği kritik, erişim yetkilerini düzenli gözden geçirin." },
+  { name: "Popupsmart", category: "Pazarlama / Yerel", pattern: /popupsmart\.com/i, risk: "Düşük", desc: "Popupsmart Türk popup ve lead toplama aracı. Ziyaretçi verileri toplanır — KVKK kapsamında açık rıza ve bildirim zorunlu." },
 ];
 
 async function fetchHomepage(domain: string): Promise<string> {
@@ -911,6 +927,39 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
   } catch (err) {
     logger.error({ err, scanId: id }, "Domain scan PDF generation failed");
     res.status(500).json({ error: "PDF oluşturulamadı" });
+  }
+});
+
+// ─── GET /api/domain-scan/:id/passport ───────────────────────────────────────
+router.get("/domain-scan/:id/passport", async (req, res) => {
+  const id = Number(req.params["id"]);
+  if (isNaN(id)) return void res.status(400).json({ error: "Geçersiz ID" });
+
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, id));
+  if (!scan) return void res.status(404).json({ error: "Tarama bulunamadı" });
+
+  try {
+    const { generateDomainScanPassport } = await import("../../services/pdf");
+    const buf = await generateDomainScanPassport({
+      id: scan.id,
+      domain: scan.domain,
+      overallScore: scan.overallScore,
+      spfPass: scan.spfPass,
+      dmarcPass: scan.dmarcPass,
+      dkimPass: scan.dkimPass,
+      sslPass: scan.sslPass,
+      blacklisted: scan.blacklisted,
+      hibpBreachCount: scan.hibpBreachCount,
+      createdAt: scan.createdAt,
+    });
+    const safeDomain = scan.domain.replace(/[^a-z0-9.-]/gi, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Pasaport_${safeDomain}.pdf"`);
+    res.setHeader("Content-Length", buf.length);
+    res.send(buf);
+  } catch (err) {
+    logger.error({ err, scanId: id }, "Domain scan passport PDF generation failed");
+    res.status(500).json({ error: "Pasaport PDF oluşturulamadı" });
   }
 });
 

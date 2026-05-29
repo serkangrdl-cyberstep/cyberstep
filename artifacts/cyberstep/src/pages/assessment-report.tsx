@@ -83,6 +83,103 @@ const getRiskBorderColor = (level: string) => {
 
 type ContactForm = { name: string; email: string; phone: string; note: string };
 
+function MarathonSection({ weeklyActionPlan, assessmentId }: { weeklyActionPlan: Array<{ week: number; title: string; tasks: string[] }>; assessmentId: number }) {
+  const storageKey = `marathon-${assessmentId}`;
+  const [completedTasks, setCompletedTasks] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const totalTasks = weeklyActionPlan.reduce((sum, w) => sum + (w.tasks?.length ?? 0), 0);
+  const completedCount = completedTasks.size;
+  const progressPct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+  const allDone = completedCount === totalTasks && totalTasks > 0;
+
+  function toggleTask(key: string) {
+    setCompletedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  return (
+    <Card className="shadow-sm mb-6">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              30 Gunluk Guvenlik Maratonu
+            </CardTitle>
+            <CardDescription>
+              AI tarafindan hazirlanmis haftalik eylem plani. Her gorevi tamamladiginizda uzerine tiklayin.
+            </CardDescription>
+          </div>
+          {allDone && (
+            <Badge className="bg-amber-400 text-amber-900 border-amber-300 shrink-0 text-xs px-2 py-1">
+              CyberStep Sertifikali
+            </Badge>
+          )}
+        </div>
+        <div className="mt-2">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>{completedCount}/{totalTasks} gorev tamamlandi</span>
+            <span>%{progressPct}</span>
+          </div>
+          <Progress value={progressPct} className="h-2" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {weeklyActionPlan.map((week) => (
+          <div key={week.week}>
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {week.week}
+              </span>
+              {week.title}
+            </h4>
+            <div className="space-y-2">
+              {(week.tasks ?? []).map((task, ti) => {
+                const key = `w${week.week}-t${ti}`;
+                const done = completedTasks.has(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleTask(key)}
+                    className={`w-full flex items-start gap-3 text-left p-3 rounded-lg border transition-colors ${done ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900" : "bg-muted/10 hover:bg-muted/30 border-border"}`}
+                  >
+                    <div className={`shrink-0 mt-0.5 ${done ? "text-emerald-500" : "text-muted-foreground"}`}>
+                      {done
+                        ? <CheckCircle2 className="h-4 w-4" />
+                        : <div className="h-4 w-4 rounded-full border-2 border-current" />
+                      }
+                    </div>
+                    <span className={`text-sm leading-relaxed ${done ? "line-through text-muted-foreground" : ""}`}>
+                      {task}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {allDone && (
+          <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900 text-center">
+            <div className="text-2xl font-bold text-amber-500 mb-1">★</div>
+            <h4 className="font-bold text-amber-800 dark:text-amber-300 mb-1">30 Gunluk Maratonu Tamamladiniz!</h4>
+            <p className="text-sm text-amber-700 dark:text-amber-400">Siber guvenlik altyapinizi basariyla guclendiniz. CyberStep tarafindan sertifikalandiniz.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AssessmentReportById({ id }: { id: number }) {
   return <AssessmentReportCore id={id} />;
 }
@@ -744,6 +841,52 @@ function AssessmentReportCore({ id }: { id: number }) {
           </Card>
         );
       })()}
+
+      {/* Finansal Maliyet Tahmini */}
+      {(report.estimatedBreachCostMin || report.estimatedBreachCostMax) && (() => {
+        const fmtMoney = (n: number) => `₺${n.toLocaleString("tr-TR")}`;
+        const costMin = report.estimatedBreachCostMin as number;
+        const costMax = report.estimatedBreachCostMax as number;
+        const reduction = report.riskReductionPercent as number | null;
+        return (
+          <Card className="shadow-sm mb-6 border-orange-200 bg-orange-50/30 dark:bg-orange-950/20 dark:border-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="h-5 w-5 text-orange-500" />
+                Olasi Ihlal Maliyeti Tahmini
+              </CardTitle>
+              <CardDescription>
+                Mevcut guvenlik aciklari kapatilmadiginda olusabilecek toplam maliyet — fidye, uretim kaybi, KVKK cezasi ve itibar hasari dahil.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                <div>
+                  <div className="text-3xl font-bold text-orange-600">
+                    {fmtMoney(costMin)} – {fmtMoney(costMax)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Turkiye KOBi gerceklerine gore tahmini maliyet</p>
+                </div>
+                {reduction != null && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900">
+                    <TrendingDown className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <span className="text-sm text-emerald-700 dark:text-emerald-400">Onerileri tam uygulayin → risk %{reduction} azalir</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Bu tahmin, sektorunuz, calisanlariniz ve aciklariniza gore Gemini AI tarafindan hesaplanmistir. Gercek maliyet duruma gore degisebilir.</p>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Guvenlik Maratonu — 30 Gunluk Eylem Plani */}
+      {Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
+        <MarathonSection
+          weeklyActionPlan={report.weeklyActionPlan as Array<{ week: number; title: string; tasks: string[] }>}
+          assessmentId={report.assessmentId as number}
+        />
+      )}
 
       {/* CyberStep Verified Rozeti */}
       {report.verificationToken && (() => {

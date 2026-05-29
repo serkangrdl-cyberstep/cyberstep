@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Globe, CheckCircle2, XCircle, Download, Search, AlertTriangle,
   BarChart3, Shield, Loader2, ChevronLeft, ChevronRight,
-  Play, Trash2, FileDown, Eye,
+  Play, Trash2, FileDown, Eye, FileCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -492,6 +492,24 @@ export default function AdminDomainTaramalar() {
     }
   }
 
+  const [passportId, setPassportId] = useState<number | null>(null);
+  async function downloadPassport(id: number, domain: string) {
+    setPassportId(id);
+    try {
+      const res = await fetch(`/api/domain-scan/${id}/passport`, { credentials: "include" });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `CyberStep_Pasaport_${domain}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Pasaport indirilemedi", variant: "destructive" });
+    } finally {
+      setPassportId(null);
+    }
+  }
+
   function exportCSV() {
     window.open("/api/admin-panel/domain-scans/export", "_blank");
   }
@@ -700,6 +718,18 @@ export default function AdminDomainTaramalar() {
                             {downloadingId === scan.id
                               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               : <Download className="h-3.5 w-3.5" />
+                            }
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            className="h-7 w-7 p-0 border-slate-600 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                            onClick={() => downloadPassport(scan.id, scan.domain)}
+                            disabled={passportId === scan.id}
+                            title="Dijital Pasaport PDF"
+                          >
+                            {passportId === scan.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <FileCheck className="h-3.5 w-3.5" />
                             }
                           </Button>
                           <Button

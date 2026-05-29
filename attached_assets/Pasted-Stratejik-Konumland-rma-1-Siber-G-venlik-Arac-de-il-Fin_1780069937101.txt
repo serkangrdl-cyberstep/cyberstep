@@ -1,0 +1,189 @@
+Stratejik Konumlandırma
+1. “Siber Güvenlik Aracı” değil, “Finansal Risk Erken Uyarı Sistemi” olarak konumlanın
+Türkiye’de KOBİ patronu “CVE”, “Shodan exposure”, “misconfiguration” satın almaz.
+Ama şunu satın alır:
+“Fidye yazılımı nedeniyle 3 gün iş durursa tahmini zarar: 1.8M TL”
+“KVKK ihlali riski nedeniyle potansiyel hukuki maliyet”
+“Mail domaininiz spoof edilirse müşterileriniz dolandırılabilir”
+CyberStep.io’nun dili teknik değil, CFO dili olmalı.
+Rakipler skor veriyor.
+Siz “iş etkisi” vermelisiniz.
+SecurityScorecard tarzı oyuncular:
+“Risk var” der.
+Siz: “Bu açık nedeniyle müşteriniz ödeme yapmayı bırakabilir” demelisiniz.
+Bu positioning Türkiye KOBİ pazarında çok güçlü ayrışır çünkü:
+KOBİ’nin CISO’su yok
+Teknik ekip yok
+Ama finansal kayıp korkusu çok yüksek
+Gemini burada kritik fark yaratıyor:
+ham veriyi “yönetici karar metnine” dönüştürüyor.
+2. “Sanal CISO” yerine “Yönetim Kurulu Güvenlik Danışmanı” yaklaşımı
+“Sanal CISO” teknik çevrede anlamlı ama KOBİ patronu için soyut.
+Daha güçlü framing:
+“Şirketinizin dışarıdan nasıl göründüğünü analiz edip, işinizi durdurabilecek riskleri yönetime anlatan AI danışman.”
+Yani:
+teknik tarama + AI yorum = “karar destek sistemi”
+Özellikle:
+muhasebe firmaları
+klinikler
+lojistik
+üretim
+e-ticaret
+hukuk ofisleri
+için “müşteri güveni” dili çok daha etkili olur.
+3. Türkiye’ye özel “KOBİ Siber Kredi Skoru” oluşturun
+Bu çok büyük fırsat.
+Sadece güvenlik skoru değil:
+“CyberStep Güven Endeksi”
+İçinde:
+Domain güvenilirliği
+Mail güvenliği
+Veri sızıntısı riski
+Marka taklit riski
+Fidye yazılımı maruziyeti
+Tedarik zinciri riski
+Finansal etki tahmini
+olsun.
+Sonra:
+A / B / C / D not sistemi
+“Rakiplerinize göre durumunuz”
+“Son 30 günde iyileşme”
+ekleyin.
+İnsanlar skor takıntılıdır. Bu stickiness yaratır.
+Tıpkı:
+kredi notu
+SEO skoru
+PageSpeed
+ESG skoru
+gibi.
+Ürün Geliştirme (Feature Roadmap)
+1. Killer Feature: “CEO Risk Briefing PDF”
+Bence sizin öldürücü özelliğiniz bu olmalı.
+Rakiplerin çoğu teknik dashboard üretiyor.
+Siz şunu üretmelisiniz:
+“Patronun 5 Dakikada Okuyacağı Siber Risk Raporu”
+Format:
+Şirketiniz şu anda ne kadar risk altında?
+Tahmini Finansal Etki:
+Operasyon durması: 450.000 TL
+Mail dolandırıcılığı riski: Yüksek
+Veri sızıntısı olasılığı: %18
+Marka güven kaybı: Orta-Yüksek
+Hacker sizi neden hedef seçebilir?
+Gemini burada yorum üretir:
+açık RDP
+eski Exchange
+SPF/DKIM eksikliği
+exposed admin panel
+credential leak
+üzerinden “hikâyeleştirme” yapar.
+Örnek:
+“Şirketinizin mail altyapısı spoofing saldırılarına açık görünüyor. Bu durum müşterilerinize sahte ödeme maili gönderilmesine neden olabilir.”
+İşte bu cümle satış yapar.
+Eğer hiçbir şey yapmazsanız ne olabilir?
+Bu bölüm kritik.
+Gemini:
+sektör bazlı
+şirket büyüklüğü bazlı
+ülke bazlı
+senaryo üretmeli.
+Örneğin:
+“Bir muhasebe ofisi için benzer açıklardan kaynaklanan saldırılarda ortalama iş kesintisi 4 gün sürmektedir.”
+Bu korku değil. Somut iş etkisi.
+Önümüzdeki 30 gün için yapılacaklar
+Ama teknik değil.
+Şöyle:
+“Mail güvenliğinizi güçlendirin”
+“Uzaktan erişim noktalarını kapatın”
+“Çalışan hesaplarını gözden geçirin”
+Ve:
+etki puanı
+zorluk puanı
+tahmini maliyet
+olmalı.
+Bu rapor:
+WhatsApp’ta paylaşılır
+patron toplantısında açılır
+muhasebeciye forward edilir
+yatırımcıya gönderilir
+Yani ürününüz “dashboard” olmaktan çıkar, “iş belgesi” olur.
+Bu çok büyük fark.
+2. “AI Risk Timeline”
+KOBİ’ler sürekli dashboard’a girmez.
+Ama değişimi severler.
+Örnek:
+“Son 14 günde riskiniz arttı”
+“Yeni exposed servis bulundu”
+“Domain reputation düştü”
+“Credential leak tespit edildi”
+Gemini bunu açıklasın:
+“Yeni tespit edilen açık nedeniyle fidye yazılımı riski yükseldi.”
+Bu kullanıcıyı geri getirir.
+3. “Rakibine Göre Durumun”
+Çok güçlü growth mekanizması.
+Anonim benchmark:
+“Sektörünüzdeki şirketlerin %72’sinden daha iyi durumdasınız.”
+“Rakiplerinizin çoğunda SPF aktif, sizde eksik.”
+Bu inanılmaz conversion yaratır.
+Çünkü KOBİ patronu:
+rakibiyle kıyaslanmayı sever
+geri kalmaktan korkar
+Satış & Büyüme (Growth)
+1. “Ücretsiz Siber Check-Up” Funnel’ı
+Bu sizin ana acquisition motorunuz olmalı.
+Landing page:
+“Şirketiniz hacker’lara dışarıdan nasıl görünüyor?”
+Sonuç:
+anında skor
+mini AI yorum
+risk özeti
+Ama detaylı CEO report:
+email capture
+WhatsApp
+toplantı
+gerektirsin.
+Bu model Türkiye’de çok çalışır.
+2. Muhasebeci / MSP / IT Firması Partner Kanalı
+Türkiye’de KOBİ’ye doğrudan satış pahalıdır.
+Ama:
+IT firmaları
+sistem integratörleri
+MSP’ler
+muhasebeciler
+güvenilir dağıtım kanalıdır.
+Onlara:
+white-label PDF
+müşteri risk raporu
+aylık takip
+verin.
+CyberStep onların “müşteri korku + upsell” motoru olur.
+3. WhatsApp Tabanlı Risk Bildirimleri
+Türkiye’de email okunmaz. Ama WhatsApp okunur.
+Örnek:
+“CyberStep Uyarısı: Mail güvenliğinizde yeni bir risk tespit edildi. Tahmini finansal etki: Yüksek.”
+Sonra:
+kısa AI özet
+PDF linki
+“uzmanla görüş”
+CTA.
+Bu inanılmaz retention sağlar.
+Asıl “Sihirli Dokunuş” Ne Olmalı?
+Bence cevap şu:
+“Teknik bulguları iş felaketi senaryosuna dönüştüren AI anlatıcılığı.”
+Rakipler:
+veri verir
+skor verir
+exposure listeler
+Siz:
+“Bu durum size kaça patlar?”
+“Müşteri kaybettirir mi?”
+“İşiniz durur mu?”
+“Yarın sabah ne yapmanız lazım?”
+sorularını cevaplamalısınız.
+CyberStep’in gerçek değeri:
+Shodan değil
+VirusTotal değil
+Gemini’nin özetleme yeteneği de değil
+Asıl değer:
+“KOBİ sahibine ilk kez siber güvenliği iş riski olarak hissettirmek.”
+İnsanlar açık satın almaz. İnsanlar “işlerinin durmamasını” satın alır.

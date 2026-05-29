@@ -22,6 +22,10 @@ export const reportsTable = pgTable("reports", {
   reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   domainScanId: integer("domain_scan_id"),
+  estimatedBreachCostMin: integer("estimated_breach_cost_min"),
+  estimatedBreachCostMax: integer("estimated_breach_cost_max"),
+  riskReductionPercent: integer("risk_reduction_percent"),
+  weeklyActionPlan: jsonb("weekly_action_plan").$type<Array<{ week: number; title: string; tasks: string[] }>>().notNull().default([]),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true });

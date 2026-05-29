@@ -596,6 +596,13 @@ async function updatePricingPlanFeatures() {
   }).where(eq(pricingPlansTable.slug, "full"));
 }
 
+async function ensureReportEnrichmentColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS estimated_breach_cost_min INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS estimated_breach_cost_max INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS risk_reduction_percent INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS weekly_action_plan JSONB NOT NULL DEFAULT '[]'::jsonb`);
+}
+
 async function ensureSecurityAdvisoriesTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS security_advisories (
@@ -712,6 +719,7 @@ async function startup() {
   await maybeSeedDemoCustomer();
   await ensureBlogContentColumns();
   await ensureDomainScanEnrichmentColumns();
+  await ensureReportEnrichmentColumns();
   await ensureSecurityAdvisoriesTable();
   await updatePricingPlanFeatures();
 }

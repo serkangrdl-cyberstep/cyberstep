@@ -424,6 +424,122 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
   });
 }
 
+interface PassportData {
+  id: number;
+  domain: string;
+  overallScore: number;
+  spfPass: boolean;
+  dmarcPass: boolean;
+  dkimPass: boolean;
+  sslPass: boolean;
+  blacklisted: boolean;
+  hibpBreachCount: number;
+  createdAt: string | Date;
+}
+
+function scoreToGrade(score: number): { grade: string; color: [number, number, number] } {
+  if (score >= 80) return { grade: "A", color: [22, 163, 74] };
+  if (score >= 65) return { grade: "B", color: [34, 197, 94] };
+  if (score >= 50) return { grade: "C", color: [217, 119, 6] };
+  if (score >= 35) return { grade: "D", color: [234, 88, 12] };
+  return { grade: "F", color: [220, 38, 38] };
+}
+
+export function generateDomainScanPassport(data: PassportData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const doc = new PDFDocument({
+      size: [841, 595],
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const W = doc.page.width;
+    const H = doc.page.height;
+    const { grade, color: gradeColor } = scoreToGrade(data.overallScore);
+    const issueDate = new Date(data.createdAt);
+    const expiryDate = new Date(issueDate);
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    const fmt = (d: Date) => d.toLocaleDateString("tr-TR");
+
+    // Background
+    doc.rect(0, 0, W, H).fill([248, 250, 252]);
+
+    // Left accent bar
+    doc.rect(0, 0, 10, H).fill(PRIMARY);
+
+    // Header
+    doc.rect(10, 0, W - 10, 80).fill(DARK);
+    doc.fillColor(WHITE).fontSize(22).font(FONT_BOLD)
+      .text("CyberStep.io", 36, 20, { lineBreak: false });
+    doc.fillColor([148, 163, 184]).fontSize(11).font(FONT_REGULAR)
+      .text("Dijital Guvenlik Pasaportu", 36, 50, { lineBreak: false });
+
+    // Grade badge
+    const badgeW = 110;
+    const badgeX = W - badgeW - 24;
+    doc.roundedRect(badgeX, 8, badgeW, 64, 10).fill(gradeColor);
+    doc.fillColor(WHITE).fontSize(42).font(FONT_BOLD)
+      .text(grade, badgeX, 10, { width: badgeW, align: "center", lineBreak: false });
+    doc.fillColor(WHITE).fontSize(9).font(FONT_REGULAR)
+      .text(`${data.overallScore}/100 puan`, badgeX, 55, { width: badgeW, align: "center", lineBreak: false });
+
+    // Domain section
+    doc.fillColor(DARK).fontSize(26).font(FONT_BOLD)
+      .text(data.domain, 36, 106);
+    doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
+      .text(`Tarama #${data.id}   Duzenleme tarihi: ${fmt(issueDate)}   Gecerlilik suresi: ${fmt(expiryDate)}`, 36, 142);
+
+    // Divider
+    doc.rect(36, 162, W - 72, 1).fill([226, 232, 240]);
+
+    // Checks grid (3x2)
+    const checks = [
+      { label: "SPF Kaydi — Sahte E-posta Korumasi", pass: data.spfPass },
+      { label: "SSL/TLS Sertifikasi", pass: data.sslPass },
+      { label: "DMARC Politikasi — E-posta Kimlik Dogrulamasi", pass: data.dmarcPass },
+      { label: "Kara Liste Temizligi", pass: !data.blacklisted },
+      { label: "DKIM Imzalamasi — E-posta Butunlugu", pass: data.dkimPass },
+      { label: "Veri Ihlali Gecmisi Temiz", pass: data.hibpBreachCount === 0 },
+    ];
+
+    const colW = (W - 72) / 2;
+    let col1Y = 180;
+    let col2Y = 180;
+    checks.forEach((c, i) => {
+      const col = i % 2;
+      const x = col === 0 ? 36 : 36 + colW + 16;
+      const y = col === 0 ? col1Y : col2Y;
+      const dotColor: [number, number, number] = c.pass ? [22, 163, 74] : [220, 38, 38];
+      doc.circle(x + 6, y + 7, 5).fill(dotColor);
+      doc.fillColor(c.pass ? DARK : [153, 27, 27]).fontSize(10).font(c.pass ? FONT_REGULAR : FONT_BOLD)
+        .text(c.label, x + 18, y, { lineBreak: false });
+      const statusLabel = c.pass ? "Gecti" : "Basarisiz";
+      doc.fillColor(c.pass ? [22, 163, 74] : [220, 38, 38]).fontSize(8).font(FONT_BOLD)
+        .text(statusLabel, x + 18, y + 16, { lineBreak: false });
+      if (col === 0) col1Y += 52;
+      else col2Y += 52;
+    });
+
+    // Divider
+    const divY = Math.max(col1Y, col2Y) + 10;
+    doc.rect(36, divY, W - 72, 1).fill([226, 232, 240]);
+
+    // Footer
+    const footerY = H - 52;
+    doc.rect(10, footerY, W - 10, 52).fill([241, 245, 249]);
+    doc.rect(10, footerY, W - 10, 1).fill([226, 232, 240]);
+    doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR)
+      .text("Bu belge CyberStep.io otomatik alan adi taramasina dayanmaktadir ve profesyonel guvenlik denetiminin yerini tutmaz.", 36, footerY + 10, { width: W - 180, lineBreak: false });
+    doc.fillColor(PRIMARY).fontSize(10).font(FONT_BOLD)
+      .text("cyberstep.io", W - 130, footerY + 20, { width: 100, align: "right", lineBreak: false });
+
+    doc.end();
+  });
+}
+
 function sectionTitle(doc: InstanceType<typeof PDFDocument>, title: string, x: number, w: number) {
   checkPageBreak(doc, 40);
   doc.rect(x, doc.y, w, 1).fill(PRIMARY);

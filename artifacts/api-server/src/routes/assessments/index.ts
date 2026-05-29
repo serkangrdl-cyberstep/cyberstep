@@ -426,6 +426,9 @@ YAZIM KURALLARI (kesinlikle uy):
 - aiAnalysis içinde markdown yok: #, ##, **, *, - KULLANMA
 - recommendations: iş sahibinin o gün uygulayabileceği veya IT/danışmana verebileceği somut talimatlar. Her madde "X yapın/yaptırın" formatında tek cümle. Teknik terim yok.${domainScan ? " Alan adı sorunları için somut adımlar ekle." : ""}
 - Önerileri öncelik sırasına göre listele: önce iş sürekliliğini en çok tehdit eden açık
+- estimatedBreachCostMin ve estimatedBreachCostMax: sektör, çalışan sayısı, risk seviyesi ve tespit edilen açıklara göre Türk Lirası cinsinden gerçekçi ihlal maliyeti tahmini (fidye, üretim kaybı, KVKK cezası, itibar kaybı dahil). Türkiye KOBİ gerçeklerini yansıt. Sadece tam sayı, sembol/noktalama yok.
+- riskReductionPercent: önerileri tam uygularsa beklenen risk azalma yüzdesi (0–100 arası tam sayı).
+- weeklyActionPlan: 4 haftalık eylem planı. Her haftada 2–3 somut, uygulanabilir görev. KOBİ sahibinin bizzat yapabileceği veya IT'ye yaptırabileceği. Teknik jargon yok. Görevler reports ile tutarlı olmalı.
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
 
 JSON şablonu:
@@ -438,6 +441,15 @@ JSON şablonu:
     "Dördüncü öneri.",
     "Beşinci öneri.",
     "Altıncı öneri (varsa)."
+  ],
+  "estimatedBreachCostMin": 150000,
+  "estimatedBreachCostMax": 750000,
+  "riskReductionPercent": 65,
+  "weeklyActionPlan": [
+    { "week": 1, "title": "Acil Önlemler (Bu Hafta)", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] },
+    { "week": 2, "title": "İkinci Hafta: E-posta ve Kimlik Güvenliği", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] },
+    { "week": 3, "title": "Üçüncü Hafta: Veri ve Cihaz Koruması", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] },
+    { "week": 4, "title": "Dördüncü Hafta: Süreklilik ve İzleme", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] }
   ]
 }`;
 
@@ -447,12 +459,20 @@ JSON şablonu:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     let aiAnalysis = "AI analizi yüklenemedi.";
     let recommendations: string[] = [];
+    let estimatedBreachCostMin: number | null = null;
+    let estimatedBreachCostMax: number | null = null;
+    let riskReductionPercent: number | null = null;
+    let weeklyActionPlan: Array<{ week: number; title: string; tasks: string[] }> = [];
 
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
         aiAnalysis = parsed.aiAnalysis ?? aiAnalysis;
         recommendations = parsed.recommendations ?? [];
+        estimatedBreachCostMin = typeof parsed.estimatedBreachCostMin === "number" ? parsed.estimatedBreachCostMin : null;
+        estimatedBreachCostMax = typeof parsed.estimatedBreachCostMax === "number" ? parsed.estimatedBreachCostMax : null;
+        riskReductionPercent = typeof parsed.riskReductionPercent === "number" ? parsed.riskReductionPercent : null;
+        weeklyActionPlan = Array.isArray(parsed.weeklyActionPlan) ? parsed.weeklyActionPlan : [];
       } catch {
         aiAnalysis = text;
       }
@@ -469,7 +489,7 @@ JSON şablonu:
     if (existingReport) {
       await db
         .update(reportsTable)
-        .set({ aiAnalysis, recommendations, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
+        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
         .where(eq(reportsTable.assessmentId, assessmentId));
     } else {
       await db.insert(reportsTable).values({
@@ -482,6 +502,10 @@ JSON şablonu:
         redAlarmQuestions: scoring.redAlarmQuestions,
         aiAnalysis,
         recommendations,
+        estimatedBreachCostMin,
+        estimatedBreachCostMax,
+        riskReductionPercent,
+        weeklyActionPlan,
         domainScores: scoring.domainScores,
         reviewToken,
         verificationToken,

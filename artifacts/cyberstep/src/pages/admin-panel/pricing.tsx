@@ -244,6 +244,9 @@ export default function AdminPricing() {
                       { label: "USOM kara liste domain taraması", mini: false, full: true },
                       { label: "crt.sh Alt Alan Şeffaflığı", mini: false, full: true },
                       { label: "NIST NVD CVE güvenlik açığı taraması", mini: false, full: true },
+                      { label: "VirusTotal domain reputation taraması", mini: false, full: true },
+                      { label: "AbuseIPDB IP kötüye kullanım geçmişi", mini: false, full: true },
+                      { label: "Shodan internet maruziyet taraması", mini: false, full: "Ücretli" },
                     ]},
                     { category: "Uyumluluk", rows: [
                       { label: "KVKK Madde 12 Teknik Tedbir Haritası", mini: false, full: true },

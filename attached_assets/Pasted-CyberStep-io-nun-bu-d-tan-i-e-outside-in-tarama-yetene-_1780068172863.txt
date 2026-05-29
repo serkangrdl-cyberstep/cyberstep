@@ -1,0 +1,29 @@
+CyberStep.io'nun bu "dıştan içe" (outside-in) tarama yeteneği, müşteriye "seni dışarıdan böyle görüyorlar" mesajını vermenin en etkili yoludur. VirusTotal (zararlı yazılım/dosya), AbuseIPDB (IP itibarı) ve Shodan (açık portlar/servisler) zaten temel taşı oluşturuyor.
+​Şimdi bu temel üzerine, KOBİ'nin "dijital savunma" veya "itibar yönetimi" refleksini tetikleyecek, katma değerli servisleri ekleyelim:
+​1. SSL/TLS ve Sertifika İstihbaratı
+​Neden: Sertifika süresinin dolması hem teknik bir kesintidir hem de KOBİ'nin imajını zedeler.
+​Araçlar/Teknikler:
+​SSLLabs (API): Sertifikanın zayıf şifreleme (TLS 1.0/1.1) kullanıp kullanmadığını ve sertifika zinciri hatalarını denetler.
+​Censys: Shodan'ın biraz daha akademik ve detaylı versiyonudur; sertifika geçmişini ve domain üzerindeki diğer alt alan adlarını (subdomain) bulmak için harikadır.
+​2. E-posta İtibarı ve Kimlik Avı (Anti-Phishing)
+​Neden: Domain'in başkaları tarafından sahte e-posta göndermek için kullanılıp kullanılmadığını anlamak.
+​Araçlar:
+​DMARCian / DMARC Check: Domain üzerinde SPF, DKIM ve DMARC kayıtlarının doğru yapılandırılıp yapılandırılmadığını kontrol eder. Bu, bir KOBİ için "e-postalarım başkaları tarafından taklit ediliyor mu?" sorusunun cevabıdır.
+​MXToolbox (API): E-posta sunucusunun kara listelerde (blacklist) olup olmadığını kontrol eder.
+​3. Sızıntı İstihbaratı (Breach Intelligence)
+​Neden: Şirkete ait bilgilerin (e-posta/şifre) karanlık ağda (Dark Web) sızdırılıp sızdırılmadığını göstermek.
+​Araçlar:
+​Have I Been Pwned (HIBP) API: Çok hızlı ve güvenilirdir. Bir domaindeki e-postaların hangi veri ihlallerine karıştığını anlık raporlar.
+​SpyCloud: (Ücretli ama çok profesyonel) Şirket bazlı sızıntı takibi yapar.
+​4. Domain ve Web İtibarı (Brand Protection)
+​Neden: Domain'in çalıntı/zararlı içerik barındıran sitelerle ilişkilendirilip ilişkilendirilmediği.
+​Araçlar:
+​Google Safe Browsing API: Google, domain'i "zararlı" veya "phishing" olarak işaretlemiş mi? Bu, KOBİ'nin SEO ve müşteri güveni için kritik.
+​WhoisXML API: Domainin kayıt geçmişi, sahiplik bilgileri veya beklenmedik bir şekilde DNS değişikliği yapılıp yapılmadığı (Domain hijacking takibi).
+​5. Teknoloji Yığını ve Shadow IT Keşfi (Wappalyzer Tipi)
+​Neden: Müşteri sitesinde kullanılan eklentilerin (WordPress eklentileri vb.) güncel mi yoksa açık barındıran eski versiyonlar mı olduğunu tespit etmek.
+​Araçlar:
+​Wappalyzer (API): Sitede kullanılan CMS, JS kütüphaneleri, web server versiyonlarını listeler.
+​OSV.dev (Open Source Vulnerabilities): Wappalyzer'dan gelen sürüm bilgilerini, bilinen açıkları (CVE) içeren bu veritabanı ile eşleştirerek "Senin sitende kullandığın X eklentisinde şu an kritik bir açık var" diyebilirsiniz.
+​CyberStep İçin "Smart Matrix" Önerisi
+​Müşteriye sunacağınız paneli şu şekilde kategorize ederseniz çok daha profesyonel durur:

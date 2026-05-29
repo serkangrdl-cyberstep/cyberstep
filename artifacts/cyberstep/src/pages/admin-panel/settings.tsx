@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Globe, Phone, Mail, MapPin, FileText, Cookie, Scale, Shield, ToggleLeft, ToggleRight } from "lucide-react";
+import { Save, Globe, Phone, Mail, MapPin, FileText, Cookie, Scale, Shield, ToggleLeft, ToggleRight, CheckCircle, XCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLayout } from "@/components/admin-layout";
 
+interface ExternalService {
+  name: string; category: string; always: boolean; active: boolean; desc: string;
+}
+
 export default function AdminSettings() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -17,6 +21,15 @@ export default function AdminSettings() {
   const { data: settings, isLoading } = useQuery<Record<string, string>>({
     queryKey: ["admin-settings"],
     queryFn: () => fetch("/api/admin-panel/settings", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const { data: extServices } = useQuery<ExternalService[]>({
+    queryKey: ["admin-ext-services"],
+    queryFn: async () => {
+      const r = await fetch("/api/admin-panel/settings/services", { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
   });
 
   const [form, setForm] = useState<Record<string, string>>({});
@@ -75,34 +88,85 @@ export default function AdminSettings() {
           </TabsList>
 
           <TabsContent value="services">
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-emerald-400" /> Servis Yönetimi
-                </CardTitle>
-                <p className="text-slate-400 text-sm mt-1">Platforma ait özellikleri ve servisleri etkinleştirin veya devre dışı bırakın.</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {SERVICE_TOGGLES.map(({ key, label, desc }) => {
-                  const on = togVal(key);
-                  return (
-                    <div key={key} className="flex items-center justify-between p-4 bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium text-sm">{label}</p>
-                        <p className="text-slate-400 text-xs mt-0.5">{desc}</p>
+            <div className="space-y-6">
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-emerald-400" /> Servis Yönetimi
+                  </CardTitle>
+                  <p className="text-slate-400 text-sm mt-1">Platforma ait özellikleri ve servisleri etkinleştirin veya devre dışı bırakın.</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {SERVICE_TOGGLES.map(({ key, label, desc }) => {
+                    const on = togVal(key);
+                    return (
+                      <div key={key} className="flex items-center justify-between p-4 bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium text-sm">{label}</p>
+                          <p className="text-slate-400 text-xs mt-0.5">{desc}</p>
+                        </div>
+                        <button
+                          onClick={() => toggleService(key)}
+                          className={`ml-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${on ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30" : "bg-slate-700 text-slate-400 border border-slate-600 hover:bg-slate-600"}`}
+                        >
+                          {on ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                          {on ? "Aktif" : "Pasif"}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => toggleService(key)}
-                        className={`ml-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${on ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30" : "bg-slate-700 text-slate-400 border border-slate-600 hover:bg-slate-600"}`}
-                      >
-                        {on ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                        {on ? "Aktif" : "Pasif"}
-                      </button>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-emerald-400" /> Bağlı Dış Servisler
+                  </CardTitle>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Alan adı tarama motorunda kullanılan dış API ve veri kaynaklarının bağlantı durumu.
+                    API anahtarı gerektiren servisler ortam değişkenlerinden okunur.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {!extServices ? (
+                    <div className="text-slate-500 text-sm py-4 text-center">Yükleniyor...</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(["AI", "Tehdit", "E-posta", "Altyapı", "İletişim"] as const).map(cat => {
+                        const items = extServices.filter(s => s.category === cat);
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={cat}>
+                            <p className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-2 mt-4 first:mt-0">{cat}</p>
+                            <div className="space-y-1.5">
+                              {items.map(svc => (
+                                <div key={svc.name} className="flex items-start gap-3 p-3 bg-slate-900 rounded-lg border border-slate-700">
+                                  {svc.active
+                                    ? <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                                    : <XCircle className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className={`text-sm font-medium ${svc.active ? "text-white" : "text-slate-500"}`}>{svc.name}</span>
+                                      {svc.always
+                                        ? <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">Anahtarsız</span>
+                                        : <span className={`text-xs px-1.5 py-0.5 rounded ${svc.active ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-700 text-slate-500"}`}>
+                                            {svc.active ? "API Anahtarı Bağlı" : "API Anahtarı Yok"}
+                                          </span>}
+                                    </div>
+                                    <p className="text-slate-500 text-xs mt-0.5">{svc.desc}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="about">

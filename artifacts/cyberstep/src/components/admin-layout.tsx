@@ -27,7 +27,6 @@ const NAV_ITEMS = [
   { icon: Share2,          label: "Sosyal Medya",        href: "/panel/sosyal-medya" },
   { icon: Briefcase,       label: "Danışmanlık",         href: "/panel/danismanlik" },
   { icon: Award,           label: "Teknoloji Ortakları", href: "/panel/partnerlar" },
-  { icon: Building2,       label: "Beyaz Etiket",        href: "/panel/whitelabel" },
   { icon: Settings,        label: "Site Ayarları",       href: "/panel/ayarlar" },
   { icon: Shield,          label: "2FA Güvenlik",        href: "/panel/totp" },
 ];

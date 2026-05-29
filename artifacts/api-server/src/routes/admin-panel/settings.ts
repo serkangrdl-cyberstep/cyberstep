@@ -73,6 +73,29 @@ router.get("/public/pricing", async (_req: Request, res: Response) => {
   res.json(plans);
 });
 
+// GET /api/admin-panel/settings/services — hangi dış servisler aktif
+router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: Response) => {
+  const env = process.env;
+  const services = [
+    // ─── Her zaman aktif (API anahtarı gerektirmez) ───────────────────────────
+    { name: "Gemini AI",      category: "AI",         always: true,  active: !!(env["AI_INTEGRATIONS_GEMINI_BASE_URL"] || env["AI_INTEGRATIONS_GEMINI_API_KEY"]), desc: "Rapor üretimi ve AI destekli analiz (Replit tarafından sağlanır)" },
+    { name: "HIBP",           category: "Tehdit",     always: true,  active: true, desc: "Have I Been Pwned — alan adı e-posta sızıntısı taraması" },
+    { name: "URLhaus",        category: "Tehdit",     always: true,  active: true, desc: "abuse.ch URLhaus — zararlı URL kara listesi kontrolü" },
+    { name: "USOM",           category: "Tehdit",     always: true,  active: true, desc: "USOM (usom.gov.tr) — Türkiye siber tehdit kara listesi" },
+    { name: "NVD CVE",        category: "Tehdit",     always: true,  active: true, desc: "NIST NVD — tespit edilen servisler için CVE açık taraması" },
+    { name: "DNSBL",          category: "E-posta",    always: true,  active: true, desc: "DNS tabanlı kara liste kontrolü (Spamhaus, Barracuda vb.)" },
+    { name: "SSL/TLS",        category: "Altyapı",    always: true,  active: true, desc: "Sertifika geçerlilik, zincir ve sona erme tarihi kontrolü" },
+    { name: "SPF/DMARC/DKIM", category: "E-posta",    always: true,  active: true, desc: "E-posta kimlik doğrulama kayıtları analizi" },
+    // ─── API anahtarı gerektiren servisler ──────────────────────────────────
+    { name: "VirusTotal",     category: "Tehdit",     always: false, active: !!env["VIRUSTOTAL_API_KEY"],  desc: "Alan adı zararlı yazılım ve tehdit istihbarat taraması" },
+    { name: "AbuseIPDB",      category: "Tehdit",     always: false, active: !!env["ABUSEIPDB_API_KEY"],  desc: "IP adresi kötüye kullanım geçmişi ve itibar kontrolü" },
+    { name: "Shodan",         category: "Altyapı",    always: false, active: !!env["SHODAN_API_KEY"],     desc: "Açık port ve servis keşfi" },
+    { name: "SMTP E-posta",   category: "İletişim",   always: false, active: !!env["SMTP_PASS"],          desc: "Bülten ve bildirim e-postası gönderimi" },
+    { name: "ISR IMAP",       category: "İletişim",   always: false, active: !!env["ISR_IMAP_PASS"],      desc: "AI Satış Asistanı — gelen kutusu okuma ve yanıtlama" },
+  ];
+  res.json(services);
+});
+
 // GET /api/admin-panel/settings/public (no auth — for footer/about pages)
 router.get("/public/settings", async (_req: Request, res: Response) => {
   const rows = await db.select().from(siteSettingsTable);

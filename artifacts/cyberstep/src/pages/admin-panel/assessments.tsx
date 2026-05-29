@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-layout";
+import { useRequireAdmin } from "@/hooks/use-admin";
 
 interface Assessment {
   id: number; companyName: string; contactName: string; email: string;
@@ -22,17 +23,26 @@ const RISK_COLORS: Record<string, string> = {
 
 export default function AdminAssessments() {
   const [, navigate] = useLocation();
-  const { data: assessments = [], isLoading } = useQuery<Assessment[]>({
+  const { data: admin } = useRequireAdmin();
+
+  const { data: assessments, isLoading } = useQuery<Assessment[]>({
     queryKey: ["admin-assessments"],
-    queryFn: () => fetch("/api/admin-panel/analytics/assessments", { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/admin-panel/analytics/assessments", { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
+    enabled: !!admin,
   });
+
+  const list = Array.isArray(assessments) ? assessments : [];
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   return (
-    <AdminLayout title="Değerlendirmeler" description={`Tüm anket sonuçları (${assessments.length} kayıt)`}>
-      {isLoading ? (
+    <AdminLayout title="Değerlendirmeler" description={`Tüm anket sonuçları (${list.length} kayıt)`}>
+      {isLoading || !admin ? (
         <div className="text-slate-400 text-center py-16">Yükleniyor...</div>
       ) : (
         <Card className="bg-slate-800 border-slate-700">
@@ -46,7 +56,7 @@ export default function AdminAssessments() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
-                {assessments.map(a => (
+                {list.map(a => (
                   <tr key={a.id} className="hover:bg-slate-700/30 transition-colors">
                     <td className="px-4 py-3 text-slate-500 text-sm">#{a.id}</td>
                     <td className="px-4 py-3">
@@ -90,7 +100,7 @@ export default function AdminAssessments() {
                 ))}
               </tbody>
             </table>
-            {assessments.length === 0 && (
+            {list.length === 0 && (
               <div className="text-slate-500 text-sm text-center py-12">Henüz değerlendirme yok</div>
             )}
           </div>

@@ -512,6 +512,55 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Brand Story */}
+      <section className="py-20 bg-slate-900 text-white">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-5">
+              <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">Neden CyberStep?</p>
+              <h2 className="text-3xl md:text-4xl font-bold leading-tight">
+                {lang === "en"
+                  ? "Cybersecurity is climbed step by step"
+                  : "Siber güvenlik kat merdivenini çıkar gibi, basamak basamak ilerler"}
+              </h2>
+              <p className="text-slate-400 leading-relaxed">
+                {lang === "en"
+                  ? "You can't take all security measures at once — not even large enterprises can. The question isn't 'am I completely secure?' but 'am I one step ahead of yesterday?'"
+                  : "Tüm güvenlik önlemlerini bir seferde alamazsınız — büyük kurumlar bile alamaz. Soru 'tamamen güvende miyim?' değil, 'dünden bir adım ileride miyim?' olmalı."}
+              </p>
+              <p className="text-slate-400 leading-relaxed">
+                {lang === "en"
+                  ? "CyberStep shows you which step to take next. Not a 100-page report — a clear, prioritized roadmap tailored to your sector and scale."
+                  : "CyberStep size bir sonraki adımı gösterir. 100 sayfalık bir rapor değil — sektörünüze ve ölçeğinize göre net, önceliklendirilmiş bir yol haritası."}
+              </p>
+              <div className="pt-2">
+                <a href="/hakkimizda" className="inline-flex items-center gap-2 text-emerald-400 font-medium hover:text-emerald-300 transition-colors text-sm">
+                  {lang === "en" ? "Read our full story" : "Tam hikayemizi okuyun"}
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </a>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {[
+                { num: "1", title: lang === "en" ? "Know where you stand" : "Nerede durduğunu bil", desc: lang === "en" ? "20 questions, instant AI analysis, personalized risk report." : "20 soru, anında AI analizi, kişisel risk raporu." },
+                { num: "2", title: lang === "en" ? "Set your priority" : "Önceliğini belirle", desc: lang === "en" ? "Which gap to close first? A ranked action plan for your scale." : "Hangi açığı önce kapatacaksın? Ölçeğine göre sıralı aksiyon planı." },
+                { num: "3", title: lang === "en" ? "Advance and measure" : "İlerle ve ölç", desc: lang === "en" ? "Your security maturity score grows with every step you take." : "Her adımda güvenlik olgunluk skorun yükselir ve belgelenir." },
+              ].map((item) => (
+                <div key={item.num} className="flex gap-4 p-5 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold shrink-0">
+                    {item.num}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm mb-1">{item.title}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">

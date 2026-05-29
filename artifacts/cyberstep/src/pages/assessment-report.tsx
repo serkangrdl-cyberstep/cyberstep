@@ -10,7 +10,7 @@ import {
   AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
   CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download,
   TrendingUp, TrendingDown, Minus, Zap, Lock, Mail as MailIcon, Monitor, HardDrive,
-  Globe, AtSign, Server, KeyRound, XCircle
+  Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck,
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -34,6 +34,22 @@ const DOMAIN_DESCRIPTIONS: Record<string, string> = {
   D: "Cihaz ve Uç Nokta Güvenliği",
   E: "Veri Koruma, Yedekleme ve Olay Hazırlığı",
 };
+
+const KVKK_COMPLIANCE_MAP = [
+  { domain: "A", title: "Yönetim ve Envanter", articles: ["Md.12"], risk: "Siber güvenlik sorumluluğu tanımlanmaması teknik tedbirler yükümlülüğünü (KVKK Md.12) doğrudan etkiler." },
+  { domain: "B", title: "Kimlik ve Erişim Yönetimi", articles: ["Md.12"], risk: "Yetersiz erişim kontrolü kişisel verilere yetkisiz erişim riski doğurur — KVKK Md.12 bunu yasaklar." },
+  { domain: "C", title: "E-posta ve Farkındalık", articles: ["Md.10", "Md.12"], risk: "Phishing saldırılarına açıklık veri ihlali riskini artırır. Çalışan eğitimi KVKK Md.12 gereğidir." },
+  { domain: "D", title: "Cihaz ve Uç Nokta", articles: ["Md.12"], risk: "Korumasız cihazlardaki kişisel veriler KVKK Md.12 kapsamındaki teknik tedbir yükümlülüğünü ihlal eder." },
+  { domain: "E", title: "Veri Koruma ve Yedek", articles: ["Md.7", "Md.12"], risk: "Kişisel veri kaybı 72 saat içinde bildirimi zorunlu kılar. Yedek ve müdahale planı olmadan uyumsuzluk kaçınılmaz." },
+];
+
+const NIST_CSF_MAP = [
+  { domain: "A", fn: "IDENTIFY", label: "Tanımla", ids: "ID.AM + GV.OC", desc: "Varlık yönetimi ve organizasyonel bağlam" },
+  { domain: "B", fn: "PROTECT", label: "Koru", ids: "PR.AA + PR.PS", desc: "Kimlik doğrulama ve erişim kontrolü" },
+  { domain: "C", fn: "DETECT", label: "Tespit Et", ids: "PR.AT + DE.AE", desc: "Farkındalık eğitimi ve olay tespiti" },
+  { domain: "D", fn: "PROTECT", label: "Koru", ids: "PR.PS + PR.IR", desc: "Platform güvenliği ve altyapı dayanıklılığı" },
+  { domain: "E", fn: "RECOVER", label: "Kurtar", ids: "RC.RP + RS.MA", desc: "Olay kurtarma planı ve müdahale yönetimi" },
+];
 
 const getRiskColor = (level: string) => {
   switch (level) {
@@ -414,6 +430,106 @@ function AssessmentReportCore({ id }: { id: number }) {
           </Card>
         ))}
       </div>
+
+      {/* KVKK Uyum Haritası */}
+      <Card className="shadow-sm mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Scale className="h-4 w-4 text-primary shrink-0" />
+            KVKK Teknik Tedbirler Haritası
+          </CardTitle>
+          <CardDescription>
+            Kişisel Verilerin Korunması Kanunu Madde 12 kapsamında teknik tedbir risk analizi
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-2">
+            {KVKK_COMPLIANCE_MAP.map(({ domain, title, articles, risk }) => {
+              const domainScore = report.domainScores?.find((d: any) => d.domain === domain);
+              const percent: number = domainScore?.percent ?? 0;
+              const atRisk = percent < 60;
+              return (
+                <div
+                  key={domain}
+                  className={`flex items-start gap-3 p-3 rounded-lg border ${atRisk ? "bg-red-50/50 border-red-200" : "bg-green-50/50 border-green-200"}`}
+                >
+                  <div className={`shrink-0 mt-0.5 ${atRisk ? "text-red-500" : "text-green-500"}`}>
+                    {atRisk ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-xs font-semibold">{domain} — {title}</span>
+                      {articles.map((a) => (
+                        <Badge key={a} variant="outline" className="text-xs px-1.5 py-0 border-slate-300 text-slate-600">{a}</Badge>
+                      ))}
+                    </div>
+                    <p className={`text-xs ${atRisk ? "text-red-700" : "text-muted-foreground"}`}>
+                      {atRisk ? risk : "Bu alanda yeterli güvenlik kontrolleriniz bulunuyor."}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-xs font-bold text-muted-foreground whitespace-nowrap">
+                    %{percent.toFixed(0)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+            KVKK Madde 12 kapsamında veri ihlali bildirimi 72 saat içinde yapılmak zorundadır. KVKK Madde 18 uyarınca teknik tedbir eksikliğine 1.000.000 TL'ye kadar idari para cezası uygulanabilir.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* NIST CSF 2.0 Uyum Özeti */}
+      <Card className="shadow-sm mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileCheck className="h-4 w-4 text-primary shrink-0" />
+            NIST CSF 2.0 Uyum Seviyesi
+          </CardTitle>
+          <CardDescription>
+            ABD Ulusal Standartlar Enstitüsü Siber Güvenlik Çerçevesi — kategori bazlı eşleme
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            {NIST_CSF_MAP.map(({ domain, fn, label, ids, desc }) => {
+              const domainScore = report.domainScores?.find((d: any) => d.domain === domain);
+              const percent: number = domainScore?.percent ?? 0;
+              const level =
+                percent >= 80 ? "Yönetilen" :
+                percent >= 60 ? "Kısmen Uyumlu" :
+                percent >= 40 ? "Başlangıç" :
+                "Kritik Açık";
+              const levelColor =
+                percent >= 80 ? "border-green-300 text-green-700 bg-green-50" :
+                percent >= 60 ? "border-yellow-300 text-yellow-700 bg-yellow-50" :
+                percent >= 40 ? "border-orange-300 text-orange-700 bg-orange-50" :
+                "border-red-300 text-red-700 bg-red-50";
+              return (
+                <div key={domain} className="p-3 rounded-lg border bg-muted/20">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-primary">{fn}</span>
+                    <span className="text-xs font-bold">%{percent.toFixed(0)}</span>
+                  </div>
+                  <p className="text-xs font-medium mb-0.5">{label} ({ids})</p>
+                  <p className="text-xs text-muted-foreground mb-2 leading-snug">{desc}</p>
+                  <Badge variant="outline" className={`text-xs ${levelColor}`}>{level}</Badge>
+                  <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${percent >= 60 ? "bg-green-500" : percent >= 40 ? "bg-yellow-500" : "bg-red-500"}`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground pt-3 border-t">
+            NIST CSF 2.0, dünya genelinde 100'den fazla ülkede KOBİ'ler tarafından kullanılan gönüllü siber güvenlik standardıdır. Uluslararası iş ortakları ve sigorta şirketleri bu çerçeveyi referans alabilir.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Domain bar chart */}
       <Card className="shadow-sm mb-6">

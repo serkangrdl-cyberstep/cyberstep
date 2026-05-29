@@ -11,6 +11,7 @@ import {
 import {
   checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL,
   calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT,
+  checkHTTPHeaders, checkURLhaus, checkUsomList, checkCertTransparency,
 } from "../domain-scan/index";
 import {
   CreateAssessmentBody,
@@ -312,9 +313,10 @@ async function generateAIReport(
       const domain = sanitizeDomain(assessment.companyDomain);
       if (/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/.test(domain)) {
         logger.info({ domain, assessmentId }, "Running domain scan for assessment");
-        const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt] = await Promise.all([
+        const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans] = await Promise.all([
           checkSPF(domain), checkDMARC(domain), checkDKIM(domain), checkMX(domain),
           checkSSL(domain), checkHIBP(domain), checkBlacklists(domain), checkShadowIT(domain),
+          checkHTTPHeaders(domain), checkURLhaus(domain), checkUsomList(domain), checkCertTransparency(domain),
         ]);
         const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
         const [inserted] = await db.insert(domainScansTable).values({
@@ -330,6 +332,11 @@ async function generateAIReport(
           hibpBreachCount: hibp.breachCount, hibpBreaches: hibp.breaches,
           blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
           shadowItServices: shadowIt.services,
+          httpHeadersScore: httpHeaders.score,
+          httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy },
+          urlhausListed: urlhaus.listed, urlhausThreat: urlhaus.threat,
+          usomListed: usom.listed,
+          ctSubdomains: certTrans.subdomains, ctSubdomainCount: certTrans.count,
         }).returning();
         domainScan = inserted ?? null;
         logger.info({ domain, overallScore, scanId: domainScan?.id }, "Domain scan complete for assessment");

@@ -5,6 +5,7 @@ import geminiRouter from "./gemini/index";
 import adminRouter from "./admin/index";
 import customerAuthRouter from "./customer-auth/index";
 import domainScanRouter from "./domain-scan/index";
+import advisoriesRouter from "./advisories/index";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(geminiRouter);
 router.use(adminRouter);
 router.use(customerAuthRouter);
 router.use(domainScanRouter);
+router.use(advisoriesRouter);
 
 export default router;

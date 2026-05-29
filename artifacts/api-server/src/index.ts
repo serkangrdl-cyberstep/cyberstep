@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
-import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore } from "./routes/domain-scan/index";
+import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { sendReminderEmail, sendDomainRescanEmail } from "./services/email";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
@@ -519,6 +519,46 @@ async function ensureDomainScanEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS http_headers_details JSONB DEFAULT '{}'`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS urlhaus_listed BOOLEAN NOT NULL DEFAULT false`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS urlhaus_threat TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS usom_listed BOOLEAN NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS ct_subdomains JSONB NOT NULL DEFAULT '[]'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS ct_subdomain_count INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS cve_summary JSONB NOT NULL DEFAULT '[]'`);
+}
+
+async function ensureSecurityAdvisoriesTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS security_advisories (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      link TEXT,
+      summary TEXT,
+      severity TEXT DEFAULT 'medium',
+      sector TEXT,
+      published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (title, source)
+    )
+  `);
+  const res = await db.execute(sql`SELECT COUNT(*) as cnt FROM security_advisories`);
+  const cnt = Number((res.rows[0] as Record<string, unknown>)["cnt"] ?? 0);
+  if (cnt === 0) {
+    const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000);
+    const seeds = [
+      { title: "Türkiye Geneli KOBİ'lere Yönelik Fidye Yazılım Saldırıları Artıyor", source: "USOM", summary: "Türkiye genelinde küçük ve orta ölçekli işletmeleri hedef alan fidye yazılım saldırılarında belirgin artış gözlemlenmektedir. Güncel yedek alınması ve e-posta filtrelerinin güncellenmesi kritik önem taşımaktadır.", severity: "high", published_at: daysAgo(2) },
+      { title: "İş E-postası Ele Geçirme (BEC) Saldırıları: IBAN Değişikliği Dolandırıcılığı", source: "BTK", summary: "Muhasebe ve finans çalışanlarını hedef alan sosyal mühendislik saldırılarında artış görülmektedir. IBAN değişiklik taleplerini her zaman telefon ile doğrulayın.", severity: "high", published_at: daysAgo(5) },
+      { title: "Microsoft: Windows Defender SmartScreen Kritik Güvenlik Açığı (CVE-2024-21412)", source: "Microsoft", summary: "Windows Defender SmartScreen bileşeninde güvenlik filtrelerini atlayan kritik açık tespit edildi. Tüm Windows sistemlerin güncellenmesi gerekmektedir.", severity: "critical", published_at: daysAgo(8) },
+      { title: "Phishing Kampanyası: Türk Bankalarını Taklit Eden Sahte E-postalar", source: "USOM", summary: "Türk bankalarının adını kullanan kimlik avı e-postaları tespit edildi. Banka bağlantılarını e-postadan değil tarayıcıdan doğrudan açın.", severity: "medium", published_at: daysAgo(12) },
+    ];
+    for (const s of seeds) {
+      await db.execute(sql`
+        INSERT INTO security_advisories (title, source, summary, severity, published_at)
+        VALUES (${s.title}, ${s.source}, ${s.summary}, ${s.severity}, ${s.published_at})
+        ON CONFLICT DO NOTHING
+      `);
+    }
+    logger.info("Security advisories demo data seeded");
+  }
 }
 
 async function ensureEmailTables() {
@@ -600,12 +640,18 @@ async function startup() {
   await maybeSeedQuestions();
   await maybeSeedDemoCustomer();
   await ensureDomainScanEnrichmentColumns();
+  await ensureSecurityAdvisoriesTable();
 }
 
 startup()
   .then(() => {
     startReminderCron();
     startIsrImapCron();
+    // USOM zararlı alan listesini arka planda yükle ve günlük yenile
+    refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));
+    cron.schedule("0 3 * * *", () => {
+      refreshUsomList().catch((err) => logger.warn({ err }, "USOM daily refresh failed"));
+    });
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

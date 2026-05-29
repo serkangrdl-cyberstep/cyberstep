@@ -304,6 +304,172 @@ async function checkBlacklists(domain: string): Promise<{
   return { blacklisted: listedCount > 0, blacklistCount: listedCount, results };
 }
 
+// ─── USOM Zararlı Alan Listesi (Ulusal Siber Olaylar Müdahale Merkezi) ─────────
+let _usomDomains: Set<string> = new Set();
+let _usomLastFetch = 0;
+
+export async function refreshUsomList(): Promise<void> {
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: "www.usom.gov.tr",
+        path: "/url-list.txt",
+        method: "GET",
+        timeout: 15000,
+        headers: { "User-Agent": "CyberStep.io Security Scanner/1.0" },
+      },
+      (res) => {
+        let data = "";
+        let size = 0;
+        res.on("data", (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > 10 * 1024 * 1024) { res.destroy(); resolve(); return; }
+          data += chunk.toString();
+        });
+        res.on("end", () => {
+          try {
+            const domains = new Set<string>();
+            for (const line of data.split("\n")) {
+              const raw = line.trim();
+              if (!raw || raw.startsWith("#")) continue;
+              try {
+                const url = raw.startsWith("http") ? raw : `http://${raw}`;
+                const parsed = new URL(url);
+                const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+                if (host && host.includes(".")) domains.add(host);
+              } catch {
+                const bare = raw.replace(/^https?:\/\//i, "").split("/")[0]!.split(":")[0]!.toLowerCase().replace(/^www\./, "");
+                if (bare && bare.includes(".")) domains.add(bare);
+              }
+            }
+            _usomDomains = domains;
+            _usomLastFetch = Date.now();
+            logger.info({ count: domains.size }, "USOM zararlı alan listesi güncellendi");
+          } catch (parseErr) {
+            logger.warn({ parseErr }, "USOM listesi ayrıştırılamadı, mevcut liste korunuyor");
+          }
+          resolve();
+        });
+      }
+    );
+    req.on("error", (err) => { logger.warn({ err }, "USOM liste indirme hatası"); resolve(); });
+    req.on("timeout", () => { req.destroy(); resolve(); });
+    req.end();
+  });
+}
+
+async function checkUsomList(domain: string): Promise<{ listed: boolean }> {
+  if (Date.now() - _usomLastFetch > 23 * 60 * 60 * 1000) {
+    refreshUsomList().catch(() => {});
+  }
+  const bare = domain.toLowerCase().replace(/^www\./, "");
+  return { listed: _usomDomains.has(bare) };
+}
+
+// ─── Certificate Transparency — crt.sh ───────────────────────────────────────
+async function checkCertTransparency(domain: string): Promise<{ subdomains: string[]; count: number }> {
+  return new Promise((resolve) => {
+    const path = `/?q=%25.${encodeURIComponent(domain)}&output=json`;
+    const req = https.request(
+      {
+        hostname: "crt.sh",
+        path,
+        method: "GET",
+        timeout: 12000,
+        headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" },
+      },
+      (res) => {
+        let data = "";
+        let size = 0;
+        res.on("data", (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > 3 * 1024 * 1024) { res.destroy(); resolve({ subdomains: [], count: 0 }); return; }
+          data += chunk.toString();
+        });
+        res.on("end", () => {
+          try {
+            const records = JSON.parse(data) as Array<{ name_value: string }>;
+            const seen = new Set<string>();
+            for (const r of records) {
+              for (const name of r.name_value.split("\n")) {
+                const clean = name.trim().toLowerCase();
+                if (!clean || clean.startsWith("*")) continue;
+                if (!clean.endsWith(`.${domain}`) && clean !== domain) continue;
+                seen.add(clean);
+                if (seen.size >= 60) break;
+              }
+              if (seen.size >= 60) break;
+            }
+            resolve({ subdomains: [...seen].slice(0, 30), count: seen.size });
+          } catch {
+            resolve({ subdomains: [], count: 0 });
+          }
+        });
+      }
+    );
+    req.on("error", () => resolve({ subdomains: [], count: 0 }));
+    req.on("timeout", () => { req.destroy(); resolve({ subdomains: [], count: 0 }); });
+    req.end();
+  });
+}
+
+// ─── NIST NVD CVE Shadow IT Check ────────────────────────────────────────────
+const NVD_SERVICE_KEYWORDS: Record<string, string> = {
+  "WordPress": "WordPress",
+  "Joomla": "Joomla",
+  "Drupal": "Drupal",
+  "Magento": "Magento",
+  "WooCommerce": "WooCommerce",
+  "PrestaShop": "PrestaShop",
+  "OpenCart": "OpenCart",
+  "jQuery": "jQuery library",
+};
+
+interface NvdCveEntry { service: string; cveId: string; description: string; cvssScore: number; }
+
+async function checkNvdCve(services: Array<{ name: string; risk: string }>): Promise<NvdCveEntry[]> {
+  const targets = services
+    .filter(s => NVD_SERVICE_KEYWORDS[s.name] && (s.risk === "Yüksek" || s.risk === "Orta"))
+    .slice(0, 2);
+  if (targets.length === 0) return [];
+  const results: NvdCveEntry[] = [];
+  for (const service of targets) {
+    const keyword = NVD_SERVICE_KEYWORDS[service.name]!;
+    await new Promise<void>((resolve) => {
+      const path = `/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(keyword)}&resultsPerPage=2&cvssV3Severity=CRITICAL`;
+      const req = https.request(
+        { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 8000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },
+        (res) => {
+          let data = "";
+          let size = 0;
+          res.on("data", (chunk: Buffer) => {
+            size += chunk.length;
+            if (size > 300 * 1024) { res.destroy(); resolve(); return; }
+            data += chunk.toString();
+          });
+          res.on("end", () => {
+            try {
+              type NvdResp = { vulnerabilities?: Array<{ cve: { id: string; descriptions: Array<{ lang: string; value: string }>; metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }> } } }> };
+              const json = JSON.parse(data) as NvdResp;
+              for (const vuln of (json.vulnerabilities ?? []).slice(0, 2)) {
+                const desc = vuln.cve.descriptions.find(d => d.lang === "en")?.value ?? "";
+                const score = vuln.cve.metrics?.cvssMetricV31?.[0]?.cvssData.baseScore ?? 9.0;
+                results.push({ service: service.name, cveId: vuln.cve.id, description: desc.substring(0, 250), cvssScore: score });
+              }
+            } catch { /* ignore */ }
+            resolve();
+          });
+        }
+      );
+      req.on("error", () => resolve());
+      req.on("timeout", () => { req.destroy(); resolve(); });
+      req.end();
+    });
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return results;
+}
+
 function sanitizeDomain(raw: string): string {
   let d = raw.trim().toLowerCase();
   // strip protocol
@@ -400,7 +566,7 @@ router.post("/domain-scan", async (req, res) => {
   logger.info({ domain }, "Starting domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -411,9 +577,12 @@ router.post("/domain-scan", async (req, res) => {
       checkShadowIT(domain),
       checkHTTPHeaders(domain),
       checkURLhaus(domain),
+      checkUsomList(domain),
+      checkCertTransparency(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+    const cveSummary = await checkNvdCve(shadowIt.services);
 
     const [scan] = await db
       .insert(domainScansTable)
@@ -443,10 +612,14 @@ router.post("/domain-scan", async (req, res) => {
         httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy },
         urlhausListed: urlhaus.listed,
         urlhausThreat: urlhaus.threat,
+        usomListed: usom.listed,
+        ctSubdomains: certTrans.subdomains,
+        ctSubdomainCount: certTrans.count,
+        cveSummary,
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, scanId: scan?.id }, "Domain scan complete");
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, scanId: scan?.id }, "Domain scan complete");
     res.json(scan);
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
@@ -515,4 +688,4 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
 });
 
 export default router;
-export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT, checkHTTPHeaders, checkURLhaus };
+export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT, checkHTTPHeaders, checkURLhaus, checkUsomList, checkCertTransparency };

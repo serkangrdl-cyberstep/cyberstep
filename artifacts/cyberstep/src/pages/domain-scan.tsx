@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
   Mail, Lock, Server, Loader2, ArrowRight, Info,
-  DatabaseZap, ShieldAlert, ShieldCheck, Sparkles,
+  DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network,
 } from "lucide-react";
 
 interface HibpBreach {
@@ -56,6 +56,20 @@ interface ScanResult {
   blacklistCount: number;
   blacklistResults: BlacklistResult[];
   shadowItServices: ShadowItService[];
+  httpHeadersScore: number;
+  httpHeadersDetails: {
+    hsts: boolean;
+    xFrameOptions: boolean;
+    xContentTypeOptions: boolean;
+    csp: boolean;
+    referrerPolicy: boolean;
+  } | null;
+  urlhausListed: boolean;
+  urlhausThreat: string | null;
+  usomListed: boolean;
+  ctSubdomains: string[];
+  ctSubdomainCount: number;
+  cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
   createdAt: string;
 }
 
@@ -407,6 +421,277 @@ function BlacklistCard({ blacklisted, blacklistCount, results }: { blacklisted: 
   );
 }
 
+function HttpHeadersCard({
+  score,
+  details,
+}: {
+  score: number;
+  details: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean } | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const passedCount = details
+    ? [details.hsts, details.xFrameOptions, details.xContentTypeOptions, details.csp, details.referrerPolicy].filter(Boolean).length
+    : 0;
+  const passed = passedCount >= 3;
+  const HEADERS = [
+    { key: "hsts" as const, label: "HSTS (Zorunlu HTTPS)" },
+    { key: "xFrameOptions" as const, label: "X-Frame-Options (Clickjacking koruması)" },
+    { key: "xContentTypeOptions" as const, label: "X-Content-Type-Options (MIME saldırısı)" },
+    { key: "csp" as const, label: "Content-Security-Policy (XSS koruması)" },
+    { key: "referrerPolicy" as const, label: "Referrer-Policy (Gizlilik)" },
+  ];
+  return (
+    <div className={`rounded-xl border p-4 ${passed ? "bg-green-50/50 border-green-200" : "bg-orange-50/50 border-orange-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${passed ? "bg-green-100" : "bg-orange-100"}`}>
+          <Lock className={`h-4 w-4 ${passed ? "text-green-600" : "text-orange-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">HTTP Güvenlik Başlıkları</span>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${passed ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}
+            >
+              {passedCount}/5 aktif
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {passedCount === 5
+              ? "Tüm kritik HTTP güvenlik başlıkları aktif. Tarayıcı saldırılarına karşı iyi korunuyor."
+              : `${5 - passedCount} güvenlik başlığı eksik — tarayıcı tabanlı saldırılara (XSS, clickjacking) karşı açık.`}
+          </p>
+          {details && (
+            <button
+              onClick={() => setOpen(!open)}
+              className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Info className="h-3 w-3" /> {open ? "Kapat" : "Başlıkları incele"}
+            </button>
+          )}
+          {open && details && (
+            <div className="mt-2 border-t pt-2 space-y-1.5">
+              {HEADERS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-2 text-xs">
+                  {details[key]
+                    ? <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                    : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                  <span className={details[key] ? "text-muted-foreground" : "text-red-600 font-medium"}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          {passed ? <ShieldCheck className="h-5 w-5 text-green-500" /> : <ShieldAlert className="h-5 w-5 text-orange-500" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UrlhausCard({ listed, threat }: { listed: boolean; threat: string | null }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`rounded-xl border p-4 ${!listed ? "bg-green-50/50 border-green-200" : "bg-red-50/50 border-red-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${!listed ? "bg-green-100" : "bg-red-100"}`}>
+          <Bug className={`h-4 w-4 ${!listed ? "text-green-600" : "text-red-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">URLhaus Zararlı URL</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${!listed ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+            >
+              {!listed ? "Temiz" : "Zararlı"}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {!listed
+              ? "Domain, Abuse.ch URLhaus kötü amaçlı yazılım dağıtım listesinde yer almıyor."
+              : `URLhaus veritabanında kötü amaçlı yazılım kaynağı olarak tespit edildi.${threat ? ` Tehdit türü: ${threat}` : ""}`}
+          </p>
+          <button
+            onClick={() => setOpen(!open)}
+            className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Info className="h-3 w-3" /> {open ? "Kapat" : "Bu ne anlama geliyor?"}
+          </button>
+          {open && (
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed border-t pt-2">
+              URLhaus, Abuse.ch tarafından işletilen ve aktif olarak zararlı yazılım yayan URL'leri izleyen küresel bir tehdit istihbaratı veritabanıdır. Bu listede yer almak alan adınızın kötüye kullanıldığını gösterir.
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {!listed ? <ShieldCheck className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UsomCard({ listed }: { listed: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`rounded-xl border p-4 ${!listed ? "bg-green-50/50 border-green-200" : "bg-red-50/50 border-red-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${!listed ? "bg-green-100" : "bg-red-100"}`}>
+          <Shield className={`h-4 w-4 ${!listed ? "text-green-600" : "text-red-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">USOM Kara Listesi</span>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${!listed ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+            >
+              {!listed ? "Temiz" : "Kara Listede"}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {!listed
+              ? "Alan adı, BTK/USOM tarafından yayınlanan ulusal zararlı URL listesinde kayıtlı değil."
+              : "Bu alan adı, USOM (Ulusal Siber Olaylar Müdahale Merkezi) tarafından zararlı olarak işaretlenmiş!"}
+          </p>
+          <button
+            onClick={() => setOpen(!open)}
+            className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Info className="h-3 w-3" /> {open ? "Kapat" : "Bu ne anlama geliyor?"}
+          </button>
+          {open && (
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed border-t pt-2">
+              USOM (Ulusal Siber Olaylar Müdahale Merkezi), Cumhurbaşkanlığı Dijital Dönüşüm Ofisi bünyesinde zararlı alan adlarını takip eden Türkiye'nin ulusal siber güvenlik birimidir. Liste günlük güncellenerek Türk internet sağlayıcıları tarafından erişim engellemede kullanılır.
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {!listed ? <ShieldCheck className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CertTransparencyCard({ subdomains, count }: { subdomains: string[]; count: number }) {
+  const [open, setOpen] = useState(false);
+  const hasSubdomains = count > 0;
+  return (
+    <div className={`rounded-xl border p-4 ${!hasSubdomains ? "bg-green-50/50 border-green-200" : "bg-yellow-50/50 border-yellow-200"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${!hasSubdomains ? "bg-green-100" : "bg-yellow-100"}`}>
+          <Network className={`h-4 w-4 ${!hasSubdomains ? "text-green-600" : "text-yellow-600"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Sertifika Şeffaflığı (crt.sh)</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
+              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-0 border ${!hasSubdomains ? "bg-green-100 text-green-700 border-green-200" : "bg-yellow-100 text-yellow-700 border-yellow-200"}`}
+            >
+              {count === 0 ? "Alt alan yok" : `${count} alt alan`}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {count === 0
+              ? "Sertifika şeffaflık kayıtlarında alt alan adı tespit edilmedi."
+              : `SSL sertifika geçmişinde ${count} alt alan adı keşfedildi. Bilinmeyen alt alanlar güvenlik riski oluşturabilir.`}
+          </p>
+          {hasSubdomains && (
+            <button
+              onClick={() => setOpen(!open)}
+              className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Info className="h-3 w-3" /> {open ? "Kapat" : "Alt alanları listele"}
+            </button>
+          )}
+          {open && subdomains.length > 0 && (
+            <div className="mt-2 border-t pt-2">
+              <div className="flex flex-wrap gap-1.5">
+                {subdomains.map((s) => (
+                  <span key={s} className="text-xs bg-yellow-100/80 text-yellow-800 border border-yellow-200 rounded px-2 py-0.5 font-mono">{s}</span>
+                ))}
+              </div>
+              {count > subdomains.length && (
+                <p className="text-xs text-muted-foreground mt-2">+{count - subdomains.length} daha fazla alt alan mevcut (ilk 30 gösteriliyor)</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">Bu alt alanların güncel ve kontrolünüzde olduğunu doğrulayın.</p>
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          {!hasSubdomains ? <ShieldCheck className="h-5 w-5 text-green-500" /> : <AlertTriangle className="h-5 w-5 text-yellow-500" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }> }) {
+  const [open, setOpen] = useState(false);
+  if (cveSummary.length === 0) return null;
+  return (
+    <div className="rounded-xl border p-4 bg-red-50/50 border-red-200">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg shrink-0 bg-red-100">
+          <Bug className="h-4 w-4 text-red-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Aktif CVE Açıkları Tespit Edildi</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 bg-red-100 text-red-700 border-red-200">
+              {cveSummary.length} kritik CVE
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Kullanılan 3. parti servislerinizde NIST NVD veritabanında kayıtlı kritik güvenlik açıkları bulundu.
+          </p>
+          <button
+            onClick={() => setOpen(!open)}
+            className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Info className="h-3 w-3" />
+            {open ? "Kapat" : "CVE detaylarını göster"}
+          </button>
+          {open && (
+            <div className="mt-2 border-t pt-2 space-y-2">
+              {cveSummary.map((cve) => (
+                <div key={cve.cveId} className="text-xs bg-red-100/70 rounded-lg p-2 border border-red-200">
+                  <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
+                    <span className="font-mono font-bold text-red-700">{cve.cveId}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">{cve.service}</span>
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-red-300 text-red-700">
+                        CVSS {cve.cvssScore}
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground leading-snug">{cve.description}</p>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground pt-1">
+                Kaynak: NIST National Vulnerability Database (NVD) — nvd.nist.gov
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          <XCircle className="h-5 w-5 text-red-500" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
@@ -607,6 +892,14 @@ export default function DomainScanPage() {
             />
           </div>
 
+          {/* Web Sunucu Güvenlik Başlıkları */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">
+            Web Sunucu Güvenliği
+          </p>
+          <div className="space-y-3 mb-6">
+            <HttpHeadersCard score={result.httpHeadersScore} details={result.httpHeadersDetails} />
+          </div>
+
           {/* Risk İstihbaratı (Pro) */}
           <div className="flex items-center gap-2 mb-2 px-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -624,6 +917,10 @@ export default function DomainScanPage() {
               results={result.blacklistResults}
             />
             <ShadowItCard services={result.shadowItServices} />
+            <UrlhausCard listed={result.urlhausListed} threat={result.urlhausThreat} />
+            <UsomCard listed={result.usomListed} />
+            <CertTransparencyCard subdomains={result.ctSubdomains} count={result.ctSubdomainCount} />
+            <CveCard cveSummary={result.cveSummary ?? []} />
           </div>
 
           {/* CTA */}

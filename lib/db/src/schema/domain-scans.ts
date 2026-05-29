@@ -30,6 +30,10 @@ export const domainScansTable = pgTable("domain_scans", {
   httpHeadersDetails: jsonb("http_headers_details").$type<{ hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean }>().default({ hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false }),
   urlhausListed: boolean("urlhaus_listed").notNull().default(false),
   urlhausThreat: text("urlhaus_threat"),
+  usomListed: boolean("usom_listed").notNull().default(false),
+  ctSubdomains: jsonb("ct_subdomains").$type<string[]>().notNull().default([]),
+  ctSubdomainCount: integer("ct_subdomain_count").notNull().default(0),
+  cveSummary: jsonb("cve_summary").$type<Array<{ service: string; cveId: string; description: string; cvssScore: number }>>().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

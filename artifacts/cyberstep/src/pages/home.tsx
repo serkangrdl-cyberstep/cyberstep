@@ -16,6 +16,7 @@ const LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 
 interface ConsultingService { id: number; title: string; description: string; icon: string; isActive: boolean; sortOrder: number; }
 interface TechPartner { id: number; name: string; logoUrl: string; websiteUrl: string | null; isActive: boolean; }
+interface Advisory { id: number; title: string; source: string; link: string | null; summary: string | null; severity: string; published_at: string; }
 
 interface PricingPlan {
   id: number;
@@ -161,6 +162,12 @@ export default function Home() {
     queryKey: ["public-pricing"],
     queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
     staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: advisories = [] } = useQuery<Advisory[]>({
+    queryKey: ["public-security-advisories"],
+    queryFn: () => fetch("/api/public/security-advisories?limit=4").then(r => r.json()),
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: consultingServices = [] } = useQuery<ConsultingService[]>({
@@ -564,6 +571,67 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Siber Güvenlik Duyuruları */}
+      {advisories.length > 0 && (
+        <section className="py-16 bg-muted/30 border-y">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-8">
+              <Badge variant="outline" className="mb-3">
+                <ShieldAlert className="h-3 w-3 mr-1" />
+                Güncel Tehdit İstihbaratı
+              </Badge>
+              <h2 className="text-2xl font-bold">Siber Güvenlik Duyuruları</h2>
+              <p className="text-muted-foreground mt-2 text-sm max-w-lg mx-auto">
+                USOM, BTK ve uluslararası kaynaklardan derlenen güncel siber güvenlik uyarıları
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
+              {advisories.map((adv) => {
+                const severityClass =
+                  adv.severity === "critical" ? "border-red-200 bg-red-50/60" :
+                  adv.severity === "high" ? "border-orange-200 bg-orange-50/60" :
+                  "border-yellow-200 bg-yellow-50/60";
+                const badgeClass =
+                  adv.severity === "critical" ? "bg-red-100 text-red-700 border-red-200" :
+                  adv.severity === "high" ? "bg-orange-100 text-orange-700 border-orange-200" :
+                  "bg-yellow-100 text-yellow-700 border-yellow-200";
+                const badgeLabel =
+                  adv.severity === "critical" ? "Kritik" :
+                  adv.severity === "high" ? "Yüksek" : "Orta";
+                return (
+                  <div key={adv.id} className={`rounded-xl border p-4 ${severityClass}`}>
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-orange-500" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <Badge variant="outline" className={`text-xs px-1.5 py-0 ${badgeClass}`}>
+                            {badgeLabel}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{adv.source}</span>
+                        </div>
+                        <p className="text-sm font-semibold leading-snug mb-1">
+                          {adv.link ? (
+                            <a href={adv.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                              {adv.title}
+                            </a>
+                          ) : adv.title}
+                        </p>
+                        {adv.summary && (
+                          <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{adv.summary}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {new Date(adv.published_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Pricing */}
       <section className="py-20 bg-background">

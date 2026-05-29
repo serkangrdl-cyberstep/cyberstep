@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useCreateAssessment } from "@workspace/api-client-react";
+import { useCustomer } from "@/hooks/use-customer";
 import { SECTORS, EMPLOYEE_COUNTS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,11 @@ const FULL_FEATURES = [
 export default function FullAssessmentStart() {
   const [, setLocation] = useLocation();
   const createAssessment = useCreateAssessment();
+  const { data: customer } = useCustomer();
+
+  const isPaidSubscriber =
+    (customer?.subscriptionPlan === "full" || customer?.subscriptionPlan === "premium") &&
+    customer?.subscriptionStatus === "active";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,7 +63,13 @@ export default function FullAssessmentStart() {
           assessmentType: "full",
         },
       });
-      setLocation(`/payment/${(result as any).id}`);
+      const id = (result as any).id;
+      // Aktif aboneler ödeme sayfasını atlar
+      if (isPaidSubscriber) {
+        setLocation(`/assessment/full/${id}`);
+      } else {
+        setLocation(`/payment/${id}`);
+      }
     } catch {
       form.setError("root", { message: "Bir hata oluştu. Lütfen tekrar deneyin." });
     }

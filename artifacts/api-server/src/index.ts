@@ -599,6 +599,10 @@ function startIsrImapCron() {
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
+async function ensureAssessmentsColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS tenant_id INTEGER`);
+}
+
 async function ensureBlogContentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_title TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_title_en TEXT`);
@@ -1061,6 +1065,7 @@ async function ensurePartnerEcosystemTables() {
 
 async function startup() {
   await maybeResetAdminPassword();
+  await ensureAssessmentsColumns();
   await ensureQuestionsTable();
   await ensureTenantsTable();
   await ensureIsrTables();

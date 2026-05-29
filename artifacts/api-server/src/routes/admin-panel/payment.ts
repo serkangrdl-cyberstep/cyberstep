@@ -24,6 +24,19 @@ router.get("/payments/config", (_req: Request, res: Response) => {
 router.get("/payments/status/:assessmentId", async (req: Request, res: Response) => {
   const assessmentId = Number(req.params.assessmentId);
   if (!assessmentId) { res.status(400).json({ paid: false }); return; }
+
+  // Aktif abonesi olan müşteri için ödeme kontrolü atla
+  const session = getSession(req);
+  if (session.customerId) {
+    const [customer] = await db.select({ subscriptionPlan: customersTable.subscriptionPlan, subscriptionStatus: customersTable.subscriptionStatus })
+      .from(customersTable)
+      .where(eq(customersTable.id, session.customerId as number));
+    if (customer && (customer.subscriptionPlan === "full" || customer.subscriptionPlan === "premium") && customer.subscriptionStatus === "active") {
+      res.json({ paid: true, status: "subscription" });
+      return;
+    }
+  }
+
   const [payment] = await db.select()
     .from(paymentsTable)
     .where(eq(paymentsTable.assessmentId, assessmentId));

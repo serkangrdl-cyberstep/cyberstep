@@ -756,3 +756,135 @@ export async function sendDomainRescanEmail(params: {
     logger.error({ err, domain, email }, "Domain rescan email send failed");
   }
 }
+
+export async function sendWeeklyDeltaEmail(params: {
+  email: string;
+  domain: string;
+  oldScore: number;
+  newScore: number;
+  changes: Array<{ check: string; wasPass: boolean; isPass: boolean }>;
+  newIssues: number;
+  resolvedIssues: number;
+  date: string;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const { email, domain, oldScore, newScore, changes, newIssues, resolvedIssues, date } = params;
+  const scoreDiff = newScore - oldScore;
+  const improved = scoreDiff > 0;
+  const scoreColor = newScore >= 80 ? "#166534" : newScore >= 50 ? "#854d0e" : "#991b1b";
+  const scoreBg = newScore >= 80 ? "#dcfce7" : newScore >= 50 ? "#fef9c3" : "#fee2e2";
+  const scoreLabel = newScore >= 80 ? "Düşük Risk" : newScore >= 50 ? "Orta Risk" : "Yüksek Risk";
+
+  const hasAlerts = newIssues > 0;
+  const alertBannerHtml = hasAlerts
+    ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:14px 18px;margin-bottom:24px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px">&#9888;</span>
+        <div>
+          <div style="font-weight:700;color:#991b1b;font-size:14px">${newIssues} yeni güvenlik sorunu tespit edildi</div>
+          <div style="color:#b91c1c;font-size:13px;margin-top:2px">Hemen incelemeniz önerilir</div>
+        </div>
+      </div>`
+    : resolvedIssues > 0
+    ? `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:14px 18px;margin-bottom:24px">
+        <div style="font-weight:700;color:#166534;font-size:14px">${resolvedIssues} sorun bu hafta giderildi — tebrikler!</div>
+      </div>`
+    : "";
+
+  const changeRows = changes.map(c => {
+    const wasStatus = c.wasPass
+      ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600">Geçti</span>`
+      : `<span style="background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600">Başarısız</span>`;
+    const isStatus = c.isPass
+      ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600">Geçti</span>`
+      : `<span style="background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600">Başarısız</span>`;
+    const arrow = c.isPass ? "&#8593;" : "&#8595;";
+    const arrowColor = c.isPass ? "#166534" : "#991b1b";
+    return `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#334155;font-size:13px">${c.check}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${wasStatus}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700;color:${arrowColor}">${arrow}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${isStatus}</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:28px 32px">
+      <div style="font-size:20px;font-weight:700;color:#38bdf8;letter-spacing:-0.5px">CyberStep.io</div>
+      <div style="color:#94a3b8;font-size:12px;margin-top:2px">Haftalık Alan Adı Güvenlik Raporu</div>
+      <div style="color:#64748b;font-size:12px;margin-top:8px">${date} — ${domain}</div>
+    </div>
+
+    <div style="padding:28px 32px">
+      <h2 style="margin:0 0 20px;font-size:17px;color:#0f172a">Haftalık Güvenlik Durumu: <span style="color:#0ea5e9">${domain}</span></h2>
+
+      ${alertBannerHtml}
+
+      <div style="display:flex;gap:12px;margin-bottom:24px">
+        <div style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Geçen Hafta</div>
+          <div style="font-size:26px;font-weight:700;color:#64748b">${oldScore}</div>
+        </div>
+        <div style="flex:1;border:2px solid ${scoreColor};border-radius:8px;padding:14px;text-align:center;background:${scoreBg}">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:${scoreColor};margin-bottom:4px">Bu Hafta</div>
+          <div style="font-size:26px;font-weight:700;color:${scoreColor}">${newScore}</div>
+          <div style="font-size:11px;color:${scoreColor};font-weight:600">${scoreLabel}</div>
+        </div>
+        <div style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Degisim</div>
+          <div style="font-size:26px;font-weight:700;color:${improved ? "#166534" : "#991b1b"}">${improved ? "+" : ""}${scoreDiff}</div>
+        </div>
+      </div>
+
+      ${changes.length > 0 ? `
+      <h3 style="font-size:14px;font-weight:600;color:#0f172a;margin:0 0 10px">Bu Hafta Degisen Kontroller</h3>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px">
+        <thead>
+          <tr style="background:#f8fafc">
+            <th style="padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600">Kontrol</th>
+            <th style="padding:10px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600">Onceki</th>
+            <th style="padding:10px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600"></th>
+            <th style="padding:10px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600">Simdi</th>
+          </tr>
+        </thead>
+        <tbody>${changeRows}</tbody>
+      </table>` : ""}
+
+      <div style="margin-top:20px;text-align:center">
+        <a href="${getBaseUrl()}/alan-tarama" style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600">
+          Tam Raporu Goruntule
+        </a>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc;padding:14px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+        Bu haftalik otomatik rapor ${domain} icin gonderilmistir.<br>
+        CyberStep.io &mdash; KOBIler icin Siber Guvenlik
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const subject = hasAlerts
+      ? `UYARI: ${domain} — ${newIssues} yeni guvenlik sorunu tespit edildi`
+      : `Haftalik Rapor: ${domain} — Skor ${improved ? "yukseldi" : "dustu"} (${oldScore} → ${newScore})`;
+
+    await transport.sendMail({
+      from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+      to: email,
+      subject,
+      html,
+    });
+    logger.info({ domain, email, newIssues, resolvedIssues, scoreDiff }, "Weekly delta email sent");
+  } catch (err) {
+    logger.error({ err, domain, email }, "Weekly delta email send failed");
+  }
+}

@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
-import { sendReminderEmail, sendDomainRescanEmail } from "./services/email";
+import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail } from "./services/email";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -289,6 +289,91 @@ function startReminderCron() {
   }, { timezone: "Europe/Istanbul" });
 
   logger.info("Domain re-scan cron scheduled (09:30 Istanbul)");
+
+  cron.schedule("0 8 * * 1", async () => {
+    logger.info("Running weekly delta cron job");
+    try {
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      const recentScans = await db
+        .select()
+        .from(domainScansTable)
+        .where(
+          and(
+            sql`${domainScansTable.email} IS NOT NULL`,
+            sql`${domainScansTable.createdAt} >= ${sixtyDaysAgo.toISOString()}`
+          )
+        )
+        .orderBy(sql`${domainScansTable.createdAt} DESC`);
+
+      const seenDomains = new Set<string>();
+      const uniqueScans = recentScans.filter(s => {
+        if (seenDomains.has(s.domain)) return false;
+        seenDomains.add(s.domain);
+        return true;
+      });
+
+      for (const scan of uniqueScans) {
+        try {
+          const [spf, dmarc, dkim, mx, ssl] = await Promise.all([
+            checkSPF(scan.domain),
+            checkDMARC(scan.domain),
+            checkDKIM(scan.domain),
+            checkMX(scan.domain),
+            checkSSL(scan.domain),
+          ]);
+          const newScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+
+          const changes: Array<{ check: string; wasPass: boolean; isPass: boolean }> = [];
+          if ((scan.spfPass ?? false) !== spf.pass) changes.push({ check: "SPF (Sahte E-posta Koruması)", wasPass: scan.spfPass ?? false, isPass: spf.pass });
+          if ((scan.dmarcPass ?? false) !== dmarc.pass) changes.push({ check: "DMARC (E-posta Kimlik Dogrulama)", wasPass: scan.dmarcPass ?? false, isPass: dmarc.pass });
+          if ((scan.dkimPass ?? false) !== dkim.pass) changes.push({ check: "DKIM (E-posta Imzalama)", wasPass: scan.dkimPass ?? false, isPass: dkim.pass });
+          if ((scan.mxPass ?? false) !== mx.pass) changes.push({ check: "MX Kayıtları", wasPass: scan.mxPass ?? false, isPass: mx.pass });
+          if ((scan.sslPass ?? false) !== ssl.pass) changes.push({ check: "SSL Sertifikası", wasPass: scan.sslPass ?? false, isPass: ssl.pass });
+
+          if (changes.length > 0 || newScore !== scan.overallScore) {
+            const newIssues = changes.filter(c => !c.isPass && c.wasPass).length;
+            const resolvedIssues = changes.filter(c => c.isPass && !c.wasPass).length;
+
+            await db.insert(domainScansTable).values({
+              domain: scan.domain,
+              email: scan.email,
+              spfPass: spf.pass, spfRecord: spf.record ?? null,
+              dmarcPass: dmarc.pass, dmarcRecord: dmarc.record ?? null,
+              dkimPass: dkim.pass, dkimSelectors: dkim.selectors,
+              mxPass: mx.pass, mxRecords: mx.records,
+              sslPass: ssl.pass, sslExpiry: ssl.expiryDate ?? null,
+              sslIssuer: ssl.issuer ?? null, sslDaysUntilExpiry: ssl.daysUntilExpiry ?? null,
+              overallScore: newScore,
+            });
+
+            if (scan.email) {
+              await sendWeeklyDeltaEmail({
+                email: scan.email,
+                domain: scan.domain,
+                oldScore: scan.overallScore ?? 0,
+                newScore,
+                changes,
+                newIssues,
+                resolvedIssues,
+                date: new Date().toLocaleDateString("tr-TR"),
+              });
+            }
+            logger.info({ domain: scan.domain, oldScore: scan.overallScore, newScore, changesCount: changes.length }, "Weekly delta email sent");
+          } else {
+            logger.info({ domain: scan.domain, score: newScore }, "Weekly delta: no changes, skipping email");
+          }
+        } catch (err) {
+          logger.error({ err, domain: scan.domain }, "Weekly delta check failed for domain");
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "Weekly delta cron job failed");
+    }
+  }, { timezone: "Europe/Istanbul" });
+
+  logger.info("Weekly delta cron scheduled (Monday 08:00 Istanbul)");
 }
 
 async function ensureTenantsTable() {
@@ -601,6 +686,13 @@ async function ensureReportEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS estimated_breach_cost_max INTEGER`);
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS risk_reduction_percent INTEGER`);
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS weekly_action_plan JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS kvkk_penalty_min INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS kvkk_penalty_max INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS kvkk_risk_level TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS kvkk_risk_articles JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS kvkk_risk_summary TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS sector_benchmark_percent INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS sector_benchmark_comment TEXT`);
 }
 
 async function ensureSecurityAdvisoriesTable() {

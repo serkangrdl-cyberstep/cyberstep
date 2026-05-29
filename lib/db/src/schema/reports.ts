@@ -26,6 +26,13 @@ export const reportsTable = pgTable("reports", {
   estimatedBreachCostMax: integer("estimated_breach_cost_max"),
   riskReductionPercent: integer("risk_reduction_percent"),
   weeklyActionPlan: jsonb("weekly_action_plan").$type<Array<{ week: number; title: string; tasks: string[] }>>().notNull().default([]),
+  kvkkPenaltyMin: integer("kvkk_penalty_min"),
+  kvkkPenaltyMax: integer("kvkk_penalty_max"),
+  kvkkRiskLevel: text("kvkk_risk_level"),
+  kvkkRiskArticles: jsonb("kvkk_risk_articles").$type<string[]>().notNull().default([]),
+  kvkkRiskSummary: text("kvkk_risk_summary"),
+  sectorBenchmarkPercent: integer("sector_benchmark_percent"),
+  sectorBenchmarkComment: text("sector_benchmark_comment"),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true });

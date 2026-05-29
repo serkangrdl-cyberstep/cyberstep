@@ -429,6 +429,12 @@ YAZIM KURALLARI (kesinlikle uy):
 - estimatedBreachCostMin ve estimatedBreachCostMax: sektör, çalışan sayısı, risk seviyesi ve tespit edilen açıklara göre Türk Lirası cinsinden gerçekçi ihlal maliyeti tahmini (fidye, üretim kaybı, KVKK cezası, itibar kaybı dahil). Türkiye KOBİ gerçeklerini yansıt. Sadece tam sayı, sembol/noktalama yok.
 - riskReductionPercent: önerileri tam uygularsa beklenen risk azalma yüzdesi (0–100 arası tam sayı).
 - weeklyActionPlan: 4 haftalık eylem planı. Her haftada 2–3 somut, uygulanabilir görev. KOBİ sahibinin bizzat yapabileceği veya IT'ye yaptırabileceği. Teknik jargon yok. Görevler reports ile tutarlı olmalı.
+- kvkkPenaltyMin ve kvkkPenaltyMax: Tespit edilen açıkları Türkiye KVKK Madde 12 (teknik ve idari tedbirler zorunluluğu) ve Madde 18 (yaptırımlar) kapsamında değerlendir. KVK Kurulu'nun 2022-2024 emsal kararlarından hareketle şirketin sektörü, çalışan sayısı ve ihlal ağırlığına göre olası idari para cezası aralığını TL cinsinden hesapla. Sadece tam sayı (sembol/virgül/nokta yok).
+- kvkkRiskLevel: KVKK ihlal riski seviyesi — yalnızca şu değerlerden biri: "Düşük", "Orta", "Yüksek" veya "Kritik"
+- kvkkRiskArticles: İhlal riski taşıyan KVKK maddeleri dizisi. Örn: ["Md.12", "Md.18"]
+- kvkkRiskSummary: 2-3 cümle, KOBİ sahibinin anlayacağı dilde KVKK riski özeti. Teknik jargon yok — somut iş ve hukuki etki. Cezanın kişisel yönetim sorumluluğu boyutuna değin.
+- sectorBenchmarkPercent: Bu firmayı Türkiye'de aynı sektör ve çalışan grubundaki şirketler içinde kaçıncı yüzdelik dilime koyarsın? Genel siber güvenlik raporları ve sektörel veriyi kullan. 0=en kötü, 100=en iyi yüzdelik dilim. Tam sayı.
+- sectorBenchmarkComment: Tek cümle sektör karşılaştırması. Örn: "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip."
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
 
 JSON şablonu:
@@ -450,7 +456,14 @@ JSON şablonu:
     { "week": 2, "title": "İkinci Hafta: E-posta ve Kimlik Güvenliği", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] },
     { "week": 3, "title": "Üçüncü Hafta: Veri ve Cihaz Koruması", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] },
     { "week": 4, "title": "Dördüncü Hafta: Süreklilik ve İzleme", "tasks": ["Somut aksiyon 1", "Somut aksiyon 2"] }
-  ]
+  ],
+  "kvkkPenaltyMin": 50000,
+  "kvkkPenaltyMax": 250000,
+  "kvkkRiskLevel": "Yüksek",
+  "kvkkRiskArticles": ["Md.12", "Md.18"],
+  "kvkkRiskSummary": "KVKK riski 2-3 cümle özeti.",
+  "sectorBenchmarkPercent": 42,
+  "sectorBenchmarkComment": "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip."
 }`;
 
   try {
@@ -463,6 +476,13 @@ JSON şablonu:
     let estimatedBreachCostMax: number | null = null;
     let riskReductionPercent: number | null = null;
     let weeklyActionPlan: Array<{ week: number; title: string; tasks: string[] }> = [];
+    let kvkkPenaltyMin: number | null = null;
+    let kvkkPenaltyMax: number | null = null;
+    let kvkkRiskLevel: string | null = null;
+    let kvkkRiskArticles: string[] = [];
+    let kvkkRiskSummary: string | null = null;
+    let sectorBenchmarkPercent: number | null = null;
+    let sectorBenchmarkComment: string | null = null;
 
     if (jsonMatch) {
       try {
@@ -473,6 +493,13 @@ JSON şablonu:
         estimatedBreachCostMax = typeof parsed.estimatedBreachCostMax === "number" ? parsed.estimatedBreachCostMax : null;
         riskReductionPercent = typeof parsed.riskReductionPercent === "number" ? parsed.riskReductionPercent : null;
         weeklyActionPlan = Array.isArray(parsed.weeklyActionPlan) ? parsed.weeklyActionPlan : [];
+        kvkkPenaltyMin = typeof parsed.kvkkPenaltyMin === "number" ? parsed.kvkkPenaltyMin : null;
+        kvkkPenaltyMax = typeof parsed.kvkkPenaltyMax === "number" ? parsed.kvkkPenaltyMax : null;
+        kvkkRiskLevel = typeof parsed.kvkkRiskLevel === "string" ? parsed.kvkkRiskLevel : null;
+        kvkkRiskArticles = Array.isArray(parsed.kvkkRiskArticles) ? parsed.kvkkRiskArticles : [];
+        kvkkRiskSummary = typeof parsed.kvkkRiskSummary === "string" ? parsed.kvkkRiskSummary : null;
+        sectorBenchmarkPercent = typeof parsed.sectorBenchmarkPercent === "number" ? parsed.sectorBenchmarkPercent : null;
+        sectorBenchmarkComment = typeof parsed.sectorBenchmarkComment === "string" ? parsed.sectorBenchmarkComment : null;
       } catch {
         aiAnalysis = text;
       }
@@ -489,7 +516,7 @@ JSON şablonu:
     if (existingReport) {
       await db
         .update(reportsTable)
-        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
+        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, kvkkPenaltyMin, kvkkPenaltyMax, kvkkRiskLevel, kvkkRiskArticles, kvkkRiskSummary, sectorBenchmarkPercent, sectorBenchmarkComment, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
         .where(eq(reportsTable.assessmentId, assessmentId));
     } else {
       await db.insert(reportsTable).values({
@@ -506,6 +533,13 @@ JSON şablonu:
         estimatedBreachCostMax,
         riskReductionPercent,
         weeklyActionPlan,
+        kvkkPenaltyMin,
+        kvkkPenaltyMax,
+        kvkkRiskLevel,
+        kvkkRiskArticles,
+        kvkkRiskSummary,
+        sectorBenchmarkPercent,
+        sectorBenchmarkComment,
         domainScores: scoring.domainScores,
         reviewToken,
         verificationToken,

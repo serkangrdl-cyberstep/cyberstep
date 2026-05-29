@@ -880,6 +880,117 @@ function AssessmentReportCore({ id }: { id: number }) {
         );
       })()}
 
+      {/* KVKK Risk Katmanı */}
+      {(report as any).kvkkRiskLevel && (() => {
+        const kvkkLevel = (report as any).kvkkRiskLevel as string;
+        const kvkkMin = (report as any).kvkkPenaltyMin as number | null;
+        const kvkkMax = (report as any).kvkkPenaltyMax as number | null;
+        const kvkkArticles = ((report as any).kvkkRiskArticles ?? []) as string[];
+        const kvkkSummary = (report as any).kvkkRiskSummary as string | null;
+        const levelColor =
+          kvkkLevel === "Kritik" ? "red" :
+          kvkkLevel === "Yüksek" ? "orange" :
+          kvkkLevel === "Orta" ? "yellow" : "green";
+        const levelClasses: Record<string, string> = {
+          red: "border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900",
+          orange: "border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900",
+          yellow: "border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20 dark:border-yellow-900",
+          green: "border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900",
+        };
+        const badgeClasses: Record<string, string> = {
+          red: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+          orange: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+          yellow: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+          green: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+        };
+        return (
+          <Card className={`shadow-sm mb-6 border ${levelClasses[levelColor]}`}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="text-lg">⚖️</span>
+                KVKK Yasal Risk Analizi
+                <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${badgeClasses[levelColor]}`}>
+                  {kvkkLevel} Risk
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {kvkkMin !== null && kvkkMax !== null && (
+                  <div className="sm:col-span-2 bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Olası İdari Para Cezası (KVK Kurulu emsal kararlarına göre)</div>
+                    <div className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                      ₺{kvkkMin.toLocaleString("tr-TR")} – ₺{kvkkMax.toLocaleString("tr-TR")}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">KVKK Md.18 kapsamında tahmini yaptırım aralığı</div>
+                  </div>
+                )}
+                {kvkkArticles.length > 0 && (
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">İlgili Maddeler</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {kvkkArticles.map((a: string) => (
+                        <span key={a} className="text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-full">
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {kvkkSummary && (
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                  {kvkkSummary}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Sektör Benchmark */}
+      {(report as any).sectorBenchmarkPercent !== null && (report as any).sectorBenchmarkPercent !== undefined && (() => {
+        const pct = (report as any).sectorBenchmarkPercent as number;
+        const comment = (report as any).sectorBenchmarkComment as string | null;
+        const barColor = pct >= 70 ? "#22c55e" : pct >= 40 ? "#f59e0b" : "#ef4444";
+        const labelColor = pct >= 70 ? "text-emerald-700 dark:text-emerald-400" : pct >= 40 ? "text-yellow-700 dark:text-yellow-400" : "text-red-700 dark:text-red-400";
+        return (
+          <Card className="shadow-sm mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                Sektör Karşılaştırması
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm text-slate-600 dark:text-slate-400">Sektörünüzdeki konumunuz</span>
+                <span className={`text-xl font-bold ${labelColor}`}>
+                  %{pct}
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-1">yüzdelik dilim</span>
+                </span>
+              </div>
+              <div className="relative h-4 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="absolute left-0 top-0 h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, background: barColor }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>En Kötü</span>
+                <span>Sektör Ortalaması</span>
+                <span>En İyi</span>
+              </div>
+              {comment && (
+                <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700 mt-2">
+                  {comment}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Guvenlik Maratonu — 30 Gunluk Eylem Plani */}
       {Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
         <MarathonSection

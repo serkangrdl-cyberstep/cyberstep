@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useRequireAdmin } from "@/hooks/use-admin";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -743,20 +744,36 @@ export default function AdminBlog() {
   const [view, setView] = useState<"list" | "new" | "edit">("list");
   const [editingId, setEditingId] = useState<number | null>(null);
 
+  const { data: admin } = useRequireAdmin();
+
   const { data: posts, isLoading } = useQuery<BlogPost[]>({
     queryKey: ["admin-blog"],
-    queryFn: () => fetch("/api/admin-panel/blog", { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/admin-panel/blog", { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
+    enabled: !!admin,
   });
 
   const { data: editPost } = useQuery<BlogPost>({
     queryKey: ["admin-blog-post", editingId],
-    queryFn: () => fetch(`/api/admin-panel/blog/${editingId}`, { credentials: "include" }).then(r => r.json()),
-    enabled: !!editingId && view === "edit",
+    queryFn: async () => {
+      const r = await fetch(`/api/admin-panel/blog/${editingId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
+    enabled: !!editingId && view === "edit" && !!admin,
   });
 
   const { data: subscribers } = useQuery<{ id: number; email: string; isActive: boolean }[]>({
     queryKey: ["admin-newsletter-subscribers"],
-    queryFn: () => fetch("/api/admin-panel/newsletter/subscribers", { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/admin-panel/newsletter/subscribers", { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
+    enabled: !!admin,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-blog"] });

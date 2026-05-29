@@ -30,7 +30,7 @@ export default function AdminLogin() {
       const d = await r.json();
       if (!r.ok) { toast({ title: "Hata", description: d.error, variant: "destructive" }); return; }
       if (d.requiresTotp) { setStep("totp"); }
-      else { navigate("/panel/workspace"); }
+      else { navigate("/panel"); }
     } finally { setLoading(false); }
   }
 
@@ -46,7 +46,7 @@ export default function AdminLogin() {
       });
       const d = await r.json();
       if (!r.ok) { toast({ title: "Hata", description: d.error, variant: "destructive" }); return; }
-      navigate("/panel/workspace");
+      navigate("/panel");
     } finally { setLoading(false); }
   }
 

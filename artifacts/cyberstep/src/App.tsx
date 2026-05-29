@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
 import KvkkDpa from "./pages/kvkk-dpa";
+import SiberPanik from "./pages/siber-panik";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -173,6 +174,7 @@ function Router() {
             <Route path="/verify/:token" component={VerifyPage} />
             <Route path="/domain-tarama" component={DomainScan} />
             <Route path="/kvkk-dpa-olustur" component={KvkkDpa} />
+            <Route path="/siber-panik" component={SiberPanik} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

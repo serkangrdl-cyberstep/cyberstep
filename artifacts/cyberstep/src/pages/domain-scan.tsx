@@ -475,6 +475,107 @@ const RISK_STYLE: Record<string, string> = {
   "Yüksek": "bg-red-100 text-red-700 border-red-200",
 };
 
+const BUSINESS_IMPACT: Record<string, { fn: string; impact: string; backup: string }> = {
+  "Google Analytics": { fn: "Pazarlama Analitiği", impact: "Kampanya performansı izlenemez", backup: "Sunucu erişim logları" },
+  "Google Tag Manager": { fn: "İzleme & Analitik", impact: "Tüm izleme kodları durabilir", backup: "Doğrudan GA/Pixel entegrasyonu" },
+  "Google Fonts": { fn: "Web Sitesi Tasarımı", impact: "Site görünümü bozulabilir", backup: "Yerel font kopyası" },
+  "Hotjar": { fn: "Kullanıcı Davranışı", impact: "Heatmap ve oturum kaydı durur", backup: "Alternatif: Microsoft Clarity" },
+  "Facebook Pixel": { fn: "Reklam & Retargeting", impact: "Meta reklam optimizasyonu durur", backup: "Sunucu tarafı conversion API" },
+  "Stripe": { fn: "Ödeme İşlemleri", impact: "Kart ödemeleri alınamaz, gelir kaybı", backup: "Havale/EFT + iyzico" },
+  "Iyzico": { fn: "Ödeme İşlemleri", impact: "Kart ödemeleri alınamaz, gelir kaybı", backup: "Havale/EFT + Stripe" },
+  "PayTR": { fn: "Ödeme İşlemleri", impact: "Kart ödemeleri alınamaz, gelir kaybı", backup: "Havale/EFT" },
+  "Cloudflare": { fn: "Güvenlik & CDN", impact: "Site yavaşlar, DDoS koruması kalkar", backup: "Doğrudan hosting IP (geçici)" },
+  "AWS": { fn: "Altyapı & Depolama", impact: "Kritik servisler çevrimdışı kalabilir", backup: "Yedek sunucu planı gerekli" },
+  "Mailchimp": { fn: "E-posta Pazarlama", impact: "Bülten gönderimleri durur", backup: "Brevo veya manuel gönderim" },
+  "Intercom": { fn: "Müşteri Desteği", impact: "Canlı destek ve chatbot durur", backup: "Telefon + e-posta desteği" },
+  "Zendesk": { fn: "Müşteri Desteği", impact: "Destek sistemi erişilemez olur", backup: "E-posta ile talep yönetimi" },
+  "Shopify": { fn: "E-ticaret Platformu", impact: "Online satış tamamen durur", backup: "Telefon siparişi (geçici)" },
+  "WooCommerce": { fn: "E-ticaret Platformu", impact: "Online satış tamamen durur", backup: "Telefon siparişi (geçici)" },
+  "WordPress": { fn: "Web Sitesi / CMS", impact: "Site tamamen erişilemez olur", backup: "Statik HTML yedek sayfası" },
+  "HubSpot": { fn: "CRM & Satış", impact: "Müşteri takibi ve pipeline görünmez", backup: "Excel tabanlı takip (geçici)" },
+  "Salesforce": { fn: "CRM & Satış", impact: "Satış süreçleri durur", backup: "Manuel kayıt tutma" },
+  "Slack": { fn: "Ekip İletişimi", impact: "İç iletişim kanalı kapanır", backup: "WhatsApp grupları + e-posta" },
+  "Zoom": { fn: "Video Konferans", impact: "Uzaktan toplantılar yapılamaz", backup: "Google Meet veya telefon" },
+  "Microsoft 365": { fn: "Ofis Araçları & E-posta", impact: "E-posta ve belgeler erişilemez olabilir", backup: "Google Workspace geçiş planı" },
+};
+
+function getDefaultImpact(category: string): { fn: string; impact: string; backup: string } {
+  const map: Record<string, { fn: string; impact: string; backup: string }> = {
+    "Analitik": { fn: "Veri & Analitik", impact: "İzleme ve raporlama durabilir", backup: "Yerel loglar" },
+    "Ödeme": { fn: "Ödeme İşlemleri", impact: "Tahsilat aksayabilir", backup: "Alternatif ödeme yöntemi" },
+    "CRM": { fn: "Müşteri İlişkileri", impact: "Müşteri verilerine erişim zorlaşır", backup: "Manuel kayıt" },
+    "Destek": { fn: "Müşteri Desteği", impact: "Destek kanalı durabilir", backup: "Telefon & e-posta" },
+    "Pazarlama": { fn: "Pazarlama", impact: "Kampanya yönetimi aksayabilir", backup: "Doğrudan iletişim" },
+    "E-ticaret": { fn: "Online Satış", impact: "Satış kanalı durabilir", backup: "Telefon siparişi" },
+    "Altyapı": { fn: "Altyapı", impact: "Servis kesintisi oluşabilir", backup: "Yedek plan gerekli" },
+  };
+  return map[category] ?? { fn: category, impact: "Hizmet aksaması yaşanabilir", backup: "Alternatif yöntem araştırın" };
+}
+
+const RISK_BG: Record<string, string> = {
+  "Düşük": "border-green-200 bg-green-50/60",
+  "Orta": "border-amber-200 bg-amber-50/60",
+  "Yüksek": "border-red-200 bg-red-50/60",
+};
+
+function BusinessContinuityMap({ services }: { services: ShadowItService[] }) {
+  const [open, setOpen] = useState(false);
+  const highCount = services.filter(s => s.risk === "Yüksek").length;
+
+  return (
+    <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-4 mb-2">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-purple-100 shrink-0">
+          <Network className="h-4 w-4 text-purple-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-semibold text-sm">İş Sürekliliği Haritası</span>
+            <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200">
+              {services.length} dijital bağımlılık
+            </Badge>
+            {highCount > 0 && (
+              <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-200">
+                {highCount} kritik risk
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Bu alan adında tespit edilen servisler çöktüğünde işletmeniz nasıl etkilenir? Aşağıda her servis için acil durum senaryosu görüntüleyin.
+          </p>
+          <button
+            onClick={() => setOpen(!open)}
+            className="flex items-center gap-1 text-xs text-purple-700 hover:underline font-medium"
+          >
+            <Info className="h-3 w-3" />
+            {open ? "Haritayı Gizle" : `Tüm senaryoları gör (${services.length})`}
+          </button>
+          {open && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 border-t border-purple-200 pt-3">
+              {services.map(svc => {
+                const impact = BUSINESS_IMPACT[svc.name] ?? getDefaultImpact(svc.category);
+                return (
+                  <div key={svc.name} className={`rounded-lg border p-3 text-xs ${RISK_BG[svc.risk] ?? "border-slate-200 bg-slate-50"}`}>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="font-bold text-slate-800">{svc.name}</span>
+                      <Badge variant="outline" className={`text-xs px-1.5 py-0 border shrink-0 ${RISK_STYLE[svc.risk] ?? ""}`}>
+                        {svc.risk}
+                      </Badge>
+                    </div>
+                    <p className="text-slate-500 mb-0.5"><span className="font-medium text-slate-700">İşlev:</span> {impact.fn}</p>
+                    <p className="text-slate-500 mb-0.5"><span className="font-medium text-slate-700">Çökerse:</span> {impact.impact}</p>
+                    <p className="text-slate-500"><span className="font-medium text-slate-700">Yedek:</span> {impact.backup}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ShadowItCard({ services }: { services: ShadowItService[] }) {
   const [open, setOpen] = useState(false);
   const highCount = services.filter((s) => s.risk === "Yüksek").length;
@@ -1234,6 +1335,11 @@ export default function DomainScanPage() {
               </Card>
             );
           })()}
+
+          {/* İş Sürekliliği Haritası */}
+          {result.shadowItServices && result.shadowItServices.length > 0 && (
+            <BusinessContinuityMap services={result.shadowItServices} />
+          )}
 
           {/* Tedarikçi Viral Pasaport */}
           {result.id && (() => {

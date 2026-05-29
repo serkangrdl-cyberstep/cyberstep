@@ -107,6 +107,9 @@ export function Footer() {
                 { label: t(T.footer.pricing, lang), href: "/fiyatlar" },
                 { label: t(T.footer.dashboard, lang), href: "/dashboard" },
                 { label: t(T.footer.blog, lang), href: "/blog" },
+                { label: "Alan Adi Guvenlik Taramasi", href: "/domain-tarama" },
+                { label: "KVKK DPA Sozlesme Taslagi", href: "/kvkk-dpa-olustur" },
+                { label: "Siber Panik Butonu", href: "/siber-panik" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>

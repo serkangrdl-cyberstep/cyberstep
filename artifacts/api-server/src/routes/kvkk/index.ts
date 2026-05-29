@@ -58,4 +58,58 @@ Sadece sözleşme metnini döndür, başka açıklama ekleme. Madde numaralandı
   }
 });
 
+// ─── POST /api/panic-advice ───────────────────────────────────────────────────
+router.post("/panic-advice", async (req, res) => {
+  const { attackType, companyType, currentImpact, timeElapsed, affectedSystems } = req.body ?? {};
+
+  if (!attackType || !currentImpact) {
+    res.status(400).json({ error: "attackType ve currentImpact zorunludur" });
+    return;
+  }
+
+  const prompt = `Sen Türkiye'de KOBİler için siber güvenlik olay müdahale uzmanısın.
+Bir KOBİ şu anda siber saldırı altında ve acil yardıma ihtiyacı var.
+
+Saldırı Bilgileri:
+- Saldırı türü: ${attackType}
+- Firma türü: ${companyType ?? "KOBİ"}
+- Saldırıdan bu yana geçen süre: ${timeElapsed ?? "Bilinmiyor"}
+- Mevcut durum: ${currentImpact}
+- Etkilenen sistemler: ${affectedSystems ?? "Belirtilmemiş"}
+
+Lütfen aşağıdaki formatta ACIL müdahale planı ver:
+
+## İlk 30 Dakika (Hemen Yapın)
+- 3-5 somut adım, KOBİ sahibinin bizzat yapabileceği
+- Her adım tek cümle, jargon yok
+
+## İlk 4 Saat
+- 3-5 adım, teknik ekibinle koordine et
+
+## KVKK Bildirimi Gerekiyor mu?
+- Kişisel veri etkilendiyse 72 saat içinde KVKK'ya bildirim zorunlu
+- Bildirim gerekiyorsa: "EVET — verbis.kvkk.gov.tr veya sgd@kvkk.gov.tr" 
+- Gerekmiyorsa: "Mevcut bilgilerle gerek görünmüyor ama takip et"
+
+## Kanıt Toplama (Kritik)
+- 3 adım, silinmeden önce ne saklanmalı
+
+## İyileşme Adımları
+- Sisteme geri dönüş için 3-5 öncelikli adım
+
+## Tekrar Olmaması İçin
+- 2-3 spesifik güvenlik önlemi
+
+Türkçe yaz, sade dil, bullet points, başlıklar markdown ile.`;
+
+  try {
+    const aiFn = await getTenantAiFn();
+    const text = await aiFn(prompt);
+    res.json({ advice: text, attackType, timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.error({ err }, "Panic advice generation failed");
+    res.status(500).json({ error: "Müdahale planı oluşturulamadı" });
+  }
+});
+
 export default router;

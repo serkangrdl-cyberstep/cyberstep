@@ -643,18 +643,19 @@ export default function AdminDomainTaramalar() {
                   <th className="px-4 py-3 text-center">HIBP</th>
                   <th className="px-4 py-3 text-center">Kara Liste</th>
                   <th className="px-4 py-3 text-center">Gölge BT</th>
+                  <th className="px-4 py-3 text-center">KEP</th>
                   <th className="px-4 py-3 text-left">Tarih</th>
                   <th className="px-4 py-3 text-center">İşlem</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {isLoading && (
-                  <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                  <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">
                     <Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Yükleniyor...
                   </td></tr>
                 )}
                 {!isLoading && (list?.rows ?? []).length === 0 && (
-                  <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">Tarama bulunamadı</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">Tarama bulunamadı</td></tr>
                 )}
                 {(list?.rows ?? []).map(scan => {
                   const highRisk = (scan.shadowItServices ?? []).filter(s => s.risk === "Yüksek").length;
@@ -695,6 +696,14 @@ export default function AdminDomainTaramalar() {
                         {highRisk > 0
                           ? <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">{highRisk} yüksek</Badge>
                           : <span className="text-slate-600 text-xs">{(scan.shadowItServices ?? []).length} servis</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {(scan as any).kepConfigured === true
+                          ? <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">Aktif</Badge>
+                          : (scan as any).kepConfigured === false
+                          ? <span className="text-slate-600 text-xs">Yok</span>
+                          : <span className="text-slate-700 text-xs">—</span>
                         }
                       </td>
                       <td className="px-4 py-3 text-slate-500 text-xs">{new Date(scan.createdAt).toLocaleDateString("tr-TR")}</td>

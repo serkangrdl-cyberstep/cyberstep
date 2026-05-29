@@ -369,23 +369,40 @@ export default function CustomerReports() {
                           {highRiskShadow > 0 && <span className="text-orange-400">{highRiskShadow} yüksek riskli servis</span>}
                           {scan.ctSubdomainCount > 0 && <span className="text-slate-400">{scan.ctSubdomainCount} alt alan</span>}
                           {scan.httpHeadersScore > 0 && <span className="text-slate-400">Baslik skoru: {scan.httpHeadersScore}/100</span>}
+                          {(scan as any).kepConfigured && <span className="text-blue-400">KEP yapılandırılmış</span>}
+                          {(scan as any).kepConfigured === false && <span className="text-slate-500">KEP yok</span>}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <div className="text-center">
                           <p className={`text-3xl font-bold ${domainColor}`}>{scan.overallScore}</p>
                           <p className="text-slate-500 text-xs">{passCount}/5 kontrol</p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                          onClick={() => downloadDomainPDF(scan.id, scan.domain)}
-                          disabled={downloadingDomainId === scan.id}
-                        >
-                          <Download className="h-3.5 w-3.5 mr-1" />
-                          {downloadingDomainId === scan.id ? "İndiriliyor..." : "PDF"}
-                        </Button>
+                        <div className="flex flex-col gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 h-7 px-3 text-xs"
+                            onClick={() => downloadDomainPDF(scan.id, scan.domain)}
+                            disabled={downloadingDomainId === scan.id}
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            {downloadingDomainId === scan.id ? "..." : "PDF"}
+                          </Button>
+                          {(scan as any).badgeToken && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10 h-7 px-3 text-xs"
+                              onClick={() => {
+                                const url = `${window.location.origin}/domain-tarama?id=${scan.id}`;
+                                window.open(url, "_blank");
+                              }}
+                            >
+                              Rozet
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>

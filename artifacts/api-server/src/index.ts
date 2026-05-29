@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable } from "@workspace/db";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail } from "./services/email";
@@ -810,6 +810,57 @@ async function maybeSeedDemoCustomer() {
   }
 }
 
+async function ensurePartnerEcosystemTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS partners (
+      id SERIAL PRIMARY KEY,
+      tenant_id INTEGER,
+      company_name TEXT NOT NULL,
+      contact_name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      phone TEXT,
+      website TEXT,
+      categories TEXT[] DEFAULT '{}',
+      tier TEXT NOT NULL DEFAULT 'silver',
+      status TEXT NOT NULL DEFAULT 'pending',
+      monthly_fee INTEGER DEFAULT 0,
+      subscription_status TEXT DEFAULT 'trial',
+      password_hash TEXT,
+      description TEXT,
+      total_projects_completed INTEGER DEFAULT 0,
+      total_revenue INTEGER DEFAULT 0,
+      rating INTEGER,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      approved_at TIMESTAMP
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS work_packages (
+      id SERIAL PRIMARY KEY,
+      tenant_id INTEGER,
+      assessment_id INTEGER,
+      domain_scan_id INTEGER,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'medium',
+      estimated_cost INTEGER,
+      commission_rate INTEGER DEFAULT 15,
+      status TEXT NOT NULL DEFAULT 'open',
+      partner_id INTEGER,
+      assigned_at TIMESTAMP,
+      completed_at TIMESTAMP,
+      verified_at TIMESTAMP,
+      completion_note TEXT,
+      score_before INTEGER,
+      score_after INTEGER,
+      company_name TEXT,
+      domain TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function startup() {
   await maybeResetAdminPassword();
   await ensureQuestionsTable();
@@ -824,6 +875,7 @@ async function startup() {
   await ensureReportEnrichmentColumns();
   await ensureSecurityAdvisoriesTable();
   await updatePricingPlanFeatures();
+  await ensurePartnerEcosystemTables();
 }
 
 startup()

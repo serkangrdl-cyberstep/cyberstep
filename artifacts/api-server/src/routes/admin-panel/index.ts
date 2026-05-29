@@ -13,6 +13,7 @@ import customersAdminRouter from "./customers-admin";
 import domainScansAdminRouter from "./domain-scans-admin";
 import isrRouter from "./isr";
 import emailTemplatesRouter from "./email-templates";
+import partnersAdminRouter from "./partners";
 
 const router = Router();
 router.use(authRouter);
@@ -29,5 +30,6 @@ router.use(customersAdminRouter);
 router.use(domainScansAdminRouter);
 router.use(isrRouter);
 router.use(emailTemplatesRouter);
+router.use(partnersAdminRouter);
 
 export default router;

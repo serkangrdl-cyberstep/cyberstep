@@ -66,3 +66,16 @@ export function getAdminId(req: Request): number | undefined {
 export function getCustomerId(req: Request): number | undefined {
   return sess(req)["customerId"] as number | undefined;
 }
+
+export function requirePartner(req: Request, res: Response, next: NextFunction): void {
+  const partnerId = sess(req)["partnerId"] as number | undefined;
+  if (!partnerId) {
+    res.status(401).json({ error: "İş ortağı girişi gerekiyor" });
+    return;
+  }
+  next();
+}
+
+export function getPartnerId(req: Request): number | undefined {
+  return sess(req)["partnerId"] as number | undefined;
+}

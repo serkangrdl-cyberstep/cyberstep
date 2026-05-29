@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
   Mail, Lock, Server, Loader2, ArrowRight, Info,
@@ -1005,6 +1008,34 @@ export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [wpModalOpen, setWpModalOpen] = useState(false);
+  const [wpForm, setWpForm] = useState({ title: "", category: "E-posta Güvenliği", priority: "high", description: "", estimatedCost: "" });
+  const [wpDone, setWpDone] = useState(false);
+
+  const WP_CATEGORIES = ["E-posta Güvenliği","KVKK / Uyum","IT Altyapı","Penetrasyon Testi","Siber Sigorta","Bulut Güvenliği","SOC / İzleme","Eğitim","Diğer"];
+
+  const createWpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/work-packages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          domainScanId: result?.id ?? undefined,
+          domain: result?.domain ?? undefined,
+          scoreBefore: result?.overallScore ?? undefined,
+          title: wpForm.title,
+          category: wpForm.category,
+          priority: wpForm.priority,
+          description: wpForm.description || undefined,
+          estimatedCost: wpForm.estimatedCost ? Number(wpForm.estimatedCost) : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Oluşturulamadı");
+      return res.json();
+    },
+    onSuccess: () => { setWpDone(true); },
+  });
 
   async function downloadScanPDF(id: number, domainName: string) {
     setDownloadingPDF(true);
@@ -1156,7 +1187,7 @@ export default function DomainScanPage() {
                       ? "Birkaç önemli güvenlik kaydı eksik. Aşağıdaki başarısız kontrolleri düzeltin."
                       : "Kritik güvenlik açıkları tespit edildi. Aşağıdaki adımları mümkün olan en kısa sürede tamamlayın."}
                   </p>
-                  <div className="mt-3">
+                  <div className="mt-3 flex gap-2 flex-wrap">
                     <Button
                       size="sm"
                       variant="outline"
@@ -1166,6 +1197,15 @@ export default function DomainScanPage() {
                     >
                       <Download className="h-3.5 w-3.5 mr-1.5" />
                       {downloadingPDF ? "PDF Hazırlanıyor..." : "PDF Olarak İndir"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-violet-500/30 text-violet-600 hover:bg-violet-50"
+                      onClick={() => { setWpModalOpen(true); setWpDone(false); setWpForm({ title: `${result.domain} — Alan güvenlik düzeltmesi`, category: "E-posta Güvenliği", priority: result.overallScore < 40 ? "critical" : result.overallScore < 60 ? "high" : "medium", description: "", estimatedCost: "" }); }}
+                    >
+                      <Package className="h-3.5 w-3.5 mr-1.5" />
+                      İş Paketi Oluştur
                     </Button>
                   </div>
                 </div>
@@ -1446,6 +1486,74 @@ export default function DomainScanPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* İş Paketi Oluştur Modal */}
+      <Dialog open={wpModalOpen} onOpenChange={setWpModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-violet-600" />
+              İş Paketi Oluştur
+            </DialogTitle>
+          </DialogHeader>
+          {wpDone ? (
+            <div className="text-center py-4">
+              <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
+              <p className="font-semibold text-foreground">İş paketi oluşturuldu</p>
+              <p className="text-sm text-muted-foreground mt-1">Admin panelinden partnerlere atayabilirsiniz.</p>
+              <Button className="mt-4 w-full" variant="outline" onClick={() => setWpModalOpen(false)}>Kapat</Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Başlık *</Label>
+                <input className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  value={wpForm.title} onChange={e => setWpForm(f => ({ ...f, title: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Kategori</Label>
+                  <Select value={wpForm.category} onValueChange={v => setWpForm(f => ({ ...f, category: v }))}>
+                    <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>{WP_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Öncelik</Label>
+                  <Select value={wpForm.priority} onValueChange={v => setWpForm(f => ({ ...f, priority: v }))}>
+                    <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Düşük</SelectItem>
+                      <SelectItem value="medium">Orta</SelectItem>
+                      <SelectItem value="high">Yüksek</SelectItem>
+                      <SelectItem value="critical">Kritik</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Tahmini Maliyet (TL)</Label>
+                <input type="number" className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  placeholder="Ör: 5000"
+                  value={wpForm.estimatedCost} onChange={e => setWpForm(f => ({ ...f, estimatedCost: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Açıklama</Label>
+                <Textarea className="resize-none text-sm" rows={2}
+                  value={wpForm.description} onChange={e => setWpForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              {createWpMutation.isError && (
+                <p className="text-xs text-red-500">{(createWpMutation.error as Error).message}</p>
+              )}
+              <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+                disabled={!wpForm.title || createWpMutation.isPending}
+                onClick={() => createWpMutation.mutate()}>
+                {createWpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Oluştur"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

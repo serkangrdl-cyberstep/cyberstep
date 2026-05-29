@@ -49,6 +49,10 @@ import AdminIsrMusteriler from "./pages/admin-panel/isr/musteriler";
 import AdminIsrMusteri360 from "./pages/admin-panel/isr/musteri-360";
 import AdminEmailTemplates from "./pages/admin-panel/email-templates";
 import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
+import AdminIsOrtaklari from "./pages/admin-panel/is-ortaklari";
+import AdminIsPaketleri from "./pages/admin-panel/is-paketleri";
+import PartnerLogin from "./pages/partner/login";
+import PartnerDashboard from "./pages/partner/dashboard";
 import { AdminLayout } from "./components/admin-layout";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
@@ -147,7 +151,13 @@ function Router() {
       <Route path="/panel/isr" component={AdminIsrDashboard} />
       <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />
       <Route path="/panel/bildirimler" component={AdminEmailNotifications} />
+      <Route path="/panel/is-ortaklari" component={AdminIsOrtaklari} />
+      <Route path="/panel/is-paketleri" component={AdminIsPaketleri} />
       <Route path="/panel" component={AdminDashboard} />
+
+      {/* Partner portal */}
+      <Route path="/ortak/giris" component={PartnerLogin} />
+      <Route path="/ortak" component={PartnerDashboard} />
 
       {/* All other routes use shared Layout */}
       <Route>

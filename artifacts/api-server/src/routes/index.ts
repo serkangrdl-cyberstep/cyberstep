@@ -7,6 +7,8 @@ import customerAuthRouter from "./customer-auth/index";
 import domainScanRouter from "./domain-scan/index";
 import advisoriesRouter from "./advisories/index";
 import kvkkRouter from "./kvkk/index";
+import partnerAuthRouter from "./partner-auth/index";
+import workPackagesRouter from "./work-packages/index";
 
 const router: IRouter = Router();
 
@@ -18,5 +20,7 @@ router.use(customerAuthRouter);
 router.use(domainScanRouter);
 router.use(advisoriesRouter);
 router.use(kvkkRouter);
+router.use(partnerAuthRouter);
+router.use(workPackagesRouter);
 
 export default router;

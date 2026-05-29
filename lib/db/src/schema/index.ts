@@ -31,3 +31,5 @@ export * from "./domain-scans";
 export * from "./isr";
 export * from "./tenants";
 export * from "./emails";
+export * from "./partners";
+export * from "./work-packages";

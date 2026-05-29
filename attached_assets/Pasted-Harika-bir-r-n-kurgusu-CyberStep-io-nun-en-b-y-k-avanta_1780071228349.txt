@@ -1,0 +1,63 @@
+Harika bir ürün kurgusu. CyberStep.io'nun en büyük avantajı, "CISO'suz KOBİ" ağrısını "iş etkisi" diliyle dindiriyor olması. Mevcut özellikleriniz teknik bir tarayıcıdan ziyade bir **"Siber Risk Yönetim Asistanı"**na evrilmiş durumda.
+​İşte Türkiye pazarı dinamiklerini, yerel regülasyonları ve SaaS büyüme metriklerini baz alan, 1-4 haftalık geliştirme döngüsüne uygun 10 özgün öneri:
+​1. "Siber Panik Butonu" (Acil Durum Reçetesi)
+​Tek Cümle Özet: Şirket bir fidye yazılımı veya veri sızıntısı şüphesi yaşadığında, sistem üzerinden anında "Ne yapmalıyım?" protokolü başlatır.
+Rakiplerde var mı: Türkiye'de yok (Genelde büyük kurumlara özel İR hizmeti var).
+Gelir Modeli: Ücretli (Pro/Kurumsal paket özelliği).
+Teknik Gereksinim: Gemini üzerinde önceden eğitilmiş "Kriz Yönetimi" prompt kütüphanesi + statik PDF/check-list üretimi.
+KOBİ Patronu İçin Değer: "Şu an saldırı altındayım, ilk 1 saatte hangi yasal yükümlülükleri (KVKK ihlal bildirimi dahil) yerine getirmeliyim?" sorusunun paniksiz yanıtı.
+​2. "Yerli SaaS Sağlık Taraması" (KVKK Uyumluluk Denetimi)
+​Tek Cümle Özet: KOBİ'nin kullandığı yerli SaaS araçlarını (Paraşüt, İkas, vb.) tespit edip, bu araçların KVKK saklama ve işleme politikalarını (Aydınlatma metni linki var mı, sunucu nerede?) kontrol eder.
+Rakiplerde var mı: Hayır.
+Gelir Modeli: Ücretli (Premium Rapor).
+Teknik Gereksinim: SaaS listesinin güncel tutulduğu bir veritabanı + AI ile web scraping.
+KOBİ Patronu İçin Değer: "Kullandığım muhasebe programı verilerimi nerede tutuyor, KVKK'ya uygun mu?" endişesini giderir.
+​3. "USOM/E-Devlet Entegrasyon Hatırlatıcısı"
+​Tek Cümle Özet: USOM tarafından yayınlanan kritik zafiyet duyurularını ve E-Devlet üzerinden gelen tebligatları takip ederek, "Şirketinizin web sitesinde şu zafiyet tespit edildi" diye uyarı gönderir.
+Rakiplerde var mı: Dünyada var, Türkiye'de yerel entegrasyon yapan yok.
+Gelir Modeli: Ücretsiz (Virallik artırıcı).
+Teknik Gereksinim: USOM RSS beslemesi + Gemini ile özelleştirilmiş bildirim metni.
+KOBİ Patronu İçin Değer: "Devletin kapıma gelmesini beklemeden kendi zafiyetimi kendim görüyorum."
+​4. "Tedarikçi Risk Karnesi" (Viral Loop)
+​Tek Cümle Özet: KOBİ, kendi tedarikçilerinin (örneğin lojistik firmasının) CyberStep skorunu sorgulayabilir; "Tedarikçim güvenli mi?" raporu oluşturur.
+Rakiplerde var mı: Türkiye'de B2B ekosisteminde çok sınırlı.
+Gelir Modeli: Freemium (Ücretsiz 3 sorgu, sonrası ücretli).
+Teknik Gereksinim: Mevcut domain tarama altyapısı + paylaşılan rapor link sistemi.
+KOBİ Patronu İçin Değer: Zincirleme riskleri yönetme; tedarikçisine "CyberStep puanın düşük, düzelt" deme gücü verir.
+​5. "KVKK Cezası Simülatörü" (Korku ve Aksiyon)
+​Tek Cümle Özet: Mevcut risk skorunu, KVK Kurulu'nun son 2 yıldaki "ihlal kararları" ile kıyaslayarak "Bu riskle şu an bir sızıntı yaşasanız ödeyeceğiniz ceza tahmini budur" der.
+Rakiplerde var mı: Sadece genel tavsiyeler var, rakamsal simülasyon yok.
+Gelir Modeli: Ücretli raporun ana satış noktası.
+Teknik Gereksinim: KVK Kurulu karar özetleri veritabanı + Gemini ile güncel ceza baremlerine göre hesaplama.
+KOBİ Patronu İçin Değer: Güvenliğin "maliyet" değil "riskten korunma" olduğunu somutlaştırır.
+​6. "Shadow IT (Yasaklı Yazılım) Takipçisi"
+​Tek Cümle Özet: Çalışanların iş bilgisayarlarında kullandığı (veya web üzerinden eriştiği) yasaklı/riskli SaaS araçlarını (Örn: kontrolsüz yapay zeka araçları) tespit eder.
+Rakiplerde var mı: Kurumsal çözümlerde var, KOBİ için yok.
+Gelir Modeli: Upsell (Pro plan özelliği).
+Teknik Gereksinim: Domain analizi sırasında tespit edilen "AI/SaaS" listesinin, müşteri tarafından belirlenen "Yasaklı Listesi" ile kıyaslanması.
+KOBİ Patronu İçin Değer: "Şirketimin verisi kim bilir hangi yapay zeka aracına yükleniyor?" sorusuna yanıt.
+​7. "KEP ve Dijital İmza Hijyen Kontrolü"
+​Tek Cümle Özet: Şirketin KEP (Kayıtlı Elektronik Posta) adreslerinin ve imza sertifikalarının geçerlilik/güvenlik durumunu tarar.
+Rakiplerde var mı: Hayır.
+Gelir Modeli: Partner/Upsell.
+Teknik Gereksinim: Kamu sertifika otoriteleri sorgusu.
+KOBİ Patronu İçin Değer: Dijital imza yetkisiyle yapılabilecek sahteciliklerin önüne geçer.
+​8. "Güvenlik Maratonu: KOBİ Sertifikası" (Rozet Pazarlama)
+​Tek Cümle Özet: 30 günlük maratonu bitiren KOBİ'ye "CyberStep Güvenli Ticaret" dijital rozeti verir. Bunu web sitesine "Güvenli Sitem" olarak eklerler.
+Rakiplerde var mı: Globalde var, yerel güven damgası olarak Türkiye'de çok eksik.
+Gelir Modeli: Ücretli (Sertifika yıllık yenileme ücreti).
+Teknik Gereksinim: Dinamik rozet (JS ile web sitesine gömülen iframe veya script).
+KOBİ Patronu İçin Değer: Müşterilerine "Güvenli firmayız" mesajı vererek rekabet avantajı sağlar.
+​9. "Yıllık Bütçe Planlayıcı (Cyber Budgeting)"
+​Tek Cümle Özet: Şirketin mevcut risklerine göre "önümüzdeki yıl siber güvenliğe ne kadar ayırmalıyım?" sorusuna yanıt veren bir finansal planlama modülü.
+Rakiplerde var mı: Hayır.
+Gelir Modeli: Partner (Sigorta ve danışmanlık firmalarına lead satışı).
+Teknik Gereksinim: Basit bir finansal modelleme motoru.
+KOBİ Patronu İçin Değer: Bütçeleme yaparken tahmin yürütmek yerine veriye dayalı harcama yapar.
+​10. "KVKK Danışmanı Dashboard'u" (Partner Modeli)
+​Tek Cümle Özet: KVKK danışmanlarına özel bir panel; danışman kendi müşterilerinin tüm CyberStep skorlarını tek merkezden izler.
+Rakiplerde var mı: Evet (Güvenlik firmalarında var, ancak CyberStep'in "ajanssız" yapısı buna çok daha uygun).
+Gelir Modeli: Partner aboneliği.
+Teknik Gereksinim: Çoklu tenant (Multi-tenancy) yönetimi.
+KOBİ Patronu İçin Değer: Danışmanına "Sistemim güvende mi?" diye sormak yerine, danışman ona proaktif hizmet sunar.
+​Stratejik Not: CyberStep'in Türkiye pazarında "kör uçuşu engelleme" gücünü, 1. ve 8. maddelerdeki "güven damgası" ve "panik butonu" ile perçinlerseniz, çok güçlü bir stickiness (bağlılık) yaratırsınız. KOBİ patronu, CyberStep panelini bir gider kalemi değil, bir kalkan olarak görmeye başladığı an, abonelikten çıkması imkansızlaşır.

@@ -1,0 +1,84 @@
+CyberStep.io — Özellik ve Servis Önerileri
+Önerilen Özellikler
+Özellik Adı: KEP Güvenlik İzleyicisi
+Tek Cümle Özet: Şirketin KEP (Kayıtlı Elektronik Posta) adresini haftalık tarayarak domain sahteciliğine, kara liste girişine ve SPF/DMARC uyumsuzluğuna karşı izler; yasal e-posta iletişiminin tehlikeye girip girmediğini bildirir.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada kısmen (ülkeye özgü sistem olduğundan global araçlarda KEP kavramı yok)
+Gelir Modeli: Pro paket içi — freemium için teaser sonuç, detay kilitli
+Teknik Gereksinim: Mevcut domain tarama altyapısına KEP domain'i (hs01.kep.tr, ptt.gov.tr gibi relay'ler) için özel DNS + blacklist sorgu katmanı eklenir; KEP sağlayıcı listesi statik tablo olarak tutulur
+KOBİ Patronu İçin Değer: "KEP adresim hacklendi mi?" sorusu patronların aklına hiç gelmiyor — yasal geçerli yazışmanın bozulması hem ticari hem KVKK riski; rakiplerde bu kontrol yok
+Özellik Adı: KVKK VERBİS Hazırlık Skoru
+Tek Cümle Özet: Şirketin VERBİS'e kayıtlı olup olmadığını (KVK Kurulu açık veri) kontrol eder, kayıtlıysa eksik kategorileri saptar, kayıtlı değilse ceza riskini hesaplayıp kayıt yol haritası sunar.
+Rakiplerde var mı: Türkiye'de YOK (KVKK danışmanlık firmaları bu işi manuel yapıyor) / Dünyada anlamsız (TR'ye özgü)
+Gelir Modeli: Upsell — "VERBİS Hazırlık Paketi" olarak KVKK danışmanlarına white-label satış
+Teknik Gereksinim: KVK Kurulu'nun açık VERBİS sorgulama API'si veya web scrape; şirket adı/VKN girişiyle sorgu. Mevcut Gemini entegrasyonuyla eksik kategorilerin Türkçe açıklaması üretilebilir.
+KOBİ Patronu İçin Değer: "VERBİS kaydı yaptırmak zorunda mıyım?" sorusu en sık sorulan KVKK sorusu — anında yanıt ve ceza riski görmek güçlü bir lead conversion tetikleyicisi
+Özellik Adı: Siber Sigorta Hazırlık Raporu
+Tek Cümle Özet: Şirketin mevcut güvenlik skoru ve domain tarama sonuçlarını sigorta şirketlerinin kullandığı teknik kriterlere (MFA, yedekleme, şifreleme) eşleyerek bir "sigorta ön değerlendirme belgesi" üretir.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada Coalition, At-Bay gibi insurtech'lerde var ama KOBİ'ye yönelik TR pazarında hiç yok
+Gelir Modeli: Partner geliri — Allianz, Mapfre, Anadolu Sigorta ile kanal ortaklığı; her yönlendirmede komisyon veya co-branded rapor ücreti
+Teknik Gereksinim: Sigorta kriterlerini sabit bir JSON rubric olarak tanımla; mevcut skor + tarama çıktısını bu rubric'e map eden bir Gemini prompt katmanı. PDF çıktısı mevcut pasaport altyapısıyla üretilebilir.
+KOBİ Patronu İçin Değer: Siber sigorta yaptırmak isteyen KOBİ hangi belgeyi sigorta şirketine götüreceğini bilmiyor — bu boşluğu dolduran tek platform CyberStep olur
+Özellik Adı: Türkçe Dark Web & Telegram Sızıntı İzleyici
+Tek Cümle Özet: Şirket e-posta domain'ine ait kimlik bilgilerinin Türkçe Telegram gruplarında, dark web paste sitelerinde ve credential dump veritabanlarında (HaveIBeenPwned, DeHashed) dolaşıp dolaşmadığını haftalık izler.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada HaveIBeenPwned tek yönlü, Türkçe Telegram kanallarını tarayan araç yok
+Gelir Modeli: Pro paket özelliği — "Sızdırılmış hesap sayısı: X" ücretsiz göster, detay (hangi şifre, hangi kanal) ücretli
+Teknik Gereksinim: HaveIBeenPwned v3 API (domain sorgusu, aylık ~$3.50); Türkçe Telegram kanalları için scraping veya IntelX/Dehashed API entegrasyonu. İlk aşama sadece HIBP yeterli.
+KOBİ Patronu İçin Değer: "Çalışanlarımın şifreleri ifşa olmuş mu?" sorusu somut, kişisel, acil — duyunca hemen aksiyona geçiyor; en yüksek conversion rate'li özellik olma adayı
+Özellik Adı: TR ERP/Muhasebe Yazılımı Güvenlik Taraması
+Tek Cümle Özet: Logo Tiger, Mikro, Netsis, Luca, Zirve, Paraşüt gibi Türkiye'ye özgü muhasebe yazılımlarının web arayüzlerinin açık internet'te ifşa olup olmadığını, varsayılan port/login sayfalarının görünür olup olmadığını tarar.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada bu araçları tanıyan global platform yok
+Gelir Modeli: Pro paket içi; muhasebe yazılımı satıcılarıyla co-marketing (Logo'ya "müşterilerinizin %23'ü güvensiz yapılandırma kullanıyor" raporu)
+Teknik Gereksinim: Her yazılıma ait bilinen URL pattern'leri, banner signature'ları ve varsayılan portları içeren statik imza veritabanı; mevcut port tarama altyapısına eklenir. Shodan entegrasyonuyla zenginleştirilebilir.
+KOBİ Patronu İçin Değer: Türk KOBİ'lerin %80'i bu yazılımları kullanıyor ve muhasebe verisi = en kritik iş sırrı; "Logo'nun login sayfası internette açık" mesajı çok güçlü
+Özellik Adı: Tedarikçi Zinciri Viral Pasaport Paylaşımı
+Tek Cümle Özet: Kullanıcı, kendi Dijital Güvenlik Pasaportunu tedarikçisine/müşterisine e-posta ile gönderirken karşı tarafın da CyberStep'te ücretsiz tarama yapmasını talep eden akıllı bir davet linki içerir.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada SecurityScorecard B2B modeli benzer ama enterprise hedefli
+Gelir Modeli: Freemium viral loop — davet alan taraf ücretsiz mini değerlendirme yapar, Pro'ya conversion hedeflenir; "tedarikçi talep etti" motivasyonu dönüşümü artırır
+Teknik Gereksinim: Pasaport PDF'ine ve e-posta şablonuna UTM parametreli davet linki eklenir; referral tracking mevcut kullanıcı DB'sine bağlanır. 1 haftada yapılabilir.
+KOBİ Patronu İçin Değer: "Büyük müşterim benden güvenlik belgesi istedi" senaryosu Türkiye'de hızla yaygınlaşıyor (kamu alımları, ihracat gereksinimleri); platform kendini satıyor
+Özellik Adı: Microsoft 365 / Google Workspace Hızlı Denetim
+Tek Cümle Özet: OAuth ile bağlanan şirket tenant'ını 5 dakikada denetler: MFA zorunluluğu, admin hesap sayısı, misafir erişim izinleri, e-posta forwarding kuralları, paylaşılan dosya sayısı gibi kritik ayarları raporlar.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada Secure Score (Microsoft içi), Orca benzerleri var ama KOBİ arayüzü yok
+Gelir Modeli: Pro paket özelliği; Microsoft/Google CSP partner programlarıyla co-sell fırsatı
+Teknik Gereksinim: Microsoft Graph API (tenant-level read scope) veya Google Admin SDK; OAuth onboarding akışı frontend'e eklenir. Yalnızca read-only scope yeterli — güven sorunu minimize.
+KOBİ Patronu İçin Değer: KOBİ'lerin %70'i M365 ya da Google Workspace kullanıyor ama tenant güvenliğine hiç bakmıyor; "şu an 4 kişi admin, biri ayrılan eski çalışan" mesajı anlık aksiyon tetikler
+Özellik Adı: AI Destekli KVKK Veri İşleme Sözleşmesi Taslağı
+Tek Cümle Özet: Şirketin sektörü, veri kategorileri ve tedarikçi profiline göre Gemini'nin KVKK Madde 12 uyumlu veri işleme sözleşmesi eki (DPA) taslağı üretmesini sağlar; kullanıcı indirir, avukatına onaylatır.
+Rakiplerde var mı: Türkiye'de YOK (hukuk firmaları sabit şablonla binlerce lira alıyor) / Dünyada GDPR için benzer araçlar var, KVKK için yok
+Gelir Modeli: Ücretli tek seferlik oluşturma (₺299-499 / belge) veya Pro pakete dahil aylık 2 belge hakkı
+Teknik Gereksinim: Mevcut Gemini entegrasyonuna sektör + veri kategorisi girişi için form eklenir; KVK Kurul kararlarından oluşturulan sistem promptu yazılır. 1-2 haftalık iş.
+KOBİ Patronu İçin Değer: "Tedarikçimle nasıl sözleşme yapacağız?" sorusunu avukat tutmadan çözüyor; KVKK danışmanları bu özelliği white-label olarak kendi müşterilerine satabilir
+Özellik Adı: Çalışan Kimlik Avı Simülasyonu — TR Senaryoları
+Tek Cümle Özet: Türkiye'ye özgü sosyal mühendislik senaryolarıyla (sahte e-Fatura, sahte SGK bildirimi, sahte IBAN güncellemesi) çalışanlara test phishing e-postası gönderir; tıklama oranını patrona raporlar.
+Rakiplerde var mı: Türkiye'de enterprise için KnowBe4 var (İngilizce, pahalı) — Türkçe KOBİ segmentinde YOK / Dünyada olgun piyasa ama TR lokalizasyonu yok
+Gelir Modeli: Pro+ eklentisi veya ayrı "Farkındalık Paketi" (aylık ₺500-1500 çalışan sayısına göre); İK ve eğitim firmalarıyla partner satışı
+Teknik Gereksinim: Phishing link takip servisi (kısa URL + açılış sayfası), e-posta gönderim altyapısı (SendGrid), senaryo şablonu veritabanı. 3-4 hafta ciddi geliştirme.
+KOBİ Patronu İçin Değer: "Muhasebecim sahte IBAN'a para gönderdi" vakası Türkiye'de çok yaygın; patron tıklama oranını görünce satın almak için neden araması gerekmiyor
+Özellik Adı: Anonim Sektörel Kıyaslama Aboneliği
+Tek Cümle Özet: Aynı sektördeki (e-ticaret, klinik, hukuk bürosu vb.) şirketlerin anonim skor ortalamasını üç ayda bir "Sektörünüz Güvenlik Raporu" olarak sunar; şirketin konumunu hem gelişimini hem de sektör ortalamasına göre gösterir.
+Rakiplerde var mı: Türkiye'de YOK / Dünyada SecurityScorecard enterprise için benzer yapıyor
+Gelir Modeli: Pro pakete dahil; verinin birikmesiyle (min. 50 şirket/sektör) değer katlanır — güçlü retention mekanizması
+Teknik Gereksinim: PostgreSQL'deki mevcut skor + sektör verisi üzerinde aggregation sorguları; Gemini ile otomatik yorum üretimi. Veri birikene kadar simüle edilmiş benchmark kullanılabilir (şeffaf şekilde belirtilerek).
+KOBİ Patronu İçin Değer: "Rakiplerim ne durumda?" sorusu her patron için merak uyandırıcı — hem retention hem upsell tetikleyicisi; platform büyüdükçe veri avantajı rakiplerin kopyalamasını zorlaştırır
+Uygulama Öncelik Sıralaması
+Öncelik
+Özellik
+Neden Önce
+🔴 1
+Dark Web Sızıntı İzleyici
+En yüksek conversion, en düşük teknik maliyet (HIBP API)
+🔴 2
+Tedarikçi Viral Pasaport
+Sıfır maliyet, organik büyüme motoru
+🟠 3
+KVKK VERBİS Skoru
+White-label kanal açar, rakipte yok
+🟠 4
+M365/Google Workspace Denetim
+KOBİ penetrasyonu yüksek, güçlü wow anı
+🟡 5
+Siber Sigorta Hazırlık Raporu
+Partner geliri, Türkiye'de timing doğru
+🟡 6
+KEP Güvenlik İzleyicisi
+Tamamen TR'ye özgü, PR değeri yüksek

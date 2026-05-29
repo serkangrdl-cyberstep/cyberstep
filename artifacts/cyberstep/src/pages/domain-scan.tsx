@@ -1124,14 +1124,32 @@ export default function DomainScanPage() {
               blacklistCount={result.blacklistCount}
               results={result.blacklistResults}
             />
-            <ShadowItCard services={result.shadowItServices} />
-            <UrlhausCard listed={result.urlhausListed} threat={result.urlhausThreat} />
-            <UsomCard listed={result.usomListed} />
-            <CertTransparencyCard subdomains={result.ctSubdomains} count={result.ctSubdomainCount} />
-            <CveCard cveSummary={result.cveSummary ?? []} />
-            <ShodanCard openPorts={result.shodanOpenPorts} vulnCount={result.shodanVulnCount} country={result.shodanCountry} isp={result.shodanIsp} />
-            <VirusTotalCard malicious={result.virusTotalMalicious} suspicious={result.virusTotalSuspicious} reputation={result.virusTotalReputation} />
-            <AbuseIPDBCard score={result.abuseIpdbScore} totalReports={result.abuseIpdbTotalReports} countryCode={result.abuseIpdbCountry} isp={result.abuseIpdbIsp} />
+            <div className="rounded-xl border border-primary/30 bg-gradient-to-b from-primary/5 to-background p-5">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="p-2.5 rounded-full bg-primary/10">
+                  <Lock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1.5">8 Gelismis Risk Kontrolu Kilitlendi</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Shadow IT tespiti · URLhaus zararli URL · USOM kara liste · Sertifika seffafligi
+                    · NVD CVE guvenik aciklari · Shodan acik port taramasi · VirusTotal reputation · AbuseIPDB IP gecmisi
+                  </p>
+                </div>
+                <a
+                  href="/fiyatlar"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-semibold h-9 px-5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors gap-1.5"
+                >
+                  Tam Degerlendirme ile Kilidi Ac
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+                <p className="text-xs text-muted-foreground">
+                  Tam Degerlendirme musterileri tum bulgulara{" "}
+                  <a href="/musteri/giris" className="text-primary hover:underline">musteri panelinden</a>{" "}
+                  erisir.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* CTA */}

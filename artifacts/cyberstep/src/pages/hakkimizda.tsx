@@ -14,12 +14,13 @@ export default function Hakkimizda() {
             Hakkımızda
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-            Siber güvenlik bir varış noktası değil,<br />
-            <span className="text-emerald-400">basamak basamak çıkılan bir merdiven</span>
+            İş sürekliliğinizi koruyun.<br />
+            <span className="text-emerald-400">Fidye ödemeden, veri kaybetmeden.</span>
           </h1>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            CyberStep.io; KOBİ'lerin siber güvenlik olgunluğunu ölçmek, önceliklendirmek
-            ve adım adım iyileştirmek için tasarlanmış yapay zeka destekli bir platformdur.
+            CyberStep.io; KOBİ'lerin fidye saldırısı, veri sızıntısı ve KVKK uyumsuzluk risklerini
+            10 dakikada ölçmesini, önceliklendirmesini ve adım adım kapatmasını sağlayan
+            yapay zeka destekli bir platformdur.
           </p>
         </div>
       </section>
@@ -100,10 +101,11 @@ export default function Hakkimizda() {
               </div>
             </div>
             <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-              <p>Muhasebe yazılımı, ERP ve bir e-ticaret sitesi kullanıyor. Fidye yazılımı haberlerini okuyor, endişeleniyor.</p>
-              <p>Bir siber güvenlik firmasını aradı — 3 aylık proje teklifi, büyük bütçe. <em>"Biz o kadar büyük değiliz"</em> deyip kapattı.</p>
+              <p>Muhasebe yazılımı, ERP ve bir e-ticaret sitesi kullanıyor. Çalışanlarından biri sahte e-postaya tıkladı — sisteme fidye yazılımı girdi. Üç gün üretim durdu.</p>
+              <p>Bir siber güvenlik firmasını aradı — 3 aylık proje teklifi, büyük bütçe. <em>"Biz o kadar büyük değiliz"</em> deyip kapattı. Ama büyük olmak gerekmiyordu — doğru adımı atmak yeterliydi.</p>
+              <p>Müşteri verisini koruyamadığı için KVKK kapsamında soruşturma başladı. Müşteri ilişkisi bitti.</p>
               <p className="text-foreground font-medium pt-2 border-t">
-                Bir gün müşterisinin verisi sızdı. İlişki bitti.
+                Emre Bey'in sorunu siber güvenliği bilmemek değildi. Nereden başlayacağını bilmemekti.
               </p>
             </div>
             <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
@@ -111,7 +113,7 @@ export default function Hakkimizda() {
                 CyberStep, Emre Bey'e şunu söylüyor:
               </p>
               <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
-                "Büyük olmak zorunda değilsiniz. Doğru adımı atmak yeterli."
+                "Önce şu üç açığı kapat. Fidye saldırısının en sık girdiği yol burası. Geri kalanı için zamanın var."
               </p>
             </div>
           </div>
@@ -129,17 +131,17 @@ export default function Hakkimizda() {
               {
                 icon: Target,
                 title: "Misyon",
-                desc: "KOBİ'lerin siber güvenlik yolculuğunu; karmaşıklığı değil, netliği ön plana koyarak tasarlamak. Doğru adımı, doğru sırayla, sizin ölçeğinize göre göstermek.",
+                desc: "KOBİ'lerin iş sürekliliğini tehdit eden açıkları — fidye saldırısı, veri sızıntısı, KVKK uyumsuzluğu — teknik jargon olmadan görmelerini ve öncelikli adımları anında almalarını sağlamak.",
               },
               {
                 icon: Eye,
                 title: "Vizyon",
-                desc: "Türkiye'deki her KOBİ'nin siber güvenliği ertelemek yerine, adım adım ilerleyebildiği bir ekosistem oluşturmak. Güvenlik bir lüks değil, ulaşılabilir bir standart olmalı.",
+                desc: "Türkiye'deki her KOBİ'nin siber güvenliği büyük bütçeler beklemeden, nereden başlayacağını bilerek uygulayabildiği bir ekosistem. Güvenlik bir lüks değil, ulaşılabilir bir standart.",
               },
               {
                 icon: Lock,
                 title: "Yöntem",
-                desc: "Yapay zeka destekli analiz ile uzman incelemesini birleştiren hibrit bir model. Anında risk skoru, ardından kişiselleştirilmiş aksiyon yol haritası.",
+                desc: "Yapay zeka destekli Siber Sağlık Karnesi ile uzman incelemesini birleştiren hibrit model. Anında skor, ardından 'önce şunu kapat' formatında öncelik sıralı aksiyon planı.",
               },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="bg-card border rounded-xl p-6 space-y-4">
@@ -166,11 +168,11 @@ export default function Hakkimizda() {
               <div className="px-6 py-3 text-sm font-semibold text-emerald-600">CyberStep.io</div>
             </div>
             {[
-              ["Kapsamlı denetim, büyük proje bütçesi", "20 soruda risk tespiti, anında rapor"],
-              ['"Her şeyi düzelt" listesi', '"Önce şunu yap" aksiyon planı'],
-              ["Teknik jargon dolu raporlar", "Sektörünüze özel, sade Türkçe tavsiye"],
-              ["Tek seferlik danışmanlık", "Sürekli olgunluk takibi ve ilerleme kaydı"],
-              ["Aylar süren proje takvimi", "10 dakikada ilk değerlendirme"],
+              ["Kapsamlı denetim, büyük proje bütçesi", "10 dakikada Siber Sağlık Karnesi, anında skor"],
+              ['"Her şeyi düzelt" listesi', '"Önce şu üç açığı kapat" öncelik planı'],
+              ["Teknik jargon dolu raporlar", "Jargonsuz, iş etkisiyle açıklanan sade Türkçe analiz"],
+              ["Fidye/KVKK riski kör nokta kalır", "Fidye, veri sızıntısı ve KVKK uyumu ayrı ayrı değerlendirme"],
+              ["Tek seferlik danışmanlık", "Sürekli olgunluk takibi ve ölçülebilir ilerleme kaydı"],
             ].map(([old, neo], i) => (
               <div key={i} className="grid grid-cols-2 border-b last:border-0">
                 <div className="px-6 py-4 text-sm text-muted-foreground border-r flex items-center gap-2">
@@ -195,15 +197,15 @@ export default function Hakkimizda() {
             Siber güvenlik,<br />adım adım.
           </h2>
           <p className="text-slate-400 text-lg max-w-xl mx-auto">
-            Büyük tehditler karşısında doğru adımları atmak için 10 dakikanızı ayırın.
-            İlk adım ücretsiz.
+            Fidye saldırısı, veri sızıntısı, KVKK cezası — üç tehdidin hangisine en açık olduğunuzu
+            10 dakikada öğrenin. İlk karne ücretsiz.
           </p>
           <div className="pt-4">
             <Link
               href="/assessment/start"
               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-4 rounded-lg transition-colors text-base"
             >
-              Uygulamayi Baslat
+              Ücretsiz Siber Sağlık Karnesi Al
               <ArrowRight className="h-5 w-5" />
             </Link>
           </div>
@@ -216,9 +218,9 @@ export default function Hakkimizda() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
               { value: "3.5M+", label: "Türkiye'deki KOBİ" },
-              { value: "%43", label: "Saldırılar KOBİ'leri hedef alıyor" },
-              { value: "10dk", label: "İlk değerlendirme süresi" },
-              { value: "20", label: "Kritik kontrol noktası" },
+              { value: "%60", label: "Fidye saldırılarında KOBİ payı" },
+              { value: "10dk", label: "Siber Sağlık Karnesi süresi" },
+              { value: "₺1.8M", label: "Ortalama fidye maliyeti (KOBİ)" },
             ].map(({ value, label }) => (
               <div key={label}>
                 <div className="text-4xl font-bold text-emerald-600 mb-1">{value}</div>
@@ -234,9 +236,9 @@ export default function Hakkimizda() {
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { icon: Target, title: "Misyonumuz", desc: "KOBİ'lerin siber güvenlik farkındalığını artırmak ve uygulanabilir aksiyon planları sunmak." },
-              { icon: Users, title: "Kitlemiz", desc: "1'den 250'ye kadar çalışanı olan tüm sektörlerden Türkiye'deki küçük ve orta ölçekli işletmeler." },
-              { icon: TrendingUp, title: "Yöntemimiz", desc: "Yapay zeka destekli analiz ile uzman incelemesini birleştiren hibrit bir değerlendirme modeli." },
+              { icon: Target, title: "Odağımız", desc: "İş sürekliliğini tehdit eden üç ana risk: fidye saldırısı, müşteri/çalışan verisi sızıntısı ve KVKK uyumsuzluğu. Bu üçünü öncelik sırasıyla kapatmak, KOBİ'ler için en etkili başlangıç noktasıdır." },
+              { icon: Users, title: "Kitlemiz", desc: "1'den 250'ye kadar çalışanı olan, muhasebe yazılımı kullanan perakende satış noktasından imalat tesisine kadar tüm sektörlerden Türkiye'deki KOBİ'ler." },
+              { icon: TrendingUp, title: "Yöntemimiz", desc: "Yapay zeka ile üretilen Siber Sağlık Karnesi, uzman ekibimizce doğrulanır. Teknik bilgi gerektirmeyen sorular, iş etkisiyle açıklanan bulgular, uygulanabilir öncelik planı." },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="bg-card border rounded-xl p-6">
                 <Icon className="h-8 w-8 text-emerald-500 mb-4" />

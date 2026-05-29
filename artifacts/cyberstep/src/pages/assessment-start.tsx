@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useCreateAssessment } from "@workspace/api-client-react";
 import { SECTORS, EMPLOYEE_COUNTS } from "@/lib/constants";
-import { useCustomer } from "@/hooks/use-customer";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -45,11 +44,6 @@ const formSchema = z.object({
 export default function AssessmentStart() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { data: customer } = useCustomer();
-
-  const isPaidSubscriber =
-    (customer?.subscriptionPlan === "full" || customer?.subscriptionPlan === "premium") &&
-    customer?.subscriptionStatus === "active";
 
   usePageMeta({
     title: "Ucretsiz Degerlendirme Basla | CyberStep.io",
@@ -75,14 +69,6 @@ export default function AssessmentStart() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (values.assessmentType === "full") {
-      if (!isPaidSubscriber) {
-        toast({
-          title: "Ücretli Plan Gerekli",
-          description: "Kapsamlı analiz için Full Plan aboneliği gerekmektedir.",
-          variant: "destructive",
-        });
-        return;
-      }
       setLocation("/assessment/full/start");
       return;
     }
@@ -278,15 +264,12 @@ export default function AssessmentStart() {
                           <FormControl>
                             <RadioGroupItem value="full" className="peer sr-only" />
                           </FormControl>
-                          <FormLabel className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer relative ${!isPaidSubscriber ? "opacity-60" : ""}`}>
-                            <ShieldCheck className={`mb-3 h-6 w-6 ${isPaidSubscriber ? "text-primary" : "text-muted-foreground"}`} />
+                          <FormLabel className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer relative">
+                            <ShieldCheck className="mb-3 h-6 w-6 text-primary" />
                             <div className="flex flex-col items-center space-y-1">
                               <span className="font-semibold text-lg">Kapsamlı Analiz</span>
                               <span className="text-sm text-muted-foreground">55 Detaylı Soru</span>
                             </div>
-                            {!isPaidSubscriber && (
-                              <Badge className="absolute top-2 right-2 bg-secondary text-secondary-foreground">Yakında</Badge>
-                            )}
                           </FormLabel>
                         </FormItem>
                       </RadioGroup>

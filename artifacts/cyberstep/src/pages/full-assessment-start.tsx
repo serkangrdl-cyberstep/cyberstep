@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -11,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Shield, CheckCircle2, Clock, Award } from "lucide-react";
+import { Loader2, Shield, CheckCircle2, Clock, Award, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
@@ -34,24 +33,26 @@ const FULL_FEATURES = [
 export default function FullAssessmentStart() {
   const [, setLocation] = useLocation();
   const createAssessment = useCreateAssessment();
-  const { data: customer } = useCustomer();
+  const { data: customer, isLoading: customerLoading, isError: customerError } = useCustomer();
 
   const isPaidSubscriber =
-    (customer?.subscriptionPlan === "full" || customer?.subscriptionPlan === "premium") &&
-    customer?.subscriptionStatus === "active";
+    !!customer &&
+    (customer.subscriptionPlan === "full" || customer.subscriptionPlan === "premium") &&
+    customer.subscriptionStatus === "active";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       companyName: "",
       contactName: "",
-      contactEmail: "",
+      contactEmail: customer?.email ?? "",
       sector: "",
       employeeCount: "",
     },
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (!isPaidSubscriber) return;
     try {
       const result = await createAssessment.mutateAsync({
         data: {
@@ -63,17 +64,49 @@ export default function FullAssessmentStart() {
           assessmentType: "full",
         },
       });
-      const id = (result as any).id;
-      // Aktif aboneler ödeme sayfasını atlar
-      if (isPaidSubscriber) {
-        setLocation(`/assessment/full/${id}`);
-      } else {
-        setLocation(`/payment/${id}`);
-      }
+      setLocation(`/assessment/full/${(result as any).id}`);
     } catch {
       form.setError("root", { message: "Bir hata oluştu. Lütfen tekrar deneyin." });
     }
   };
+
+  // Yükleniyor
+  if (customerLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Giriş yapılmamış
+  if (customerError || !customer) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-md text-center">
+        <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Giriş Gerekli</h2>
+        <p className="text-muted-foreground mb-6">Kapsamlı analizi kullanmak için hesabınıza giriş yapmanız gerekiyor.</p>
+        <Button onClick={() => setLocation("/giris")} className="w-full">Giriş Yap</Button>
+      </div>
+    );
+  }
+
+  // Abonelik yok
+  if (!isPaidSubscriber) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-md text-center">
+        <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Full Plan Gerekli</h2>
+        <p className="text-muted-foreground mb-6">
+          55 soruluk Kapsamlı Analiz yalnızca Full Plan abonelerine açıktır.
+        </p>
+        <Button onClick={() => setLocation("/fiyatlar")} className="w-full">Planları Gör</Button>
+        <Button variant="outline" onClick={() => setLocation("/assessment/start")} className="w-full mt-3">
+          Ücretsiz Mini Analiz Yap
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">

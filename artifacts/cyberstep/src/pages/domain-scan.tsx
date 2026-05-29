@@ -1152,6 +1152,133 @@ export default function DomainScanPage() {
             </div>
           </div>
 
+          {/* KEP Güvenlik İzleyicisi */}
+          {(result as any).kepConfigured !== undefined && (result as any).kepConfigured !== null && (
+            <Card className={`shadow-sm mb-2 ${(result as any).kepConfigured ? "border-green-200 bg-green-50/40 dark:bg-green-950/10" : "border-slate-200"}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg shrink-0 ${(result as any).kepConfigured ? "bg-green-100 dark:bg-green-900/30" : "bg-slate-100 dark:bg-slate-800"}`}>
+                    <Shield className={`h-4 w-4 ${(result as any).kepConfigured ? "text-green-600" : "text-slate-400"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold">KEP Güvenlik İzleyicisi</span>
+                      {(result as any).kepConfigured
+                        ? <Badge className="text-xs bg-green-100 text-green-700 border-green-200" variant="outline">Yapılandırılmış</Badge>
+                        : <Badge className="text-xs bg-slate-100 text-slate-500 border-slate-200" variant="outline">Tespit Edilemedi</Badge>
+                      }
+                      {(result as any).kepSecure && (
+                        <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200" variant="outline">Güvenli</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {(result as any).kepConfigured
+                        ? `Kayıtlı Elektronik Posta (KEP) yapılandırması tespit edildi.${(result as any).kepRelays?.length > 0 ? ` Relay: ${((result as any).kepRelays as string[]).join(", ")}` : ""}`
+                        : "Alan adında KEP (Kayıtlı Elektronik Posta) yapılandırması bulunamadı. KEP, ticari yazışmalarda yasal geçerlilik sağlar."}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* CyberTrust Güven Rozeti */}
+          {(result as any).badgeToken && (() => {
+            const token = (result as any).badgeToken as string;
+            const score = result.overallScore ?? 0;
+            const grade = score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
+            const gradeColor = grade === "A" ? "#16a34a" : grade === "B" ? "#65a30d" : grade === "C" ? "#d97706" : grade === "D" ? "#ea580c" : "#dc2626";
+            const embedCode = `<script src="${window.location.origin}/api/trust-badge/${token}/widget.js"></script>`;
+            return (
+              <Card className="shadow-sm mb-2 border-violet-200 bg-violet-50/40 dark:bg-violet-950/10 dark:border-violet-900">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-violet-600" />
+                    CyberTrust Güven Rozeti
+                  </CardTitle>
+                  <CardDescription>
+                    Bu kodu web sitenize ekleyerek müsterilerinize güvenli olduğunuzu kanıtlayın.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-3">
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-900">
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: 36, height: 36, background: gradeColor, borderRadius: 8,
+                      fontWeight: 700, fontSize: 18, color: "#fff"
+                    }}>{grade}</span>
+                    <div>
+                      <div className="text-sm font-semibold">{result.domain}</div>
+                      <div className="text-xs text-muted-foreground">CyberStep.io Doğrulandı</div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1.5">Web Sitenize Eklemek İçin:</p>
+                    <div className="flex gap-2 items-start">
+                      <code className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded p-2 font-mono break-all border border-slate-200 dark:border-slate-700">
+                        {embedCode}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(embedCode).catch(() => {});
+                        }}
+                      >
+                        Kopyala
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* Tedarikçi Viral Pasaport */}
+          {result.id && (() => {
+            const inviteUrl = `${window.location.origin}/domain-tarama?ref=${result.id}&utm_source=cybertrust_badge`;
+            return (
+              <Card className="shadow-sm mb-2 border-blue-200 bg-blue-50/40 dark:bg-blue-950/10 dark:border-blue-900">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-600" />
+                    Tedarikçinizi Güvenlik Kontrolünden Geçirin
+                  </CardTitle>
+                  <CardDescription>
+                    Birlikte çalıştığınız şirketlerin de güvenli olduğundan emin olun. Bağlantıyı paylaşın.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={inviteUrl}
+                      className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 font-mono"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(inviteUrl).catch(() => {});
+                      }}
+                    >
+                      Kopyala
+                    </Button>
+                  </div>
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent("Siber Güvenlik Kontrolü — CyberStep.io")}&body=${encodeURIComponent(`Merhaba,\n\nSiber güvenlik durumunuzu ücretsiz kontrol ettirmenizi öneririm.\n${inviteUrl}\n\nİyi çalışmalar.`)}`}
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline font-medium"
+                  >
+                    E-posta ile gönder
+                    <ArrowRight className="h-3 w-3" />
+                  </a>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           {/* CTA */}
           {!result.email && (
             <Card className="shadow-sm border-primary/20 bg-primary/5">

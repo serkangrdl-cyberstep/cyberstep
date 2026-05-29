@@ -540,6 +540,120 @@ export function generateDomainScanPassport(data: PassportData): Promise<Buffer> 
   });
 }
 
+// ─── Siber Sigorta Hazırlık Raporu ───────────────────────────────────────────
+export interface InsuranceReportData {
+  companyName: string;
+  sector: string;
+  employeeCount: string;
+  score: number;
+  insuranceReadinessPercent: number | null;
+  insuranceGaps: string[];
+  kvkkRiskLevel: string | null;
+  recommendations: string[];
+  createdAt: string;
+  assessmentId: number;
+}
+
+export function generateInsuranceReport(data: InsuranceReportData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: "A4", margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+      const chunks: Buffer[] = [];
+      doc.on("data", (c: Buffer) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
+      const L = 50, W = 495, DARK = "#111827", PRIMARY = "#6d28d9", MUTED = "#6b7280";
+
+      // Header
+      doc.rect(0, 0, 595, 80).fill(PRIMARY);
+      doc.fillColor("#fff").fontSize(20).font(FONT_BOLD).text("Siber Sigorta Hazirlik Raporu", L, 24, { width: W });
+      doc.fontSize(10).font(FONT_REGULAR).text("CyberStep.io | " + new Date(data.createdAt).toLocaleDateString("tr-TR"), L, 52, { width: W });
+      doc.y = 100;
+
+      // Company info block
+      doc.fillColor(PRIMARY).fontSize(13).font(FONT_BOLD).text("Firma Bilgileri", L, doc.y);
+      doc.y += 16;
+      const info = [
+        ["Firma Adi", data.companyName],
+        ["Sektor", data.sector],
+        ["Calisan Sayisi", data.employeeCount],
+        ["Degerlendirme Tarihi", new Date(data.createdAt).toLocaleDateString("tr-TR")],
+        ["Degerlendirme No", `#${data.assessmentId}`],
+      ];
+      info.forEach(([label, value]) => {
+        doc.fillColor(MUTED).fontSize(9).font(FONT_REGULAR).text(label + ": ", L, doc.y, { continued: true });
+        doc.fillColor(DARK).font(FONT_BOLD).text(value);
+        doc.y += 4;
+      });
+      doc.y += 14;
+
+      // Readiness score
+      const pct = data.insuranceReadinessPercent ?? 0;
+      const readColor = pct >= 70 ? "#16a34a" : pct >= 40 ? "#d97706" : "#dc2626";
+      const readLabel = pct >= 70 ? "Sigortaya Hazir" : pct >= 40 ? "Kismi Hazir" : "Eksikler Var";
+      doc.rect(L, doc.y, W, 60).fill("#f8f9fa").stroke("#e5e7eb");
+      doc.fillColor(readColor).fontSize(28).font(FONT_BOLD).text(`%${pct}`, L + 12, doc.y + 10, { width: 70, align: "center" });
+      doc.fillColor(DARK).fontSize(14).font(FONT_BOLD).text("Sigorta Hazirlik Puani", L + 90, doc.y - 28);
+      doc.fillColor(readColor).fontSize(10).font(FONT_REGULAR).text(readLabel, L + 90, doc.y - 10);
+      doc.fillColor(MUTED).fontSize(9).text("Bu puan, Allianz, AXA, Zurich ve diger lider sigorta sirketlerinin", L + 90, doc.y + 4);
+      doc.text("KOBIler icin uyguladigi siber sigorta kriterlerine gore hesaplanmistir.", L + 90, doc.y + 4);
+      doc.y += 24;
+
+      // Sigorta Skoru bar
+      doc.y += 8;
+      doc.rect(L, doc.y, W, 10).fill("#e5e7eb");
+      if (pct > 0) doc.rect(L, doc.y, (W * pct) / 100, 10).fill(readColor);
+      doc.y += 22;
+
+      // Gaps
+      if (data.insuranceGaps.length > 0) {
+        doc.fillColor(PRIMARY).fontSize(12).font(FONT_BOLD).text("Sigorta Kapsamini Etkileyen Eksikler", L, doc.y);
+        doc.y += 14;
+        data.insuranceGaps.forEach((gap, i) => {
+          checkPageBreak(doc, 22);
+          doc.rect(L, doc.y, 6, 16).fill("#dc2626");
+          doc.fillColor(DARK).fontSize(10).font(FONT_REGULAR).text(`${i + 1}. ${gap}`, L + 12, doc.y + 2, { width: W - 12 });
+          doc.y += 22;
+        });
+        doc.y += 8;
+      }
+
+      // Genel Skor
+      doc.fillColor(PRIMARY).fontSize(12).font(FONT_BOLD).text("Genel Siber Guvenlik Skoru", L, doc.y);
+      doc.y += 10;
+      const scoreColor = data.score >= 80 ? "#16a34a" : data.score >= 60 ? "#d97706" : "#dc2626";
+      doc.fillColor(scoreColor).fontSize(22).font(FONT_BOLD).text(`${data.score}/100`, L, doc.y);
+      doc.y += 28;
+
+      // Recommendations
+      if (data.recommendations.length > 0) {
+        checkPageBreak(doc, 30);
+        doc.fillColor(PRIMARY).fontSize(12).font(FONT_BOLD).text("Once Yapilmasi Gerekenler", L, doc.y);
+        doc.y += 14;
+        data.recommendations.slice(0, 5).forEach((rec, i) => {
+          checkPageBreak(doc, 24);
+          doc.rect(L, doc.y, W, 20).fill(i % 2 === 0 ? "#f5f3ff" : "#fff");
+          doc.rect(L, doc.y, 3, 20).fill(PRIMARY);
+          doc.fillColor(DARK).fontSize(9).font(FONT_REGULAR).text(rec, L + 10, doc.y + 5, { width: W - 14 });
+          doc.y += 24;
+        });
+        doc.y += 8;
+      }
+
+      // Footer
+      const footerY = 780;
+      doc.rect(0, footerY, 595, 1).fill("#e5e7eb");
+      doc.fillColor(MUTED).fontSize(8).font(FONT_REGULAR)
+        .text("Bu rapor, cyberstep.io tarafindan otomatik olarak olusturulmustur. Kesin sigorta poliçesi kosullari icin bir sigorta brokeri ile gorusunuz.", L, footerY + 8, { width: W, align: "center" });
+
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 function sectionTitle(doc: InstanceType<typeof PDFDocument>, title: string, x: number, w: number) {
   checkPageBreak(doc, 40);
   doc.rect(x, doc.y, w, 1).fill(PRIMARY);

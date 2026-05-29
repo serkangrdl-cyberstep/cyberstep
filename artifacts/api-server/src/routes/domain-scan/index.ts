@@ -2,6 +2,7 @@ import { Router } from "express";
 import dns from "dns/promises";
 import https from "https";
 import http from "http";
+import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { domainScansTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
@@ -323,6 +324,35 @@ async function checkBlacklists(domain: string): Promise<{
 // ─── USOM Zararlı Alan Listesi (Ulusal Siber Olaylar Müdahale Merkezi) ─────────
 let _usomDomains: Set<string> = new Set();
 let _usomLastFetch = 0;
+
+async function checkKEP(domain: string): Promise<{ configured: boolean; relays: string[]; secure: boolean }> {
+  const KEP_PATTERNS = ["kep.tr", "kayitlielektronikposta", "hs01.kep", "hs02.kep", "hs03.kep", "hs04.kep", "ptt.kep"];
+  try {
+    const txtRecords = await dns.resolveTxt(domain).catch(() => [] as string[][]);
+    const allTxt = txtRecords.map((r: string[]) => r.join("").toLowerCase());
+    const hasKepInTxt = allTxt.some((r: string) => KEP_PATTERNS.some(p => r.includes(p)));
+
+    const mxRecords = await dns.resolveMx(domain).catch(() => [] as { exchange: string; priority: number }[]);
+    const kepRelaysFound = mxRecords
+      .map((r: { exchange: string; priority: number }) => r.exchange.toLowerCase())
+      .filter((mx: string) => KEP_PATTERNS.some(p => mx.includes(p)));
+
+    const spfTxt = allTxt.find((r: string) => r.startsWith("v=spf1")) ?? "";
+    const spfIncludesKep = KEP_PATTERNS.some(p => spfTxt.includes(p));
+
+    const configured = kepRelaysFound.length > 0 || hasKepInTxt || spfIncludesKep;
+    const relays = kepRelaysFound.length > 0 ? kepRelaysFound : [];
+
+    const dmarcRecords = await dns.resolveTxt(`_dmarc.${domain}`).catch(() => [] as string[][]);
+    const dmarcRecord = dmarcRecords.map((r: string[]) => r.join("")).find((r: string) => r.startsWith("v=DMARC1"));
+    const dmarcPolicy = dmarcRecord?.match(/p=([^;]+)/)?.[1]?.toLowerCase();
+    const secure = configured && (dmarcPolicy === "reject" || dmarcPolicy === "quarantine");
+
+    return { configured, relays, secure };
+  } catch {
+    return { configured: false, relays: [], secure: false };
+  }
+}
 
 export async function refreshUsomList(): Promise<void> {
   return new Promise((resolve) => {
@@ -772,8 +802,11 @@ router.post("/domain-scan", async (req, res) => {
 
   logger.info({ domain }, "Starting domain scan");
 
+  const rawRef = req.body?.referralSource;
+  const referralSource = typeof rawRef === "string" && rawRef.trim() ? rawRef.trim() : null;
+
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans, shodan, virusTotal, abuseIpdb, safeBrowsing, sslLabs] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans, shodan, virusTotal, abuseIpdb, safeBrowsing, sslLabs, kep] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -791,6 +824,7 @@ router.post("/domain-scan", async (req, res) => {
       checkAbuseIPDB(domain),
       checkGoogleSafeBrowsing(domain),
       checkSSLLabs(domain),
+      checkKEP(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -842,6 +876,11 @@ router.post("/domain-scan", async (req, res) => {
         safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
         safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: sslLabs.grade,
+        badgeToken: randomUUID(),
+        referralSource,
+        kepConfigured: kep.configured,
+        kepRelays: kep.relays,
+        kepSecure: kep.secure,
       })
       .returning();
 
@@ -961,6 +1000,50 @@ router.get("/domain-scan/:id/passport", async (req, res) => {
     logger.error({ err, scanId: id }, "Domain scan passport PDF generation failed");
     res.status(500).json({ error: "Pasaport PDF oluşturulamadı" });
   }
+});
+
+// ─── GET /api/trust-badge/:token ─────────────────────────────────────────────
+router.get("/trust-badge/:token", async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  const token = req.params.token;
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.badgeToken, token));
+  if (!scan) return void res.status(404).json({ error: "Rozet bulunamadı" });
+  const score = scan.overallScore ?? 0;
+  const grade = score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
+  res.json({
+    domain: scan.domain,
+    score,
+    grade,
+    spfPass: scan.spfPass,
+    dmarcPass: scan.dmarcPass,
+    sslPass: scan.sslPass,
+    blacklisted: scan.blacklisted,
+    lastChecked: scan.createdAt.toISOString(),
+    verifiedBy: "CyberStep.io",
+  });
+});
+
+// ─── GET /api/trust-badge/:token/widget.js ───────────────────────────────────
+router.get("/trust-badge/:token/widget.js", async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  const token = req.params.token;
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.badgeToken, token));
+  if (!scan) return void res.status(404).send("// Badge not found");
+  const score = scan.overallScore ?? 0;
+  const grade = score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
+  const color = grade === "A" ? "#16a34a" : grade === "B" ? "#65a30d" : grade === "C" ? "#d97706" : grade === "D" ? "#ea580c" : "#dc2626";
+  const date = new Date(scan.createdAt).toLocaleDateString("tr-TR");
+  const script = `(function(){
+  var d=document,el=d.createElement("div");
+  el.style.cssText="display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid ${color};border-radius:10px;padding:8px 14px;font-family:system-ui,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);text-decoration:none;";
+  el.innerHTML='<span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:${color};border-radius:6px;font-weight:700;font-size:18px;color:#fff;">${grade}</span><span style="display:flex;flex-direction:column;"><span style="font-weight:600;font-size:13px;color:#111;">${scan.domain}</span><span style="font-size:11px;color:#666;">CyberStep.io Doğrulandı &bull; ${date}</span></span>';
+  var s=d.currentScript||d.scripts[d.scripts.length-1];
+  s.parentNode.insertBefore(el,s);
+})();`;
+  res.send(script);
 });
 
 export default router;

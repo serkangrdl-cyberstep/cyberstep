@@ -1,4 +1,5 @@
 import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
+import KvkkDpa from "./pages/kvkk-dpa";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -171,6 +172,7 @@ function Router() {
             <Route path="/admin/review/:token" component={AdminReview} />
             <Route path="/verify/:token" component={VerifyPage} />
             <Route path="/domain-tarama" component={DomainScan} />
+            <Route path="/kvkk-dpa-olustur" component={KvkkDpa} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

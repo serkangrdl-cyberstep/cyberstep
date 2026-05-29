@@ -642,6 +642,11 @@ async function ensureDomainScanEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS safe_browsing_flagged BOOLEAN`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS safe_browsing_threats JSONB NOT NULL DEFAULT '[]'`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS ssl_labs_grade TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS badge_token TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS referral_source TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS kep_configured BOOLEAN`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS kep_relays JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS kep_secure BOOLEAN`);
 }
 
 async function updatePricingPlanFeatures() {
@@ -693,6 +698,11 @@ async function ensureReportEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS kvkk_risk_summary TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS sector_benchmark_percent INTEGER`);
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS sector_benchmark_comment TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verbis_required BOOLEAN`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verbis_risk_level TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verbis_steps JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS insurance_readiness_percent INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS insurance_gaps JSONB NOT NULL DEFAULT '[]'::jsonb`);
 }
 
 async function ensureSecurityAdvisoriesTable() {

@@ -435,6 +435,11 @@ YAZIM KURALLARI (kesinlikle uy):
 - kvkkRiskSummary: 2-3 cümle, KOBİ sahibinin anlayacağı dilde KVKK riski özeti. Teknik jargon yok — somut iş ve hukuki etki. Cezanın kişisel yönetim sorumluluğu boyutuna değin.
 - sectorBenchmarkPercent: Bu firmayı Türkiye'de aynı sektör ve çalışan grubundaki şirketler içinde kaçıncı yüzdelik dilime koyarsın? Genel siber güvenlik raporları ve sektörel veriyi kullan. 0=en kötü, 100=en iyi yüzdelik dilim. Tam sayı.
 - sectorBenchmarkComment: Tek cümle sektör karşılaştırması. Örn: "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip."
+- verbisRequired: Bu şirketin Türkiye KVKK kapsamında VERBİS (Veri Sorumluları Sicili Bilgi Sistemi)'ne kayıt yaptırması zorunlu mu? Sağlık, hukuk, finans, e-ticaret sektörleri ve 50+ çalışanlı firmalar için genellikle zorunlu. true veya false döndür.
+- verbisRiskLevel: VERBİS kaydı yaptırmamış olmanın getirdiği risk seviyesi — yalnızca: "Düşük", "Orta", "Yüksek" veya "Acil". Kayıt zorunluysa ve yoksa "Acil" veya "Yüksek" ver.
+- verbisSteps: VERBİS kaydı için somut 4-5 adımlık yol haritası. Her adım tek cümle, KOBİ sahibinin anlayacağı dilde. Kayıtlıysa iyileştirme adımları ver.
+- insuranceReadinessPercent: Bu şirketin siber sigorta için hazırlık puanı (0-100). Türkiye'de Allianz, AXA, Zurich gibi şirketlerin değerlendirme kriterlerini baz al: MFA, yedekleme, şifreleme, olay müdahale planı, e-posta güvenliği, yama yönetimi. Tam sayı.
+- insuranceGaps: Sigorta kapsamını engelleyen veya primi artıran eksikleri listele. Her madde tek cümle, somut. 3-5 madde.
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
 
 JSON şablonu:
@@ -463,7 +468,12 @@ JSON şablonu:
   "kvkkRiskArticles": ["Md.12", "Md.18"],
   "kvkkRiskSummary": "KVKK riski 2-3 cümle özeti.",
   "sectorBenchmarkPercent": 42,
-  "sectorBenchmarkComment": "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip."
+  "sectorBenchmarkComment": "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip.",
+  "verbisRequired": true,
+  "verbisRiskLevel": "Yüksek",
+  "verbisSteps": ["Adım 1: verbis.kvkk.gov.tr adresine gidin.", "Adım 2: Veri sorumlusu olarak kayıt başlatın."],
+  "insuranceReadinessPercent": 45,
+  "insuranceGaps": ["MFA (çok faktörlü doğrulama) aktif değil.", "Düzenli yedekleme politikası yok."]
 }`;
 
   try {
@@ -483,6 +493,11 @@ JSON şablonu:
     let kvkkRiskSummary: string | null = null;
     let sectorBenchmarkPercent: number | null = null;
     let sectorBenchmarkComment: string | null = null;
+    let verbisRequired: boolean | null = null;
+    let verbisRiskLevel: string | null = null;
+    let verbisSteps: string[] = [];
+    let insuranceReadinessPercent: number | null = null;
+    let insuranceGaps: string[] = [];
 
     if (jsonMatch) {
       try {
@@ -500,6 +515,11 @@ JSON şablonu:
         kvkkRiskSummary = typeof parsed.kvkkRiskSummary === "string" ? parsed.kvkkRiskSummary : null;
         sectorBenchmarkPercent = typeof parsed.sectorBenchmarkPercent === "number" ? parsed.sectorBenchmarkPercent : null;
         sectorBenchmarkComment = typeof parsed.sectorBenchmarkComment === "string" ? parsed.sectorBenchmarkComment : null;
+        verbisRequired = typeof parsed.verbisRequired === "boolean" ? parsed.verbisRequired : null;
+        verbisRiskLevel = typeof parsed.verbisRiskLevel === "string" ? parsed.verbisRiskLevel : null;
+        verbisSteps = Array.isArray(parsed.verbisSteps) ? parsed.verbisSteps : [];
+        insuranceReadinessPercent = typeof parsed.insuranceReadinessPercent === "number" ? parsed.insuranceReadinessPercent : null;
+        insuranceGaps = Array.isArray(parsed.insuranceGaps) ? parsed.insuranceGaps : [];
       } catch {
         aiAnalysis = text;
       }
@@ -516,7 +536,7 @@ JSON şablonu:
     if (existingReport) {
       await db
         .update(reportsTable)
-        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, kvkkPenaltyMin, kvkkPenaltyMax, kvkkRiskLevel, kvkkRiskArticles, kvkkRiskSummary, sectorBenchmarkPercent, sectorBenchmarkComment, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
+        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, kvkkPenaltyMin, kvkkPenaltyMax, kvkkRiskLevel, kvkkRiskArticles, kvkkRiskSummary, sectorBenchmarkPercent, sectorBenchmarkComment, verbisRequired, verbisRiskLevel, verbisSteps, insuranceReadinessPercent, insuranceGaps, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
         .where(eq(reportsTable.assessmentId, assessmentId));
     } else {
       await db.insert(reportsTable).values({
@@ -540,6 +560,11 @@ JSON şablonu:
         kvkkRiskSummary,
         sectorBenchmarkPercent,
         sectorBenchmarkComment,
+        verbisRequired,
+        verbisRiskLevel,
+        verbisSteps,
+        insuranceReadinessPercent,
+        insuranceGaps,
         domainScores: scoring.domainScores,
         reviewToken,
         verificationToken,
@@ -729,6 +754,38 @@ router.get("/assessments/:id/report", requireAssessmentOwner, async (req, res) =
     : null;
 
   res.json({ ...report, previousScore, sectorAvg, domainScan: domainScanData });
+});
+
+// GET /api/assessments/:id/insurance-report
+router.get("/assessments/:id/insurance-report", requireAssessmentOwner, async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) return void res.status(400).json({ error: "Geçersiz ID" });
+  const [assessment] = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, id));
+  if (!assessment) return void res.status(404).json({ error: "Değerlendirme bulunamadı" });
+  const [report] = await db.select().from(reportsTable).where(eq(reportsTable.assessmentId, id));
+  if (!report) return void res.status(404).json({ error: "Rapor henüz hazır değil" });
+  try {
+    const { generateInsuranceReport } = await import("../../services/pdf");
+    const buf = await generateInsuranceReport({
+      companyName: assessment.companyName,
+      sector: assessment.sector ?? "Belirtilmemiş",
+      employeeCount: assessment.employeeCount ?? "Belirtilmemiş",
+      score: report.scorePercent ?? 0,
+      insuranceReadinessPercent: report.insuranceReadinessPercent ?? null,
+      insuranceGaps: (report.insuranceGaps as string[]) ?? [],
+      kvkkRiskLevel: report.kvkkRiskLevel ?? null,
+      recommendations: (report.recommendations as string[]) ?? [],
+      createdAt: report.createdAt.toISOString(),
+      assessmentId: id,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Sigorta_Raporu_${id}.pdf"`);
+    res.setHeader("Content-Length", buf.length);
+    res.send(buf);
+  } catch (err) {
+    req.log.error({ err, assessmentId: id }, "Insurance report PDF generation failed");
+    res.status(500).json({ error: "Sigorta raporu oluşturulamadı" });
+  }
 });
 
 // GET /api/assessments/:id/report/pdf

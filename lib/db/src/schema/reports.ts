@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { assessmentsTable } from "./assessments";
@@ -33,6 +33,11 @@ export const reportsTable = pgTable("reports", {
   kvkkRiskSummary: text("kvkk_risk_summary"),
   sectorBenchmarkPercent: integer("sector_benchmark_percent"),
   sectorBenchmarkComment: text("sector_benchmark_comment"),
+  verbisRequired: boolean("verbis_required"),
+  verbisRiskLevel: text("verbis_risk_level"),
+  verbisSteps: jsonb("verbis_steps").$type<string[]>().notNull().default([]),
+  insuranceReadinessPercent: integer("insurance_readiness_percent"),
+  insuranceGaps: jsonb("insurance_gaps").$type<string[]>().notNull().default([]),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true });

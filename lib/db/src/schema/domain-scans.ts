@@ -48,6 +48,11 @@ export const domainScansTable = pgTable("domain_scans", {
   safeBrowsingFlagged: boolean("safe_browsing_flagged"),
   safeBrowsingThreats: jsonb("safe_browsing_threats").$type<string[]>().notNull().default([]),
   sslLabsGrade: text("ssl_labs_grade"),
+  badgeToken: text("badge_token"),
+  referralSource: text("referral_source"),
+  kepConfigured: boolean("kep_configured"),
+  kepRelays: jsonb("kep_relays").$type<string[]>().notNull().default([]),
+  kepSecure: boolean("kep_secure"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

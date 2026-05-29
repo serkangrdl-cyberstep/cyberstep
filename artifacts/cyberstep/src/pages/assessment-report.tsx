@@ -991,6 +991,129 @@ function AssessmentReportCore({ id }: { id: number }) {
         );
       })()}
 
+      {/* KVKK VERBİS Hazırlık Skoru */}
+      {(report as any).verbisRequired !== undefined && (report as any).verbisRequired !== null && (() => {
+        const verbisRequired = (report as any).verbisRequired as boolean;
+        const verbisRiskLevel = (report as any).verbisRiskLevel as string | null;
+        const verbisSteps = ((report as any).verbisSteps ?? []) as string[];
+        const riskColor = verbisRiskLevel === "Acil" ? "text-red-600" : verbisRiskLevel === "Yüksek" ? "text-orange-600" : verbisRiskLevel === "Orta" ? "text-yellow-600" : "text-green-600";
+        const riskBg = verbisRiskLevel === "Acil" ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900" : verbisRiskLevel === "Yüksek" ? "bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900" : "bg-slate-50 border-slate-200 dark:bg-slate-900/30";
+        return (
+          <Card className={`shadow-sm mb-6 ${riskBg}`}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  KVKK VERBİS Hazirlik Analizi
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs ${riskColor} border-current`}>
+                    {verbisRiskLevel ?? "Analiz Edildi"}
+                  </Badge>
+                  <Badge variant="outline" className={`text-xs ${verbisRequired ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+                    {verbisRequired ? "Kayit Zorunlu" : "Zorunlu Degil"}
+                  </Badge>
+                </div>
+              </div>
+              <CardDescription>
+                VERBİS (Veri Sorumluları Sicili Bilgi Sistemi) KVKK kapsamında veri sorumlusu olarak tescil sistemidir.
+                {verbisRequired
+                  ? " Firma profilinize gore kayit yaptirmaniz zorunludur."
+                  : " Mevcut profil icin zorunlu degil, ancak gönüllü kayit olusturabilirsiniz."}
+              </CardDescription>
+            </CardHeader>
+            {verbisSteps.length > 0 && (
+              <CardContent className="pt-0">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Yol Haritasi</p>
+                <ol className="space-y-2">
+                  {verbisSteps.map((step, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                      <span className="text-slate-700 dark:text-slate-300">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <a
+                  href="https://verbis.kvkk.gov.tr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-4 text-xs text-primary hover:underline font-medium"
+                >
+                  verbis.kvkk.gov.tr adresine git
+                  <Download className="h-3 w-3" />
+                </a>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })()}
+
+      {/* Siber Sigorta Hazırlık */}
+      {(report as any).insuranceReadinessPercent !== undefined && (report as any).insuranceReadinessPercent !== null && (() => {
+        const pct = (report as any).insuranceReadinessPercent as number;
+        const gaps = ((report as any).insuranceGaps ?? []) as string[];
+        const readColor = pct >= 70 ? "text-green-600" : pct >= 40 ? "text-orange-600" : "text-red-600";
+        const readBorderColor = pct >= 70 ? "border-green-200 dark:border-green-900" : pct >= 40 ? "border-orange-200 dark:border-orange-900" : "border-red-200 dark:border-red-900";
+        const readLabel = pct >= 70 ? "Sigortaya Hazir" : pct >= 40 ? "Kismi Hazir" : "Eksikler Var";
+        return (
+          <Card className={`shadow-sm mb-6 border ${readBorderColor}`}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Siber Sigorta Hazirlik Raporu
+                </CardTitle>
+                <Badge variant="outline" className={`text-xs font-semibold ${readColor} border-current`}>
+                  {readLabel}
+                </Badge>
+              </div>
+              <CardDescription>
+                Siber sigorta poliçesi almaya veya mevcut poliçeyi gelistirmeye ne kadar hazirsiniz?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">Hazirlik Puani</span>
+                  <span className={`text-sm font-bold ${readColor}`}>%{pct}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-orange-500" : "bg-red-500"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+              {gaps.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Sigorta Kapsaminizi Etkileyen Eksikler</p>
+                  <ul className="space-y-1.5">
+                    {gaps.map((gap, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
+                        <ShieldAlert className="h-3.5 w-3.5 text-orange-500 shrink-0 mt-0.5" />
+                        {gap}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const assessmentId = report.assessmentId;
+                  window.open(`/api/assessments/${assessmentId}/insurance-report`, "_blank");
+                }}
+                className="gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5" />
+                PDF Sigorta Raporunu Indir
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Guvenlik Maratonu — 30 Gunluk Eylem Plani */}
       {Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
         <MarathonSection

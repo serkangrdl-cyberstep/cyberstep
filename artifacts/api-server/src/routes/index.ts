@@ -12,6 +12,7 @@ import workPackagesRouter from "./work-packages/index";
 import breachMonitorRouter from "./breach-monitor/index";
 import toolsRouter from "./tools/index";
 import tprmRouter from "./tprm/index";
+import scanLeadsRouter from "./scan-leads/index";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(workPackagesRouter);
 router.use(breachMonitorRouter);
 router.use(toolsRouter);
 router.use(tprmRouter);
+router.use(scanLeadsRouter);
 
 export default router;

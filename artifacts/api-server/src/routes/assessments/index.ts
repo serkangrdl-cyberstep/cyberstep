@@ -868,6 +868,7 @@ router.get("/verify/:token", async (req, res) => {
       verificationToken: reportsTable.verificationToken,
       verifiedAt: reportsTable.verifiedAt,
       verificationExpiresAt: reportsTable.verificationExpiresAt,
+      certificationTier: reportsTable.certificationTier,
     })
     .from(reportsTable)
     .where(eq(reportsTable.verificationToken, token))
@@ -908,6 +909,8 @@ router.get("/verify/:token", async (req, res) => {
     completedAt: assessment.completedAt ?? report.createdAt,
     verifiedAt: report.verifiedAt ?? report.createdAt,
     verificationExpiresAt: report.verificationExpiresAt ?? null,
+    certificationTier: report.certificationTier ?? 1,
+    verificationCode: `TR-${new Date(report.verifiedAt ?? report.createdAt).getFullYear()}-${token.slice(0, 5).toUpperCase()}`,
   });
 });
 

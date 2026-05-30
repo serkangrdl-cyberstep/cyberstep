@@ -995,6 +995,13 @@ export default function Home() {
                 why: "Üretim sektöründe tehdit aktörü faaliyetleri son yılda %71 arttı; saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti. Avrupa alıcıları TPRM raporu istiyor.",
               },
               {
+                href: "/roi-hesaplayici",
+                icon: "🧮",
+                title: "Siber Risk ROI Hesaplayıcı",
+                what: "Sektör ve çalışan sayısına göre olası siber saldırı maliyetini, KVKK ceza riskini ve CyberStep ile sağlanacak tasarrufu TL bazında hesaplar.",
+                why: "IBM 2024 verilerine göre KOBİ'lerin ortalama siber saldırı maliyeti 350 bin – 1,2 milyon TL. ROI hesabı bütçe kararını somutlaştırır.",
+              },
+              {
                 href: "/guven-rozeti",
                 icon: "🏅",
                 title: "AI Güven Rozeti",

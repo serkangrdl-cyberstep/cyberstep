@@ -6,6 +6,7 @@ import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail } from "./services/email";
+import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -600,6 +601,18 @@ function startIsrImapCron() {
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
+// ─── Cron: Scan lead e-posta aktivasyon dizisi (her saat bir kez) ─────────────
+function startScanLeadDripCron() {
+  cron.schedule("0 * * * *", async () => {
+    try {
+      await runScanLeadDripCron();
+    } catch (err) {
+      logger.error({ err }, "Scan lead drip cron error");
+    }
+  }, { timezone: "Europe/Istanbul" });
+  logger.info("Scan lead drip cron scheduled (hourly)");
+}
+
 async function ensureAssessmentsColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS tenant_id INTEGER`);
 }
@@ -1138,6 +1151,7 @@ async function startup() {
 startup()
   .then(() => {
     startReminderCron();
+    startScanLeadDripCron();
     startIsrImapCron();
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));

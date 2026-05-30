@@ -35,3 +35,4 @@ export * from "./partners";
 export * from "./work-packages";
 export * from "./badge-advantages";
 export * from "./tprm";
+export * from "./scan-leads";

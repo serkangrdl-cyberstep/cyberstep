@@ -144,17 +144,29 @@ router.post("/admin-panel/assessments/:id/issue-verification", requireAdmin, asy
   if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
   const durationYears = Number(req.body?.durationYears ?? 1);
   if (durationYears !== 1 && durationYears !== 2) { res.status(400).json({ error: "Geçersiz süre (1 veya 2 yıl)" }); return; }
+  const certificationTier = Number(req.body?.certificationTier ?? 1);
+  if (![1, 2, 3].includes(certificationTier)) { res.status(400).json({ error: "Geçersiz sertifikasyon katmanı (1, 2 veya 3)" }); return; }
   const token = crypto.randomUUID();
   const verifiedAt = new Date();
   const verificationExpiresAt = new Date(verifiedAt);
   verificationExpiresAt.setFullYear(verificationExpiresAt.getFullYear() + durationYears);
   const [updated] = await db
     .update(reportsTable)
-    .set({ verificationToken: token, verifiedAt, verificationExpiresAt, verificationDurationYears: durationYears })
+    .set({ verificationToken: token, verifiedAt, verificationExpiresAt, verificationDurationYears: durationYears, certificationTier })
     .where(eq(reportsTable.assessmentId, id))
-    .returning({ verificationToken: reportsTable.verificationToken, verifiedAt: reportsTable.verifiedAt, verificationExpiresAt: reportsTable.verificationExpiresAt });
+    .returning({
+      verificationToken: reportsTable.verificationToken,
+      verifiedAt: reportsTable.verifiedAt,
+      verificationExpiresAt: reportsTable.verificationExpiresAt,
+      certificationTier: reportsTable.certificationTier,
+    });
   if (!updated) { res.status(404).json({ error: "Bu değerlendirmeye ait rapor bulunamadı" }); return; }
-  res.json({ verificationToken: updated.verificationToken, verifiedAt: updated.verifiedAt, verificationExpiresAt: updated.verificationExpiresAt });
+  res.json({
+    verificationToken: updated.verificationToken,
+    verifiedAt: updated.verifiedAt,
+    verificationExpiresAt: updated.verificationExpiresAt,
+    certificationTier: updated.certificationTier,
+  });
 });
 
 // DELETE /api/admin-panel/assessments/:id/issue-verification — Rozeti iptal et

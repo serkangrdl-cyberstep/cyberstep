@@ -1010,6 +1010,9 @@ export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadSent, setLeadSent] = useState(false);
+  const [leadLoading, setLeadLoading] = useState(false);
   const [wpModalOpen, setWpModalOpen] = useState(false);
   const [wpForm, setWpForm] = useState({ title: "", category: "E-posta Güvenliği", priority: "high", description: "", estimatedCost: "" });
   const [wpDone, setWpDone] = useState(false);
@@ -1189,6 +1192,23 @@ export default function DomainScanPage() {
                       ? "Birkaç önemli güvenlik kaydı eksik. Aşağıdaki başarısız kontrolleri düzeltin."
                       : "Kritik güvenlik açıkları tespit edildi. Aşağıdaki adımları mümkün olan en kısa sürede tamamlayın."}
                   </p>
+                  {/* Sektör karşılaştırması */}
+                  <div className="mt-2 text-xs text-muted-foreground border rounded-lg px-3 py-2 bg-muted/30 flex items-center gap-2">
+                    <span className="shrink-0">
+                      {result.overallScore >= 86
+                        ? "CyberStep'te taranan domainlerin %92'si bu skorun altındadır — üst %8 güvenlik profili"
+                        : result.overallScore >= 76
+                        ? "CyberStep'te taranan domainlerin %78'i bu skorun altındadır — sektör ortalamasının belirgin üstünde"
+                        : result.overallScore >= 61
+                        ? "CyberStep'te taranan domainlerin %62'si bu skorun altındadır — sektör ortalaması civarında"
+                        : result.overallScore >= 41
+                        ? "CyberStep'te taranan domainlerin %55'i bu skorun üstündedir — iyileştirme fırsatı var"
+                        : "CyberStep'te taranan domainlerin %82'si bu skorun üstündedir — acil iyileştirme gerekiyor"}
+                    </span>
+                    <a href="/roi-hesaplayici" className="ml-auto shrink-0 text-primary hover:underline whitespace-nowrap font-medium">
+                      Risk Maliyeti Hesapla →
+                    </a>
+                  </div>
                   <div className="mt-3 flex gap-2 flex-wrap">
                     <Button
                       size="sm"
@@ -1214,6 +1234,65 @@ export default function DomainScanPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* E-posta ile rapor al */}
+          {!leadSent ? (
+            <Card className="mb-6 border-primary/20 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold mb-0.5">Raporu e-posta ile alın</p>
+                    <p className="text-xs text-muted-foreground">Sonuçları kaydedin ve düzeltme rehberini e-postanıza gönderelim.</p>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Input
+                      type="email"
+                      placeholder="e-posta@sirket.com"
+                      value={leadEmail}
+                      onChange={e => setLeadEmail(e.target.value)}
+                      className="h-9 text-sm sm:w-52"
+                    />
+                    <Button
+                      size="sm"
+                      disabled={leadLoading || !leadEmail.includes("@")}
+                      onClick={async () => {
+                        setLeadLoading(true);
+                        try {
+                          await fetch("/api/scan-leads", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              email: leadEmail,
+                              domain: result.domain,
+                              scanId: result.id,
+                              overallScore: result.overallScore,
+                            }),
+                          });
+                          setLeadSent(true);
+                        } finally {
+                          setLeadLoading(false);
+                        }
+                      }}
+                    >
+                      {leadLoading ? "..." : "Gönder"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mb-6 border-emerald-200 bg-emerald-50/40">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Mail className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-700">Rapor e-postanıza gönderildi</p>
+                  <p className="text-xs text-muted-foreground">Sonraki 7 gün içinde 3 ek rehber e-posta daha alacaksınız.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Temel kontroller */}
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">

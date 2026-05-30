@@ -78,6 +78,7 @@ import BlogPost from "./pages/blog-post";
 import VerifyPage from "./pages/verify";
 import DomainScan from "./pages/domain-scan";
 import SizintiIzleyici from "./pages/sizinti-izleyici";
+import RoiHesaplayici from "./pages/roi-hesaplayici";
 import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
@@ -214,6 +215,7 @@ function Router() {
             <Route path="/admin/review/:token" component={AdminReview} />
             <Route path="/verify/:token" component={VerifyPage} />
             <Route path="/domain-tarama" component={DomainScan} />
+            <Route path="/roi-hesaplayici" component={RoiHesaplayici} />
             <Route path="/sizinti-izleyici" component={SizintiIzleyici} />
             <Route path="/kvkk-dpa-olustur" component={KvkkDpa} />
             <Route path="/siber-panik" component={SiberPanik} />

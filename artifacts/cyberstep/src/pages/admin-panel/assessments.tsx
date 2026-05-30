@@ -30,6 +30,7 @@ export default function AdminAssessments() {
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<"issue" | "revoke" | null>(null);
   const [durationYears, setDurationYears] = useState<1 | 2>(1);
+  const [certificationTier, setCertificationTier] = useState<1 | 2 | 3>(1);
 
   const { data: assessments, isLoading } = useQuery<Assessment[]>({
     queryKey: ["admin-assessments"],
@@ -47,7 +48,7 @@ export default function AdminAssessments() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ durationYears: years }),
+        body: JSON.stringify({ durationYears: years, certificationTier }),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Hata");
       return r.json();
@@ -57,6 +58,7 @@ export default function AdminAssessments() {
       setConfirmId(null);
       setConfirmAction(null);
       setDurationYears(1);
+      setCertificationTier(1);
     },
   });
 
@@ -103,26 +105,53 @@ export default function AdminAssessments() {
                 : "Bu değerlendirmenin doğrulama rozeti iptal edilecek ve müşterinin doğrulama bağlantısı çalışmayacak. Devam etmek istediğinizden emin misiniz?"}
             </p>
             {confirmAction === "issue" && (
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Rozet Geçerlilik Süresi</label>
-                <div className="flex gap-2">
-                  {([1, 2] as const).map(y => (
-                    <button
-                      key={y}
-                      onClick={() => setDurationYears(y)}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        durationYears === y
-                          ? "bg-emerald-600 border-emerald-500 text-white"
-                          : "bg-slate-700 border-slate-600 text-slate-300 hover:border-emerald-500/50"
-                      }`}
-                    >
-                      {y} Yıl
-                    </button>
-                  ))}
+              <div className="space-y-4">
+                {/* Sertifikasyon Katmanı */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-medium">Sertifikasyon Katmanı</label>
+                  <div className="space-y-1.5">
+                    {([
+                      { value: 1, title: "Katman 1 — Risk Skoru", desc: "Beyan bazlı otomatik değerlendirme. Sertifika niteliği taşımaz." },
+                      { value: 2, title: "Katman 2 — Değerlendirildi", desc: "Uzman incelemeli kapsamlı rapor. 2.500–5.000 TL ücretli." },
+                      { value: 3, title: "Katman 3 — Sertifikalı Platform", desc: "Kanıt doğrulama + yerinde/uzaktan denetim. 15.000–20.000 TL." },
+                    ] as const).map(t => (
+                      <button
+                        key={t.value}
+                        onClick={() => setCertificationTier(t.value)}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                          certificationTier === t.value
+                            ? "bg-emerald-600/20 border-emerald-500 text-emerald-300"
+                            : "bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500"
+                        }`}
+                      >
+                        <div className="font-medium text-xs">{t.title}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{t.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500">
-                  Rozet {durationYears === 1 ? "1 yıl" : "2 yıl"} geçerli olacak. Süre dolunca doğrulama sayfası "Süresi Doldu" uyarısı gösterecek.
-                </p>
+                {/* Geçerlilik Süresi */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-medium">Geçerlilik Süresi</label>
+                  <div className="flex gap-2">
+                    {([1, 2] as const).map(y => (
+                      <button
+                        key={y}
+                        onClick={() => setDurationYears(y)}
+                        className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          durationYears === y
+                            ? "bg-emerald-600 border-emerald-500 text-white"
+                            : "bg-slate-700 border-slate-600 text-slate-300 hover:border-emerald-500/50"
+                        }`}
+                      >
+                        {y} Yıl
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Süre dolunca doğrulama sayfası "Süresi Doldu" uyarısı gösterecek.
+                  </p>
+                </div>
               </div>
             )}
             {(issueVerification.isError || revokeVerification.isError) && (

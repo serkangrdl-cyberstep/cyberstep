@@ -20,6 +20,7 @@ export const reportsTable = pgTable("reports", {
   verifiedAt: timestamp("verified_at"),
   verificationExpiresAt: timestamp("verification_expires_at"),
   verificationDurationYears: integer("verification_duration_years"),
+  certificationTier: integer("certification_tier").notNull().default(1),
   adminNotes: text("admin_notes"),
   reviewStatus: text("review_status").notNull().default("pending_review"),
   reviewedAt: timestamp("reviewed_at"),

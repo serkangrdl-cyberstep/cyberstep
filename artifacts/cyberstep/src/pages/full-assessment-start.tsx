@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -10,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Shield, CheckCircle2, Clock, Award, Lock } from "lucide-react";
+import { Loader2, Shield, CheckCircle2, Clock, Award, Lock, Plus, X, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
@@ -34,6 +35,7 @@ export default function FullAssessmentStart() {
   const [, setLocation] = useLocation();
   const createAssessment = useCreateAssessment();
   const { data: customer, isLoading: customerLoading, isError: customerError } = useCustomer();
+  const [domains, setDomains] = useState<string[]>([""]);
 
   const isPaidSubscriber =
     !!customer &&
@@ -51,6 +53,11 @@ export default function FullAssessmentStart() {
     },
   });
 
+  const addDomain = () => setDomains(d => [...d, ""]);
+  const removeDomain = (i: number) => setDomains(d => d.filter((_, idx) => idx !== i));
+  const updateDomain = (i: number, val: string) =>
+    setDomains(d => d.map((v, idx) => (idx === i ? val : v)));
+
   const onSubmit = async (values: FormValues) => {
     if (!isPaidSubscriber) return;
     try {
@@ -64,7 +71,17 @@ export default function FullAssessmentStart() {
           assessmentType: "full",
         },
       });
-      setLocation(`/assessment/full/${(result as any).id}`);
+      const assessmentId = (result as any).id;
+      // Alan adı taramalarını arka planda başlat (fire and forget)
+      const validDomains = domains.map(d => d.trim()).filter(d => d.length >= 3);
+      for (const domain of validDomains) {
+        fetch("/api/domain-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ domain, email: values.contactEmail, referralSource: "full-assessment" }),
+        }).catch(() => {});
+      }
+      setLocation(`/assessment/full/${assessmentId}`);
     } catch {
       form.setError("root", { message: "Bir hata oluştu. Lütfen tekrar deneyin." });
     }
@@ -238,6 +255,48 @@ export default function FullAssessmentStart() {
                         </FormItem>
                       )}
                     />
+                  </div>
+
+                  {/* Alan Adı Güvenlik Taraması */}
+                  <div className="space-y-3 pt-2 border-t">
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Globe className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Alan Adı Güvenlik Taraması</span>
+                        <Badge variant="outline" className="text-xs">İsteğe Bağlı</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Firmanıza ait alan adlarını girin. Her alan adı için e-posta, SSL ve DNS güvenlik taraması otomatik başlatılır.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {domains.map((domain, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input
+                            placeholder={`Ör: sirketiniz.com`}
+                            value={domain}
+                            onChange={e => updateDomain(i, e.target.value)}
+                            className="flex-1 text-sm"
+                          />
+                          {domains.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeDomain(i)}
+                              className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addDomain}
+                      className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Alan Adı Ekle
+                    </button>
                   </div>
 
                   {form.formState.errors.root && (

@@ -7,15 +7,12 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
   CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download,
   TrendingUp, TrendingDown, Minus, Zap, Lock, Mail as MailIcon, Monitor, HardDrive,
-  Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck, Package, Loader2,
+  Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck, Loader2,
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -200,34 +197,6 @@ function AssessmentReportCore({ id }: { id: number }) {
   const [contactForm, setContactForm] = useState<ContactForm>({ name: "", email: "", phone: "", note: "" });
   const [contactSent, setContactSent] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [wpModalOpen, setWpModalOpen] = useState(false);
-  const [wpForm, setWpForm] = useState({ title: "", category: "E-posta Güvenliği", priority: "high", description: "", estimatedCost: "" });
-  const [wpDone, setWpDone] = useState(false);
-
-  const WP_CATEGORIES = ["E-posta Güvenliği","KVKK / Uyum","IT Altyapı","Penetrasyon Testi","Siber Sigorta","Bulut Güvenliği","SOC / İzleme","Eğitim","Diğer"];
-
-  const createWpMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/work-packages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          assessmentId: id ? Number(id) : undefined,
-          companyName: assessment?.companyName ?? undefined,
-          scoreBefore: report?.scorePercent ?? undefined,
-          title: wpForm.title,
-          category: wpForm.category,
-          priority: wpForm.priority,
-          description: wpForm.description || undefined,
-          estimatedCost: wpForm.estimatedCost ? Number(wpForm.estimatedCost) : undefined,
-        }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Oluşturulamadı");
-      return res.json();
-    },
-    onSuccess: () => { setWpDone(true); },
-  });
 
   const { data: reportData, isLoading } = useGetReport(id, {
     query: {
@@ -398,13 +367,6 @@ function AssessmentReportCore({ id }: { id: number }) {
               </>
             )}
           </Button>
-          <Button
-            variant="outline"
-            className="border-emerald-500/30 text-emerald-700 hover:bg-emerald-50"
-            onClick={() => { setWpModalOpen(true); setWpDone(false); setWpForm({ title: "", category: "E-posta Güvenliği", priority: "high", description: "", estimatedCost: "" }); }}
-          >
-            <Package className="mr-2 h-4 w-4" /> İş Paketi Oluştur
-          </Button>
           <Link href="/dashboard">
             <Button variant="outline">
               Dashboard'a Dön <ArrowRight className="ml-2 h-4 w-4" />
@@ -412,75 +374,6 @@ function AssessmentReportCore({ id }: { id: number }) {
           </Link>
         </div>
       </div>
-
-      {/* İş Paketi Oluştur Modal */}
-      <Dialog open={wpModalOpen} onOpenChange={setWpModalOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-emerald-600" />
-              İş Paketi Oluştur
-            </DialogTitle>
-          </DialogHeader>
-          {wpDone ? (
-            <div className="text-center py-4">
-              <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
-              <p className="font-semibold text-foreground">İş paketi oluşturuldu</p>
-              <p className="text-sm text-muted-foreground mt-1">Admin panelinden partnerlere atayabilirsiniz.</p>
-              <Button className="mt-4 w-full" variant="outline" onClick={() => setWpModalOpen(false)}>Kapat</Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Başlık *</Label>
-                <input className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  placeholder="Ör: SPF/DMARC yapılandırması"
-                  value={wpForm.title} onChange={e => setWpForm(f => ({ ...f, title: e.target.value }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Kategori</Label>
-                  <Select value={wpForm.category} onValueChange={v => setWpForm(f => ({ ...f, category: v }))}>
-                    <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>{WP_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Öncelik</Label>
-                  <Select value={wpForm.priority} onValueChange={v => setWpForm(f => ({ ...f, priority: v }))}>
-                    <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Düşük</SelectItem>
-                      <SelectItem value="medium">Orta</SelectItem>
-                      <SelectItem value="high">Yüksek</SelectItem>
-                      <SelectItem value="critical">Kritik</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Tahmini Maliyet (TL)</Label>
-                <input type="number" className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  placeholder="Ör: 5000"
-                  value={wpForm.estimatedCost} onChange={e => setWpForm(f => ({ ...f, estimatedCost: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Açıklama</Label>
-                <Textarea className="resize-none text-sm" rows={2}
-                  value={wpForm.description} onChange={e => setWpForm(f => ({ ...f, description: e.target.value }))} />
-              </div>
-              {createWpMutation.isError && (
-                <p className="text-xs text-red-500">{(createWpMutation.error as Error).message}</p>
-              )}
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                disabled={!wpForm.title || createWpMutation.isPending}
-                onClick={() => createWpMutation.mutate()}>
-                {createWpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Oluştur"}
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Score + Red Alarms */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -1231,8 +1124,8 @@ function AssessmentReportCore({ id }: { id: number }) {
         />
       )}
 
-      {/* CyberStep Verified Rozeti */}
-      {report.verificationToken && (() => {
+      {/* CyberStep Verified Rozeti — yalnızca skor >=80 VE hiç kırmızı alarm yoksa */}
+      {report.verificationToken && scorePercent >= 80 && (report.redAlarmCount ?? 0) === 0 && (() => {
         const base = window.location.origin;
         const verifyUrl = `${base}/verify/${report.verificationToken}`;
         return (

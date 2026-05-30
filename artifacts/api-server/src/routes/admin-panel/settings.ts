@@ -6,6 +6,35 @@ import { eq } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 
+// ─── Whitelist of API keys the admin can configure via the panel ─────────────
+const CONFIGURABLE_API_KEYS = new Set([
+  "VIRUSTOTAL_API_KEY",
+  "GOOGLE_SAFE_BROWSING_API_KEY",
+  "ABUSEIPDB_API_KEY",
+  "SHODAN_API_KEY",
+  "WHOISXML_API_KEY",
+  "OTX_API_KEY",
+  "GREYNOISE_API_KEY",
+]);
+
+// ─── Load API keys from DB into process.env at startup ──────────────────────
+export async function loadApiKeysFromDb(): Promise<void> {
+  try {
+    const rows = await db.select().from(siteSettingsTable);
+    for (const row of rows) {
+      if (row.key.startsWith("apikey.") && row.value) {
+        const envKey = row.key.slice("apikey.".length);
+        if (CONFIGURABLE_API_KEYS.has(envKey) && !process.env[envKey]) {
+          process.env[envKey] = row.value;
+        }
+      }
+    }
+    logger.info("API keys loaded from DB");
+  } catch (err) {
+    logger.warn({ err }, "Could not load API keys from DB");
+  }
+}
+
 const router = Router();
 
 // GET /api/admin-panel/settings
@@ -73,28 +102,72 @@ router.get("/public/pricing", async (_req: Request, res: Response) => {
   res.json(plans);
 });
 
-// GET /api/admin-panel/settings/services — hangi dış servisler aktif
+// GET /api/admin-panel/settings/apikeys — hangi API anahtarları tanımlı
+router.get("/admin-panel/settings/apikeys", requireAdmin, (_req: Request, res: Response) => {
+  const result: Record<string, boolean> = {};
+  for (const key of CONFIGURABLE_API_KEYS) {
+    result[key] = !!process.env[key];
+  }
+  res.json(result);
+});
+
+// PUT /api/admin-panel/settings/apikeys — API anahtarı kaydet (DB + process.env)
+router.put("/admin-panel/settings/apikeys", requireAdmin, async (req: Request, res: Response) => {
+  const { envKey, value } = req.body as { envKey?: string; value?: string };
+  if (!envKey || !CONFIGURABLE_API_KEYS.has(envKey) || typeof value !== "string") {
+    res.status(400).json({ error: "Geçersiz anahtar adı" });
+    return;
+  }
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    delete process.env[envKey];
+    await db.delete(siteSettingsTable).where(eq(siteSettingsTable.key, `apikey.${envKey}`));
+    logger.info({ envKey }, "API key cleared");
+    res.json({ success: true, active: false });
+    return;
+  }
+  process.env[envKey] = trimmed;
+  await db.insert(siteSettingsTable)
+    .values({ key: `apikey.${envKey}`, value: trimmed, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: siteSettingsTable.key, set: { value: trimmed, updatedAt: new Date() } });
+  logger.info({ envKey }, "API key configured via admin panel");
+  res.json({ success: true, active: true });
+});
+
+// GET /api/admin-panel/settings/services — tüm dış servis durumları
 router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: Response) => {
   const env = process.env;
   const services = [
-    // ─── Her zaman aktif (API anahtarı gerektirmez) ───────────────────────────
-    { name: "Gemini AI",      category: "AI",         always: true,  active: !!(env["AI_INTEGRATIONS_GEMINI_BASE_URL"] || env["AI_INTEGRATIONS_GEMINI_API_KEY"]), desc: "Rapor üretimi ve AI destekli analiz (Replit tarafından sağlanır)" },
-    { name: "HIBP",           category: "Tehdit",     always: true,  active: true, desc: "Have I Been Pwned — alan adı e-posta sızıntısı taraması" },
-    { name: "URLhaus",        category: "Tehdit",     always: true,  active: true, desc: "abuse.ch URLhaus — zararlı URL kara listesi kontrolü" },
-    { name: "USOM",           category: "Tehdit",     always: true,  active: true, desc: "USOM (usom.gov.tr) — Türkiye siber tehdit kara listesi" },
-    { name: "NVD CVE",        category: "Tehdit",     always: true,  active: true, desc: "NIST NVD — tespit edilen servisler için CVE açık taraması" },
-    { name: "DNSBL",          category: "E-posta",    always: true,  active: true, desc: "DNS tabanlı kara liste kontrolü (Spamhaus, Barracuda vb.)" },
-    { name: "SSL/TLS",        category: "Altyapı",    always: true,  active: true, desc: "Sertifika geçerlilik, zincir ve sona erme tarihi kontrolü" },
-    { name: "SPF/DMARC/DKIM", category: "E-posta",    always: true,  active: true, desc: "E-posta kimlik doğrulama kayıtları analizi" },
-    { name: "SSLLabs",        category: "Altyapı",    always: true,  active: true,                           alacart: false, desc: "Qualys SSLLabs — TLS protokol versiyonu, şifreleme zayıflığı ve sertifika zinciri analizi (ücretsiz, ön bellek kullanılır)" },
-    // ─── API anahtarı gerektiren servisler ──────────────────────────────────
-    { name: "Google Safe Browsing", category: "İtibar", always: false, active: !!env["GOOGLE_SAFE_BROWSING_API_KEY"], alacart: false, desc: "Google'ın kötü amaçlı yazılım ve phishing tespiti — domain 'güvensiz' işaretlenmiş mi?" },
-    { name: "VirusTotal",     category: "Tehdit",     always: false, active: !!env["VIRUSTOTAL_API_KEY"],  alacart: false, desc: "Alan adı zararlı yazılım ve tehdit istihbarat taraması" },
-    { name: "AbuseIPDB",      category: "Tehdit",     always: false, active: !!env["ABUSEIPDB_API_KEY"],  alacart: false, desc: "IP adresi kötüye kullanım geçmişi ve itibar kontrolü" },
-    { name: "Shodan",         category: "Altyapı",    always: false, active: !!env["SHODAN_API_KEY"],     alacart: true,  desc: "A-la-cart servis: Açık port ve servis keşfi, donanım parmak izi, bilinen CVE eşleştirme. Shodan API anahtarı gerektirir (shodan.io ücretsiz/ücretli plan)." },
-    { name: "WhoisXML",       category: "Altyapı",    always: false, active: !!env["WHOISXML_API_KEY"],   alacart: true,  desc: "A-la-cart servis: Domain kayıt geçmişi, sahiplik bilgileri ve DNS değişikliği takibi (Domain Hijacking tespiti). WhoisXML API aboneliği gerektirir (whoisxmlapi.com)." },
-    { name: "SMTP E-posta",   category: "İletişim",   always: false, active: !!env["SMTP_PASS"],          alacart: false, desc: "Bülten ve bildirim e-postası gönderimi" },
-    { name: "ISR IMAP",       category: "İletişim",   always: false, active: !!env["ISR_IMAP_PASS"],      alacart: false, desc: "AI Satış Asistanı — gelen kutusu okuma ve yanıtlama" },
+    // ─── Tehdit İstihbaratı — Ücretsiz ─────────────────────────────────────
+    { id: "cisa-kev",      name: "CISA KEV",              category: "Tehdit İstihbaratı", always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "ABD Siber Güvenlik Ajansı'nın aktif saldırılarda kullanıldığını doğruladığı ~1.100 CVE kataloğu", why: "Teorik açıkları değil, gerçekten istismar edilenleri gösterir — en kritik uyarı türü", how: "Shadow IT ile tespit edilen yazılımlarla (WordPress, Apache vb.) eşleştirilir, 24 saatte bir yenilenir", setup: "Kurulum gerekmez. cisa.gov'dan JSON olarak indirilir, başlangıçta önbelleğe alınır.", docs: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
+    { id: "urlhaus",       name: "URLhaus (Abuse.ch)",    category: "Tehdit İstihbaratı", always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "200.000+ zararlı URL ve alan adının anlık kara listesi — fidye ve malware dağıtım noktaları", why: "Sitenin zararlı içerik dağıtımında kullanılıp kullanılmadığını doğrular", how: "Her taramada anlık olarak sorgulanır, tarama raporunda gösterilir", setup: "Kurulum gerekmez. urlhaus-api.abuse.ch API'si açık ve ücretsizdir.", docs: "https://urlhaus-api.abuse.ch/" },
+    { id: "feodo-tracker", name: "Feodo Tracker (Abuse.ch)", category: "Tehdit İstihbaratı", always: true, active: true,                           cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "Emotet, TrickBot, IcedID gibi aktif botnet C2 (komuta-kontrol) sunucularının IP listesi", why: "Sitenin barındığı IP'nin botnet altyapısıyla ilişkili olup olmadığını kontrol eder", how: "Domain IP'leri çözümlenerek botnet C2 listesiyle karşılaştırılır, 6 saatte bir yenilenir", setup: "Kurulum gerekmez. feodotracker.abuse.ch'den JSON olarak indirilir.", docs: "https://feodotracker.abuse.ch/" },
+    { id: "threatfox",     name: "ThreatFox (Abuse.ch)",  category: "Tehdit İstihbaratı", always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "APT grupları ve fidye çeteleriyle ilişkili IOC (güvenlik ihlali göstergesi) veritabanı — 1M+ IOC", why: "Domain veya IP'nin bilinen siber saldırı altyapısıyla bağlantısını tespit eder", how: "Her taramada domain ThreatFox IOC veritabanında sorgulanır", setup: "Kurulum gerekmez. Ücretsiz API, kayıt gerektirmez.", docs: "https://threatfox.abuse.ch/api/" },
+    { id: "usom",          name: "USOM",                  category: "Tehdit İstihbaratı", always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "BTK/USOM Türkiye siber tehdit kara listesi — yalnızca Türkiye kaynaklı", why: "Uluslararası listelerde görünmeyebilecek Türkiye'ye özgü tehditleri yakalar", how: "Domain taramasında USOM kara listesiyle eşleştirme yapılır", setup: "Kurulum gerekmez. usom.gov.tr'den çekilir.", docs: "https://www.usom.gov.tr/" },
+    // ─── İtibar & Kötücül Yazılım ─────────────────────────────────────────
+    { id: "virustotal",    name: "VirusTotal",            category: "İtibar & Kötücül Yazılım", always: false, active: !!env["VIRUSTOTAL_API_KEY"],  cost: "freemium", costLabel: "Freemium",   envKey: "VIRUSTOTAL_API_KEY",          desc: "70+ antivirüs motorunun domain/IP taraması — Google altyapısı üzerinde çalışır", why: "Tek başına yetersiz kalan kara listelerinin aksine 70 farklı güvenlik firmasının analizini birleştirir", how: "Tarama raporunda zararlı/şüpheli motor sayısı gösterilir", setup: "virustotal.com'da ücretsiz hesap açın, API Keys bölümünden anahtarınızı alın.", docs: "https://developers.virustotal.com/", costNote: "Ücretsiz: 500 istek/gün | Premium: $30/ay" },
+    { id: "google-sb",     name: "Google Safe Browsing",  category: "İtibar & Kötücül Yazılım", always: false, active: !!env["GOOGLE_SAFE_BROWSING_API_KEY"], cost: "free", costLabel: "Ücretsiz", envKey: "GOOGLE_SAFE_BROWSING_API_KEY", desc: "Chrome/Firefox'un güvensiz işaretlediği domain listesi — 4B+ kullanıcı verisiyle", why: "En geniş kapsamlı gerçek kullanıcı tabanlı phishing ve malware tespiti", how: "Domain GSB API'siyle sorgulanır, tarama raporunda 'Google Safe Browsing' kartında gösterilir", setup: "console.cloud.google.com → Safe Browsing API'yi etkinleştirin → Credentials → API Key.", docs: "https://developers.google.com/safe-browsing/v4/get-started", costNote: "Tamamen ücretsiz: 10.000 istek/gün" },
+    { id: "abuseipdb",     name: "AbuseIPDB",             category: "İtibar & Kötücül Yazılım", always: false, active: !!env["ABUSEIPDB_API_KEY"],   cost: "freemium", costLabel: "Freemium",   envKey: "ABUSEIPDB_API_KEY",           desc: "Spam, brute-force ve DDoS saldırılarında kullanılan IP'lerin küresel raporlama veritabanı", why: "Mail/web sunucusu IP itibarını ölçer — kara listedeki IP e-posta deliverability'i mahveder", how: "Domain'in MX ve A kayıtlarındaki IP'ler sorgulanır, 'AbuseIPDB' kartında gösterilir", setup: "abuseipdb.com → hesap açın → API → Keys → Create Key.", docs: "https://www.abuseipdb.com/api.html", costNote: "Ücretsiz: 1.000/gün | Basic: $20/ay" },
+    { id: "otx",           name: "AlienVault OTX",        category: "İtibar & Kötücül Yazılım", always: false, active: !!env["OTX_API_KEY"],         cost: "free",     costLabel: "Ücretsiz",   envKey: "OTX_API_KEY",                 desc: "200.000+ araştırmacının katkısıyla oluşan küresel tehdit istihbarat platformu", why: "Domain'in kaç aktif tehdit kampanyasında görüntülendiğini ve TR saldırılarıyla ilişkisini gösterir", how: "OTX API'si sorgulanır, pulse sayısı ve TR hedefli saldırı verisi rapora eklenir", setup: "otx.alienvault.com → ücretsiz kayıt → profil → API Key.", docs: "https://otx.alienvault.com/api/", costNote: "Tamamen ücretsiz" },
+    { id: "greynoise",     name: "GreyNoise",             category: "İtibar & Kötücül Yazılım", always: false, active: !!env["GREYNOISE_API_KEY"],   cost: "freemium", costLabel: "Freemium",   envKey: "GREYNOISE_API_KEY",           desc: "İnternet genelinde port tarama yapan botları gerçek saldırganlardan ayıran IP niyeti platformu", why: "'Bu IP bizi hedef alıyor mu yoksa genel internet taraması mı yapıyor?' sorusunu yanıtlar", how: "Açık portlara bağlanan IP'lerin niyeti sınıflandırılır, raporda gösterilir", setup: "greynoise.io → ücretsiz Community hesabı → API Keys.", docs: "https://docs.greynoise.io/", costNote: "Community: Ücretsiz 1.000/gün | Teams: $99/ay" },
+    // ─── Altyapı & Açık Yönetimi ──────────────────────────────────────────
+    { id: "shodan",        name: "Shodan",                category: "Altyapı & Açık Yönetimi", always: false, active: !!env["SHODAN_API_KEY"],       cost: "paid",     costLabel: "Ücretli",    envKey: "SHODAN_API_KEY",              desc: "Tüm internetin port ve servis haritası — açık portlar, çalışan yazılımlar, banner bilgileri", why: "Müşterinin bilmediği açık portları (RDP:3389, MongoDB:27017) ve donanım parmak izini ortaya çıkarır", how: "Domain IP'si Shodan'da sorgulanır, açık port listesi ve vuln sayısı rapora eklenir", setup: "shodan.io → hesap açın → Account → API Key. Member plan ($49/ay) tam erişim.", docs: "https://developer.shodan.io/api", costNote: "Free (çok sınırlı) | Member: $49/ay" },
+    { id: "whoisxml",      name: "WhoisXML API",          category: "Altyapı & Açık Yönetimi", always: false, active: !!env["WHOISXML_API_KEY"],     cost: "freemium", costLabel: "Freemium",   envKey: "WHOISXML_API_KEY",            desc: "Domain kayıt geçmişi, sahiplik değişiklikleri, DNS geçmişi — Domain Hijacking tespiti", why: "Domain'in el değiştirip değiştirmediğini veya DNS'in manipüle edilip edilmediğini tespit eder", how: "WHOIS geçmişi sorgulanır, sahiplik değişikliği uyarısı rapora eklenir", setup: "whoisxmlapi.com → ücretsiz hesap (1.000 sorgu/ay) → API Key.", docs: "https://whois.whoisxmlapi.com/documentation/making-queries", costNote: "Ücretsiz: 1.000/ay | Basic: $29/ay" },
+    // ─── Protokol & Sertifika Güvenliği — Ücretsiz ───────────────────────
+    { id: "ssllabs",       name: "Qualys SSL Labs",       category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "TLS protokol versiyonu, şifre zayıflığı, sertifika zinciri ve HSTS kontrolü — endüstri standardı", why: "A+ ile F arasında bağımsız harf notu verir; PCI-DSS uyumluluk için SSL notunun A olması zorunlu", how: "Önbellekten hızlı not alınır (24 saatlik cache), 'SSLLabs Notu' olarak gösterilir", setup: "Kurulum gerekmez. api.ssllabs.com açık API'si kullanılır.", docs: "https://github.com/ssllabs/ssllabs-scan/blob/master/ssllabs-api-docs-v3.md" },
+    { id: "mozilla-obs",   name: "Mozilla Observatory",   category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "HTTP Güvenlik Başlıkları analizi — CSP, HSTS, X-Frame-Options, Referrer-Policy değerlendirmesi", why: "SSLLabs ile tamamlayıcı: SSL değil HTTP başlıklarının güvenliğini ölçer, A-F notu verir", how: "Her taramada Observatory API sorgulanır, başlık güvenlik notu rapora eklenir", setup: "Kurulum gerekmez. Tamamen ücretsiz Mozilla API'si.", docs: "https://observatory.mozilla.org/" },
+    { id: "nvd-cve",       name: "NVD CVE (NIST)",        category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "ABD Ulusal Güvenlik Açığı Veritabanı — 200.000+ CVE kaydı ve CVSS puanları", why: "Shadow IT ile tespit edilen yazılımların bilinen açıklarını gösterir", how: "Tespit edilen servisler için NVD'de CVE araması yapılır, CVSS puanıyla listelenir", setup: "Kurulum gerekmez. nvd.nist.gov API'si ücretsiz.", docs: "https://nvd.nist.gov/developers/vulnerabilities" },
+    { id: "epss",          name: "EPSS (FIRST.org)",      category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "CVE başına gerçek dünya istismar olasılığı — 'Bu açık 30 günde kullanılma ihtimali %94'", why: "NVD CVSS teorik; EPSS gerçek saldırı verilerinden makine öğrenimiyle hesaplanır — önceliklendirmeyi değiştirir", how: "NVD'den alınan CVE'ler EPSS API'siyle zenginleştirilir, istismar olasılığı rapora eklenir", setup: "Kurulum gerekmez. api.first.org ücretsiz.", docs: "https://www.first.org/epss/api" },
+    { id: "crt-sh",        name: "crt.sh (CT Logs)",      category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "Sertifika Şeffaflığı günlükleri — domain'e ait tüm alt alanları ve sertifika geçmişini ortaya çıkarır", why: "Yöneticinin habersiz açılan subdomain'leri tespit eder — Shadow IT ve güvenlik açığı vektörlerini bulur", how: "crt.sh sorgusundan subdomain'ler toplanır, raporda listelenir", setup: "Kurulum gerekmez.", docs: "https://crt.sh/" },
+    // ─── E-posta & Kimlik Güvenliği — Ücretsiz ──────────────────────────
+    { id: "hibp",          name: "Have I Been Pwned",     category: "E-posta & Kimlik",        always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "Domain'e ait e-posta adreslerinin 750+ veri sızıntısında yer alıp almadığını kontrol eder", why: "Çalışan kimlik bilgileri dark web'deyse hesap ele geçirme riski dramatik artar", how: "Domain HIBP'de sorgulanır, kaç sızıntıda kaç hesap görüntülendiği rapora eklenir", setup: "Kurulum gerekmez.", docs: "https://haveibeenpwned.com/API/v3" },
+    { id: "spf-dmarc",     name: "SPF / DMARC / DKIM",    category: "E-posta & Kimlik",        always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "E-posta kimlik doğrulama kayıtları — phishing ve e-posta sahteciliği (spoofing) tespiti", why: "Bu kayıtlar eksikse saldırganlar şirket adına sahte e-posta gönderebilir — CEO fraud kapısı", how: "DNS sorguları ile analiz edilir, eksik/yanlış yapılandırmalar işaretlenir", setup: "Kurulum gerekmez.", docs: "https://dmarcian.com/what-is-spf/" },
+    { id: "dnsbl",         name: "DNSBL Kara Listeleri",   category: "E-posta & Kimlik",        always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "Spamhaus, Barracuda, SORBS gibi 15+ DNS tabanlı kara listede IP ve domain kontrolü", why: "Kara listedeki mail sunucusu e-postaların spam kutusuna düşmesine neden olur — iş kaybı", how: "Domain ve IP'ler 15+ DNSBL listesine sorgulanır, kara listede görünme durumu işaretlenir", setup: "Kurulum gerekmez. DNS sorguları ile çalışır.", docs: "https://www.spamhaus.org/lookup/" },
+    // ─── Yapay Zeka ──────────────────────────────────────────────────────
+    { id: "gemini-ai",     name: "Gemini 2.5 Flash",      category: "Yapay Zeka",              always: true,  active: !!(env["AI_INTEGRATIONS_GEMINI_BASE_URL"] || env["AI_INTEGRATIONS_GEMINI_API_KEY"]), cost: "free", costLabel: "Ücretsiz", envKey: null, desc: "Google'ın en güncel AI modeli — tarama bulgularından Türkçe kişiselleştirilmiş rapor üretir", why: "Ham güvenlik verilerini yönetici için anlaşılır, aksiyona dönüştürülebilir Türkçe rapora çevirir", how: "Assessment tamamlanınca tüm bulgular Gemini'ye gönderilir, streaming ile rapor oluşturulur", setup: "Replit AI Integrations tarafından otomatik sağlanır — ek kurulum gerekmez.", docs: "https://ai.google.dev/" },
+    // ─── İletişim ────────────────────────────────────────────────────────
+    { id: "smtp",          name: "SMTP E-posta",          category: "İletişim",                always: false, active: !!env["SMTP_PASS"],                cost: "varies",   costLabel: "Değişken",   envKey: null,                          desc: "Bülten, rapor ve bildirim e-postalarının gönderimi (ISR, otomatik raporlar, uyarılar)", why: "Müşterilere 30 günlük yeniden tarama raporu ve güvenlik uyarıları göndermek için gerekli", how: "Nodemailer ile yapılandırılmış SMTP sunucusu üzerinden gönderim yapılır", setup: "Replit Secrets'a SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS ekleyin.", docs: "" },
+    { id: "isr-imap",      name: "ISR IMAP (AI Satış)",   category: "İletişim",                always: false, active: !!env["ISR_IMAP_PASS"],            cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "AI Satış Asistanı'nın gelen kutusunu okuyarak müşteri e-postalarına otomatik yanıt vermesi", why: "7/24 çalışan AI satış temsilcisi — potansiyel müşteri e-postalarını kaçırmadan yanıtlar", how: "5 dakikada bir IMAP'ten e-posta okunur, Gemini AI ile yanıt oluşturulur", setup: "Replit Secrets'a ISR_IMAP_HOST, ISR_IMAP_USER, ISR_IMAP_PASS ekleyin.", docs: "" },
   ];
   res.json(services);
 });

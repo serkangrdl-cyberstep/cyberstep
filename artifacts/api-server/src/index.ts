@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable, blogPostsTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
+import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail } from "./services/email";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
@@ -1131,6 +1132,7 @@ async function startup() {
   await ensurePasswordResetColumns();
   await ensureBreachMonitorTable();
   await ensureReferralCodeColumn();
+  await loadApiKeysFromDb();
 }
 
 startup()

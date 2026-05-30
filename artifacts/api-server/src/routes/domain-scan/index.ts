@@ -860,6 +860,174 @@ async function checkCisaKev(services: Array<{ name: string }>): Promise<CisaKevE
 // Warm up CISA KEV cache at startup
 refreshCisaKev().catch(() => {});
 
+// ─── Feodo Tracker (Abuse.ch) — aktif botnet C2 IP listesi ──────────────────
+interface FeodoEntry { ip_address: string }
+
+let _feodoCache: Set<string> = new Set();
+let _feodoLastFetch = 0;
+
+async function refreshFeodoCache(): Promise<void> {
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: "feodotracker.abuse.ch",
+        path: "/downloads/ipblocklist.json",
+        method: "GET",
+        timeout: 15000,
+        headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", "Accept": "application/json" },
+      },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 5 * 1024 * 1024) { res.destroy(); resolve(); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            const arr = JSON.parse(data) as FeodoEntry[];
+            _feodoCache = new Set(arr.map(e => e.ip_address));
+            _feodoLastFetch = Date.now();
+            logger.info({ count: _feodoCache.size }, "Feodo Tracker önbelleği güncellendi");
+          } catch { /* ignore */ }
+          resolve();
+        });
+      }
+    );
+    req.on("error", () => resolve());
+    req.on("timeout", () => { req.destroy(); resolve(); });
+    req.end();
+  });
+}
+
+async function checkFeodoTracker(domain: string): Promise<{ isC2: boolean; matchedIps: string[] }> {
+  if (Date.now() - _feodoLastFetch > 6 * 60 * 60 * 1000) refreshFeodoCache().catch(() => {});
+  if (_feodoCache.size === 0) return { isC2: false, matchedIps: [] };
+  try {
+    const dns = await import("dns/promises");
+    const ips = await dns.resolve4(domain).catch(() => [] as string[]);
+    const matched = ips.filter(ip => _feodoCache.has(ip));
+    return { isC2: matched.length > 0, matchedIps: matched };
+  } catch { return { isC2: false, matchedIps: [] }; }
+}
+
+// Warm up Feodo cache at startup
+refreshFeodoCache().catch(() => {});
+
+// ─── ThreatFox (Abuse.ch) — IOC veritabanı (ücretsiz) ──────────────────────
+interface ThreatFoxResult { iocCount: number; threatType: string | null; malwareName: string | null }
+
+async function checkThreatFox(domain: string): Promise<ThreatFoxResult> {
+  const defaultResult: ThreatFoxResult = { iocCount: 0, threatType: null, malwareName: null };
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ query: "search_ioc", search_term: domain });
+    const req = https.request(
+      {
+        hostname: "threatfox-api.abuse.ch",
+        path: "/api/v1/",
+        method: "POST",
+        timeout: 10000,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+          "User-Agent": "CyberStep.io Security Scanner/1.0",
+          "Auth-Key": "anonymous",
+        },
+      },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(defaultResult); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            type TFResp = { query_status?: string; data?: Array<{ threat_type?: string; malware_printable?: string }> };
+            const json = JSON.parse(data) as TFResp;
+            if (json.query_status === "ok" && json.data && json.data.length > 0) {
+              resolve({ iocCount: json.data.length, threatType: json.data[0]?.threat_type ?? null, malwareName: json.data[0]?.malware_printable ?? null });
+            } else { resolve(defaultResult); }
+          } catch { resolve(defaultResult); }
+        });
+      }
+    );
+    req.on("error", () => resolve(defaultResult));
+    req.on("timeout", () => { req.destroy(); resolve(defaultResult); });
+    req.write(body);
+    req.end();
+  });
+}
+
+// ─── Mozilla Observatory — HTTP başlık güvenlik notu (ücretsiz) ─────────────
+interface MozillaObsResult { grade: string | null; score: number | null; testsFailed: number; testsPassed: number }
+
+async function checkMozillaObservatory(domain: string): Promise<MozillaObsResult> {
+  const defaultResult: MozillaObsResult = { grade: null, score: null, testsFailed: 0, testsPassed: 0 };
+  return new Promise((resolve) => {
+    const postBody = "";
+    const req = https.request(
+      {
+        hostname: "http-observatory.security.mozilla.org",
+        path: `/api/v1/analyze?host=${encodeURIComponent(domain)}&rescan=false&zero=false`,
+        method: "POST",
+        timeout: 15000,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": 0,
+          "User-Agent": "CyberStep.io Security Scanner/1.0",
+          "Accept": "application/json",
+        },
+      },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 100 * 1024) { res.destroy(); resolve(defaultResult); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            type ObsResp = { grade?: string; score?: number; tests_failed?: number; tests_passed?: number; state?: string; error?: string };
+            const json = JSON.parse(data) as ObsResp;
+            if (json.error) { resolve(defaultResult); return; }
+            if ((json.state === "FINISHED" || json.grade) && json.grade) {
+              resolve({ grade: json.grade, score: json.score ?? null, testsFailed: json.tests_failed ?? 0, testsPassed: json.tests_passed ?? 0 });
+            } else { resolve(defaultResult); }
+          } catch { resolve(defaultResult); }
+        });
+      }
+    );
+    req.on("error", () => resolve(defaultResult));
+    req.on("timeout", () => { req.destroy(); resolve(defaultResult); });
+    req.write(postBody);
+    req.end();
+  });
+}
+
+// ─── EPSS (FIRST.org) — CVE istismar olasılığı zenginleştirme ───────────────
+interface NvdCveEntryWithEpss extends NvdCveEntry { epssScore: number | null; epssPercentile: number | null }
+
+async function enrichWithEpss(cves: NvdCveEntry[]): Promise<NvdCveEntryWithEpss[]> {
+  if (cves.length === 0) return [];
+  return new Promise((resolve) => {
+    const ids = cves.map(c => c.cveId).join(",");
+    const req = https.request(
+      {
+        hostname: "api.first.org",
+        path: `/data/v1/epss?cve=${encodeURIComponent(ids)}`,
+        method: "GET",
+        timeout: 8000,
+        headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            type EpssEntry = { cve: string; epss: string; percentile: string };
+            const json = JSON.parse(data) as { data?: EpssEntry[] };
+            const map = new Map<string, { epss: number; pct: number }>();
+            for (const e of (json.data ?? [])) map.set(e.cve, { epss: parseFloat(e.epss), pct: parseFloat(e.percentile) });
+            resolve(cves.map(c => ({ ...c, epssScore: map.get(c.cveId)?.epss ?? null, epssPercentile: map.get(c.cveId)?.pct ?? null })));
+          } catch { resolve(cves.map(c => ({ ...c, epssScore: null, epssPercentile: null }))); }
+        });
+      }
+    );
+    req.on("error", () => resolve(cves.map(c => ({ ...c, epssScore: null, epssPercentile: null }))));
+    req.on("timeout", () => { req.destroy(); resolve(cves.map(c => ({ ...c, epssScore: null, epssPercentile: null }))); });
+    req.end();
+  });
+}
+
 // ─── SSLLabs grade (fromCache — fast, non-blocking) ──────────────────────────
 async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
   return new Promise((resolve) => {
@@ -949,11 +1117,15 @@ router.post("/domain-scan", async (req, res) => {
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
-    const [cveSummary, cisaKevMatches, otxData] = await Promise.all([
+    const [cveSummary, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObs] = await Promise.all([
       checkNvdCve(shadowIt.services),
       checkCisaKev(shadowIt.services),
       checkOTX(domain),
+      checkThreatFox(domain),
+      checkFeodoTracker(domain),
+      checkMozillaObservatory(domain),
     ]);
+    const cveSummaryWithEpss = cveSummary.length > 0 ? await enrichWithEpss(cveSummary) : [];
 
     const [scan] = await db
       .insert(domainScansTable)
@@ -1009,8 +1181,8 @@ router.post("/domain-scan", async (req, res) => {
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, shodanConfigured: shodan !== null, virusTotalConfigured: virusTotal !== null, abuseIpdbConfigured: abuseIpdb !== null, safeBrowsingChecked: safeBrowsing !== null, sslLabsGrade: sslLabs.grade, cisaKevCount: cisaKevMatches.length, otxConfigured: otxData !== null, scanId: scan?.id }, "Domain scan complete");
-    res.json({ ...scan, cisaKevMatches, otxData });
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, cisaKevCount: cisaKevMatches.length, otxConfigured: otxData !== null, threatFoxIocs: threatFoxData.iocCount, feodoC2: feodoData.isC2, mozillaGrade: mozillaObs.grade, epssEnriched: cveSummaryWithEpss.length, scanId: scan?.id }, "Domain scan complete");
+    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss });
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
     res.status(500).json({ error: "Tarama sırasında bir hata oluştu" });

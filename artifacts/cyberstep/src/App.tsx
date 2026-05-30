@@ -58,6 +58,7 @@ import AdminSpecialMessages from "./pages/admin-panel/special-messages";
 import AdminMusteriler from "./pages/admin-panel/musteriler";
 import AdminDomainTaramalar from "./pages/admin-panel/domain-taramalar";
 import AdminIsrDashboard from "./pages/admin-panel/isr/index";
+import AdminEntegrasyonlar from "./pages/admin-panel/entegrasyonlar";
 import AdminIsrDeal from "./pages/admin-panel/isr/deal";
 import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
 import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
@@ -156,6 +157,7 @@ function Router() {
       <Route path="/panel/giris" component={AdminLogin} />
       <Route path="/panel/workspace" component={WorkspacePicker} />
       <Route path="/panel/workspace-ayarlari" component={TenantSettingsPage} />
+      <Route path="/panel/entegrasyonlar" component={AdminEntegrasyonlar} />
       <Route path="/panel/ayarlar" component={AdminSettings} />
       <Route path="/panel/fiyatlar" component={AdminPricing} />
       <Route path="/panel/degerlendirmeler/:id/rapor" component={AdminAssessmentReport} />

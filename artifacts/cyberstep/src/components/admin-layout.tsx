@@ -5,7 +5,7 @@ import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
   BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2, Bot,
-  Mail, Bell, Package, BadgeCheck,
+  Mail, Bell, Package, BadgeCheck, Plug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { icon: Package,         label: "İş Paketleri",        href: "/panel/is-paketleri" },
   { icon: Briefcase,       label: "Danışmanlık",         href: "/panel/danismanlik" },
   { icon: Award,           label: "Teknoloji Ortakları", href: "/panel/partnerlar" },
+  { icon: Plug,            label: "Entegrasyonlar",       href: "/panel/entegrasyonlar" },
   { icon: Settings,        label: "Site Ayarları",       href: "/panel/ayarlar" },
   { icon: Shield,          label: "2FA Güvenlik",        href: "/panel/totp" },
 ];

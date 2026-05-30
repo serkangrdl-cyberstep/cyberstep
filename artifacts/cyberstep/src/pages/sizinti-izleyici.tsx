@@ -251,10 +251,20 @@ export default function SizintiIzleyici() {
                       {item}
                     </div>
                   ))}
-                  <div className="pt-2">
-                    <a href="/assessment/start" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-                      Kapsamlı Güvenlik Değerlendirmesi Yap <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
+                  <div className="pt-2 space-y-3">
+                    <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Temiz geçmiş tek başına yeterli değil.</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Domain e-posta güvenliği, cihaz koruması ve çalışan farkındalığı değerlendirmenizi 20 dakikada yapın.
+                          </p>
+                        </div>
+                        <a href="/assessment/start" className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-4 py-2 rounded-md">
+                          Ücretsiz Değerlendirme <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

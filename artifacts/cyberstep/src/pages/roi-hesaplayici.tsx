@@ -266,19 +266,30 @@ export default function RoiHesaplayici() {
                 </CardContent>
               </Card>
 
-              {/* CTA */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Link href="/assessment/start" className="flex-1">
-                  <Button className="w-full" size="lg">
-                    Ücretsiz Güvenlik Değerlendirmesi
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-                <Link href="/domain-tarama" className="flex-1">
-                  <Button variant="outline" className="w-full" size="lg">
-                    Domain Tarama
-                  </Button>
-                </Link>
+              {/* CTA — hesaplanan riske bağlı */}
+              <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Bu riski azaltmak için ilk adım ücretsiz.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Hesapladığınız <span className="font-semibold text-foreground">{fmtTL(riskOrta)}</span> riski gerçekte nerede taşıdığınızı görün.
+                    </p>
+                  </div>
+                  <Link href="/assessment/start" className="shrink-0">
+                    <Button size="lg">
+                      Ücretsiz Değerlendirme
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-primary/10">
+                  <span>Derin analiz istiyorsanız:</span>
+                  <Link href="/assessment/full/start">
+                    <span className="font-medium text-primary hover:underline cursor-pointer">
+                      Tam Değerlendirme — 5.990 TL →
+                    </span>
+                  </Link>
+                </div>
               </div>
             </div>
           )}

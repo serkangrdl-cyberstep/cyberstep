@@ -1631,6 +1631,39 @@ export default function DomainScanPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Değerlendirme Upsell Köprüsü */}
+          <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                  Domain taraması bir başlangıç
+                </p>
+                <p className="text-base font-bold text-foreground mb-1">
+                  Şirketinizin tüm siber risk tablosunu görün
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Bu tarama alan adı güvenliğini ölçer. Çalışan farkındalığı, cihaz koruması, erişim yönetimi ve KVKK
+                  uyumu için 20 dakikalık ücretsiz değerlendirmeye geçin.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <a
+                  href="/assessment/start"
+                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg text-sm"
+                >
+                  Ücretsiz Değerlendirme Başlat
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </a>
+                <a
+                  href="/assessment/full/start"
+                  className="inline-flex items-center justify-center gap-2 border border-primary/40 text-primary hover:bg-primary/5 font-medium px-5 py-2 rounded-lg text-xs"
+                >
+                  Tam Değerlendirme — 5.990 TL
+                </a>
+              </div>
+            </div>
+          </div>
         </>
       )}
 

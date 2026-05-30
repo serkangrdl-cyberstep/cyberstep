@@ -576,6 +576,73 @@ function AssessmentReportCore({ id }: { id: number }) {
         </Card>
       </div>
 
+      {/* Tam Değerlendirme Upsell Köprüsü */}
+      {(() => {
+        const riskRange = scorePercent < 40
+          ? { min: 750_000, max: 2_200_000 }
+          : scorePercent < 70
+          ? { min: 220_000, max: 750_000 }
+          : { min: 65_000, max: 220_000 };
+        const fmtMoney = (n: number) =>
+          n >= 1_000_000
+            ? `${(n / 1_000_000).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} milyon TL`
+            : `${n.toLocaleString("tr-TR")} TL`;
+        const isHighRisk = scorePercent < 70;
+        return (
+          <div className={`mb-6 rounded-2xl border-2 ${isHighRisk ? "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-700" : "border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-700"} overflow-hidden`}>
+            <div className="p-5 sm:p-6">
+              <div className="flex flex-col md:flex-row md:items-center gap-5">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                      Skorunuzun TL karşılığı
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                      {fmtMoney(riskRange.min)} – {fmtMoney(riskRange.max)}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      %{scorePercent.toFixed(0)} skor seviyesindeki {assessment?.sector ?? "sektörünüzdeki"} şirketler bu düzeyde yıllık siber risk taşıyor.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      "55 soruluk derinlemesine analiz (şu an: 20 soru)",
+                      "10 güvenlik alanı kırılımı (şu an: 5 alan)",
+                      "Sektörünüzdeki gerçek şirket verileriyle kıyaslama",
+                      "PDF sertifika + 1 saat uzman danışmanlığı",
+                    ].map((item) => (
+                      <div key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Lock className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col items-stretch sm:items-center gap-3 min-w-[200px]">
+                  <div className="text-center bg-white dark:bg-slate-800 rounded-xl border p-4 shadow-sm">
+                    <p className="text-xs text-muted-foreground mb-1">Tam Değerlendirme</p>
+                    <p className="text-2xl font-bold text-primary">5.990 TL</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">tek seferlik</p>
+                    <div className="mt-2 pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">Potansiyel kayıp</p>
+                      <p className="text-sm font-semibold text-destructive">{fmtMoney(riskRange.min)}+</p>
+                    </div>
+                  </div>
+                  <Link href="/assessment/full/start">
+                    <Button className="w-full" size="lg">
+                      Tam Değerlendirme Yap <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <p className="text-center text-xs text-muted-foreground">
+                    KVKK minimum idari ceza: <span className="font-semibold text-foreground">94.000 TL</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Bugün yapmanız gereken tek şey */}
       {topPriority && (
         <Card className="shadow-sm mb-6 border-l-4 border-l-red-500 bg-red-50/60 dark:bg-red-950/20 dark:border-l-red-700">

@@ -198,11 +198,28 @@ export default function KvkkCezaSim() {
                   <li className="flex items-start gap-2 text-sm text-muted-foreground"><ChevronRight className="h-4 w-4 shrink-0 mt-0.5 text-primary" />İhlal bildirim prosedürü hazırlayın (72 saat)</li>
                 </ul>
               </div>
-              <Link href="/assessment/start">
-                <Button className="w-full sm:w-auto">
-                  <Shield className="mr-2 h-4 w-4" /> Uyum Değerlendirmesi Yap
-                </Button>
-              </Link>
+
+              {/* Contextual CTA — fiyat karşılaştırması */}
+              <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">KVKK minimum ceza</p>
+                    <p className="text-xl font-bold text-red-600">94.000 TL</p>
+                  </div>
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Mini Değerlendirme</p>
+                    <p className="text-xl font-bold text-emerald-600">Ücretsiz</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Şirketinizin KVKK teknik tedbir uyum durumunu 20 dakikada öğrenin.
+                </p>
+                <Link href="/assessment/start">
+                  <Button className="w-full">
+                    <Shield className="mr-2 h-4 w-4" /> Ücretsiz KVKK Uyum Değerlendirmesi
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -1343,5 +1343,8 @@ router.get("/trust-badge/:token/widget.js", async (req, res) => {
   res.send(script);
 });
 
+import attackScenariosRouter from "./attack-scenarios";
+router.use(attackScenariosRouter);
+
 export default router;
 export { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, sanitizeDomain, checkHIBP, checkBlacklists, checkShadowIT, checkHTTPHeaders, checkURLhaus, checkUsomList, checkCertTransparency, checkGoogleSafeBrowsing, checkSSLLabs };

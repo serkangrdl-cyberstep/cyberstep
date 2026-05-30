@@ -1,0 +1,208 @@
+import { Router, type Request, type Response } from "express";
+import { db } from "@workspace/db";
+import { domainScansTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { logger } from "../../lib/logger";
+import type { AttackScenariosResult } from "@workspace/db";
+
+const router = Router();
+
+// GET /api/domain-scan/:id/attack-scenarios — cached result
+router.get("/domain-scan/:id/attack-scenarios", async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [scan] = await db.select({
+    attackScenariosJson: domainScansTable.attackScenariosJson,
+    attackScenariosStatus: domainScansTable.attackScenariosStatus,
+  }).from(domainScansTable).where(eq(domainScansTable.id, id));
+
+  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+  res.json({ status: scan.attackScenariosStatus ?? "none", result: scan.attackScenariosJson ?? null });
+});
+
+// POST /api/domain-scan/:id/attack-scenarios — trigger analysis
+router.post("/domain-scan/:id/attack-scenarios", async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, id));
+  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+
+  // If already generating, don't start again
+  if (scan.attackScenariosStatus === "generating") {
+    res.json({ status: "generating" });
+    return;
+  }
+
+  // If complete, return cached
+  if (scan.attackScenariosStatus === "complete" && scan.attackScenariosJson) {
+    res.json({ status: "complete", result: scan.attackScenariosJson });
+    return;
+  }
+
+  // Mark as generating
+  await db.update(domainScansTable)
+    .set({ attackScenariosStatus: "generating" })
+    .where(eq(domainScansTable.id, id));
+
+  res.json({ status: "generating" });
+
+  // Fire-and-forget background generation
+  generateAttackScenarios(id, scan).catch(err =>
+    logger.error({ err, scanId: id }, "Attack scenario generation failed")
+  );
+});
+
+// ─── Core generation logic ────────────────────────────────────────────────────
+
+async function generateAttackScenarios(scanId: number, scan: typeof domainScansTable.$inferSelect) {
+  try {
+    const prompt = buildPrompt(scan);
+
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const block = message.content[0];
+    const rawText = block?.type === "text" ? block.text.trim() : "";
+
+    // Extract JSON from response (Claude may wrap in ```json blocks)
+    const jsonMatch = rawText.match(/```json\s*([\s\S]+?)\s*```/) ?? rawText.match(/(\{[\s\S]+\})/);
+    const jsonStr = jsonMatch?.[1] ?? rawText;
+
+    const result: AttackScenariosResult = JSON.parse(jsonStr);
+    result.generated_at = new Date().toISOString();
+
+    await db.update(domainScansTable)
+      .set({ attackScenariosStatus: "complete", attackScenariosJson: result })
+      .where(eq(domainScansTable.id, scanId));
+
+    logger.info({ scanId, scenarios: result.senaryolar?.length }, "Attack scenarios generated");
+  } catch (err) {
+    logger.error({ err, scanId }, "Attack scenario generation error");
+    await db.update(domainScansTable)
+      .set({ attackScenariosStatus: "error" })
+      .where(eq(domainScansTable.id, scanId))
+      .catch(() => null);
+  }
+}
+
+function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
+  const cveSummary = (scan.cveSummary as Array<{ service: string; cveId: string; description: string; cvssScore: number }> ?? []);
+  const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string }> ?? []);
+  const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string }> ?? []);
+
+  const criticalCves = cveSummary.filter(c => c.cvssScore >= 7.0);
+
+  const riskFlags: string[] = [];
+  if (!scan.spfPass) riskFlags.push("SPF kaydı eksik — phishing kolaylaşıyor");
+  if (!scan.dmarcPass) riskFlags.push("DMARC koruması yok — domain spoofing mümkün");
+  if (!scan.dkimPass) riskFlags.push("DKIM imzası eksik");
+  if (scan.sslDaysUntilExpiry !== null && scan.sslDaysUntilExpiry < 30) riskFlags.push(`SSL sertifikası ${scan.sslDaysUntilExpiry} gün içinde sona eriyor`);
+  if (scan.blacklisted) riskFlags.push(`${scan.blacklistCount} kara listede kayıtlı`);
+  if (scan.urlhausListed) riskFlags.push("URLhaus tehdit veritabanında kayıtlı");
+  if (scan.usomListed) riskFlags.push("USOM Türkiye siber tehdit listesinde");
+  if (scan.hibpBreachCount > 0) riskFlags.push(`${scan.hibpBreachCount} veri ihlali kaydı var`);
+  if (scan.virusTotalMalicious > 0) riskFlags.push(`VirusTotal'de ${scan.virusTotalMalicious} zararlı tespit`);
+  if (scan.httpHeadersScore < 40) riskFlags.push(`HTTP güvenlik başlıkları zayıf (skor: ${scan.httpHeadersScore}/100)`);
+  if ((scan.abuseIpdbScore ?? 0) > 50) riskFlags.push(`AbuseIPDB itibar skoru yüksek: ${scan.abuseIpdbScore}`);
+
+  return `Sen kıdemli bir penetrasyon testi uzmanı ve tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
+
+TARAMA VERİLERİ
+===============
+Domain: ${scan.domain}
+Genel Risk Skoru: ${scan.overallScore}/100
+
+E-POSTA GÜVENLİĞİ:
+- SPF: ${scan.spfPass ? "PASS" : "FAIL"}${scan.spfRecord ? ` (${scan.spfRecord})` : ""}
+- DMARC: ${scan.dmarcPass ? "PASS" : "FAIL"}${scan.dmarcRecord ? ` (${scan.dmarcRecord})` : ""}
+- DKIM: ${scan.dkimPass ? "PASS" : "FAIL"}
+- MX: ${scan.mxPass ? "PASS" : "FAIL"}
+
+SSL/TLS:
+- Durum: ${scan.sslPass ? "Geçerli" : "Sorunlu"}
+- SSL Labs Notu: ${scan.sslLabsGrade ?? "Bilinmiyor"}
+- Süre Kalan: ${scan.sslDaysUntilExpiry !== null ? `${scan.sslDaysUntilExpiry} gün` : "Bilinmiyor"}
+
+AÇIK PORTLAR VE SERVİSLER:
+${openPorts.length > 0 ? openPorts.map(p => `- Port ${p.port}/${p.protocol}: ${p.service} ${p.product} ${p.version}`.trim()).join("\n") : "- Tespit edilmedi (Shodan'dan)"}
+Toplam Shodan güvenlik açığı sayısı: ${scan.shodanVulnCount}
+ISP: ${scan.shodanIsp ?? "Bilinmiyor"} (${scan.shodanCountry ?? ""})
+
+GÜVENLİK AÇIKLARI (CVE):
+${criticalCves.length > 0 ? criticalCves.map(c => `- ${c.cveId} [CVSS: ${c.cvssScore}] ${c.service}: ${c.description}`).join("\n") : "- Kritik CVE tespit edilmedi"}
+Toplam CVE sayısı: ${cveSummary.length}
+
+TEHDİT İSTİHBARATI:
+- Kara Liste: ${scan.blacklisted ? `${scan.blacklistCount} listede kayıtlı` : "Temiz"}
+- URLhaus: ${scan.urlhausListed ? `Zararlı (${scan.urlhausThreat ?? ""})` : "Temiz"}
+- USOM Türkiye: ${scan.usomListed ? "Listede!" : "Temiz"}
+- VirusTotal: ${scan.virusTotalMalicious} zararlı, ${scan.virusTotalSuspicious} şüpheli
+- AbuseIPDB: ${scan.abuseIpdbScore !== null ? `${scan.abuseIpdbScore}/100 (${scan.abuseIpdbTotalReports} rapor)` : "N/A"}
+- Google Safe Browsing: ${scan.safeBrowsingFlagged ? "Tehdit tespit edildi!" : "Temiz"}
+
+VERİ İHLALİ GEÇMİŞİ (Have I Been Pwned):
+- ${scan.hibpBreachCount} ihlal kaydı bulundu
+
+SHADOW IT (Tespit Edilen SaaS/Bulut Hizmetleri):
+${shadowIt.length > 0 ? shadowIt.map(s => `- ${s.name} (${s.category}, risk: ${s.risk})`).join("\n") : "- Tespit edilmedi"}
+
+HTTP GÜVENLİK BAŞLIKLARI: ${scan.httpHeadersScore}/100
+ALT DOMAIN SAYISI (CT Log): ${scan.ctSubdomainCount}
+
+TESPİT EDİLEN RİSK BAYRAKLARI:
+${riskFlags.length > 0 ? riskFlags.map(f => `⚠️ ${f}`).join("\n") : "Kritik risk bayrağı yok"}
+
+ANALİZ GÖREVİ
+==============
+Bu verilere dayanarak, bu şirkete yönelik en olası 3 gerçekçi saldırı senaryosunu oluştur. Her senaryo:
+- Mevcut bulgulara dayalı ve gerçekçi olmalı
+- Saldırgan perspektifinden adım adım anlatılmalı  
+- MITRE ATT&CK teknikleriyle eşleştirilmeli
+- KVKK/kişisel veri riski dahil iş etkisini içermeli
+- Acil önlemler pratik ve uygulanabilir olmalı
+
+ZORUNLU ÇIKTI FORMATI — Sadece aşağıdaki JSON'u döndür, başka hiçbir metin ekleme:
+
+{
+  "risk_ozet": "2-3 cümlelik yönetici özeti. Bu şirketin en kritik güvenlik sorunu nedir?",
+  "genel_tehdit_seviyesi": "Kritik|Yüksek|Orta|Düşük",
+  "senaryolar": [
+    {
+      "baslik": "Senaryo başlığı (örn: Fidye Yazılımı Saldırısı)",
+      "olasilik": "Yüksek|Orta|Düşük",
+      "acillik": "Acil|Yüksek|Orta",
+      "giris_noktasi": "Saldırganın ilk erişim vektörünü somut olarak açıkla",
+      "saldiri_zinciri": [
+        "1. Keşif: ...",
+        "2. İlk Erişim: ...",
+        "3. Kalıcılık/Yanal Hareket: ...",
+        "4. Hedef: ...",
+        "5. Etki/İstismar: ..."
+      ],
+      "mitre_teknikler": [
+        {"kod": "T1190", "isim": "Açık Uygulama İstismarı"}
+      ],
+      "etki": "Saldırının iş etkisi — operasyonel, finansal, itibar",
+      "kvkk_etkisi": "KVKK Madde 12 kapsamında kişisel veri riski ve tahmini yaptırım",
+      "acil_onlemler": [
+        "1. Yapılacak ilk şey",
+        "2. İkinci önlem",
+        "3. Üçüncü önlem"
+      ]
+    }
+  ],
+  "once_kapat": [
+    {"oncelik": 1, "aksiyon": "En acil aksiyon", "neden": "Neden bu öncelikli?"},
+    {"oncelik": 2, "aksiyon": "İkinci aksiyon", "neden": "..."},
+    {"oncelik": 3, "aksiyon": "Üçüncü aksiyon", "neden": "..."}
+  ]
+}`;
+}
+
+export default router;

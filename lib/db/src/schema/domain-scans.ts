@@ -2,6 +2,26 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export interface AttackScenario {
+  baslik: string;
+  olasilik: "Yüksek" | "Orta" | "Düşük";
+  acillik: "Acil" | "Yüksek" | "Orta";
+  giris_noktasi: string;
+  saldiri_zinciri: string[];
+  mitre_teknikler: Array<{ kod: string; isim: string }>;
+  etki: string;
+  kvkk_etkisi: string;
+  acil_onlemler: string[];
+}
+
+export interface AttackScenariosResult {
+  risk_ozet: string;
+  genel_tehdit_seviyesi: "Kritik" | "Yüksek" | "Orta" | "Düşük";
+  senaryolar: AttackScenario[];
+  once_kapat: Array<{ oncelik: number; aksiyon: string; neden: string }>;
+  generated_at: string;
+}
+
 export const domainScansTable = pgTable("domain_scans", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id"),
@@ -53,6 +73,8 @@ export const domainScansTable = pgTable("domain_scans", {
   kepConfigured: boolean("kep_configured"),
   kepRelays: jsonb("kep_relays").$type<string[]>().notNull().default([]),
   kepSecure: boolean("kep_secure"),
+  attackScenariosJson: jsonb("attack_scenarios_json").$type<AttackScenariosResult>(),
+  attackScenariosStatus: text("attack_scenarios_status").$type<"none" | "generating" | "complete" | "error">().default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

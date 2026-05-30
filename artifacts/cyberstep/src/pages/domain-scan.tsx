@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Download, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
   Mail, Lock, Server, Loader2, ArrowRight, Info,
   DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network, Wifi, Flag,
+  Swords, ChevronDown, ChevronUp, Target, Zap, AlertOctagon,
 } from "lucide-react";
 
 interface HibpBreach {
@@ -1006,6 +1007,352 @@ function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: s
   );
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface MitreTechnique { kod: string; isim: string; }
+interface AttackScenario {
+  baslik: string;
+  olasilik: "Yüksek" | "Orta" | "Düşük";
+  acillik: "Acil" | "Yüksek" | "Orta";
+  giris_noktasi: string;
+  saldiri_zinciri: string[];
+  mitre_teknikler: MitreTechnique[];
+  etki: string;
+  kvkk_etkisi: string;
+  acil_onlemler: string[];
+}
+interface AttackScenariosResult {
+  risk_ozet: string;
+  genel_tehdit_seviyesi: "Kritik" | "Yüksek" | "Orta" | "Düşük";
+  senaryolar: AttackScenario[];
+  once_kapat: Array<{ oncelik: number; aksiyon: string; neden: string }>;
+  generated_at: string;
+}
+
+// ─── Attack Scenario Panel ─────────────────────────────────────────────────────
+function AttackScenarioPanel({ scanId }: { scanId: number }) {
+  const [status, setStatus] = useState<"idle" | "generating" | "complete" | "error">("idle");
+  const [result, setResult] = useState<AttackScenariosResult | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(0);
+
+  // Check for cached result on mount
+  useEffect(() => {
+    fetch(`/api/domain-scan/${scanId}/attack-scenarios`)
+      .then(r => r.json())
+      .then((data: { status: string; result: AttackScenariosResult | null }) => {
+        if (data.status === "complete" && data.result) {
+          setResult(data.result);
+          setStatus("complete");
+        } else if (data.status === "generating") {
+          setStatus("generating");
+        }
+      })
+      .catch(() => {});
+  }, [scanId]);
+
+  // Poll while generating
+  useEffect(() => {
+    if (status !== "generating") return;
+    const interval = setInterval(() => {
+      fetch(`/api/domain-scan/${scanId}/attack-scenarios`)
+        .then(r => r.json())
+        .then((data: { status: string; result: AttackScenariosResult | null }) => {
+          if (data.status === "complete" && data.result) {
+            setResult(data.result);
+            setStatus("complete");
+            clearInterval(interval);
+          } else if (data.status === "error") {
+            setStatus("error");
+            clearInterval(interval);
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [status, scanId]);
+
+  const generate = useCallback(() => {
+    setStatus("generating");
+    fetch(`/api/domain-scan/${scanId}/attack-scenarios`, { method: "POST" })
+      .then(r => r.json())
+      .then((data: { status: string; result?: AttackScenariosResult }) => {
+        if (data.status === "complete" && data.result) {
+          setResult(data.result);
+          setStatus("complete");
+        }
+      })
+      .catch(() => setStatus("error"));
+  }, [scanId]);
+
+  const threatColor = (level: string) => {
+    if (level === "Kritik") return "text-red-600 bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400";
+    if (level === "Yüksek") return "text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900 dark:text-orange-400";
+    if (level === "Orta") return "text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-900 dark:text-yellow-500";
+    return "text-green-600 bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400";
+  };
+
+  const probabilityBadge = (level: string) => {
+    if (level === "Yüksek") return "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400";
+    if (level === "Orta") return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400";
+    return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400";
+  };
+
+  const urgencyBadge = (level: string) => {
+    if (level === "Acil") return "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400";
+    if (level === "Yüksek") return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400";
+    return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-500";
+  };
+
+  // idle → show CTA
+  if (status === "idle") {
+    return (
+      <div className="rounded-2xl border-2 border-destructive/20 bg-gradient-to-br from-destructive/5 to-background p-5">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="p-2 rounded-lg bg-destructive/10 shrink-0 mt-0.5">
+              <Swords className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground mb-0.5">Saldırı Senaryosu Analizi</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Claude AI, tarama bulgularını analiz ederek bu domaine yönelik en olası saldırı zincirlerini,
+                MITRE ATT&CK eşleştirmeleri ve KVKK etkisiyle birlikte oluşturur.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={generate}
+            className="shrink-0 gap-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          >
+            <Sparkles className="h-4 w-4" />
+            Analizi Oluştur
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // generating → loading state
+  if (status === "generating") {
+    return (
+      <Card className="shadow-sm border-destructive/20">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-destructive/10">
+              <Swords className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Saldırı Senaryosu Analizi</p>
+              <p className="text-xs text-muted-foreground">Claude AI tehdit modeli oluşturuyor...</p>
+            </div>
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />
+          </div>
+          <div className="space-y-2.5">
+            {[90, 75, 60].map((w, i) => (
+              <div key={i} className="space-y-1">
+                <div className={`h-4 rounded bg-muted animate-pulse`} style={{ width: `${w}%` }} />
+                <div className="h-3 rounded bg-muted/60 animate-pulse" style={{ width: `${w - 15}%` }} />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // error state
+  if (status === "error") {
+    return (
+      <Card className="shadow-sm border-destructive/30">
+        <CardContent className="p-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <AlertOctagon className="h-5 w-5 text-destructive shrink-0" />
+            <p className="text-sm text-muted-foreground">Analiz oluşturulamadı. Lütfen tekrar deneyin.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={generate}>Tekrar Dene</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // complete — full result
+  if (!result) return null;
+
+  return (
+    <div className="space-y-3">
+      {/* Header card */}
+      <Card className="shadow-sm border-destructive/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <Swords className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Saldırı Senaryosu Analizi</CardTitle>
+                <CardDescription className="text-xs mt-0.5">Claude AI — MITRE ATT&CK eşleştirmeli tehdit modeli</CardDescription>
+              </div>
+            </div>
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${threatColor(result.genel_tehdit_seviyesi)}`}>
+              <AlertOctagon className="h-3.5 w-3.5" />
+              {result.genel_tehdit_seviyesi} Tehdit
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-sm text-muted-foreground leading-relaxed bg-muted/40 rounded-lg p-3 border border-border/60">
+            {result.risk_ozet}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Scenarios */}
+      {result.senaryolar.map((scenario, idx) => (
+        <Card key={idx} className="shadow-sm overflow-hidden">
+          <button
+            className="w-full text-left"
+            onClick={() => setExpanded(expanded === idx ? null : idx)}
+          >
+            <div className="flex items-center justify-between gap-3 p-4">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="p-1.5 rounded-md bg-destructive/10 shrink-0 mt-0.5">
+                  <Target className="h-4 w-4 text-destructive" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-semibold">{scenario.baslik}</span>
+                    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${probabilityBadge(scenario.olasilik)}`}>
+                      Olasılık: {scenario.olasilik}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyBadge(scenario.acillik)}`}>
+                      <Zap className="h-3 w-3" />
+                      {scenario.acillik}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{scenario.giris_noktasi}</p>
+                </div>
+              </div>
+              {expanded === idx
+                ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+              }
+            </div>
+          </button>
+
+          {expanded === idx && (
+            <div className="border-t border-border/60 px-4 pb-4 pt-3 space-y-4">
+              {/* Entry point */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Target className="h-3.5 w-3.5" /> Giriş Noktası
+                </p>
+                <p className="text-sm leading-relaxed text-foreground/80">{scenario.giris_noktasi}</p>
+              </div>
+
+              {/* Attack chain */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Swords className="h-3.5 w-3.5" /> Saldırı Zinciri
+                </p>
+                <ol className="space-y-1.5">
+                  {scenario.saldiri_zinciri.map((step, si) => (
+                    <li key={si} className="flex items-start gap-2.5 text-sm">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-destructive/10 text-destructive text-xs font-bold flex items-center justify-center mt-0.5">
+                        {si + 1}
+                      </span>
+                      <span className="text-foreground/80 leading-relaxed">{step.replace(/^\d+\.\s*[^:]+:\s*/, "").replace(/^\d+\.\s*/, "")}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              {/* MITRE techniques */}
+              {scenario.mitre_teknikler.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                    <Bug className="h-3.5 w-3.5" /> MITRE ATT&CK Teknikleri
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {scenario.mitre_teknikler.map((t, ti) => (
+                      <a
+                        key={ti}
+                        href={`https://attack.mitre.org/techniques/${t.kod.replace(".", "/")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-mono bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 transition-colors"
+                      >
+                        <span className="font-bold text-primary">{t.kod}</span>
+                        <span className="text-muted-foreground">·</span>
+                        {t.isim}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Impact + KVKK */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-lg border border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-950/20 p-3">
+                  <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 mb-1 flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" /> İş Etkisi
+                  </p>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{scenario.etki}</p>
+                </div>
+                <div className="rounded-lg border border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-950/20 p-3">
+                  <p className="text-xs font-semibold text-purple-700 dark:text-purple-400 mb-1 flex items-center gap-1">
+                    <Shield className="h-3.5 w-3.5" /> KVKK Riski
+                  </p>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{scenario.kvkk_etkisi}</p>
+                </div>
+              </div>
+
+              {/* Immediate actions */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-yellow-500" /> Acil Önlemler
+                </p>
+                <ul className="space-y-1">
+                  {scenario.acil_onlemler.map((action, ai) => (
+                    <li key={ai} className="flex items-start gap-2 text-xs text-foreground/80">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      {action.replace(/^\d+\.\s*/, "")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </Card>
+      ))}
+
+      {/* Priority fixes */}
+      {result.once_kapat.length > 0 && (
+        <Card className="shadow-sm border-red-200 dark:border-red-900">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertOctagon className="h-4 w-4 text-red-500" />
+              Onceliklı Aksiyonlar
+            </CardTitle>
+            <CardDescription className="text-xs">Tüm senaryolara göre en kritik 3 kapatma noktası</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {result.once_kapat.map((item) => (
+              <div key={item.oncelik} className="flex items-start gap-3 p-2.5 rounded-lg border border-border/60 bg-muted/30">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-bold flex items-center justify-center">
+                  {item.oncelik}
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{item.aksiyon}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.neden}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
@@ -1631,6 +1978,9 @@ export default function DomainScanPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Saldırı Senaryosu Analizi */}
+          <AttackScenarioPanel scanId={result.id} />
 
           {/* Değerlendirme Upsell Köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">

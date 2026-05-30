@@ -2,3 +2,4 @@
 - [Funnel CTA pattern](funnel-cta-pattern.md) — all 14 tool pages now have contextual assessment CTAs; reuse the border-2 border-primary/30 bg-primary/5 p-4 block pattern
 - [Sector SEO pages](sektor-seo.md) — /sektor/:slug dynamic page with 5 sectors (saglik, finans, perakende, bilisim, imalat); data in artifacts/cyberstep/src/pages/sektor.tsx
 - [Customer integrations framework](customer-integrations.md) — per-customer Jira/FortiManager/QRadar/FortiSIEM/CrowdStrike/TrendMicro config + auto-push helper
+- [Attack Scenario Analysis](attack-scenarios.md) — Claude claude-sonnet-4-6 generates MITRE ATT&CK mapped attack chains from domain scan data; fire-and-forget + polling pattern

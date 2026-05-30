@@ -58,13 +58,7 @@ import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
 import AdminSpecialMessages from "./pages/admin-panel/special-messages";
 import AdminMusteriler from "./pages/admin-panel/musteriler";
 import AdminDomainTaramalar from "./pages/admin-panel/domain-taramalar";
-import AdminIsrDashboard from "./pages/admin-panel/isr/index";
 import AdminEntegrasyonlar from "./pages/admin-panel/entegrasyonlar";
-import AdminIsrDeal from "./pages/admin-panel/isr/deal";
-import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
-import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
-import AdminIsrMusteriler from "./pages/admin-panel/isr/musteriler";
-import AdminIsrMusteri360 from "./pages/admin-panel/isr/musteri-360";
 import AdminEmailTemplates from "./pages/admin-panel/email-templates";
 import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
 import AdminIsOrtaklari from "./pages/admin-panel/is-ortaklari";
@@ -175,12 +169,6 @@ function Router() {
       <Route path="/panel/sosyal-medya" component={AdminSosyalMedya} />
       <Route path="/panel/musteriler" component={AdminMusteriler} />
       <Route path="/panel/domain-taramalar" component={AdminDomainTaramalar} />
-      <Route path="/panel/isr/vendors" component={AdminIsrVendors} />
-      <Route path="/panel/isr/kurallar" component={AdminIsrKurallar} />
-      <Route path="/panel/isr/musteriler" component={AdminIsrMusteriler} />
-      <Route path="/panel/isr/musteri/:id" component={AdminIsrMusteri360} />
-      <Route path="/panel/isr/deal/:id" component={AdminIsrDeal} />
-      <Route path="/panel/isr" component={AdminIsrDashboard} />
       <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />
       <Route path="/panel/bildirimler" component={AdminEmailNotifications} />
       <Route path="/panel/rozet-avantajlari" component={AdminRozetAvantajlari} />

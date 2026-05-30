@@ -16,7 +16,6 @@ const NAV_ITEMS = [
   { icon: FileText,        label: "Değerlendirmeler",    href: "/panel/degerlendirmeler" },
   { icon: UserSquare2,     label: "Müşteriler",          href: "/panel/musteriler" },
   { icon: Globe,           label: "Alan Adı Taramaları", href: "/panel/domain-taramalar" },
-  { icon: Bot,             label: "AI Satış Asistanı",   href: "/panel/isr" },
   { icon: Bell,            label: "Bildirim Merkezi",    href: "/panel/bildirimler" },
   { icon: Mail,            label: "E-posta Şablonları",  href: "/panel/email-sablonlari" },
   { icon: DollarSign,      label: "Ödemeler",            href: "/panel/odemeler" },

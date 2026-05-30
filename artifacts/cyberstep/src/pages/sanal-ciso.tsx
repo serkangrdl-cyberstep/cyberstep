@@ -72,7 +72,7 @@ const TIERS = [
   {
     id: "baslangic",
     name: "Sanal CISO Başlangıç",
-    price: "8.000",
+    price: "8000",
     period: "/ay",
     desc: "1–50 çalışan. Temel vCISO hizmetleri.",
     highlight: false,
@@ -89,7 +89,7 @@ const TIERS = [
   {
     id: "kurumsal",
     name: "Sanal CISO Kurumsal",
-    price: "15.000",
+    price: "15000",
     period: "/ay",
     desc: "50–500 çalışan. Tam vCISO hizmetleri + sektörel uyum.",
     highlight: true,

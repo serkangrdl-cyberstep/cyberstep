@@ -6,6 +6,10 @@ import {
   Download, ExternalLink, LogOut, CheckCircle2, XCircle, AlertTriangle,
   BarChart3, Clock, Building2, ChevronRight,
 } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, Area, AreaChart,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -209,22 +213,90 @@ export default function CustomerReports() {
           </Card>
         </div>
 
-        {/* Trend */}
-        {completedAssessments.length >= 2 && (
-          <Card className="bg-slate-900 border-slate-700">
-            <CardContent className="p-4 flex items-center gap-4">
-              <BarChart3 className="h-6 w-6 text-emerald-400 shrink-0" />
-              <div className="flex-1">
-                <p className="text-white font-medium text-sm">Son Değerlendirme Karşılaştırması</p>
-                <p className="text-slate-400 text-xs mt-0.5">En son iki sonucunuz arasındaki fark</p>
-              </div>
-              <ScoreDelta assessments={assessments} />
-              <div className="text-right">
-                <p className="text-white text-sm font-medium">En İyi: <span className={scoreColor(bestScore)}>%{bestScore}</span></p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* İyileşme Grafiği — 2+ tamamlanmış değerlendirme varsa göster */}
+        {completedAssessments.length >= 2 && (() => {
+          const chartData = [...completedAssessments]
+            .reverse()
+            .map((a, i) => ({
+              idx: i + 1,
+              date: new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" }),
+              skor: a.scorePercent ?? 0,
+              type: a.assessmentType === "full" ? "Tam" : "Mini",
+            }));
+          const firstScore = chartData[0].skor;
+          const lastScore = chartData[chartData.length - 1].skor;
+          const delta = lastScore - firstScore;
+
+          return (
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <CardTitle className="text-white text-sm">Siber Güvenlik Skor Geçmişi</CardTitle>
+                    <p className="text-slate-400 text-xs mt-0.5">{completedAssessments.length} tamamlanmış değerlendirme</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {delta > 0 && (
+                      <span className="flex items-center gap-1 text-emerald-400 text-sm font-semibold">
+                        <TrendingUp className="h-4 w-4" /> +{delta.toFixed(0)} puan iyileşme
+                      </span>
+                    )}
+                    {delta < 0 && (
+                      <span className="flex items-center gap-1 text-red-400 text-sm font-semibold">
+                        <TrendingDown className="h-4 w-4" /> {delta.toFixed(0)} puan
+                      </span>
+                    )}
+                    {delta === 0 && (
+                      <span className="flex items-center gap-1 text-slate-400 text-sm">
+                        <Minus className="h-4 w-4" /> Değişim yok
+                      </span>
+                    )}
+                    <span className="text-slate-500 text-xs">En İyi: <span className={scoreColor(bestScore)}>%{bestScore}</span></span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="h-[200px] pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(142 71% 45%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(142 71% 45%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={v => `%${v}`} />
+                    <ReferenceLine y={70} stroke="hsl(142 71% 45%)" strokeDasharray="4 2" strokeOpacity={0.4} />
+                    <ReferenceLine y={40} stroke="hsl(35 92% 60%)" strokeDasharray="4 2" strokeOpacity={0.4} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: "8px", fontSize: 12 }}
+                      labelStyle={{ color: "#94a3b8" }}
+                      formatter={(v: number, _: string, props: any) => [`%${v} — ${props.payload?.type}`, "Skor"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="skor"
+                      stroke="hsl(142 71% 45%)"
+                      strokeWidth={2.5}
+                      fill="url(#scoreGradient)"
+                      dot={{ fill: "hsl(142 71% 45%)", strokeWidth: 0, r: 4 }}
+                      activeDot={{ r: 6, fill: "hsl(142 71% 45%)" }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="flex items-center gap-4 justify-center mt-1">
+                  <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <span className="w-6 h-0 border border-dashed border-emerald-500/50 inline-block" /> %70 hedef
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <span className="w-6 h-0 border border-dashed border-amber-400/50 inline-block" /> %40 orta sınır
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         <Tabs defaultValue="assessments">
           <TabsList className="bg-slate-800 border border-slate-700">

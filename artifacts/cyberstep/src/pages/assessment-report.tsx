@@ -15,6 +15,7 @@ import {
   Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck, Loader2, Share2, Copy, CheckCheck,
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
+import { useCustomer } from "@/hooks/use-customer";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { MINI_ASSESSMENT_SECTIONS } from "@/lib/constants";
 
@@ -301,6 +302,8 @@ function AssessmentReportCore({ id }: { id: number }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
+  const { data: customer } = useCustomer();
+
   const { data: pricingPlans } = useQuery<Array<{ slug: string; price: string }>>({
     queryKey: ["public-pricing"],
     queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
@@ -513,11 +516,19 @@ function AssessmentReportCore({ id }: { id: number }) {
           <Button variant="outline" onClick={handleMailtoShare}>
             <Share2 className="mr-2 h-4 w-4" /> Tedarikçine Gönder
           </Button>
-          <Link href="/dashboard">
-            <Button variant="outline">
-              Dashboard'a Dön <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+          {customer ? (
+            <Link href="/raporlarim">
+              <Button variant="outline">
+                Raporlarıma Dön <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/assessment/start">
+              <Button variant="outline">
+                Yeni Değerlendirme <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -1038,33 +1049,53 @@ function AssessmentReportCore({ id }: { id: number }) {
       </Card>
 
       {/* Domain bar chart */}
-      <Card className="shadow-sm mb-6">
-        <CardHeader>
-          <CardTitle>Kategori Bazlı Puan Dağılımı</CardTitle>
-          <CardDescription>5 güvenlik alanında başarı yüzdeniz</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[260px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={report.domainScores} layout="vertical" margin={{ top: 5, right: 40, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `%${v}`} />
-              <YAxis dataKey="domain" type="category" width={24} tick={{ fontSize: 13, fontWeight: 600 }} />
-              <Tooltip
-                formatter={(value: number) => [`%${value.toFixed(0)}`, "Başarı"]}
-                contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-              />
-              <Bar dataKey="percent" radius={[0, 4, 4, 0]}>
-                {report.domainScores?.map((entry: any, index: number) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.percent > 70 ? "hsl(142 71% 45%)" : entry.percent > 40 ? "hsl(35 92% 60%)" : "hsl(0 84% 60%)"}
+      {(() => {
+        const DOMAIN_SHORT: Record<string, string> = {
+          A: "Yönetim ve Envanter",
+          B: "Kimlik ve Erişim",
+          C: "E-posta ve Farkındalık",
+          D: "Cihaz ve Uç Nokta",
+          E: "Veri Koruma ve Yedek",
+        };
+        const barData = (report.domainScores as Array<{ domain: string; percent: number }> ?? []).map(d => ({
+          ...d,
+          label: `${d.domain} — ${DOMAIN_SHORT[d.domain] ?? d.domain}`,
+        }));
+        return (
+          <Card className="shadow-sm mb-6">
+            <CardHeader>
+              <CardTitle>Kategori Bazlı Puan Dağılımı</CardTitle>
+              <CardDescription>5 güvenlik alanında başarı yüzdeniz</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 48, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `%${v}`} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    dataKey="label"
+                    type="category"
+                    width={165}
+                    tick={{ fontSize: 11 }}
                   />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+                  <Tooltip
+                    formatter={(value: number) => [`%${value.toFixed(0)}`, "Başarı"]}
+                    contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                  />
+                  <Bar dataKey="percent" radius={[0, 4, 4, 0]}>
+                    {barData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.percent > 70 ? "hsl(142 71% 45%)" : entry.percent > 40 ? "hsl(35 92% 60%)" : "hsl(0 84% 60%)"}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Partner Yönlendirme — zayıf alanlara göre çözüm önerileri */}
       {(() => {

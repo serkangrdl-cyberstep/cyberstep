@@ -15,6 +15,12 @@ import TehditIstihbarati from "./pages/tehdit-istihbarati";
 import SkorApi from "./pages/skor-api";
 import GuvenlikMerkezi from "./pages/guvenlik-merkezi";
 import Metodoloji from "./pages/metodoloji";
+import ZeroDayUyari from "./pages/zero-day-uyari";
+import GithubTarama from "./pages/github-tarama";
+import OnPremise from "./pages/on-premise";
+import MaDueDiligence from "./pages/ma-due-diligence";
+import TedarikciOnboarding from "./pages/tedarikci-onboarding";
+import ComplianceCalendar from "./pages/compliance-calendar";
 import TprmAnket from "./pages/tprm-anket";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
@@ -241,6 +247,12 @@ function Router() {
             <Route path="/skor-api" component={SkorApi} />
             <Route path="/guvenlik-merkezi" component={GuvenlikMerkezi} />
             <Route path="/metodoloji" component={Metodoloji} />
+            <Route path="/zero-day-uyari" component={ZeroDayUyari} />
+            <Route path="/github-tarama" component={GithubTarama} />
+            <Route path="/on-premise" component={OnPremise} />
+            <Route path="/ma-due-diligence" component={MaDueDiligence} />
+            <Route path="/tedarikci-onboarding" component={TedarikciOnboarding} />
+            <Route path="/compliance-calendar" component={ComplianceCalendar} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
             <Route component={NotFound} />
           </Switch>

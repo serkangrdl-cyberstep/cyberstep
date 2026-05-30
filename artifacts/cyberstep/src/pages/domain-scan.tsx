@@ -84,6 +84,8 @@ interface ScanResult {
   abuseIpdbTotalReports: number;
   abuseIpdbCountry: string | null;
   abuseIpdbIsp: string | null;
+  cisaKevMatches?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription: string; requiredAction: string }>;
+  otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
   createdAt: string;
 }
 
@@ -1379,6 +1381,86 @@ export default function DomainScanPage() {
           {/* İş Sürekliliği Haritası */}
           {result.shadowItServices && result.shadowItServices.length > 0 && (
             <BusinessContinuityMap services={result.shadowItServices} />
+          )}
+
+          {/* CISA KEV — Aktif İstismar Edilen Güvenlik Açıkları */}
+          {result.cisaKevMatches && result.cisaKevMatches.length > 0 && (
+            <Card className="shadow-sm mb-2 border-red-200 bg-red-50/40 dark:bg-red-950/10 dark:border-red-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-red-600" />
+                  CISA KEV — Aktif Olarak İstismar Edilen Açıklar
+                  <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-200">{result.cisaKevMatches.length} eşleşme</Badge>
+                </CardTitle>
+                <CardDescription>
+                  ABD Siber Güvenlik Ajansı'nın (CISA) aktif fidye saldırılarında kullanıldığını doğruladığı güvenlik açıkları — sitenizdeki yazılımlarla eşleşti
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2">
+                {result.cisaKevMatches.map((kev) => (
+                  <div key={kev.cveID} className="rounded-lg border border-red-200 dark:border-red-900 bg-white dark:bg-red-950/20 p-3">
+                    <div className="flex items-start gap-2 flex-wrap mb-1">
+                      <code className="text-xs font-mono bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 px-2 py-0.5 rounded font-bold">{kev.cveID}</code>
+                      <Badge variant="outline" className="text-xs text-muted-foreground">{kev.vendorProject} {kev.product}</Badge>
+                      <span className="text-xs text-muted-foreground ml-auto">Eklendi: {kev.dateAdded}</span>
+                    </div>
+                    <p className="text-xs font-medium mb-1">{kev.vulnerabilityName}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-1">{kev.shortDescription.substring(0, 200)}{kev.shortDescription.length > 200 ? "..." : ""}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">Zorunlu Aksiyon: {kev.requiredAction}</p>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground pt-1">Kaynak: CISA Known Exploited Vulnerabilities Catalog — gunluk guncelleme</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AlienVault OTX — Tehdit İstihbaratı */}
+          {result.otxData && (
+            <Card className={`shadow-sm mb-2 border ${result.otxData.pulseCount > 5 ? "border-orange-200 bg-orange-50/40 dark:bg-orange-950/10 dark:border-orange-900" : "border-slate-200"}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-orange-500" />
+                  AlienVault OTX — Tehdit İstihbaratı
+                  {result.otxData.pulseCount > 0 ? (
+                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-200">
+                      {result.otxData.pulseCount} tehdit pulse
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">Temiz</Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  200.000+ güvenlik araştırmacısının katkısıyla oluşturulan küresel tehdit istihbarat platformu
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-muted/40 p-3 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Tehdit Pulsu</p>
+                    <p className={`text-xl font-bold ${result.otxData.pulseCount > 5 ? "text-orange-500" : result.otxData.pulseCount > 0 ? "text-amber-500" : "text-emerald-500"}`}>
+                      {result.otxData.pulseCount}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 p-3 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">TR Hedefli</p>
+                    <p className={`text-xl font-bold ${result.otxData.maliciousCount > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                      {result.otxData.maliciousCount}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 p-3 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">İtibar</p>
+                    <p className={`text-xl font-bold ${result.otxData.reputation < 0 ? "text-red-500" : "text-emerald-500"}`}>
+                      {result.otxData.reputation}
+                    </p>
+                  </div>
+                </div>
+                {result.otxData.pulseCount > 0 && (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 font-medium">
+                    Bu domain {result.otxData.pulseCount} aktif tehdit istihbarat kaydinda görünüyor. Detaylı inceleme önerilir.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Tedarikçi Viral Pasaport */}

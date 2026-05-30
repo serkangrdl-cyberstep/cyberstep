@@ -15,7 +15,7 @@ import {
   Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck, Loader2, Share2, Copy, CheckCheck,
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { MINI_ASSESSMENT_SECTIONS } from "@/lib/constants";
 
 const SECTOR_BENCHMARKS: Record<string, number> = {
@@ -703,6 +703,73 @@ function AssessmentReportCore({ id }: { id: number }) {
           </Card>
         ))}
       </div>
+
+      {/* Risk Profili Radarı */}
+      {report.domainScores && report.domainScores.length >= 5 && (() => {
+        const ds = report.domainScores as Array<{ domain: string; percent: number }>;
+        const get = (letter: string) => Math.round(ds.find(d => d.domain === letter)?.percent ?? 50);
+        const redAlarmCount = (report.redAlarmQuestions ?? []).length;
+        const uyumScore = Math.max(0, Math.round(100 - redAlarmCount * 14));
+        const olayHazirlikScore = Math.round(get("E") * 0.6 + (report.redAlarmQuestions?.includes(17) ? 0 : 25) + (report.redAlarmQuestions?.includes(18) ? 0 : 15));
+        const radarData = [
+          { dimension: "Yönetişim",     value: get("A"), fullMark: 100 },
+          { dimension: "Kimlik & Erişim", value: get("B"), fullMark: 100 },
+          { dimension: "E-posta & İnsan", value: get("C"), fullMark: 100 },
+          { dimension: "Uç Nokta",       value: get("D"), fullMark: 100 },
+          { dimension: "Veri Koruma",    value: get("E"), fullMark: 100 },
+          { dimension: "Uyum",           value: uyumScore, fullMark: 100 },
+          { dimension: "Olay Hazırlığı", value: Math.min(100, olayHazirlikScore), fullMark: 100 },
+          { dimension: "Sektör Avg",     value: Math.round(sectorBenchmark), fullMark: 100 },
+        ];
+        return (
+          <Card className="shadow-sm mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap className="h-4 w-4 text-violet-500 shrink-0" />
+                8 Boyutlu Risk Profili Radarı
+              </CardTitle>
+              <CardDescription>
+                Siber güvenlik olgunluğunuzun çok boyutlu görsel haritası — sektör ortalamasıyla karşılaştırma dahil
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="grid md:grid-cols-3 gap-6 items-center">
+                <div className="md:col-span-2">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+                      <PolarGrid stroke="hsl(var(--border))" />
+                      <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name="Puanınız" dataKey="value" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} strokeWidth={2} />
+                      <Tooltip
+                        formatter={(value: number) => [`%${value}`, "Puanınız"]}
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2">
+                  {radarData.map((d) => {
+                    const color = d.value >= 70 ? "bg-emerald-500" : d.value >= 40 ? "bg-amber-400" : "bg-red-500";
+                    return (
+                      <div key={d.dimension} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-28 shrink-0 truncate">{d.dimension}</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full ${color}`} style={{ width: `${d.value}%` }} />
+                        </div>
+                        <span className="text-xs font-semibold w-8 text-right">%{d.value}</span>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Sektör ort. <strong>%{Math.round(sectorBenchmark)}</strong>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Tehdit Aktörü Zekası (BitSight Threat Insights) */}
       {(() => {

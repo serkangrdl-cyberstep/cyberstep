@@ -739,6 +739,127 @@ async function checkGoogleSafeBrowsing(domain: string): Promise<{ flagged: boole
   });
 }
 
+// ─── AlienVault OTX — threat intelligence (env-var gated, free API key) ──────
+interface OtxData {
+  pulseCount: number;
+  reputation: number;
+  maliciousCount: number;
+}
+
+async function checkOTX(domain: string): Promise<OtxData | null> {
+  const apiKey = process.env["OTX_API_KEY"];
+  if (!apiKey) return null;
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: "otx.alienvault.com",
+        path: `/api/v1/indicators/domain/${encodeURIComponent(domain)}/general`,
+        method: "GET",
+        timeout: 10000,
+        headers: { "X-OTX-API-KEY": apiKey, "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" },
+      },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 300 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            if (res.statusCode !== 200) { resolve(null); return; }
+            type OtxResp = { pulse_info?: { count?: number; pulses?: Array<{ targeted_countries?: string[] }> }; reputation?: number };
+            const json = JSON.parse(data) as OtxResp;
+            const pulseCount = json.pulse_info?.count ?? 0;
+            const pulses = json.pulse_info?.pulses ?? [];
+            const maliciousCount = pulses.filter(p => (p.targeted_countries ?? []).includes("TR")).length;
+            resolve({ pulseCount, reputation: json.reputation ?? 0, maliciousCount });
+          } catch { resolve(null); }
+        });
+      }
+    );
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+    req.end();
+  });
+}
+
+// ─── CISA KEV — Known Exploited Vulnerabilities (free, no API key) ─────────────
+interface CisaKevEntry {
+  cveID: string;
+  vendorProject: string;
+  product: string;
+  vulnerabilityName: string;
+  dateAdded: string;
+  shortDescription: string;
+  requiredAction: string;
+}
+
+let _cisaKevCache: CisaKevEntry[] = [];
+let _cisaKevLastFetch = 0;
+
+async function refreshCisaKev(): Promise<void> {
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: "www.cisa.gov",
+        path: "/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        method: "GET",
+        timeout: 20000,
+        headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", "Accept": "application/json" },
+      },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 20 * 1024 * 1024) { res.destroy(); resolve(); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          try {
+            const json = JSON.parse(data) as { vulnerabilities?: CisaKevEntry[] };
+            _cisaKevCache = json.vulnerabilities ?? [];
+            _cisaKevLastFetch = Date.now();
+            logger.info({ count: _cisaKevCache.length }, "CISA KEV katalogu güncellendi");
+          } catch { /* ignore */ }
+          resolve();
+        });
+      }
+    );
+    req.on("error", () => { logger.warn("CISA KEV indirilemedi"); resolve(); });
+    req.on("timeout", () => { req.destroy(); resolve(); });
+    req.end();
+  });
+}
+
+const CISA_KEV_SERVICE_KEYWORDS: Record<string, string[]> = {
+  "WordPress":    ["wordpress"],
+  "WooCommerce":  ["wordpress", "woocommerce"],
+  "jQuery":       ["jquery"],
+  "Apache":       ["apache"],
+  "Nginx":        ["nginx"],
+  "PHP":          ["php"],
+  "Drupal":       ["drupal"],
+  "Joomla":       ["joomla"],
+  "Magento":      ["magento"],
+  "PrestaShop":   ["prestashop"],
+  "OpenCart":     ["opencart"],
+};
+
+async function checkCisaKev(services: Array<{ name: string }>): Promise<CisaKevEntry[]> {
+  if (Date.now() - _cisaKevLastFetch > 24 * 60 * 60 * 1000) {
+    refreshCisaKev().catch(() => {});
+  }
+  if (_cisaKevCache.length === 0) return [];
+  const seen = new Map<string, CisaKevEntry>();
+  for (const svc of services) {
+    const keywords = CISA_KEV_SERVICE_KEYWORDS[svc.name];
+    if (!keywords) continue;
+    for (const entry of _cisaKevCache) {
+      const text = `${entry.vendorProject} ${entry.product} ${entry.vulnerabilityName}`.toLowerCase();
+      if (keywords.some(kw => text.includes(kw)) && !seen.has(entry.cveID)) {
+        seen.set(entry.cveID, entry);
+      }
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.dateAdded.localeCompare(a.dateAdded)).slice(0, 5);
+}
+
+// Warm up CISA KEV cache at startup
+refreshCisaKev().catch(() => {});
+
 // ─── SSLLabs grade (fromCache — fast, non-blocking) ──────────────────────────
 async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
   return new Promise((resolve) => {
@@ -828,7 +949,11 @@ router.post("/domain-scan", async (req, res) => {
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
-    const cveSummary = await checkNvdCve(shadowIt.services);
+    const [cveSummary, cisaKevMatches, otxData] = await Promise.all([
+      checkNvdCve(shadowIt.services),
+      checkCisaKev(shadowIt.services),
+      checkOTX(domain),
+    ]);
 
     const [scan] = await db
       .insert(domainScansTable)
@@ -884,8 +1009,8 @@ router.post("/domain-scan", async (req, res) => {
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, shodanConfigured: shodan !== null, virusTotalConfigured: virusTotal !== null, abuseIpdbConfigured: abuseIpdb !== null, safeBrowsingChecked: safeBrowsing !== null, sslLabsGrade: sslLabs.grade, scanId: scan?.id }, "Domain scan complete");
-    res.json(scan);
+    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, httpHeadersScore: httpHeaders.score, urlhausListed: urlhaus.listed, usomListed: usom.listed, ctSubdomainCount: certTrans.count, shodanConfigured: shodan !== null, virusTotalConfigured: virusTotal !== null, abuseIpdbConfigured: abuseIpdb !== null, safeBrowsingChecked: safeBrowsing !== null, sslLabsGrade: sslLabs.grade, cisaKevCount: cisaKevMatches.length, otxConfigured: otxData !== null, scanId: scan?.id }, "Domain scan complete");
+    res.json({ ...scan, cisaKevMatches, otxData });
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
     res.status(500).json({ error: "Tarama sırasında bir hata oluştu" });

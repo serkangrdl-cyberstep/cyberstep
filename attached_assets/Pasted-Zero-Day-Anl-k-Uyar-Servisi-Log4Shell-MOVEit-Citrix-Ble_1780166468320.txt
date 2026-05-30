@@ -1,0 +1,13 @@
+Zero-Day Anlık Uyarı Servisi
+Log4Shell, MOVEit, Citrix Bleed gibi bir zero-day patladığında dünya 48 saat içinde hacklenenlere bölünüyor. CyberStep o an müşterinin etkilenip etkilenmediğini otomatik kontrol etmeli. Shodan + Nuclei + CISA KEV üçlüsü bu işi yapıyor zaten — tetikleyici mekanizma eksik. CISA KEV'e yeni eklenen CVE'leri saatlik izle, müşteri stack'iyle eşleşince anında WhatsApp + e-posta. Bu özellik tek başına Kurumsal plan satış argümanı.
+GitHub / Açık Kod Taraması
+Yazılım şirketleri ve teknoloji firmaları için ayrı bir modül. Müşterinin public GitHub repoları, NPM paketleri veya Docker Hub imajlarında exposed API key, hardcoded şifre ve bilinen açık bağımlılık taraması. Gitleaks ve truffleHog açık kaynak, entegrasyon 2-3 günlük iş. Hedef segment: Türkiye'deki 5.000+ yazılım firması — bunların büyük çoğunluğunun repo güvenliği sıfır.
+Offline / On-Premise Paket
+Savunma sanayii, bankacılık ve sağlık sektörü bulut SaaS'a veri gönderemez. Airgapped ortam için on-premise kurulabilir CyberStep paketi. Docker Compose ile tek komutla kurulan, internet bağlantısı olmadan çalışan versiyon. Bu segment çok küçük ama çok yüksek fiyat toleransı var — yıllık 150.000-500.000 TL lisans anlamlı.
+SERVİS
+M&A Siber Due Diligence Paketi
+Türkiye'de her yıl 400+ şirket el değiştiriyor. Alıcı firma satın aldığı şirketin siber riskini bilmiyor — bu öğrenilemez olunca fiyata yansıtılamaz. CyberStep'in "Satın Alma Öncesi Siber Değerlendirme Raporu" ürünü: hedef şirketi dışarıdan tara, sızıntı kontrolü yap, dark web'de varlık ara, finansal risk nicelikleştir. Tek seferlik 15.000-35.000 TL. Müşteri: yatırım bankaları, özel sermaye fonları, M&A danışmanlık firmaları. Bu segmentte fiyat hassasiyeti düşük, aciliyet yüksek.
+Tedarikçi Onboarding Servisi
+Büyük şirketler yeni tedarikçi alırken siber güvenlik sorusu sormuyor. CyberStep'e "yeni tedarikçimizi değerlendirin" diyebilirler. Tedarikçinin domain'ini tara, TPRM anketini gönder, birleşik rapor üret, "onay ver / şartlı onay / reddet" tavsiyesi sun. B2B satın alma ekiplerine satılan servis. Büyük müşteri kazanınca onun 50 tedarikçisi otomatik lead oluyor.
+Compliance Calendar Servisi
+KVKK yıllık bildirimi, VERBİS güncelleme tarihleri, Siber Güvenlik Başkanlığı yetkilendirme deadlineları, BTK bildirim süreleri — bunların hepsini takip eden otomatik hatırlatıcı sistemi. Takvim Gemini ile üretilir, müşteriye özel deadline'lar hesaplanır, 30-14-7 gün önce uyarı gider. Mevcut aboneliklere dahil edilebilir veya KVKK danışmanlarına white-label olarak satılabilir.

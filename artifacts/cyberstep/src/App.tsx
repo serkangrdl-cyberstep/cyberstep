@@ -13,6 +13,8 @@ import ErpEntegrasyonu from "./pages/erp-entegrasyonu";
 import SigortaPazaryeri from "./pages/sigorta-pazaryeri";
 import TehditIstihbarati from "./pages/tehdit-istihbarati";
 import SkorApi from "./pages/skor-api";
+import GuvenlikMerkezi from "./pages/guvenlik-merkezi";
+import Metodoloji from "./pages/metodoloji";
 import TprmAnket from "./pages/tprm-anket";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
@@ -237,6 +239,8 @@ function Router() {
             <Route path="/sigorta-pazaryeri" component={SigortaPazaryeri} />
             <Route path="/tehdit-istihbarati" component={TehditIstihbarati} />
             <Route path="/skor-api" component={SkorApi} />
+            <Route path="/guvenlik-merkezi" component={GuvenlikMerkezi} />
+            <Route path="/metodoloji" component={Metodoloji} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
             <Route component={NotFound} />
           </Switch>

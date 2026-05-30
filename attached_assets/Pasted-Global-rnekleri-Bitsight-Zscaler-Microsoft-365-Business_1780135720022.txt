@@ -1,0 +1,28 @@
+Global örnekleri (Bitsight, Zscaler, Microsoft 365 Business, Vanta) incelediğimizde, siber güvenlik SaaS pazarının "teşhis"ten "otomatik iyileştirme ve kanıta dayalı uyumluluğa" doğru evrildiğini görüyoruz.
+​Türkiye'deki KOBİ pazarında "teknik ekip" eksikliği sizin en büyük kozunuz. Globalde bu boşluğu "Managed Service Provider (MSP)" modelleri dolduruyor. Siz ise bunu "Otomatize edilmiş sanal CISO" olarak kurgulayabilirsiniz.
+​İşte CyberStep.io'yu global rakiplerin ötesine taşıyacak, mevcut altyapınıza (Node.js/Gemini) ekleyebileceğiniz 5 yenilikçi servis ve analiz:
+​1. "SaaS Envanteri & Yetki Haritası" (Global Trend: Shadow IT)
+​Ne yapar: Şirket içi e-postaları veya ağ trafiğini (opsiyonel ajanslı veya API bazlı) analiz ederek, "Hangi çalışan hangi SaaS aracına (ChatGPT, Trello, Notion, Canva vb.) şirketin mailiyle üye olmuş?" sorusunu cevaplar.
+​Global Karşılığı: Josys, Microsoft Defender for Cloud Apps.
+​KOBİ Değeri: Bir çalışan işten ayrıldığında, onun sahip olduğu tüm SaaS hesaplarını "tek tıkla" kapatma listesi sunar (Offboarding güvenliği).
+​Teknik: Google/Microsoft Workspace API entegrasyonu.
+​2. "Otomatik KVKK Kanıt Toplayıcı" (Global Trend: Compliance-as-a-Code)
+​Ne yapar: "KVKK Md. 12'ye uyuyor musunuz?" sorusuna "Evet" demek yerine; platformunuz ekran görüntüleri, log kayıtları ve konfigürasyon dosyaları ile bunu kanıtlar.
+​Global Karşılığı: Vanta, Drata (Compliance Automation).
+​KOBİ Değeri: Olası bir denetimde "Benim sistemim zaten KVKK uyumlu" diyerek, hazır raporu ve log geçmişini denetçiye sunabilirler.
+​Teknik: Müşterinin uç noktalarına (endpoint) küçük bir "read-only" script göndererek konfigürasyon kontrolü.
+​3. "Phishing Simülasyonu & Farkındalık Eğitimi" (Global Trend: Human Firewall)
+​Ne yapar: Çalışanlara "Sahte ve zararsız" oltalama mailleri gönderir. Linke tıklayanlara 3 dakikalık, "Bu mail neden şüpheliydi?" eğitim videosu izletir.
+​Global Karşılığı: KnowBe4, Proofpoint.
+​KOBİ Değeri: Siber güvenliğin en zayıf halkası olan "insan faktörünü" eğitir. Patron, "Çalışanlarımın %30'u hala şüpheli linklere tıklıyor" verisini görür.
+​Teknik: Node.js ile e-posta gönderim motoru + Gemini ile sektöre özel (örn: hukuk bürosu için sahte icra dosyası) içerik üretimi.
+​4. "Siber Sigorta Hazırlık Notu" (Global Trend: Cyber Insurance)
+​Ne yapar: Sigorta şirketlerinin siber poliçe yapmadan önce istediği "Risk Değerlendirme Formu"nu otomatik doldurur.
+​Global Karşılığı: Bitsight (Security Ratings).
+​KOBİ Değeri: Sigorta şirketlerine "CyberStep sertifikalıyım" diyerek daha uygun primle siber sigorta teklifi almasını sağlar.
+​Teknik: Sigorta şirketleriyle veri paylaşımı için standart bir JSON çıktısı/API.
+​5. "Güvenlik Bütçe Optimizatörü" (Global Trend: ROI-focused Security)
+​Ne yapar: KOBİ'nin mevcut risklerini (örn: çok fazla açık port) ve finansal maliyetini analiz edip; "Bunu düzeltmek için 20.000 TL harcamak yerine, 5.000 TL'lik X güvenlik aracını alın" gibi maliyet/fayda analizi yapar.
+​Global Karşılığı: Gartner/Forrester Security Budgeting Tools.
+​KOBİ Değeri: KOBİ patronu için siber güvenliği "siyah kutu" olmaktan çıkarıp, bir yatırım kararı haline getirir.
+​Global vs. Türkiye Karşılaştırmalı Yorum

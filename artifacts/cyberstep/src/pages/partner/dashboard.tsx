@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import {
   Shield, Package, CheckCircle2, Clock, Loader2, LogOut,
   TrendingUp, AlertTriangle, ChevronDown, ChevronUp, Building2,
+  Link2, Copy, Check, Users, FileText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,25 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useRequirePartner } from "@/hooks/use-partner";
+
+interface ReferralAssessment {
+  id: number;
+  companyName: string;
+  sector: string;
+  status: string;
+  riskLevel: string | null;
+  scorePercent: number | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+interface ReferralStats {
+  referralCode: string | null;
+  total: number;
+  completed: number;
+  reportReady: number;
+  assessments: ReferralAssessment[];
+}
 
 interface WorkPackage {
   id: number;
@@ -52,6 +72,124 @@ const STATUS_COLOR: Record<string, string> = {
   completed: "text-violet-400",
   verified: "text-emerald-400",
 };
+
+function ReferralSection() {
+  const [copied, setCopied] = useState(false);
+
+  const { data: stats } = useQuery<ReferralStats>({
+    queryKey: ["partner-referral-stats"],
+    queryFn: () => fetch("/api/partner-portal/referral-stats", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const baseUrl = window.location.origin;
+  const referralLink = stats?.referralCode ? `${baseUrl}/?ref=${stats.referralCode}` : null;
+
+  function copyLink() {
+    if (!referralLink) return;
+    navigator.clipboard.writeText(referralLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const RISK_COLOR: Record<string, string> = {
+    "Kritik": "text-red-400",
+    "Yüksek": "text-orange-400",
+    "Orta": "text-amber-400",
+    "Düşük": "text-emerald-400",
+  };
+
+  const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+    "in_progress": { label: "Devam Ediyor", cls: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
+    "completed":   { label: "Tamamlandı",  cls: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+    "report_ready":{ label: "Rapor Hazır", cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-white font-semibold flex items-center gap-2">
+        <Link2 className="h-4 w-4 text-emerald-400" />
+        Referral Linkim
+      </h2>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Toplam Yönlendirme", value: stats?.total ?? 0, icon: Users, color: "text-blue-400" },
+          { label: "Tamamlanan",         value: stats?.completed ?? 0, icon: CheckCircle2, color: "text-violet-400" },
+          { label: "Rapor Hazır",        value: stats?.reportReady ?? 0, icon: FileText, color: "text-emerald-400" },
+        ].map(s => (
+          <Card key={s.label} className="bg-slate-900 border-slate-800">
+            <CardContent className="p-3 flex items-center gap-2">
+              <s.icon className={`h-4 w-4 ${s.color} shrink-0`} />
+              <div>
+                <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-xs text-slate-500 leading-tight">{s.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Link box */}
+      {referralLink ? (
+        <Card className="bg-slate-900 border-emerald-700/30">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-xs text-slate-400">Bu linki müşterilerinizle paylaşın. Linkinizden gelen her değerlendirme burada takip edilir.</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-slate-800 rounded px-3 py-2 text-emerald-400 text-xs font-mono truncate">
+                {referralLink}
+              </code>
+              <Button size="sm" variant="outline" className="border-emerald-600/50 text-emerald-400 hover:bg-emerald-500/10 shrink-0" onClick={copyLink}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Kopyalandı" : "Kopyala"}
+              </Button>
+            </div>
+            <p className="text-xs text-slate-600">Referral kodunuz: <span className="text-slate-400 font-mono">{stats?.referralCode}</span></p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-slate-900 border-slate-800 border-dashed">
+          <CardContent className="p-4 text-center text-slate-500 text-sm">
+            Referral kodunuz henüz atanmadı. Destek ile iletişime geçin.
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Assessments table */}
+      {(stats?.assessments ?? []).length > 0 && (
+        <Card className="bg-slate-900 border-slate-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-slate-300">Yönlendirilen Değerlendirmeler</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-slate-800">
+              {(stats?.assessments ?? []).map(a => (
+                <div key={a.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-slate-200 text-sm font-medium truncate">{a.companyName}</p>
+                    <p className="text-slate-500 text-xs">{a.sector} · {new Date(a.createdAt).toLocaleDateString("tr-TR")}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {a.riskLevel && (
+                      <span className={`text-xs font-semibold ${RISK_COLOR[a.riskLevel] ?? "text-slate-400"}`}>{a.riskLevel}</span>
+                    )}
+                    {a.scorePercent !== null && (
+                      <span className="text-slate-400 text-xs">%{a.scorePercent}</span>
+                    )}
+                    <Badge variant="outline" className={`text-xs ${STATUS_BADGE[a.status]?.cls ?? "border-slate-700 text-slate-500"}`}>
+                      {STATUS_BADGE[a.status]?.label ?? a.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 export default function PartnerDashboard() {
   const { partner, isLoading: partnerLoading } = useRequirePartner();
@@ -141,6 +279,9 @@ export default function PartnerDashboard() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Referral Section */}
+        <ReferralSection />
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[

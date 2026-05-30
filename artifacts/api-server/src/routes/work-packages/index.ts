@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { workPackagesTable, partnersTable, assessmentsTable, domainScansTable } from "@workspace/db";
-import { eq, desc, count, and } from "drizzle-orm";
+import { eq, desc, count, and, sql } from "drizzle-orm";
 import { requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 
@@ -239,6 +239,45 @@ router.post("/partner-portal/work-packages/:id/start", requirePartner as any, as
     .where(eq(workPackagesTable.id, id)).returning();
 
   res.json(updated);
+});
+
+// GET /api/partner-portal/referral-stats
+router.get("/partner-portal/referral-stats", requirePartner as any, async (req: Request, res: Response) => {
+  const partnerId = getSession(req)["partnerId"] as number;
+
+  const [partner] = await db.select({ referralCode: partnersTable.referralCode })
+    .from(partnersTable).where(eq(partnersTable.id, partnerId));
+
+  if (!partner?.referralCode) {
+    res.json({ referralCode: null, total: 0, completed: 0, reportReady: 0, assessments: [] });
+    return;
+  }
+
+  const assessments = await db.select({
+    id: assessmentsTable.id,
+    companyName: assessmentsTable.companyName,
+    sector: assessmentsTable.sector,
+    status: assessmentsTable.status,
+    riskLevel: assessmentsTable.riskLevel,
+    scorePercent: sql<number | null>`CASE WHEN ${assessmentsTable.maxScore} > 0 THEN ROUND(${assessmentsTable.totalScore}::numeric / ${assessmentsTable.maxScore} * 100) ELSE NULL END`,
+    createdAt: assessmentsTable.createdAt,
+    completedAt: assessmentsTable.completedAt,
+  })
+    .from(assessmentsTable)
+    .where(eq(assessmentsTable.referralCode, partner.referralCode))
+    .orderBy(desc(assessmentsTable.createdAt));
+
+  const total = assessments.length;
+  const completed = assessments.filter(a => a.status !== "in_progress").length;
+  const reportReady = assessments.filter(a => a.status === "report_ready").length;
+
+  res.json({
+    referralCode: partner.referralCode,
+    total,
+    completed,
+    reportReady,
+    assessments,
+  });
 });
 
 export default router;

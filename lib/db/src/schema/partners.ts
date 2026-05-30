@@ -20,6 +20,7 @@ export const partnersTable = pgTable("partners", {
   totalProjectsCompleted: integer("total_projects_completed").default(0),
   totalRevenue: integer("total_revenue").default(0),
   rating: integer("rating"),
+  referralCode: text("referral_code"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   approvedAt: timestamp("approved_at"),
 });

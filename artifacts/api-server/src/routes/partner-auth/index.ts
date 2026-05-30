@@ -36,6 +36,11 @@ router.post("/partner-auth/register", async (req: Request, res: Response) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  // Generate unique referral code: first 4 letters of company name + 4 random chars
+  const prefix = companyName.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase().padEnd(4, "X");
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const referralCode = `${prefix}${suffix}`;
+
   const [partner] = await db.insert(partnersTable).values({
     email: email.toLowerCase(),
     passwordHash,
@@ -48,6 +53,7 @@ router.post("/partner-auth/register", async (req: Request, res: Response) => {
     status: "pending",
     tier: "silver",
     subscriptionStatus: "trial",
+    referralCode,
   }).returning();
 
   logger.info({ partnerId: partner.id }, "Partner registered — pending approval");

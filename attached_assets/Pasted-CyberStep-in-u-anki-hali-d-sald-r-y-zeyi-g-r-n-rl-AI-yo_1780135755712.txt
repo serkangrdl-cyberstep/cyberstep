@@ -1,0 +1,191 @@
+CyberStep’in şu anki hali:
+dış saldırı yüzeyi görünürlüğü
+AI yorumlama
+finansal risk anlatımı
+aksiyon planı
+üzerine kurulu.
+Ama global trendlere baktığımda pazar çok hızlı şekilde:
+“Exposure Discovery → Risk Intelligence → Remediation Orchestration → Business Decision Platform”
+evriliyor. �
+Black Kite +2
+Yani sadece açık bulmak artık yeterli değil.
+Bence CyberStep’in önünde 3 büyük genişleme alanı var:
+1. Cyber Risk Intelligence Katmanı
+Burası en yüksek marjlı alan.
+Rakiplerin çoğu:
+asset buluyor
+risk skoru veriyor
+Ama şirket sahibinin asıl sorusu:
+“Bu risk gerçekten önemli mi?”
+A. AI Risk Prioritization Engine
+Gemini sadece bulguları özetlemesin.
+Şunu söylesin:
+“Bugün sadece şu 3 şeyi düzelt.”
+Örnek:
+42 bulgu tespit edildi.
+Ancak finansal etki açısından en kritik 3 risk:
+Mail spoofing
+Açık RDP
+Eski VPN servisi
+Bu çok değerli.
+Çünkü KOBİ:
+42 bulguyla ne yapacağını bilmez
+3 bulguyu anlayabilir
+B. Breach Simulator
+Bu çok güçlü olabilir.
+Gemini:
+Şirketin:
+sektörünü
+büyüklüğünü
+görünen sistemlerini
+analiz eder.
+Sonra:
+“Saldırı Hikayesi”
+oluşturur.
+Örnek:
+Bir saldırgan önce açık VPN’i keşfeder.
+Daha sonra credential stuffing ile erişim elde eder.
+Muhasebe sistemine ulaşır.
+Fidye yazılımı yayılır.
+Tahmini iş kesintisi: 5 gün.
+Bu özellik inanılmaz satış yapar.
+Çünkü ilk kez riski görünür hale getirir.
+C. Cyber Loss Calculator
+Bu bence çok büyük fırsat.
+Şirket:
+çalışan sayısı
+yıllık ciro
+sektör
+girer.
+Gemini:
+şunu üretir:
+Olası Finansal Etki
+operasyon kaybı
+müşteri kaybı
+itibar kaybı
+hukuki maliyet
+KVKK etkisi
+Black Kite risk quantification tarafına doğru gidiyor. �
+Black Kite
+Ama Türkiye KOBİ odaklı yapan neredeyse yok.
+2. Trust & Compliance Platform
+Bence Türkiye'de dev fırsat.
+Çünkü KOBİ’ler ISO27001 istemiyor.
+Ama müşteri kaybetmek istemiyor.
+A. AI Güven Rozeti
+Örnek:
+CyberStep Verified
+Web sitesinde görünür.
+Ama statik logo değil.
+Canlı:
+risk seviyesi
+mail güvenliği
+domain güvenliği
+gösterir.
+Tıpkı:
+Trustpilot
+SSL seal
+gibi.
+Bu viral büyüme yaratabilir.
+B. Müşteriye Gönderilen Güven Raporu
+Örneğin:
+Bir yazılım firması müşterisine:
+“CyberStep tarafından doğrulanmış güvenlik raporu”
+gönderir.
+Bu:
+vendor risk management’e giriş kapısıdır.
+BitSight ve SecurityScorecard bu pazarda çok büyüdü. �
+Bitsight +1
+C. AI Compliance Mapper
+KOBİ:
+KVKK için ne eksik?
+sorusunu sorar.
+Gemini:
+bulguları
+KVKK
+ISO27001
+NIST
+CIS Controls
+ile eşleştirir.
+Bu yaklaşım yeni araştırmalarda da öne çıkıyor. �
+arXiv +1
+Örnek:
+SPF eksik
+CIS Control 9 ile ilişkili
+KVKK teknik tedbir önerisi ile bağlantılı
+Bu çok güçlü.
+3. Cyber Marketplace Katmanı
+Bence en büyük gelir fırsatı burada.
+A. AI Vendor Matching
+Risk bulundu.
+Gemini:
+şunu önerir:
+Bu problem için önerilen çözüm kategorileri:
+Email Security
+Backup
+MFA
+EDR
+Sonra:
+partnerler listelenir.
+Ama vendor bağımsız görünmelisiniz.
+B. CyberStep Projects
+Bu çok güçlü olabilir.
+Platform:
+otomatik proje scope çıkarır.
+Örnek:
+Email Security Modernization Project
+İçerik:
+SPF
+DKIM
+DMARC
+M365 hardening
+Tahmini:
+süre
+maliyet
+öncelik
+oluşturur.
+Partner teklifleri bunun üzerine gelir.
+Siz burada Upwork + Gartner karışımı bir modele dönüşürsünüz.
+C. Cyber Insurance Readiness
+Bu alan çok büyüyecek.
+Globalde risk rating ile sigorta yakınlaşıyor. �
+Black Kite +1
+CyberStep:
+şunu söyleyebilir:
+Bugünkü risk seviyenizle siber sigorta alma ihtimaliniz düşük.
+veya:
+Sigorta öncesi tamamlanması gereken 5 kritik konu.
+Bu gelecekte büyük iş olabilir.
+Benim En Güçlü Önerim
+CyberStep'e ekleyeceğim ilk büyük modül:
+AI Cyber Twin
+Bu şu demek:
+Gemini şirketin dijital ikizini oluşturur.
+Sonra:
+Yöneticiye şunu anlatır:
+Eğer ben saldırgan olsaydım,
+şirketinize şu yoldan girerdim.
+Ardından:
+İlk 24 Saat
+ne olur?
+İlk 7 Gün
+ne olur?
+Finansal Etki
+ne olur?
+Müşteri Etkisi
+ne olur?
+Basına Yansırsa
+ne olur?
+Önlemek İçin En Hızlı 3 Hamle
+nedir?
+Bu teknik rapor değil.
+Bu:
+“Şirketinizin Siber Gelecek Simülasyonu”
+olur.
+Ve bence Türkiye KOBİ pazarında bunu gördüğünde birçok patron:
+“Tamam, bunu düzeltelim.”
+der.
+Çünkü artık açık görmüyordur.
+Kendi şirketinin başına gelebilecek hikâyeyi görüyordur.
+Bu noktada CyberStep bir tarama aracı değil, bir “AI destekli iş riski simülasyon platformu” haline gelir. �
+darktrace.com +2

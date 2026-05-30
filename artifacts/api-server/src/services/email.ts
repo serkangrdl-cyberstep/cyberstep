@@ -21,6 +21,13 @@ function getTransport() {
   });
 }
 
+export async function sendMail(params: { to: string; subject: string; html: string }): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+  const user = process.env["SMTP_USER"]!;
+  await transport.sendMail({ from: `CyberStep <${user}>`, to: params.to, subject: params.subject, html: params.html });
+}
+
 function getBaseUrl(): string {
   const domains = process.env["REPLIT_DOMAINS"];
   if (domains) {

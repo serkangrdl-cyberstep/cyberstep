@@ -94,7 +94,16 @@ router.post("/admin-panel/pricing", requireAdmin, async (req: Request, res: Resp
   res.status(201).json(created);
 });
 
-// GET /api/admin-panel/pricing (public — no auth)
+// DELETE /api/admin-panel/pricing/:id
+router.delete("/admin-panel/pricing/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const [deleted] = await db.delete(pricingPlansTable).where(eq(pricingPlansTable.id, id)).returning();
+  if (!deleted) { res.status(404).json({ error: "Plan bulunamadı" }); return; }
+  logger.info({ planId: id, slug: deleted.slug }, "Pricing plan deleted");
+  res.json({ success: true });
+});
+
+// GET /api/public/pricing (public — no auth)
 router.get("/public/pricing", async (_req: Request, res: Response) => {
   const plans = await db.select().from(pricingPlansTable)
     .where(eq(pricingPlansTable.isActive, true))

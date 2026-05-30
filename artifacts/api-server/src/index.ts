@@ -5,7 +5,7 @@ import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, r
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
-import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail } from "./services/email";
+import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMail } from "./services/email";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
@@ -81,30 +81,60 @@ async function maybeSeedPricingPlans() {
       name: "Mini Değerlendirme",
       price: "0",
       currency: "TRY",
-      description: "20 soruluk hızlı siber güvenlik risk taraması",
-      features: ["20 soru, 5 alan", "Yapay zeka destekli rapor", "Risk skoru ve seviyesi", "Ücretsiz"],
+      description: "20 soruluk ücretsiz başlangıç değerlendirmesi",
+      features: ["20 soruluk hızlı risk değerlendirmesi", "5 güvenlik alanı (A-E)", "Anlık risk skoru ve seviyesi", "Kırmızı alarm tespiti", "Yapay zeka destekli temel rapor"],
       isActive: true,
       sortOrder: 0,
     },
     {
       slug: "full",
       name: "Tam Değerlendirme",
-      price: "2990",
+      price: "5990",
       currency: "TRY",
-      description: "55 soruluk kapsamlı siber güvenlik denetimi",
-      features: ["55 soru, 10 alan", "Detaylı Yapay Zeka raporu", "Sektörel karşılaştırma", "PDF rapor", "Danışman desteği"],
+      description: "55 soruluk kapsamlı siber güvenlik denetimi — Claude AI destekli detaylı rapor",
+      features: ["55 soruluk kapsamlı risk değerlendirmesi", "10 güvenlik alanı (A-J)", "Claude AI destekli detaylı rapor", "PDF rapor indirme", "Sektörel karşılaştırma", "Birebir uzman danışmanlık görüşmesi (1 saat)"],
       isActive: true,
       sortOrder: 1,
     },
     {
       slug: "premium",
       name: "Premium Danışmanlık",
-      price: "9990",
+      price: "17990",
       currency: "TRY",
-      description: "Tam değerlendirme + birebir danışman görüşmesi",
-      features: ["Tam değerlendirme dahil", "2 saat birebir danışmanlık", "Öncelikli aksiyon planı", "Yıllık takip görüşmesi"],
+      description: "Kişisel danışmanlık, saha değerlendirmesi ve 6 ay uzman desteği",
+      features: ["Tam değerlendirme dahil", "1-1 uzman görüşmesi", "Saha incelemesi", "Teknik yol haritası", "6 ay takip desteği"],
       isActive: true,
       sortOrder: 2,
+    },
+    {
+      slug: "starter",
+      name: "Başlangıç Aboneliği",
+      price: "690",
+      currency: "TRY",
+      description: "1-10 çalışanlı KOBİler için aylık sürekli izleme",
+      features: ["Alan adı otomatik yeniden tarama (30 günlük)", "Mini değerlendirme erişimi", "Sızıntı izleyici bildirimleri", "E-posta destek", "Claude AI destekli temel rapor"],
+      isActive: true,
+      sortOrder: 3,
+    },
+    {
+      slug: "growth",
+      name: "Büyüme Aboneliği",
+      price: "1990",
+      currency: "TRY",
+      description: "11-200 çalışanlı KOBİler için kapsamlı aylık koruma",
+      features: ["Tam değerlendirme (yılda 2)", "Tüm domain tarama modülleri", "KVKK uyum haritası", "Sektörel kıyaslama raporu", "Öncelikli e-posta desteği", "Claude AI destekli detaylı rapor"],
+      isActive: true,
+      sortOrder: 4,
+    },
+    {
+      slug: "enterprise",
+      name: "Kurumsal Abonelik",
+      price: "5990",
+      currency: "TRY",
+      description: "200+ çalışanlı işletmeler için kurumsal siber güvenlik yönetimi",
+      features: ["Sınırsız değerlendirme", "Birebir danışman görüşmesi (aylık)", "ISR tehdit istihbaratı", "TPRM tedarik zinciri taraması", "White-label raporlama", "SLA destekli öncelikli destek", "Claude AI gelişmiş analiz"],
+      isActive: true,
+      sortOrder: 5,
     },
   ]);
 
@@ -1148,11 +1178,69 @@ async function startup() {
   await loadApiKeysFromDb();
 }
 
+// ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:00'da) ────
+function startInflationReminderCron() {
+  cron.schedule("0 9 * * 1", async () => {
+    try {
+      const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
+      const plans = await db.select().from(pricingPlansTable).orderBy(pricingPlansTable.updatedAt);
+      if (plans.length === 0) return;
+
+      const oldestDate = new Date(plans[0].updatedAt);
+      const ageMs = Date.now() - oldestDate.getTime();
+      if (ageMs < SIX_MONTHS_MS) return;
+
+      const monthsOld = Math.floor(ageMs / (30 * 24 * 60 * 60 * 1000));
+      const adminEmail = process.env.SMTP_USER ?? process.env.ADMIN_EMAIL;
+      if (!adminEmail) {
+        logger.warn("Inflation reminder: no admin email configured (SMTP_USER missing)");
+        return;
+      }
+
+      const planLines = plans
+        .filter(p => Number(p.price) > 0)
+        .map(p => `<tr><td style="padding:4px 12px">${p.name}</td><td style="padding:4px 12px">${Number(p.price).toLocaleString("tr-TR")} TL</td><td style="padding:4px 12px">${Math.round(Number(p.price) * 1.25).toLocaleString("tr-TR")} TL</td></tr>`)
+        .join("");
+
+      await sendMail({
+        to: adminEmail,
+        subject: `CyberStep — Fiyat Güncelleme Hatırlatıcısı (${monthsOld} ay geçti)`,
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+            <h2 style="color:#f59e0b">Fiyat Güncelleme Zamanı</h2>
+            <p>Fiyatlarınız en son <strong>${oldestDate.toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" })}</strong> tarihinde güncellendi (<strong>${monthsOld} ay önce</strong>).</p>
+            <p>TÜFE verilerine göre önerilen <strong>%25 artış</strong> uygulandığında:</p>
+            <table border="1" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;border-color:#374151">
+              <thead><tr style="background:#1f2937;color:#9ca3af">
+                <th style="padding:6px 12px;text-align:left">Plan</th>
+                <th style="padding:6px 12px;text-align:left">Mevcut</th>
+                <th style="padding:6px 12px;text-align:left">Önerilen</th>
+              </tr></thead>
+              <tbody style="color:#111827">${planLines}</tbody>
+            </table>
+            <p style="margin-top:20px">
+              <a href="${process.env.ADMIN_URL ?? "https://cyberstep.io"}/admin/fiyatlandirma"
+                 style="background:#10b981;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold">
+                Fiyatları Güncelle
+              </a>
+            </p>
+            <p style="color:#6b7280;font-size:12px;margin-top:24px">Bu hatırlatıcı her Pazartesi sabahı kontrol edilir ve güncelleme gerektiren planlar varsa gönderilir.</p>
+          </div>`,
+      });
+      logger.info({ monthsOld, adminEmail }, "Inflation reminder email sent");
+    } catch (err) {
+      logger.warn({ err }, "Inflation reminder cron failed");
+    }
+  });
+  logger.info("Inflation reminder cron scheduled (every Monday 09:00)");
+}
+
 startup()
   .then(() => {
     startReminderCron();
     startScanLeadDripCron();
     startIsrImapCron();
+    startInflationReminderCron();
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));
     cron.schedule("0 3 * * *", () => {

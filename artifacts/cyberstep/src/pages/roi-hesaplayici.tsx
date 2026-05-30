@@ -28,11 +28,11 @@ const SEKTORLER = [
 ] as const;
 
 const CALISANLAR = [
-  { value: "1-10", label: "1 – 10 çalışan", baseCost: 185_000, plan: "Başlangıç", planPrice: 490, planSlug: "starter" },
-  { value: "11-50", label: "11 – 50 çalışan", baseCost: 420_000, plan: "Büyüme", planPrice: 1490, planSlug: "growth" },
-  { value: "51-200", label: "51 – 200 çalışan", baseCost: 850_000, plan: "Büyüme", planPrice: 1490, planSlug: "growth" },
-  { value: "201-500", label: "201 – 500 çalışan", baseCost: 1_800_000, plan: "Kurumsal", planPrice: 4490, planSlug: "enterprise" },
-  { value: "500+", label: "500+ çalışan", baseCost: 3_500_000, plan: "Kurumsal", planPrice: 4490, planSlug: "enterprise" },
+  { value: "1-10", label: "1 – 10 çalışan", baseCost: 185_000, plan: "Başlangıç Aboneliği", planPrice: 690, planSlug: "starter" },
+  { value: "11-50", label: "11 – 50 çalışan", baseCost: 420_000, plan: "Büyüme Aboneliği", planPrice: 1990, planSlug: "growth" },
+  { value: "51-200", label: "51 – 200 çalışan", baseCost: 850_000, plan: "Büyüme Aboneliği", planPrice: 1990, planSlug: "growth" },
+  { value: "201-500", label: "201 – 500 çalışan", baseCost: 1_800_000, plan: "Kurumsal Abonelik", planPrice: 5990, planSlug: "enterprise" },
+  { value: "500+", label: "500+ çalışan", baseCost: 3_500_000, plan: "Kurumsal Abonelik", planPrice: 5990, planSlug: "enterprise" },
 ] as const;
 
 // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────

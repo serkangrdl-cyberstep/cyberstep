@@ -631,6 +631,63 @@ export async function sendNewsletterEmail(params: {
   logger.info({ postId: params.post.id, count: params.subscribers.length }, "Newsletter batch sent");
 }
 
+export async function sendDigestWeeklyEmail(params: {
+  digest: {
+    weekNumber: number;
+    weekYear: number;
+    contentSummary: string | null;
+    contentLinkedin: string | null;
+  };
+  subscribers: Array<{ email: string; unsubscribeToken: string }>;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+  const base = getBaseUrl();
+
+  const { digest } = params;
+  const weekLabel = `${digest.weekYear} / ${digest.weekNumber}. Hafta`;
+
+  for (const sub of params.subscribers) {
+    const unsubUrl = `${base}/api/public/newsletter/unsubscribe/${sub.unsubscribeToken}/digest`;
+    const html = `<!DOCTYPE html><html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+      <span style="background:#0891b2;color:#fff;font-size:12px;padding:4px 10px;border-radius:20px;margin-left:8px">Haftalık Siber Olaylar</span>
+    </div>
+    <div style="padding:32px">
+      <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px">Haftalık Bülten</p>
+      <h2 style="margin:0 0 20px;font-size:22px;color:#0f172a">${weekLabel} Siber Güvenlik Özeti</h2>
+      <div style="font-size:15px;color:#334155;line-height:1.8;white-space:pre-wrap">${digest.contentSummary ?? "Bu hafta içerik üretildi."}</div>
+      <div style="margin-top:28px;padding-top:24px;border-top:1px solid #e2e8f0">
+        <a href="${base}/blog" style="display:inline-block;background:#0891b2;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">Blog'u Ziyaret Et</a>
+      </div>
+    </div>
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+        CyberStep.io Haftalık Siber Olaylar bültenine abonesiniz.<br>
+        <a href="${unsubUrl}" style="color:#64748b">Yalnızca bu bültenin aboneliğinden çık</a> ·
+        <a href="${base}/api/public/newsletter/unsubscribe/${sub.unsubscribeToken}" style="color:#64748b">Tüm aboneliklerden çık</a>
+      </p>
+    </div>
+  </div>
+</body></html>`;
+    try {
+      await transport.sendMail({
+        from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+        to: sub.email,
+        subject: `[CyberStep] ${weekLabel} Haftalık Siber Güvenlik Bülteni`,
+        html,
+      });
+    } catch (err) {
+      logger.error({ err, email: sub.email }, "Digest weekly email send failed");
+    }
+  }
+  logger.info({ weekNumber: digest.weekNumber, count: params.subscribers.length }, "Digest weekly batch sent");
+}
+
 export async function sendDomainRescanEmail(params: {
   email: string;
   domain: string;

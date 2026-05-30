@@ -242,6 +242,8 @@ router.get("/admin-panel/newsletter/subscribers", requireAdmin, async (_req, res
     id: newsletterSubscribersTable.id,
     email: newsletterSubscribersTable.email,
     isActive: newsletterSubscribersTable.isActive,
+    subscribeToBlog: newsletterSubscribersTable.subscribeToBlog,
+    subscribeToDigest: newsletterSubscribersTable.subscribeToDigest,
     subscribedAt: newsletterSubscribersTable.subscribedAt,
     unsubscribedAt: newsletterSubscribersTable.unsubscribedAt,
   }).from(newsletterSubscribersTable).orderBy(desc(newsletterSubscribersTable.subscribedAt));
@@ -352,11 +354,21 @@ router.get("/public/blog/:slug", async (req: Request, res: Response) => {
 // ─── PUBLIC: Newsletter Subscribe / Unsubscribe ────────────────────────────────
 
 router.post("/public/newsletter/subscribe", async (req: Request, res: Response) => {
-  const { email } = req.body as { email?: string };
+  const { email, subscribeToBlog, subscribeToDigest } = req.body as {
+    email?: string;
+    subscribeToBlog?: boolean;
+    subscribeToDigest?: boolean;
+  };
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     res.status(400).json({ error: "Geçerli bir e-posta adresi girin" });
     return;
   }
+  if (subscribeToBlog === false && subscribeToDigest === false) {
+    res.status(400).json({ error: "En az bir içerik türü seçin" });
+    return;
+  }
+  const toBlog = subscribeToBlog !== false;
+  const toDigest = subscribeToDigest === true;
   const normalized = email.toLowerCase().trim();
   const token = crypto.randomBytes(32).toString("hex");
 
@@ -365,9 +377,9 @@ router.post("/public/newsletter/subscribe", async (req: Request, res: Response) 
 
   if (existing.length > 0) {
     await db.update(newsletterSubscribersTable)
-      .set({ isActive: true, unsubscribedAt: null })
+      .set({ isActive: true, unsubscribedAt: null, subscribeToBlog: toBlog, subscribeToDigest: toDigest })
       .where(eq(newsletterSubscribersTable.email, normalized));
-    res.json({ success: true, message: "Abone oldunuz" });
+    res.json({ success: true, message: "Aboneliğiniz güncellendi" });
     return;
   }
 
@@ -375,11 +387,14 @@ router.post("/public/newsletter/subscribe", async (req: Request, res: Response) 
     email: normalized,
     unsubscribeToken: token,
     isActive: true,
+    subscribeToBlog: toBlog,
+    subscribeToDigest: toDigest,
   });
-  logger.info({ email: normalized }, "Newsletter subscriber added");
+  logger.info({ email: normalized, toBlog, toDigest }, "Newsletter subscriber added");
   res.json({ success: true, message: "Abone oldunuz" });
 });
 
+// GET /public/newsletter/unsubscribe/:token — tüm aboneliklerden çık
 router.get("/public/newsletter/unsubscribe/:token", async (req: Request, res: Response) => {
   const { token } = req.params;
   const [sub] = await db.select().from(newsletterSubscribersTable)
@@ -391,14 +406,54 @@ router.get("/public/newsletter/unsubscribe/:token", async (req: Request, res: Re
   await db.update(newsletterSubscribersTable)
     .set({ isActive: false, unsubscribedAt: new Date() })
     .where(eq(newsletterSubscribersTable.unsubscribeToken, token as string));
-  logger.info({ email: sub.email }, "Newsletter unsubscribe");
-  res.send(`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Abonelikten Çıkıldı</title>
-    <style>body{font-family:Arial,sans-serif;background:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-    .box{background:#fff;border-radius:12px;padding:40px;max-width:400px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1)}
-    h2{color:#0f172a;margin:0 0 12px}p{color:#64748b;font-size:14px}a{color:#10b981}</style></head>
-    <body><div class="box"><h2>Abonelikten Çıkıldı</h2>
-    <p>${sub.email} adresi CyberStep.io bülteninden çıkarıldı. Tekrar abone olmak için <a href="/">sitemizi ziyaret edin</a>.</p></div></body></html>`);
+  logger.info({ email: sub.email }, "Newsletter full unsubscribe");
+  res.send(unsubscribePageHtml(sub.email, "all"));
 });
+
+// GET /public/newsletter/unsubscribe/:token/:type — belirli türden çık (blog | digest)
+router.get("/public/newsletter/unsubscribe/:token/:type", async (req: Request, res: Response) => {
+  const { token, type } = req.params;
+  if (type !== "blog" && type !== "digest") {
+    res.status(400).send("Geçersiz tür");
+    return;
+  }
+  const [sub] = await db.select().from(newsletterSubscribersTable)
+    .where(eq(newsletterSubscribersTable.unsubscribeToken, token as string));
+  if (!sub) {
+    res.status(404).send("Abonelik bulunamadı");
+    return;
+  }
+  const updates = type === "blog"
+    ? { subscribeToBlog: false }
+    : { subscribeToDigest: false };
+  const remaining = type === "blog" ? sub.subscribeToDigest : sub.subscribeToBlog;
+  if (!remaining) {
+    await db.update(newsletterSubscribersTable)
+      .set({ ...updates, isActive: false, unsubscribedAt: new Date() })
+      .where(eq(newsletterSubscribersTable.unsubscribeToken, token as string));
+  } else {
+    await db.update(newsletterSubscribersTable)
+      .set(updates)
+      .where(eq(newsletterSubscribersTable.unsubscribeToken, token as string));
+  }
+  logger.info({ email: sub.email, type }, "Newsletter partial unsubscribe");
+  res.send(unsubscribePageHtml(sub.email, type));
+});
+
+function unsubscribePageHtml(email: string, type: "all" | "blog" | "digest"): string {
+  const label = type === "all"
+    ? "tüm CyberStep.io bültenlerinden"
+    : type === "blog"
+    ? "blog yazıları bülteninden"
+    : "Haftalık Siber Olaylar bülteninden";
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Abonelikten Çıkıldı</title>
+    <style>body{font-family:Arial,sans-serif;background:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .box{background:#fff;border-radius:12px;padding:40px;max-width:420px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+    h2{color:#0f172a;margin:0 0 12px}p{color:#64748b;font-size:14px;line-height:1.6}a{color:#10b981}</style></head>
+    <body><div class="box"><h2>Abonelikten Çıkıldı</h2>
+    <p><strong>${email}</strong> adresi ${label} çıkarıldı.</p>
+    <p>Tekrar abone olmak için <a href="/">sitemizi ziyaret edin</a>.</p></div></body></html>`;
+}
 
 // ─── PUBLIC: Social Media Links ────────────────────────────────────────────────
 

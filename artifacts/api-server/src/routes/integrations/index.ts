@@ -25,9 +25,6 @@ async function requireProPlan(req: Request, res: Response, next: NextFunction): 
   next();
 }
 
-// Apply auth + pro gate to all integration routes
-router.use(requireCustomer, requireProPlan);
-
 const IntegrationTypes = ["jira", "forti_manager", "qradar", "forti_siem", "crowdstrike", "trend_micro"] as const;
 
 const CreateIntegrationSchema = z.object({
@@ -44,7 +41,7 @@ const UpdateIntegrationSchema = z.object({
 });
 
 // GET /api/integrations
-router.get("/integrations", requireCustomer, async (req: Request, res: Response) => {
+router.get("/integrations", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req) as number;
   const rows = await db
     .select()
@@ -60,7 +57,7 @@ router.get("/integrations", requireCustomer, async (req: Request, res: Response)
 });
 
 // GET /api/integrations/:id/events
-router.get("/integrations/:id/events", requireCustomer, async (req: Request, res: Response) => {
+router.get("/integrations/:id/events", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req) as number;
   const id = Number(req.params["id"]);
   if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
@@ -77,7 +74,7 @@ router.get("/integrations/:id/events", requireCustomer, async (req: Request, res
 });
 
 // POST /api/integrations — create
-router.post("/integrations", requireCustomer, async (req: Request, res: Response) => {
+router.post("/integrations", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req) as number;
   const parsed = CreateIntegrationSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -97,7 +94,7 @@ router.post("/integrations", requireCustomer, async (req: Request, res: Response
 });
 
 // PATCH /api/integrations/:id — update
-router.patch("/integrations/:id", requireCustomer, async (req: Request, res: Response) => {
+router.patch("/integrations/:id", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req) as number;
   const id = Number(req.params["id"]);
   if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
@@ -128,7 +125,7 @@ router.patch("/integrations/:id", requireCustomer, async (req: Request, res: Res
 });
 
 // DELETE /api/integrations/:id
-router.delete("/integrations/:id", requireCustomer, async (req: Request, res: Response) => {
+router.delete("/integrations/:id", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req) as number;
   const id = Number(req.params["id"]);
   if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
@@ -142,7 +139,7 @@ router.delete("/integrations/:id", requireCustomer, async (req: Request, res: Re
 });
 
 // POST /api/integrations/:id/test — test saved integration
-router.post("/integrations/:id/test", requireCustomer, async (req: Request, res: Response) => {
+router.post("/integrations/:id/test", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req) as number;
   const id = Number(req.params["id"]);
   if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
@@ -174,7 +171,7 @@ router.post("/integrations/:id/test", requireCustomer, async (req: Request, res:
 });
 
 // POST /api/integrations/test-config — test without saving
-router.post("/integrations/test-config", requireCustomer, async (req: Request, res: Response) => {
+router.post("/integrations/test-config", requireCustomer, requireProPlan, async (req: Request, res: Response) => {
   const schema = z.object({
     type: z.enum(IntegrationTypes),
     config: z.record(z.string(), z.string()),

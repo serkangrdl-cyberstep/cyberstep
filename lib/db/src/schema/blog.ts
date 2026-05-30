@@ -48,6 +48,8 @@ export const newsletterSubscribersTable = pgTable("newsletter_subscribers", {
   email: text("email").notNull().unique(),
   unsubscribeToken: text("unsubscribe_token").notNull().unique(),
   isActive: boolean("is_active").notNull().default(true),
+  subscribeToBlog: boolean("subscribe_to_blog").notNull().default(true),
+  subscribeToDigest: boolean("subscribe_to_digest").notNull().default(false),
   subscribedAt: timestamp("subscribed_at").notNull().defaultNow(),
   unsubscribedAt: timestamp("unsubscribed_at"),
 });

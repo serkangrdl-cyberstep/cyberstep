@@ -8,7 +8,8 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 import { collectRSSFeeds, seedDefaultSources } from "./rss-collector";
 import { generateWeeklyDigest } from "./claude-processor";
-import { sendMail } from "../../services/email";
+import { sendMail, sendDigestWeeklyEmail } from "../../services/email";
+import { newsletterSubscribersTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import { z } from "zod";
 
@@ -187,6 +188,25 @@ router.post("/digests/:id/approve", async (req, res) => {
         <pre style="white-space:pre-wrap">${digest.contentSummary ?? "-"}</pre>
       `,
     });
+  }
+
+  // Digest abonelerine haftalık bülten gönder
+  try {
+    const digestSubs = await db
+      .select({ email: newsletterSubscribersTable.email, unsubscribeToken: newsletterSubscribersTable.unsubscribeToken })
+      .from(newsletterSubscribersTable)
+      .where(
+        and(
+          eq(newsletterSubscribersTable.isActive, true),
+          eq(newsletterSubscribersTable.subscribeToDigest, true)
+        )
+      );
+    if (digestSubs.length > 0) {
+      await sendDigestWeeklyEmail({ digest, subscribers: digestSubs });
+      logger.info({ id, count: digestSubs.length }, "Digest weekly email sent to subscribers");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Digest subscriber email send failed but approval succeeded");
   }
 
   const webhookUrl = process.env["DIGEST_WEBHOOK_URL"];

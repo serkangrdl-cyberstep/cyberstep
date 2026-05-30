@@ -5,7 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { getISOWeek } from "./rss-collector";
 
-const MODEL = "claude-sonnet-4-5";
+const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 8192;
 
 async function callClaude(systemPrompt: string, userPrompt: string): Promise<string> {

@@ -767,7 +767,7 @@ export default function AdminBlog() {
     enabled: !!editingId && view === "edit" && !!admin,
   });
 
-  const { data: subscribers } = useQuery<{ id: number; email: string; isActive: boolean }[]>({
+  const { data: subscribers } = useQuery<{ id: number; email: string; isActive: boolean; subscribeToBlog: boolean; subscribeToDigest: boolean }[]>({
     queryKey: ["admin-newsletter-subscribers"],
     queryFn: async () => {
       const r = await fetch("/api/admin-panel/newsletter/subscribers", { credentials: "include" });
@@ -870,6 +870,8 @@ export default function AdminBlog() {
   });
 
   const activeSubscribers = subscribers?.filter(s => s.isActive).length ?? 0;
+  const blogSubscribers = subscribers?.filter(s => s.isActive && s.subscribeToBlog).length ?? 0;
+  const digestSubscribers = subscribers?.filter(s => s.isActive && s.subscribeToDigest).length ?? 0;
 
   if (view === "new") {
     return (
@@ -913,9 +915,13 @@ export default function AdminBlog() {
             <div className="text-2xl font-bold text-emerald-400">{posts?.filter(p => p.status === "published").length ?? 0}</div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <div className="text-slate-400 text-sm mb-1">Aktif Abone</div>
               <div className="text-2xl font-bold text-white">{activeSubscribers}</div>
+              <div className="flex gap-3 mt-2">
+                <span className="text-xs text-emerald-400">{blogSubscribers} blog</span>
+                <span className="text-xs text-cyan-400">{digestSubscribers} bulten</span>
+              </div>
             </div>
             <Users className="h-5 w-5 text-slate-500 mt-1" />
           </div>

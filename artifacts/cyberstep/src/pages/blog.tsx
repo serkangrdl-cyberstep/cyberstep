@@ -27,15 +27,17 @@ interface BlogPost {
 function NewsletterWidget() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [toBlog, setToBlog] = useState(true);
+  const [toDigest, setToDigest] = useState(false);
   const { toast } = useToast();
   const { lang } = useLanguage();
 
   const subscribeMutation = useMutation({
-    mutationFn: (email: string) =>
+    mutationFn: () =>
       fetch("/api/public/newsletter/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, subscribeToBlog: toBlog, subscribeToDigest: toDigest }),
       }).then(async r => {
         const data = await r.json();
         if (!r.ok) throw new Error(data.error ?? "Hata olustu");
@@ -59,28 +61,61 @@ function NewsletterWidget() {
 
   return (
     <div className="bg-slate-900 dark:bg-slate-800 rounded-xl p-6 text-white">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2">
         <Mail className="h-5 w-5 text-emerald-400" />
         <h3 className="font-semibold">{t(T.blog.newsletterTitle, lang)}</h3>
       </div>
       <p className="text-slate-400 text-sm mb-4">{t(T.blog.newsletterSub, lang)}</p>
+
+      {/* Subscription type checkboxes */}
+      <div className="space-y-3 mb-5">
+        <label
+          className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${toBlog ? "border-emerald-500/60 bg-emerald-500/10" : "border-slate-700 bg-slate-800/50"}`}
+          onClick={() => setToBlog(v => !v)}
+        >
+          <div className={`mt-0.5 h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${toBlog ? "border-emerald-400 bg-emerald-400" : "border-slate-500"}`}>
+            {toBlog && <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">{t(T.blog.subTypeBlog, lang)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{t(T.blog.subTypeBlogDesc, lang)}</p>
+          </div>
+        </label>
+
+        <label
+          className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${toDigest ? "border-cyan-500/60 bg-cyan-500/10" : "border-slate-700 bg-slate-800/50"}`}
+          onClick={() => setToDigest(v => !v)}
+        >
+          <div className={`mt-0.5 h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${toDigest ? "border-cyan-400 bg-cyan-400" : "border-slate-500"}`}>
+            {toDigest && <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">{t(T.blog.subTypeDigest, lang)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{t(T.blog.subTypeDigestDesc, lang)}</p>
+          </div>
+        </label>
+      </div>
+
       <div className="flex gap-2">
         <Input
           type="email"
           placeholder={t(T.blog.emailPlaceholder, lang)}
           value={email}
           onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && email && subscribeMutation.mutate(email)}
+          onKeyDown={e => e.key === "Enter" && email && (toBlog || toDigest) && subscribeMutation.mutate()}
           className="bg-slate-800 dark:bg-slate-700 border-slate-700 dark:border-slate-600 text-white placeholder:text-slate-500 flex-1"
         />
         <Button
-          onClick={() => subscribeMutation.mutate(email)}
-          disabled={!email || subscribeMutation.isPending}
+          onClick={() => subscribeMutation.mutate()}
+          disabled={!email || (!toBlog && !toDigest) || subscribeMutation.isPending}
           className="bg-emerald-500 hover:bg-emerald-400 text-white shrink-0"
         >
           {subscribeMutation.isPending ? "..." : t(T.blog.subscribeBtn, lang)}
         </Button>
       </div>
+      {!toBlog && !toDigest && (
+        <p className="text-xs text-red-400 mt-2">En az bir secenek secin.</p>
+      )}
     </div>
   );
 }

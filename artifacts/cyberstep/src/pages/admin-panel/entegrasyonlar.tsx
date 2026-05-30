@@ -223,13 +223,22 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   // ─── Yapay Zeka ────────────────────────────────────────────────────────────
   {
-    id: "gemini-ai", name: "Gemini 2.5 Flash", category: "Yapay Zeka", icon: "🤖",
-    cost: "free", costLabel: "Ücretsiz", always: true,
-    desc: "Google'ın en güncel AI modeli — tüm tarama bulgularından kişiselleştirilmiş Türkçe risk raporu üretir",
-    why: "Ham güvenlik verilerini (port numaraları, CVE ID'leri) CEO'nun anlayabileceği aksiyona dönüştürülebilir Türkçe rapora çevirir.",
-    how: "Assessment tamamlanınca tüm bulgular Gemini'ye gönderilir. Sektöre özel, risk öncelikli Türkçe rapor streaming ile oluşturulur.",
+    id: "gemini-ai", name: "Gemini 2.5 Flash", category: "Yapay Zeka", icon: "✨",
+    cost: "free", costLabel: "Ücretsiz Plan", always: true,
+    desc: "Ücretsiz plan için Google'ın hızlı AI modeli — tarama bulgularından Türkçe risk raporu üretir",
+    why: "Ham güvenlik verilerini CEO'nun anlayabileceği aksiyona dönüştürülebilir Türkçe rapora çevirir. Ücretsiz planda varsayılan model.",
+    how: "Assessment tamamlanınca tüm bulgular Gemini'ye gönderilir. Sektöre özel, risk öncelikli Türkçe rapor oluşturulur.",
     setup: "Replit AI Integrations tarafından otomatik sağlanır. Ek kurulum gerekmez.",
     docs: "https://ai.google.dev/",
+  },
+  {
+    id: "claude-sonnet", name: "Claude Sonnet 4.6", category: "Yapay Zeka", icon: "🧠",
+    cost: "paid", costLabel: "Starter / Pro Plan", always: true,
+    desc: "Anthropic'in en ileri analiz modeli — ücretli planlarda otomatik devreye girer, Gemini'den belirgin biçimde üstün rapor kalitesi",
+    why: "Güvenlik bulgularında bağlam anlama, nüans ve Türkçe ifade kalitesi açısından Gemini ve ChatGPT'den önde gelir. Ücretli müşteriye sunulan somut fark budur.",
+    how: "Starter veya Pro plandaki tenant'lar için rapor üretimi otomatik olarak Claude Sonnet'e yönlendirilir. Tenant'ın kendi API key'i gerekmez — Replit yönetir.",
+    setup: "Ekstra kurulum gerekmez. Tenant planı Starter veya Pro olduğunda sistem otomatik Claude kullanır. Replit AI Integrations tarafından sağlanır.",
+    docs: "https://www.anthropic.com/claude",
   },
   // ─── İletişim ──────────────────────────────────────────────────────────────
   {

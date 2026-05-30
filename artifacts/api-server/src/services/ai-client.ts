@@ -1,17 +1,22 @@
 /**
  * Tenant-aware AI client factory.
  * Returns a `generateContent(prompt) → string` function routed to the
- * correct provider based on the tenant's aiProvider setting.
+ * correct provider based on the tenant's plan and aiProvider setting.
  *
- * Providers:
- *   gemini-replit → Replit-managed Gemini (env vars, no key needed)
- *   gemini        → Google Gemini with tenant's own API key
- *   openai        → OpenAI Chat Completions API (fetch-based)
- *   anthropic     → Anthropic Messages API (fetch-based)
+ * Plan-based routing (when aiProvider = "gemini-replit" default):
+ *   free    → Gemini 2.5 Flash  (Replit-managed, ücretsiz)
+ *   starter → Claude Sonnet 4.6 (Replit-managed, ücretli)
+ *   pro     → Claude Sonnet 4.6 (Replit-managed, ücretli)
+ *
+ * Custom aiProvider overrides plan routing:
+ *   gemini    → Tenant's own Google API key
+ *   openai    → Tenant's own OpenAI key
+ *   anthropic → Tenant's own Anthropic key (or Replit Claude if no key)
  */
 
 import { GoogleGenAI } from "@google/genai";
 import { ai as replitAi } from "@workspace/integrations-gemini-ai";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db } from "@workspace/db";
 import { tenantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -19,7 +24,9 @@ import { logger } from "../lib/logger";
 
 export type AiGenerateFn = (prompt: string) => Promise<string>;
 
-// ─── Replit-managed Gemini (default, free) ────────────────────────────────────
+const PAID_PLANS = new Set(["starter", "pro"]);
+
+// ─── Replit-managed Gemini 2.5 Flash (ücretsiz plan) ─────────────────────────
 function makeReplitGemini(model = "gemini-2.5-flash"): AiGenerateFn {
   return async (prompt: string) => {
     const result = await replitAi.models.generateContent({
@@ -28,6 +35,19 @@ function makeReplitGemini(model = "gemini-2.5-flash"): AiGenerateFn {
       config: { temperature: 0.15 },
     });
     return result.text?.trim() ?? "";
+  };
+}
+
+// ─── Replit-managed Claude Sonnet (ücretli plan, API key gerekmez) ────────────
+function makeReplitClaude(model = "claude-sonnet-4-6"): AiGenerateFn {
+  return async (prompt: string) => {
+    const message = await anthropic.messages.create({
+      model,
+      max_tokens: 8192,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const block = message.content[0];
+    return block?.type === "text" ? block.text.trim() : "";
   };
 }
 
@@ -44,7 +64,7 @@ function makeTenantGemini(apiKey: string, model = "gemini-2.5-flash"): AiGenerat
   };
 }
 
-// ─── OpenAI Chat Completions (fetch) ─────────────────────────────────────────
+// ─── Tenant's own OpenAI key ──────────────────────────────────────────────────
 function makeOpenAi(apiKey: string, model = "gpt-4o"): AiGenerateFn {
   return async (prompt: string) => {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -62,8 +82,8 @@ function makeOpenAi(apiKey: string, model = "gpt-4o"): AiGenerateFn {
   };
 }
 
-// ─── Anthropic Messages (fetch) ───────────────────────────────────────────────
-function makeAnthropic(apiKey: string, model = "claude-3-5-sonnet-20241022"): AiGenerateFn {
+// ─── Tenant's own Anthropic key ───────────────────────────────────────────────
+function makeAnthropic(apiKey: string, model = "claude-sonnet-4-6"): AiGenerateFn {
   return async (prompt: string) => {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -74,7 +94,7 @@ function makeAnthropic(apiKey: string, model = "claude-3-5-sonnet-20241022"): Ai
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: 8192,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -87,13 +107,19 @@ function makeAnthropic(apiKey: string, model = "claude-3-5-sonnet-20241022"): Ai
 // ─── Public factory ───────────────────────────────────────────────────────────
 /**
  * Returns an AI generate function for the given tenant.
- * Falls back to Replit Gemini if tenant has no AI config or tenantId is absent.
+ *
+ * Plan-based auto-routing (when aiProvider = "gemini-replit"):
+ *   - free → Gemini 2.5 Flash
+ *   - starter / pro → Claude Sonnet 4.6 (Replit-managed, no API key needed)
+ *
+ * Custom aiProvider settings always override plan-based routing.
  */
 export async function getTenantAiFn(tenantId?: number): Promise<AiGenerateFn> {
   if (!tenantId) return makeReplitGemini();
 
   try {
     const [tenant] = await db.select({
+      plan: tenantsTable.plan,
       aiProvider: tenantsTable.aiProvider,
       aiApiKey: tenantsTable.aiApiKey,
       aiModel: tenantsTable.aiModel,
@@ -101,33 +127,39 @@ export async function getTenantAiFn(tenantId?: number): Promise<AiGenerateFn> {
 
     if (!tenant) return makeReplitGemini();
 
-    const { aiProvider, aiApiKey, aiModel } = tenant;
+    const { plan, aiProvider, aiApiKey, aiModel } = tenant;
+    const isPaid = PAID_PLANS.has(plan ?? "free");
 
     switch (aiProvider) {
+      case "gemini-replit":
+      default:
+        // Plan-based auto-routing: paid → Claude Sonnet, free → Gemini Flash
+        if (isPaid) {
+          logger.info({ tenantId, plan }, "Using Claude Sonnet for paid plan tenant");
+          return makeReplitClaude();
+        }
+        return makeReplitGemini(aiModel ?? undefined);
+
       case "gemini":
         if (!aiApiKey) {
-          logger.warn({ tenantId }, "Tenant has gemini provider but no API key, falling back to Replit");
-          return makeReplitGemini(aiModel ?? undefined);
+          logger.warn({ tenantId }, "Tenant has gemini provider but no API key, falling back");
+          return isPaid ? makeReplitClaude() : makeReplitGemini(aiModel ?? undefined);
         }
         return makeTenantGemini(aiApiKey, aiModel ?? undefined);
 
       case "openai":
         if (!aiApiKey) {
-          logger.warn({ tenantId }, "Tenant has openai provider but no API key, falling back to Replit");
-          return makeReplitGemini();
+          logger.warn({ tenantId }, "Tenant has openai provider but no API key, falling back");
+          return isPaid ? makeReplitClaude() : makeReplitGemini();
         }
         return makeOpenAi(aiApiKey, aiModel ?? undefined);
 
       case "anthropic":
         if (!aiApiKey) {
-          logger.warn({ tenantId }, "Tenant has anthropic provider but no API key, falling back to Replit");
-          return makeReplitGemini();
+          // No custom key → use Replit-managed Claude regardless of plan
+          return makeReplitClaude(aiModel ?? undefined);
         }
         return makeAnthropic(aiApiKey, aiModel ?? undefined);
-
-      case "gemini-replit":
-      default:
-        return makeReplitGemini(aiModel ?? undefined);
     }
   } catch (err) {
     logger.error({ err, tenantId }, "Failed to load tenant AI config, using Replit Gemini");

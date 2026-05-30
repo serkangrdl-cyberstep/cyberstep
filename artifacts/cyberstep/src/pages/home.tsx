@@ -877,6 +877,128 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Ücretsiz Güvenlik Araçları */}
+      <section className="py-20 bg-background border-t">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4">
+              <Shield className="h-3 w-3 mr-1" />
+              Ücretsiz Araçlar
+            </Badge>
+            <h2 className="text-3xl font-bold">
+              {lang === "en" ? "Free Security Analysis Tools" : "Ücretsiz Siber Güvenlik Analiz Araçları"}
+            </h2>
+            <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+              {lang === "en"
+                ? "10 free tools developed specifically for Turkish SMEs. No registration required — assess your risks instantly."
+                : "Türk KOBİ'leri için özel geliştirilen 10 ücretsiz araç. Kayıt gerektirmez — risklerinizi anında ölçün."}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
+            {[
+              {
+                href: "/sizinti-izleyici",
+                icon: "🔍",
+                title: lang === "en" ? "Dark Web Leak Monitor" : "Karanlık Web Sızıntı İzleyici",
+                what: lang === "en" ? "Checks if your corporate domain or email addresses have appeared in dark web data dumps." : "Şirket alan adınızın veya e-postalarınızın karanlık web veri ihlali listelerinde yer alıp almadığını kontrol eder.",
+                why: lang === "en" ? "Leaked credentials are used in 80% of cyberattacks. Early detection prevents account takeovers." : "Sızdırılan kimlik bilgileri siber saldırıların %80'inde kullanılır. Erken tespit hesap ele geçirilmesini önler.",
+              },
+              {
+                href: "/kvkk-verbis",
+                icon: "📋",
+                title: "KVKK VERBİS Yükümlülük Kontrolü",
+                what: "Şirketinizin VERBİS'e kayıt yaptırma yükümlülüğü olup olmadığını 3 soruda belirler.",
+                why: "VERBİS'e kayıtsız kalan yükümlü şirketler 94.000 TL'ye kadar idari ceza riskiyle karşı karşıyadır.",
+              },
+              {
+                href: "/m365-denetim",
+                icon: "☁️",
+                title: "Microsoft 365 Güvenlik Denetimi",
+                what: "Microsoft 365 ortamınızdaki 26 kritik güvenlik ayarını 5 kategoride kontrol eder: Kimlik, Veri, E-posta, İzleme ve Mobil.",
+                why: "M365'teki yanlış yapılandırmalar, kuruluş içi veri sızdırma ve hesap ele geçirme saldırılarının ana nedenidir.",
+              },
+              {
+                href: "/siber-sigorta",
+                icon: "🛡️",
+                title: lang === "en" ? "Cyber Insurance Premium Calculator" : "Siber Sigorta Prim Hesaplayıcı",
+                what: lang === "en" ? "Estimates your likely cyber insurance premium range based on your company profile and security posture." : "Şirket profilinize ve güvenlik olgunluğunuza göre siber sigorta prim aralığınızı tahmin eder.",
+                why: lang === "en" ? "Cyber incidents cost Turkish SMEs an average of 700K–2.1M TL. Insurance provides financial protection." : "Siber olaylar Türk KOBİ'lerine ortalama 700K–2,1M TL'ye mal olmaktadır. Sigorta finansal koruma sağlar.",
+              },
+              {
+                href: "/kep-rehberi",
+                icon: "📧",
+                title: "KEP İhtiyaç Değerlendirmesi",
+                what: "Şirketinizin Kayıtlı Elektronik Posta (KEP) hesabı açmasının zorunlu veya önerilen olup olmadığını 3 soruda belirler.",
+                why: "Yasal tebligatlarda KEP kullanılmaması, mahkeme süreçlerinde ciddi hak kayıplarına yol açabilir.",
+              },
+              {
+                href: "/erp-tarama",
+                icon: "🗄️",
+                title: "ERP Güvenlik Tarama Listesi",
+                what: "SAP, Logo Tiger, Netsis, Mikro gibi ERP sistemlerindeki 11 kritik güvenlik denetim maddesini kategorize eder.",
+                why: "ERP sistemleri şirketin en kritik verisini barındırır. Fidye yazılımı saldırılarının birincil hedefidir.",
+              },
+              {
+                href: "/sektorel-kiyaslama",
+                icon: "📊",
+                title: "Sektörel Siber Güvenlik Kıyaslama",
+                what: "Siber güvenlik puanınızı 9 farklı sektörün ortalamasıyla karşılaştırır; olay maliyetleri ve en yaygın tehditleri gösterir.",
+                why: "Hangi alanda geride olduğunuzu bilmek, kaynakları doğru riske yönlendirmenizi sağlar.",
+              },
+              {
+                href: "/kvkk-ceza-sim",
+                icon: "⚖️",
+                title: "KVKK Ceza Simülatörü",
+                what: "Seçtiğiniz KVKK ihlali türü ve ağırlaştırıcı/hafifletici koşullara göre KVK Kurulu'nun uygulayabileceği idari para cezasını hesaplar.",
+                why: "Ceza maliyetini önceden bilmek, uyum yatırımlarının geri dönüşünü somutlaştırır ve önceliklendirme yapar.",
+              },
+              {
+                href: "/phishing-sim",
+                icon: "🎣",
+                title: "Phishing Farkındalık Testi",
+                what: "Gerçek kimlik avı senaryolarına dayanan 6 e-posta örneğiyle çalışanların phishing farkındalık seviyesini ölçer.",
+                why: "Kimlik avı saldırıları tüm ihlallerin %90'ından fazlasının başlangıç noktasıdır. İnsan faktörü en büyük risktir.",
+              },
+              {
+                href: "/domain-tarama",
+                icon: "🌐",
+                title: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması",
+                what: lang === "en" ? "Analyzes SPF, DMARC, DKIM, SSL, blacklists and HTTP security headers for your domain in seconds." : "Alan adınızın SPF, DMARC, DKIM, SSL, kara liste durumunu ve HTTP güvenlik başlıklarını saniyeler içinde analiz eder.",
+                why: lang === "en" ? "An unconfigured domain becomes a launchpad for phishing attacks on your customers and partners." : "Yapılandırılmamış bir alan adı, müşterilerinize ve iş ortaklarınıza yönelik phishing saldırıları için zemin hazırlar.",
+              },
+            ].map((tool) => (
+              <a
+                key={tool.href}
+                href={tool.href}
+                className="group block rounded-xl border bg-card p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-all"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="text-2xl shrink-0 mt-0.5">{tool.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm mb-2 group-hover:text-primary transition-colors leading-snug">
+                      {tool.title}
+                    </h3>
+                    <div className="space-y-2">
+                      <div>
+                        <span className="text-xs font-bold text-primary uppercase tracking-wide">Ne yapar?</span>
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{tool.what}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Neden gerekli?</span>
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{tool.why}</p>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs text-primary mt-3 group-hover:gap-2 transition-all font-medium">
+                      {lang === "en" ? "Launch tool" : "Aracı Aç"} <ChevronRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Tech Partners */}
       {techPartners.length > 0 && (
         <section className="py-16 bg-muted/20 border-y">

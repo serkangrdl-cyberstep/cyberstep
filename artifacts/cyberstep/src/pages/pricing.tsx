@@ -41,6 +41,17 @@ const COMPARISON_ROWS: CompRow[] = [
   { header: true, label: "Uyumluluk" },
   { label: "KVKK Madde 12 Teknik Tedbir Haritası", mini: false, full: true },
   { label: "NIST CSF 2.0 Uyum Seviyesi", mini: false, full: true },
+  { header: true, label: "Ücretsiz Güvenlik Araçları (Tüm Paketlerde)" },
+  { label: "Karanlık Web Sızıntı İzleyici", mini: true, full: true },
+  { label: "KVKK VERBİS Yükümlülük Kontrolü", mini: true, full: true },
+  { label: "KVKK İdari Ceza Simülatörü", mini: true, full: true },
+  { label: "Microsoft 365 Güvenlik Denetim Listesi", mini: true, full: true },
+  { label: "Siber Sigorta Prim Hesaplayıcı", mini: true, full: true },
+  { label: "KEP İhtiyaç Değerlendirmesi", mini: true, full: true },
+  { label: "ERP Güvenlik Tarama Listesi", mini: true, full: true },
+  { label: "Sektörel Siber Güvenlik Kıyaslama", mini: true, full: true },
+  { label: "Phishing E-posta Farkındalık Testi", mini: true, full: true },
+  { label: "Alan Adı Güvenlik Hızlı Tarama", mini: true, full: true },
 ];
 
 export default function Pricing() {

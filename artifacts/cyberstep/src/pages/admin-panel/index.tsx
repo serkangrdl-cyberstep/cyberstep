@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   FileText, Settings, CreditCard,
   TrendingUp, CheckCircle, Clock,
   BarChart3, DollarSign, Globe, Users,
+  Database, ChevronDown, ChevronUp, ExternalLink, Info,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -166,7 +168,141 @@ export default function AdminDashboard() {
             </button>
           ))}
         </div>
+
+        {/* Veri Kaynakları — sadece admin görür */}
+        <DataSourcesCard />
       </div>
     </AdminLayout>
+  );
+}
+
+const DATA_SOURCES: {
+  tool: string;
+  desc: string;
+  sources: { name: string; url: string; note: string }[];
+}[] = [
+  {
+    tool: "KVKK Ceza Simülatörü",
+    desc: "İdari para cezası hesaplamada kullanılan taban rakamlar ve ağırlaştırıcı/hafifletici koşul çarpanları",
+    sources: [
+      { name: "KVK Kurul Karar Özetleri", url: "https://www.kvkk.gov.tr/Icerik/5673/Karar-Ozetleri", note: "Resmi kurul kararları — taban ceza aralıkları" },
+      { name: "Resmi Gazete (mevzuat.gov.tr)", url: "https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=6698&MevzuatTur=1&MevzuatTertip=5", note: "6698 sayılı KVKK Kanunu — Madde 18 yaptırımlar" },
+      { name: "KVK Rehber Dokümanlar", url: "https://www.kvkk.gov.tr/Icerik/4570/Rehberler", note: "Ceza hesaplama metodolojisi referansı" },
+    ],
+  },
+  {
+    tool: "Siber Sigorta Prim Hesaplayıcı",
+    desc: "Prim aralığı tahmini için kullanılan sektör piyasa verileri ve risk çarpanları",
+    sources: [
+      { name: "Türkiye Sigorta Birliği İstatistikleri", url: "https://www.tsb.org.tr/istatistikler.aspx", note: "Türkiye siber sigorta prim verileri" },
+      { name: "Segem Aktüerya Verileri", url: "https://www.segem.org.tr", note: "KOBİ profili risk fiyatlandırması" },
+      { name: "IBM Cost of Data Breach Report", url: "https://www.ibm.com/reports/data-breach", note: "Sektörel ortalama olay maliyetleri (küresel)" },
+      { name: "Marsh Siber Risk Raporu (TR)", url: "https://www.marsh.com/tr/tr.html", note: "Türkiye pazar prim endeksi referansı" },
+    ],
+  },
+  {
+    tool: "Sektörel Kıyaslama Aracı",
+    desc: "Sektör bazında güvenlik olgunluk skorları, olay oranları ve ortalama maliyet rakamları",
+    sources: [
+      { name: "IBM Cost of Data Breach Report", url: "https://www.ibm.com/reports/data-breach", note: "Yıllık sektörel ihlal maliyeti raporu" },
+      { name: "Verizon DBIR", url: "https://www.verizon.com/business/resources/reports/dbir/", note: "Data Breach Investigations Report — sektör olay dağılımı" },
+      { name: "BTK Bilgi Güvenliği Raporları", url: "https://www.btk.gov.tr/haberler", note: "Türkiye KOBİ siber güvenlik istatistikleri" },
+      { name: "ENISA SME Threat Landscape", url: "https://www.enisa.europa.eu/topics/cyber-threats/threats-and-trends", note: "AB KOBİ tehdit peyzajı — sektör riski" },
+    ],
+  },
+  {
+    tool: "Alan Adı Tarama — Finansal/Ceza Hesaplamaları",
+    desc: "Domain taramada harici API'lerin hesapladığı risk skorları ve kullandığı veri kaynakları",
+    sources: [
+      { name: "Have I Been Pwned (HIBP)", url: "https://haveibeenpwned.com/API/v3", note: "E-posta/domain sızıntı veritabanı" },
+      { name: "VirusTotal API", url: "https://developers.virustotal.com/reference/overview", note: "Domain reputasyon ve zararlı yazılım taraması" },
+      { name: "AbuseIPDB", url: "https://www.abuseipdb.com/api", note: "IP kötüye kullanım geçmişi skoru" },
+      { name: "URLhaus (abuse.ch)", url: "https://urlhaus-api.abuse.ch/", note: "Zararlı URL veritabanı" },
+      { name: "USOM (BTK)", url: "https://www.usom.gov.tr", note: "Türkiye kara liste ve tehdit istihbarat verileri" },
+    ],
+  },
+  {
+    tool: "KVKK VERBİS Yükümlülük Eşikleri",
+    desc: "Çalışan sayısı ve yıllık mali bilanço eşiği kriterleri",
+    sources: [
+      { name: "KVK VERBİS Kılavuzu", url: "https://www.kvkk.gov.tr/Icerik/6098/Veri-Sorumlulusu-Bilgi-Sistemi-VERBiS", note: "Resmi yükümlülük kriterleri" },
+      { name: "Resmi Gazete 30224", url: "https://www.resmigazete.gov.tr/eskiler/2017/10/20171017-5.htm", note: "VERBİS kayıt yükümlülüğü yönetmeliği" },
+    ],
+  },
+  {
+    tool: "ERP Güvenlik Tarama Listesi",
+    desc: "Kontrol maddelerinin dayandığı güvenlik standartları",
+    sources: [
+      { name: "NIST SP 800-53", url: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final", note: "ERP erişim kontrolü, denetim ve yama yönetimi kriterleri" },
+      { name: "CIS Controls v8", url: "https://www.cisecurity.org/controls/v8", note: "ERP için uygulanabilir güvenlik kontrolleri" },
+      { name: "SAP Security Baseline", url: "https://support.sap.com/en/index.html", note: "SAP özel güvenlik yapılandırması referansı" },
+    ],
+  },
+];
+
+function DataSourcesCard() {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  return (
+    <Card className="bg-slate-800 border-slate-700">
+      <button className="w-full text-left" onClick={() => setOpen((v) => !v)}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-sky-400" />
+              <CardTitle className="text-white text-base">Araç Veri Kaynakları ve Hesaplama Metodolojisi</CardTitle>
+              <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full px-2 py-0.5 font-medium">Sadece Admin</span>
+            </div>
+            {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </div>
+          <p className="text-slate-400 text-xs pt-1">Müşterilere sunulan hesaplama araçlarının dayandığı kaynak ve metodoloji bilgisi. Müşterilere gösterilmez.</p>
+        </CardHeader>
+      </button>
+
+      {open && (
+        <CardContent className="pt-0 space-y-3">
+          <div className="flex items-start gap-2 bg-sky-500/10 border border-sky-500/20 rounded-lg p-3">
+            <Info className="h-4 w-4 text-sky-400 shrink-0 mt-0.5" />
+            <p className="text-sky-300 text-xs leading-relaxed">
+              Aşağıdaki rakamlar hesaplama modeli için baz alınmıştır. Gerçek değerler güncel mevzuat ve piyasa koşullarına göre periyodik olarak doğrulanmalıdır.
+            </p>
+          </div>
+
+          {DATA_SOURCES.map((ds) => (
+            <div key={ds.tool} className="border border-slate-700 rounded-lg overflow-hidden">
+              <button className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
+                onClick={() => setExpanded((e) => ({ ...e, [ds.tool]: !e[ds.tool] }))}>
+                <div>
+                  <p className="text-white text-sm font-medium">{ds.tool}</p>
+                  <p className="text-slate-400 text-xs mt-0.5">{ds.desc}</p>
+                </div>
+                {expanded[ds.tool] ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0 ml-3" /> : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 ml-3" />}
+              </button>
+
+              {expanded[ds.tool] && (
+                <div className="border-t border-slate-700 px-4 py-3 bg-slate-900/50 space-y-2">
+                  {ds.sources.map((src) => (
+                    <div key={src.url} className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-slate-200 text-xs font-medium">{src.name}</span>
+                          <span className="text-slate-500 text-xs">—</span>
+                          <span className="text-slate-400 text-xs">{src.note}</span>
+                        </div>
+                        <a href={src.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-sky-400 hover:text-sky-300 font-mono break-all flex items-center gap-1 mt-0.5">
+                          {src.url} <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      )}
+    </Card>
   );
 }

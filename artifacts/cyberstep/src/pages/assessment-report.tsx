@@ -301,6 +301,19 @@ function AssessmentReportCore({ id }: { id: number }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
+  const { data: pricingPlans } = useQuery<Array<{ slug: string; price: string }>>({
+    queryKey: ["public-pricing"],
+    queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const fullPlanPrice = parseFloat(pricingPlans?.find(p => p.slug === "full")?.price ?? "0");
+  const fmtFullPrice = fullPlanPrice > 0
+    ? new Intl.NumberFormat("tr-TR").format(fullPlanPrice) + " TL"
+    : "—";
+  const fmtDiscountedPrice = fullPlanPrice > 0
+    ? new Intl.NumberFormat("tr-TR").format(Math.round(fullPlanPrice * 0.85 / 10) * 10) + " TL"
+    : "—";
+
   const { data: reportData, isLoading } = useGetReport(id, {
     query: {
       queryKey: ["report", id],
@@ -621,7 +634,7 @@ function AssessmentReportCore({ id }: { id: number }) {
                 <div className="flex flex-col items-stretch sm:items-center gap-3 min-w-[200px]">
                   <div className="text-center bg-white dark:bg-slate-800 rounded-xl border p-4 shadow-sm">
                     <p className="text-xs text-muted-foreground mb-1">Tam Değerlendirme</p>
-                    <p className="text-2xl font-bold text-primary">5.990 TL</p>
+                    <p className="text-2xl font-bold text-primary">{fmtFullPrice}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">tek seferlik</p>
                     <div className="mt-2 pt-2 border-t">
                       <p className="text-xs text-muted-foreground">Potansiyel kayıp</p>
@@ -640,7 +653,7 @@ function AssessmentReportCore({ id }: { id: number }) {
                     <div className="mt-3 pt-3 border-t text-center rounded-lg bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-700 p-3">
                       <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-0.5">Bugüne özel</p>
                       <p className="text-xs text-muted-foreground">İlk 24 saat geçerli indirim</p>
-                      <p className="text-base font-bold text-primary mt-1">5.090 TL <span className="line-through text-muted-foreground font-normal text-sm">5.990 TL</span></p>
+                      <p className="text-base font-bold text-primary mt-1">{fmtDiscountedPrice} <span className="line-through text-muted-foreground font-normal text-sm">{fmtFullPrice}</span></p>
                       <p className="text-xs font-mono text-primary font-semibold mt-1">Kod: HIZLI15</p>
                     </div>
                   )}

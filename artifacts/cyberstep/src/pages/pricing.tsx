@@ -3,6 +3,15 @@ import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award } from
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useQuery } from "@tanstack/react-query";
+
+interface DbPlan { id: number; slug: string; name: string; price: string; currency: string; isActive: boolean; }
+
+function fmtTL(price: string | undefined): string {
+  const n = parseFloat(price ?? "0");
+  if (!n) return "";
+  return new Intl.NumberFormat("tr-TR").format(n) + " TL";
+}
 
 const TRUST_ITEMS = [
   { icon: Shield, text: "256-bit SSL şifreli güvenli ödeme" },
@@ -59,6 +68,22 @@ export default function Pricing() {
     title: "Fiyatlar | CyberStep.io",
     description: "KOBİ'ler icin siber guvenlik degerlendirme paketleri. Ucretsiz Mini Degerlendirme ile baslayin, tam analizle buyumeye devam edin.",
   });
+
+  const { data: dbPlans } = useQuery<DbPlan[]>({
+    queryKey: ["public-pricing"],
+    queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const fullDbPlan = dbPlans?.find(p => p.slug === "full");
+  const fullPriceLabel = fullDbPlan ? fmtTL(fullDbPlan.price) : PRICING_PLANS[1].priceLabel;
+
+  const plans = PRICING_PLANS.map(p =>
+    p.id === "full" && fullDbPlan
+      ? { ...p, priceLabel: fullPriceLabel }
+      : p
+  );
+
   return (
     <div className="flex flex-col flex-1">
       {/* Header */}
@@ -88,14 +113,14 @@ export default function Pricing() {
               <div className="text-xl font-bold text-muted-foreground">↔</div>
               <div className="flex-1 rounded-lg bg-white dark:bg-slate-900 border p-4 shadow-sm">
                 <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Tam Değerlendirme</p>
-                <p className="text-3xl font-bold text-primary">5.990 TL</p>
+                <p className="text-3xl font-bold text-primary">{fullPriceLabel}</p>
                 <p className="text-xs text-muted-foreground mt-1">tek seferlik — 7 günlük memnuniyet garantisi</p>
               </div>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {PRICING_PLANS.map((plan) => (
+            {plans.map((plan) => (
               <div
                 key={plan.id}
                 className={`relative rounded-2xl border p-8 flex flex-col gap-6 shadow-sm ${

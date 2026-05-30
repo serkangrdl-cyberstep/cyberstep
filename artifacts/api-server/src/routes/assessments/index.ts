@@ -531,7 +531,6 @@ JSON şablonu:
       .where(eq(reportsTable.assessmentId, assessmentId));
 
     const reviewToken = crypto.randomUUID();
-    const verificationToken = crypto.randomUUID();
 
     if (existingReport) {
       await db
@@ -567,7 +566,6 @@ JSON şablonu:
         insuranceGaps,
         domainScores: scoring.domainScores,
         reviewToken,
-        verificationToken,
         reviewStatus: "pending_review",
         ...(domainScan ? { domainScanId: domainScan.id } : {}),
       });
@@ -621,7 +619,6 @@ JSON şablonu:
         recommendations: [],
         domainScores: scoring.domainScores,
         reviewToken,
-        verificationToken: crypto.randomUUID(),
         reviewStatus: "pending_review",
         ...(domainScan ? { domainScanId: domainScan.id } : {}),
       });

@@ -113,8 +113,56 @@ router.get("/admin-panel/analytics/payments", requireAdmin, async (_req: Request
 
 // GET /api/admin-panel/analytics/assessments
 router.get("/admin-panel/analytics/assessments", requireAdmin, async (_req: Request, res: Response) => {
-  const list = await db.select().from(assessmentsTable).orderBy(desc(assessmentsTable.createdAt)).limit(100);
+  const list = await db
+    .select({
+      id: assessmentsTable.id,
+      companyName: assessmentsTable.companyName,
+      contactName: assessmentsTable.contactName,
+      email: assessmentsTable.email,
+      sector: assessmentsTable.sector,
+      employeeCount: assessmentsTable.employeeCount,
+      assessmentType: assessmentsTable.assessmentType,
+      status: assessmentsTable.status,
+      totalScore: reportsTable.totalScore,
+      maxScore: reportsTable.maxScore,
+      riskLevel: reportsTable.riskLevel,
+      redAlarmCount: reportsTable.redAlarmCount,
+      createdAt: assessmentsTable.createdAt,
+      completedAt: assessmentsTable.completedAt,
+      verificationToken: reportsTable.verificationToken,
+    })
+    .from(assessmentsTable)
+    .leftJoin(reportsTable, eq(reportsTable.assessmentId, assessmentsTable.id))
+    .orderBy(desc(assessmentsTable.createdAt))
+    .limit(100);
   res.json(list);
+});
+
+// POST /api/admin-panel/assessments/:id/issue-verification — Rozet ver
+router.post("/admin-panel/assessments/:id/issue-verification", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const token = crypto.randomUUID();
+  const [updated] = await db
+    .update(reportsTable)
+    .set({ verificationToken: token })
+    .where(eq(reportsTable.assessmentId, id))
+    .returning({ verificationToken: reportsTable.verificationToken });
+  if (!updated) { res.status(404).json({ error: "Bu değerlendirmeye ait rapor bulunamadı" }); return; }
+  res.json({ verificationToken: updated.verificationToken });
+});
+
+// DELETE /api/admin-panel/assessments/:id/issue-verification — Rozeti iptal et
+router.delete("/admin-panel/assessments/:id/issue-verification", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const [updated] = await db
+    .update(reportsTable)
+    .set({ verificationToken: null })
+    .where(eq(reportsTable.assessmentId, id))
+    .returning({ id: reportsTable.id });
+  if (!updated) { res.status(404).json({ error: "Bu değerlendirmeye ait rapor bulunamadı" }); return; }
+  res.json({ success: true });
 });
 
 // GET /api/admin-panel/analytics/by-plan — paket başına gelir

@@ -1124,8 +1124,8 @@ function AssessmentReportCore({ id }: { id: number }) {
         />
       )}
 
-      {/* CyberStep Verified Rozeti — yalnızca skor >=80 VE hiç kırmızı alarm yoksa */}
-      {report.verificationToken && scorePercent >= 80 && (report.redAlarmCount ?? 0) === 0 && (() => {
+      {/* CyberStep Doğrulama Rozeti veya Denetim CTA */}
+      {report.verificationToken ? (() => {
         const base = window.location.origin;
         const verifyUrl = `${base}/verify/${report.verificationToken}`;
         return (
@@ -1138,10 +1138,10 @@ function AssessmentReportCore({ id }: { id: number }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-sm">CyberStep Doğrulandı</h3>
-                    <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200" variant="outline">Verified</Badge>
+                    <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200" variant="outline">Uzman Onaylı</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Bu bağlantıyı tekliflerde, web sitenizde veya müşterilerinizle paylaşarak siber güvenlik değerlendirmenizi tamamladığınızı kanıtlayın.
+                    Firmanız CyberStep uzmanı tarafından sahada denetlendi ve doğrulandı. Bu rozeti tekliflerinizde ve web sitenizde kullanabilirsiniz.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <a
@@ -1164,7 +1164,32 @@ function AssessmentReportCore({ id }: { id: number }) {
             </CardContent>
           </Card>
         );
-      })()}
+      })() : (
+        <Card className="shadow-sm mb-6 border-slate-200 dark:border-slate-700">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="shrink-0 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl">
+                <Shield className="h-7 w-7 text-slate-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-sm">CyberStep Sahaya Doğrulama Denetimi</h3>
+                  <Badge variant="outline" className="text-xs">Ücretli Hizmet</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Bir CyberStep uzmanı firmanızı ziyaret ederek verdiğiniz cevapları sahada doğrular. Denetim tamamlanınca size özel "CyberStep Doğrulandı" rozeti ve doğrulama belgesi verilir — tekliflerinizde ve web sitenizde kullanabilirsiniz.
+                </p>
+                <a
+                  href="mailto:info@cyberstep.io?subject=Doğrulama Denetimi Talebi"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Denetim Talep Et <ArrowRight className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Expert review notice */}
       <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">

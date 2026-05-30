@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Eye, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { Eye, Clock, CheckCircle, AlertTriangle, ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ interface Assessment {
   sector: string; employeeCount: string; assessmentType: string; status: string;
   totalScore: number | null; maxScore: number | null; riskLevel: string | null;
   redAlarmCount: number | null; createdAt: string; completedAt: string | null;
+  verificationToken: string | null;
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -24,6 +26,9 @@ const RISK_COLORS: Record<string, string> = {
 export default function AdminAssessments() {
   const [, navigate] = useLocation();
   const { data: admin } = useRequireAdmin();
+  const qc = useQueryClient();
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"issue" | "revoke" | null>(null);
 
   const { data: assessments, isLoading } = useQuery<Assessment[]>({
     queryKey: ["admin-assessments"],
@@ -35,22 +40,101 @@ export default function AdminAssessments() {
     enabled: !!admin,
   });
 
+  const issueVerification = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/admin-panel/assessments/${id}/issue-verification`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Hata");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-assessments"] });
+      setConfirmId(null);
+      setConfirmAction(null);
+    },
+  });
+
+  const revokeVerification = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/admin-panel/assessments/${id}/issue-verification`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Hata");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-assessments"] });
+      setConfirmId(null);
+      setConfirmAction(null);
+    },
+  });
+
   const list = Array.isArray(assessments) ? assessments : [];
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
+  const isPending = issueVerification.isPending || revokeVerification.isPending;
+
   return (
     <AdminLayout title="Değerlendirmeler" description={`Tüm anket sonuçları (${list.length} kayıt)`}>
+      {/* Onay diyaloğu */}
+      {confirmId !== null && confirmAction !== null && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <Card className="bg-slate-800 border-slate-700 max-w-sm w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              {confirmAction === "issue"
+                ? <ShieldCheck className="h-6 w-6 text-emerald-400 shrink-0" />
+                : <ShieldOff className="h-6 w-6 text-red-400 shrink-0" />}
+              <h3 className="font-semibold text-white text-sm">
+                {confirmAction === "issue" ? "Doğrulama Rozeti Ver" : "Doğrulama Rozetini İptal Et"}
+              </h3>
+            </div>
+            <p className="text-slate-400 text-sm">
+              {confirmAction === "issue"
+                ? "Bu değerlendirme için CyberStep Doğrulandı rozeti verilecek ve müşteriye doğrulama bağlantısı oluşturulacak. Devam etmek istediğinizden emin misiniz?"
+                : "Bu değerlendirmenin doğrulama rozeti iptal edilecek ve müşterinin doğrulama bağlantısı çalışmayacak. Devam etmek istediğinizden emin misiniz?"}
+            </p>
+            {(issueVerification.isError || revokeVerification.isError) && (
+              <p className="text-red-400 text-xs">
+                {(issueVerification.error as Error | null)?.message ?? (revokeVerification.error as Error | null)?.message}
+              </p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" className="text-slate-400"
+                onClick={() => { setConfirmId(null); setConfirmAction(null); }}
+                disabled={isPending}>
+                İptal
+              </Button>
+              <Button
+                size="sm"
+                className={confirmAction === "issue"
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"}
+                disabled={isPending}
+                onClick={() => {
+                  if (confirmAction === "issue") issueVerification.mutate(confirmId!);
+                  else revokeVerification.mutate(confirmId!);
+                }}>
+                {isPending ? "İşleniyor..." : confirmAction === "issue" ? "Rozeti Ver" : "Rozeti İptal Et"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {isLoading || !admin ? (
         <div className="text-slate-400 text-center py-16">Yükleniyor...</div>
       ) : (
         <Card className="bg-slate-800 border-slate-700">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-700">
-                  {["#", "Firma", "İletişim", "Sektör", "Tür", "Skor", "Risk", "Durum", "Tarih", ""].map(h => (
+                  {["#", "Firma", "İletişim", "Sektör", "Tür", "Skor", "Risk", "Durum", "Doğrulama", "Tarih", ""].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-slate-400 text-xs font-medium uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -87,6 +171,29 @@ export default function AdminAssessments() {
                         <span className="flex items-center gap-1 text-amber-400 text-xs"><Clock className="h-3 w-3" /> Tamamlandı</span>
                       ) : (
                         <span className="flex items-center gap-1 text-slate-400 text-xs"><AlertTriangle className="h-3 w-3" /> Devam Ediyor</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {a.status === "report_ready" ? (
+                        a.verificationToken ? (
+                          <button
+                            className="flex items-center gap-1 text-emerald-400 text-xs hover:text-emerald-300 transition-colors"
+                            onClick={() => { setConfirmId(a.id); setConfirmAction("revoke"); }}
+                            title="Rozeti iptal et"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" /> Doğrulandı
+                          </button>
+                        ) : (
+                          <button
+                            className="flex items-center gap-1 text-slate-400 text-xs hover:text-emerald-400 transition-colors"
+                            onClick={() => { setConfirmId(a.id); setConfirmAction("issue"); }}
+                            title="Doğrulama rozeti ver"
+                          >
+                            <ShieldOff className="h-3.5 w-3.5" /> Rozet Ver
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-slate-600 text-xs">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{fmt(a.createdAt)}</td>

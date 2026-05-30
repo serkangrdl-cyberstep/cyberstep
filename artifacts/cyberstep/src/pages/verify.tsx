@@ -109,7 +109,7 @@ export default function VerifyPage() {
             </div>
 
             <h1 className="text-2xl font-bold mb-1">{data.companyName}</h1>
-            <p className="text-muted-foreground text-sm mb-6">CyberStep.io Mini Değerlendirme'yi tamamladı ve doğrulandı.</p>
+            <p className="text-muted-foreground text-sm mb-6">CyberStep.io uzmanı tarafından sahaya doğrulama denetimi tamamlandı ve onaylandı.</p>
 
             <div className="grid grid-cols-2 gap-4 mb-6 text-left">
               <div className="bg-muted/40 rounded-xl p-4">
@@ -141,7 +141,7 @@ export default function VerifyPage() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Bu belge CyberStep.io tarafından otomatik olarak oluşturulmuştur ve bağlantıyı bilen herkes tarafından görüntülenebilir.
+              Bu belge CyberStep.io uzmanı tarafından sahada gerçekleştirilen fiziksel denetim sonucunda düzenlenmiştir. Bağlantıyı bilen herkes tarafından görüntülenebilir.
             </p>
           </CardContent>
         </Card>

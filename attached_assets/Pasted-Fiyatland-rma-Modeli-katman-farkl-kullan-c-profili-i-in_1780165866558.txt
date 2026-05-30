@@ -1,0 +1,21 @@
+Fiyatlandırma Modeli
+Üç katman, farklı kullanıcı profili için:
+Freemium (0 TL): Günlük 10 çağrı, sadece /score/{domain} endpoint'i. Chrome extension ve küçük geliştiriciler için. Viral büyüme motoru.
+Standart (aylık 490 TL): Aylık 1.000 çağrı, tüm endpoint'ler, webhook desteği. ERP entegrasyoncuları ve acente yazılımları için.
+Kurumsal (görüşme): Sınırsız çağrı, SLA garantisi, özel endpoint, white-label seçeneği. Telko ve sigorta şirketleri için.
+Kullanım bazlı ek paket: 1.000 ek çağrı = 150 TL. Tahmin edilemeyen trafik için güvenlik ağı.
+Teknik Öncelik Listesi
+Hemen yapılması gereken 3 şey:
+Birincisi rate limiting ve API key yönetimi — bu olmadan API ürünü olmaz. Redis ile token bucket algoritması. Admin panelinde API key oluştur/iptal et/kullanım görüntüle.
+İkincisi webhook sistemi — senkron yanıt yerine async model. Müşteri endpoint'i tetikler, tarama bitince webhook'a sonuç düşer. Özellikle sigorta teklif motoru için kritik.
+Üçüncüsü versiyonlama — /v1/ prefix'i şimdiden ekle. İlk günden. Sonradan eklemek tüm entegrasyonları kırar.
+Dokümantasyon = Satış Aracı
+API'nin başarısı büyük ölçüde dokümantasyon kalitesine bağlı. Swagger/OpenAPI otomatik üretir ama yeterli değil. Postman koleksiyonu hazırla — geliştirici doğrudan import eder, 5 dakikada çalışır.
+Her endpoint için gerçek bir kullanım senaryosu yaz:
+"ERP widget'ı için: Kullanıcı muhasebe yazılımını açtığında şirket domain'ini /v1/score/{domain} ile sorgulayın. Skor 60'ın altındaysa sarı uyarı, 40'ın altındaysa kırmızı banner gösterin."
+Bu format teknik dokümandan çok daha hızlı entegrasyon sağlar.
+Gizli Risk: Kötüye Kullanım
+API açıkken birisi rakibinin tüm müşterilerini toplu tarıyor, veriyi başka amaçla kullanıyor. Önlemler:
+Domain başına rate limit koy — aynı domain'i saatte 1 kez sorgulayabilirsin. Toplu taramayı engeller.
+Kullanım analizini takip et — aynı API key'den 100 farklı domain sorgulanıyorsa bu bir geliştirici değil, veri toplayıcı. Admin panelinde anomali uyarısı.
+ToS'a "rakip istihbaratı amacıyla kullanılamaz" maddesi ekle — hukuki güvence.

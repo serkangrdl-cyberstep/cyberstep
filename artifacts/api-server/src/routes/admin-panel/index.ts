@@ -14,6 +14,7 @@ import domainScansAdminRouter from "./domain-scans-admin";
 import isrRouter from "./isr";
 import emailTemplatesRouter from "./email-templates";
 import partnersAdminRouter from "./partners";
+import apiKeysAdminRouter from "../v1/admin";
 
 const router = Router();
 router.use(authRouter);
@@ -31,5 +32,6 @@ router.use(domainScansAdminRouter);
 router.use(isrRouter);
 router.use(emailTemplatesRouter);
 router.use(partnersAdminRouter);
+router.use(apiKeysAdminRouter);
 
 export default router;

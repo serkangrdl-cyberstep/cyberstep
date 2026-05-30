@@ -15,10 +15,12 @@ import tprmRouter from "./tprm/index";
 import scanLeadsRouter from "./scan-leads/index";
 import integrationsRouter from "./integrations/index";
 import publicRouter from "./public/index";
+import v1Router from "./v1/index";
 
 const router: IRouter = Router();
 
 router.use(publicRouter);
+router.use(v1Router);
 router.use(healthRouter);
 router.use(assessmentsRouter);
 router.use(geminiRouter);

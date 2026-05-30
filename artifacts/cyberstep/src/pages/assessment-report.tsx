@@ -18,6 +18,7 @@ import { ReportLoading } from "@/components/report-loading";
 import { useCustomer } from "@/hooks/use-customer";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { MINI_ASSESSMENT_SECTIONS } from "@/lib/constants";
+import { FullAssessmentTabs } from "@/components/full-assessment-tabs";
 
 const SECTOR_BENCHMARKS: Record<string, number> = {
   "Finans/Sigorta": 72,
@@ -433,6 +434,8 @@ function AssessmentReportCore({ id }: { id: number }) {
   })();
 
   const isMini = report.assessmentType === "mini";
+  const isFullReport = !isMini;
+  const showLegacyFullSections = false; // All full-report sections now rendered by FullAssessmentTabs
 
   const companyName = assessment?.companyName ?? "Şirketimiz";
   const referralLink = (() => {
@@ -701,8 +704,13 @@ function AssessmentReportCore({ id }: { id: number }) {
         </Card>
       )}
 
+      {/* Full Assessment 5-tab dashboard */}
+      {isFullReport && (
+        <FullAssessmentTabs report={report} />
+      )}
+
       {/* Skor Takibi */}
-      {!isMini && report.previousScore && (() => {
+      {showLegacyFullSections && report.previousScore && (() => {
         const prev = report.previousScore;
         const delta = scorePercent - prev.scorePercent;
         const improved = delta > 0;
@@ -746,7 +754,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* BitSight-style Rating Band Görseli */}
-      {!isMini && (() => {
+      {showLegacyFullSections && (() => {
         const band = RATING_BANDS.find(b => scorePercent >= b.range[0] && scorePercent <= b.range[1]) ?? RATING_BANDS[0];
         return (
           <Card className="shadow-sm mb-6">
@@ -787,7 +795,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Domain cards */}
-      {!isMini && (
+      {showLegacyFullSections && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
           {report.domainScores?.map((d: any) => (
             <Card key={d.domain} className="shadow-sm">
@@ -808,7 +816,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       )}
 
       {/* Risk Profili Radarı */}
-      {!isMini && report.domainScores && report.domainScores.length >= 5 && (() => {
+      {showLegacyFullSections && report.domainScores && report.domainScores.length >= 5 && (() => {
         const ds = report.domainScores as Array<{ domain: string; percent: number }>;
         const get = (letter: string) => Math.round(ds.find(d => d.domain === letter)?.percent ?? 50);
         const redAlarmCount = (report.redAlarmQuestions ?? []).length;
@@ -875,7 +883,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Tehdit Aktörü Zekası (BitSight Threat Insights) */}
-      {!isMini && (() => {
+      {showLegacyFullSections && (() => {
         const sectorKey = assessment?.sector as string | undefined;
         const actors: ThreatActor[] = (sectorKey && THREAT_INTEL_DB[sectorKey]) ? THREAT_INTEL_DB[sectorKey] : THREAT_INTEL_DB["Diğer"];
         return (
@@ -927,7 +935,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* BDDK / DORA Uyum Teaser */}
-      {!isMini && <Card className="shadow-sm mb-6 border-blue-500/20 bg-blue-500/5">
+      {showLegacyFullSections && <Card className="shadow-sm mb-6 border-blue-500/20 bg-blue-500/5">
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
             <div className="shrink-0 bg-blue-500/10 p-3 rounded-xl">
@@ -953,7 +961,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       </Card>}
 
       {/* KVKK Uyum Haritası */}
-      {!isMini && <Card className="shadow-sm mb-6">
+      {showLegacyFullSections && <Card className="shadow-sm mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Scale className="h-4 w-4 text-primary shrink-0" />
@@ -1002,7 +1010,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       </Card>}
 
       {/* NIST CSF 2.0 Uyum Özeti */}
-      {!isMini && <Card className="shadow-sm mb-6">
+      {showLegacyFullSections && <Card className="shadow-sm mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <FileCheck className="h-4 w-4 text-primary shrink-0" />
@@ -1147,7 +1155,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       )}
 
       {/* Partner Yönlendirme — zayıf alanlara göre çözüm önerileri */}
-      {!isMini && (() => {
+      {showLegacyFullSections && (() => {
         const weakDomains = (report.domainScores ?? []).filter((d: any) => d.percent < 60);
         if (weakDomains.length === 0) return null;
         const domainNameMap: Record<string, string> = {
@@ -1205,7 +1213,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Alan Adı Güvenlik Taraması */}
-      {!isMini && (() => {
+      {showLegacyFullSections && (() => {
         const scan = report.domainScan as any;
         if (!scan) {
           // No domain provided — show CTA
@@ -1332,7 +1340,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Finansal Maliyet Tahmini */}
-      {!isMini && (report.estimatedBreachCostMin || report.estimatedBreachCostMax) && (() => {
+      {showLegacyFullSections && (report.estimatedBreachCostMin || report.estimatedBreachCostMax) && (() => {
         const fmtMoney = (n: number) => `₺${n.toLocaleString("tr-TR")}`;
         const costMin = report.estimatedBreachCostMin as number;
         const costMax = report.estimatedBreachCostMax as number;
@@ -1370,7 +1378,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* KVKK Risk Katmanı */}
-      {!isMini && (report as any).kvkkRiskLevel && (() => {
+      {showLegacyFullSections && (report as any).kvkkRiskLevel && (() => {
         const kvkkLevel = (report as any).kvkkRiskLevel as string;
         const kvkkMin = (report as any).kvkkPenaltyMin as number | null;
         const kvkkMax = (report as any).kvkkPenaltyMax as number | null;
@@ -1438,7 +1446,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Sektör Benchmark */}
-      {!isMini && (report as any).sectorBenchmarkPercent !== null && (report as any).sectorBenchmarkPercent !== undefined && (() => {
+      {showLegacyFullSections && (report as any).sectorBenchmarkPercent !== null && (report as any).sectorBenchmarkPercent !== undefined && (() => {
         const pct = (report as any).sectorBenchmarkPercent as number;
         const comment = (report as any).sectorBenchmarkComment as string | null;
         const barColor = pct >= 70 ? "#22c55e" : pct >= 40 ? "#f59e0b" : "#ef4444";
@@ -1481,7 +1489,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* KVKK VERBİS Hazırlık Skoru */}
-      {!isMini && (report as any).verbisRequired !== undefined && (report as any).verbisRequired !== null && (() => {
+      {showLegacyFullSections && (report as any).verbisRequired !== undefined && (report as any).verbisRequired !== null && (() => {
         const verbisRequired = (report as any).verbisRequired as boolean;
         const verbisRiskLevel = (report as any).verbisRiskLevel as string | null;
         const verbisSteps = ((report as any).verbisSteps ?? []) as string[];
@@ -1538,7 +1546,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Siber Sigorta Hazırlık */}
-      {!isMini && (report as any).insuranceReadinessPercent !== undefined && (report as any).insuranceReadinessPercent !== null && (() => {
+      {showLegacyFullSections && (report as any).insuranceReadinessPercent !== undefined && (report as any).insuranceReadinessPercent !== null && (() => {
         const pct = (report as any).insuranceReadinessPercent as number;
         const gaps = ((report as any).insuranceGaps ?? []) as string[];
         const readColor = pct >= 70 ? "text-green-600" : pct >= 40 ? "text-orange-600" : "text-red-600";
@@ -1604,7 +1612,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Guvenlik Maratonu — 30 Gunluk Eylem Plani */}
-      {!isMini && Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
+      {showLegacyFullSections && Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
         <MarathonSection
           weeklyActionPlan={report.weeklyActionPlan as Array<{ week: number; title: string; tasks: string[] }>}
           assessmentId={report.assessmentId as number}

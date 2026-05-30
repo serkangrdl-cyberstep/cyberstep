@@ -115,14 +115,17 @@ export const ANSWER_SCORES: Record<string, number> = {
   hayir: 0,
 };
 
-export function calculateScore(answers: Array<{ questionNumber: number; answer: string }>) {
+export function calculateScore(
+  answers: Array<{ questionNumber: number; answer: string }>,
+  questionSet: typeof MINI_QUESTIONS = MINI_QUESTIONS
+) {
   let totalScore = 0;
   let maxScore = 0;
   const redAlarmQuestions: number[] = [];
 
   const domainMap: Record<string, { score: number; maxScore: number }> = {};
 
-  for (const q of MINI_QUESTIONS) {
+  for (const q of questionSet) {
     const ans = answers.find((a) => a.questionNumber === q.number);
     const rawScore = ans ? (ANSWER_SCORES[ans.answer] ?? 0) : 0;
     const weighted = rawScore * q.weight;

@@ -23,8 +23,8 @@ import {
   GetReportParams,
 } from "@workspace/api-zod";
 import { eq, desc, sql, count, avg, gte, lte, and, asc } from "drizzle-orm";
-import { getTenantAiFn } from "../../services/ai-client";
-import { calculateScore, MINI_QUESTIONS } from "./scoring";
+import { getTenantAiFn, getClaudeAiFn } from "../../services/ai-client";
+import { calculateScore, MINI_QUESTIONS, FULL_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
 import { sendAdminNotificationEmail, sendCustomerConfirmationEmail } from "../../services/email";
 import { generateReportPDF } from "../../services/pdf";
@@ -265,8 +265,10 @@ router.post("/assessments/:id/complete", requireAssessmentOwner, async (req, res
     .from(assessmentAnswersTable)
     .where(eq(assessmentAnswersTable.assessmentId, params.data.id));
 
+  const questionSet = assessment.assessmentType === "full" ? FULL_QUESTIONS : MINI_QUESTIONS;
   const scoring = calculateScore(
-    answers.map((a) => ({ questionNumber: a.questionNumber, answer: a.answer }))
+    answers.map((a) => ({ questionNumber: a.questionNumber, answer: a.answer })),
+    questionSet
   );
 
   // Update assessment with score
@@ -353,7 +355,8 @@ async function generateAIReport(
     }
   }
 
-  const questionMap = new Map(MINI_QUESTIONS.map((q) => [q.number, q]));
+  const questions = assessment.assessmentType === "full" ? FULL_QUESTIONS : MINI_QUESTIONS;
+  const questionMap = new Map(questions.map((q) => [q.number, q]));
   const redAlarmDetails = scoring.redAlarmQuestions
     .map((qNum) => `Soru ${qNum}`)
     .join(", ");
@@ -483,9 +486,83 @@ JSON şablonu:
   "insuranceGaps": ["MFA (çok faktörlü doğrulama) aktif değil.", "Düzenli yedekleme politikası yok."]
 }`;
 
+  // Full assessment: extended prompt with maturityLevel + findings + 8-week plan
+  const fullPrompt = assessment.assessmentType === "full" ? `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; 55 soruluk kapsamlı Siber Güvenlik Olgunluk Analizi yazmak.
+
+ÖNEMLİ BAĞLAM: Bu analiz ücretli tam değerlendirme raporu. Daha kapsamlı, daha analitik ve daha fazla sektöre özgü öngörü içermeli.
+
+Firma: ${assessment.companyName}
+Sektör: ${assessment.sector}
+Çalışan Sayısı: ${assessment.employeeCount}
+
+SONUÇLAR:
+- Siber Sağlık Skoru: ${scoring.totalScore}/${scoring.maxScore} (%${scoring.scorePercent})
+- Risk Seviyesi: ${scoring.riskLevel}
+- Acil Müdahale Gerektiren Alan Sayısı: ${scoring.redAlarmCount}
+- Acil Alanlar: ${redAlarmDetails || "Yok"}
+
+10 ALAN PUANLARI:
+${scoring.domainScores.map((d) => `- ${d.domain}: %${d.percent} (${d.score}/${d.maxScore})`).join("\n")}
+${domainScanSection}
+
+CEVAPLAR:
+${answersText}
+
+YAZIM KURALLARI:
+- Yanıtın SADECE geçerli bir JSON nesnesi olmalı
+- Teknik jargon kullanma; her zayıflığı iş etkisiyle ifade et
+- aiAnalysis: 700-900 kelime, kapsamlı yönetici özeti, düz paragraf, markdown yok
+- maturityLevel: ISO 27001 / NIST CSF olgunluk çerçevesine göre şirketin genel seviyesi. Tam olarak şu değerlerden birini seç: "Başlangıç (Seviye 1)", "Gelişmekte (Seviye 2)", "Tanımlanmış (Seviye 3)", "Yönetilen (Seviye 4)", "Optimize Edilmiş (Seviye 5)"
+- findings: 10 alan için per-domain bulgular. Her bulgu: domain (tam alan adı), severity ("Kritik", "Yüksek", "Orta", "Düşük"), title (kısa başlık), description (2-3 cümle iş etkisi), recommendation (tek uygulanabilir adım)
+- weeklyActionPlan: 8 haftalık (mini yerine 8 hafta) eylem planı
+- Diğer alanlar mini raporla aynı kurallara uyar (kvkk, sigorta, verbis, benchmark, maliyet tahmini vb.)
+- Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
+
+JSON şablonu:
+{
+  "aiAnalysis": "700-900 kelimelik kapsamlı Türkçe analiz. Yönetici özeti → güçlü yönler → kritik alanlar → alan bazlı riskler → fidye/iş sürekliliği → KVKK/regülasyon → sektöre özgü tehditler${domainScan ? " → alan adı güvenlik değerlendirmesi" : ""}. Son cümle: 'Bu rapor, işletmenizin siber güvenlik olgunluk yolculuğunda önemli bir mihenk taşıdır.'",
+  "maturityLevel": "Gelişmekte (Seviye 2)",
+  "findings": [
+    { "domain": "Yönetişim ve Risk Yönetimi", "severity": "Yüksek", "title": "Yazılı politika eksikliği", "description": "...", "recommendation": "..." },
+    { "domain": "Kimlik ve Erişim Yönetimi", "severity": "Kritik", "title": "MFA uygulanmamış", "description": "...", "recommendation": "..." }
+  ],
+  "recommendations": ["En kritik önlem.", "İkinci öneri.", "Üçüncü öneri.", "Dördüncü öneri.", "Beşinci öneri.", "Altıncı öneri.", "Yedinci öneri.", "Sekizinci öneri."],
+  "estimatedBreachCostMin": 200000,
+  "estimatedBreachCostMax": 1200000,
+  "riskReductionPercent": 72,
+  "weeklyActionPlan": [
+    { "week": 1, "title": "Hafta 1: Acil Önlemler", "tasks": ["Aksiyon 1", "Aksiyon 2", "Aksiyon 3"] },
+    { "week": 2, "title": "Hafta 2: Kimlik ve Erişim", "tasks": ["Aksiyon 1", "Aksiyon 2"] },
+    { "week": 3, "title": "Hafta 3: E-posta Güvenliği", "tasks": ["Aksiyon 1", "Aksiyon 2"] },
+    { "week": 4, "title": "Hafta 4: Cihaz ve Uç Nokta", "tasks": ["Aksiyon 1", "Aksiyon 2"] },
+    { "week": 5, "title": "Hafta 5: Ağ Güvenliği", "tasks": ["Aksiyon 1", "Aksiyon 2"] },
+    { "week": 6, "title": "Hafta 6: Veri Koruma", "tasks": ["Aksiyon 1", "Aksiyon 2"] },
+    { "week": 7, "title": "Hafta 7: Tedarik Zinciri", "tasks": ["Aksiyon 1", "Aksiyon 2"] },
+    { "week": 8, "title": "Hafta 8: Süreklilik ve İzleme", "tasks": ["Aksiyon 1", "Aksiyon 2"] }
+  ],
+  "kvkkPenaltyMin": 75000,
+  "kvkkPenaltyMax": 400000,
+  "kvkkRiskLevel": "Yüksek",
+  "kvkkRiskArticles": ["Md.12", "Md.18"],
+  "kvkkRiskSummary": "KVKK riski özeti.",
+  "sectorBenchmarkPercent": 38,
+  "sectorBenchmarkComment": "Sektör karşılaştırması.",
+  "verbisRequired": true,
+  "verbisRiskLevel": "Yüksek",
+  "verbisSteps": ["Adım 1", "Adım 2", "Adım 3", "Adım 4"],
+  "insuranceReadinessPercent": 40,
+  "insuranceGaps": ["Eksik 1", "Eksik 2", "Eksik 3"]
+}` : null;
+
   try {
-    const aiFn = await getTenantAiFn(assessment.tenantId ?? undefined);
-    const text = await aiFn(prompt);
+    let text: string;
+    if (assessment.assessmentType === "full" && fullPrompt) {
+      const claudeFn = getClaudeAiFn();
+      text = await claudeFn(fullPrompt);
+    } else {
+      const aiFn = await getTenantAiFn(assessment.tenantId ?? undefined);
+      text = await aiFn(prompt);
+    }
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     let aiAnalysis = "AI analizi yüklenemedi.";
     let recommendations: string[] = [];
@@ -505,6 +582,8 @@ JSON şablonu:
     let verbisSteps: string[] = [];
     let insuranceReadinessPercent: number | null = null;
     let insuranceGaps: string[] = [];
+    let maturityLevel: string | null = null;
+    let findings: Array<{ domain: string; severity: "Kritik" | "Yüksek" | "Orta" | "Düşük"; title: string; description: string; recommendation: string }> = [];
 
     if (jsonMatch) {
       try {
@@ -527,6 +606,8 @@ JSON şablonu:
         verbisSteps = Array.isArray(parsed.verbisSteps) ? parsed.verbisSteps : [];
         insuranceReadinessPercent = typeof parsed.insuranceReadinessPercent === "number" ? parsed.insuranceReadinessPercent : null;
         insuranceGaps = Array.isArray(parsed.insuranceGaps) ? parsed.insuranceGaps : [];
+        maturityLevel = typeof parsed.maturityLevel === "string" ? parsed.maturityLevel : null;
+        findings = Array.isArray(parsed.findings) ? parsed.findings : [];
       } catch {
         aiAnalysis = text;
       }
@@ -542,7 +623,7 @@ JSON şablonu:
     if (existingReport) {
       await db
         .update(reportsTable)
-        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, kvkkPenaltyMin, kvkkPenaltyMax, kvkkRiskLevel, kvkkRiskArticles, kvkkRiskSummary, sectorBenchmarkPercent, sectorBenchmarkComment, verbisRequired, verbisRiskLevel, verbisSteps, insuranceReadinessPercent, insuranceGaps, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
+        .set({ aiAnalysis, recommendations, estimatedBreachCostMin, estimatedBreachCostMax, riskReductionPercent, weeklyActionPlan, kvkkPenaltyMin, kvkkPenaltyMax, kvkkRiskLevel, kvkkRiskArticles, kvkkRiskSummary, sectorBenchmarkPercent, sectorBenchmarkComment, verbisRequired, verbisRiskLevel, verbisSteps, insuranceReadinessPercent, insuranceGaps, maturityLevel, findings, reviewToken, reviewStatus: "pending_review", ...(domainScan ? { domainScanId: domainScan.id } : {}) })
         .where(eq(reportsTable.assessmentId, assessmentId));
     } else {
       await db.insert(reportsTable).values({
@@ -571,6 +652,8 @@ JSON şablonu:
         verbisSteps,
         insuranceReadinessPercent,
         insuranceGaps,
+        maturityLevel,
+        findings,
         domainScores: scoring.domainScores,
         reviewToken,
         reviewStatus: "pending_review",
@@ -643,7 +726,8 @@ JSON şablonu:
         reviewToken,
         aiAnalysis: "AI analizi oluşturulamadı.",
         answers: answers.map((a) => {
-          const q = new Map(MINI_QUESTIONS.map((q) => [q.number, q])).get(a.questionNumber);
+          const qset = assessment.assessmentType === "full" ? FULL_QUESTIONS : MINI_QUESTIONS;
+          const q = new Map(qset.map((q) => [q.number, q])).get(a.questionNumber);
           return {
             questionNumber: a.questionNumber,
             answer: a.answer,

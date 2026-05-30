@@ -114,6 +114,10 @@ function makeAnthropic(apiKey: string, model = "claude-sonnet-4-6"): AiGenerateF
  *
  * Custom aiProvider settings always override plan-based routing.
  */
+export function getClaudeAiFn(model = "claude-sonnet-4-6"): AiGenerateFn {
+  return makeReplitClaude(model);
+}
+
 export async function getTenantAiFn(tenantId?: number): Promise<AiGenerateFn> {
   if (!tenantId) return makeReplitGemini();
 

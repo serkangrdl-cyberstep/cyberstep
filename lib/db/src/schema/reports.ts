@@ -42,6 +42,14 @@ export const reportsTable = pgTable("reports", {
   verbisSteps: jsonb("verbis_steps").$type<string[]>().notNull().default([]),
   insuranceReadinessPercent: integer("insurance_readiness_percent"),
   insuranceGaps: jsonb("insurance_gaps").$type<string[]>().notNull().default([]),
+  maturityLevel: text("maturity_level"),
+  findings: jsonb("findings").$type<Array<{
+    domain: string;
+    severity: "Kritik" | "Yüksek" | "Orta" | "Düşük";
+    title: string;
+    description: string;
+    recommendation: string;
+  }>>().notNull().default([]),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true });

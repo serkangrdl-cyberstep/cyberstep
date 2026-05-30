@@ -20,6 +20,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRequireCustomer } from "@/hooks/use-customer";
+import { Crown, Lock } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -240,6 +241,7 @@ export default function CustomerIntegrations() {
 
   if (!customer) return null;
 
+  const isPro = customer.subscriptionPlan === "pro";
   const meta = selectedType ? INTEGRATION_META[selectedType] : null;
   const isEditing = !!editingId;
 
@@ -272,68 +274,99 @@ export default function CustomerIntegrations() {
             <h1 className="text-2xl font-bold text-white">Entegrasyonlarım</h1>
             <p className="text-slate-400 mt-1">Güvenlik araçlarınızı CyberStep ile otomatik olarak senkronize edin</p>
           </div>
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { resetForm(); setShowNew(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Entegrasyon Ekle
-          </Button>
+          {isPro && (
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { resetForm(); setShowNew(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Entegrasyon Ekle
+            </Button>
+          )}
         </div>
 
-        {/* Info Banner */}
-        <div className="flex items-start gap-3 border border-blue-500/20 bg-blue-500/5 rounded-lg p-4">
-          <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-slate-300">
-            Entegrasyonlar sayesinde domain tarama bulguları otomatik olarak Jira ticket'larına, SIEM olaylarına ve güvenlik duvarı engel listelerine dönuştürülür.
-          </p>
-        </div>
-
-        {/* Integration Cards */}
-        {isLoading ? (
-          <div className="text-center text-slate-500 py-16">Yükleniyor...</div>
-        ) : integrations.length === 0 ? (
-          <EmptyState onAdd={() => { resetForm(); setShowNew(true); }} />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {integrations.map(integ => (
-              <IntegrationCard
-                key={integ.id}
-                integration={integ}
-                onEdit={() => openEdit(integ)}
-                onDelete={() => setDeleteId(integ.id)}
-                onTest={() => testMutation.mutate(integ.id)}
-                onToggle={() => toggleMutation.mutate({ id: integ.id, active: !integ.active })}
-                onViewEvents={() => setEventsId(integ.id)}
-                isTesting={testMutation.isPending}
-              />
-            ))}
-          </div>
+        {/* Pro plan duvarı */}
+        {!isPro && (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardContent className="py-10 flex flex-col items-center text-center gap-4">
+              <div className="h-14 w-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+                <Lock className="h-7 w-7 text-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-sm font-semibold text-amber-400 uppercase tracking-wide">Pro Paket Gerekli</span>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">Entegrasyonlar Pro pakete özeldir</h2>
+                <p className="text-slate-400 max-w-md text-sm">
+                  Jira, QRadar, FortiSIEM, FortiManager, CrowdStrike ve Trend Micro entegrasyonları ile
+                  güvenlik bulgularını otomatik olarak araçlarınıza aktarın. Pro pakete geçerek bu özelliği etkinleştirin.
+                </p>
+              </div>
+              <Button className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold mt-2" asChild>
+                <a href="/iletisim">Pro Pakete Geç</a>
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Category Grid for new integrations */}
-        {integrations.length > 0 && (
-          <div>
-            <h2 className="text-sm font-medium text-slate-400 mb-4 uppercase tracking-wider">Eklenebilir Entegrasyonlar</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(Object.entries(INTEGRATION_META) as [IntegrationType, typeof INTEGRATION_META[IntegrationType]][])
-                .filter(([type]) => !integrations.some(i => i.type === type))
-                .map(([type, meta]) => (
-                  <button
-                    key={type}
-                    onClick={() => { resetForm(); setSelectedType(type); setShowNew(true); }}
-                    className="text-left border border-slate-700 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800/50 rounded-lg p-4 transition-all"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="h-8 w-8 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                        {meta.icon}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{meta.label}</p>
-                        <p className="text-xs text-slate-500">{meta.category}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400">{meta.description}</p>
-                  </button>
-                ))}
+        {/* Pro content */}
+        {isPro && (
+          <>
+            <div className="flex items-start gap-3 border border-blue-500/20 bg-blue-500/5 rounded-lg p-4">
+              <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
+              <p className="text-sm text-slate-300">
+                Entegrasyonlar sayesinde domain tarama bulguları otomatik olarak Jira ticket'larına, SIEM olaylarına ve güvenlik duvarı engel listelerine dönuştürülür.
+              </p>
             </div>
-          </div>
+
+            {/* Integration Cards */}
+            {isLoading ? (
+              <div className="text-center text-slate-500 py-16">Yükleniyor...</div>
+            ) : integrations.length === 0 ? (
+              <EmptyState onAdd={() => { resetForm(); setShowNew(true); }} />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {integrations.map(integ => (
+                  <IntegrationCard
+                    key={integ.id}
+                    integration={integ}
+                    onEdit={() => openEdit(integ)}
+                    onDelete={() => setDeleteId(integ.id)}
+                    onTest={() => testMutation.mutate(integ.id)}
+                    onToggle={() => toggleMutation.mutate({ id: integ.id, active: !integ.active })}
+                    onViewEvents={() => setEventsId(integ.id)}
+                    isTesting={testMutation.isPending}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Category Grid for new integrations */}
+            {integrations.length > 0 && (
+              <div>
+                <h2 className="text-sm font-medium text-slate-400 mb-4 uppercase tracking-wider">Eklenebilir Entegrasyonlar</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(Object.entries(INTEGRATION_META) as [IntegrationType, typeof INTEGRATION_META[IntegrationType]][])
+                    .filter(([type]) => !integrations.some(i => i.type === type))
+                    .map(([type, metaItem]) => (
+                      <button
+                        key={type}
+                        onClick={() => { resetForm(); setSelectedType(type); setShowNew(true); }}
+                        className="text-left border border-slate-700 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800/50 rounded-lg p-4 transition-all"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="h-8 w-8 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                            {metaItem.icon}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white">{metaItem.label}</p>
+                            <p className="text-xs text-slate-500">{metaItem.category}</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-400">{metaItem.description}</p>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1028,6 +1028,115 @@ interface AttackScenariosResult {
   generated_at: string;
 }
 
+// ─── Integration Push Panel ───────────────────────────────────────────────────
+function IntegrationPushPanel({ scanId }: { scanId: number }) {
+  const { data: customer } = useQuery<{ subscriptionPlan: string | null; id: number } | null>({
+    queryKey: ["customer-me"],
+    queryFn: async () => {
+      const r = await fetch("/api/auth/me", { credentials: "include" });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const [pushState, setPushState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [pushResult, setPushResult] = useState<{ pushed: number; message: string } | null>(null);
+
+  if (!customer) return null;
+
+  const isPro = customer.subscriptionPlan === "pro";
+
+  if (!isPro) {
+    return (
+      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
+        <div className="flex items-start gap-3">
+          <div className="h-8 w-8 rounded-md bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
+            <Zap className="h-4 w-4 text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-300 mb-1">Entegrasyonlara Gönder — Pro Paket</p>
+            <p className="text-xs text-muted-foreground">
+              Bu bulguları Jira ticket'larına, QRadar olaylarına veya FortiSIEM'e otomatik aktarmak için Pro pakete geçin.
+            </p>
+          </div>
+          <a href="/iletisim" className="text-xs text-amber-400 hover:text-amber-300 underline underline-offset-2 shrink-0 mt-0.5">
+            Pro'ya Geç
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePush = async () => {
+    setPushState("loading");
+    setPushResult(null);
+    try {
+      const r = await fetch(`/api/integrations/push/domain-scan/${scanId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await r.json() as { ok: boolean; pushed: number; message: string };
+      if (data.ok) {
+        setPushState("done");
+        setPushResult({ pushed: data.pushed, message: data.message });
+      } else {
+        setPushState("error");
+        setPushResult({ pushed: 0, message: data.message ?? "Gönderilemedi." });
+      }
+    } catch {
+      setPushState("error");
+      setPushResult({ pushed: 0, message: "Bağlantı hatası." });
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Entegrasyonlar</p>
+          <p className="text-base font-bold text-foreground mb-1">Bu bulgular entegrasyonlarınıza gönderilsin mi?</p>
+          <p className="text-sm text-muted-foreground">
+            CVE'ler, e-posta güvenliği sorunları, tehdit listesi tespitleri ve diğer bulgular Jira, QRadar veya FortiSIEM'e aktarılır.
+          </p>
+        </div>
+        <div className="shrink-0">
+          {pushState === "idle" && (
+            <Button onClick={handlePush} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Zap className="h-4 w-4 mr-2" />
+              Entegrasyonlara Gönder
+            </Button>
+          )}
+          {pushState === "loading" && (
+            <Button disabled className="bg-primary/50">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Gönderiliyor...
+            </Button>
+          )}
+          {pushState === "done" && (
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="text-sm font-medium">{pushResult?.message}</span>
+            </div>
+          )}
+          {pushState === "error" && (
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2 text-red-400">
+                <XCircle className="h-4 w-4" />
+                <span className="text-sm">{pushResult?.message}</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setPushState("idle")}>
+                Tekrar Dene
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Attack Scenario Panel ─────────────────────────────────────────────────────
 function AttackScenarioPanel({ scanId }: { scanId: number }) {
   const [status, setStatus] = useState<"idle" | "generating" | "complete" | "error">("idle");
@@ -1981,6 +2090,9 @@ export default function DomainScanPage() {
 
           {/* Saldırı Senaryosu Analizi */}
           <AttackScenarioPanel scanId={result.id} />
+
+          {/* Entegrasyonlara Gönder */}
+          <IntegrationPushPanel scanId={result.id} />
 
           {/* Değerlendirme Upsell Köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">

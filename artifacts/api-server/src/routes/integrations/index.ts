@@ -1,6 +1,6 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { customerIntegrationsTable, integrationEventsTable } from "@workspace/db";
+import { customerIntegrationsTable, integrationEventsTable, customersTable, domainScansTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { testIntegration } from "../../services/integrations";
@@ -8,6 +8,25 @@ import { logger } from "../../lib/logger";
 import { z } from "zod";
 
 const router = Router();
+
+// ─── Pro plan gate ────────────────────────────────────────────────────────────
+
+async function requireProPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const customerId = getCustomerId(req) as number | undefined;
+  if (!customerId) { res.status(401).json({ error: "Giriş gerekli" }); return; }
+  const [customer] = await db
+    .select({ plan: customersTable.subscriptionPlan })
+    .from(customersTable)
+    .where(eq(customersTable.id, customerId));
+  if (customer?.plan !== "pro") {
+    res.status(403).json({ error: "Bu özellik Pro pakete özeldir", upgradeRequired: true });
+    return;
+  }
+  next();
+}
+
+// Apply auth + pro gate to all integration routes
+router.use(requireCustomer, requireProPlan);
 
 const IntegrationTypes = ["jira", "forti_manager", "qradar", "forti_siem", "crowdstrike", "trend_micro"] as const;
 
@@ -164,6 +183,55 @@ router.post("/integrations/test-config", requireCustomer, async (req: Request, r
   if (!parsed.success) { res.status(400).json({ error: "Geçersiz veri" }); return; }
   const result = await testIntegration(parsed.data.type, parsed.data.config);
   res.json(result);
+});
+
+// ─── Domain scan findings builder ────────────────────────────────────────────
+
+type Finding = { domain: string; severity: string; title: string; description: string; recommendation: string };
+
+function buildFindingsFromScan(scan: typeof domainScansTable.$inferSelect): Finding[] {
+  const findings: Finding[] = [];
+  const domain = scan.domain;
+  const cves = (scan.cveSummary as Array<{ service: string; cveId: string; description: string; cvssScore: number }> ?? []);
+
+  for (const cve of cves) {
+    const severity = cve.cvssScore >= 9 ? "Kritik" : cve.cvssScore >= 7 ? "Yüksek" : "Orta";
+    findings.push({ domain, severity, title: `${cve.cveId} — ${cve.service}`, description: `CVSS ${cve.cvssScore}: ${cve.description}`, recommendation: "İlgili servis için güvenlik yamasını acilen uygulayın." });
+  }
+  if (!scan.spfPass) findings.push({ domain, severity: "Yüksek", title: "SPF Kaydı Eksik", description: "E-posta sahteciliğine karşı SPF koruması bulunmuyor.", recommendation: "DNS'e SPF TXT kaydı ekleyin." });
+  if (!scan.dmarcPass) findings.push({ domain, severity: "Yüksek", title: "DMARC Koruması Yok", description: "Domain spoofing saldırılarına karşı DMARC politikası tanımlanmamış.", recommendation: "DMARC politikası oluşturun ve yayımlayın." });
+  if (!scan.dkimPass) findings.push({ domain, severity: "Orta", title: "DKIM İmzası Eksik", description: "E-posta bütünlüğü kriptografik olarak doğrulanamıyor.", recommendation: "DKIM anahtarı oluşturun ve DNS'e ekleyin." });
+  if (!scan.sslPass) findings.push({ domain, severity: "Kritik", title: "SSL/TLS Sertifikası Geçersiz", description: "Aktif SSL sertifikası yok veya süresi dolmuş.", recommendation: "Geçerli SSL sertifikası edinin ve yapılandırın." });
+  else if (scan.sslDaysUntilExpiry !== null && scan.sslDaysUntilExpiry < 30)
+    findings.push({ domain, severity: "Yüksek", title: `SSL Sertifikası ${scan.sslDaysUntilExpiry} Gün İçinde Sona Eriyor`, description: "SSL sertifikası yakında geçersiz olacak.", recommendation: "SSL sertifikasını hemen yenileyin." });
+  if (scan.blacklisted) findings.push({ domain, severity: "Kritik", title: `Kara Listede Kayıtlı (${scan.blacklistCount} liste)`, description: "Domain spam veya zararlı içerik listelerinde yer alıyor.", recommendation: "Kara liste kaldırma işlemi başlatın." });
+  if (scan.urlhausListed) findings.push({ domain, severity: "Kritik", title: "URLhaus Kötü Amaçlı URL Listesinde", description: `URLhaus tehdit veritabanında kayıtlı${scan.urlhausThreat ? ` (${scan.urlhausThreat})` : ""}.`, recommendation: "URLhaus'a kaldırma talebi gönderin, sistemi temizleyin." });
+  if (scan.usomListed) findings.push({ domain, severity: "Kritik", title: "USOM Türkiye Siber Tehdit Listesinde", description: "BTK siber tehdit listesinde kayıtlı.", recommendation: "USOM ile iletişime geçin." });
+  if (scan.safeBrowsingFlagged) findings.push({ domain, severity: "Kritik", title: "Google Safe Browsing Tehdit Tespiti", description: "Google bu domaini zararlı olarak işaretlemiş.", recommendation: "Google Search Console'dan kaldırma talebi gönderin." });
+  if (scan.hibpBreachCount > 0) findings.push({ domain, severity: "Yüksek", title: `${scan.hibpBreachCount} Veri İhlali Geçmişi (HIBP)`, description: "Bu domaine ait e-posta adresleri veri ihlallerinde sızdırılmış.", recommendation: "Etkilenen hesapların şifrelerini değiştirin, MFA etkinleştirin." });
+  if (scan.httpHeadersScore < 40) findings.push({ domain, severity: "Orta", title: `HTTP Güvenlik Başlıkları Zayıf (${scan.httpHeadersScore}/100)`, description: "HSTS, CSP, X-Frame-Options gibi kritik başlıklar eksik.", recommendation: "Web sunucuya güvenlik başlıklarını ekleyin." });
+  if (scan.virusTotalMalicious > 0) findings.push({ domain, severity: scan.virusTotalMalicious > 5 ? "Kritik" : "Yüksek", title: `VirusTotal: ${scan.virusTotalMalicious} Motor Zararlı Tespit Etti`, description: "Birden fazla antivirüs motoru bu domaini zararlı işaretlemiş.", recommendation: "Sistemi tam kapsamlı kötü yazılım taramasından geçirin." });
+  return findings;
+}
+
+// POST /api/integrations/push/domain-scan/:scanId — manuel tetikleme
+router.post("/integrations/push/domain-scan/:scanId", async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req) as number;
+  const scanId = Number(req.params["scanId"]);
+  if (!scanId) { res.status(400).json({ error: "Geçersiz tarama ID" }); return; }
+
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, scanId));
+  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+
+  const findings = buildFindingsFromScan(scan);
+  if (findings.length === 0) {
+    res.json({ ok: true, pushed: 0, message: "Gönderilecek bulgu bulunamadı." });
+    return;
+  }
+
+  await pushToCustomerIntegrations(customerId, "findings", { findings });
+  logger.info({ customerId, scanId, count: findings.length }, "Domain scan findings pushed");
+  res.json({ ok: true, pushed: findings.length, message: `${findings.length} bulgu entegrasyonlara gönderildi.` });
 });
 
 // ─── Secret masking ───────────────────────────────────────────────────────────

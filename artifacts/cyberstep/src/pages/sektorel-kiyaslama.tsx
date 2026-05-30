@@ -6,10 +6,36 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Shield, TrendingUp, TrendingDown, Minus, BarChart2, ChevronRight, Info,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, Loader2, Zap,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Link } from "wouter";
+
+// ── Percentile hesabı (normal dağılım yaklaşımı) ──────────────────────────
+function erf(x: number): number {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
+  const t = 1 / (1 + p * x);
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return sign * y;
+}
+function normalCDF(x: number, mean: number, std: number) {
+  return 0.5 * (1 + erf((x - mean) / (std * Math.sqrt(2))));
+}
+function calcPercentile(userScore: number, avgScore: number, topScore: number): number {
+  const stdDev = Math.max(1, (topScore - avgScore) / 1.28);
+  return Math.max(1, Math.min(99, Math.round(normalCDF(userScore, avgScore, stdDev) * 100)));
+}
+
+interface BenchmarkAI {
+  baslik: string;
+  ana_mesaj: string;
+  geri_biraktan_2_faktor: { faktor: string; aciklama: string }[];
+  onenin_anlami: string;
+  aciliyetSeviyesi: string;
+}
 
 const SECTORS = [
   "Finans / Sigorta",
@@ -66,14 +92,40 @@ export default function SektorelKiyaslama() {
   const [employees, setEmployees] = useState("");
   const [userScore, setUserScore] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<BenchmarkAI | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const benchmark = sector ? BENCHMARK_DB[sector] : null;
   const score = parseInt(userScore, 10);
   const validScore = !isNaN(score) && score >= 0 && score <= 100;
+  const percentile = (benchmark && validScore) ? calcPercentile(score, benchmark.avgScore, benchmark.topScore) : null;
+
+  async function fetchAI(s: string, e: string, sc: number, b: typeof benchmark) {
+    if (!b) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/benchmark-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sector: s, employees: e, userScore: sc,
+          avgScore: b.avgScore, topScore: b.topScore,
+          percentile: calcPercentile(sc, b.avgScore, b.topScore),
+        }),
+      });
+      if (res.ok) setAiAnalysis(await res.json());
+    } catch { /* silent */ } finally {
+      setAiLoading(false);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (sector && validScore) setSubmitted(true);
+    if (sector && validScore) {
+      setSubmitted(true);
+      setAiAnalysis(null);
+      fetchAI(sector, employees, score, benchmark);
+    }
   }
 
   const chartData = benchmark
@@ -159,6 +211,73 @@ export default function SektorelKiyaslama() {
         </Card>
       ) : benchmark && (
         <div className="space-y-6">
+          {/* AI Kişisel Analiz */}
+          {(aiLoading || aiAnalysis) && (
+            <Card className="shadow-sm border-primary/20 bg-primary/5">
+              <CardContent className="p-5">
+                {aiLoading ? (
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    Gemini sektörel pozisyonunuzu analiz ediyor...
+                  </div>
+                ) : aiAnalysis && (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <Zap className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-base mb-1">{aiAnalysis.baslik}</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{aiAnalysis.ana_mesaj}</p>
+                      </div>
+                    </div>
+                    {aiAnalysis.geri_biraktan_2_faktor.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Sizi Geride Bırakan 2 Faktör</p>
+                        <div className="space-y-2">
+                          {aiAnalysis.geri_biraktan_2_faktor.map((f, i) => (
+                            <div key={i} className="rounded-lg bg-background/60 px-3 py-2">
+                              <p className="text-sm font-medium text-red-400">{f.faktor}</p>
+                              <p className="text-xs text-muted-foreground">{f.aciklama}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                      <p className="text-xs text-emerald-400">{aiAnalysis.onenin_anlami}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Yüzdelik dilim */}
+          {percentile !== null && (
+            <Card className="shadow-sm">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Sektörünüzdeki Konumunuz</p>
+                    <p className="font-bold text-lg">
+                      {percentile < 50
+                        ? <>Şirketlerin <span className="text-red-400">%{100 - percentile}'i</span> sizi geçiyor</>
+                        : <>Şirketlerin <span className="text-emerald-400">%{percentile}'inin</span> üstündesiniz</>}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {sector} sektörü · {employees || "tüm büyüklükler"}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-4xl font-black ${percentile >= 50 ? "text-emerald-400" : "text-red-400"}`}>
+                      %{percentile}
+                    </p>
+                    <p className="text-xs text-muted-foreground">yüzdelik dilim</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Score comparison chart */}
           <Card className="shadow-sm">
             <CardHeader>

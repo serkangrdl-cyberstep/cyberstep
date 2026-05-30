@@ -987,6 +987,20 @@ export default function Home() {
                 what: "Alan adınızın 70+ varyantını DNS üzerinden kontrol eder. Phishing ve müşteri yönlendirme için kayıtlı sahte domain'leri tespit eder.",
                 why: "Tüketicilerin %73'ü marka taklidi içeren olumsuz deneyimden sonra o markadan ayrılır. KVKK yükümlülüğü de söz konusu olabilir.",
               },
+              {
+                href: "/tedarik-zinciri",
+                icon: "🔗",
+                title: "Tedarik Zinciri Risk Skorkartı",
+                what: "Tedarikçilerinizin alan adlarını SPF, DMARC, SSL ve DNS üzerinden tarar; Gemini AI ile her tedarikçi için risk notu ve birleşik skorkart üretir.",
+                why: "Üretim sektöründe tehdit aktörü faaliyetleri son yılda %71 arttı; saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti.",
+              },
+              {
+                href: "/guven-rozeti",
+                icon: "🏅",
+                title: "AI Güven Rozeti",
+                what: "Alan adınızı tarar, canlı güncellenen güvenlik skoru rozeti oluşturur. Tek satır HTML ile web sitenize ekleyin.",
+                why: "SSL logosunun siber güvenlik versiyonu — müşteri güvenini somutlaştıran, görünür ve gömülebilir bir güvence.",
+              },
             ].map((tool) => (
               <a
                 key={tool.href}

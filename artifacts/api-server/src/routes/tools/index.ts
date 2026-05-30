@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import https from "node:https";
 import { ai } from "@workspace/integrations-gemini-ai";
 import * as dnsPromises from "node:dns/promises";
 import { logger } from "../../lib/logger";
@@ -308,6 +309,312 @@ router.post("/marka-koruma", async (req: Request, res: Response) => {
     safeVariants: notRegistered.slice(0, 15),
     riskLevel,
   });
+});
+
+// ─── TEDARİK ZİNCİRİ TPRM ────────────────────────────────────────────────────
+
+async function quickCheckSPF(domain: string): Promise<boolean> {
+  try {
+    const records = await dnsPromises.resolveTxt(domain);
+    return records.some(r => r.join("").startsWith("v=spf1"));
+  } catch { return false; }
+}
+
+async function quickCheckDMARC(domain: string): Promise<boolean> {
+  try {
+    const records = await dnsPromises.resolveTxt(`_dmarc.${domain}`);
+    return records.some(r => r.join("").startsWith("v=DMARC1"));
+  } catch { return false; }
+}
+
+async function quickCheckMX(domain: string): Promise<boolean> {
+  try {
+    const records = await dnsPromises.resolveMx(domain);
+    return records.length > 0;
+  } catch { return false; }
+}
+
+async function quickCheckSSL(domain: string): Promise<{ pass: boolean; daysUntilExpiry: number | null }> {
+  return new Promise((resolve) => {
+    const req = https.request(
+      { hostname: domain, port: 443, method: "HEAD", timeout: 6000, rejectUnauthorized: true },
+      (res) => {
+        try {
+          const cert = (res.socket as { getPeerCertificate?: () => { valid_to?: string } }).getPeerCertificate?.();
+          if (cert?.valid_to) {
+            const days = Math.floor((new Date(cert.valid_to).getTime() - Date.now()) / 86400000);
+            resolve({ pass: days > 14, daysUntilExpiry: days });
+          } else {
+            resolve({ pass: false, daysUntilExpiry: null });
+          }
+        } catch { resolve({ pass: false, daysUntilExpiry: null }); }
+      }
+    );
+    req.on("error", () => resolve({ pass: false, daysUntilExpiry: null }));
+    req.on("timeout", () => { req.destroy(); resolve({ pass: false, daysUntilExpiry: null }); });
+    req.end();
+  });
+}
+
+async function quickCheckDNS(domain: string): Promise<boolean> {
+  try {
+    await dnsPromises.resolve(domain, "A");
+    return true;
+  } catch { return false; }
+}
+
+interface SupplierScanResult {
+  domain: string;
+  reachable: boolean;
+  spf: boolean;
+  dmarc: boolean;
+  mx: boolean;
+  ssl: boolean;
+  sslDays: number | null;
+  score: number;
+}
+
+async function scanSupplier(domain: string): Promise<SupplierScanResult> {
+  const clean = domain.toLowerCase()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/.*$/, "")
+    .trim();
+
+  const [reachable, spf, dmarc, mx, ssl] = await Promise.all([
+    quickCheckDNS(clean),
+    quickCheckSPF(clean),
+    quickCheckDMARC(clean),
+    quickCheckMX(clean),
+    quickCheckSSL(clean),
+  ]);
+
+  const score = (spf ? 20 : 0) + (dmarc ? 25 : 0) + (mx ? 10 : 0) + (ssl.pass ? 25 : 0) + (reachable ? 20 : 0);
+
+  return { domain: clean, reachable, spf, dmarc, mx, ssl: ssl.pass, sslDays: ssl.daysUntilExpiry, score };
+}
+
+// POST /api/tedarik-zinciri
+router.post("/tedarik-zinciri", async (req: Request, res: Response) => {
+  const { companyName, sector, suppliers } = req.body as {
+    companyName?: string;
+    sector?: string;
+    suppliers?: string[];
+  };
+
+  if (!sector || !suppliers || suppliers.length === 0) {
+    res.status(400).json({ error: "Sektör ve en az bir tedarikçi domain'i zorunludur" });
+    return;
+  }
+  if (suppliers.length > 10) {
+    res.status(400).json({ error: "En fazla 10 tedarikçi domain'i taranabilir" });
+    return;
+  }
+
+  // Scan all suppliers in parallel
+  const scanResults = await Promise.all(suppliers.map(scanSupplier));
+
+  const supplierSummary = scanResults.map(r => ({
+    domain: r.domain,
+    score: r.score,
+    reachable: r.reachable,
+    spf: r.spf,
+    dmarc: r.dmarc,
+    mx: r.mx,
+    ssl: r.ssl,
+    sslDays: r.sslDays,
+  }));
+
+  const prompt = `Sen Türkiye'deki KOBİ'ler için tedarik zinciri siber güvenlik risk analistsin.
+
+Müşteri şirket: ${companyName ?? "belirtilmedi"}, ${sector} sektörü
+
+Tedarikçi domain tarama sonuçları (puan 0-100):
+${supplierSummary.map(s => `
+- ${s.domain}: Skor ${s.score}/100
+  DNS/Erişilebilir: ${s.reachable ? "Evet" : "Hayır"}
+  SPF (sahte mail koruması): ${s.spf ? "Var" : "YOK"}
+  DMARC (e-posta doğrulama): ${s.dmarc ? "Var" : "YOK"}
+  MX (mail sunucusu): ${s.mx ? "Var" : "Yok"}
+  SSL (HTTPS sertifikası): ${s.ssl ? "Geçerli" + (s.sslDays ? ` (${s.sslDays} gün)` : "") : "YOK/Geçersiz"}
+`).join("")}
+
+Her tedarikçi için risk seviyesi belirle ve müşteri şirkete somut tehdit senaryoları oluştur.
+SPF ve DMARC yoksa: tedarikçi adına sahte e-posta gönderilebilir → müşteri CEO fraud saldırısına maruz kalabilir.
+SSL yoksa: bağlantılar şifresiz, veri sızıntısı riski var.
+
+SADECE aşağıdaki JSON formatında yanıt ver:
+{
+  "genel": {
+    "ortalamaSkor": 65,
+    "riskSeviyesi": "Orta",
+    "ozet": "Tedarik zincirine genel bakış — 2-3 cümle"
+  },
+  "tedarikciRaporlari": [
+    {
+      "domain": "example.com",
+      "riskSeviyesi": "Yüksek",
+      "riskPuani": 30,
+      "kritikBulgular": ["SPF kaydı yok — sahte e-posta riski", "DMARC yok — CEO fraud saldırısına açık"],
+      "tehditSenaryosu": "Bu tedarikçi adına sahte fatura e-postası gönderilebilir...",
+      "onerilen Aksiyon": "Bu tedarikçiden gelen tüm ödeme taleplerini telefon ile teyit edin"
+    }
+  ],
+  "avrupaAlicilariNotu": "Bu şirketin ihracat yaptığı varsayımıyla, Avrupalı alıcıların beklediği tedarikçi güvenlik standardları hakkında 1-2 cümle",
+  "oncelikliAksiyonlar": [
+    "Aksiyon 1 — kime ne yapılacak",
+    "Aksiyon 2",
+    "Aksiyon 3"
+  ]
+}`;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json" },
+    });
+
+    const text = result.text ?? "";
+    const aiData = JSON.parse(text);
+
+    res.json({ scanResults: supplierSummary, ai: aiData });
+  } catch (err) {
+    logger.error({ err }, "Tedarik zinciri error");
+    res.status(500).json({ error: "Analiz yapılamadı. Lütfen tekrar deneyin." });
+  }
+});
+
+// ─── BENCHMARK AI ────────────────────────────────────────────────────────────
+
+// POST /api/benchmark-ai
+router.post("/benchmark-ai", async (req: Request, res: Response) => {
+  const { sector, employees, userScore, avgScore, topScore, percentile } = req.body as {
+    sector?: string;
+    employees?: string;
+    userScore?: number;
+    avgScore?: number;
+    topScore?: number;
+    percentile?: number;
+  };
+
+  if (!sector || userScore === undefined || avgScore === undefined) {
+    res.status(400).json({ error: "Eksik parametre" });
+    return;
+  }
+
+  const prompt = `Sen Türkiye KOBİ siber güvenlik danışmanısın. Sert, patron diline yakın, harekete geçirici yaz.
+
+Şirket profili:
+- Sektör: ${sector}
+- Çalışan bandı: ${employees ?? "belirtilmedi"}
+- Siber güvenlik puanı: ${userScore}/100
+- Bu sektörün ortalaması: ${avgScore}/100
+- Bu sektörün lideri: ${topScore}/100
+- Bu şirketin yüzdelik dilimi: ${percentile ? `%${percentile} (şirketlerin %${100 - percentile}'i bu şirketi geçiyor)` : "hesaplanamadı"}
+
+SADECE aşağıdaki JSON formatında yanıt ver:
+{
+  "baslik": "Güçlü, kişiselleştirilmiş başlık — rakamları kullan",
+  "ana_mesaj": "En güçlü cümle — sektördeki konumunu, rakip şirket oranını, bunun ne anlama geldiğini anlat. 2-3 cümle.",
+  "geri_biraktan_2_faktor": [
+    { "faktor": "Faktör adı", "aciklama": "Bu faktörün bu şirketi nasıl geride bıraktığını anlat" },
+    { "faktor": "Faktör adı", "aciklama": "Bu faktörün bu şirketi nasıl geride bıraktığını anlat" }
+  ],
+  "onenin_anlami": "Sektör ortalamasının üstüne çıkmanın bu şirkete ne kazandıracağını anlat — müşteri güveni, sigorta primi, regülasyon, yatırımcı güveni. 2 cümle.",
+  "aciliyetSeviyesi": "Yüksek veya Orta veya Düşük"
+}`;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json" },
+    });
+    const data = JSON.parse(result.text ?? "{}");
+    res.json(data);
+  } catch (err) {
+    logger.error({ err }, "Benchmark AI error");
+    res.status(500).json({ error: "AI analizi yapılamadı" });
+  }
+});
+
+// ─── GÜVEN ROZETİ ─────────────────────────────────────────────────────────────
+
+// In-memory cache: domain → { score, riskLevel, scannedAt }
+const badgeCache = new Map<string, { score: number; riskLevel: string; spf: boolean; dmarc: boolean; ssl: boolean; scannedAt: number }>();
+const BADGE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+async function runBadgeScan(domain: string) {
+  const [spf, dmarc, mx, ssl] = await Promise.all([
+    quickCheckSPF(domain),
+    quickCheckDMARC(domain),
+    quickCheckMX(domain),
+    quickCheckSSL(domain),
+  ]);
+  const score = (spf ? 25 : 0) + (dmarc ? 30 : 0) + (mx ? 10 : 0) + (ssl.pass ? 35 : 0);
+  const riskLevel = score >= 70 ? "Düşük Risk" : score >= 40 ? "Orta Risk" : "Yüksek Risk";
+  return { score, riskLevel, spf, dmarc, ssl: ssl.pass, scannedAt: Date.now() };
+}
+
+function makeBadgeSVG(domain: string, score: number, riskLevel: string, scannedAt: number): string {
+  const color = score >= 70 ? "#10b981" : score >= 40 ? "#f59e0b" : "#ef4444";
+  const bgColor = score >= 70 ? "#052e16" : score >= 40 ? "#1c1007" : "#1c0606";
+  const date = new Date(scannedAt).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const shortDomain = domain.length > 22 ? domain.slice(0, 20) + "…" : domain;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="88" role="img" aria-label="CyberStep Güvenlik Rozeti">
+  <title>CyberStep Güvenlik Rozeti — ${domain}</title>
+  <rect width="220" height="88" rx="10" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+  <rect x="1" y="1" width="218" height="86" rx="9" fill="${bgColor}" opacity="0.35"/>
+  <text x="12" y="20" font-family="system-ui,sans-serif" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="1">CYBERSTEP.IO</text>
+  <text x="12" y="40" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">${shortDomain}</text>
+  <text x="12" y="60" font-family="system-ui,sans-serif" font-size="11" fill="#94a3b8">Güvenlik Skoru</text>
+  <text x="12" y="78" font-family="system-ui,sans-serif" font-size="10" fill="#475569">Son tarama: ${date}</text>
+  <text x="165" y="55" font-family="system-ui,sans-serif" font-size="26" font-weight="800" fill="${color}" text-anchor="middle">${score}</text>
+  <text x="165" y="68" font-family="system-ui,sans-serif" font-size="9" fill="${color}" text-anchor="middle" font-weight="600">${riskLevel.toUpperCase()}</text>
+</svg>`;
+}
+
+// GET /api/guven-rozeti/:domain — JSON result
+router.get("/guven-rozeti/:domain", async (req: Request, res: Response) => {
+  const domain = (req.params["domain"] as string | undefined)?.toLowerCase().trim() ?? "";
+  if (!domain) { res.status(400).json({ error: "Domain zorunludur" }); return; }
+
+  const cached = badgeCache.get(domain);
+  if (cached && Date.now() - cached.scannedAt < BADGE_TTL_MS) {
+    res.json({ ...cached, domain, cached: true });
+    return;
+  }
+
+  try {
+    const result = await runBadgeScan(domain);
+    badgeCache.set(domain, result);
+    res.json({ ...result, domain, cached: false });
+  } catch (err) {
+    logger.error({ err }, "Badge scan error");
+    res.status(500).json({ error: "Tarama yapılamadı" });
+  }
+});
+
+// GET /api/guven-rozeti/:domain/badge.svg — SVG image
+router.get("/guven-rozeti/:domain/badge.svg", async (req: Request, res: Response) => {
+  const domain = (req.params["domain"] as string | undefined)?.toLowerCase().trim() ?? "";
+  if (!domain) { res.status(400).send("Domain required"); return; }
+
+  let data = badgeCache.get(domain);
+  if (!data || Date.now() - data.scannedAt > BADGE_TTL_MS) {
+    try {
+      data = await runBadgeScan(domain);
+      badgeCache.set(domain, data);
+    } catch {
+      data = { score: 0, riskLevel: "Bilinmiyor", spf: false, dmarc: false, ssl: false, scannedAt: Date.now() };
+    }
+  }
+
+  const svg = makeBadgeSVG(domain, data.score, data.riskLevel, data.scannedAt);
+  res.setHeader("Content-Type", "image/svg+xml");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.send(svg);
 });
 
 export default router;

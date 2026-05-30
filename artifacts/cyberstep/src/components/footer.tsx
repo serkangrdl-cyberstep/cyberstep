@@ -135,6 +135,8 @@ export function Footer() {
                 { label: "Saldiri Simulasyonu", href: "/saldiri-simulasyonu" },
                 { label: "Siber Kayip Hesaplayici", href: "/finansal-kayip" },
                 { label: "Marka ve Domain Koruma", href: "/marka-koruma" },
+                { label: "Tedarik Zinciri Skorkart", href: "/tedarik-zinciri" },
+                { label: "AI Guven Rozeti", href: "/guven-rozeti" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>

@@ -3,6 +3,8 @@ import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wo
 import SaldiriSimulasyonu from "./pages/saldiri-simulasyonu";
 import FinansalKayip from "./pages/finansal-kayip";
 import MarkaKoruma from "./pages/marka-koruma";
+import TedarikZinciri from "./pages/tedarik-zinciri";
+import GuvenRozeti from "./pages/guven-rozeti";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
 import KvkkVerbis from "./pages/kvkk-verbis";
@@ -222,6 +224,8 @@ function Router() {
             <Route path="/saldiri-simulasyonu" component={SaldiriSimulasyonu} />
             <Route path="/finansal-kayip" component={FinansalKayip} />
             <Route path="/marka-koruma" component={MarkaKoruma} />
+            <Route path="/tedarik-zinciri" component={TedarikZinciri} />
+            <Route path="/guven-rozeti" component={GuvenRozeti} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

@@ -12,6 +12,8 @@ export const customersTable = pgTable("customers", {
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   subscriptionPlan: text("subscription_plan"),
   subscriptionStatus: text("subscription_status").notNull().default("inactive"),
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpiresAt: timestamp("password_reset_expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

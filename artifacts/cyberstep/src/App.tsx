@@ -65,6 +65,7 @@ import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
 import CustomerAccount from "./pages/customer/account";
 import CustomerReports from "./pages/customer/reports";
+import SifreSifirla from "./pages/customer/sifre-sifirla";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -120,6 +121,7 @@ function Router() {
 
       {/* Customer auth (full-page, no shared header/footer) */}
       <Route path="/giris" component={CustomerLogin} />
+      <Route path="/sifre-sifirla" component={SifreSifirla} />
       <Route path="/kayit" component={CustomerRegister} />
       <Route path="/totp-kurulum" component={CustomerTotpSetup} />
       <Route path="/hesabim" component={CustomerAccount} />

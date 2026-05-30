@@ -888,3 +888,77 @@ export async function sendWeeklyDeltaEmail(params: {
     logger.error({ err, domain, email }, "Weekly delta email send failed");
   }
 }
+
+export async function sendPasswordResetEmail(params: {
+  email: string;
+  fullName: string;
+  resetUrl: string;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 16px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;max-width:600px;width:100%">
+        <!-- Header -->
+        <tr>
+          <td style="background:#0f172a;padding:28px 40px;text-align:center">
+            <span style="color:#10b981;font-size:22px;font-weight:bold">CyberStep.io</span>
+            <p style="color:#94a3b8;font-size:13px;margin:6px 0 0">Siber Güvenlik Değerlendirme Platformu</p>
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:40px">
+            <h2 style="margin:0 0 12px;font-size:20px;color:#0f172a">Şifre Sıfırlama Talebi</h2>
+            <p style="margin:0 0 16px;font-size:15px;color:#475569">Merhaba <strong>${params.fullName}</strong>,</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#475569">
+              CyberStep.io hesabınız için şifre sıfırlama talebinde bulundunuz. Aşağıdaki butona tıklayarak yeni şifrenizi belirleyebilirsiniz.
+            </p>
+            <div style="text-align:center;margin:32px 0">
+              <a href="${params.resetUrl}"
+                 style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:14px 32px;border-radius:8px">
+                Şifremi Sıfırla
+              </a>
+            </div>
+            <p style="margin:0 0 8px;font-size:13px;color:#94a3b8">
+              Bu bağlantı <strong>1 saat</strong> geçerlidir. Eğer bu talebi siz yapmadıysanız bu e-postayı görmezden gelebilirsiniz — hesabınızda herhangi bir değişiklik yapılmamıştır.
+            </p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+            <p style="margin:0;font-size:13px;color:#94a3b8">
+              Bağlantı çalışmıyorsa şu adresi tarayıcınıza kopyalayın:<br/>
+              <span style="color:#64748b;word-break:break-all">${params.resetUrl}</span>
+            </p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fafc;padding:20px 40px;text-align:center">
+            <p style="margin:0;font-size:12px;color:#94a3b8">
+              CyberStep.io · KOBİ'ler için Siber Güvenlik Değerlendirme Platformu
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    await transport.sendMail({
+      from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+      to: params.email,
+      subject: "Şifre Sıfırlama — CyberStep.io",
+      html,
+    });
+    logger.info({ email: params.email }, "Password reset email sent");
+  } catch (err) {
+    logger.error({ err, email: params.email }, "Password reset email send failed");
+  }
+}

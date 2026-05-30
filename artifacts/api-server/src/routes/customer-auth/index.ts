@@ -8,6 +8,7 @@ import { eq, desc } from "drizzle-orm";
 import { generateTotpSecret, generateTotpQrUrl, verifyTotp } from "../../services/auth";
 import { logger } from "../../lib/logger";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
+import { sendPasswordResetEmail } from "../../services/email";
 
 // Re-export for other modules that import from here
 export { requireCustomer };
@@ -168,6 +169,65 @@ router.post("/auth/totp-disable", requireCustomer, async (req: Request, res: Res
     .set({ totpSecret: null, totpEnabled: false })
     .where(eq(customersTable.id, customerId));
   logger.info({ customerId }, "Customer TOTP disabled");
+  res.json({ success: true });
+});
+
+// POST /api/auth/forgot-password — şifre sıfırlama e-postası gönder
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  const { email } = req.body as { email?: string };
+  if (!email) { res.status(400).json({ error: "E-posta adresi gerekli" }); return; }
+
+  const [customer] = await db.select({
+    id: customersTable.id,
+    email: customersTable.email,
+    fullName: customersTable.fullName,
+  }).from(customersTable).where(eq(customersTable.email, email.toLowerCase()));
+
+  // Güvenlik: kullanıcı bulunamasa bile aynı mesajı döndür
+  if (!customer) {
+    res.json({ success: true });
+    return;
+  }
+
+  const token = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
+
+  await db.update(customersTable)
+    .set({ passwordResetToken: token, passwordResetExpiresAt: expiresAt })
+    .where(eq(customersTable.id, customer.id));
+
+  const domains = process.env["REPLIT_DOMAINS"];
+  const base = domains ? `https://${domains.split(",")[0]?.trim()}` : "http://localhost:80";
+  const resetUrl = `${base}/sifre-sifirla?token=${token}`;
+
+  await sendPasswordResetEmail({ email: customer.email, fullName: customer.fullName, resetUrl });
+  logger.info({ customerId: customer.id }, "Password reset email sent");
+  res.json({ success: true });
+});
+
+// POST /api/auth/reset-password — token ile yeni şifre belirle
+router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  const { token, password } = req.body as { token?: string; password?: string };
+  if (!token || !password) { res.status(400).json({ error: "Token ve yeni şifre gerekli" }); return; }
+  if (password.length < 8) { res.status(400).json({ error: "Şifre en az 8 karakter olmalıdır" }); return; }
+
+  const [customer] = await db.select({
+    id: customersTable.id,
+    passwordResetToken: customersTable.passwordResetToken,
+    passwordResetExpiresAt: customersTable.passwordResetExpiresAt,
+  }).from(customersTable).where(eq(customersTable.passwordResetToken, token));
+
+  if (!customer) { res.status(400).json({ error: "Geçersiz veya süresi dolmuş bağlantı" }); return; }
+  if (!customer.passwordResetExpiresAt || new Date(customer.passwordResetExpiresAt) < new Date()) {
+    res.status(400).json({ error: "Bu bağlantının süresi dolmuş. Lütfen yeni bir talep oluşturun." }); return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await db.update(customersTable)
+    .set({ passwordHash, passwordResetToken: null, passwordResetExpiresAt: null })
+    .where(eq(customersTable.id, customer.id));
+
+  logger.info({ customerId: customer.id }, "Password reset successful");
   res.json({ success: true });
 });
 

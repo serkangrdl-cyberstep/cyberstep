@@ -1063,6 +1063,11 @@ async function ensurePartnerEcosystemTables() {
   `);
 }
 
+async function ensurePasswordResetColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS password_reset_token TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMP`);
+}
+
 async function ensureVerificationColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMP`);
@@ -1106,6 +1111,7 @@ async function startup() {
   await seedBlogPosts();
   await ensureVerificationColumns();
   await ensureBadgeAdvantagesTable();
+  await ensurePasswordResetColumns();
 }
 
 startup()

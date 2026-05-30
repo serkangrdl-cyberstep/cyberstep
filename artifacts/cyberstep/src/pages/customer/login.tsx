@@ -137,6 +137,11 @@ export default function CustomerLogin() {
                 >
                   {loginMutation.isPending ? "Giriş yapılıyor..." : "Giriş Yap"}
                 </Button>
+                <div className="text-center">
+                  <Link href="/sifre-sifirla" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
+                    Şifremi unuttum
+                  </Link>
+                </div>
               </form>
             ) : (
               <div className="space-y-4">

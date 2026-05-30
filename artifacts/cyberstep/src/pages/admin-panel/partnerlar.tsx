@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRequireAdmin } from "@/hooks/use-admin";
 import {
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ExternalLink,
   Image, Mail, Phone, UserCircle, Users, X,
@@ -68,6 +69,7 @@ const EMPTY_CONTACT: Contact = { name: "", email: "", phone: "", role: "" };
 const EMPTY_DIST = { name: "", contactName: "", contactEmail: "", phone: "", notes: "", additionalContacts: [] as Contact[] };
 
 export default function AdminPartnerlar() {
+  const { data: admin } = useRequireAdmin();
   const { toast } = useToast();
   const qc = useQueryClient();
 

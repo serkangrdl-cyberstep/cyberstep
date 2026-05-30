@@ -19,6 +19,7 @@ import {
 import { Mail, Plus, Pencil, Trash2, Eye, Lock, Copy, PowerOff, Power } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useRequireAdmin } from "@/hooks/use-admin";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -68,6 +69,7 @@ const BLANK_FORM = {
 };
 
 export default function AdminEmailTemplates() {
+  const { data: admin } = useRequireAdmin();
   const qc = useQueryClient();
   const { toast } = useToast();
 

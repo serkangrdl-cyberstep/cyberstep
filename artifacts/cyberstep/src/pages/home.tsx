@@ -384,6 +384,13 @@ export default function Home() {
   return (
     <div className="flex flex-col flex-1">
       <SpecialDayBanner />
+      {/* Beta Banner */}
+      <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 py-2.5 px-4 text-sm text-center">
+        <span className="inline-flex items-center gap-2">
+          <span className="font-semibold bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded">BETA</span>
+          Platform gelistirme asamasindadir. Bu donemde olusturulan rozetler resmi gecerlilik tasimaz.
+        </span>
+      </div>
       {/* Hero */}
       <section className="py-20 md:py-32 bg-secondary text-secondary-foreground relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />

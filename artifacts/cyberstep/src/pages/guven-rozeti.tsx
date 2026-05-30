@@ -122,6 +122,18 @@ export default function GuvenRozeti() {
       </div>
 
       <div className="container mx-auto px-4 py-10 max-w-4xl">
+        {/* Beta uyarısı */}
+        <div className="mb-6 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-amber-700 dark:text-amber-400 text-sm">
+              Beta Donemi — Resmi Gecerlilik Yok
+            </p>
+            <p className="text-amber-700/80 dark:text-amber-400/80 text-xs mt-1 leading-relaxed">
+              Platform su an beta asamasindadir. Bu donemde olusturulan rozetler resmi gecerlilik tasimaz ve ticari amacla kullanilamaz. Tam lansman sonrasi rozetinizi yenileyebilirsiniz.
+            </p>
+          </div>
+        </div>
         {/* Form */}
         <Card className="mb-6">
           <CardContent className="p-6">

@@ -1,7 +1,17 @@
 import { Shield, Target, Users, ArrowRight, TrendingUp, Lock, Eye } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Hakkimizda() {
+  const { data: settings } = useQuery<Record<string, string>>({
+    queryKey: ["public-settings"],
+    queryFn: () => fetch("/api/public/settings").then(r => r.json()),
+    staleTime: 60000,
+  });
+
+  const heroTitle = settings?.["about.title"] || "İş sürekliliğinizi koruyun.";
+  const heroContent = settings?.["about.content"] || "";
+
   return (
     <div className="min-h-screen bg-background">
 
@@ -14,14 +24,19 @@ export default function Hakkimizda() {
             Hakkımızda
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-            İş sürekliliğinizi koruyun.<br />
-            <span className="text-emerald-400">Fidye ödemeden, veri kaybetmeden.</span>
+            {heroTitle}
           </h1>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            CyberStep.io; KOBİ'lerin fidye saldırısı, veri sızıntısı ve KVKK uyumsuzluk risklerini
-            10 dakikada ölçmesini, önceliklendirmesini ve adım adım kapatmasını sağlayan
-            yapay zeka destekli bir platformdur.
-          </p>
+          {heroContent ? (
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
+              {heroContent}
+            </p>
+          ) : (
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+              CyberStep.io; KOBİ'lerin fidye saldırısı, veri sızıntısı ve KVKK uyumsuzluk risklerini
+              10 dakikada ölçmesini, önceliklendirmesini ve adım adım kapatmasını sağlayan
+              yapay zeka destekli bir platformdur.
+            </p>
+          )}
         </div>
       </section>
 

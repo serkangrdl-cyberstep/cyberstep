@@ -14,6 +14,7 @@ import {
 import { Mail, Send, CheckCircle, XCircle, Eye, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useRequireAdmin } from "@/hooks/use-admin";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -40,6 +41,7 @@ interface EmailTemplate {
 }
 
 export default function AdminEmailNotifications() {
+  const { data: admin } = useRequireAdmin();
   const qc = useQueryClient();
   const { toast } = useToast();
 

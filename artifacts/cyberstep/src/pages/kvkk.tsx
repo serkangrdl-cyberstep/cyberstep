@@ -1,5 +1,6 @@
 import { Shield, FileText, Database, Eye, Lock, UserCheck, Trash2, Mail, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 const SECTIONS = [
   {
@@ -55,6 +56,14 @@ const SECTIONS = [
 ];
 
 export default function Kvkk() {
+  const { data: settings } = useQuery<Record<string, string>>({
+    queryKey: ["public-settings"],
+    queryFn: () => fetch("/api/public/settings").then(r => r.json()),
+    staleTime: 60000,
+  });
+
+  const kvkkContent = settings?.["kvkk.content"];
+
   return (
     <div className="min-h-screen bg-background">
 
@@ -71,6 +80,11 @@ export default function Kvkk() {
 
       {/* Content */}
       <div className="container mx-auto px-4 max-w-4xl py-12">
+        {kvkkContent && (
+          <div className="bg-card border rounded-2xl p-6 mb-8 prose prose-slate dark:prose-invert max-w-none">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{kvkkContent}</pre>
+          </div>
+        )}
 
         {/* Veri Sorumlusu Kartı */}
         <div className="bg-card border rounded-2xl p-6 mb-8 flex items-center gap-4">

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
@@ -84,6 +85,14 @@ import { ThemeProvider } from "next-themes";
 import { TenantProvider } from "./contexts/tenant-context";
 
 const queryClient = new QueryClient();
+
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [location]);
+  return null;
+}
 
 function AdminAssessmentReport() {
   const [, params] = useRoute("/panel/degerlendirmeler/:id/rapor");
@@ -223,6 +232,7 @@ function App() {
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <TenantProvider>
+                <ScrollToTop />
                 <Router />
               </TenantProvider>
             </WouterRouter>

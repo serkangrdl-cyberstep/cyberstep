@@ -202,7 +202,21 @@ export default function ErpTarama() {
         </Button>
       </div>
 
-      <p className="mt-6 text-xs text-muted-foreground">
+      <div className="mt-6 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">ERP tek bir katman. Siber riskinizin tamamını ölçün.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Erişim yönetimi, çalışan farkındalığı ve veri yedekleme dahil 5 güvenlik alanını 20 dakikada ücretsiz değerlendirin.
+            </p>
+          </div>
+          <a href="/assessment/start" className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-4 py-2.5 rounded-lg whitespace-nowrap">
+            Ücretsiz Değerlendirme →
+          </a>
+        </div>
+      </div>
+
+      <p className="mt-4 text-xs text-muted-foreground">
         Bu kontrol listesi SAP, Logo Tiger, Netsis, Mikro, Oracle EBS ve benzeri ERP sistemleri için genel güvenlik en iyi uygulamalarını kapsar. Sisteme özgü teknik detaylar için ERP satıcınızın güvenlik rehberini inceleyin.
       </p>
     </div>

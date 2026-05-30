@@ -556,6 +556,20 @@ export default function DoraBddkUyum() {
             </div>
           </div>
         )}
+
+      <div className="mt-6 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">DORA/BDDK uyumu teknik güvenlikle başlar.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              ICT risk yönetimi çerçevenizi oluşturmadan önce mevcut güvenlik durumunuzu 20 soruluk ücretsiz değerlendirmeyle belgeleyin.
+            </p>
+          </div>
+          <a href="/assessment/start" className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-4 py-2.5 rounded-lg whitespace-nowrap">
+            Ücretsiz Değerlendirme →
+          </a>
+        </div>
+      </div>
       </div>
     </div>
   );

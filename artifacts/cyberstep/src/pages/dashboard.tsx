@@ -219,6 +219,41 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* Hızlı Başlangıç — sadece çok az veri varsa */}
+      {stats.totalAssessments < 3 && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Platform Kurulum Kontrol Listesi
+            </CardTitle>
+            <CardDescription>İlk müşterileri kazanmadan önce bu adımları tamamlayın.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-2.5">
+              {[
+                { step: "Alan adı tarama aracını test edin", href: "/domain-tarama", done: false },
+                { step: "İlk mini değerlendirmeyi tamamlayın", href: "/assessment/start", done: stats.totalAssessments > 0 },
+                { step: "E-posta drip şablonlarını kontrol edin (SMTP_USER + SMTP_PASS ayarlı olmalı)", href: null, done: false },
+                { step: "Fiyatlandırma sayfasını inceleyin", href: "/fiyatlar", done: false },
+                { step: "Güven rozetini test edin", href: "/guven-rozeti", done: false },
+              ].map((item, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${item.done ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                    {item.done ? "✓" : idx + 1}
+                  </span>
+                  {item.href ? (
+                    <Link href={item.href} className="text-sm hover:underline text-foreground/80">{item.step}</Link>
+                  ) : (
+                    <span className="text-sm text-foreground/80">{item.step}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>

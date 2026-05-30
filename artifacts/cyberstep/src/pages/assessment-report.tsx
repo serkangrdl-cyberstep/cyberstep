@@ -636,6 +636,14 @@ function AssessmentReportCore({ id }: { id: number }) {
                   <p className="text-center text-xs text-muted-foreground">
                     KVKK minimum idari ceza: <span className="font-semibold text-foreground">94.000 TL</span>
                   </p>
+                  {assessment?.createdAt && Date.now() - new Date(assessment.createdAt as string).getTime() < 24 * 60 * 60 * 1000 && (
+                    <div className="mt-3 pt-3 border-t text-center rounded-lg bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-700 p-3">
+                      <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-0.5">Bugüne özel</p>
+                      <p className="text-xs text-muted-foreground">İlk 24 saat geçerli indirim</p>
+                      <p className="text-base font-bold text-primary mt-1">5.090 TL <span className="line-through text-muted-foreground font-normal text-sm">5.990 TL</span></p>
+                      <p className="text-xs font-mono text-primary font-semibold mt-1">Kod: HIZLI15</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -321,7 +321,21 @@ export default function PhishingSim() {
         </Card>
       )}
 
-      <p className="text-xs text-muted-foreground">
+      <div className="mt-4 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Phishing bir adım — sistematik risk analizi yapın.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Çalışan farkındalığı, teknik kontroller ve KVKK uyumu dahil 5 güvenlik alanını 20 dakikada ücretsiz değerlendirin.
+            </p>
+          </div>
+          <a href="/assessment/start" className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-4 py-2.5 rounded-lg whitespace-nowrap">
+            Ücretsiz Değerlendirme →
+          </a>
+        </div>
+      </div>
+
+      <p className="mt-4 text-xs text-muted-foreground">
         <Info className="inline h-3 w-3 mr-1" />Bu simülasyon eğitim amaçlıdır. Gerçek phishing e-postaları çok daha sofistike olabilir.
       </p>
     </div>

@@ -244,6 +244,21 @@ export default function KvkkDpa() {
           </CardContent>
         </Card>
       )}
+
+      {/* Assessment CTA */}
+      <div className="mt-6 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Sözleşme hazır — teknik tedbirler nasıl?</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              KVKK Md.12 uyumu sözleşmelerle bitmez. Teknik güvenlik durumunuzu 20 dakikada ücretsiz değerlendirin.
+            </p>
+          </div>
+          <a href="/assessment/start" className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-4 py-2.5 rounded-lg whitespace-nowrap">
+            Ücretsiz Değerlendirme →
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

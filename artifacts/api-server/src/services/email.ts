@@ -999,7 +999,9 @@ export async function sendScanLeadDripEmail(params: {
   const STEPS: Array<{ subject: string; html: string }> = [
     {
       // Adım 0 — Anlık
-      subject: `${domain} alan adı güvenlik taramanız tamamlandı — Skor: ${overallScore}/100`,
+      subject: overallScore < 60
+        ? `Dikkat: ${domain} taramasında kritik açıklar tespit edildi (Skor: ${overallScore}/100)`
+        : `${domain} alan adı güvenlik taramanız tamamlandı — Skor: ${overallScore}/100`,
       html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
@@ -1013,8 +1015,13 @@ export async function sendScanLeadDripEmail(params: {
         <span style="background:${scoreColor}20;color:${scoreColor};font-size:13px;font-weight:700;padding:5px 16px;border-radius:20px">${scoreLabel}</span>
       </div>
       ${overallScore < 70 ? `
-      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px">
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:20px">
         <p style="margin:0;font-size:13px;color:#991b1b;line-height:1.5"><strong>Dikkat:</strong> ${domain} için kritik güvenlik açıkları tespit edildi. SPF, DMARC ve DKIM kayıtlarınızın eksik ya da hatalı olması, e-postalarınızın spam kutusuna düşmesine veya phishing saldırısında kullanılmasına yol açabilir.</p>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+        <div><div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px">KVKK min. idari ceza</div><div style="font-size:22px;font-weight:900;color:#dc2626">94.000 TL</div></div>
+        <div style="font-size:18px;color:#94a3b8">vs.</div>
+        <div style="text-align:right"><div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:.5px">Tam Değerlendirme</div><div style="font-size:22px;font-weight:900;color:#10b981">5.990 TL</div></div>
       </div>` : `
       <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px">
         <p style="margin:0;font-size:13px;color:#166534;line-height:1.5">Alan adı güvenliğiniz iyi durumda. Kapsamlı bir değerlendirme ile diğer risk alanlarını da kontrol etmenizi öneririz.</p>

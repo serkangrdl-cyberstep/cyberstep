@@ -76,6 +76,24 @@ export default function Pricing() {
       {/* Plan cards */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
+          {/* KVKK maliyet karşılaştırma */}
+          <div className="max-w-4xl mx-auto mb-8 rounded-xl border border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-700/50 p-5">
+            <p className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Neden değer?</p>
+            <div className="flex flex-col sm:flex-row items-center gap-4 text-center">
+              <div className="flex-1 rounded-lg bg-white dark:bg-slate-900 border p-4 shadow-sm">
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">KVKK minimum idari ceza</p>
+                <p className="text-3xl font-bold text-amber-600">94.000 TL</p>
+                <p className="text-xs text-muted-foreground mt-1">yıllık yeniden değerleme oranıyla artıyor</p>
+              </div>
+              <div className="text-xl font-bold text-muted-foreground">↔</div>
+              <div className="flex-1 rounded-lg bg-white dark:bg-slate-900 border p-4 shadow-sm">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Tam Değerlendirme</p>
+                <p className="text-3xl font-bold text-primary">5.990 TL</p>
+                <p className="text-xs text-muted-foreground mt-1">tek seferlik — 7 günlük memnuniyet garantisi</p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {PRICING_PLANS.map((plan) => (
               <div

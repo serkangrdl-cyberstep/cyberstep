@@ -432,6 +432,8 @@ function AssessmentReportCore({ id }: { id: number }) {
     return null;
   })();
 
+  const isMini = report.assessmentType === "mini";
+
   const companyName = assessment?.companyName ?? "Şirketimiz";
   const referralLink = (() => {
     const base = window.location.origin;
@@ -700,7 +702,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       )}
 
       {/* Skor Takibi */}
-      {report.previousScore && (() => {
+      {!isMini && report.previousScore && (() => {
         const prev = report.previousScore;
         const delta = scorePercent - prev.scorePercent;
         const improved = delta > 0;
@@ -744,7 +746,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* BitSight-style Rating Band Görseli */}
-      {(() => {
+      {!isMini && (() => {
         const band = RATING_BANDS.find(b => scorePercent >= b.range[0] && scorePercent <= b.range[1]) ?? RATING_BANDS[0];
         return (
           <Card className="shadow-sm mb-6">
@@ -785,26 +787,28 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Domain cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
-        {report.domainScores?.map((d: any) => (
-          <Card key={d.domain} className="shadow-sm">
-            <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-              <span className="text-2xl font-bold text-primary">{d.domain}</span>
-              <p className="text-xs text-muted-foreground leading-tight">{DOMAIN_DESCRIPTIONS[d.domain]}</p>
-              <div className={`text-xl font-bold ${d.percent > 70 ? "text-green-600" : d.percent > 40 ? "text-yellow-600" : "text-red-600"}`}>
-                %{d.percent.toFixed(0)}
-              </div>
-              <Progress
-                value={d.percent}
-                className={`h-1.5 w-full ${d.percent > 70 ? "[&>div]:bg-green-500" : d.percent > 40 ? "[&>div]:bg-yellow-500" : "[&>div]:bg-red-500"}`}
-              />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {!isMini && (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
+          {report.domainScores?.map((d: any) => (
+            <Card key={d.domain} className="shadow-sm">
+              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                <span className="text-2xl font-bold text-primary">{d.domain}</span>
+                <p className="text-xs text-muted-foreground leading-tight">{DOMAIN_DESCRIPTIONS[d.domain]}</p>
+                <div className={`text-xl font-bold ${d.percent > 70 ? "text-green-600" : d.percent > 40 ? "text-yellow-600" : "text-red-600"}`}>
+                  %{d.percent.toFixed(0)}
+                </div>
+                <Progress
+                  value={d.percent}
+                  className={`h-1.5 w-full ${d.percent > 70 ? "[&>div]:bg-green-500" : d.percent > 40 ? "[&>div]:bg-yellow-500" : "[&>div]:bg-red-500"}`}
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Risk Profili Radarı */}
-      {report.domainScores && report.domainScores.length >= 5 && (() => {
+      {!isMini && report.domainScores && report.domainScores.length >= 5 && (() => {
         const ds = report.domainScores as Array<{ domain: string; percent: number }>;
         const get = (letter: string) => Math.round(ds.find(d => d.domain === letter)?.percent ?? 50);
         const redAlarmCount = (report.redAlarmQuestions ?? []).length;
@@ -871,7 +875,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Tehdit Aktörü Zekası (BitSight Threat Insights) */}
-      {(() => {
+      {!isMini && (() => {
         const sectorKey = assessment?.sector as string | undefined;
         const actors: ThreatActor[] = (sectorKey && THREAT_INTEL_DB[sectorKey]) ? THREAT_INTEL_DB[sectorKey] : THREAT_INTEL_DB["Diğer"];
         return (
@@ -923,7 +927,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* BDDK / DORA Uyum Teaser */}
-      <Card className="shadow-sm mb-6 border-blue-500/20 bg-blue-500/5">
+      {!isMini && <Card className="shadow-sm mb-6 border-blue-500/20 bg-blue-500/5">
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
             <div className="shrink-0 bg-blue-500/10 p-3 rounded-xl">
@@ -946,10 +950,10 @@ function AssessmentReportCore({ id }: { id: number }) {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* KVKK Uyum Haritası */}
-      <Card className="shadow-sm mb-6">
+      {!isMini && <Card className="shadow-sm mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Scale className="h-4 w-4 text-primary shrink-0" />
@@ -995,10 +999,10 @@ function AssessmentReportCore({ id }: { id: number }) {
             KVKK Madde 12 kapsamında veri ihlali bildirimi 72 saat içinde yapılmak zorundadır. KVKK Madde 18 uyarınca teknik tedbir eksikliğine 1.000.000 TL'ye kadar idari para cezası uygulanabilir.
           </p>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* NIST CSF 2.0 Uyum Özeti */}
-      <Card className="shadow-sm mb-6">
+      {!isMini && <Card className="shadow-sm mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <FileCheck className="h-4 w-4 text-primary shrink-0" />
@@ -1046,7 +1050,7 @@ function AssessmentReportCore({ id }: { id: number }) {
             NIST CSF 2.0, dünya genelinde 100'den fazla ülkede KOBİ'ler tarafından kullanılan gönüllü siber güvenlik standardıdır. Uluslararası iş ortakları ve sigorta şirketleri bu çerçeveyi referans alabilir.
           </p>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Domain bar chart */}
       {(() => {
@@ -1097,8 +1101,53 @@ function AssessmentReportCore({ id }: { id: number }) {
         );
       })()}
 
+      {/* Kilitli bölümler — mini kullanıcılar için yükseltme kartı */}
+      {isMini && (
+        <Card className="mb-6 border-2 border-primary/25 bg-gradient-to-br from-primary/5 via-background to-background overflow-hidden shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="bg-primary/10 p-2.5 rounded-xl shrink-0">
+                <Lock className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Tam Değerlendirme ile görün</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">55 soruluk derinlemesine analiz — 8 bölüm kilitli</p>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2.5 mb-5">
+              {[
+                "8 Boyutlu Risk Profili Radarı",
+                "Sektörünüzü Hedef Alan Tehdit Grupları",
+                "KVKK Tam Uyum Haritası (Madde 12-18)",
+                "NIST CSF 2.0 Uyum Seviyesi",
+                "Olası İhlal Maliyeti Tahmini (₺ min/max)",
+                "30 Günlük Siber Güvenlik Maratonu",
+                "Sektör Karşılaştırması ve Benchmark",
+                "KVKK VERBİS Hazırlık Skoru",
+              ].map((label) => (
+                <div key={label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5 text-primary/40 shrink-0" />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between border-t pt-4">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">KVKK minimum idari ceza: <span className="font-semibold text-foreground">94.000 TL</span></p>
+                <p className="text-xs text-muted-foreground">Tam Değerlendirme: <span className="font-semibold text-primary">{fmtFullPrice}</span></p>
+              </div>
+              <Link href="/assessment/full/start">
+                <Button size="lg" className="w-full sm:w-auto">
+                  Tam Değerlendirme Yap <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Partner Yönlendirme — zayıf alanlara göre çözüm önerileri */}
-      {(() => {
+      {!isMini && (() => {
         const weakDomains = (report.domainScores ?? []).filter((d: any) => d.percent < 60);
         if (weakDomains.length === 0) return null;
         const domainNameMap: Record<string, string> = {

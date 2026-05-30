@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
 import assessmentsRouter from "./assessments/index";
 import geminiRouter from "./gemini/index";
 import adminRouter from "./admin/index";
@@ -17,12 +16,15 @@ import integrationsRouter from "./integrations/index";
 import publicRouter from "./public/index";
 import v1Router from "./v1/index";
 import { digestRouter } from "./digest/index";
+import referralRouter from "./referral/index";
+import pentestLiteRouter from "./pentest-lite/index";
+import healthRouter from "./health/index";
+import boardReportRouter from "./board-report/index";
 
 const router: IRouter = Router();
 
 router.use(publicRouter);
 router.use(v1Router);
-router.use(healthRouter);
 router.use(assessmentsRouter);
 router.use(geminiRouter);
 router.use(adminRouter);
@@ -38,5 +40,9 @@ router.use(tprmRouter);
 router.use(scanLeadsRouter);
 router.use(integrationsRouter);
 router.use("/digest", digestRouter);
+router.use(referralRouter);
+router.use(pentestLiteRouter);
+router.use(healthRouter);
+router.use(boardReportRouter);
 
 export default router;

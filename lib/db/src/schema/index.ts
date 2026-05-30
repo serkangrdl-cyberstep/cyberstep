@@ -43,3 +43,7 @@ export * from "./api-product-keys";
 export * from "./news-sources";
 export * from "./news-items";
 export * from "./weekly-digests";
+export * from "./referral";
+export * from "./pentest-lite";
+export * from "./health";
+export * from "./board-reports";

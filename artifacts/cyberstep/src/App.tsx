@@ -94,6 +94,10 @@ import CustomerTotpSetup from "./pages/customer/totp-setup";
 import CustomerAccount from "./pages/customer/account";
 import CustomerReports from "./pages/customer/reports";
 import CustomerIntegrations from "./pages/customer/integrations";
+import CustomerDavet from "./pages/customer/davet";
+import PentestLite from "./pages/pentest-lite";
+import YonetimRaporu from "./pages/customer/yonetim-raporu";
+import AdminSaglik from "./pages/admin/saglik";
 import SifreSifirla from "./pages/customer/sifre-sifirla";
 
 import { Layout } from "./components/layout";
@@ -164,6 +168,9 @@ function Router() {
       <Route path="/hesabim" component={CustomerAccount} />
       <Route path="/raporlarim" component={CustomerReports} />
       <Route path="/entegrasyonlarim" component={CustomerIntegrations} />
+      <Route path="/hesabim/davet" component={CustomerDavet} />
+      <Route path="/pentest-lite" component={PentestLite} />
+      <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
 
       {/* Admin panel (full-page, no shared header/footer) */}
       <Route path="/panel/giris" component={AdminLogin} />
@@ -190,6 +197,7 @@ function Router() {
       <Route path="/panel/rozet-avantajlari" component={AdminRozetAvantajlari} />
       <Route path="/panel/is-ortaklari" component={AdminIsOrtaklari} />
       <Route path="/panel/is-paketleri" component={AdminIsPaketleri} />
+      <Route path="/panel/saglik" component={AdminSaglik} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

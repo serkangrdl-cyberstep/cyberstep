@@ -3,8 +3,8 @@ import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import QRCode from "qrcode";
 import { db } from "@workspace/db";
-import { customersTable, assessmentsTable, reportsTable, domainScansTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { customersTable, assessmentsTable, reportsTable, domainScansTable, referralCodesTable, referralEventsTable } from "@workspace/db";
+import { eq, desc, sql } from "drizzle-orm";
 import { generateTotpSecret, generateTotpQrUrl, verifyTotp } from "../../services/auth";
 import { logger } from "../../lib/logger";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
@@ -42,9 +42,46 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const refCode = (req.body as Record<string, unknown>)["referralCode"] as string | undefined;
+
   const [customer] = await db.insert(customersTable)
-    .values({ email: email.toLowerCase(), passwordHash, fullName, companyName: companyName ?? null })
+    .values({
+      email: email.toLowerCase(),
+      passwordHash,
+      fullName,
+      companyName: companyName ?? null,
+      referralCodeUsed: refCode?.toUpperCase() ?? null,
+    })
     .returning();
+
+  // If referral code provided, link the event
+  if (refCode) {
+    const code = refCode.toUpperCase();
+    const [codeRow] = await db.select().from(referralCodesTable)
+      .where(eq(referralCodesTable.code, code));
+    if (codeRow) {
+      // Check if there's a pending event for this email (invited via send-invite)
+      const [existing] = await db.select().from(referralEventsTable)
+        .where(eq(referralEventsTable.referralCodeId, codeRow.id));
+      if (existing) {
+        await db.update(referralEventsTable)
+          .set({ referredCustomerId: customer.id, status: "registered", registeredAt: new Date() })
+          .where(eq(referralEventsTable.id, existing.id));
+      } else {
+        await db.insert(referralEventsTable).values({
+          referralCodeId: codeRow.id,
+          referrerCustomerId: codeRow.customerId,
+          referredEmail: email.toLowerCase(),
+          referredCustomerId: customer.id,
+          status: "registered",
+          registeredAt: new Date(),
+        });
+        await db.update(referralCodesTable)
+          .set({ totalUses: sql`${referralCodesTable.totalUses} + 1` })
+          .where(eq(referralCodesTable.id, codeRow.id));
+      }
+    }
+  }
 
   getSession(req)["customerId"] = customer.id;
   logger.info({ customerId: customer.id }, "Customer registered");

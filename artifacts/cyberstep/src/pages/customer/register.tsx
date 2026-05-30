@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, Eye, EyeOff, CheckCircle2, Lock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useSearch } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Shield, Eye, EyeOff, CheckCircle2, Lock, Gift } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -14,15 +14,40 @@ const PLAN_LABELS: Record<string, string> = {
 
 export default function CustomerRegister() {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showPw, setShowPw] = useState(false);
+  const [refValidation, setRefValidation] = useState<{ valid: boolean; reward?: string; error?: string } | null>(null);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
     password: "",
     companyName: "",
+    referralCode: "",
   });
+
+  // Pre-fill referral code from URL ?ref=CODE
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const ref = params.get("ref");
+    if (ref) {
+      setForm(f => ({ ...f, referralCode: ref.toUpperCase() }));
+      // Auto-validate
+      fetch(`/api/referral/validate/${encodeURIComponent(ref)}`, { method: "POST" })
+        .then(r => r.json())
+        .then(j => setRefValidation(j))
+        .catch(() => {});
+    }
+  }, [search]);
+
+  function validateReferralCode(code: string) {
+    if (!code) { setRefValidation(null); return; }
+    fetch(`/api/referral/validate/${encodeURIComponent(code)}`, { method: "POST" })
+      .then(r => r.json())
+      .then(j => setRefValidation(j))
+      .catch(() => setRefValidation(null));
+  }
 
   const registerMutation = useMutation({
     mutationFn: (data: typeof form) =>
@@ -140,6 +165,32 @@ export default function CustomerRegister() {
                   </div>
                 )}
               </div>
+
+              {/* Referral code */}
+              <div className="space-y-1.5 border-t border-slate-700 pt-4">
+                <label className="text-sm font-medium text-slate-300 flex items-center gap-1.5">
+                  <Gift className="h-3.5 w-3.5 text-emerald-400" />
+                  Referral Kodu <span className="text-slate-500 font-normal">(isteğe bağlı)</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.referralCode}
+                  onChange={e => {
+                    const v = e.target.value.toUpperCase();
+                    setForm(f => ({ ...f, referralCode: v }));
+                    validateReferralCode(v);
+                  }}
+                  placeholder="AHMET-X7K2"
+                  className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 placeholder:text-slate-500 font-mono uppercase"
+                />
+                {refValidation && (
+                  <div className={`flex items-center gap-1.5 text-xs ${refValidation.valid ? "text-emerald-400" : "text-red-400"}`}>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {refValidation.valid ? `Gecerli kod — ${refValidation.reward ?? "1 ay ucretsiz!"}` : refValidation.error ?? "Gecersiz kod"}
+                  </div>
+                )}
+              </div>
+
               <Button
                 type="submit"
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-2"

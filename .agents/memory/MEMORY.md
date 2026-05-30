@@ -5,3 +5,7 @@
 - [Customer integrations framework](customer-integrations.md) — per-customer Jira/FortiManager/QRadar/FortiSIEM/CrowdStrike/TrendMicro config + auto-push helper
 - [Attack Scenario Analysis](attack-scenarios.md) — Claude claude-sonnet-4-6 generates MITRE ATT&CK mapped attack chains from domain scan data; fire-and-forget + polling pattern
 - [Digest News Aggregator](digest-aggregator.md) — RSS collector + Claude AI digest + digest-admin panel at /digest/; model: claude-sonnet-4-5, cron wiring, DB schema, approve webhook
+- [Referral Program](referral-program.md) — referral_codes + referral_events tables; /api/referral/* routes; /hesabim/davet page; ?ref= URL param auto-fill on /kayit
+- [Pentest Lite](pentest-lite.md) — pentest_lite_requests table; Claude claude-sonnet-4-6 + EPSS/CISA KEV enrichment; 6 scenario analysis; /api/pentest-lite/*; /pentest-lite page with progress polling
+- [Health Score & Churn](health-churn.md) — customer_health_scores + customer_activity_events + health_interventions; calculateHealthScore() weighted 5 signals; 4 intervention types; /api/health/* + /api/admin/health/*; /panel/saglik admin page; health widget on /hesabim
+- [Board Report](board-report.md) — board_reports + board_report_recipients; Claude AI executive summary; email delivery; /api/board-report/*; /hesabim/yonetim-raporu page with recipient mgmt + approve + send flow

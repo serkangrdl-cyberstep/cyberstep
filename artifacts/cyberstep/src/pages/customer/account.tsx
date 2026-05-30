@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
+import { useQuery } from "@tanstack/react-query";
 
 export default function CustomerAccount() {
   const { toast } = useToast();
@@ -72,6 +73,15 @@ export default function CustomerAccount() {
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
+  const { data: healthScore } = useQuery<{
+    healthScore: number; healthTier: string; churnProbability: string; churnRiskFactors: string[];
+  }>({
+    queryKey: ["my-health-score"],
+    queryFn: () => fetch("/api/health/my-score", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer,
+    staleTime: 1000 * 60 * 10,
+  });
+
   if (!customer) return null;
 
   const subscriptionLabel: Record<string, string> = {
@@ -93,6 +103,9 @@ export default function CustomerAccount() {
               <Link href="/hesabim" className="text-white text-sm font-medium">Hesabım</Link>
               <Link href="/raporlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Raporlarım</Link>
               <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
+              <Link href="/pentest-lite" className="text-slate-400 hover:text-white text-sm transition-colors">Pentest Lite</Link>
+              <Link href="/hesabim/yonetim-raporu" className="text-slate-400 hover:text-white text-sm transition-colors">YK Raporu</Link>
+              <Link href="/hesabim/davet" className="text-slate-400 hover:text-white text-sm transition-colors">Davet</Link>
             </nav>
           </div>
           <Button
@@ -111,6 +124,47 @@ export default function CustomerAccount() {
           <h1 className="text-2xl font-bold text-white">Hesabım</h1>
           <p className="text-slate-400 mt-1">Profil ve güvenlik ayarlarınızı yönetin</p>
         </div>
+
+        {/* Health Score Widget */}
+        {healthScore && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Health score card */}
+            <Card className={`col-span-2 border ${healthScore.healthTier === "healthy" ? "bg-emerald-500/5 border-emerald-500/30" : healthScore.healthTier === "at_risk" ? "bg-yellow-500/5 border-yellow-500/30" : "bg-red-500/5 border-red-500/30"}`}>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Hesap Sağlığı</p>
+                    <p className={`text-3xl font-bold ${healthScore.healthTier === "healthy" ? "text-emerald-400" : healthScore.healthTier === "at_risk" ? "text-yellow-400" : "text-red-400"}`}>
+                      {healthScore.healthScore}
+                      <span className="text-base font-normal text-slate-400">/100</span>
+                    </p>
+                    <p className={`text-xs mt-1 ${healthScore.healthTier === "healthy" ? "text-emerald-400" : healthScore.healthTier === "at_risk" ? "text-yellow-400" : "text-red-400"}`}>
+                      {healthScore.healthTier === "healthy" ? "Saglikli" : healthScore.healthTier === "at_risk" ? "Risk Altinda" : healthScore.healthTier === "critical" ? "Kritik" : "Dikkat Gerekiyor"}
+                    </p>
+                  </div>
+                  <Heart className={`h-8 w-8 ${healthScore.healthTier === "healthy" ? "text-emerald-400" : "text-red-400"}`} />
+                </div>
+              </CardContent>
+            </Card>
+            {/* Quick actions */}
+            <Link href="/pentest-lite">
+              <Card className="border border-slate-700 bg-slate-900 hover:border-slate-600 transition-colors cursor-pointer h-full">
+                <CardContent className="pt-4 pb-4 flex flex-col items-center justify-center text-center gap-1">
+                  <Search className="h-5 w-5 text-emerald-400" />
+                  <p className="text-xs text-slate-300 font-medium">Pentest Lite</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/hesabim/davet">
+              <Card className="border border-slate-700 bg-slate-900 hover:border-slate-600 transition-colors cursor-pointer h-full">
+                <CardContent className="pt-4 pb-4 flex flex-col items-center justify-center text-center gap-1">
+                  <Users className="h-5 w-5 text-blue-400" />
+                  <p className="text-xs text-slate-300 font-medium">Arkadas Davet Et</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        )}
 
         {/* Profile */}
         <Card className="bg-slate-900 border-slate-700">

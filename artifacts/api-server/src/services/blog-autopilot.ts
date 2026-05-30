@@ -13,6 +13,9 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 
+interface CarouselSlide { slide: number; text: string; }
+interface VisualPrompts { blog: string; linkedin: string; instagram: string; x: string; }
+
 // ─── Yardımcı: Türkçe başlıktan URL-safe slug ─────────────────────────────────
 function toSlug(title: string): string {
   return title
@@ -203,64 +206,214 @@ async function setAutopilotIndex(index: number): Promise<void> {
     .onConflictDoUpdate({ target: siteSettingsTable.key, set: { value: String(index), updatedAt: new Date() } });
 }
 
-// ─── Claude ile blog yazısı üret ─────────────────────────────────────────────
-async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<{
+// ─── Kategori kodu çıkar ──────────────────────────────────────────────────────
+function getCategoryCode(category: string): "FA" | "RE" | "SE" | "DU" | "CO" {
+  if (category.startsWith("Sektör:")) return "SE";
+  if (category === "KVKK & Uyumluluk") return "DU";
+  const faCategories = [
+    "Siber Tehditler", "Phishing & Sosyal Mühendislik", "Sosyal Mühendislik",
+    "Yapay Zeka & Siber Güvenlik", "Fidye Yazılımı", "Tedarik Zinciri",
+  ];
+  if (faCategories.includes(category)) return "FA";
+  return "RE";
+}
+
+// ─── Kategori bazlı prompt varyantları ────────────────────────────────────────
+const CATEGORY_VARIANTS: Record<"FA" | "RE" | "SE" | "DU" | "CO", string> = {
+  FA: `KATEGORİ MODU — FARKINDALIK (FA):
+- Bu yazı geniş kitleye ulaşmayı hedefliyor. Paylaşılabilir olmalı.
+- İlk paragrafta şaşırtıcı istatistik veya gerçek senaryo kullan. "Bu benim başıma da gelebilir" hissi yarat.
+- Teknik çözüm yerine risk bilinci ön planda.
+- Başlık formatı: Rakam + Tehdit + Ülke/Sektör (örn: "Türkiye'de 2025'te X Şirket Hacklenişi: Nasıl Oluyor?")
+- Son bölüm: "Kendinizi Test Edin" CTA ile bitir.`,
+
+  RE: `KATEGORİ MODU — REHBERLİK (RE):
+- Okuyucu bu yazıyı okuduktan sonra bir şeyi yapabilir olmalı.
+- Numaralı adım listesi kullan (en az 5, en fazla 10 adım).
+- Her adım: Ne yapılır + Neden önemli (kısa). Markdown tablo veya kontrol listesiyle bitir.
+- Başlık formatı: Sayı + "Adımda/Yolda" + Sonuç (örn: "5 Adımda KVKK Uyum Kontrolü")
+- CyberStep araçları adım içinde doğal yer bulsun.`,
+
+  SE: `KATEGORİ MODU — SEKTÖREL (SE):
+- Bu sektörün kendine özgü düzenleyici yükümlülüklerini dahil et.
+  E-ticaret: KVKK + PCI-DSS. Sağlık: KVKK + Sağlık Bakanlığı tebliği. Finans: BDDK + KVKK.
+- Sektöre özel anonim senaryo veya örnek kullan.
+- "Bu sektörde en yaygın 3 güvenlik açığı" bölümü zorunlu.
+- Başlık formatı: Sektör + Problem + Çözüm sinyali.
+- CyberStep sektörel kıyaslama sayfasına (/sektorel-kiyaslama) yönlendirme ekle.`,
+
+  DU: `KATEGORİ MODU — DÜZENLEYİCİ/UYUM (DU):
+- Ceza, mevzuat, zorunluluk odaklı yaz. Somut TL ceza miktarları ver (mümkünse gerçek KVK Kurulu kararlarından [DOĞRULA]).
+- "Bu uyumu sağlamazsanız ne olur?" bölümü zorunlu.
+- Aciliyet hissi yarat ama paniğe sevk etme.
+- Başlık formatı: Rakam veya acil soru formatı.
+- Son bölüm: spesifik aksiyon adımı + CyberStep assessment CTA.`,
+
+  CO: `KATEGORİ MODU — CONVERSION (CO):
+- Bu yazının amacı okuyucuyu CyberStep'e yönlendirmek.
+- Problem-Çözüm-Sonuç yapısı kullan. Somut ROI rakamı ver.
+- CTA yazı boyunca 3 kez, farklı formatlarda:
+  1. Ortada: Ücretsiz araç dene. 2. Alt bölümde: Mini değerlendirme başlat. 3. Son: Tam değerlendirme.
+- Başlık formatı: Fayda + Hedef Kitle + Çerçeve.`,
+};
+
+// ─── Master Blog Prompt ile içerik üret ───────────────────────────────────────
+interface GeneratedContent {
   title: string; slug: string; excerpt: string; content: string;
-  seoTitle: string; metaDescription: string; focusKeyword: string;
-  seoTags: string[]; socialTextTr: string;
-}> {
-  const prompt = `Sen CyberStep.io için içerik üreten bir siber güvenlik uzmanı ve blog yazarısın.
-CyberStep.io, Türk KOBİ'leri (küçük ve orta büyüklükteki işletmeler) için Türkçe siber güvenlik risk analizi platformudur.
+  seoTitle: string; metaDescription: string; focusKeyword: string; seoTags: string[];
+  linkedinPostTr: string;
+  instagramCaptionTr: string;
+  instagramCarouselTr: CarouselSlide[];
+  socialTextTr: string;
+  visualPromptsTr: VisualPrompts;
+}
 
-Aşağıdaki konuda SEO uyumlu, Türkçe bir blog yazısı üret:
+async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
+  const categoryCode = getCategoryCode(topic.category);
+  const categoryVariant = CATEGORY_VARIANTS[categoryCode];
+  const focusKeyword = topic.keywords.split(",")[0].trim();
 
-Başlık: ${topic.title}
-Kategori: ${topic.category}
-Anahtar Kelimeler: ${topic.keywords}
-Editorial Açı: ${topic.angle}
+  const prompt = `Sen CyberStep.io adlı Türk siber güvenlik platformunun içerik direktörüsün.
+Türkiye'deki KOBİ sahiplerine, IT yöneticilerine ve KVKK danışmanlarına yönelik blog yazıları üretiyorsun.
 
-YAZIM KURALLARI:
-- Hedef okuyucu: Teknik olmayan KOBİ yöneticileri ve işletme sahipleri
-- Dil: Profesyonel ama anlaşılır Türkçe, jargon varsa açıkla
-- Uzunluk: 900-1200 kelime
-- Format: Başlıklar h2/h3 HTML etiketiyle, listeler ul/li ile
-- Giriş: Dikkat çekici, gerçek bir problem veya istatistikle başla
-- Sonuç: Somut aksiyona çağrı (CTA) içermeli
-- Emoji kullanma
-- CyberStep.io'yu yazar olarak sunma — sadece içerik üret
+═══════════════════════════════════════════
+YAZI PARAMETRELERİ
+═══════════════════════════════════════════
 
-ÇIKTI FORMATI: Aşağıdaki JSON formatında yanıt ver (başka hiçbir şey yazma):
+KONU BAŞLIĞI: ${topic.title}
+KATEGORİ: ${topic.category} [${categoryCode}]
+SEO ODAK KELİMESİ: ${focusKeyword}
+İKİNCİL ANAHTAR KELİMELER: ${topic.keywords}
+EDİTORYAL AÇI: ${topic.angle}
+
+═══════════════════════════════════════════
+${categoryVariant}
+
+═══════════════════════════════════════════
+GENEL YAZIM KURALLARI — BUNLARI ASLA İHLAL ETME
+═══════════════════════════════════════════
+
+TON VE DİL:
+- Hedef okuyucu teknik bilgisi olmayan KOBİ patronu.
+  "Saldırı yüzey alanı" değil "açık kapılar"; "exploit" değil "açık"; "authentication" değil "kimlik doğrulama".
+- Samimi ama profesyonel. Patrona danışmanlık veren biri gibi konuş.
+- Aktif çatı kullan. "Yapılabilir" değil "Yapın".
+- Emoji kullanma.
+
+RAKAMLAR VE İSTATİSTİKLER:
+- İstatistik kullandığında MUTLAKA [DOĞRULA: kaynak adı] etiketi ekle.
+  Örnek: "Türkiye'de her 3 KOBİ'den 1'i siber saldırıya uğruyor [DOĞRULA: IAMRC 2025]"
+- TL bazında maliyet örnekleri ver. Dolar değil, TL önce.
+- Türkiye verisi varsa önce Türkiye; yoksa "Dünya genelinde..." bağla.
+
+YAPI ZORUNLULUKLARI:
+- Giriş (max 100 kelime): Dikkat çekici problem/istatistik/senaryo ile başla. "Bu yazıda..." ile başlama.
+- Alt başlıklar: h2 ve h3 HTML etiketiyle, 4-6 ana bölüm.
+- Paragraflar max 4 satır.
+- Listeler: 3-5 madde ul/li ile.
+- CyberStep entegrasyonu: EN AZ 2, EN FAZLA 4 referans — doğal, reklam hissi vermemeli.
+  Format: "CyberStep'in ücretsiz [araç adı] ile bunu 30 saniyede kontrol edebilirsiniz → cyberstep.io/[yol]"
+- Son bölüm başlığı: <h2>Sonuç: Bugün Yapabileceğiniz 1 Şey</h2>
+- Toplam: 900-1200 kelime. Format: Tam HTML (h2/h3/ul/li/strong/p).
+
+═══════════════════════════════════════════
+SOSYAL MEDYA ÜRETİMİ
+═══════════════════════════════════════════
+
+LİNKEDİN (150-250 kelime):
+- İlk 2 satır: Rakam VEYA şaşırtıcı gerçek (kırpma noktası).
+- Paragraflar max 3 satır, aralarında boş satır.
+- En fazla 4 emoji. Link sadece sona.
+- Yapı: Hook → Problem → Insight (3-5 madde) → CyberStep köprüsü → 🔗 Tam yazı: cyberstep.io/blog/[slug]
+- Sonunda tam olarak 5 hashtag: #SiberGüvenlik #KOBİ #KVKK #Türkiye + 1 konuya özel.
+
+INSTAGRAM CAPTION (max 150 kelime):
+- İlk satır: Hook (büyük harf veya emoji ile).
+- 3-4 madde liste (emoji başlıklı).
+- CTA: "Detaylar ve ücretsiz tarama → link in bio"
+- Hashtagler (20 adet): #siberguvenlik #kobi #kvkk #türkiye #girişim #dijitalguvenlik #hackleme #verikoruma #cybersecurity #startup #teknoloji #işdünyası #cyberstep #rizik #guvenlik + 5 konuya özel.
+
+INSTAGRAM CAROUSEL (6-8 slayt, her biri max 15 kelime):
+- Slayt 1: Hook — şaşırtıcı soru veya istatistik.
+- Slayt 2-6+: Blog'dan 1 ana nokta/istatistik.
+- Son slayt: CTA — "Ücretsiz Kontrol Edin → cyberstep.io".
+
+X THREAD (5-7 tweet, her tweet max 280 karakter):
+- Tweet 1 (Hook): Bağımsız değer taşımalı, retweet edilebilir. "🧵" ile bitmeli.
+- Tweet 2: Problemi somutlaştır. Türkiye verisi kullan.
+- Tweet 3: En şaşırtıcı gerçek veya istatistik.
+- Tweet 4-5: Pratik, hemen uygulanabilir insight.
+- Tweet 6: CyberStep köprüsü (doğal geçiş, ücretsiz araç).
+- Tweet 7: Blog linki + domain tarama linki.
+Tweet'leri "---" ile ayır.
+
+GÖRSEL PROMPTLARI (Gemini'ye verilecek):
+Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, CyberStep logosu sağ alt, minimal profesyonel.
+
+═══════════════════════════════════════════
+ÇIKTI FORMATI — Sadece bu JSON'u döndür, başka hiçbir şey yazma:
+═══════════════════════════════════════════
+
 {
-  "title": "Türkçe başlık (60 karakteri geçme)",
-  "excerpt": "160 karakterlik özet paragraf",
-  "content": "<article>HTML formatında tam makale içeriği</article>",
-  "seoTitle": "SEO başlığı (60 karakter)",
+  "title": "Türkçe başlık (max 60 karakter)",
+  "excerpt": "160 karakterlik özet",
+  "content": "<article>HTML formatında tam makale</article>",
+  "seoTitle": "SEO başlığı (max 60 karakter)",
   "metaDescription": "Meta açıklama (155-160 karakter)",
   "focusKeyword": "Ana anahtar kelime",
   "seoTags": ["etiket1", "etiket2", "etiket3", "etiket4", "etiket5"],
-  "socialTextTr": "LinkedIn paylaşımı için 3-4 cümle (280 karakter)"
+  "linkedinPost": "LinkedIn post metni (150-250 kelime, 5 hashtag sonunda)",
+  "instagramCaption": "Instagram caption metni (max 150 kelime + 20 hashtag)",
+  "instagramCarousel": [{"slide": 1, "text": "..."}, {"slide": 2, "text": "..."}, ...],
+  "xThread": "Tweet 1 (max 280 karakter)\n---\nTweet 2\n---\nTweet 3\n---\nTweet 4\n---\nTweet 5\n---\nTweet 6\n---\nTweet 7",
+  "visualPromptBlog": "Gemini prompt for blog cover: Koyu lacivert arka plan...",
+  "visualPromptLinkedin": "Gemini prompt for LinkedIn image...",
+  "visualPromptInstagram": "Gemini prompt for Instagram feed image...",
+  "visualPromptX": "Gemini prompt for X/Twitter image..."
 }`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 8192,
+    max_tokens: 16000,
     messages: [{ role: "user", content: prompt }],
   });
 
   const block = message.content[0];
   const raw = block?.type === "text" ? block.text.trim() : "";
 
-  // JSON bloğunu çıkar (markdown code block varsa temizle)
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   const parsed = JSON.parse(jsonStr) as {
     title: string; excerpt: string; content: string;
-    seoTitle: string; metaDescription: string; focusKeyword: string;
-    seoTags: string[]; socialTextTr: string;
+    seoTitle: string; metaDescription: string; focusKeyword: string; seoTags: string[];
+    linkedinPost: string;
+    instagramCaption: string;
+    instagramCarousel: CarouselSlide[];
+    xThread: string;
+    visualPromptBlog: string;
+    visualPromptLinkedin: string;
+    visualPromptInstagram: string;
+    visualPromptX: string;
   };
 
   return {
-    ...parsed,
+    title: parsed.title,
     slug: toSlug(parsed.title || topic.title),
+    excerpt: parsed.excerpt,
+    content: parsed.content,
+    seoTitle: parsed.seoTitle,
+    metaDescription: parsed.metaDescription,
+    focusKeyword: parsed.focusKeyword,
+    seoTags: parsed.seoTags,
+    linkedinPostTr: parsed.linkedinPost,
+    instagramCaptionTr: parsed.instagramCaption,
+    instagramCarouselTr: parsed.instagramCarousel ?? [],
+    socialTextTr: parsed.xThread,
+    visualPromptsTr: {
+      blog: parsed.visualPromptBlog,
+      linkedin: parsed.visualPromptLinkedin,
+      instagram: parsed.visualPromptInstagram,
+      x: parsed.visualPromptX,
+    },
   };
 }
 
@@ -295,6 +448,10 @@ export async function generateAndPublishBlogPost(): Promise<void> {
     focusKeyword: generated.focusKeyword,
     seoTags: generated.seoTags,
     socialTextTr: generated.socialTextTr,
+    linkedinPostTr: generated.linkedinPostTr,
+    instagramCaptionTr: generated.instagramCaptionTr,
+    instagramCarouselTr: generated.instagramCarouselTr,
+    visualPromptsTr: generated.visualPromptsTr,
   }).returning();
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: yazı yayınlandı");
@@ -316,6 +473,41 @@ export async function generateAndPublishBlogPost(): Promise<void> {
 
   // Sonraki indekse ilerle
   await setAutopilotIndex(currentIndex + 1);
+}
+
+// ─── Taslak üret (yayınlamadan kaydet) ───────────────────────────────────────
+export async function generateAndSaveDraft(): Promise<{ postId: number; slug: string; title: string }> {
+  const index = await getAutopilotIndex();
+  const total = BLOG_PLAN.length;
+  const currentIndex = index >= total ? 0 : index;
+  const topic = BLOG_PLAN[currentIndex];
+
+  logger.info({ index: currentIndex, title: topic.title }, "Blog autopilot: taslak üretiliyor");
+
+  const generated = await generateBlogPostContent(topic);
+
+  const [post] = await db.insert(blogPostsTable).values({
+    title: generated.title,
+    slug: generated.slug,
+    excerpt: generated.excerpt,
+    content: generated.content,
+    authorName: "CyberStep.io",
+    status: "draft",
+    publishedAt: null,
+    seoTitle: generated.seoTitle,
+    metaDescription: generated.metaDescription,
+    focusKeyword: generated.focusKeyword,
+    seoTags: generated.seoTags,
+    socialTextTr: generated.socialTextTr,
+    linkedinPostTr: generated.linkedinPostTr,
+    instagramCaptionTr: generated.instagramCaptionTr,
+    instagramCarouselTr: generated.instagramCarouselTr,
+    visualPromptsTr: generated.visualPromptsTr,
+  }).returning();
+
+  logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: taslak kaydedildi");
+  await setAutopilotIndex(currentIndex + 1);
+  return { postId: post.id, slug: post.slug, title: post.title };
 }
 
 // ─── Admin durum bilgisi ──────────────────────────────────────────────────────
@@ -340,6 +532,7 @@ export async function getBlogAutopilotStatus() {
     nextTopic: {
       index: safeIndex,
       category: nextTopic.category,
+      categoryCode: getCategoryCode(nextTopic.category),
       title: nextTopic.title,
     },
     lastPublished: lastPost ?? null,

@@ -782,7 +782,7 @@ export default function AdminBlog() {
     currentIndex: number;
     completedCount: number;
     weeksCompleted: number;
-    nextTopic: { index: number; category: string; title: string };
+    nextTopic: { index: number; category: string; categoryCode: string; title: string };
     lastPublished: { id: number; title: string; publishedAt: string } | null;
   }
 
@@ -798,6 +798,7 @@ export default function AdminBlog() {
   });
 
   const [autopilotRunning, setAutopilotRunning] = useState(false);
+  const [draftRunning, setDraftRunning] = useState(false);
 
   const runAutopilotNow = async () => {
     if (autopilotRunning) return;
@@ -813,6 +814,23 @@ export default function AdminBlog() {
     } catch {
       toast({ title: "Hata", variant: "destructive" });
       setAutopilotRunning(false);
+    }
+  };
+
+  const generateDraftNow = async () => {
+    if (draftRunning) return;
+    if (!confirm("Siradaki yazi TASLAK olarak uretilsin mi? Yayin oncesi inceleyebilirsiniz.")) return;
+    setDraftRunning(true);
+    try {
+      const r = await fetch("/api/admin-panel/blog-autopilot/generate-draft", { method: "POST", credentials: "include" });
+      const data = await r.json() as { success?: boolean };
+      if (data.success) {
+        toast({ title: "Taslak uretiliyor", description: "1-2 dakika icinde Taslak listesinde gorunecek" });
+        setTimeout(() => { void invalidate(); void refetchAutopilot(); setDraftRunning(false); }, 90000);
+      }
+    } catch {
+      toast({ title: "Hata", variant: "destructive" });
+      setDraftRunning(false);
     }
   };
 
@@ -919,8 +937,19 @@ export default function AdminBlog() {
                 Paz + Per 09:00
               </div>
               <button
+                onClick={() => void generateDraftNow()}
+                disabled={draftRunning || autopilotRunning}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {draftRunning ? (
+                  <><Zap className="h-3.5 w-3.5 animate-pulse" />Taslak uretiliyor...</>
+                ) : (
+                  <><EyeOff className="h-3.5 w-3.5" />Taslak Uret</>
+                )}
+              </button>
+              <button
                 onClick={() => void runAutopilotNow()}
-                disabled={autopilotRunning}
+                disabled={autopilotRunning || draftRunning}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {autopilotRunning ? (
@@ -967,7 +996,16 @@ export default function AdminBlog() {
               </div>
               <div className="bg-slate-700/40 rounded-lg p-3">
                 <div className="text-slate-400 text-xs mb-2">Siradaki Yazi</div>
-                <div className="text-xs text-emerald-400 mb-1">{autopilot.nextTopic.category}</div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                    autopilot.nextTopic.categoryCode === "FA" ? "bg-orange-500/20 text-orange-400" :
+                    autopilot.nextTopic.categoryCode === "DU" ? "bg-red-500/20 text-red-400" :
+                    autopilot.nextTopic.categoryCode === "SE" ? "bg-blue-500/20 text-blue-400" :
+                    autopilot.nextTopic.categoryCode === "CO" ? "bg-purple-500/20 text-purple-400" :
+                    "bg-emerald-500/20 text-emerald-400"
+                  }`}>{autopilot.nextTopic.categoryCode}</span>
+                  <span className="text-xs text-slate-400 truncate">{autopilot.nextTopic.category}</span>
+                </div>
                 <div className="text-sm text-white font-medium leading-snug mb-2">
                   {autopilot.nextTopic.title}
                 </div>

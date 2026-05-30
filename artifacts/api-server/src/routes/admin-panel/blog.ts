@@ -6,7 +6,7 @@ import { eq, desc, asc, and } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
-import { getBlogAutopilotStatus, generateAndPublishBlogPost, BLOG_PLAN } from "../../services/blog-autopilot";
+import { getBlogAutopilotStatus, generateAndPublishBlogPost, generateAndSaveDraft, BLOG_PLAN } from "../../services/blog-autopilot";
 import crypto from "crypto";
 
 const router = Router();
@@ -50,10 +50,6 @@ router.get("/admin-panel/blog-autopilot/status", requireAdmin, async (_req, res)
   res.json(status);
 });
 
-router.get("/admin-panel/blog-autopilot/plan", requireAdmin, (_req, res) => {
-  res.json(BLOG_PLAN.map((t, i) => ({ index: i, ...t })));
-});
-
 router.post("/admin-panel/blog-autopilot/run-now", requireAdmin, async (_req, res) => {
   res.json({ success: true, message: "Yazı üretimi arka planda başlatıldı" });
   void (async () => {
@@ -64,6 +60,29 @@ router.post("/admin-panel/blog-autopilot/run-now", requireAdmin, async (_req, re
       logger.error({ err }, "Blog autopilot: manuel tetikleme başarısız");
     }
   })();
+});
+
+router.post("/admin-panel/blog-autopilot/generate-draft", requireAdmin, async (_req, res) => {
+  res.json({ success: true, message: "Taslak üretimi arka planda başlatıldı" });
+  void (async () => {
+    try {
+      const result = await generateAndSaveDraft();
+      logger.info({ postId: result.postId, title: result.title }, "Blog autopilot: taslak üretildi");
+    } catch (err) {
+      logger.error({ err }, "Blog autopilot: taslak üretimi başarısız");
+    }
+  })();
+});
+
+router.get("/admin-panel/blog-autopilot/plan", requireAdmin, (_req, res) => {
+  res.json(BLOG_PLAN.map((t, i) => ({
+    index: i,
+    ...t,
+    categoryCode: t.category.startsWith("Sektör:") ? "SE"
+      : t.category === "KVKK & Uyumluluk" ? "DU"
+      : ["Siber Tehditler", "Phishing & Sosyal Mühendislik", "Sosyal Mühendislik", "Yapay Zeka & Siber Güvenlik", "Fidye Yazılımı", "Tedarik Zinciri"].includes(t.category) ? "FA"
+      : "RE",
+  })));
 });
 
 // ─── ADMIN: Blog Posts ─────────────────────────────────────────────────────────

@@ -1205,7 +1205,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Alan Adı Güvenlik Taraması */}
-      {(() => {
+      {!isMini && (() => {
         const scan = report.domainScan as any;
         if (!scan) {
           // No domain provided — show CTA
@@ -1332,7 +1332,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Finansal Maliyet Tahmini */}
-      {(report.estimatedBreachCostMin || report.estimatedBreachCostMax) && (() => {
+      {!isMini && (report.estimatedBreachCostMin || report.estimatedBreachCostMax) && (() => {
         const fmtMoney = (n: number) => `₺${n.toLocaleString("tr-TR")}`;
         const costMin = report.estimatedBreachCostMin as number;
         const costMax = report.estimatedBreachCostMax as number;
@@ -1370,7 +1370,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* KVKK Risk Katmanı */}
-      {(report as any).kvkkRiskLevel && (() => {
+      {!isMini && (report as any).kvkkRiskLevel && (() => {
         const kvkkLevel = (report as any).kvkkRiskLevel as string;
         const kvkkMin = (report as any).kvkkPenaltyMin as number | null;
         const kvkkMax = (report as any).kvkkPenaltyMax as number | null;
@@ -1438,7 +1438,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Sektör Benchmark */}
-      {(report as any).sectorBenchmarkPercent !== null && (report as any).sectorBenchmarkPercent !== undefined && (() => {
+      {!isMini && (report as any).sectorBenchmarkPercent !== null && (report as any).sectorBenchmarkPercent !== undefined && (() => {
         const pct = (report as any).sectorBenchmarkPercent as number;
         const comment = (report as any).sectorBenchmarkComment as string | null;
         const barColor = pct >= 70 ? "#22c55e" : pct >= 40 ? "#f59e0b" : "#ef4444";
@@ -1481,7 +1481,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* KVKK VERBİS Hazırlık Skoru */}
-      {(report as any).verbisRequired !== undefined && (report as any).verbisRequired !== null && (() => {
+      {!isMini && (report as any).verbisRequired !== undefined && (report as any).verbisRequired !== null && (() => {
         const verbisRequired = (report as any).verbisRequired as boolean;
         const verbisRiskLevel = (report as any).verbisRiskLevel as string | null;
         const verbisSteps = ((report as any).verbisSteps ?? []) as string[];
@@ -1538,7 +1538,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Siber Sigorta Hazırlık */}
-      {(report as any).insuranceReadinessPercent !== undefined && (report as any).insuranceReadinessPercent !== null && (() => {
+      {!isMini && (report as any).insuranceReadinessPercent !== undefined && (report as any).insuranceReadinessPercent !== null && (() => {
         const pct = (report as any).insuranceReadinessPercent as number;
         const gaps = ((report as any).insuranceGaps ?? []) as string[];
         const readColor = pct >= 70 ? "text-green-600" : pct >= 40 ? "text-orange-600" : "text-red-600";
@@ -1604,7 +1604,7 @@ function AssessmentReportCore({ id }: { id: number }) {
       })()}
 
       {/* Guvenlik Maratonu — 30 Gunluk Eylem Plani */}
-      {Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
+      {!isMini && Array.isArray(report.weeklyActionPlan) && (report.weeklyActionPlan as any[]).length > 0 && (
         <MarathonSection
           weeklyActionPlan={report.weeklyActionPlan as Array<{ week: number; title: string; tasks: string[] }>}
           assessmentId={report.assessmentId as number}

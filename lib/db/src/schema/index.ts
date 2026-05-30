@@ -33,3 +33,4 @@ export * from "./tenants";
 export * from "./emails";
 export * from "./partners";
 export * from "./work-packages";
+export * from "./badge-advantages";

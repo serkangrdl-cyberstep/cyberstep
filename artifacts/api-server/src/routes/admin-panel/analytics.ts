@@ -1,8 +1,8 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable } from "@workspace/db";
-import { count, sum, avg, sql, desc, gte, and, eq } from "drizzle-orm";
+import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable } from "@workspace/db";
+import { count, sum, avg, sql, desc, gte, and, eq, asc } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 
 const router = Router();
@@ -142,14 +142,19 @@ router.get("/admin-panel/analytics/assessments", requireAdmin, async (_req: Requ
 router.post("/admin-panel/assessments/:id/issue-verification", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const durationYears = Number(req.body?.durationYears ?? 1);
+  if (durationYears !== 1 && durationYears !== 2) { res.status(400).json({ error: "Geçersiz süre (1 veya 2 yıl)" }); return; }
   const token = crypto.randomUUID();
+  const verifiedAt = new Date();
+  const verificationExpiresAt = new Date(verifiedAt);
+  verificationExpiresAt.setFullYear(verificationExpiresAt.getFullYear() + durationYears);
   const [updated] = await db
     .update(reportsTable)
-    .set({ verificationToken: token })
+    .set({ verificationToken: token, verifiedAt, verificationExpiresAt, verificationDurationYears: durationYears })
     .where(eq(reportsTable.assessmentId, id))
-    .returning({ verificationToken: reportsTable.verificationToken });
+    .returning({ verificationToken: reportsTable.verificationToken, verifiedAt: reportsTable.verifiedAt, verificationExpiresAt: reportsTable.verificationExpiresAt });
   if (!updated) { res.status(404).json({ error: "Bu değerlendirmeye ait rapor bulunamadı" }); return; }
-  res.json({ verificationToken: updated.verificationToken });
+  res.json({ verificationToken: updated.verificationToken, verifiedAt: updated.verifiedAt, verificationExpiresAt: updated.verificationExpiresAt });
 });
 
 // DELETE /api/admin-panel/assessments/:id/issue-verification — Rozeti iptal et
@@ -158,10 +163,57 @@ router.delete("/admin-panel/assessments/:id/issue-verification", requireAdmin, a
   if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
   const [updated] = await db
     .update(reportsTable)
-    .set({ verificationToken: null })
+    .set({ verificationToken: null, verifiedAt: null, verificationExpiresAt: null, verificationDurationYears: null })
     .where(eq(reportsTable.assessmentId, id))
     .returning({ id: reportsTable.id });
   if (!updated) { res.status(404).json({ error: "Bu değerlendirmeye ait rapor bulunamadı" }); return; }
+  res.json({ success: true });
+});
+
+// GET /api/admin-panel/badge-advantages
+router.get("/admin-panel/badge-advantages", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db
+    .select()
+    .from(badgeAdvantagesTable)
+    .orderBy(asc(badgeAdvantagesTable.sortOrder), asc(badgeAdvantagesTable.id));
+  res.json(rows);
+});
+
+// POST /api/admin-panel/badge-advantages
+router.post("/admin-panel/badge-advantages", requireAdmin, async (req: Request, res: Response) => {
+  const { title, partnerName, description, discountPercent, badgeText, logoUrl, sortOrder } = req.body ?? {};
+  if (!title || !partnerName || !description) { res.status(400).json({ error: "Başlık, iş ortağı adı ve açıklama zorunludur" }); return; }
+  const [row] = await db
+    .insert(badgeAdvantagesTable)
+    .values({ title, partnerName, description, discountPercent: discountPercent ?? null, badgeText: badgeText ?? null, logoUrl: logoUrl ?? null, sortOrder: sortOrder ?? 0 })
+    .returning();
+  res.json(row);
+});
+
+// PUT /api/admin-panel/badge-advantages/:id
+router.put("/admin-panel/badge-advantages/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const { title, partnerName, description, discountPercent, badgeText, logoUrl, sortOrder, isActive } = req.body ?? {};
+  const updateData: Record<string, unknown> = {};
+  if (title !== undefined) updateData.title = title;
+  if (partnerName !== undefined) updateData.partnerName = partnerName;
+  if (description !== undefined) updateData.description = description;
+  if (discountPercent !== undefined) updateData.discountPercent = discountPercent;
+  if (badgeText !== undefined) updateData.badgeText = badgeText;
+  if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+  if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+  if (isActive !== undefined) updateData.isActive = isActive;
+  const [row] = await db.update(badgeAdvantagesTable).set(updateData).where(eq(badgeAdvantagesTable.id, id)).returning();
+  if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  res.json(row);
+});
+
+// DELETE /api/admin-panel/badge-advantages/:id
+router.delete("/admin-panel/badge-advantages/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  await db.delete(badgeAdvantagesTable).where(eq(badgeAdvantagesTable.id, id));
   res.json({ success: true });
 });
 

@@ -1,0 +1,1 @@
+- [Badge advantages feature](badge-advantages.md) — timed verification badges (1/2 year) + admin CRUD + public display on landing + report pages

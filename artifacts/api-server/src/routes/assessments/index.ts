@@ -7,6 +7,7 @@ import {
   reportsTable,
   tenantsTable,
   domainScansTable,
+  badgeAdvantagesTable,
 } from "@workspace/db";
 import {
   checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL,
@@ -21,7 +22,7 @@ import {
   CompleteAssessmentParams,
   GetReportParams,
 } from "@workspace/api-zod";
-import { eq, desc, sql, count, avg, gte, lte, and } from "drizzle-orm";
+import { eq, desc, sql, count, avg, gte, lte, and, asc } from "drizzle-orm";
 import { getTenantAiFn } from "../../services/ai-client";
 import { calculateScore, MINI_QUESTIONS } from "./scoring";
 import { logger } from "../../lib/logger";
@@ -859,6 +860,8 @@ router.get("/verify/:token", async (req, res) => {
       riskLevel: reportsTable.riskLevel,
       createdAt: reportsTable.createdAt,
       verificationToken: reportsTable.verificationToken,
+      verifiedAt: reportsTable.verifiedAt,
+      verificationExpiresAt: reportsTable.verificationExpiresAt,
     })
     .from(reportsTable)
     .where(eq(reportsTable.verificationToken, token))
@@ -884,6 +887,12 @@ router.get("/verify/:token", async (req, res) => {
     return;
   }
 
+  const now = new Date();
+  if (report.verificationExpiresAt && new Date(report.verificationExpiresAt) < now) {
+    res.status(410).json({ error: "Bu doğrulama rozeti süresi dolmuştur", expired: true });
+    return;
+  }
+
   res.json({
     companyName: assessment.companyName,
     sector: assessment.sector,
@@ -891,8 +900,19 @@ router.get("/verify/:token", async (req, res) => {
     riskLevel: report.riskLevel,
     scorePercent: report.scorePercent,
     completedAt: assessment.completedAt ?? report.createdAt,
-    verifiedAt: report.createdAt,
+    verifiedAt: report.verifiedAt ?? report.createdAt,
+    verificationExpiresAt: report.verificationExpiresAt ?? null,
   });
+});
+
+// GET /api/badge-advantages — aktif avantajları herkese açık döndür
+router.get("/badge-advantages", async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(badgeAdvantagesTable)
+    .where(eq(badgeAdvantagesTable.isActive, true))
+    .orderBy(asc(badgeAdvantagesTable.sortOrder), asc(badgeAdvantagesTable.id));
+  res.json(rows);
 });
 
 export default router;

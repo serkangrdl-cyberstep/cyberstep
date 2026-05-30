@@ -2,7 +2,7 @@ import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle2, Building2, Calendar, AlertTriangle, Copy, Check } from "lucide-react";
+import { Shield, CheckCircle2, Building2, Calendar, AlertTriangle, Copy, Check, Clock } from "lucide-react";
 import { useState } from "react";
 
 const RISK_COLOR: Record<string, string> = {
@@ -19,15 +19,22 @@ function getRiskBadgeClass(level: string) {
   return "bg-red-100 text-red-800 border-red-200";
 }
 
+const fmt = (d: string) =>
+  new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(d));
+
 export default function VerifyPage() {
   const [, params] = useRoute("/verify/:token");
   const token = params?.token ?? "";
   const [copied, setCopied] = useState(false);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["verify", token],
     queryFn: async () => {
       const res = await fetch(`/api/verify/${token}`);
+      if (res.status === 410) {
+        const body = await res.json();
+        throw Object.assign(new Error("expired"), body);
+      }
       if (!res.ok) throw new Error("not_found");
       return res.json() as Promise<{
         companyName: string;
@@ -37,6 +44,7 @@ export default function VerifyPage() {
         scorePercent: number;
         completedAt: string;
         verifiedAt: string;
+        verificationExpiresAt: string | null;
       }>;
     },
     retry: false,
@@ -65,15 +73,28 @@ export default function VerifyPage() {
   }
 
   if (isError || !data) {
+    const isExpired = error instanceof Error && error.message === "expired";
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-6">
         <Card className="max-w-sm w-full">
           <CardContent className="p-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-            <h1 className="text-lg font-bold mb-2">Doğrulama Bulunamadı</h1>
-            <p className="text-sm text-muted-foreground">
-              Bu doğrulama bağlantısı geçersiz veya süresi dolmuş olabilir.
-            </p>
+            {isExpired ? (
+              <>
+                <Clock className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                <h1 className="text-lg font-bold mb-2">Rozet Süresi Doldu</h1>
+                <p className="text-sm text-muted-foreground">
+                  Bu CyberStep Doğrulandı rozetinin geçerlilik süresi sona ermiştir. Firmanızla iletişime geçerek yenileme talep edebilirsiniz.
+                </p>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                <h1 className="text-lg font-bold mb-2">Doğrulama Bulunamadı</h1>
+                <p className="text-sm text-muted-foreground">
+                  Bu doğrulama bağlantısı geçersiz veya iptal edilmiş olabilir.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -81,7 +102,8 @@ export default function VerifyPage() {
   }
 
   const riskColor = RISK_COLOR[data.riskLevel] ?? "#64748b";
-  const verifiedDate = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(data.verifiedAt));
+  const verifiedDate = fmt(data.verifiedAt);
+  const expiresDate = data.verificationExpiresAt ? fmt(data.verificationExpiresAt) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-6">
@@ -111,7 +133,7 @@ export default function VerifyPage() {
             <h1 className="text-2xl font-bold mb-1">{data.companyName}</h1>
             <p className="text-muted-foreground text-sm mb-6">CyberStep.io uzmanı tarafından sahaya doğrulama denetimi tamamlandı ve onaylandı.</p>
 
-            <div className="grid grid-cols-2 gap-4 mb-6 text-left">
+            <div className="grid grid-cols-2 gap-4 mb-4 text-left">
               <div className="bg-muted/40 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                   <Building2 className="h-3 w-3" /> Sektör
@@ -126,6 +148,13 @@ export default function VerifyPage() {
                 <div className="font-semibold text-sm">{verifiedDate}</div>
               </div>
             </div>
+
+            {expiresDate && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-xl px-4 py-2.5 mb-4">
+                <Clock className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                <span>Bu doğrulama <span className="font-semibold text-foreground">{expiresDate}</span> tarihine kadar geçerlidir.</span>
+              </div>
+            )}
 
             <div className="border rounded-xl p-4 mb-6">
               <div className="text-xs text-muted-foreground mb-2">Güvenlik Risk Seviyesi</div>

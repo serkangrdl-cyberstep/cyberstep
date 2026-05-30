@@ -51,6 +51,7 @@ import AdminEmailTemplates from "./pages/admin-panel/email-templates";
 import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
 import AdminIsOrtaklari from "./pages/admin-panel/is-ortaklari";
 import AdminIsPaketleri from "./pages/admin-panel/is-paketleri";
+import AdminRozetAvantajlari from "./pages/admin-panel/rozet-avantajlari";
 import PartnerLogin from "./pages/partner/login";
 import PartnerDashboard from "./pages/partner/dashboard";
 import { AdminLayout } from "./components/admin-layout";
@@ -151,6 +152,7 @@ function Router() {
       <Route path="/panel/isr" component={AdminIsrDashboard} />
       <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />
       <Route path="/panel/bildirimler" component={AdminEmailNotifications} />
+      <Route path="/panel/rozet-avantajlari" component={AdminRozetAvantajlari} />
       <Route path="/panel/is-ortaklari" component={AdminIsOrtaklari} />
       <Route path="/panel/is-paketleri" component={AdminIsPaketleri} />
       <Route path="/panel" component={AdminDashboard} />

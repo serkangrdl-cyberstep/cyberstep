@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useGetReport, useGetAssessment } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -184,6 +184,54 @@ function MarathonSection({ weeklyActionPlan, assessmentId }: { weeklyActionPlan:
 
 export function AssessmentReportById({ id }: { id: number }) {
   return <AssessmentReportCore id={id} />;
+}
+
+interface BadgeAdvantageItem {
+  id: number; title: string; partnerName: string; description: string;
+  discountPercent: number | null; badgeText: string | null; isActive: boolean;
+}
+
+function BadgeAdvantagesSection({ hasVerificationToken }: { hasVerificationToken: boolean }) {
+  const { data: advantages } = useQuery<BadgeAdvantageItem[]>({
+    queryKey: ["badge-advantages-public"],
+    queryFn: () => fetch("/api/badge-advantages").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const list = Array.isArray(advantages) ? advantages : [];
+  if (list.length === 0) return null;
+  return (
+    <Card className="shadow-sm mb-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          CyberStep Rozet Avantajları
+        </CardTitle>
+        <CardDescription>
+          {hasVerificationToken
+            ? "CyberStep Doğrulandı rozeti sahibi olarak aşağıdaki özel ayrıcalıklardan yararlanabilirsiniz."
+            : "CyberStep Doğrulandı rozeti alan firmalar bu iş ortağı ayrıcalıklarından yararlanır."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {list.map(a => (
+            <div key={a.id} className="rounded-xl border bg-muted/30 p-4">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <span className="font-semibold text-sm leading-snug">{a.title}</span>
+                {a.discountPercent && (
+                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs shrink-0">
+                    %{a.discountPercent}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-primary font-medium mb-1">{a.partnerName}</p>
+              <p className="text-xs text-muted-foreground leading-snug">{a.description}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function AssessmentReport() {
@@ -1128,6 +1176,10 @@ function AssessmentReportCore({ id }: { id: number }) {
       {report.verificationToken ? (() => {
         const base = window.location.origin;
         const verifyUrl = `${base}/verify/${report.verificationToken}`;
+        const expiresAt = (report as any).verificationExpiresAt as string | null | undefined;
+        const verifiedAt = (report as any).verifiedAt as string | null | undefined;
+        const fmtDate = (d: string) =>
+          new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(d));
         return (
           <Card className="shadow-sm mb-6 border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900">
             <CardContent className="p-5">
@@ -1140,9 +1192,19 @@ function AssessmentReportCore({ id }: { id: number }) {
                     <h3 className="font-semibold text-sm">CyberStep Doğrulandı</h3>
                     <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200" variant="outline">Uzman Onaylı</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Firmanız CyberStep uzmanı tarafından sahada denetlendi ve doğrulandı. Bu rozeti tekliflerinizde ve web sitenizde kullanabilirsiniz.
                   </p>
+                  {(verifiedAt || expiresAt) && (
+                    <div className="flex flex-wrap gap-3 mb-3 text-xs text-muted-foreground">
+                      {verifiedAt && (
+                        <span>Verildi: <span className="font-medium text-foreground">{fmtDate(verifiedAt)}</span></span>
+                      )}
+                      {expiresAt && (
+                        <span>Geçerlilik: <span className="font-medium text-foreground">{fmtDate(expiresAt)}</span></span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-2">
                     <a
                       href={verifyUrl}
@@ -1190,6 +1252,9 @@ function AssessmentReportCore({ id }: { id: number }) {
           </CardContent>
         </Card>
       )}
+
+      {/* CyberStep Rozet Avantajları */}
+      <BadgeAdvantagesSection hasVerificationToken={!!report.verificationToken} />
 
       {/* Expert review notice */}
       <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">

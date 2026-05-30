@@ -29,6 +29,7 @@ export default function AdminAssessments() {
   const qc = useQueryClient();
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<"issue" | "revoke" | null>(null);
+  const [durationYears, setDurationYears] = useState<1 | 2>(1);
 
   const { data: assessments, isLoading } = useQuery<Assessment[]>({
     queryKey: ["admin-assessments"],
@@ -41,10 +42,12 @@ export default function AdminAssessments() {
   });
 
   const issueVerification = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async ({ id, years }: { id: number; years: 1 | 2 }) => {
       const r = await fetch(`/api/admin-panel/assessments/${id}/issue-verification`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ durationYears: years }),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Hata");
       return r.json();
@@ -53,6 +56,7 @@ export default function AdminAssessments() {
       qc.invalidateQueries({ queryKey: ["admin-assessments"] });
       setConfirmId(null);
       setConfirmAction(null);
+      setDurationYears(1);
     },
   });
 
@@ -95,9 +99,32 @@ export default function AdminAssessments() {
             </div>
             <p className="text-slate-400 text-sm">
               {confirmAction === "issue"
-                ? "Bu değerlendirme için CyberStep Doğrulandı rozeti verilecek ve müşteriye doğrulama bağlantısı oluşturulacak. Devam etmek istediğinizden emin misiniz?"
+                ? "Bu değerlendirme için CyberStep Doğrulandı rozeti verilecek ve müşteriye doğrulama bağlantısı oluşturulacak."
                 : "Bu değerlendirmenin doğrulama rozeti iptal edilecek ve müşterinin doğrulama bağlantısı çalışmayacak. Devam etmek istediğinizden emin misiniz?"}
             </p>
+            {confirmAction === "issue" && (
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Rozet Geçerlilik Süresi</label>
+                <div className="flex gap-2">
+                  {([1, 2] as const).map(y => (
+                    <button
+                      key={y}
+                      onClick={() => setDurationYears(y)}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        durationYears === y
+                          ? "bg-emerald-600 border-emerald-500 text-white"
+                          : "bg-slate-700 border-slate-600 text-slate-300 hover:border-emerald-500/50"
+                      }`}
+                    >
+                      {y} Yıl
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500">
+                  Rozet {durationYears === 1 ? "1 yıl" : "2 yıl"} geçerli olacak. Süre dolunca doğrulama sayfası "Süresi Doldu" uyarısı gösterecek.
+                </p>
+              </div>
+            )}
             {(issueVerification.isError || revokeVerification.isError) && (
               <p className="text-red-400 text-xs">
                 {(issueVerification.error as Error | null)?.message ?? (revokeVerification.error as Error | null)?.message}
@@ -116,7 +143,7 @@ export default function AdminAssessments() {
                   : "bg-red-600 hover:bg-red-700 text-white"}
                 disabled={isPending}
                 onClick={() => {
-                  if (confirmAction === "issue") issueVerification.mutate(confirmId!);
+                  if (confirmAction === "issue") issueVerification.mutate({ id: confirmId!, years: durationYears });
                   else revokeVerification.mutate(confirmId!);
                 }}>
                 {isPending ? "İşleniyor..." : confirmAction === "issue" ? "Rozeti Ver" : "Rozeti İptal Et"}

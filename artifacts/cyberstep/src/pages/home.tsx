@@ -18,6 +18,69 @@ interface ConsultingService { id: number; title: string; description: string; ic
 interface TechPartner { id: number; name: string; logoUrl: string; websiteUrl: string | null; isActive: boolean; }
 interface Advisory { id: number; title: string; source: string; link: string | null; summary: string | null; severity: string; published_at: string; }
 
+interface BadgeAdvantageItem {
+  id: number; title: string; partnerName: string; description: string;
+  discountPercent: number | null; badgeText: string | null;
+}
+
+function BadgeAdvantagesSection({ lang }: { lang: string }) {
+  const { data: advantages } = useQuery<BadgeAdvantageItem[]>({
+    queryKey: ["badge-advantages-public"],
+    queryFn: () => fetch("/api/badge-advantages").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const list = Array.isArray(advantages) ? advantages : [];
+  if (list.length === 0) return null;
+  return (
+    <section className="py-20 bg-muted/30 border-y">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <Badge variant="outline" className="mb-4">
+            {lang === "en" ? "Badge Benefits" : "Rozet Avantajları"}
+          </Badge>
+          <h2 className="text-3xl font-bold">
+            {lang === "en" ? "CyberStep Verified Badge Perks" : "CyberStep Doğrulandı Rozet Avantajları"}
+          </h2>
+          <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+            {lang === "en"
+              ? "Companies that earn the CyberStep Verified badge gain exclusive partner discounts and privileges."
+              : "CyberStep Doğrulandı rozetini kazanan firmalar, iş ortaklarımızın sunduğu özel ayrıcalıklardan yararlanır."}
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+          {list.map(a => (
+            <div key={a.id} className="bg-background rounded-2xl border shadow-sm p-5">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-semibold text-sm leading-snug">{a.title}</h3>
+                {a.discountPercent && (
+                  <span className="shrink-0 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                    %{a.discountPercent}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-primary font-medium mb-2">{a.partnerName}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{a.description}</p>
+            </div>
+          ))}
+        </div>
+        <div className="text-center mt-10">
+          <p className="text-sm text-muted-foreground">
+            {lang === "en"
+              ? "Complete a CyberStep on-site audit to earn the Verified badge."
+              : "CyberStep sahaya doğrulama denetimini tamamlayarak rozeti kazanın."}
+          </p>
+          <a
+            href="mailto:info@cyberstep.io?subject=Doğrulama Denetimi Talebi"
+            className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-primary hover:underline"
+          >
+            {lang === "en" ? "Request audit" : "Denetim talep et"} <ChevronRight className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 interface PricingPlan {
   id: number;
   slug: string;
@@ -632,6 +695,9 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* CyberStep Rozet Avantajları */}
+      <BadgeAdvantagesSection lang={lang} />
 
       {/* Pricing */}
       <section className="py-20 bg-background">

@@ -1063,6 +1063,29 @@ async function ensurePartnerEcosystemTables() {
   `);
 }
 
+async function ensureVerificationColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verification_duration_years INTEGER`);
+}
+
+async function ensureBadgeAdvantagesTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS badge_advantages (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      partner_name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      discount_percent INTEGER,
+      badge_text TEXT,
+      logo_url TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function startup() {
   await maybeResetAdminPassword();
   await ensureAssessmentsColumns();
@@ -1081,6 +1104,8 @@ async function startup() {
   await updatePricingPlanFeatures();
   await ensurePartnerEcosystemTables();
   await seedBlogPosts();
+  await ensureVerificationColumns();
+  await ensureBadgeAdvantagesTable();
 }
 
 startup()

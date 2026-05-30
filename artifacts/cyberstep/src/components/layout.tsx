@@ -55,6 +55,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {!wl && (
               <>
                 <Link
+                  href="/sizinti-izleyici"
+                  className={`px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${location === '/sizinti-izleyici' ? 'text-primary' : 'text-muted-foreground'}`}
+                >
+                  Sızıntı Kontrolü
+                </Link>
+                <Link
                   href="/blog"
                   className={`px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${location.startsWith('/blog') ? 'text-primary' : 'text-muted-foreground'}`}
                 >

@@ -44,6 +44,8 @@ const formSchema = z.object({
 export default function AssessmentStart() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  // ?ref= parametresini yakala — referral tracking için assessment'a kaydedilir
+  const referralCode = new URLSearchParams(window.location.search).get("ref") ?? undefined;
 
   usePageMeta({
     title: "Ucretsiz Degerlendirme Basla | CyberStep.io",
@@ -74,7 +76,7 @@ export default function AssessmentStart() {
     }
 
     createAssessment.mutate(
-      { data: { ...values, companyDomain: values.companyDomain?.trim() || null } },
+      { data: { ...values, companyDomain: values.companyDomain?.trim() || null, referralCode: referralCode ?? null } },
       {
         onSuccess: (data) => {
           setLocation(`/assessment/${data.id}`);

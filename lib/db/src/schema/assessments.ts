@@ -25,6 +25,7 @@ export const assessmentsTable = pgTable("assessments", {
   completedAt: timestamp("completed_at"),
   reminderSentAt: timestamp("reminder_sent_at"),
   companyDomain: text("company_domain"),
+  referralCode: text("referral_code"),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessmentsTable).omit({ id: true, createdAt: true });

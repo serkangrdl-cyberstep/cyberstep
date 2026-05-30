@@ -1068,6 +1068,23 @@ async function ensurePasswordResetColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMP`);
 }
 
+async function ensureReferralCodeColumn() {
+  await db.execute(sql`ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS referral_code TEXT`);
+}
+
+async function ensureBreachMonitorTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS breach_monitor_requests (
+      id          SERIAL PRIMARY KEY,
+      domain      TEXT NOT NULL,
+      ip_hash     TEXT NOT NULL,
+      breach_count INTEGER NOT NULL DEFAULT 0,
+      queried_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS breach_monitor_domain_idx ON breach_monitor_requests (domain)`);
+}
+
 async function ensureVerificationColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMP`);
@@ -1112,6 +1129,8 @@ async function startup() {
   await ensureVerificationColumns();
   await ensureBadgeAdvantagesTable();
   await ensurePasswordResetColumns();
+  await ensureBreachMonitorTable();
+  await ensureReferralCodeColumn();
 }
 
 startup()

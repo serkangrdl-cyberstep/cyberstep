@@ -28,7 +28,8 @@ export const CreateAssessmentBody = zod.object({
   "sector": zod.string(),
   "employeeCount": zod.string(),
   "assessmentType": zod.enum(['mini', 'full']),
-  "companyDomain": zod.string().nullish()
+  "companyDomain": zod.string().nullish(),
+  "referralCode": zod.string().nullish()
 })
 
 
@@ -95,6 +96,7 @@ export const SubmitAnswersResponse = zod.object({
   "riskLevel": zod.string().nullish(),
   "redAlarmCount": zod.number().nullish(),
   "companyDomain": zod.string().nullish(),
+  "referralCode": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish()
 })
@@ -122,6 +124,7 @@ export const CompleteAssessmentResponse = zod.object({
   "riskLevel": zod.string().nullish(),
   "redAlarmCount": zod.number().nullish(),
   "companyDomain": zod.string().nullish(),
+  "referralCode": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish()
 })
@@ -211,6 +214,7 @@ export const GetStatsSummaryResponse = zod.object({
   "riskLevel": zod.string().nullish(),
   "redAlarmCount": zod.number().nullish(),
   "companyDomain": zod.string().nullish(),
+  "referralCode": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish()
 }))

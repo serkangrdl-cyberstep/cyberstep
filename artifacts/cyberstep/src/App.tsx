@@ -1,6 +1,14 @@
 import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
+import KvkkVerbis from "./pages/kvkk-verbis";
+import M365Denetim from "./pages/m365-denetim";
+import SiberSigorta from "./pages/siber-sigorta";
+import KepRehberi from "./pages/kep-rehberi";
+import ErpTarama from "./pages/erp-tarama";
+import SektorelKiyaslama from "./pages/sektorel-kiyaslama";
+import KvkkCezaSim from "./pages/kvkk-ceza-sim";
+import PhishingSim from "./pages/phishing-sim";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -60,6 +68,7 @@ import BlogPost from "./pages/blog-post";
 
 import VerifyPage from "./pages/verify";
 import DomainScan from "./pages/domain-scan";
+import SizintiIzleyici from "./pages/sizinti-izleyici";
 import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
@@ -187,8 +196,17 @@ function Router() {
             <Route path="/admin/review/:token" component={AdminReview} />
             <Route path="/verify/:token" component={VerifyPage} />
             <Route path="/domain-tarama" component={DomainScan} />
+            <Route path="/sizinti-izleyici" component={SizintiIzleyici} />
             <Route path="/kvkk-dpa-olustur" component={KvkkDpa} />
             <Route path="/siber-panik" component={SiberPanik} />
+            <Route path="/kvkk-verbis" component={KvkkVerbis} />
+            <Route path="/m365-denetim" component={M365Denetim} />
+            <Route path="/siber-sigorta" component={SiberSigorta} />
+            <Route path="/kep-rehberi" component={KepRehberi} />
+            <Route path="/erp-tarama" component={ErpTarama} />
+            <Route path="/sektorel-kiyaslama" component={SektorelKiyaslama} />
+            <Route path="/kvkk-ceza-sim" component={KvkkCezaSim} />
+            <Route path="/phishing-sim" component={PhishingSim} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

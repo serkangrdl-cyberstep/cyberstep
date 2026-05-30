@@ -368,6 +368,8 @@ components:
           enum: [mini, full]
         companyDomain:
           type: ["string", "null"]
+        referralCode:
+          type: ["string", "null"]
       required:
         - companyName
         - contactName
@@ -407,6 +409,8 @@ components:
         redAlarmCount:
           type: ["integer", "null"]
         companyDomain:
+          type: ["string", "null"]
+        referralCode:
           type: ["string", "null"]
         createdAt:
           type: string

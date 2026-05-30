@@ -12,7 +12,7 @@ import {
   AlertOctagon, ArrowRight, Clock, Mail, Phone, User, Building2,
   CheckCircle2, ChevronDown, ChevronUp, Shield, ShieldAlert, Download,
   TrendingUp, TrendingDown, Minus, Zap, Lock, Mail as MailIcon, Monitor, HardDrive,
-  Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck, Loader2,
+  Globe, AtSign, Server, KeyRound, XCircle, Scale, FileCheck, Loader2, Share2, Copy, CheckCheck,
 } from "lucide-react";
 import { ReportLoading } from "@/components/report-loading";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -245,6 +245,7 @@ function AssessmentReportCore({ id }: { id: number }) {
   const [contactForm, setContactForm] = useState<ContactForm>({ name: "", email: "", phone: "", note: "" });
   const [contactSent, setContactSent] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const { data: reportData, isLoading } = useGetReport(id, {
     query: {
@@ -361,6 +362,33 @@ function AssessmentReportCore({ id }: { id: number }) {
     return null;
   })();
 
+  const companyName = assessment?.companyName ?? "Şirketimiz";
+  const referralLink = (() => {
+    const base = window.location.origin;
+    const ref = encodeURIComponent(companyName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 30));
+    return `${base}/assessment/start?ref=${ref}&utm_source=supplier-invite&utm_medium=email&utm_campaign=viral-passport`;
+  })();
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    });
+  };
+
+  const handleMailtoShare = () => {
+    const subject = encodeURIComponent(`${companyName} — Siber Güvenlik Değerlendirmesi Talebimiz`);
+    const body = encodeURIComponent(
+      `Merhaba,\n\n` +
+      `Şirketimiz siber güvenlik risklerini CyberStep.io platformu üzerinde değerlendirdi ve tedarikçilerimizin de değerlendirmelerini tamamlamasını talep ediyoruz.\n\n` +
+      `Ücretsiz değerlendirmenizi başlatmak için aşağıdaki bağlantıyı kullanabilirsiniz:\n\n` +
+      referralLink + `\n\n` +
+      `Değerlendirme yaklaşık 3 dakika sürmektedir. Teşekkürler.\n\n` +
+      `${companyName}`
+    );
+    window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
+  };
+
   const handlePdfDownload = async () => {
     setPdfLoading(true);
     try {
@@ -399,7 +427,7 @@ function AssessmentReportCore({ id }: { id: number }) {
             {assessment?.companyName || "Şirket"} — Siber Risk Özeti
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handlePdfDownload} disabled={pdfLoading}>
             {pdfLoading ? (
               <span className="flex items-center gap-2">
@@ -414,6 +442,9 @@ function AssessmentReportCore({ id }: { id: number }) {
                 <Download className="mr-2 h-4 w-4" /> PDF İndir
               </>
             )}
+          </Button>
+          <Button variant="outline" onClick={handleMailtoShare}>
+            <Share2 className="mr-2 h-4 w-4" /> Tedarikçine Gönder
           </Button>
           <Link href="/dashboard">
             <Button variant="outline">
@@ -1437,6 +1468,43 @@ function AssessmentReportCore({ id }: { id: number }) {
               </div>
             </form>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Tedarikçi Viral Pasaport Paylaşım Bölümü */}
+      <Card className="shadow-sm border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Share2 className="h-5 w-5 text-primary" />
+            Tedarikçinizden Güvenlik Belgesi Talep Edin
+          </CardTitle>
+          <CardDescription>
+            Büyük alıcılar artık tedarikçilerinden siber güvenlik belgesi istiyor. Aşağıdaki bağlantıyı tedarikçilerinizle paylaşarak onların da ücretsiz değerlendirme yapmasını talep edin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={referralLink}
+              className="flex-1 text-xs bg-muted border border-border rounded-md px-3 py-2 text-muted-foreground font-mono truncate outline-none"
+            />
+            <Button variant="outline" size="sm" onClick={handleCopyLink} className="shrink-0">
+              {linkCopied ? (
+                <><CheckCheck className="h-4 w-4 mr-1.5 text-emerald-500" /> Kopyalandı</>
+              ) : (
+                <><Copy className="h-4 w-4 mr-1.5" /> Kopyala</>
+              )}
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleMailtoShare}>
+              <MailIcon className="h-4 w-4 mr-1.5" /> E-posta Taslağı Oluştur
+            </Button>
+            <span className="text-xs text-muted-foreground self-center">
+              Tedarikçiniz bu bağlantıyla ücretsiz değerlendirme yapar. Kaynağı takip edilir.
+            </span>
+          </div>
         </CardContent>
       </Card>
     </div>

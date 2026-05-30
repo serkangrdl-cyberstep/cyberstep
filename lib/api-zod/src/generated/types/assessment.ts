@@ -28,6 +28,8 @@ export interface Assessment {
   redAlarmCount?: number | null;
   /** @nullable */
   companyDomain?: string | null;
+  /** @nullable */
+  referralCode?: string | null;
   createdAt: Date;
   /** @nullable */
   completedAt?: Date | null;

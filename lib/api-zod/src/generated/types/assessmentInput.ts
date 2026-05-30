@@ -18,4 +18,6 @@ export interface AssessmentInput {
   assessmentType: AssessmentInputAssessmentType;
   /** @nullable */
   companyDomain?: string | null;
+  /** @nullable */
+  referralCode?: string | null;
 }

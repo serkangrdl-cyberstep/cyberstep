@@ -66,20 +66,26 @@ router.post("/assessments", async (req, res) => {
   }
 
   const data = parsed.data;
+  // Referral code: ?ref= query param veya body'den gelir
+  const rawRef = req.query["ref"] ?? (req.body as Record<string, unknown>)?.referralCode;
+  const referralCode = typeof rawRef === "string" && rawRef.trim() ? rawRef.trim().slice(0, 64) : null;
+
+  const insertValues = {
+    companyName: data.companyName,
+    contactName: data.contactName,
+    email: data.email,
+    phone: data.phone ?? null,
+    sector: data.sector,
+    employeeCount: data.employeeCount,
+    assessmentType: data.assessmentType as "mini" | "full",
+    status: "in_progress" as const,
+    tenantId: tenantId ?? null,
+    companyDomain: data.companyDomain ?? null,
+    referralCode,
+  };
   const [assessment] = await db
     .insert(assessmentsTable)
-    .values({
-      companyName: data.companyName,
-      contactName: data.contactName,
-      email: data.email,
-      phone: data.phone ?? null,
-      sector: data.sector,
-      employeeCount: data.employeeCount,
-      assessmentType: data.assessmentType as "mini" | "full",
-      status: "in_progress",
-      tenantId: tenantId ?? null,
-      companyDomain: data.companyDomain ?? null,
-    })
+    .values(insertValues)
     .returning();
 
   // Track ownership in session so only this browser can access/modify this assessment

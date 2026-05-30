@@ -118,6 +118,28 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Araçlar */}
+          <div>
+            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Ucretsiz Araclar</h4>
+            <ul className="space-y-2.5">
+              {[
+                { label: "Sizinti Izleyici", href: "/sizinti-izleyici" },
+                { label: "KVKK VERBiS Kontrol", href: "/kvkk-verbis" },
+                { label: "M365 Guvenlik Denetimi", href: "/m365-denetim" },
+                { label: "Siber Sigorta Hesaplayici", href: "/siber-sigorta" },
+                { label: "KEP Ihtiyac Rehberi", href: "/kep-rehberi" },
+                { label: "ERP Guvenlik Tarama", href: "/erp-tarama" },
+                { label: "Sektorel Kiyaslama", href: "/sektorel-kiyaslama" },
+                { label: "KVKK Ceza Simulatoru", href: "/kvkk-ceza-sim" },
+                { label: "Phishing Testi", href: "/phishing-sim" },
+              ].map(({ label, href }) => (
+                <li key={href}>
+                  <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Kurumsal / Company */}
           <div>
             <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.corporate, lang)}</h4>

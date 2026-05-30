@@ -32,6 +32,8 @@ export interface AssessmentInput {
   assessmentType: AssessmentInputAssessmentType;
   /** @nullable */
   companyDomain?: string | null;
+  /** @nullable */
+  referralCode?: string | null;
 }
 
 export type AssessmentStatus = typeof AssessmentStatus[keyof typeof AssessmentStatus];
@@ -64,6 +66,8 @@ export interface Assessment {
   redAlarmCount?: number | null;
   /** @nullable */
   companyDomain?: string | null;
+  /** @nullable */
+  referralCode?: string | null;
   createdAt: string;
   /** @nullable */
   completedAt?: string | null;

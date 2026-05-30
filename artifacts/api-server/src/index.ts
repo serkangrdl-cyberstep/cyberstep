@@ -10,6 +10,7 @@ import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
+import { calculateAllHealthScores } from "./routes/health/index";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -1293,6 +1294,11 @@ startup()
     cron.schedule("0 3 * * *", () => {
       refreshUsomList().catch((err) => logger.warn({ err }, "USOM daily refresh failed"));
     });
+    // Müşteri sağlık skoru — her gece 02:00'de hesapla
+    cron.schedule("0 2 * * *", () => {
+      calculateAllHealthScores().catch((err) => logger.warn({ err }, "Health score cron failed"));
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Health score cron scheduled (02:00 Istanbul)");
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

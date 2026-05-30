@@ -28,6 +28,8 @@ const NAV_ITEMS = [
   { icon: Building2,       label: "İş Ortakları",        href: "/panel/is-ortaklari" },
   { icon: Package,         label: "İş Paketleri",        href: "/panel/is-paketleri" },
   { icon: Heart,           label: "Müşteri Sağlığı",     href: "/panel/saglik" },
+  { icon: Share2,          label: "Referral Programı",   href: "/panel/referrallar" },
+  { icon: FileText,        label: "YK Raporları",         href: "/panel/yonetim-raporlari" },
   { icon: Briefcase,       label: "Danışmanlık",         href: "/panel/danismanlik" },
   { icon: Award,           label: "Teknoloji Ortakları", href: "/panel/partnerlar" },
   { icon: Plug,            label: "Entegrasyonlar",       href: "/panel/entegrasyonlar" },

@@ -299,6 +299,27 @@ router.get("/admin/referrals", requireAdmin, async (req: Request, res: Response)
   res.json(events);
 });
 
+// GET /api/admin/referrals/codes
+router.get("/admin/referrals/codes", requireAdmin, async (_req: Request, res: Response) => {
+  const codes = await db
+    .select({
+      id: referralCodesTable.id,
+      customerId: referralCodesTable.customerId,
+      code: referralCodesTable.code,
+      totalReferrals: referralCodesTable.totalReferrals,
+      successfulReferrals: referralCodesTable.successfulReferrals,
+      pendingReferrals: referralCodesTable.pendingReferrals,
+      totalRewardMonths: referralCodesTable.totalRewardMonths,
+      createdAt: referralCodesTable.createdAt,
+      customerName: customersTable.fullName,
+      customerEmail: customersTable.email,
+    })
+    .from(referralCodesTable)
+    .innerJoin(customersTable, eq(customersTable.id, referralCodesTable.customerId))
+    .orderBy(desc(referralCodesTable.successfulReferrals));
+  res.json(codes);
+});
+
 // GET /api/admin/referrals/stats
 router.get("/admin/referrals/stats", requireAdmin, async (_req: Request, res: Response) => {
   const [totals] = await db.select({

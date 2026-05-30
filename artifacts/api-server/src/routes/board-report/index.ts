@@ -7,7 +7,7 @@ import {
   domainScansTable,
 } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
-import { requireCustomer, getCustomerId } from "../../middleware/auth";
+import { requireCustomer, getCustomerId, requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { sendMail } from "../../services/email";
@@ -296,6 +296,27 @@ ${row.executiveSummary ? `<p>${row.executiveSummary}</p>` : ""}
 
   logger.info({ boardReportId: id, count: sentEmails.length }, "Board report sent");
   res.json({ ok: true, sent: sentEmails.length });
+});
+
+// ─── Admin Routes ─────────────────────────────────────────────────────────────
+
+// GET /api/admin/board-reports
+router.get("/admin/board-reports", requireAdmin, async (_req: Request, res: Response) => {
+  const reports = await db.select({
+    id: boardReportsTable.id,
+    customerId: boardReportsTable.customerId,
+    reportMonth: boardReportsTable.reportMonth,
+    reportYear: boardReportsTable.reportYear,
+    status: boardReportsTable.status,
+    generatedAt: boardReportsTable.generatedAt,
+    currentScore: boardReportsTable.currentScore,
+    riskLevel: boardReportsTable.riskLevel,
+    sentToEmails: boardReportsTable.sentToEmails,
+    criticalFindings: boardReportsTable.criticalFindings,
+  }).from(boardReportsTable)
+    .orderBy(desc(boardReportsTable.generatedAt))
+    .limit(200);
+  res.json(reports);
 });
 
 export default router;

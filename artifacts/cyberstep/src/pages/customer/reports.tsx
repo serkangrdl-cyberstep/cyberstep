@@ -160,6 +160,9 @@ export default function CustomerReports() {
               <Link href="/hesabim" className="text-slate-400 hover:text-white text-sm transition-colors">Hesabım</Link>
               <Link href="/raporlarim" className="text-white text-sm font-medium">Raporlarım</Link>
               <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
+              <Link href="/pentest-lite" className="text-slate-400 hover:text-white text-sm transition-colors">Pentest Lite</Link>
+              <Link href="/hesabim/yonetim-raporu" className="text-slate-400 hover:text-white text-sm transition-colors">YK Raporu</Link>
+              <Link href="/hesabim/davet" className="text-slate-400 hover:text-white text-sm transition-colors">Davet</Link>
             </nav>
           </div>
           <Button

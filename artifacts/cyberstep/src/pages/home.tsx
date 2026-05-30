@@ -966,6 +966,27 @@ export default function Home() {
                 what: lang === "en" ? "Analyzes SPF, DMARC, DKIM, SSL, blacklists and HTTP security headers for your domain in seconds." : "Alan adınızın SPF, DMARC, DKIM, SSL, kara liste durumunu ve HTTP güvenlik başlıklarını saniyeler içinde analiz eder.",
                 why: lang === "en" ? "An unconfigured domain becomes a launchpad for phishing attacks on your customers and partners." : "Yapılandırılmamış bir alan adı, müşterilerinize ve iş ortaklarınıza yönelik phishing saldırıları için zemin hazırlar.",
               },
+              {
+                href: "/saldiri-simulasyonu",
+                icon: "🎯",
+                title: "Saldırı Simülasyonu — Siber İkiz",
+                what: "Gemini AI, şirket profilinizi analiz ederek gerçekçi bir saldırı senaryosu oluşturur: saldırgan nasıl girer, ilk 24 saat ne olur, tahmini finansal etki nedir?",
+                why: "Soyut riskleri somut hikâyeye dönüştürür. Patronun bütçe kararı vermesini kolaylaştıran en güçlü araç.",
+              },
+              {
+                href: "/finansal-kayip",
+                icon: "💸",
+                title: "Siber Kayıp Hesaplayıcı",
+                what: "Sektör, çalışan sayısı ve ciro bilgisine göre altı kategoride TL bazında siber saldırı finansal etkisini hesaplar.",
+                why: "IBM CODB ve Verizon DBIR verilerine dayalı. 'Siber güvenlik neden gerekli?' sorusunu TL rakamıyla yanıtlar.",
+              },
+              {
+                href: "/marka-koruma",
+                icon: "🛡️",
+                title: "Marka Koruma ve Taklit Domain Tespiti",
+                what: "Alan adınızın 70+ varyantını DNS üzerinden kontrol eder. Phishing ve müşteri yönlendirme için kayıtlı sahte domain'leri tespit eder.",
+                why: "Tüketicilerin %73'ü marka taklidi içeren olumsuz deneyimden sonra o markadan ayrılır. KVKK yükümlülüğü de söz konusu olabilir.",
+              },
             ].map((tool) => (
               <a
                 key={tool.href}

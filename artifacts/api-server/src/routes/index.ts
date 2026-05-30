@@ -10,6 +10,7 @@ import kvkkRouter from "./kvkk/index";
 import partnerAuthRouter from "./partner-auth/index";
 import workPackagesRouter from "./work-packages/index";
 import breachMonitorRouter from "./breach-monitor/index";
+import toolsRouter from "./tools/index";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(kvkkRouter);
 router.use(partnerAuthRouter);
 router.use(workPackagesRouter);
 router.use(breachMonitorRouter);
+router.use(toolsRouter);
 
 export default router;

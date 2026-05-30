@@ -1,5 +1,8 @@
 import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
+import SaldiriSimulasyonu from "./pages/saldiri-simulasyonu";
+import FinansalKayip from "./pages/finansal-kayip";
+import MarkaKoruma from "./pages/marka-koruma";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
 import KvkkVerbis from "./pages/kvkk-verbis";
@@ -216,6 +219,9 @@ function Router() {
             <Route path="/sektorel-kiyaslama" component={SektorelKiyaslama} />
             <Route path="/kvkk-ceza-sim" component={KvkkCezaSim} />
             <Route path="/phishing-sim" component={PhishingSim} />
+            <Route path="/saldiri-simulasyonu" component={SaldiriSimulasyonu} />
+            <Route path="/finansal-kayip" component={FinansalKayip} />
+            <Route path="/marka-koruma" component={MarkaKoruma} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

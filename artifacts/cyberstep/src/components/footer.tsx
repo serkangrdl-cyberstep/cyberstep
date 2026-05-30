@@ -137,6 +137,7 @@ export function Footer() {
                 { label: "Marka ve Domain Koruma", href: "/marka-koruma" },
                 { label: "Tedarik Zinciri Skorkart", href: "/tedarik-zinciri" },
                 { label: "AI Guven Rozeti", href: "/guven-rozeti" },
+                { label: "BDDK/DORA Uyum Analizi", href: "/dora-bddk-uyum" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>

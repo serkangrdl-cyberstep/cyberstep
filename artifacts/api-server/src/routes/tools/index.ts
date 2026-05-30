@@ -617,4 +617,111 @@ router.get("/guven-rozeti/:domain/badge.svg", async (req: Request, res: Response
   res.send(svg);
 });
 
+// ─── DORA / BDDK / SPK / EPDK UYUM ANALİZİ ──────────────────────────────────
+
+const DOMAIN_REGULATION_CONTEXT = `
+Alan A (Yönetişim/Envanter):
+  BDDK BSY: Md.5 (YK sorumluluğu), Md.6 (Bilgi Güvenliği Politikası), Md.8 (Organizasyon)
+  SPK VIII/54: Md.4 (Yönetim), Md.5 (İç denetim)
+  EPDK: Md.6 (Yönetim yapısı), Md.8 (Kritik varlık envanteri)
+  DORA: Art.5 (ICT Risk Management Framework), Art.6 (Risk sistemi), Art.7 (Sürekli iyileştirme)
+
+Alan B (Kimlik/Erişim):
+  BDDK BSY: Md.12 (Kimlik yönetimi), Md.13 (Erişim kontrolü)
+  SPK VIII/54: Md.9 (Erişim), Md.10 (Kimlik doğrulama)
+  EPDK: Md.12 (OT/IT erişim ayrımı), Md.13 (Uzak erişim)
+  DORA: Art.9.2 (Kimlik doğrulama), Art.9.3 (Ayrıcalıklı erişim)
+
+Alan C (E-posta/Farkındalık):
+  BDDK BSY: Md.20 (Eğitim), Md.21 (Farkındalık)
+  SPK VIII/54: Md.15 (Personel eğitimi)
+  EPDK: Md.18 (Yıllık eğitim)
+  DORA: Art.13 (Farkındalık programı)
+
+Alan D (Cihaz/Uç Nokta):
+  BDDK BSY: Md.14 (Varlık yönetimi), Md.15 (Güvenlik açığı tarama), Md.16 (Yama yönetimi)
+  SPK VIII/54: Md.11 (Uç nokta), Md.12 (Yazılım güncelleme)
+  EPDK: Md.14 (SCADA/OT cihaz), Md.15 (Ağ segmentasyonu)
+  DORA: Art.9.4 (ICT güvenlik politikaları), Art.10 (Tehdit tespiti)
+
+Alan E (Veri/Yedek/Olay):
+  BDDK BSY: Md.18 (İş sürekliliği), Md.19 (Yedekleme testleri), Md.22 (Olay bildirim — 4 saat)
+  SPK VIII/54: Md.17 (Felaket kurtarma), Md.18 (Düzenleyiciye bildirim)
+  EPDK: Md.19 (Kesinti planı), Md.20 (Olay müdahale), Md.21 (Bildirim)
+  DORA: Art.11 (Felaket kurtarma), Art.12 (İş sürekliliği), Art.19 (Olay raporlama zaman çerçeveleri)
+`;
+
+// POST /api/dora-bddk-uyum
+router.post("/dora-bddk-uyum", async (req: Request, res: Response) => {
+  const { regulators, sector, score } = req.body as {
+    regulators?: string[];
+    sector?: string;
+    score?: number;
+  };
+
+  if (!regulators?.length || !sector || score === undefined) {
+    res.status(400).json({ error: "Eksik parametre" });
+    return;
+  }
+
+  const segment = score >= 70 ? "İleri" : score >= 40 ? "Gelişmekte" : "Temel";
+  const regList = regulators.join(", ");
+
+  const prompt = `Sen bir Türkiye siber güvenlik hukuk ve regülasyon danışmanısın.
+
+Şirket profili:
+- Sektör: ${sector}
+- Seçilen regülasyonlar: ${regList}
+- Siber güvenlik puanı: ${score}/100 (Segment: ${segment})
+
+Alan-regülasyon eşlemesi:
+${DOMAIN_REGULATION_CONTEXT}
+
+${segment === "Temel" ? "Bu şirket Temel segmentte — regülasyon uyumu açısından ciddi riskler taşıyor." : ""}
+${segment === "Gelişmekte" ? "Bu şirket Gelişmekte segmentinde — bazı regülasyon eksiklikleri var." : ""}
+${segment === "İleri" ? "Bu şirket İleri segmentinde — temel uyum iyi, ince noktalara dikkat gerekiyor." : ""}
+
+SADECE aşağıdaki JSON formatında yanıt ver:
+{
+  "genel": {
+    "uyumSkoru": 65,
+    "oncelikliRegulasyon": "BDDK",
+    "ozet": "Şirketin regülasyon uyum durumuna genel bakış — 2-3 cümle, somut risk ile başla"
+  },
+  "domainAnalizleri": [
+    {
+      "domain": "A",
+      "baslik": "Yönetişim ve Envanter",
+      "uyumDurumu": "Kısmen",
+      "kritikEksikler": ["Yönetim kurulu düzeyinde BT risk sorumluluğu tanımlanmamış — BSY Md.5 ihlali", "Bilgi Güvenliği Politikası yazılı değil — BSY Md.6 gereksinimi"],
+      "acilAksiyon": "30 gün içinde YK kararıyla bir Bilgi Güvenliği Komitesi kurun ve BSY Md.5 uyumunu belgeleyin"
+    },
+    { "domain": "B", "baslik": "Kimlik ve Erişim", "uyumDurumu": "Uyumlu", "kritikEksikler": [], "acilAksiyon": "..." },
+    { "domain": "C", "baslik": "E-posta ve Farkındalık", "uyumDurumu": "Eksik", "kritikEksikler": ["..."], "acilAksiyon": "..." },
+    { "domain": "D", "baslik": "Cihaz ve Uç Nokta", "uyumDurumu": "Kısmen", "kritikEksikler": ["..."], "acilAksiyon": "..." },
+    { "domain": "E", "baslik": "Veri Koruma ve Olay Hazırlığı", "uyumDurumu": "Eksik", "kritikEksikler": ["..."], "acilAksiyon": "..." }
+  ],
+  "duzenleyiciUyari": "Bu skor seviyesinde ${regList} denetçisi denetim başlatırsa olası yaptırım ve itibar riskini 1-2 cümle ile anlat",
+  "yolHaritasi": [
+    "1. aksyon — hangi madde, hangi süre",
+    "2. aksiyon",
+    "3. aksiyon",
+    "4. aksiyon",
+    "5. aksiyon"
+  ]
+}`;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json" },
+    });
+    res.json(JSON.parse(result.text ?? "{}"));
+  } catch (err) {
+    logger.error({ err }, "DORA/BDDK uyum analiz error");
+    res.status(500).json({ error: "Analiz yapılamadı" });
+  }
+});
+
 export default router;

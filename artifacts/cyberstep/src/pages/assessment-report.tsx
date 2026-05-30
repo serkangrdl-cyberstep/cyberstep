@@ -45,6 +45,60 @@ const KVKK_COMPLIANCE_MAP = [
   { domain: "E", title: "Veri Koruma ve Yedek", articles: ["Md.7", "Md.12"], risk: "Kişisel veri kaybı 72 saat içinde bildirimi zorunlu kılar. Yedek ve müdahale planı olmadan uyumsuzluk kaçınılmaz." },
 ];
 
+// ── BitSight tarzı rating bands ──────────────────────────────────────────────
+const RATING_BANDS = [
+  { label: "Temel", range: [0, 39], color: "bg-red-500", textColor: "text-red-600", desc: "Temel güvenlik kontrolleri eksik" },
+  { label: "Gelişmekte", range: [40, 69], color: "bg-amber-400", textColor: "text-amber-600", desc: "Kısmen korumalı, kritik boşluklar var" },
+  { label: "İleri", range: [70, 100], color: "bg-emerald-500", textColor: "text-emerald-600", desc: "Olgun güvenlik altyapısı" },
+];
+
+// ── Sektör bazlı tehdit aktörü veritabanı ────────────────────────────────────
+interface ThreatActor {
+  name: string;
+  type: string;
+  desc: string;
+  techniques: string[];
+  risk: "Yüksek" | "Orta";
+}
+const THREAT_INTEL_DB: Record<string, ThreatActor[]> = {
+  "Finans/Sigorta": [
+    { name: "FIN7 / Carbanak", type: "Finansal Suç Grubu", desc: "2013'ten beri aktif, bankacılık ve ödeme sistemlerini hedef alan organize suç örgütü. Türk finans kuruluşlarına yönelik kampanyaları belgelenmiştir.", techniques: ["Hedefli kimlik avı", "BEC dolandırıcılığı", "ATM jackpotting"], risk: "Yüksek" },
+    { name: "LockBit 3.0", type: "Fidye Yazılımı (RaaS)", desc: "Dünyada en fazla kurban talep eden fidye yazılımı grubu. Finans ve sigorta sektörü birincil hedef kategorisindedir.", techniques: ["RDP/VPN sızdırma", "Çifte gasp", "Kimlik bilgisi hırsızlığı"], risk: "Yüksek" },
+    { name: "Cosmic Wolf / Sea Turtle", type: "Devlet Destekli APT", desc: "Türkiye istihbarat çıkarlarıyla bağlantılı grup. DNS manipülasyonu ve telekom altyapısına yönelik saldırılarıyla tanınır.", techniques: ["DNS hijacking", "BGP routing saldırısı", "Supply chain"], risk: "Orta" },
+  ],
+  "Sağlık": [
+    { name: "ALPHV / BlackCat", type: "Fidye Yazılımı (RaaS)", desc: "Sağlık sektörünü birincil hedef olarak seçen gelişmiş fidye yazılımı grubu. Veri ifşası tehdidiyle çifte baskı uygular.", techniques: ["Fidye yazılımı", "Kişisel sağlık verisi ifşası", "Tedarikçi sızdırma"], risk: "Yüksek" },
+    { name: "Rhysida", type: "Fidye Yazılımı", desc: "2023'ten beri aktif, hastane ve klinik sistemlerini hedef alıyor. Türkiye dahil Avrupa sağlık altyapısına saldırıları belgelendi.", techniques: ["Phishing", "Hedefli fidye yazılımı", "Tıbbi kayıt hırsızlığı"], risk: "Yüksek" },
+    { name: "Clop / TA505", type: "Suç Grubu", desc: "MOVEit ve GoAnywhere sıfır gün açıkları ile 2023'te 2.000'den fazla kuruma sızdı; sağlık verileri çoğunluğu oluşturdu.", techniques: ["Sıfır gün istismarı", "Toplu veri hırsızlığı"], risk: "Orta" },
+  ],
+  "Teknoloji": [
+    { name: "APT10 / MenuPass", type: "Çin Devlet Destekli APT", desc: "MSP ve teknoloji şirketleri üzerinden müşterilere ulaşan tedarik zinciri saldırıları için tanınır. 'Cloud Hopper' operasyonu ile onlarca ülkede teknoloji firmalarını hedef aldı.", techniques: ["MSP/tedarikçi sızma", "Uzun vadeli kalıcılık", "Kimlik bilgisi dumpı"], risk: "Yüksek" },
+    { name: "NOBELIUM / UNC2452", type: "Devlet Destekli APT (Rusya)", desc: "SolarWinds saldırısının arkasındaki grup. Yazılım güncelleme mekanizmalarını silah olarak kullanan tedarik zinciri saldırıları.", techniques: ["Software supply chain", "OAuth token hırsızlığı", "Bulut pivot"], risk: "Yüksek" },
+    { name: "LockBit 3.0", type: "Fidye Yazılımı (RaaS)", desc: "Teknoloji şirketleri ve MSP'leri hedef alarak hem şirkete hem müşterilere ulaşmayı hedefler.", techniques: ["Kimlik bilgisi doldurma", "RDP sızdırma", "Lateral movement"], risk: "Orta" },
+  ],
+  "Üretim/Sanayi": [
+    { name: "EKANS / SNAKE", type: "OT/ICS Odaklı Kötü Amaçlı Yazılım", desc: "Endüstriyel kontrol sistemlerini (ICS/SCADA) hedef alan fidye yazılımı. Honda ve Renault dahil üretim tesislerini durdurdu.", techniques: ["ICS/SCADA sızdırma", "Üretim hattı sabotajı", "Fidye yazılımı"], risk: "Yüksek" },
+    { name: "LockBit 3.0", type: "Fidye Yazılımı (RaaS)", desc: "2023'te üretim sektörü en çok saldırıya uğrayan sektör oldu. Tedarik zinciri aksaklıkları fidye ödemeyi zorunlu kılıyor.", techniques: ["IT/OT ağ geçişi", "Üretim verisi şifreleme"], risk: "Yüksek" },
+    { name: "Volt Typhoon", type: "Çin Devlet Destekli APT", desc: "Kritik üretim altyapısını 'ön mevzi' olarak konumlandıran, uzun süre tespit edilmeden kalan grup.", techniques: ["Ağ yaşam alanı saldırısı (LoTL)", "OT ağ keşfi", "Kalıcılık"], risk: "Orta" },
+  ],
+  "Perakende/Ticaret": [
+    { name: "Magecart", type: "Web Skimming Grubu", desc: "E-ticaret altyapısına enjekte edilen JS kodlarıyla ödeme kartı bilgilerini çalan grup kolektifi. Türk e-ticaret sitelerini de hedef aldı.", techniques: ["Ödeme sayfası JS enjeksiyonu", "Kart verisi sızdırma", "Tedarikçi script sızdırma"], risk: "Yüksek" },
+    { name: "FIN8", type: "Finansal Suç Grubu", desc: "POS sistemleri ve ödeme altyapısını hedef alan gelişmiş tehdit grubu. Perakende sektöründe aktif.", techniques: ["POS malware", "Ağ içi lateral hareket", "Kimlik bilgisi hırsızlığı"], risk: "Yüksek" },
+  ],
+  "Eğitim": [
+    { name: "Vice Society", type: "Fidye Yazılımı", desc: "Okul ve üniversiteleri birincil hedef olarak seçen grup. Öğrenci ve personel verilerini çalarak fidye talep eder.", techniques: ["Phishing", "Açık RDP", "Öğrenci/personel verisi ifşası"], risk: "Yüksek" },
+    { name: "TA571", type: "Suç Grubu", desc: "Eğitim sektörü e-postalarını spam ve phishing kampanyaları için kötüye kullanan grup.", techniques: ["Toplu phishing", "Makro-tabanlı malware", "BEC"], risk: "Orta" },
+  ],
+  "Hizmet Sektörü": [
+    { name: "BEC/CEO Fraud Grupları", type: "Finansal Suç", desc: "Türkiye'de KOBİ'lere yönelik BEC (İş E-postası Dolandırıcılığı) saldırıları son 3 yılda %140 arttı. Tedarikçi ve muhasebe e-postalarını taklit eder.", techniques: ["Domain spoofing", "Sahte IBAN transferi", "Yönetici taklit"], risk: "Yüksek" },
+    { name: "Scattered Spider", type: "Suç Grubu", desc: "Hizmet sektörü çalışanlarını sosyal mühendislik ile manipüle eden ve BT yardım masalarını taklit eden gelişmiş İngilizce konuşan grup.", techniques: ["SIM swapping", "Vishing (sesli kimlik avı)", "MFA bypass"], risk: "Orta" },
+  ],
+  "Diğer": [
+    { name: "LockBit 3.0", type: "Fidye Yazılımı (RaaS)", desc: "Sektörden bağımsız olarak tüm KOBİ'leri hedef alan dünyanın en aktif fidye yazılımı grubu. Türkiye kurbanları açıkça listede yayımlandı.", techniques: ["RDP/VPN sızdırma", "Phishing", "Kimlik bilgisi satın alma"], risk: "Yüksek" },
+    { name: "BEC/CEO Fraud Grupları", type: "Finansal Suç", desc: "Tüm sektörlerde KOBİ'lere yönelik. E-posta güvenliği zayıfsa sahte IBAN transferi veya tedarikçi dolandırıcılığı en yaygın ilk saldırı vektörü.", techniques: ["Domain spoofing", "Sahte fatura", "Yönetici taklit"], risk: "Yüksek" },
+  ],
+};
+
 const NIST_CSF_MAP = [
   { domain: "A", fn: "IDENTIFY", label: "Tanımla", ids: "ID.AM + GV.OC", desc: "Varlık yönetimi ve organizasyonel bağlam" },
   { domain: "B", fn: "PROTECT", label: "Koru", ids: "PR.AA + PR.PS", desc: "Kimlik doğrulama ve erişim kontrolü" },
@@ -590,6 +644,47 @@ function AssessmentReportCore({ id }: { id: number }) {
         );
       })()}
 
+      {/* BitSight-style Rating Band Görseli */}
+      {(() => {
+        const band = RATING_BANDS.find(b => scorePercent >= b.range[0] && scorePercent <= b.range[1]) ?? RATING_BANDS[0];
+        return (
+          <Card className="shadow-sm mb-6">
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                Siber Güvenlik Segment Konumunuz
+              </p>
+              <div className="relative mb-2">
+                <div className="flex h-8 rounded-full overflow-hidden">
+                  {RATING_BANDS.map(b => (
+                    <div
+                      key={b.label}
+                      className={`${b.color} flex items-center justify-center text-white text-xs font-semibold`}
+                      style={{ width: `${b.range[1] - b.range[0] + 1}%` }}
+                    >
+                      {b.label}
+                    </div>
+                  ))}
+                </div>
+                <div
+                  className="absolute top-0 h-8 w-1 bg-white shadow-lg rounded-full"
+                  style={{ left: `${Math.min(98, Math.max(1, scorePercent))}%` }}
+                >
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+                    %{scorePercent.toFixed(0)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>0 — Temel</span><span>40 — Gelişmekte</span><span>70 — İleri — 100</span>
+              </div>
+              <p className={`text-xs font-medium mt-2 ${band.textColor}`}>
+                Sizi şu anda <strong>{band.label}</strong> segmentine yerleştiriyor: {band.desc}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Domain cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
         {report.domainScores?.map((d: any) => (
@@ -608,6 +703,84 @@ function AssessmentReportCore({ id }: { id: number }) {
           </Card>
         ))}
       </div>
+
+      {/* Tehdit Aktörü Zekası (BitSight Threat Insights) */}
+      {(() => {
+        const sectorKey = assessment?.sector as string | undefined;
+        const actors: ThreatActor[] = (sectorKey && THREAT_INTEL_DB[sectorKey]) ? THREAT_INTEL_DB[sectorKey] : THREAT_INTEL_DB["Diğer"];
+        return (
+          <Card className="shadow-sm mb-6 border-orange-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertOctagon className="h-4 w-4 text-orange-500 shrink-0" />
+                Sektörünüzü Hedef Alan Tehdit Grupları
+              </CardTitle>
+              <CardDescription>
+                {assessment?.sector ?? "Sektörünüz"} için belgelenmiş tehdit aktörleri ve kullandıkları saldırı teknikleri
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {actors.map((actor, i) => (
+                  <div key={i} className="rounded-lg border bg-muted/10 p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-semibold text-sm">{actor.name}</p>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${actor.risk === "Yüksek" ? "text-red-600 border-red-300 bg-red-50 dark:bg-red-950/20" : "text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/20"}`}
+                          >
+                            {actor.risk} Risk
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-medium">{actor.type}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-2">{actor.desc}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {actor.techniques.map((t, j) => (
+                        <span key={j} className="text-xs bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-900 px-2 py-0.5 rounded-full">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                Kaynak: MITRE ATT&amp;CK, Mandiant Threat Intelligence, CISA advisories, Europol IOCTA 2024
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* BDDK / DORA Uyum Teaser */}
+      <Card className="shadow-sm mb-6 border-blue-500/20 bg-blue-500/5">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 bg-blue-500/10 p-3 rounded-xl">
+              <Scale className="h-6 w-6 text-blue-500" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-sm">BDDK · SPK · EPDK · DORA Uyum Durumunuz</h3>
+                <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/30">Yeni</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk metrik zorunluluklarına hazırlanıyor.
+                Bu puanınızı seçtiğiniz regülasyonlara eşleyin, domain bazlı uyum boşluğu ve yol haritası alın.
+              </p>
+              <Link href={`/dora-bddk-uyum`}>
+                <Button variant="outline" size="sm" className="text-xs border-blue-500/30 text-blue-500 hover:bg-blue-500/10">
+                  Regülasyon Uyum Analizini Aç <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KVKK Uyum Haritası */}
       <Card className="shadow-sm mb-6">

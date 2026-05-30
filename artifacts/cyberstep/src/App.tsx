@@ -5,6 +5,7 @@ import FinansalKayip from "./pages/finansal-kayip";
 import MarkaKoruma from "./pages/marka-koruma";
 import TedarikZinciri from "./pages/tedarik-zinciri";
 import GuvenRozeti from "./pages/guven-rozeti";
+import DoraBddkUyum from "./pages/dora-bddk-uyum";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
 import KvkkVerbis from "./pages/kvkk-verbis";
@@ -226,6 +227,7 @@ function Router() {
             <Route path="/marka-koruma" component={MarkaKoruma} />
             <Route path="/tedarik-zinciri" component={TedarikZinciri} />
             <Route path="/guven-rozeti" component={GuvenRozeti} />
+            <Route path="/dora-bddk-uyum" component={DoraBddkUyum} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

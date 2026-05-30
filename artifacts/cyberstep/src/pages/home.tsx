@@ -1001,6 +1001,13 @@ export default function Home() {
                 what: "Alan adınızı tarar, canlı güncellenen güvenlik skoru rozeti oluşturur. Tek satır HTML ile web sitenize ekleyin.",
                 why: "SSL logosunun siber güvenlik versiyonu — müşteri güvenini somutlaştıran, görünür ve gömülebilir bir güvence.",
               },
+              {
+                href: "/dora-bddk-uyum",
+                icon: "⚖️",
+                title: "BDDK / SPK / EPDK / DORA Uyum Analizi",
+                what: "Siber güvenlik puanınızı BDDK BSY, SPK VIII/54, EPDK ve DORA (AB) makalelerine eşler. Gemini AI domain bazlı uyum boşluğu ve yol haritası üretir.",
+                why: "DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk zorunluluğuna hazırlanıyor. Şimdi bu dili konuşan platform olun.",
+              },
             ].map((tool) => (
               <a
                 key={tool.href}

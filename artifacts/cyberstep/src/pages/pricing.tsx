@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -69,13 +69,14 @@ export default function Pricing() {
     description: "KOBİ'ler icin siber guvenlik degerlendirme paketleri. Ucretsiz Mini Degerlendirme ile baslayin, tam analizle buyumeye devam edin.",
   });
 
-  const { data: dbPlans } = useQuery<DbPlan[]>({
+  const { data: dbPlansRaw } = useQuery<DbPlan[]>({
     queryKey: ["public-pricing"],
     queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  const fullDbPlan = dbPlans?.find(p => p.slug === "full");
+  const dbPlans = Array.isArray(dbPlansRaw) ? dbPlansRaw : [];
+  const fullDbPlan = dbPlans.find(p => p.slug === "full");
   const fullPriceLabel = fullDbPlan ? fmtTL(fullDbPlan.price) : PRICING_PLANS[1].priceLabel;
 
   const plans = PRICING_PLANS.map(p =>
@@ -238,6 +239,33 @@ export default function Pricing() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      {/* vCISO upsell card */}
+      <section className="pb-12 bg-background">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
+              <UserCheck className="h-7 w-7 text-primary" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-lg font-bold text-foreground">Sanal CISO Hizmeti</h3>
+                <span className="text-xs font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full">Kurumsal</span>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+                CISO'nuz yoksa, kiralamak zorunda da degilsiniz. Sertifikalı partner CISO'lardan aylık yönetim kurulu raporu,
+                güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek — aylık <strong className="text-foreground">8.000 TL</strong>'den.
+              </p>
+            </div>
+            <Link
+              href="/sanal-ciso"
+              className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+            >
+              Detaylar ve Teklif <ChevronRight className="ml-1.5 h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>

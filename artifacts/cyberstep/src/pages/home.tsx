@@ -1085,6 +1085,55 @@ export default function Home() {
         </section>
       )}
 
+      {/* vCISO callout */}
+      <section className="py-16 bg-background border-t">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="rounded-2xl border-2 border-primary/25 bg-primary/5 p-8 md:p-10">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+              <div className="flex-1">
+                <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
+                  Sanal CISO · vCISO as a Service
+                </span>
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                  Sirketinizin CISO'su olsun —<br className="hidden sm:block" /> kadro maliyeti olmadan
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed max-w-xl">
+                  KOBİ'lerin yüzde 99'unun CISO'su yok. Tam zamanlı CISO yıllık 2–4 milyon TL maaşla geliyor.
+                  CyberStep Sanal CISO'su aylık yönetim kurulu sunumu, yıllık güvenlik stratejisi,
+                  olay müdahalesi ve düzenleyici destek sunar — sertifikalı partner uzmanlardan.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["Aylık YK Raporu", "Güvenlik Stratejisi", "Olay Müdahalesi", "KVKK / BDDK Desteği"].map(tag => (
+                    <span key={tag} className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full border border-primary/20">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 shrink-0">
+                <div className="text-center mb-1">
+                  <p className="text-xs text-muted-foreground">Baslangic fiyati</p>
+                  <p className="text-3xl font-black text-primary">8.000 TL<span className="text-sm font-normal text-muted-foreground">/ay</span></p>
+                </div>
+                <Link
+                  href="/sanal-ciso"
+                  className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Detaylar ve Teklif
+                  <ChevronRight className="ml-1.5 h-4 w-4" />
+                </Link>
+                <Link
+                  href="/sanal-ciso#basvuru"
+                  className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 border-2 border-primary text-primary hover:bg-primary/10 transition-colors"
+                >
+                  Hemen Teklif Al
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Bottom */}
       <section className="py-20 bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4 text-center">

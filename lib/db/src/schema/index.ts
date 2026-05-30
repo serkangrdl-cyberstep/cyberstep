@@ -37,3 +37,4 @@ export * from "./badge-advantages";
 export * from "./tprm";
 export * from "./scan-leads";
 export * from "./integrations";
+export * from "./ciso-leads";

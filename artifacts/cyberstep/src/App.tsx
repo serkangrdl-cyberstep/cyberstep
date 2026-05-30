@@ -8,6 +8,7 @@ import GuvenRozeti from "./pages/guven-rozeti";
 import DoraBddkUyum from "./pages/dora-bddk-uyum";
 import SektorPage from "./pages/sektor";
 import ExtensionDownload from "./pages/extension-download";
+import SanalCiso from "./pages/sanal-ciso";
 import TprmAnket from "./pages/tprm-anket";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
@@ -227,6 +228,7 @@ function Router() {
             <Route path="/dora-bddk-uyum" component={DoraBddkUyum} />
             <Route path="/sektor/:slug" component={SektorPage} />
             <Route path="/tarayici-eklentisi" component={ExtensionDownload} />
+            <Route path="/sanal-ciso" component={SanalCiso} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
             <Route component={NotFound} />
           </Switch>

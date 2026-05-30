@@ -228,7 +228,7 @@ router.post("/assessments/:id/answers", requireAssessmentOwner, async (req, res)
     assessmentId: params.data.id,
     questionNumber: a.questionNumber,
     answer: a.answer as "evet" | "kismen" | "bilmiyorum" | "hayir",
-    score: a.answer === "evet" ? 5 : a.answer === "kismen" ? 3 : a.answer === "bilmiyorum" ? 1 : 0,
+    score: a.answer === "evet" ? 5 : a.answer === "kismen" ? 3 : 0,
   }));
 
   await db.insert(assessmentAnswersTable).values(answerRows);
@@ -364,7 +364,7 @@ async function generateAIReport(
   const answersText = answers
     .map((a) => {
       const q = questionMap.get(a.questionNumber);
-      return `S${a.questionNumber} [${q?.domain ?? ""}/${q?.weight === 2 ? "Kritik" : "Normal"}]: ${a.answer}`;
+      return `S${a.questionNumber} [${q?.domain ?? ""}/${q?.weight === 3 ? "Kritik" : q?.weight === 2 ? "Önemli" : "Normal"}]: ${a.answer}`;
     })
     .join("\n");
 

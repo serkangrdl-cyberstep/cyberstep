@@ -1,0 +1,31 @@
+kind = "data-app"
+previewPath = "/digest/"
+title = "CyberStep Digest Yönetim Paneli"
+version = "1.0.0"
+id = "artifacts/digest-admin"
+router = "path"
+
+[[integratedSkills]]
+name = "data-visualization"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/digest/" ]
+localPort = 23300
+
+[services.development]
+run = "pnpm --filter @workspace/digest-admin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/digest-admin", "run", "build" ]
+publicDir = "artifacts/digest-admin/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23300"
+BASE_PATH = "/digest/"

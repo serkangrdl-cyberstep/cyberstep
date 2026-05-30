@@ -4,3 +4,4 @@
 - [Partner leads & business model pages](partner-leads.md) — 4 revenue model pages + shared partner_leads DB table + POST /api/public/partner-lead endpoint
 - [Customer integrations framework](customer-integrations.md) — per-customer Jira/FortiManager/QRadar/FortiSIEM/CrowdStrike/TrendMicro config + auto-push helper
 - [Attack Scenario Analysis](attack-scenarios.md) — Claude claude-sonnet-4-6 generates MITRE ATT&CK mapped attack chains from domain scan data; fire-and-forget + polling pattern
+- [Digest News Aggregator](digest-aggregator.md) — RSS collector + Claude AI digest + digest-admin panel at /digest/; model: claude-sonnet-4-5, cron wiring, DB schema, approve webhook

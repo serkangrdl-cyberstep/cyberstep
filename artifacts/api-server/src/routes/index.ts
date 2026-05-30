@@ -16,6 +16,7 @@ import scanLeadsRouter from "./scan-leads/index";
 import integrationsRouter from "./integrations/index";
 import publicRouter from "./public/index";
 import v1Router from "./v1/index";
+import { digestRouter } from "./digest/index";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(toolsRouter);
 router.use(tprmRouter);
 router.use(scanLeadsRouter);
 router.use(integrationsRouter);
+router.use("/digest", digestRouter);
 
 export default router;

@@ -40,3 +40,6 @@ export * from "./integrations";
 export * from "./ciso-leads";
 export * from "./partner-leads";
 export * from "./api-product-keys";
+export * from "./news-sources";
+export * from "./news-items";
+export * from "./weekly-digests";

@@ -8,6 +8,8 @@ import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMail } from "./services/email";
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
+import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
+import { generateWeeklyDigest } from "./routes/digest/claude-processor";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -1236,6 +1238,31 @@ function startInflationReminderCron() {
   logger.info("Inflation reminder cron scheduled (every Monday 09:00)");
 }
 
+// ─── Digest Cron ─────────────────────────────────────────────────────────────
+// Haber topla: her gün 06:00; Digest oluştur: her Cuma 07:00 İstanbul
+function startDigestCron() {
+  cron.schedule("0 3 * * *", async () => {
+    logger.info("Digest: RSS haber toplama başlıyor");
+    try {
+      await collectRSSFeeds();
+    } catch (err) {
+      logger.error({ err }, "Digest: RSS haber toplama başarısız");
+    }
+  }, { timezone: "Europe/Istanbul" });
+
+  cron.schedule("0 4 * * 5", async () => {
+    logger.info("Digest: Haftalık digest oluşturma başlıyor");
+    try {
+      const id = await generateWeeklyDigest();
+      logger.info({ id }, "Digest: Haftalık digest oluşturuldu");
+    } catch (err) {
+      logger.error({ err }, "Digest: Haftalık digest oluşturma başarısız");
+    }
+  }, { timezone: "Europe/Istanbul" });
+
+  logger.info("Digest cron scheduled (daily 06:00 collect, Friday 07:00 generate Istanbul)");
+}
+
 // ─── Blog Autopilot Cron ──────────────────────────────────────────────────────
 // Pazartesi + Perşembe 09:00 İstanbul (UTC+3 = 06:00 UTC)
 function startBlogAutopilotCron() {
@@ -1259,6 +1286,8 @@ startup()
     startIsrImapCron();
     startInflationReminderCron();
     startBlogAutopilotCron();
+    startDigestCron();
+    seedDefaultSources().catch((err) => logger.warn({ err }, "Digest: default sources seed failed"));
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));
     cron.schedule("0 3 * * *", () => {

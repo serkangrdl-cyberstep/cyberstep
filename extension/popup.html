@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberStep</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 6V12C4 16.4 7.4 20.5 12 22C16.6 20.5 20 16.4 20 12V6L12 2Z"
+              fill="#10b981" opacity="0.15" stroke="#10b981" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M9 12L11 14L15 10" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <span class="brand">CyberStep</span>
+    <span class="domain-chip" id="domain-chip">—</span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <span>Güvenlik skoru kontrol ediliyor...</span>
+  </div>
+
+  <!-- Score view (scanned) -->
+  <div id="score-view" style="display:none;">
+    <div class="score-section">
+      <div class="score-ring" id="score-ring">
+        <span class="score-number" id="score-number">—</span>
+        <span class="score-label">/ 100</span>
+      </div>
+      <div class="score-meta">
+        <div class="grade-badge" id="grade-badge">—</div>
+        <div class="risk-label" id="risk-label">—</div>
+        <div class="scan-date" id="scan-date"></div>
+      </div>
+    </div>
+    <div class="indicators" id="indicators"></div>
+    <div class="actions" id="actions-scanned"></div>
+  </div>
+
+  <!-- Not scanned view -->
+  <div id="not-scanned-view" style="display:none;">
+    <div class="not-scanned">
+      <div class="icon">🔍</div>
+      <h3 id="not-scanned-domain"></h3>
+      <p>Bu domain henüz CyberStep'te taranmamış. Ücretsiz güvenlik analizini şimdi başlatın.</p>
+    </div>
+    <div class="actions" id="actions-not-scanned"></div>
+  </div>
+
+  <!-- System page -->
+  <div id="system-view" style="display:none;">
+    <div class="system-page">Sistem sayfası — analiz edilecek domain bulunamadı.</div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Güvenli internet için <a href="https://cyberstep.io" target="_blank">CyberStep.io</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

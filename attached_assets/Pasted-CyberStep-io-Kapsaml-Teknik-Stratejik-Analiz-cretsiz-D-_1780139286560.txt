@@ -1,0 +1,241 @@
+CyberStep.io — Kapsamlı Teknik & Stratejik Analiz
+Ücretsiz/Düşük Maliyetli Veri Kaynakları, Mimari, Görselleştirme ve Türkiye'nin Lider Siber Güvenlik Derecelendirme Platformu Olma Yol Haritası
+BÖLÜM 1: ÜCRETSİZ & DÜŞÜK MALİYETLİ VERİ KAYNAKLARI
+1.1 Dış Tarama (External Attack Surface) — Temel Kaynaklar
+VirusTotal (Ücretsiz Katman: 500 istek/gün, 4 istek/dakika)
+Ne yapar: Domain, IP, URL ve dosyaları 70+ antivirüs motoru ve kara liste servisiyle karşılaştırır. WHOIS, pasif DNS ve SSL sertifika verisi de sunar. Mevcut CyberStep mimarinizin zaten temel taşı. Gemini entegrasyonu için en zengin ham veri kaynağı.
+Ücretsiz katman sınırları ve aşma yöntemi: Günlük 500 istek, aktif kullanımda yetersizleşir. Çözüm: Müşteri domain'lerini günde bir kez taramak yerine haftalık döngüye alın ve delta (değişim) tespiti yapan bir cache katmanı ekleyin. Böylece aynı domain için tekrar API çağrısı yapmadan fark yönetimi gerçekleştirirsiniz.
+CyberStep'e özel kullanım: Domain + IP + alt domainler için otomatik batch tarama → sonuçları PostgreSQL'de depolama → Gemini yorum katmanına besleme.
+Shodan (Ücretsiz Katman: Sınırlı arama, API: Aylık ~49 USD)
+Ne yapar: İnternete açık cihazları, açık portları, servis banner'larını ve versiyon bilgilerini indeksler. Bir IP'nin hangi servisleri çalıştırdığını, hangi yazılım versiyonunu kullandığını ve hangi CVE'lere açık olduğunu gösterir.
+Maliyet optimizasyonu: Shodan'ın ücretsiz web arayüzü temel arama için kullanılabilir. API için 49 USD/ay olan Freelancer planı küçük platformlar için yeterlidir. Shodan'a alternatif olarak Censys'in ücretsiz katmanı benzer işlevi görür.
+Censys (Ücretsiz Katman: Günlük 250 arama, API ile aylık 0-50 USD arası)
+Ne yapar: SSL/TLS sertifikalarını, host konfigürasyonlarını ve açık servisleri indeksler. Certificate Transparency log'larını takip eder — bu özelliği Shodan'da bulunmaz. Alt domain keşfi için kritiktir.
+CyberStep'e özel kullanım: Müşteri domain'inin hiç bilmediği alt domain'lerini keşfetmek. Örnek: "acme.com.tr'ye ait 14 alt domain tespit edildi, bunların 3'ü eski ve terk edilmiş."
+AbuseIPDB (Ücretsiz Katman: 1.000 sorgu/gün)
+Ne yapar: Topluluk destekli IP itibar veritabanı. Belirli bir IP'nin siber saldırı, spam veya kötü amaçlı faaliyet için raporlanıp raporlanmadığını gösterir.
+CyberStep'e özel kullanım: Müşterinin sunucu IP'lerinin kötü itibar listelerinde görünüp görünmediğini kontrol et. "Mail sunucunuzun IP adresi 47 farklı ülkeden spam kaynağı olarak raporlanmış, bu e-posta teslim edilebilirliğinizi ciddi ölçüde etkiliyor" mesajı doğrudan satış konuşmasına dönüşür.
+AlienVault OTX (Tamamen Ücretsiz)
+Ne yapar: Açık tehdit istihbarat platformu. 200.000+ güvenlik araştırmacısının katkısıyla sürekli güncellenen IoC (Indicator of Compromise) veritabanı. IP, domain, URL ve dosya hash'leri için tehdit bağlamı sunar. "Pulse" sistemiyle tehdit aktörü atıfları da içerir.
+Maliyet: Tamamen ücretsiz, API anahtarı ile sınırsız erişim.
+CyberStep'e özel kullanım: VirusTotal'ı destekleyen ikincil katman. Özellikle spesifik tehdit kampanyalarına müşteri IP/domain'lerinin dahil olup olmadığını tespit etmek için kullanın.
+URLhaus / Abuse.ch Ekosistemi (Tamamen Ücretsiz)
+Ne yapar: Zararlı URL veritabanı, malware hash deposu ve botnet C2 sunucu listesi. Özellikle müşteri web sitesinin veya sunucusunun zararlı içerik dağıtmak için ele geçirilip geçirilmediğini tespit eder.
+CyberStep'e özel kullanım: "Web siteniz üzerinden zararlı yazılım dağıtıldığı tespit edildi" uyarısı — bu mesaj müşterinin hemen harekete geçmesini sağlar ve KVKK açısından ciddi bir yükümlülük doğurur.
+HaveIBeenPwned API (Ücretsiz: Domain aramaları, Ücretli: Kurumsal e-posta takibi ~3,5 USD/ay)
+Ne yapar: Bilinen veri ihlali veritabanlarında e-posta adresi ve domain sorgulaması. Müşterinin kurumsal e-postalarının hangi ihlallerde yer aldığını gösterir.
+CyberStep'e özel kullanım: Müşterinin domain'ine ait tüm e-posta adreslerini sızıntı veritabanlarıyla eşleştirin. "47 çalışan e-posta adresiniz 6 farklı veri ihlalinde görünüyor" çıktısı dark web modülünüzün temelini oluşturur.
+crt.sh (Tamamen Ücretsiz)
+Ne yapar: Certificate Transparency log'larında arama yapar. Bir domain için tarihsel olarak hiç SSL sertifikası verilmiş tüm alt domain'leri listeler. Saldırganların kullandığı en temel alt domain keşif yöntemi.
+CyberStep'e özel kullanım: Müşterinin bilmediği alt domain'leri keşfedin. Terk edilmiş veya güncellenmemiş SSL sertifikaları tespit edin. Bu veriler "dijital ayak izi haritası" modülünüzün ham verisidir.
+SecurityTrails (Ücretsiz Katman: Aylık 50 sorgu)
+Ne yapar: DNS geçmişi, alt domain listesi, IP geçmişi ve WHOIS verisi sunar. "Bu domain 18 ay önce hangi IP'ye bağlıydı?" sorusunu yanıtlayabilir.
+CyberStep'e özel kullanım: Tarihsel DNS değişikliklerini analiz ederek domain ele geçirme riski veya yetkisiz DNS değişikliği tespiti.
+GreyNoise (Ücretsiz Katman: Sınırlı arama, Community API: Ücretsiz)
+Ne yapar: İnternetin arka plan gürültüsünü filtreler. Bir IP'nin zararlı bir ağdan mı yoksa otomatik internet taramasından mı geldiğini ayırt eder. "Bu IP Çin'den geliyor ama aslında tüm interneti tarayan bir araştırma altyapısı" gibi bağlam sağlar.
+CyberStep'e özel kullanım: AbuseIPDB bulgularını GreyNoise ile zenginleştirin. Gerçek tehdit ile gürültüyü ayırt ederek Gemini'ye daha kaliteli veri besleyin ve yanlış pozitif oranını düşürün.
+DNSdumpster (Tamamen Ücretsiz)
+Ne yapar: DNS kayıtlarını görsel harita olarak sunar. A, MX, NS, TXT kayıtları ve altyapı bağlantılarını grafiksel olarak görselleştirir.
+CyberStep'e özel kullanım: Müşteriye kendi dijital altyapısını ilk kez gösteren görsel çıktı. "İşte saldırganın gözüyle şirketinizin haritası" konsepti için ideal.
+dnstwist (Açık Kaynak, Ücretsiz)
+Ne yapar: Bir domain'in typosquatting varyantlarını üretir ve hangilerinin kayıtlı olduğunu, hangilerinin aktif içerik barındırdığını tespit eder. acme.com.tr için acme-com.tr, acme.com.tr.phish.xyz gibi yüzlerce varyant test eder.
+CyberStep'e özel kullanım: Marka koruma modülünüzün açık kaynak motoru. Python kütüphanesi olarak doğrudan backend'inize entegre edilebilir, API maliyeti sıfır.
+MITRE ATT&CK Framework (Tamamen Ücretsiz)
+Ne yapar: Gerçek dünya saldırı tekniklerini kategorize eden evrensel referans çerçevesi. 14 taktik, 200+ teknik ve binlerce prosedür içerir.
+CyberStep'e özel kullanım: Tarama bulgularını ATT&CK tekniklerine eşleştirin. Gemini'ye şu promptu verin: "Tespit edilen açıkları MITRE ATT&CK matrisiyle eşleştir ve bu açıkların hangi saldırı zincirini mümkün kıldığını Türkçe açıkla." Çıktı: "Bu yapılandırma hatası, T1190 numaralı 'Exploit Public-Facing Application' tekniğini mümkün kılıyor ve fidye yazılımı saldırısının ilk adımı olarak kullanılıyor."
+CISA KEV (Known Exploited Vulnerabilities) Kataloğu (Tamamen Ücretsiz)
+Ne yapar: ABD Siber Güvenlik Ajansı'nın aktif olarak istismar edildiğini doğruladığı güvenlik açıklarının güncel listesi. JSON formatında API erişimi mevcut.
+CyberStep'e özel kullanım: Shodan'dan tespit edilen açık servisler ve versiyon bilgileriyle CISA KEV'i çapraz eşleştirin. "Bu sunucuda çalışan yazılım versiyonu, bu ay aktif fidye yazılımı kampanyalarında kullanılan CVE-2024-XXXX açığını barındırıyor" mesajı yüksek aciliyet yaratır.
+NVD / CVE Veritabanı (Tamamen Ücretsiz, API Mevcut)
+Ne yapar: Tüm bilinen güvenlik açıklarının resmi NIST veritabanı. CVSS puanı, açıklama ve yama bilgisi içerir.
+CyberStep'e özel kullanım: Shodan'dan gelen servis versiyonlarını NVD ile eşleştirerek otomatik CVE tespiti yapın. Bu, ajanless modelinizle uyumlu "uzaktan güvenlik açığı tespiti" hizmetinin teknik altyapısıdır.
+1.2 Ek Ücretsiz Kaynaklar — Özel Amaçlar
+Kaynak
+Amaç
+Maliyet
+API
+Shodan Internetdb
+Hızlı IP/port sorgusu
+Ücretsiz
+Evet
+urlscan.io
+Web sayfası güvenlik taraması
+Ücretsiz katman mevcut
+Evet
+Pulsedive
+IoC zenginleştirme ve risk skoru
+Ücretsiz katman
+Evet
+IntelligenceX
+Dark web ve paste site arama
+Sınırlı ücretsiz
+Evet
+Dehashed
+Sızdırılmış kimlik bilgisi sorgulama
+Sınırlı ücretsiz
+Evet
+MalwareBazaar
+Zararlı yazılım hash deposu
+Ücretsiz
+Evet
+PhishTank
+Phishing URL veritabanı
+Ücretsiz
+Evet
+Spamhaus
+IP/domain kara liste kontrolü
+Ücretsiz sorgu
+Sınırlı
+Google Safe Browsing API
+URL güvenlik kontrolü
+Ücretsiz (10.000/gün)
+Evet
+WHOIS (birden fazla sağlayıcı)
+Domain kayıt bilgisi
+Ücretsiz
+Evet
+BÖLÜM 2: İÇ TARAMAYLA ENTEGRASYON MİMARİLERİ
+2.1 Neden İç Tarama? — Değer Önerisi
+CyberStep'in mevcut dış tarama modeli saldırganın bakış açısını sunar. İç tarama ise şunları ekler: şifresi hiç değiştirilmemiş servis hesaplarını, yama yapılmamış iç ağ cihazlarını, yetkisiz dosya erişim politikalarını ve konfigürasyon hatalarını. İkisini birleştirince tablo tamamlanır: "Dışarıdan görünen risk + içeriden görülen gerçeklik = tam tablo."
+Ancak iç tarama "ajanless" modelinizle çelişiyor gibi görünür. Değil — aşağıdaki mimari bunu çözer.
+2.2 Mimari A — "Tarayıcı Kutu" (Scanner Appliance) — Düşük Sürtünmeli Hibrit Model
+Nasıl çalışır:
+Müşteriye küçük bir sanal makine veya fiziksel mini bilgisayar (Raspberry Pi 4, ~500 TL) kurulur. Bu kutunun içinde sadece tek bir betik çalışır: CyberStep'in iç tarama ajanı. Kutu iç ağı tarar, sonuçları şifreli olarak CyberStep bulutuna gönderir. Müşteri tarafında hiçbir şey kurulmaz, hiçbir şey konfigüre edilmez.
+"Ama bu ajan değil mi?" İtirazının cevabı: Hayır, bu bir "tarayıcı cihaz"dır. Ajanlar uç noktalara kurulur ve sürekli çalışır. Bu cihaz sadece haftalık bir tarama yapar ve sonucu gönderir. Wazuh'un endpoint ajanı gibi çalışmaz. Crowdstrike gibi gerçek zamanlı koruma sağlamaz. Sadece periyodik bir fotoğraf çeker.
+Teknik Stack (Tamamı Açık Kaynak/Ücretsiz):
+Nmap: İç ağ keşfi ve port tarama. Docker container içinde çalışır. OpenVAS / Greenbone Community Edition: Kimlik doğrulama gerektirmeyen güvenlik açığı taraması. Nuclei: Hızlı template-tabanlı tarama, 3.000+ kontrol. Python tarama orkestrasyonu: Tüm araçları sırayla çalıştırır, JSON çıktı üretir, CyberStep API'sine gönderir.
+Maliyet: Açık kaynak araçlar sıfır. Raspberry Pi 4 veya eski bir mini PC ile donanım maliyeti 500-2.000 TL. Bulut tarafında sonuçları işleyen sistem zaten mevcut CyberStep altyapısı.
+Müşteriye sunuş: "İç ağ sensörü" veya "Dijital güvenlik monitörü" — kurulum 15 dakika, bir daha dokunulmaz.
+2.3 Mimari B — "Güvenli Tünel" Modeli (Agent-Free, Network-Level)
+Nasıl çalışır:
+Müşterinin ağ güvenlik duvarı veya router'ına bir VPN tüneli veya SSH reverse tunnel kurulur. CyberStep'in tarama sunucusu bu tünel üzerinden müşteri iç ağını dışarıdan tarar. Müşteri tarafında sıfır yazılım kurulumu.
+Ne zaman kullanılır: Büyük kurumsal müşteriler için. IT ekibi olan, ağ konfigürasyonuna erişim sağlayabilen müşteriler. Periyodik pentest benzeri değerlendirme isteyen firmalar.
+Teknik araçlar: OpenVPN / WireGuard (ücretsiz, açık kaynak) tünel için. Nessus Essentials (sınırlı ücretsiz, 16 IP) veya OpenVAS tarama için. Nmap NSE scriptleri servis tespiti için.
+2.4 Mimari C — "Veri Toplama Formu" (Hibrit Manuel + Otomatik)
+Nasıl çalışır:
+Müşteriye güvenli bir self-servis portal açılır. İT sorumlusu iç sistemlerin listesini girer (IP aralıkları, kritik sunucular, kullanılan yazılımlar). CyberStep bu listeyi dış tarama verileriyle birleştirerek hibrit rapor üretir.
+Değer: Tamamen ajanless, sıfır kurulum. Müşteri kendi verilerini giriyor, siz dış kaynaklarla zenginleştiriyorsunuz.
+Gemini entegrasyonu: Form verileri + dış tarama = "İç beyan + dış gözlem uyumu" analizi. "Sisteminizde SAP ERP kullandığınızı belirttiniz. Dış taramada bu sisteme ait bir açık port tespit ettik ve bu port üzerinde bilinen bir SAP güvenlik açığı mevcut" mesajı çok yüksek değer yaratır.
+2.5 Mimari D — Wazuh Entegrasyonu (İleri Seviye, Kurumsal Müşteriler)
+Wazuh nedir: Açık kaynak, ücretsiz SIEM ve XDR platformu. Endpoint'lere hafif ajan kurar, log analizi yapar, güvenlik açığı tespiti gerçekleştirir ve uyum raporları üretir.
+CyberStep + Wazuh entegrasyon modeli:
+CyberStep dış taramayı yapar. Wazuh iç taramayı yapar. İkisi aynı veri tabanında birleşir. Gemini her iki kaynaktan gelen veriyi yorumlar. Müşteri tek bir dashboard'da hem dış hem iç güvenlik durumunu görür.
+Neden değerli: Wazuh'un KVKK, ISO 27001 ve PCI-DSS için hazır uyum raporları var. CyberStep bu raporları kendi platformunda müşteriye sunabilir. "Wazuh'u biz yönettik, siz sadece raporu okuyun" modeli managed SIEM hizmeti olarak fiyatlandırılabilir.
+Maliyet: Wazuh açık kaynak ve ücretsiz. Hosting maliyeti aylık ~200-500 TL (2-4 vCPU VPS). Kurumsal müşteriye bu hizmet aylık 3.000-10.000 TL olarak faturalandırılabilir.
+2.6 İç + Dış Tarama Veri Akışı (Tüm Mimariler İçin Ortak)
+Code
+BÖLÜM 3: ÜCRETSİZ & DÜŞÜK MALİYETLİ RAPORLAMA VE GÖRSELLEŞTİRME ARAÇLARI
+3.1 Dashboard Katmanı
+Grafana (Açık Kaynak, Ücretsiz)
+Ne yapar: Zaman serisi verileri için endüstri standardı görselleştirme platformu. PostgreSQL, MySQL, InfluxDB dahil 50+ veri kaynağıyla entegre olur. Güvenlik dashboard'ları için hazır topluluk şablonları mevcut.
+CyberStep kullanımı: Risk skoru trendleri, haftalık delta grafikler, sektör kıyaslama görselleri, açık port geçmişi ve uyum durumu takibi için idealdir. Grafana'dan Puppeteer ile otomatik PDF'e dönüştürme mümkün. Self-hosted kurulum ücretsiz, Grafana Cloud'un ücretsiz katmanı 14 günlük veri saklama, 3 kullanıcı ve temel özellikler sunar.
+Apache Superset (Açık Kaynak, Ücretsiz)
+Ne yapar: SQL tabanlı veri keşfi ve görselleştirme platformu. Grafana'ya göre daha güçlü tablo ve pivot analiz özellikleri. Güvenlik verisini business intelligence perspektifinden sunmak için uygundur.
+CyberStep kullanımı: Sektör bazlı risk kıyaslama tabloları, müşteri portföy analizi, partner performans raporları.
+Metabase (Açık Kaynak, Ücretsiz Self-Hosted)
+Ne yapar: Kodlama gerektirmeyen, sürükle-bırak dashboard oluşturma aracı. Teknik olmayan kullanıcılar için en kolay BI aracı. PostgreSQL ile doğrudan bağlantı kurar.
+CyberStep kullanımı: KVKK danışmanı veya IT dışı yönetici partnerlerine özel basit dashboard'lar için. "Müşterinin risk puanı bu ay kaç oldu?" sorusunu kod yazmadan yanıtlayan partner portalı için.
+3.2 PDF Rapor Üretimi
+Puppeteer / Playwright (Ücretsiz, Node.js)
+Ne yapar: Headless Chrome kullanarak HTML/CSS sayfalarını yüksek kaliteli PDF'e dönüştürür. CyberStep'in web raporunu aynı anda müşteriye sunan ve indirilebilir PDF üreten çift kanallı bir sistem kurar.
+Avantaj: Raporun web versiyonunu tasarladıktan sonra PDF için ayrıca çalışma yapmak gerekmez. Tek HTML kaynaktan hem interaktif web hem yazdırılabilir PDF üretilir.
+WeasyPrint (Açık Kaynak, Python)
+Ne yapar: Python tabanlı HTML/CSS to PDF dönüştürücü. Puppeteer'a göre kurulumu daha hafif, sunucu tarafında Python zaten kullanıyorsanız entegrasyonu kolaydır.
+Jinja2 + Python (Tamamen Ücretsiz)
+Ne yapar: HTML şablon motoru. Tarama verilerini dinamik olarak HTML şablona enjekte eder, ardından PDF'e dönüştürülür.
+CyberStep kullanımı: Gemini'nin ürettiği metni ve tarama verilerini birleştirerek profesyonel görünümlü, markalı PDF raporu oluşturur. Şablon bir kez tasarlanır, tüm raporlar otomatik üretilir.
+3.3 Görsel Bileşenler — Raporları Farklılaştıracak Görseller
+D3.js (Ücretsiz, JavaScript)
+Ne yapar: Veri odaklı dinamik SVG görselleştirmeleri üretir. Risk radar grafikleri, network topoloji haritaları ve tehdit akış diyagramları için kullanılır.
+CyberStep kullanımı: Sekiz boyutlu "CyberStep Risk Radar" grafiği D3.js ile çizilir. Her boyut (ağ güvenliği, e-posta güvenliği, dark web, marka koruma vb.) puanlanır ve örümcek ağı grafiğinde görselleştirilir. Bu grafik raporun kapak sayfasında yer alır.
+Echarts (Ücretsiz, Apache)
+Ne yapar: Apache'nin açık kaynak grafik kütüphanesi. Gauge (gösterge) grafikleri, heatmap'ler ve zaman serisi görselleştirmeleri için Grafana'dan daha özelleştirilebilir.
+CyberStep kullanımı: Risk skoru gauge grafiği (0-100 arası gösterge), aylık trend çizgi grafiği ve tehdit kategorisi pasta grafiği.
+Vis.js Network (Ücretsiz)
+Ne yapar: Ağ topolojisi ve bağlantı haritaları çizen JavaScript kütüphanesi.
+CyberStep kullanımı: "Dijital altyapı haritası" — müşterinin domain'i merkeze alınır, tespit edilen alt domain'ler, IP'ler, sertifikalar ve ilişkili tehditler görsel ağ grafiğiyle gösterilir. Müşteri "İlk defa şirketimin dijital ayak izini gördüm" der.
+Mermaid.js (Ücretsiz)
+Ne yapar: Markdown benzeri sözdiziminden akış diyagramları ve zaman çizelgeleri üretir. Gemini çıktısına Mermaid kodu ürettirip bunu otomatik görsel diyagrama dönüştürmek mümkün.
+CyberStep kullanımı: Saldırı zinciri görselleştirmesi. "Saldırgan şu adımları izleyebilir: 1) Açık RDP portu → 2) Brute force giriş → 3) Yanal hareket → 4) Veri sızdırma." Bu akış diyagramı olarak raporun içinde yer alır.
+BÖLÜM 4: TÜRKİYE'NİN LİDER SİBER GÜVENLİK DERECELENDİRME PLATFORMU OLMA YOL HARİTASI
+4.1 Türkiye'ye Özgü Veri Katmanları
+Türkiye USOM (Ulusal Siber Olaylara Müdahale Merkezi) Entegrasyonu
+USOM, BTK bünyesinde Türkiye kaynaklı siber tehditleri yayınlar. Zararlı bağlantı listesi, phishing domain uyarıları ve siber saldırı raporları kamuya açık yayınlanır.
+CyberStep entegrasyonu: USOM zararlı bağlantı listesini düzenli çekerek müşteri domain/IP'lerini bu listeyle karşılaştırın. "Domain'iniz Türkiye'nin resmi siber güvenlik otoritesi tarafından yayınlanan uyarı listesinde görünüyor" mesajı hem teknik hem yasal ağırlık taşır.
+BTK E-Güven Sertifika Sistemi
+BTK'nın onaylı elektronik sertifika listesiyle müşteri SSL sertifikalarını karşılaştırın. Türkiye'nin ulusal sertifika otoritelerine uyumluluk kontrolü ekleyin.
+KVKK Karar Veritabanı Entegrasyonu
+KVK Kurulu'nun açık karar veritabanından (kvkk.gov.tr) sektör bazlı emsal para cezalarını çekin. Gemini'ye bu verileri besleyin: "Finans sektöründe benzer güvenlik açığı nedeniyle uygulanan ortalama ceza: 750.000 TL." Bu veri Türkiye'de başka hiçbir platformda mevcut değil.
+Türk Bankacılık Sektörü Siber Güvenlik Gereksinimleri (BDDK)
+BDDK'nın 2022 yılında yayımladığı "Bilgi Sistemleri Yönetmeliği" ve "Operasyonel Risk Yönetimi Tebliği" uyum kontrollerini platforma ekleyin. Finans sektöründeki KOBİ'ler (muhasebe yazılım şirketleri, ödeme hizmeti sağlayıcıları) için özelleştirilmiş uyum skoru üretin.
+4.2 Türkiye Siber Tehdit İstihbaratı Verisi Üretme
+CyberStep'in rakipsiz avantajı olabilecek varlık: Kendi tehdit istihbarat veritabanı.
+CyberStep her gün yüzlerce müşteri için tarama yaparken aynı zamanda Türkiye'ye özgü tehdit verisi üretir. Bu veri dünyada başka hiçbir yerde yok:
+Türkiye'de en çok hedef alınan sektörler ve açık port dağılımı
+.com.tr domain'lerindeki ortalama SSL sertifika geçerlilik süresi
+Türk KOBİ'lerinde en yaygın konfigürasyon hataları
+Türkiye'ye yönelik aktif phishing kampanyalarının domain kalıpları
+Dark web'de en çok görünen Türk kurumsal e-posta domain'leri
+Bu veriler hem "Türkiye Siber Risk Raporu" olarak yıllık yayınlanabilir (medya görünürlüğü, marka otoritesi) hem de sektör kıyaslama modülünüzün hammaddesi olur.
+4.3 Ölçeklenebilir Platform Mimarisi
+Önerilen Teknoloji Stack'i (Maliyet Optimize)
+Backend: Python (FastAPI) — hız ve async API çağrıları için ideal.
+Veritabanı: PostgreSQL + TimescaleDB eklentisi — zaman serisi risk verisi için ücretsiz.
+Cache: Redis — API rate limit yönetimi ve tekrar tarama önleme.
+Kuyruk: Celery + Redis — asenkron tarama görevleri için.
+Konteyner: Docker + Docker Compose — kolay kurulum ve ölçekleme.
+Hosting: Hetzner Cloud (Almanya, GDPR uyumlu) — aylık 15-30 EUR'ya 4 vCPU, 8 GB RAM.
+Web Frontend: React veya Next.js.
+Görselleştirme: Echarts veya Recharts (React ile uyumlu, ücretsiz).
+PDF üretimi: Puppeteer (Node.js) veya WeasyPrint (Python).
+Bildirim: WhatsApp Business API + SendGrid (ücretsiz katman: 100 e-posta/gün).
+Toplam Altyapı Maliyeti Tahmini (ilk 100 müşteriye kadar):
+Hetzner VPS (4 vCPU, 16 GB RAM): ~25 EUR/ay
+PostgreSQL + Redis (aynı sunucu): 0 EUR
+Grafana self-hosted: 0 EUR
+Shodan API (Freelancer): 49 USD/ay
+VirusTotal ücretsiz katman: 0 USD
+AbuseIPDB ücretsiz katman: 0 USD
+Diğer kaynaklar (çoğunlukla ücretsiz): ~10 USD/ay
+Toplam: ~120-150 USD/ay
+Bunu 100 müşteriye böldüğünüzde müşteri başına maliyet 1,5 USD/ay olur. Bu model inanılmaz ölçeklenebilir.
+4.4 Rekabet Hendegi (Moat) Oluşturma Stratejisi
+Veri Ağı Etkisi:
+Her yeni müşteri platforma iki şey katar: aylık gelir ve Türkiye'ye özgü tehdit verisi. 1.000 müşteriye ulaştığınızda "Türkiye Siber Risk Endeksi"ni aylık yayınlayabilirsiniz. Bu endeks medyada yer alır, sigorta şirketleri kullanır, regülatörler referans alır. O noktada CyberStep artık sadece bir araç değil, Türkiye'nin siber güvenlik ölçüm otoritesi haline gelir.
+Ağ etkisinin kırılma noktaları:
+100 müşteri: İlk sektör bazlı kıyaslama raporları
+500 müşteri: "Türkiye'nin En Riskli 10 Sektörü" yıllık raporu
+1.000 müşteri: Türkiye Siber Risk Endeksi — aylık medya lansmanı
+5.000 müşteri: Sigorta şirketleriyle prim hesaplama ortaklığı
+4.5 İlk 12 Ay Teknik Yol Haritası
+Q1 (Ay 1-3) — Temel Güçlendirme
+Mevcut VirusTotal + AbuseIPDB + Shodan pipeline'ını optimize et
+crt.sh ve DNSdumpster entegrasyonu ekle (ücretsiz, alt domain keşfi)
+AlienVault OTX entegrasyonu (ücretsiz, IoC zenginleştirme)
+Redis cache katmanı ekle (API israf önleme)
+Temel Grafana dashboard'u kur (trend gösterimi)
+Puppeteer ile otomatik PDF rapor üretimi
+Q2 (Ay 4-6) — Differansiasyon Katmanı
+HaveIBeenPwned + dark web sızıntı modülü
+dnstwist tabanlı typosquatting tespiti
+CISA KEV entegrasyonu (CVE aciliyet skoru)
+MITRE ATT&CK eşleştirme motoru
+KVKK karar veritabanı entegrasyonu
+D3.js Risk Radar grafiği (sekiz boyutlu)
+Haftalık delta raporu + WhatsApp bildirimi
+Q3 (Ay 7-9) — İç Tarama Seçeneği
+"Tarayıcı Kutu" mimarisi (Docker + Nmap + OpenVAS)
+Wazuh self-hosted entegrasyon kılavuzu
+Tedarikçi Risk Skorkartı modülü
+Hibrit form tabanlı iç tarama seçeneği
+Partner portal (Metabase tabanlı)
+Q4 (Ay 10-12) — Otorite Konumlandırma
+Türkiye Siber Risk Endeksi veri modeli
+USOM zararlı liste entegrasyonu
+Sektör kıyaslama motoru
+İlk "Türkiye KOBİ Siber Risk Raporu" yayını
+Siber sigorta şirketleriyle pilot ortaklık
+BÖLÜM 5: ÖZET KONUMlandırma
+CyberStep'in hedefi tek cümleyle tanımlanabilir: "Türkiye'deki her şirketin siber sağlık durumunu dışarıdan ölçen, Türkçe yorumlayan, finansal riske çeviren ve çözüm için doğru insana yönlendiren tek platform."
+Bunu başarmak için üç katman gerekiyor: Birincisi ücretsiz ve açık kaynak araçlardan kurulu zengin bir veri katmanı, ki bu kılavuz bunu detaylandırdı. İkincisi Gemini'nin yorumlayıcı gücüyle ham teknik veriyi yönetici kararına dönüştüren bağlam katmanı. Üçüncüsü her bulguda müşteriye doğru eylemi, doğru partneri ve net maliyeti gösteren aksiyon katmanı. Uluslararası rakipler birinci katmanı iyi yapıyor. İkinci ve üçüncü katmanı Türkiye için hiç kimse yapmıyor. Bu boşluk CyberStep'in yeridir.
+Belge: CyberStep.io Teknik Strateji Analizi — Mayıs 2026

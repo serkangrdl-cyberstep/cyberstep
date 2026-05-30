@@ -11,6 +11,7 @@ import partnerAuthRouter from "./partner-auth/index";
 import workPackagesRouter from "./work-packages/index";
 import breachMonitorRouter from "./breach-monitor/index";
 import toolsRouter from "./tools/index";
+import tprmRouter from "./tprm/index";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(partnerAuthRouter);
 router.use(workPackagesRouter);
 router.use(breachMonitorRouter);
 router.use(toolsRouter);
+router.use(tprmRouter);
 
 export default router;

@@ -990,9 +990,9 @@ export default function Home() {
               {
                 href: "/tedarik-zinciri",
                 icon: "🔗",
-                title: "Tedarik Zinciri Risk Skorkartı",
-                what: "Tedarikçilerinizin alan adlarını SPF, DMARC, SSL ve DNS üzerinden tarar; Gemini AI ile her tedarikçi için risk notu ve birleşik skorkart üretir.",
-                why: "Üretim sektöründe tehdit aktörü faaliyetleri son yılda %71 arttı; saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti.",
+                title: "TPRM — Tedarik Zinciri Risk Yönetimi",
+                what: "Tedarikçi domain taraması, AI risk skorkartı ve tedarikçiye anket linki gönderimi. Beyan + teknik tarama = bileşik risk skoru. DORA Madde 28 uyumlu 3 kademe TPRM modülü.",
+                why: "Üretim sektöründe tehdit aktörü faaliyetleri son yılda %71 arttı; saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti. Avrupa alıcıları TPRM raporu istiyor.",
               },
               {
                 href: "/guven-rozeti",

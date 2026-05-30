@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable } from "@workspace/db";
+import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { rateLimit } from "express-rate-limit";
 import { logger } from "../../lib/logger";
@@ -125,6 +125,33 @@ router.post("/public/ciso-lead", cisoLeadLimiter, async (req: Request, res: Resp
     res.status(201).json({ ok: true, message: "Talebiniz alındı" });
   } catch (err) {
     logger.error({ err }, "Failed to save CISO lead");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/public/partner-lead — ERP / insurance / threat-intel / score-api leads
+const partnerLeadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla talep, lütfen daha sonra tekrar deneyin." },
+  keyGenerator: (req) => req.ip ?? "unknown",
+});
+
+router.post("/public/partner-lead", partnerLeadLimiter, async (req: Request, res: Response) => {
+  const parsed = insertPartnerLeadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz form verisi", details: parsed.error.issues });
+    return;
+  }
+
+  try {
+    const [lead] = await db.insert(partnerLeadsTable).values(parsed.data).returning({ id: partnerLeadsTable.id });
+    logger.info({ leadId: lead?.id, leadType: parsed.data.leadType, company: parsed.data.company }, "New partner lead submitted");
+    res.status(201).json({ ok: true, message: "Başvurunuz alındı" });
+  } catch (err) {
+    logger.error({ err }, "Failed to save partner lead");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

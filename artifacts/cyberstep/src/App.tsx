@@ -9,6 +9,10 @@ import DoraBddkUyum from "./pages/dora-bddk-uyum";
 import SektorPage from "./pages/sektor";
 import ExtensionDownload from "./pages/extension-download";
 import SanalCiso from "./pages/sanal-ciso";
+import ErpEntegrasyonu from "./pages/erp-entegrasyonu";
+import SigortaPazaryeri from "./pages/sigorta-pazaryeri";
+import TehditIstihbarati from "./pages/tehdit-istihbarati";
+import SkorApi from "./pages/skor-api";
 import TprmAnket from "./pages/tprm-anket";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
@@ -229,6 +233,10 @@ function Router() {
             <Route path="/sektor/:slug" component={SektorPage} />
             <Route path="/tarayici-eklentisi" component={ExtensionDownload} />
             <Route path="/sanal-ciso" component={SanalCiso} />
+            <Route path="/erp-entegrasyonu" component={ErpEntegrasyonu} />
+            <Route path="/sigorta-pazaryeri" component={SigortaPazaryeri} />
+            <Route path="/tehdit-istihbarati" component={TehditIstihbarati} />
+            <Route path="/skor-api" component={SkorApi} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
             <Route component={NotFound} />
           </Switch>

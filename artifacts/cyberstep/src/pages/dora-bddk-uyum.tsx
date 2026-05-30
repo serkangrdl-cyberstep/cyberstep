@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link } from "wouter";
 import {
   Scale, AlertTriangle, CheckCircle2, XCircle, Loader2,
-  ChevronRight, RotateCcw, FileCheck, Shield, Building2, Zap,
+  ChevronRight, RotateCcw, FileCheck, Shield, Building2, Zap, ExternalLink,
 } from "lucide-react";
 
 // ── Düzenleyici Kurumlar ─────────────────────────────────────────────────────
@@ -20,6 +20,7 @@ const REGULATORS = [
     desc: "Bankalar, katılım bankaları, finansal kiralama ve faktoring şirketleri",
     law: "Bilgi Sistemleri Yönetmeliği (BSY) 2021 + 2023 Bilgi Güvenliği Tebliği",
     color: "text-blue-400 border-blue-500/30 bg-blue-500/5",
+    url: "https://www.bddk.org.tr/Mevzuat/Liste/1",
   },
   {
     id: "SPK",
@@ -28,6 +29,7 @@ const REGULATORS = [
     desc: "Aracı kurumlar, portföy yönetim şirketleri, yatırım fonları",
     law: "Seri VIII No:54 — Bilgi İşlem ve Teknoloji Güvenliği Tebliği",
     color: "text-violet-400 border-violet-500/30 bg-violet-500/5",
+    url: "https://www.spk.gov.tr/Sayfa/AltSayfa/819",
   },
   {
     id: "EPDK",
@@ -36,6 +38,7 @@ const REGULATORS = [
     desc: "Elektrik, doğalgaz, petrol dağıtım ve depolama şirketleri",
     law: "Enerji Sektörü Siber Güvenlik Yönetmeliği 2023",
     color: "text-amber-400 border-amber-500/30 bg-amber-500/5",
+    url: "https://www.epdk.gov.tr/Detay/Icerik/3-0-99-6/siber-guvenlik",
   },
   {
     id: "DORA",
@@ -44,8 +47,22 @@ const REGULATORS = [
     desc: "AB piyasalarında faaliyet gösteren veya AB kurumlarıyla iş yapan finans kuruluşları",
     law: "EU 2022/2554 — Yürürlük: Ocak 2025",
     color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
+    url: "https://eur-lex.europa.eu/legal-content/TR/TXT/?uri=CELEX%3A32022R2554",
   },
 ];
+
+// ── Assessment sektörü → Uyum sayfası sektörü eşlemesi ───────────────────────
+
+function mapAssessmentSector(s: string): string {
+  if (/finans|sigorta|banka/i.test(s)) return "Bankacılık / Finansal Hizmetler";
+  if (/sağlık/i.test(s)) return "Sağlık";
+  if (/teknoloji|yazılım/i.test(s)) return "Teknoloji / Yazılım";
+  if (/üretim|sanayi/i.test(s)) return "Üretim / Sanayi";
+  if (/elektrik|enerji/i.test(s)) return "Elektrik / Enerji";
+  if (/gaz|petrol/i.test(s)) return "Doğalgaz / Petrol";
+  if (/sermaye|yatırım/i.test(s)) return "Sermaye Piyasaları / Yatırım";
+  return "Diğer";
+}
 
 // ── Domain → Regülasyon Eşlemesi ─────────────────────────────────────────────
 
@@ -151,6 +168,20 @@ export default function DoraBddkUyum() {
   const [result, setResult] = useState<ComplianceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawSector = params.get("sector");
+    const rawScore = params.get("score");
+    if (rawSector) {
+      const mapped = mapAssessmentSector(rawSector);
+      setSector(mapped);
+    }
+    if (rawScore) {
+      const n = parseInt(rawScore, 10);
+      if (!isNaN(n) && n >= 0 && n <= 100) setScore(String(n));
+    }
+  }, []);
+
   function toggleRegulator(id: string) {
     setSelectedRegulators(prev =>
       prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
@@ -218,10 +249,20 @@ export default function DoraBddkUyum() {
         {!result && !loading && (
           <div className="grid md:grid-cols-4 gap-3 mb-8">
             {REGULATORS.map(r => (
-              <div key={r.id} className={`rounded-xl border p-4 ${r.color}`}>
-                <p className="font-bold text-sm mb-0.5">{r.id}</p>
-                <p className="text-xs text-muted-foreground leading-snug mb-2">{r.fullName}</p>
-                <p className="text-xs opacity-70 leading-tight">{r.law}</p>
+              <div key={r.id} className={`rounded-xl border p-4 ${r.color} flex flex-col justify-between`}>
+                <div>
+                  <p className="font-bold text-sm mb-0.5">{r.id}</p>
+                  <p className="text-xs text-muted-foreground leading-snug mb-2">{r.fullName}</p>
+                  <p className="text-xs opacity-70 leading-tight">{r.law}</p>
+                </div>
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1 text-xs underline underline-offset-2 opacity-70 hover:opacity-100"
+                >
+                  Resmi Metin <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
             ))}
           </div>

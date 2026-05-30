@@ -914,7 +914,7 @@ function AssessmentReportCore({ id }: { id: number }) {
                 DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk metrik zorunluluklarına hazırlanıyor.
                 Bu puanınızı seçtiğiniz regülasyonlara eşleyin, domain bazlı uyum boşluğu ve yol haritası alın.
               </p>
-              <Link href={`/dora-bddk-uyum`}>
+              <Link href={`/dora-bddk-uyum?sector=${encodeURIComponent(assessment?.sector ?? "")}&score=${Math.round(scorePercent)}`}>
                 <Button variant="outline" size="sm" className="text-xs border-blue-500/30 text-blue-500 hover:bg-blue-500/10">
                   Regülasyon Uyum Analizini Aç <ArrowRight className="h-3 w-3 ml-1" />
                 </Button>

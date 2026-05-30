@@ -13,6 +13,7 @@ import breachMonitorRouter from "./breach-monitor/index";
 import toolsRouter from "./tools/index";
 import tprmRouter from "./tprm/index";
 import scanLeadsRouter from "./scan-leads/index";
+import integrationsRouter from "./integrations/index";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(breachMonitorRouter);
 router.use(toolsRouter);
 router.use(tprmRouter);
 router.use(scanLeadsRouter);
+router.use(integrationsRouter);
 
 export default router;

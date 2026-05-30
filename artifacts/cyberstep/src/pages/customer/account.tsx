@@ -84,10 +84,17 @@ export default function CustomerAccount() {
     <div className="min-h-screen bg-secondary">
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4">
         <div className="container mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-emerald-500" />
-            <span className="font-bold text-lg text-white">CyberStep.io</span>
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-emerald-500" />
+              <span className="font-bold text-lg text-white">CyberStep.io</span>
+            </Link>
+            <nav className="hidden sm:flex items-center gap-4">
+              <Link href="/hesabim" className="text-white text-sm font-medium">Hesabım</Link>
+              <Link href="/raporlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Raporlarım</Link>
+              <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
+            </nav>
+          </div>
           <Button
             variant="ghost"
             size="sm"

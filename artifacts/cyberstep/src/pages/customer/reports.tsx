@@ -159,6 +159,7 @@ export default function CustomerReports() {
             <nav className="hidden sm:flex items-center gap-4">
               <Link href="/hesabim" className="text-slate-400 hover:text-white text-sm transition-colors">Hesabım</Link>
               <Link href="/raporlarim" className="text-white text-sm font-medium">Raporlarım</Link>
+              <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
             </nav>
           </div>
           <Button

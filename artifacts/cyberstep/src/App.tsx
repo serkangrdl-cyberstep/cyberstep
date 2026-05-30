@@ -79,6 +79,7 @@ import CustomerRegister from "./pages/customer/register";
 import CustomerTotpSetup from "./pages/customer/totp-setup";
 import CustomerAccount from "./pages/customer/account";
 import CustomerReports from "./pages/customer/reports";
+import CustomerIntegrations from "./pages/customer/integrations";
 import SifreSifirla from "./pages/customer/sifre-sifirla";
 
 import { Layout } from "./components/layout";
@@ -148,6 +149,7 @@ function Router() {
       <Route path="/totp-kurulum" component={CustomerTotpSetup} />
       <Route path="/hesabim" component={CustomerAccount} />
       <Route path="/raporlarim" component={CustomerReports} />
+      <Route path="/entegrasyonlarim" component={CustomerIntegrations} />
 
       {/* Admin panel (full-page, no shared header/footer) */}
       <Route path="/panel/giris" component={AdminLogin} />

@@ -9,3 +9,4 @@
 - [Pentest Lite](pentest-lite.md) — pentest_lite_requests table; Claude claude-sonnet-4-6 + EPSS/CISA KEV enrichment; 6 scenario analysis; /api/pentest-lite/*; /pentest-lite page with progress polling
 - [Health Score & Churn](health-churn.md) — customer_health_scores + customer_activity_events + health_interventions; calculateHealthScore() weighted 5 signals; 4 intervention types; /api/health/* + /api/admin/health/*; /panel/saglik admin page; health widget on /hesabim
 - [Board Report](board-report.md) — board_reports + board_report_recipients; Claude AI executive summary; email delivery; /api/board-report/*; /hesabim/yonetim-raporu page with recipient mgmt + approve + send flow
+- [AI Security Assessment](ai-assessment.md) — ai_tools_registry (20 tools seeded) + ai_assessments + ai_assessment_answers; 25Q across 4 areas; Claude report+policy; /ai-guvenlik/* multi-page flow; AiGenerateFn takes 1 arg (concat system+user prompt)

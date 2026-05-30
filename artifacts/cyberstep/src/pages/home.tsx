@@ -995,6 +995,13 @@ export default function Home() {
                 why: "Tüketicilerin %73'ü marka taklidi içeren olumsuz deneyimden sonra o markadan ayrılır. KVKK yükümlülüğü de söz konusu olabilir.",
               },
               {
+                href: "/ai-guvenlik-degerlendirmesi",
+                icon: "🤖",
+                title: "Yapay Zeka Güvenlik Değerlendirmesi",
+                what: "ChatGPT, Gemini, Copilot gibi 20+ AI aracının KVKK uyum durumu, veri saklama politikası ve şirket riskleri. 25 soruluk analizle AI veri maruz kalma haritası çıkarılır.",
+                why: "KVKK'ya göre ABD menşeli AI araçlarına kişisel veri göndermek yurt dışı aktarım sayılır. Ücretsiz ChatGPT'ye girilen veriler model eğitimi için kullanılabilir.",
+              },
+              {
                 href: "/tedarik-zinciri",
                 icon: "🔗",
                 title: "TPRM — Tedarik Zinciri Risk Yönetimi",

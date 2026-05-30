@@ -101,6 +101,11 @@ import AdminSaglik from "./pages/admin/saglik";
 import AdminYonetimRaporlari from "./pages/admin/yonetim-raporlari";
 import AdminReferrallar from "./pages/admin/referrallar";
 import SifreSifirla from "./pages/customer/sifre-sifirla";
+import AiAssessmentLanding from "./pages/ai-assessment-landing";
+import AiAssessmentStart from "./pages/ai-assessment-start";
+import AiAssessmentTools from "./pages/ai-assessment-tools";
+import AiAssessmentRunner from "./pages/ai-assessment-runner";
+import AiAssessmentReport from "./pages/ai-assessment-report";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -173,6 +178,12 @@ function Router() {
       <Route path="/hesabim/davet" component={CustomerDavet} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
+
+      {/* AI Güvenlik Değerlendirmesi — full-page akış (layout yok) */}
+      <Route path="/ai-guvenlik/start" component={AiAssessmentStart} />
+      <Route path="/ai-guvenlik/:id/araclar" component={AiAssessmentTools} />
+      <Route path="/ai-guvenlik/:id/sorular" component={AiAssessmentRunner} />
+      <Route path="/ai-guvenlik/:id/rapor" component={AiAssessmentReport} />
 
       {/* Admin panel (full-page, no shared header/footer) */}
       <Route path="/panel/giris" component={AdminLogin} />
@@ -266,6 +277,7 @@ function Router() {
             <Route path="/tedarikci-onboarding" component={TedarikciOnboarding} />
             <Route path="/compliance-calendar" component={ComplianceCalendar} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
+            <Route path="/ai-guvenlik-degerlendirmesi" component={AiAssessmentLanding} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

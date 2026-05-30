@@ -47,3 +47,4 @@ export * from "./referral";
 export * from "./pentest-lite";
 export * from "./health";
 export * from "./board-reports";
+export * from "./ai-assessment";

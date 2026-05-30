@@ -20,6 +20,7 @@ import referralRouter from "./referral/index";
 import pentestLiteRouter from "./pentest-lite/index";
 import healthRouter from "./health/index";
 import boardReportRouter from "./board-report/index";
+import aiAssessmentRouter from "./ai-assessment/index";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(referralRouter);
 router.use(pentestLiteRouter);
 router.use(healthRouter);
 router.use(boardReportRouter);
+router.use(aiAssessmentRouter);
 
 export default router;

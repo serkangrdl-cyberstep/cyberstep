@@ -6,6 +6,7 @@ import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMail } from "./services/email";
+import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
@@ -1235,12 +1236,29 @@ function startInflationReminderCron() {
   logger.info("Inflation reminder cron scheduled (every Monday 09:00)");
 }
 
+// ─── Blog Autopilot Cron ──────────────────────────────────────────────────────
+// Pazartesi + Perşembe 09:00 İstanbul (UTC+3 = 06:00 UTC)
+function startBlogAutopilotCron() {
+  const runJob = async () => {
+    try {
+      logger.info("Blog autopilot: yazı üretimi başlıyor");
+      await generateAndPublishBlogPost();
+    } catch (err) {
+      logger.error({ err }, "Blog autopilot: yazı üretimi başarısız");
+    }
+  };
+  cron.schedule("0 6 * * 1", runJob); // Her Pazartesi 09:00 İstanbul
+  cron.schedule("0 6 * * 4", runJob); // Her Perşembe 09:00 İstanbul
+  logger.info("Blog autopilot cron scheduled (Mon & Thu 09:00 Istanbul)");
+}
+
 startup()
   .then(() => {
     startReminderCron();
     startScanLeadDripCron();
     startIsrImapCron();
     startInflationReminderCron();
+    startBlogAutopilotCron();
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));
     cron.schedule("0 3 * * *", () => {

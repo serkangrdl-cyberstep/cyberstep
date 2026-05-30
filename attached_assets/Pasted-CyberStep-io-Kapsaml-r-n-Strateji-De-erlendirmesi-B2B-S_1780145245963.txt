@@ -1,0 +1,151 @@
+CyberStep.io — Kapsamlı Ürün & Strateji Değerlendirmesi
+B2B SaaS Danışman Perspektifinden Tam Analiz
+ÖN NOT: GENEL İZLENİM
+Envanter bütününe bakıldığında ortaya çıkan tablo şu: CyberStep teknik olarak piyasadaki herhangi bir Türkçe rakibinden çok daha olgun. Altyapı, veri akışı, AI entegrasyonu, ödeme sistemi ve admin paneli — bunlar bir startup için olağanüstü kapsamlı. Sorun ürünün eksikliği değil, tam tersi: ürün, pazarın önünde koşuyor. Bu hem güç hem tehlike.
+BÖLÜM A: ÜRÜN BÜTÜNLÜĞÜ
+A.1 — "Sızıntı Noktaları": Nerede Değer Kaybolabiliyor?
+Kritik Sızıntı 1 — Ücretsiz araçlardan ücretli ürüne köprü eksik
+Platforma şu an 14 ücretsiz araç var. Bu araçların her biri bağımsız bir landing page gibi çalışıyor — kendi başına değer üretiyor ama kullanıcıyı bir sonraki adıma, yani ücretli ürüne, taşımıyor. KVKK Ceza Simülatörü'nü kullanan biri "ah, ceza yüksekmiş" deyip kapatıyor. Bu noktada ekrana çıkması gereken şey net bir CTA değil, kişiselleştirilmiş bir bağlantı: "Bu riski taşıyan şirketinizin sektörel değerlendirmesi şu an ücretsiz." Her ücretsiz araç, Mini Değerlendirme'ye giden bir kanal olarak yeniden kurgulanmalı.
+Kritik Sızıntı 2 — Mini Değerlendirme raporu "tıklatıcı" değil
+Mini Değerlendirme'nin çıktısı bir risk skoru ve alan kırılımı. Müşteri bunu görüyor, "ilginç" diyor ve çıkıyor. Rapor sayfasında eksik olan şey: "Bu skorun anlamı TL cinsinden nedir?" sorusunun cevabı. Rapor sayfasına gömülü, skoru otomatik olarak ROI hesaplayıcıya bağlayan bir satır şöyle görünmeli: "Skorunuz 47/100. Bu seviyedeki şirketler yıllık ortalama 285.000 TL siber risk taşıyor. Tam Değerlendirme ile tam resmi görün." Bu tek değişiklik freemium→ücretli dönüşüm oranını dramatik artırır.
+Kritik Sızıntı 3 — Drip e-posta dizisi çok geç başlıyor
+Scan Lead Drip şu an 0/2/4/7. günlerde çalışıyor. Gün 0 e-postası tarama tamamlanır tamamlanmaz gitmeli — bu an kullanıcının en yüksek ilgi anıdır. Gün 0 e-postasının içeriği teknik rapor değil şu olmalı: "Az önce acme.com.tr'yi taradınız. En kritik 3 bulgunuzu görün." Linke tıklayınca rapor sayfasında olsun ama altında bir CTA: "Tüm 12 modülü görmek için ücretsiz hesap açın."
+A.2 — "İyi Fikir Ama Henüz Erken" Kategorisi
+ISR (İç Satış Temsilcisi Sistemi) — Erken, ama mantıklı şartla
+ISR'nin CRM, RFQ, marj motoru ve IMAP entegrasyonu ile platforma dahil edilmesi başlangıçta garip görünüyor — bu bir siber güvenlik SaaS değil, bir ERP modülü. Ama bağlamı anlıyorum: CyberStep aynı zamanda bir siber güvenlik çözüm distribütörü gibi çalışmayı planlıyor. Müşteri hem risk tespiti hem çözüm alımı yapabilsin istiyor.
+Risk: Geliştirici kapasitesini ikiye böler. ISR bugün gelir üretmiyor. Öneri: ISR altyapısını koru ama aktif geliştirme yapmayı durdur. İlk 20 ücretli müşteri gelene kadar "dondurulmuş" modda tut.
+TPRM — Doğru ama müşterisi henüz yok
+TPRM tedarikçi anket sisteminin değeri büyük ama şu an bunu kullanacak Büyüme veya Kurumsal plan müşterisi yok. Altyapı hazır, dokunma. İlk aktif Kurumsal müşteri geldiğinde özelliği "açılıyor" olarak sun.
+White-label — Önce kanıtla, sonra aç
+White-label sistemin varlığı rekabetçi bir avantaj ama erken açmak tehlikeli. Bir partner sana müşteri getirir, beyaz etiketle rapor verir, ve yarın o partner çıkar gider — ama sen 30 müşterinin bakımını yapmak zorunda kalırsın. Önce kendi markanla 50+ müşteri kazan, sonra partner kanalını aç.
+A.3 — Araç Fazlalığı Var mı?
+Kısa cevap: Evet, dağınıklık riski var. 14 ücretsiz araç birer SEO sayfası ve lead magnet olarak değerliyse bu doğru bir strateji. Ama kullanıcı ana sayfaya geldiğinde "ne yapmalıyım?" sorusunun cevabını bulmakta zorlanabilir.
+Çözüm önerisi — "Ana Eylem" hiyerarşisi kur:
+Birinci eylem (en büyük CTA): "Domain'inizi Tarayın" veya "20 Dakikada Risk Skorunuzu Öğrenin" — bunlar ana sayfanın merkezinde, kaçırılmaz şekilde.
+İkinci eylem (destekleyici araçlar): "Araç Kutumuz" bölümünde grid olarak göster, ama bunlar ana eylemi destekler, önüne geçmez.
+Üçüncü eylem (dönüşüm): Mini değerlendirme raporu → Tam Değerlendirme satın al.
+Bu hiyerarşi kurulmadan 14 araç gürültü üretir.
+BÖLÜM B: FİYATLANDIRMA
+B.1 — 5.990 TL Tek Seferlik Tam Değerlendirme
+Bu fiyat konusunda görüşüm şu: Yanlış değil, ama konumlandırılması yanlış olabilir.
+Türkiye'de KOBİ patronunun zihninde 5.990 TL şu karşılıklara girer: 2-3 aylık muhasebe yazılımı aboneliği, küçük bir makine bakım ücreti, veya orta seviye bir danışmanlık toplantısı. Bu psikolojik referans noktasıyla 5.990 TL makul görünür.
+Ama problem şu: 5.990 TL'yi kim ödüyor? KOBİ sahibi mi, IT müdürü mü, KVKK danışmanı mı? Bu üçü farklı karar mekanizmalarına sahip. KOBİ sahibi "değer gösterirsen öderim" der. IT müdürü "bütçem yok" der. KVKK danışmanı "bunu müşterime nasıl sat?" diye sorar.
+Öneri — Fiyatı değiştirme, konumlandırmayı değiştir:
+5.990 TL'yi "siber güvenlik danışmanlığı" olarak değil "KVKK ihlal riski sigortası" olarak çerçevele. Rakam karşılaştırması: "KVKK ihlalinde minimum ceza 94.000 TL. Tam Değerlendirme 5.990 TL." Bu çerçeveleme fiyat direncini büyük ölçüde kaldırır.
+Ek öneri — "Taksit" seçeneği ekle: Iyzico taksit seçeneğini aktive et. 3 × 2.100 TL Türkiye'de çok daha kolay karar verdirir. Bu tek değişiklik dönüşüm oranını anlamlı artırabilir.
+B.2 — 690 / 1.990 / 5.990 TL/ay Abonelik
+690 TL/ay Başlangıç planı:
+1-10 çalışan için bu fiyat orta-yüksek. Bu segmentte patron genellikle tek karar verici ve her TL'yi sorgular. 690 TL/ay yıllık 8.280 TL'ye karşılık geliyor — bu miktar küçük bir esnafın siber güvenliğe ayırabileceği maksimum bütçe. Değer önerisi net ve anında anlaşılır olmalı: "Haftalık otomatik tarama" ne demek? "Sızıntı bildirimi" ne zaman geliyor? Bunlar somut örneklerle gösterilmeli.
+Öneri: 690 TL planını 490 TL'ye çek, içeriği sadeleştir. "Daha ucuz başlangıç → daha fazla deneme → daha fazla upsell" felsefesi. Türkiye'de aylık 490 TL, "neden olmasın" eşiğinin altında.
+1.990 TL/ay Büyüme planı:
+Bu plan en stratejik segment için tasarlanmış. 11-200 çalışan arası KOBİ gerçek bir siber güvenlik bütçesi olan tek segment. Fiyat makul. Ama "Yılda 2 tam değerlendirme" özelliği bu planın en güçlü silahı ve öne çıkarılmıyor. 5.990 TL × 2 = 11.980 TL değer, planın yıllık maliyeti 23.880 TL — bu hesap doğrudan yapılmalı ve fiyatlandırma sayfasında gösterilmeli.
+5.990 TL/ay Kurumsal plan:
+Bu fiyat için içerik zayıf görünüyor. "Aylık danışman görüşmesi" ve "TPRM" Kurumsal için yeterli diferansiasyon değil. Bu plan için eksik olan: SLA garantisi, öncelikli olay müdahalesi, çoklu kullanıcı desteği, ve özel raporlama şablonları. Bu özellikler eklenene kadar Kurumsal planı "yakında" olarak göster, aktif satma.
+B.3 — Freemium → Ücretli Geçişin En Kritik Engeli
+Engel teknik değil psikolojik. Kullanıcı mini değerlendirmeyi tamamlıyor, raporu alıyor, ve "zaten bir şeyler öğrendim, yeterli" diyerek çıkıyor. Bu "değer tatmini erken geliyor" problemi.
+Çözüm — "Merak Kapısı" tasarımı: Mini değerlendirme raporu tüm soruların cevabını göstermemeli. "Alan B'de 3 kritik açık tespit edildi → [Detayları görmek için Tam Değerlendirme]" formatı. Ücretsiz raporun sonu bir sonraki adımın başlangıcı olmalı, bir bitiş noktası değil.
+B.4 — TÜFE'ye Bağlı 6 Aylık Fiyat Artışı Politikası
+Bu politika düşünce olarak doğru ama uygulama tarzı riskli. Türkiye'de ani fiyat artışları churn'ü tetikler. Özellikle KOBİ segmentinde müşteri "bu ay zam mı yaptılar?" hissiyle ertesi gün iptal eder.
+Daha iyi yaklaşım: Grandfathering modeli. Mevcut müşterilere "fiyatını kilitle" mesajı ver. Yeni müşterilere güncel fiyat. Fiyat artışını bir özellik lansmanıyla eş zamanlı yap: "Yeni haftalık delta raporu + fiyat güncellemesi." Artış haberini bir değer haberiyle birleştirince churn riski düşer.
+BÖLÜM C: GO-TO-MARKET & BÜYÜME
+C.1 — İlk 100 Müşteri İçin En Kısa Yol
+Sıralanmış hızdan yavaşa:
+Birinci yol — "Kişisel Ağ + Demo Teklifi" (Gün 1-30, hedef: 10-15 müşteri)
+1-2 geliştiriciyle yönetilen bir platform için ilk müşteriler her zaman kişisel ağdan gelir. Aile şirketleri, eski iş arkadaşlarının şirketleri, tanıdıkların danıştığı firmalar. Bunlara özel teklif: "Mini değerlendirmeyi birlikte yapalım, ücretsiz Tam Değerlendirme hediye edeyim, karşılığında referans ve geri bildirim istiyorum." Bu 15 müşteri hem gelir değil hem referans hem ürün feedback'i üretir.
+İkinci yol — "KVKK Danışmanı Pilot Partnerligi" (Gün 15-60, hedef: 20-30 müşteri)
+5 KVKK danışmanına ulaş. Onlara white-label değil, referral teklifi yap: "Müşterinize Mini Değerlendirme yaptırın, ücretsiz. Tam Değerlendirme alırlarsa size satış fiyatının yüzde 20'sini aktarıyorum." Hiçbir sözleşme, hiçbir karmaşıklık. Bir KVKK danışmanı 50 KOBİ müşterisine sahipse bu kanalın potansiyeli büyük.
+Üçüncü yol — "Domain Taraması Lead Funnel" (Gün 30-90, hedef: 50+ lead)
+Domain tarama aracı şu an tam gücünde çalışmıyor — Shodan, VirusTotal, AbuseIPDB API key'leri eksik. Bu üç API key aktive edildiği anda tarama sonuçları çok daha dramatik bulgular üretecek. "SSL geçerli" yerine "Bu IP 23 kara listede görünüyor" mesajı çok farklı bir aciliyet yaratır. Tarama aracını tam kapasite aç → lead yakalama formunu devreye al → drip dizi başlat. Bu funnel otomatik ve sürekli çalışır.
+C.2 — Alan Adı Taraması → Lead Yakala → Drip: Etkili mi?
+Konsept olarak çok güçlü. Execution'da iyileştirme gerekiyor.
+Mevcut problemler: Lead yakalama formu taramadan önce mi sonra mı geliyor? Sonra geliyorsa e-posta girme motivasyonu azalır. Drip e-postaların içeriği ne kadar kişiselleştirilmiş? "acme.com.tr için tarama sonuçlarınız" başlığı, "Önemli Duyuru" başlığından on kat daha yüksek açılma oranı üretir.
+Önerilen optimizasyon: Taramayı e-posta olmadan başlat ama sonuçları göstermeden önce "Sonuçları e-posta ile al" kapısı kur. Bu "merak kapısı" dönüşümü maximize eder. Drip dizisinin gün 0 e-postası kişiselleştirilmiş domain verisi içermeli: "acme.com.tr için 3 kritik bulgu: [Bulgu 1], [Bulgu 2], [Bulgu 3]. Tam rapor için tıklayın."
+C.3 — Güven Rozeti Viral Mekanik Olarak İşe Yarar mı?
+İşe yarar ama şu an kurgusu yetersiz. SVG rozetinin canlı veri çekmesi teknik olarak harika ama viral etkisi için iki şey eksik.
+Birinci eksik — Rozeti görünür kılan mekanizma yok: Web sitesine rozetini ekleyen şirketin bu rozeti "neden" eklediğini açıklayan bir hikaye yok. "Bu rozet nedir?" diye soran ziyaretçi rozete tıklayınca doğrudan CyberStep.io'ya gelmelidir. Şu an bu yönlendirme var mı?
+İkinci eksik — Rozet sahibine değer somut değil: "Güvenli görünürsünüz" yeterli motivasyon değil. Rozet sahibine şu somut değerleri ver: Siber sigortada prim indirimi (sigorta partnerleriyle anlaşma), ihalede ek puan, tedarikçi seçiminde tercih kriteri. Bu avantajlar badge_advantages tablosuna eklenmiş görünüyor ama bunların ne kadarı gerçek ve aktif?
+Önerilen mekanizma — "Rozet Yarışması": Her ay sektöründe en yüksek skoru alan şirketi LinkedIn'de duyur. "Tekstil sektöründe bu ay en güvenli web sitesi: [Şirket]." Bu hem viral hem müşteri retention mekanizması.
+C.4 — Partner / ISR mi Önce, Doğrudan Satış mı?
+Kesin cevap: İlk 90 gün doğrudan satış. Sonrasında partner.
+Partner kanalı çok yavaş olgunlaşır ve başlangıçta sizi yönetim yüküyle boğar. Partner bulmak, onboard etmek, eğitmek, motive tutmak — bunlar ciddi operasyonel yük. Üstelik partner size bağlı değil, başka araçlar da satıyor.
+Doğrudan satış ilk 50 müşteriyle hem gelir hem ürün feedback'i üretir. Bu feedback olmadan partner'a ne satacağınızı bilemezsiniz. 50 müşteri sonrasında "en çok hangi segmentten geliyor?" sorusunun cevabına göre partner kanalını açın.
+BÖLÜM D: KRİTİK EKSİKLER
+D.1 — En Yüksek Değer Yaratacak Eksikler
+Eksik 1 — WhatsApp Bildirimi (En Yüksek Öncelik)
+E-posta sistemi kapsamlı ama Türkiye'de e-posta açılma oranı yüzde 15-20. WhatsApp açılma oranı yüzde 90+. Domain yeniden taramada kritik değişiklik tespit edildiğinde, 30 günlük hatırlatıcıda, haftalık delta raporunda — bunların hepsi WhatsApp ile gitmeli. WhatsApp Business API entegrasyonu 1-2 günlük iş, etkisi katbekat büyük. Bu tek özellik müşteri başarısını ve retention'ı tek başına taşır.
+Eksik 2 — Müşteri Başarı Onboarding Akışı
+Müşteri ödeme yapıyor, platforma giriyor, ve ne yapacağını bilmiyor. "Hoş geldiniz, ne yapmak istersiniz?" sorusunun cevabı interaktif bir onboarding wizardı olmalı. İlk giriş: "Hadi başlayalım — şirket domain'inizi girin." İkinci adım: "İlk taramanız başladı, 3 dakika içinde sonuç hazır." Üçüncü adım: "Tarama hazır! İşte kritik bulgularınız." Bu akış olmadan müşteriler ilk haftada pasifleşir.
+Eksik 3 — Sektör Sayfaları (SEO + Satış)
+Türkiye'de "e-ticaret siber güvenlik", "sağlık sektörü KVKK", "inşaat firması siber saldırı" gibi aramalarda organik trafik yakalamak için sektör özelinde landing page'ler kritik. Her sektör için: "Bu sektörde en yaygın 5 siber tehdit" + "CyberStep bu sektörde neler tespit ediyor" + "Sektör benchmark skoru" içeriği hem SEO değeri hem satış materyali üretir. Blog içeriği bu sayfalarla desteklenir.
+Eksik 4 — Sosyal Kanıt Eksikliği
+Platform şu an sıfır müşteri referansı, sıfır vaka çalışması ve sıfır "X şirket kullanıyor" sosyal kanıtına sahip görünüyor. Türkiye'de KOBİ satışında referans çok kritik. İlk 10 müşteriden mutlaka yazılı testimonial veya logo kullanım izni al. Bu testimonial'lar ana sayfada, fiyatlandırma sayfasında ve her ücretsiz aracın altında görünmeli.
+D.2 — Ödeme Sürtüşmesini Azaltmak
+Iyzico entegrasyonu doğru seçim ama API key eksikliği çözülmesi gereken kritik bloker. Bu bloker çözüldüğünde şu iyileştirmeleri yap:
+Ödeme sayfasında güven unsurları: Iyzico logosu, SSL göstergesi, ve "Ödeme 256-bit şifrelidir" mesajı zorunlu. Türkiye'de online ödeme hâlâ güven sorunu yaşıyor.
+Taksit seçeneği: Iyzico üzerinden 3/6 taksit aç. 5.990 TL'yi 3 taksitle görmek karar sürecini dramatik kısaltır.
+"Para iade garantisi" — 7 günlük deneme: Tam Değerlendirme için "Memnun kalmazsanız 7 gün içinde iade" politikası ekle. Bu garantiyi verirken risk yok çünkü gerçek değer alan müşteri iade istemez. Ama bu garantinin varlığı ödeme kararını kolaylaştırır.
+D.3 — Müşteri Başarı Tarafında Ne Kurulmalı?
+Şu an otomasyon var: cron job'lar, e-posta dizileri, delta raporlar. İyi. Ama müşteri başarısı sadece otomasyon değil.
+Yapısal olarak kurulması gerekenler:
+"Onboarding Checklist": Müşteri ilk girişte görecek: domain tarandı ✓, mini değerlendirme tamamlandı ✓, tam değerlendirme bekleniyor. Bu checklist tamamlanma motivasyonu üretir.
+"Sağlık Skoru" Takibi: Her müşteri için platform içi sağlık skoru: son giriş tarihi, tamamlanan değerlendirme sayısı, domain tarama aktifliği. Düşük sağlık skoru olan müşterilere otomatik "kurtarma" e-postası gitsin.
+"Başarı Anı" Bildirimi: Müşteri bir açığı kapattığında, skoru arttığında veya bir yıl doldurduğunda kutlama e-postası/bildirimi. "Tebrikler! Skorunuz 12 puan arttı" mesajı hem motivasyon hem upsell fırsatı.
+BÖLÜM E: 90 GÜNLÜK 3 AKSİYON — SINIRLI KAYNAKLA MAKSİMUM GELİR
+Aksiyon 1 — Iyzico API Key'i Aktive Et ve İlk Satışı Yap (Gün 1-14)
+Bu tek aksiyon platformun gelir sıfırdan pozitife geçişini sağlar. Hâlihazırda altyapı hazır — sadece API key eksik. Bu blocker'ı öncelikle çöz.
+Aktive edilir edilmez yapılacak ilk şey: 20 kişilik kişisel listeye özel teklif: "İlk 20 müşteriye Tam Değerlendirme yüzde 30 indirimli — 5.990 TL yerine 3.990 TL, bu hafta." Bu teklifi WhatsApp veya LinkedIn DM ile gönder, e-posta değil. Hedef: 5-10 satış, 15.000-40.000 TL ilk gelir.
+Neden bu önce: Gelir olmadan her şey teorik kalır. İlk TL girmesi hem motivasyonu artırır hem ürünü gerçek kullanıcılarla test etmenizi sağlar.
+Aksiyon 2 — Domain Tarama Tam Kapasite + Lead Funnel Optimize Et (Gün 7-30)
+VirusTotal, AbuseIPDB ve Shodan API key'lerini ekle. Bu üç modül aktive edildiğinde tarama sonuçlarının dramatikliği ikiye katlanır. Aynı anda:
+Lead yakalama formunu "tarama sonrası kapı" modeline geçir: Tarama başlatılır, yüzde 60'ı gösterilir, geri kalanı için e-posta istenir.
+Drip dizinin gün 0 e-postasını kişiselleştir: Her lead'in taradığı domain adını, kritik bulgu sayısını ve sektör ortalamasını içersin.
+Neden bu: Bu funnel uyurken çalışır. Bir kez doğru kurulduktan sonra her gün yeni lead üretir. 30 gün sonunda kaç kişinin domaini taradığını ve bunların kaçının e-posta bıraktığını ölçersin. Bu veri tüm pazarlama stratejini şekillendirir.
+Aksiyon 3 — Mini Değerlendirme → Tam Değerlendirme Dönüşüm Köprüsünü Kur (Gün 14-45)
+Mini değerlendirme rapor sayfasına üç değişiklik yap:
+Birinci değişiklik — Skor altına TL hesabı: "Skorunuz 47/100. Bu risk seviyesindeki şirketler yıllık ortalama 285.000 TL kayıp yaşıyor." Bu rakam ROI hesaplayıcından otomatik çekilsin.
+İkinci değişiklik — "Detayları gizle" mekanizması: Alan kırılımında her alanın detayları "Tam Değerlendirme ile açılır" kilidiyle gösterilsin. Müşteri tüm soruların cevabını değil, sadece özeti görür.
+Üçüncü değişiklik — Zamana bağlı teklif: Rapor sayfasında "Bu raporu tamamladığınız için 24 saat geçerli yüzde 15 indirim — 5.990 TL yerine 5.090 TL." Zamana bağlı teklifler aciliyet üretir.
+Neden bu: Tüm ücretsiz kullanıcı trafiğini ücretli ürüne yönlendiren tek nokta Mini Değerlendirme raporu. Bu sayfanın dönüşüm oranında yüzde 1'lik artış, gelirde orantısız büyük etki yaratır.
+ÖZET TABLO
+Boyut
+Değerlendirme
+Öncelik Aksiyonu
+Ürün olgunluğu
+Piyasanın çok önünde, teknik altyapı güçlü
+Odağı dağıtma, kor ürüne yönel
+Araç çokluğu
+Potansiyel dağınıklık
+Her aracı Mini Değerlendirme'ye bağla
+Fiyatlandırma
+Makul ama çerçeveleme yanlış
+KVKK ceza kıyaslamasıyla yeniden çerçevele
+5.990 TL fiyatı
+Doğru, taksit ekle
+Iyzico taksit aktive et
+GTM önceliği
+Kişisel ağ → KVKK partner → SEO
+Bu sırayla yürü
+Lead funnel
+Doğru konsept, eksik execution
+Gün 0 e-postası + kişiselleştirme
+Güven rozeti
+Viral potansiyel var, mekanizma eksik
+Doğrudan CyberStep'e yönlendirme ekle
+Kritik eksik 1
+WhatsApp bildirimi yok
+En kısa sürede entegre et
+Kritik eksik 2
+Sosyal kanıt sıfır
+İlk 10 müşteriden referans al
+90 gün öncelik 1
+Iyzico aktive + ilk satış
+Gün 1-14
+90 gün öncelik 2
+Domain tarama tam kapasite + funnel
+Gün 7-30
+90 gün öncelik 3
+Mini → Tam dönüşüm köprüsü
+Gün 14-45
+SON NOT: EN KRİTİK TEK MESAJ
+CyberStep şu an "harika bir ürün, bekleyen bir müşteri" problemi yaşıyor. Çözüm yeni özellik değil, mevcut özelliklerin satış akışına bağlanması. Iyzico aktif → tarama tam kapasite → mini değerlendirme köprüsü kurulu olan bir CyberStep, bugünkü haliyle pazarda hiçbir rakibinin yapamayacağı şeyi yapabiliyor: Türkçe, otomatik, AI destekli, KOBİ ölçeğinde siber güvenlik değerlendirmesi. Bu yeterli. Önce bunu sat, sonra genişlet.
+Belge: CyberStep.io Kapsamlı Ürün & Strateji Değerlendirmesi — Mayıs 2026

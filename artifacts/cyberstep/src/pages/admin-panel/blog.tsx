@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Plus, Pencil, Trash2, Globe, EyeOff, Users, ArrowLeft, ImagePlus, X,
+  Bot, Play, ChevronRight, CalendarCheck2, Zap,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -776,6 +777,45 @@ export default function AdminBlog() {
     enabled: !!admin,
   });
 
+  interface AutopilotStatus {
+    totalPlanned: number;
+    currentIndex: number;
+    completedCount: number;
+    weeksCompleted: number;
+    nextTopic: { index: number; category: string; title: string };
+    lastPublished: { id: number; title: string; publishedAt: string } | null;
+  }
+
+  const { data: autopilot, refetch: refetchAutopilot } = useQuery<AutopilotStatus>({
+    queryKey: ["blog-autopilot-status"],
+    queryFn: async () => {
+      const r = await fetch("/api/admin-panel/blog-autopilot/status", { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
+    enabled: !!admin,
+    refetchInterval: 30000,
+  });
+
+  const [autopilotRunning, setAutopilotRunning] = useState(false);
+
+  const runAutopilotNow = async () => {
+    if (autopilotRunning) return;
+    if (!confirm("Claude ile hemen yeni bir blog yazisi uretilsin mi? Bu islem 1-2 dakika surebilir.")) return;
+    setAutopilotRunning(true);
+    try {
+      const r = await fetch("/api/admin-panel/blog-autopilot/run-now", { method: "POST", credentials: "include" });
+      const data = await r.json() as { success?: boolean };
+      if (data.success) {
+        toast({ title: "Blog yazisi uretiliyor", description: "Yaklasik 1-2 dakika icinde yayinlanacak" });
+        setTimeout(() => { void invalidate(); void refetchAutopilot(); setAutopilotRunning(false); }, 90000);
+      }
+    } catch {
+      toast({ title: "Hata", variant: "destructive" });
+      setAutopilotRunning(false);
+    }
+  };
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-blog"] });
 
   const createMutation = useMutation({
@@ -861,6 +901,85 @@ export default function AdminBlog() {
             </div>
             <Users className="h-5 w-5 text-slate-500 mt-1" />
           </div>
+        </div>
+
+        {/* Blog Autopilot Paneli */}
+        <div className="bg-slate-800 border border-emerald-500/20 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-emerald-400" />
+              <span className="font-semibold text-white">Blog Autopilot</span>
+              <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded px-2 py-0.5">
+                Claude ile
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <CalendarCheck2 className="h-3.5 w-3.5 text-emerald-500" />
+                Paz + Per 09:00
+              </div>
+              <button
+                onClick={() => void runAutopilotNow()}
+                disabled={autopilotRunning}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {autopilotRunning ? (
+                  <><Zap className="h-3.5 w-3.5 animate-pulse" />Uretiliyor...</>
+                ) : (
+                  <><Play className="h-3.5 w-3.5" />Simdi Uret</>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {autopilot ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1 bg-slate-700 rounded-full h-2">
+                    <div
+                      className="bg-emerald-500 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.round((autopilot.completedCount / autopilot.totalPlanned) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-400 shrink-0">
+                    {autopilot.completedCount}/{autopilot.totalPlanned}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-700/60 rounded-lg p-3">
+                    <div className="text-slate-400 text-xs mb-1">Tamamlanan Hafta</div>
+                    <div className="text-lg font-bold text-white">{autopilot.weeksCompleted}<span className="text-slate-500 text-sm font-normal">/52</span></div>
+                  </div>
+                  <div className="bg-slate-700/60 rounded-lg p-3">
+                    <div className="text-slate-400 text-xs mb-1">Plan Dolulugu</div>
+                    <div className="text-lg font-bold text-emerald-400">
+                      %{Math.round((autopilot.completedCount / autopilot.totalPlanned) * 100)}
+                    </div>
+                  </div>
+                </div>
+                {autopilot.lastPublished && (
+                  <div className="mt-3 text-xs text-slate-500">
+                    Son: <span className="text-slate-300">{autopilot.lastPublished.title}</span>
+                    {" "}· {format(new Date(autopilot.lastPublished.publishedAt), "d MMM yyyy", { locale: tr })}
+                  </div>
+                )}
+              </div>
+              <div className="bg-slate-700/40 rounded-lg p-3">
+                <div className="text-slate-400 text-xs mb-2">Siradaki Yazi</div>
+                <div className="text-xs text-emerald-400 mb-1">{autopilot.nextTopic.category}</div>
+                <div className="text-sm text-white font-medium leading-snug mb-2">
+                  {autopilot.nextTopic.title}
+                </div>
+                <div className="flex items-center gap-1 text-xs text-slate-500">
+                  <ChevronRight className="h-3 w-3" />
+                  Yazi {autopilot.nextTopic.index + 1}/{autopilot.totalPlanned}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-slate-500 text-sm text-center py-3">Yukleniyor...</div>
+          )}
         </div>
 
         <div className="flex justify-end">

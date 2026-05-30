@@ -6,6 +6,7 @@ import { eq, desc, asc, and } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
+import { getBlogAutopilotStatus, generateAndPublishBlogPost, BLOG_PLAN } from "../../services/blog-autopilot";
 import crypto from "crypto";
 
 const router = Router();
@@ -41,6 +42,29 @@ type BlogBodyFull = {
   refsJson?: BlogRef[];
   coverImageBase64?: string; authorName?: string;
 };
+
+// ─── ADMIN: Blog Autopilot ─────────────────────────────────────────────────────
+
+router.get("/admin-panel/blog-autopilot/status", requireAdmin, async (_req, res) => {
+  const status = await getBlogAutopilotStatus();
+  res.json(status);
+});
+
+router.get("/admin-panel/blog-autopilot/plan", requireAdmin, (_req, res) => {
+  res.json(BLOG_PLAN.map((t, i) => ({ index: i, ...t })));
+});
+
+router.post("/admin-panel/blog-autopilot/run-now", requireAdmin, async (_req, res) => {
+  res.json({ success: true, message: "Yazı üretimi arka planda başlatıldı" });
+  void (async () => {
+    try {
+      await generateAndPublishBlogPost();
+      logger.info("Blog autopilot: manuel tetikleme tamamlandı");
+    } catch (err) {
+      logger.error({ err }, "Blog autopilot: manuel tetikleme başarısız");
+    }
+  })();
+});
 
 // ─── ADMIN: Blog Posts ─────────────────────────────────────────────────────────
 

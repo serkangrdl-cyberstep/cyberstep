@@ -29,6 +29,7 @@ import { logger } from "../../lib/logger";
 import { sendAdminNotificationEmail, sendCustomerConfirmationEmail } from "../../services/email";
 import { generateReportPDF } from "../../services/pdf";
 import { requireAdmin, requireAssessmentOwner, addAssessmentToSession } from "../../middleware/auth";
+import { parseAiJson, extractReportFields, recoverReportFields, AI_ANALYSIS_FALLBACK } from "../../lib/report-json";
 
 function getSessionTenantId(req: Request): number | undefined {
   return (req.session as unknown as Record<string, unknown>)["tenantId"] as number | undefined;
@@ -563,55 +564,37 @@ JSON şablonu:
       const aiFn = await getTenantAiFn(assessment.tenantId ?? undefined);
       text = await aiFn(prompt);
     }
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    let aiAnalysis = "AI analizi yüklenemedi.";
-    let recommendations: string[] = [];
-    let estimatedBreachCostMin: number | null = null;
-    let estimatedBreachCostMax: number | null = null;
-    let riskReductionPercent: number | null = null;
-    let weeklyActionPlan: Array<{ week: number; title: string; tasks: string[] }> = [];
-    let kvkkPenaltyMin: number | null = null;
-    let kvkkPenaltyMax: number | null = null;
-    let kvkkRiskLevel: string | null = null;
-    let kvkkRiskArticles: string[] = [];
-    let kvkkRiskSummary: string | null = null;
-    let sectorBenchmarkPercent: number | null = null;
-    let sectorBenchmarkComment: string | null = null;
-    let verbisRequired: boolean | null = null;
-    let verbisRiskLevel: string | null = null;
-    let verbisSteps: string[] = [];
-    let insuranceReadinessPercent: number | null = null;
-    let insuranceGaps: string[] = [];
-    let maturityLevel: string | null = null;
-    let findings: Array<{ domain: string; severity: "Kritik" | "Yüksek" | "Orta" | "Düşük"; title: string; description: string; recommendation: string }> = [];
-
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        aiAnalysis = parsed.aiAnalysis ?? aiAnalysis;
-        recommendations = parsed.recommendations ?? [];
-        estimatedBreachCostMin = typeof parsed.estimatedBreachCostMin === "number" ? parsed.estimatedBreachCostMin : null;
-        estimatedBreachCostMax = typeof parsed.estimatedBreachCostMax === "number" ? parsed.estimatedBreachCostMax : null;
-        riskReductionPercent = typeof parsed.riskReductionPercent === "number" ? parsed.riskReductionPercent : null;
-        weeklyActionPlan = Array.isArray(parsed.weeklyActionPlan) ? parsed.weeklyActionPlan : [];
-        kvkkPenaltyMin = typeof parsed.kvkkPenaltyMin === "number" ? parsed.kvkkPenaltyMin : null;
-        kvkkPenaltyMax = typeof parsed.kvkkPenaltyMax === "number" ? parsed.kvkkPenaltyMax : null;
-        kvkkRiskLevel = typeof parsed.kvkkRiskLevel === "string" ? parsed.kvkkRiskLevel : null;
-        kvkkRiskArticles = Array.isArray(parsed.kvkkRiskArticles) ? parsed.kvkkRiskArticles : [];
-        kvkkRiskSummary = typeof parsed.kvkkRiskSummary === "string" ? parsed.kvkkRiskSummary : null;
-        sectorBenchmarkPercent = typeof parsed.sectorBenchmarkPercent === "number" ? parsed.sectorBenchmarkPercent : null;
-        sectorBenchmarkComment = typeof parsed.sectorBenchmarkComment === "string" ? parsed.sectorBenchmarkComment : null;
-        verbisRequired = typeof parsed.verbisRequired === "boolean" ? parsed.verbisRequired : null;
-        verbisRiskLevel = typeof parsed.verbisRiskLevel === "string" ? parsed.verbisRiskLevel : null;
-        verbisSteps = Array.isArray(parsed.verbisSteps) ? parsed.verbisSteps : [];
-        insuranceReadinessPercent = typeof parsed.insuranceReadinessPercent === "number" ? parsed.insuranceReadinessPercent : null;
-        insuranceGaps = Array.isArray(parsed.insuranceGaps) ? parsed.insuranceGaps : [];
-        maturityLevel = typeof parsed.maturityLevel === "string" ? parsed.maturityLevel : null;
-        findings = Array.isArray(parsed.findings) ? parsed.findings : [];
-      } catch {
-        aiAnalysis = text;
-      }
+    const parsed = parseAiJson(text);
+    if (!parsed) {
+      logger.error({ assessmentId, textPreview: text.slice(0, 200) }, "AI report JSON parse failed");
     }
+    // On parse failure, fall back to the placeholder message — never store the
+    // raw AI/JSON blob into aiAnalysis (that leaks JSON onto the report + PDF).
+    const fields = parsed
+      ? extractReportFields(parsed)
+      : extractReportFields({ aiAnalysis: AI_ANALYSIS_FALLBACK });
+    const {
+      aiAnalysis,
+      recommendations,
+      estimatedBreachCostMin,
+      estimatedBreachCostMax,
+      riskReductionPercent,
+      weeklyActionPlan,
+      kvkkPenaltyMin,
+      kvkkPenaltyMax,
+      kvkkRiskLevel,
+      kvkkRiskArticles,
+      kvkkRiskSummary,
+      sectorBenchmarkPercent,
+      sectorBenchmarkComment,
+      verbisRequired,
+      verbisRiskLevel,
+      verbisSteps,
+      insuranceReadinessPercent,
+      insuranceGaps,
+      maturityLevel,
+      findings,
+    } = fields;
 
     const [existingReport] = await db
       .select()
@@ -841,7 +824,7 @@ router.get("/assessments/:id/report", requireAssessmentOwner, async (req, res) =
       }
     : null;
 
-  res.json({ ...report, previousScore, sectorAvg, domainScan: domainScanData });
+  res.json({ ...recoverReportFields(report), previousScore, sectorAvg, domainScan: domainScanData });
 });
 
 // GET /api/assessments/:id/insurance-report
@@ -852,17 +835,18 @@ router.get("/assessments/:id/insurance-report", requireAssessmentOwner, async (r
   if (!assessment) return void res.status(404).json({ error: "Değerlendirme bulunamadı" });
   const [report] = await db.select().from(reportsTable).where(eq(reportsTable.assessmentId, id));
   if (!report) return void res.status(404).json({ error: "Rapor henüz hazır değil" });
+  const healed = recoverReportFields(report);
   try {
     const { generateInsuranceReport } = await import("../../services/pdf");
     const buf = await generateInsuranceReport({
       companyName: assessment.companyName,
       sector: assessment.sector ?? "Belirtilmemiş",
       employeeCount: assessment.employeeCount ?? "Belirtilmemiş",
-      score: report.scorePercent ?? 0,
-      insuranceReadinessPercent: report.insuranceReadinessPercent ?? null,
-      insuranceGaps: (report.insuranceGaps as string[]) ?? [],
-      kvkkRiskLevel: report.kvkkRiskLevel ?? null,
-      recommendations: (report.recommendations as string[]) ?? [],
+      score: healed.scorePercent ?? 0,
+      insuranceReadinessPercent: healed.insuranceReadinessPercent ?? null,
+      insuranceGaps: (healed.insuranceGaps as string[]) ?? [],
+      kvkkRiskLevel: healed.kvkkRiskLevel ?? null,
+      recommendations: (healed.recommendations as string[]) ?? [],
       createdAt: report.createdAt.toISOString(),
       assessmentId: id,
     });
@@ -904,6 +888,8 @@ router.get("/assessments/:id/report/pdf", requireAssessmentOwner, async (req, re
     return;
   }
 
+  const healed = recoverReportFields(report);
+
   try {
     const pdfBuffer = await generateReportPDF({
       assessmentId: id,
@@ -911,14 +897,14 @@ router.get("/assessments/:id/report/pdf", requireAssessmentOwner, async (req, re
       contactName: assessment.contactName,
       sector: assessment.sector,
       employeeCount: assessment.employeeCount,
-      riskLevel: report.riskLevel,
-      scorePercent: report.scorePercent,
-      totalScore: report.totalScore,
-      maxScore: report.maxScore,
-      redAlarmCount: report.redAlarmCount,
-      aiAnalysis: report.aiAnalysis ?? "",
-      recommendations: (report.recommendations as string[]) ?? [],
-      domainScores: (report.domainScores as any[]) ?? [],
+      riskLevel: healed.riskLevel,
+      scorePercent: healed.scorePercent,
+      totalScore: healed.totalScore,
+      maxScore: healed.maxScore,
+      redAlarmCount: healed.redAlarmCount,
+      aiAnalysis: healed.aiAnalysis ?? "",
+      recommendations: (healed.recommendations as string[]) ?? [],
+      domainScores: (healed.domainScores as any[]) ?? [],
       adminNotes: report.adminNotes ?? null,
       createdAt: report.createdAt?.toISOString(),
     });

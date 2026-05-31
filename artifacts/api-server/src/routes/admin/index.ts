@@ -4,6 +4,7 @@ import { assessmentsTable, reportsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { sendCustomerReportEmail } from "../../services/email";
+import { recoverReportFields } from "../../lib/report-json";
 
 const router = Router();
 
@@ -31,7 +32,7 @@ router.get("/admin/review/:token", async (req, res) => {
     return;
   }
 
-  res.json({ report, assessment });
+  res.json({ report: recoverReportFields(report), assessment });
 });
 
 // PUT /api/admin/review/:token
@@ -108,10 +109,13 @@ router.post("/admin/review/:token/approve", async (req, res) => {
     return;
   }
 
+  // Heal any raw-JSON blob stored in aiAnalysis before merging admin edits / sending.
+  const healed = recoverReportFields(report);
+
   // Merge frontend edits into DB before sending
-  const finalAnalysis      = aiAnalysis      ?? report.aiAnalysis;
-  const finalRecommendations = recommendations ?? report.recommendations;
-  const finalAdminNotes    = adminNotes      ?? report.adminNotes ?? null;
+  const finalAnalysis      = aiAnalysis      ?? healed.aiAnalysis;
+  const finalRecommendations = recommendations ?? healed.recommendations;
+  const finalAdminNotes    = adminNotes      ?? healed.adminNotes ?? null;
 
   await db
     .update(reportsTable)

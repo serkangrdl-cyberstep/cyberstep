@@ -1,3 +1,4 @@
+- [AI report JSON parsing](report-ai-json.md) — never store raw model JSON into aiAnalysis; parse robustly + heal legacy rows at every report-read surface
 - [Badge advantages feature](badge-advantages.md) — timed verification badges (1/2 year) + admin CRUD + public display on landing + report pages
 - [Funnel CTA pattern](funnel-cta-pattern.md) — all 14 tool pages now have contextual assessment CTAs; reuse the border-2 border-primary/30 bg-primary/5 p-4 block pattern
 - [Sector SEO pages](sektor-seo.md) — /sektor/:slug dynamic page with 5 sectors (saglik, finans, perakende, bilisim, imalat); data in artifacts/cyberstep/src/pages/sektor.tsx

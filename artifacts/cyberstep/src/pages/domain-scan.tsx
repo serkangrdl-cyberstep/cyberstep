@@ -1750,349 +1750,89 @@ export default function DomainScanPage() {
             </Card>
           )}
 
-          {/* Temel kontroller */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">
-            E-posta ve SSL Güvenliği
-          </p>
-          <div className="space-y-3 mb-6">
-            <CheckCard meta={CHECK_META.spf} pass={result.spfPass} detail={result.spfRecord ?? undefined} />
-            <CheckCard meta={CHECK_META.dmarc} pass={result.dmarcPass} detail={result.dmarcRecord ?? undefined} />
-            <CheckCard
-              meta={CHECK_META.dkim}
-              pass={result.dkimPass}
-              detail={result.dkimSelectors.length > 0 ? `Bulunan selector'lar: ${result.dkimSelectors.join(", ")}` : undefined}
-            />
-            <CheckCard
-              meta={CHECK_META.mx}
-              pass={result.mxPass}
-              detail={result.mxRecords[0] ? `${result.mxRecords[0].exchange}` : undefined}
-            />
-            <CheckCard
-              meta={CHECK_META.ssl}
-              pass={result.sslPass}
-              detail={
-                result.sslDaysUntilExpiry !== null
-                  ? `${result.sslIssuer ?? "Sertifika"} — ${result.sslDaysUntilExpiry} gün geçerli`
-                  : undefined
-              }
-            />
-          </div>
+          {/* ── LOCKED GATE ─────────────────────────────────────────────── */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
+            {/* Header */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold text-muted-foreground">Detaylı Güvenlik Raporu — Ücretli Pakete Dahil</span>
+            </div>
 
-          {/* Web Sunucu Güvenlik Başlıkları */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">
-            Web Sunucu Güvenliği
-          </p>
-          <div className="space-y-3 mb-6">
-            <HttpHeadersCard score={result.httpHeadersScore} details={result.httpHeadersDetails} />
-          </div>
+            {/* Gated categories — blurred previews */}
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 select-none pointer-events-none">
+              {[
+                {
+                  icon: Mail,
+                  title: "E-posta & SSL Güvenliği",
+                  items: ["SPF kaydı durumu", "DMARC yapılandırması", "DKIM doğrulaması", "MX kayıtları", "SSL sertifikası"],
+                  color: "text-blue-500",
+                },
+                {
+                  icon: Server,
+                  title: "Web Sunucu Başlıkları",
+                  items: ["HSTS", "Content Security Policy", "X-Frame-Options", "X-Content-Type-Options", "Referrer Policy"],
+                  color: "text-violet-500",
+                },
+                {
+                  icon: DatabaseZap,
+                  title: "Risk İstihbaratı (10 kaynak)",
+                  items: ["Have I Been Pwned sızıntıları", "Kara liste kontrolü", "Shodan açık port taraması", "VirusTotal itibar", "AbuseIPDB · URLhaus · USOM · CVE"],
+                  color: "text-red-500",
+                },
+                {
+                  icon: Network,
+                  title: "İş Sürekliliği Haritası",
+                  items: ["Shadow IT tespiti", "3. parti bağımlılıklar", "Kritik servis riskleri", "Alternatif öneriler"],
+                  color: "text-amber-500",
+                },
+                {
+                  icon: Swords,
+                  title: "Saldırı Senaryosu Analizi (MITRE ATT&CK)",
+                  items: ["AI destekli saldırı zinciri", "CISA KEV eşleşmeleri", "AlienVault OTX tehdit pulsu", "Öncelikli aksiyon planı"],
+                  color: "text-orange-500",
+                },
+              ].map(({ icon: Icon, title, items, color }) => (
+                <div key={title} className="px-5 py-4 flex items-start gap-4 opacity-60">
+                  <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${color}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold mb-1.5">{title}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {items.map(i => (
+                        <span key={i} className="text-xs bg-slate-100 dark:bg-slate-700 text-muted-foreground px-2 py-0.5 rounded-full">{i}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <Lock className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 shrink-0 mt-1" />
+                </div>
+              ))}
+            </div>
 
-          {/* Risk İstihbaratı (Pro) */}
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Risk İstihbaratı
-            </p>
-            <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
-              <Sparkles className="h-2.5 w-2.5 mr-1" />Pro
-            </Badge>
-          </div>
-          <div className="space-y-3 mb-6">
-            <HibpCard breachCount={result.hibpBreachCount} breaches={result.hibpBreaches} />
-            <BlacklistCard
-              blacklisted={result.blacklisted}
-              blacklistCount={result.blacklistCount}
-              results={result.blacklistResults}
-            />
-            <div className="rounded-xl border border-primary/30 bg-gradient-to-b from-primary/5 to-background p-5">
-              <div className="flex flex-col items-center text-center gap-3">
-                <div className="p-2.5 rounded-full bg-primary/10">
-                  <Lock className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm mb-1.5">8 Gelismis Risk Kontrolu Kilitlendi</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Shadow IT tespiti · URLhaus zararli URL · USOM kara liste · Sertifika seffafligi
-                    · NVD CVE guvenik aciklari · Shodan acik port taramasi · VirusTotal reputation · AbuseIPDB IP gecmisi
-                  </p>
-                </div>
+            {/* Upsell CTA */}
+            <div className="bg-gradient-to-b from-transparent via-primary/5 to-primary/10 px-5 py-5 border-t border-primary/20 flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex-1 text-center sm:text-left">
+                <p className="font-semibold text-sm mb-1">Tüm detayları görmek için Tam Değerlendirme alın</p>
+                <p className="text-xs text-muted-foreground">
+                  38 kontrol · AI saldırı analizi · İş sürekliliği haritası · 1 yıl izleme
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
                 <a
                   href="/fiyatlar"
-                  className="inline-flex items-center justify-center rounded-md text-sm font-semibold h-9 px-5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors gap-1.5"
+                  className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold px-5 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity"
                 >
-                  Tam Degerlendirme ile Kilidi Ac
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  Paketleri Gör <ArrowRight className="h-3.5 w-3.5" />
                 </a>
-                <p className="text-xs text-muted-foreground">
-                  Tam Degerlendirme musterileri tum bulgulara{" "}
-                  <a href="/musteri/giris" className="text-primary hover:underline">musteri panelinden</a>{" "}
-                  erisir.
-                </p>
+                <a
+                  href="/assessment/start"
+                  className="inline-flex items-center gap-1.5 border border-primary/30 text-primary font-medium px-4 py-2 rounded-lg text-sm hover:bg-primary/5 transition-colors"
+                >
+                  Ücretsiz Değerlendirme
+                </a>
               </div>
             </div>
           </div>
+          {/* ── END LOCKED GATE ──────────────────────────────────────────── */}
 
-          {/* KEP Güvenlik İzleyicisi */}
-          {(result as any).kepConfigured !== undefined && (result as any).kepConfigured !== null && (
-            <Card className={`shadow-sm mb-2 ${(result as any).kepConfigured ? "border-green-200 bg-green-50/40 dark:bg-green-950/10" : "border-slate-200"}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg shrink-0 ${(result as any).kepConfigured ? "bg-green-100 dark:bg-green-900/30" : "bg-slate-100 dark:bg-slate-800"}`}>
-                    <Shield className={`h-4 w-4 ${(result as any).kepConfigured ? "text-green-600" : "text-slate-400"}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold">KEP Güvenlik İzleyicisi</span>
-                      {(result as any).kepConfigured
-                        ? <Badge className="text-xs bg-green-100 text-green-700 border-green-200" variant="outline">Yapılandırılmış</Badge>
-                        : <Badge className="text-xs bg-slate-100 text-slate-500 border-slate-200" variant="outline">Tespit Edilemedi</Badge>
-                      }
-                      {(result as any).kepSecure && (
-                        <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200" variant="outline">Güvenli</Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {(result as any).kepConfigured
-                        ? `Kayıtlı Elektronik Posta (KEP) yapılandırması tespit edildi.${(result as any).kepRelays?.length > 0 ? ` Relay: ${((result as any).kepRelays as string[]).join(", ")}` : ""}`
-                        : "Alan adında KEP (Kayıtlı Elektronik Posta) yapılandırması bulunamadı. KEP, ticari yazışmalarda yasal geçerlilik sağlar."}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* CyberTrust Güven Rozeti */}
-          {(result as any).badgeToken && (() => {
-            const token = (result as any).badgeToken as string;
-            const score = result.overallScore ?? 0;
-            const grade = score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
-            const gradeColor = grade === "A" ? "#16a34a" : grade === "B" ? "#65a30d" : grade === "C" ? "#d97706" : grade === "D" ? "#ea580c" : "#dc2626";
-            const embedCode = `<script src="${window.location.origin}/api/trust-badge/${token}/widget.js"></script>`;
-            return (
-              <Card className="shadow-sm mb-2 border-violet-200 bg-violet-50/40 dark:bg-violet-950/10 dark:border-violet-900">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-violet-600" />
-                    CyberTrust Güven Rozeti
-                  </CardTitle>
-                  <CardDescription>
-                    Bu kodu web sitenize ekleyerek müsterilerinize güvenli olduğunuzu kanıtlayın.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  <div className="flex items-center gap-2 p-3 rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-900">
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      width: 36, height: 36, background: gradeColor, borderRadius: 8,
-                      fontWeight: 700, fontSize: 18, color: "#fff"
-                    }}>{grade}</span>
-                    <div>
-                      <div className="text-sm font-semibold">{result.domain}</div>
-                      <div className="text-xs text-muted-foreground">CyberStep.io Doğrulandı</div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-1.5">Web Sitenize Eklemek İçin:</p>
-                    <div className="flex gap-2 items-start">
-                      <code className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded p-2 font-mono break-all border border-slate-200 dark:border-slate-700">
-                        {embedCode}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0"
-                        onClick={() => {
-                          navigator.clipboard.writeText(embedCode).catch(() => {});
-                        }}
-                      >
-                        Kopyala
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* İş Sürekliliği Haritası */}
-          {result.shadowItServices && result.shadowItServices.length > 0 && (
-            <BusinessContinuityMap services={result.shadowItServices} />
-          )}
-
-          {/* CISA KEV — Aktif İstismar Edilen Güvenlik Açıkları */}
-          {result.cisaKevMatches && result.cisaKevMatches.length > 0 && (
-            <Card className="shadow-sm mb-2 border-red-200 bg-red-50/40 dark:bg-red-950/10 dark:border-red-900">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 text-red-600" />
-                  CISA KEV — Aktif Olarak İstismar Edilen Açıklar
-                  <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-200">{result.cisaKevMatches.length} eşleşme</Badge>
-                </CardTitle>
-                <CardDescription>
-                  ABD Siber Güvenlik Ajansı'nın (CISA) aktif fidye saldırılarında kullanıldığını doğruladığı güvenlik açıkları — sitenizdeki yazılımlarla eşleşti
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2">
-                {result.cisaKevMatches.map((kev) => (
-                  <div key={kev.cveID} className="rounded-lg border border-red-200 dark:border-red-900 bg-white dark:bg-red-950/20 p-3">
-                    <div className="flex items-start gap-2 flex-wrap mb-1">
-                      <code className="text-xs font-mono bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 px-2 py-0.5 rounded font-bold">{kev.cveID}</code>
-                      <Badge variant="outline" className="text-xs text-muted-foreground">{kev.vendorProject} {kev.product}</Badge>
-                      <span className="text-xs text-muted-foreground ml-auto">Eklendi: {kev.dateAdded}</span>
-                    </div>
-                    <p className="text-xs font-medium mb-1">{kev.vulnerabilityName}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-1">{kev.shortDescription.substring(0, 200)}{kev.shortDescription.length > 200 ? "..." : ""}</p>
-                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">Zorunlu Aksiyon: {kev.requiredAction}</p>
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground pt-1">Kaynak: CISA Known Exploited Vulnerabilities Catalog — gunluk guncelleme</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* AlienVault OTX — Tehdit İstihbaratı */}
-          {result.otxData && (
-            <Card className={`shadow-sm mb-2 border ${result.otxData.pulseCount > 5 ? "border-orange-200 bg-orange-50/40 dark:bg-orange-950/10 dark:border-orange-900" : "border-slate-200"}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Flag className="h-4 w-4 text-orange-500" />
-                  AlienVault OTX — Tehdit İstihbaratı
-                  {result.otxData.pulseCount > 0 ? (
-                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-200">
-                      {result.otxData.pulseCount} tehdit pulse
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">Temiz</Badge>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  200.000+ güvenlik araştırmacısının katkısıyla oluşturulan küresel tehdit istihbarat platformu
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-lg bg-muted/40 p-3 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Tehdit Pulsu</p>
-                    <p className={`text-xl font-bold ${result.otxData.pulseCount > 5 ? "text-orange-500" : result.otxData.pulseCount > 0 ? "text-amber-500" : "text-emerald-500"}`}>
-                      {result.otxData.pulseCount}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-muted/40 p-3 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">TR Hedefli</p>
-                    <p className={`text-xl font-bold ${result.otxData.maliciousCount > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                      {result.otxData.maliciousCount}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-muted/40 p-3 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">İtibar</p>
-                    <p className={`text-xl font-bold ${result.otxData.reputation < 0 ? "text-red-500" : "text-emerald-500"}`}>
-                      {result.otxData.reputation}
-                    </p>
-                  </div>
-                </div>
-                {result.otxData.pulseCount > 0 && (
-                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 font-medium">
-                    Bu domain {result.otxData.pulseCount} aktif tehdit istihbarat kaydinda görünüyor. Detaylı inceleme önerilir.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Tedarikçi Viral Pasaport */}
-          {result.id && (() => {
-            const inviteUrl = `${window.location.origin}/domain-tarama?ref=${result.id}&utm_source=cybertrust_badge`;
-            return (
-              <Card className="shadow-sm mb-2 border-blue-200 bg-blue-50/40 dark:bg-blue-950/10 dark:border-blue-900">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-blue-600" />
-                    Tedarikçinizi Güvenlik Kontrolünden Geçirin
-                  </CardTitle>
-                  <CardDescription>
-                    Birlikte çalıştığınız şirketlerin de güvenli olduğundan emin olun. Bağlantıyı paylaşın.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={inviteUrl}
-                      className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 font-mono"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() => {
-                        navigator.clipboard.writeText(inviteUrl).catch(() => {});
-                      }}
-                    >
-                      Kopyala
-                    </Button>
-                  </div>
-                  <a
-                    href={`mailto:?subject=${encodeURIComponent("Siber Güvenlik Kontrolü — CyberStep.io")}&body=${encodeURIComponent(`Merhaba,\n\nSiber güvenlik durumunuzu ücretsiz kontrol ettirmenizi öneririm.\n${inviteUrl}\n\nİyi çalışmalar.`)}`}
-                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline font-medium"
-                  >
-                    E-posta ile gönder
-                    <ArrowRight className="h-3 w-3" />
-                  </a>
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* CTA */}
-          {!result.email && (
-            <Card className="shadow-sm border-primary/20 bg-primary/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Değişiklikleri Otomatik Takip Edin</CardTitle>
-                <CardDescription>
-                  E-posta adresinizi bırakın, 30 günde bir yeniden tarama yaparak değişiklik olursa sizi bilgilendirelim.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="siz@sirket.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="max-w-xs"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (email.trim()) {
-                        setDomain(result.domain);
-                        scanMutation.mutate();
-                      }
-                    }}
-                    disabled={!email.trim() || scanMutation.isPending}
-                  >
-                    Kaydet <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {result.email && (
-            <Card className="shadow-sm border-green-200 bg-green-50/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                <p className="text-sm text-green-700">
-                  <strong>{result.email}</strong> adresine 30 günde bir tarama raporu gönderilecek.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Saldırı Senaryosu Analizi */}
-          <AttackScenarioPanel scanId={result.id} />
-
-          {/* Entegrasyonlara Gönder */}
-          <IntegrationPushPanel scanId={result.id} />
 
           {/* Değerlendirme Upsell Köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">

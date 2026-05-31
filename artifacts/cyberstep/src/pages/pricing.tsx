@@ -15,7 +15,7 @@ function fmtTL(price: string | undefined): string {
 
 const TRUST_ITEMS = [
   { icon: Shield, text: "256-bit SSL şifreli güvenli ödeme" },
-  { icon: Users, text: "500+ KOBİ tarafından tercih edildi" },
+  { icon: Users, text: "500+ şirket tarafından tercih edildi" },
   { icon: Clock, text: "24-48 saat içinde uzman değerlendirmesi" },
   { icon: Award, text: "KVKK uyumlu veri işleme" },
 ];

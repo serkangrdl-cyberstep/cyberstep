@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp,
-  Save, Eye, EyeOff, Shield, Zap, Globe, Mail, Brain, Server, Lock,
+  Save, Eye, EyeOff, Shield, Zap, Globe, Mail, Brain, Server, Lock, Bot,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -257,6 +257,44 @@ const INTEGRATIONS: IntegrationDef[] = [
     how: "Her 5 dakikada bir IMAP'ten e-posta okunur, Gemini AI ile bağlam bilinçli Türkçe yanıt oluşturulur ve SMTP ile gönderilir.",
     setup: "Replit Secrets'a ISR_IMAP_HOST, ISR_IMAP_PORT, ISR_IMAP_USER, ISR_IMAP_PASS ekleyin.",
   },
+  // ─── AI Analiz Modülleri ────────────────────────────────────────────────────
+  {
+    id: "eu-aiact", name: "EU AI Act Uyum Skoru", category: "AI Analiz Modülleri", icon: "🇪🇺",
+    cost: "paid", costLabel: "1.990 TL", always: false,
+    desc: "20 soruluk değerlendirme ile şirketin AB Yapay Zeka Yasası kapsamındaki uyum durumu ve risk kategorisi",
+    why: "1 Ağustos 2026'dan itibaren AB pazarına ürün/hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar. Claude AI ile kişiselleştirilmiş uyum raporu.",
+    how: "POST /api/eu-aiact — 20 soru değerlendirmesi, Claude AI rapor üretimi, fire-and-forget + polling pattern.",
+    setup: "ANTHROPIC_API_KEY gerekli. Entegre Claude Sonnet ile otomatik çalışır.",
+    docs: "/eu-ai-act",
+  },
+  {
+    id: "ai-red-team", name: "AI Red Team Raporu", category: "AI Analiz Modülleri", icon: "🎯",
+    cost: "paid", costLabel: "2.490 TL", always: false,
+    desc: "Kamuya açık kaynaklardan AI ile toplanan saldırgan bakış açısı istihbaratı — altyapı, yöneticiler, e-posta formatı, sızıntı geçmişi",
+    why: "Bir saldırgan şirketi hedef almadan önce tam olarak bu analizi yapar. Shodan, HaveIBeenPwned, DNS, OSINT verileri tek raporda.",
+    how: "POST /api/red-team — domain + şirket bilgisi alır, arka planda OSINT toplar, Claude AI saldırı vektörü analizi yapar.",
+    setup: "ANTHROPIC_API_KEY gerekli. İsteğe bağlı: SHODAN_API_KEY (daha derin tarama).",
+    docs: "/ai-red-team",
+  },
+  {
+    id: "deepfake-analizi", name: "Deepfake & Ses Klonu Analizi", category: "AI Analiz Modülleri", icon: "🎭",
+    cost: "paid", costLabel: "1.490 TL", always: false,
+    desc: "Yöneticilerin dijital izini analiz ederek CEO fraud saldırılarına karşı ses klonu risk haritası çıkarır",
+    why: "Modern ses klonlama 3 dakika ses örnekle çalışıyor. YouTube, LinkedIn, haber arşivlerindeki ses maruziyeti deepfake riskini doğrudan belirliyor.",
+    how: "POST /api/deepfake — domain/şirket adı alır, OSINT ile yönetici tespiti, ses/video maruziyeti tahmini, Claude AI risk raporu.",
+    setup: "ANTHROPIC_API_KEY gerekli.",
+    docs: "/deepfake-analizi",
+  },
+  {
+    id: "sahte-dokuman", name: "AI Sahte Doküman Tespiti", category: "AI Analiz Modülleri", icon: "📄",
+    cost: "paid", costLabel: "49 TL / tarama", always: false,
+    desc: "Fatura, sözleşme, kimlik belgelerinde metadata anomalisi, format tutarsızlığı ve AI üretimi izlerini tespit eder",
+    why: "AI ile üretilen sahte belgeler gözle ayırt edilemiyor. Muhasebe ve hukuk süreçlerinde tedarikçi doğrulaması kritik hale geldi.",
+    how: "POST /api/document-scan — dosya upload, buffer metadata analizi, isteğe bağlı Hive AI görsel analizi, Claude AI açıklama.",
+    envKey: "HIVE_API_KEY",
+    setup: "HIVE_API_KEY opsiyonel — olmadan da heuristik + Claude AI ile çalışır. Daha derin görsel analiz için Hive Moderation API key ekleyin.",
+    docs: "/sahte-dokuman",
+  },
 ];
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -267,6 +305,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   "E-posta & Kimlik": Mail,
   "Yapay Zeka": Brain,
   "İletişim": Globe,
+  "AI Analiz Modülleri": Bot,
 };
 
 const COST_COLORS: Record<string, string> = {
@@ -285,6 +324,7 @@ const CATEGORIES = [
   "E-posta & Kimlik",
   "Yapay Zeka",
   "İletişim",
+  "AI Analiz Modülleri",
 ];
 
 export default function AdminEntegrasyonlar() {

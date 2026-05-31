@@ -815,6 +815,68 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Neden CyberStep - Long Form */}
+      <section className="py-24 bg-slate-950 text-white border-t border-slate-800">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-16">
+            <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest mb-4">Neden CyberStep?</p>
+            <h2 className="text-3xl md:text-4xl font-bold leading-tight max-w-3xl mx-auto">
+              Siber güvenlik bir gecede tamamlanmaz.
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-12 mb-16">
+            <div className="space-y-5 text-slate-300 leading-relaxed">
+              <p>
+                Merdiveni tek seferde çıkmak mümkün değildir — her basamak bir üstekinin zeminini hazırlar.
+                Bir basamağı atlayamazsın. Kısamazsın. Ama doğru basamakları, doğru sırayla atarsan zirveye ulaşırsın.
+              </p>
+              <p>
+                Türkiye'deki şirketlerin büyük çoğunluğu bu merdivende nerede durduğunu bilmiyor.
+                Hangi basamakta olduklarını görecek araçları yok. Yol haritaları yok.
+                Mevcut araçlar İngilizce, erişilmez fiyatlı ve teknik ekip gerektiriyor.
+              </p>
+              <p className="text-white font-medium">
+                CyberStep bu boşluk için doğdu — ve büyüdükçe o boşluğun ne kadar derin olduğunu gördük.
+              </p>
+            </div>
+            <div className="space-y-6">
+              <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
+                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3">İsmimizde iki anlam iç içe</p>
+                <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                  İngilizce'de <em>step</em> hem <strong className="text-white">adım</strong> hem de <strong className="text-white">ayak izi</strong> demek.
+                  Bu tesadüf değil — bilinçli bir tercih.
+                </p>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Siber güvenliğin en kritik kavramlarından biri dijital ayak izi: şirketinizin dışarıdan görünen saldırı yüzeyi.
+                  Bir saldırgan sizi hedef almadan önce ayak izinizi takip eder — hangi sistemler açık, hangi veriler sızmış, hangi kapılar kilitlenmemiş.
+                </p>
+                <p className="text-slate-300 text-sm leading-relaxed mt-3 font-medium">
+                  CyberStep hem güvenlik adımlarınızı planlar hem dijital izinizi yönetir. Adım adım, iz bırakarak.
+                </p>
+              </div>
+              <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
+                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3">Neden .io?</p>
+                <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                  Bu bir danışmanlık firması değil, bir platform. <strong className="text-white">.io</strong> bilinçli bir sinyal:
+                  yapay zeka ve bulut altyapısı üzerine kurulu, sürekli büyüyen bir teknoloji ekosistemi.
+                </p>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Dış saldırı yüzeyi taraması, sürekli maruz kalma yönetimi, yapay zeka güvenlik analizi, EU AI Act uyumu,
+                  KVKK entegrasyonu, firewall otomasyonu — bunlar ayrı araçlar değil, birbiriyle konuşan tek bir platform.
+                </p>
+                <p className="text-emerald-400 text-sm font-semibold mt-3">Türkiye'de ilk kez, Türkçe.</p>
+              </div>
+            </div>
+          </div>
+          <div className="text-center">
+            <a href="/hakkimizda" className="inline-flex items-center gap-2 text-emerald-400 font-medium hover:text-emerald-300 transition-colors text-sm">
+              Ekibimizi ve hikayemizi tanıyın
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Brand Story */}
       <section className="py-20 bg-slate-900 text-white">
         <div className="container mx-auto px-4 max-w-4xl">
@@ -828,8 +890,8 @@ export default function Home() {
               </h2>
               <p className="text-slate-400 leading-relaxed">
                 {lang === "en"
-                  ? "A KOBİ owner doesn't need to understand MFA or EDR. They need to know: 'if a ransomware hits tomorrow, how many days does my business stop? What does it cost?' CyberStep answers exactly that."
-                  : "Bir KOBİ sahibinin MFA ya da EDR'ı anlaması gerekmiyor. Şunu bilmesi gerekiyor: 'Yarın fidye saldırısı gelse işim kaç gün durur? Maliyeti ne olur?' CyberStep tam bunu gösteriyor."}
+                  ? "A business owner doesn't need to understand MFA or EDR. They need to know: 'if a ransomware hits tomorrow, how many days does my business stop? What does it cost?' CyberStep answers exactly that."
+                  : "Bir şirket sahibinin MFA ya da EDR'ı anlaması gerekmiyor. Şunu bilmesi gerekiyor: 'Yarın fidye saldırısı gelse işim kaç gün durur? Maliyeti ne olur?' CyberStep tam bunu gösteriyor."}
               </p>
               <p className="text-slate-400 leading-relaxed">
                 {lang === "en"
@@ -910,7 +972,7 @@ export default function Home() {
             <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
               {lang === "en"
                 ? "10 free tools developed specifically for Turkish SMEs. No registration required — assess your risks instantly."
-                : "Türk KOBİ'leri için özel geliştirilen 10 ücretsiz araç. Kayıt gerektirmez — risklerinizi anında ölçün."}
+                : "Türk şirketleri için özel geliştirilen ücretsiz araçlar. Kayıt gerektirmez — risklerinizi anında ölçün."}
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
@@ -941,7 +1003,7 @@ export default function Home() {
                 icon: "🛡️",
                 title: lang === "en" ? "Cyber Insurance Premium Calculator" : "Siber Sigorta Prim Hesaplayıcı",
                 what: lang === "en" ? "Estimates your likely cyber insurance premium range based on your company profile and security posture." : "Şirket profilinize ve güvenlik olgunluğunuza göre siber sigorta prim aralığınızı tahmin eder.",
-                why: lang === "en" ? "Cyber incidents cost Turkish SMEs an average of 700K–2.1M TL. Insurance provides financial protection." : "Siber olaylar Türk KOBİ'lerine ortalama 700K–2,1M TL'ye mal olmaktadır. Sigorta finansal koruma sağlar.",
+                why: lang === "en" ? "Cyber incidents cost Turkish companies an average of 700K–2.1M TL. Insurance provides financial protection." : "Siber olaylar Türk şirketlerine ortalama 700K–2,1M TL'ye mal olmaktadır. Sigorta finansal koruma sağlar.",
               },
               {
                 href: "/kep-rehberi",
@@ -1025,7 +1087,7 @@ export default function Home() {
                 icon: "🧮",
                 title: "Siber Risk ROI Hesaplayıcı",
                 what: "Sektör ve çalışan sayısına göre olası siber saldırı maliyetini, KVKK ceza riskini ve CyberStep ile sağlanacak tasarrufu TL bazında hesaplar.",
-                why: "IBM 2024 verilerine göre KOBİ'lerin ortalama siber saldırı maliyeti 350 bin – 1,2 milyon TL. ROI hesabı bütçe kararını somutlaştırır.",
+                why: "IBM 2024 verilerine göre şirketlerin ortalama siber saldırı maliyeti 350 bin – 1,2 milyon TL. ROI hesabı bütçe kararını somutlaştırır.",
               },
               {
                 href: "/guven-rozeti",
@@ -1041,6 +1103,38 @@ export default function Home() {
                 what: "Siber güvenlik puanınızı BDDK BSY, SPK VIII/54, EPDK ve DORA (AB) makalelerine eşler. Gemini AI domain bazlı uyum boşluğu ve yol haritası üretir.",
                 why: "DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk zorunluluğuna hazırlanıyor. Şimdi bu dili konuşan platform olun.",
               },
+              {
+                href: "/eu-ai-act",
+                icon: "🇪🇺",
+                title: "EU AI Act Uyum Skoru",
+                what: "20 soruluk değerlendirme ile şirketinizin AB Yapay Zeka Yasası kapsamındaki uyum durumunu ve risk kategorisini belirler.",
+                why: "1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar.",
+                price: "1.990 TL",
+              },
+              {
+                href: "/ai-red-team",
+                icon: "🎯",
+                title: "AI Red Team Raporu",
+                what: "Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 30 dakikada saldırgan bakış açısı.",
+                why: "Bir saldırgan sizi hedef almadan önce tam olarak bu analizi yapar. Açığı onlardan önce görün.",
+                price: "2.490 TL",
+              },
+              {
+                href: "/deepfake-analizi",
+                icon: "🎭",
+                title: "Deepfake & Ses Klonu Analizi",
+                what: "Yöneticilerinizin YouTube, LinkedIn ve haber kaynaklarındaki dijital izini analiz eder. CEO fraud saldırılarına karşı ses klonu risk haritası çıkarır.",
+                why: "Modern ses klonlama araçları 3 dakika ses örnekle çalışıyor. CEO fraud saldırıları Türkiye'de yılda milyonlarca TL zarara neden oluyor.",
+                price: "1.490 TL",
+              },
+              {
+                href: "/sahte-dokuman",
+                icon: "📄",
+                title: "AI Sahte Doküman Tespiti",
+                what: "Fatura, sözleşme, kimlik ve diğer belgeleri yapay zeka ile analiz eder. Metadata anomalisi, format tutarsızlığı ve manipülasyon izleri tespit edilir.",
+                why: "AI ile üretilen sahte belgeler artık gözle ayırt edilemiyor. Muhasebe ve hukuk süreçlerinde tedarikçi kimliği doğrulaması kritik.",
+                price: "49 TL / tarama",
+              },
             ].map((tool) => (
               <a
                 key={tool.href}
@@ -1050,9 +1144,16 @@ export default function Home() {
                 <div className="flex items-start gap-4">
                   <div className="text-2xl shrink-0 mt-0.5">{tool.icon}</div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm mb-2 group-hover:text-primary transition-colors leading-snug">
-                      {tool.title}
-                    </h3>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="font-semibold text-sm group-hover:text-primary transition-colors leading-snug">
+                        {tool.title}
+                      </h3>
+                      {"price" in tool && tool.price && (
+                        <span className="shrink-0 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {tool.price}
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       <div>
                         <span className="text-xs font-bold text-primary uppercase tracking-wide">Ne yapar?</span>
@@ -1117,7 +1218,7 @@ export default function Home() {
                   Sirketinizin CISO'su olsun —<br className="hidden sm:block" /> kadro maliyeti olmadan
                 </h2>
                 <p className="text-muted-foreground text-sm leading-relaxed max-w-xl">
-                  KOBİ'lerin yüzde 99'unun CISO'su yok. Tam zamanlı CISO yıllık 2–4 milyon TL maaşla geliyor.
+                  Şirketlerin yüzde 99'unun CISO'su yok. Tam zamanlı CISO yıllık 2–4 milyon TL maaşla geliyor.
                   CyberStep Sanal CISO'su aylık yönetim kurulu sunumu, yıllık güvenlik stratejisi,
                   olay müdahalesi ve düzenleyici destek sunar — sertifikalı partner uzmanlardan.
                 </p>

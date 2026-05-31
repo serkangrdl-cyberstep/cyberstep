@@ -37,7 +37,7 @@ export const TRANSLATIONS = {
     },
     heroCta: { tr: "Ücretsiz Değerlendirme Başlat", en: "Start Free Assessment" },
 
-    statsAnalyzed: { tr: "KOBİ Analiz Edildi", en: "SMEs Analyzed" },
+    statsAnalyzed: { tr: "Şirket Analiz Edildi", en: "Companies Analyzed" },
     statsTime: { tr: "Ortalama Test Süresi", en: "Avg. Test Duration" },
     statsSatisfaction: { tr: "Müşteri Memnuniyeti", en: "Customer Satisfaction" },
     statsPoints: { tr: "Kritik Kontrol Noktası", en: "Critical Checkpoints" },

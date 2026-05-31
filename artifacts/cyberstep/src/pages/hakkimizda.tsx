@@ -36,7 +36,7 @@ export default function Hakkimizda() {
   ];
 
   const STATS = [
-    { value: "3.5M+", label: "Türkiye'deki KOBİ sayısı" },
+    { value: "3.5M+", label: "Türkiye'deki şirket sayısı" },
     { value: "%95", label: "Güvenlik ekibi olmayan şirket oranı" },
     { value: "47M TL", label: "2024 yılı KVKK ceza toplamı" },
     { value: "30dk", label: "Kapatılabilecek açıkların ortalama kapanma süresi" },
@@ -89,7 +89,7 @@ export default function Hakkimizda() {
               2024 yılında Türkiye'de 94 firmaya toplam <strong className="text-foreground">47 milyon TL</strong> KVKK cezası kesildi. Bu cezaların büyük çoğunluğu teknik uzman gerektirmeyen, 30 dakikada kapatılabilecek açıklardan kaynaklandı.
             </p>
             <p className="text-lg leading-relaxed text-muted-foreground mb-6">
-              Problem şu: Türkiye'deki şirketlerin <strong className="text-foreground">yüzde doksan beşinin</strong> güvenlik ekibi yok. Mevcut araçlar İngilizce, kurumsal ölçeğe göre fiyatlandırılmış ve teknik bilgi gerektiriyor. Büyük kurumlar için yapılmış araçlar, KOBİ'lerin sorununu çözmüyor.
+              Problem şu: Türkiye'deki şirketlerin <strong className="text-foreground">yüzde doksan beşinin</strong> güvenlik ekibi yok. Mevcut araçlar İngilizce, kurumsal ölçeğe göre fiyatlandırılmış ve teknik bilgi gerektiriyor. Büyük kurumlar için yapılmış araçlar, orta ölçekli şirketlerin sorununu çözmüyor.
             </p>
             <p className="text-lg leading-relaxed text-muted-foreground">
               CyberStep bu boşluk için kuruldu.
@@ -202,7 +202,7 @@ export default function Hakkimizda() {
             </div>
             {[
               ["İngilizce, teknik raporlar", "Türkçe, patron dili — TL bazında risk tahmini"],
-              ["Kurumsal fiyatlandırma ($$$)", "KOBİ'den kurumsal ölçeğe erişilebilir fiyat"],
+              ["Kurumsal fiyatlandırma ($$$)", "Her ölçekteki şirkete erişilebilir fiyatlandırma"],
               ["KVKK'yı bilmez", "KVKK uyum skoru, DPA sözleşme şablonu dahil"],
               ["USOM korelasyonu yok", "Türkiye'ye özgü tehdit istihbaratı"],
               ["AI araç güvenliği kapsam dışı", "AI araç izleme, phishing sim, EU AI Act uyumu"],

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { Shield, ArrowRight, CheckCircle2, AlertTriangle, Scale, Globe, FileText } from "lucide-react";
+import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 
 const SECTORS = ["Finans", "Sağlık", "Perakende", "Bilişim/Yazılım", "İmalat", "Lojistik", "Eğitim", "Sigorta", "Diğer"];
 const EMP_COUNTS = ["1-10", "11-50", "51-200", "201-500", "500+"];
@@ -96,6 +97,10 @@ export default function EuAiActPage() {
     );
   }
 
+  const { data: prices } = useServicePrices();
+  const eup = prices?.["eu-ai-act"];
+  const euPriceLabel = eup ? `${formatPrice(eup.amount, eup.unit)} + KDV` : "1.990 TL + KDV";
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
@@ -112,13 +117,13 @@ export default function EuAiActPage() {
             1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet satan şirketler EU AI Act kapsamına giriyor.<br />
             <strong className="text-white">Cezalar: 35 milyon Euro'ya kadar.</strong>
           </p>
-          <p className="text-blue-200/60 text-sm mb-8">20 soruda uyum durumunuzu öğrenin. 10 dakika. 1.990 TL + KDV.</p>
+          <p className="text-blue-200/60 text-sm mb-8">20 soruda uyum durumunuzu öğrenin. 10 dakika. {euPriceLabel}.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={() => setStep("form")} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8">
               Uyum Skorumu Öğren <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
-          <p className="text-blue-300/50 text-xs mt-4">Fiyat: 1.990 TL + KDV — AB'ye ihracat yapmasanız da değerlendirin</p>
+          <p className="text-blue-300/50 text-xs mt-4">Fiyat: {euPriceLabel} — AB'ye ihracat yapmasanız da değerlendirin</p>
         </div>
       </div>
 

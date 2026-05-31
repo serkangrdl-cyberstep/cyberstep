@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useParams, useLocation } from "wouter";
 import { Eye, ArrowRight, AlertTriangle, Shield, CheckCircle2, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
+import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 
 export default function AiRedTeamPage() {
   usePageMeta({ title: "AI Red Team Raporu", description: "Saldırganlar 30 dakikada şirketiniz hakkında ne öğrenir? CyberStep AI Red Team ile kamuya açık dijital izinizi analiz edin." });
@@ -64,6 +65,10 @@ export default function AiRedTeamPage() {
     finally { setLoading(false); }
   }
 
+  const { data: prices } = useServicePrices();
+  const rtp = prices?.["ai-red-team"];
+  const rtPriceLabel = rtp ? `${formatPrice(rtp.amount, rtp.unit)} + KDV` : "2.490 TL + KDV";
+
   if (step === "landing" && !reportId) {
     return (
       <div className="min-h-screen bg-background">
@@ -79,11 +84,11 @@ export default function AiRedTeamPage() {
             <p className="text-slate-300 text-lg mb-3">
               Bir saldırgan şirketinizi hedef almadan önce 30 dakikada <strong className="text-white">ne öğrenir?</strong>
             </p>
-            <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 2.490 TL + KDV.</p>
+            <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. {rtPriceLabel}.</p>
             <Button onClick={() => setStep("form")} size="lg" className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8">
               Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <p className="text-slate-500 text-xs mt-3">Fiyat: 2.490 TL + KDV · Phishing Simülasyonu ile birlikte: 3.490 TL + KDV</p>
+            <p className="text-slate-500 text-xs mt-3">Fiyat: {rtPriceLabel}</p>
           </div>
         </div>
 

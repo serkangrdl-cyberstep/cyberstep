@@ -179,4 +179,42 @@ router.post("/api/admin/trigger/domain-scan/:customerId", requireAdmin, async (r
   }
 });
 
+router.post("/api/admin/trigger/board-report/:customerId", requireAdmin, async (req: Request, res: Response) => {
+  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
+  try {
+    const rows = await queryRows(sql`SELECT id, status FROM board_reports WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
+    const last = rows[0] as { id: number; status: string } | undefined;
+    res.json({ ok: true, message: last ? `Son YK raporu: ${last.status}` : "Rapor henüz oluşturulmamış" });
+  } catch (err) {
+    logger.error({ err }, "Failed to check board report");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+router.post("/api/admin/trigger/nps/:customerId", requireAdmin, async (req: Request, res: Response) => {
+  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
+  try {
+    const rows = await queryRows(sql`SELECT id, score FROM nps_responses WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
+    const last = rows[0] as { id: number; score: number } | undefined;
+    logger.info({ customerId }, "Admin triggered NPS check");
+    res.json({ ok: true, message: last ? `Son NPS skoru: ${last.score}` : "NPS henüz alınmamış" });
+  } catch (err) {
+    logger.error({ err }, "Failed to check NPS");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+router.post("/api/admin/trigger/health-score/:customerId", requireAdmin, async (req: Request, res: Response) => {
+  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
+  try {
+    const rows = await queryRows(sql`SELECT health_score, health_tier FROM customer_health_scores WHERE customer_id = ${customerId} ORDER BY calculated_at DESC LIMIT 1`);
+    const last = rows[0] as { health_score: number; health_tier: string } | undefined;
+    logger.info({ customerId }, "Admin triggered health score check");
+    res.json({ ok: true, message: last ? `Sağlık skoru: ${last.health_score} (${last.health_tier})` : "Sağlık skoru yok" });
+  } catch (err) {
+    logger.error({ err }, "Failed to check health score");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 export default router;

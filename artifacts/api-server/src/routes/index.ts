@@ -35,6 +35,9 @@ import growthEngineRouter from "./growth-engine/index";
 import invoicesRouter from "./invoices/index";
 import crmRouter from "./crm/index";
 import adminExtrasRouter from "./admin-extras/index";
+import statusRouter from "./status/index";
+import badgesRouter from "./badges/index";
+import onboardingRouter from "./onboarding/index";
 
 const router: IRouter = Router();
 
@@ -74,5 +77,8 @@ router.use("/growth-engine", growthEngineRouter);
 router.use(invoicesRouter);
 router.use(crmRouter);
 router.use(adminExtrasRouter);
+router.use(statusRouter);
+router.use(badgesRouter);
+router.use(onboardingRouter);
 
 export default router;

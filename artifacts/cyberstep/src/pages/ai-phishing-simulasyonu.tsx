@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 import { ChevronRight, Search, Mail, Shield, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
@@ -11,12 +12,15 @@ const SECTORS = [
 ];
 
 function LandingPage({ onStart }: { onStart: () => void }) {
+  const { data: prices } = useServicePrices();
+  const p = prices?.["ai-phishing"];
+  const priceLabel = p ? `${formatPrice(p.amount, p.unit)} + KDV` : "1.990 TL + KDV · Tek Seferlik";
   return (
     <>
       <section className="py-20 bg-secondary relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">1.990 TL + KDV · Tek Seferlik</Badge>
+          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">Yapay Zeka ile Sizi Hedef Alan Saldırı Böyle Görünür</h1>
           <p className="text-lg text-muted-foreground mb-6">
             Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useParams, useLocation } from "wouter";
 import { Mic, Video, ArrowRight, AlertTriangle, CheckCircle2, ChevronRight, Shield } from "lucide-react";
 import { Link } from "wouter";
+import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 
 const RISK_COLORS: Record<string, string> = {
   critical: "text-red-600 border-red-500 bg-red-50 dark:bg-red-900/20",
@@ -72,6 +73,10 @@ export default function DeepfakeAnaliziPage() {
     finally { setLoading(false); }
   }
 
+  const { data: prices } = useServicePrices();
+  const dfp = prices?.["deepfake"];
+  const dfPriceLabel = dfp ? `${formatPrice(dfp.amount, dfp.unit)} + KDV` : "1.490 TL + KDV";
+
   // Landing page
   if (step === "landing" && !reportId && !rid) {
     return (
@@ -89,11 +94,11 @@ export default function DeepfakeAnaliziPage() {
               Modern ses klonlama araçları <strong className="text-white">3 dakika ses</strong> ile çalışıyor.<br />
               CEO fraud saldırıları Türkiye'de yılda milyonlarca TL zarara neden oluyor.
             </p>
-            <p className="text-purple-200/60 text-sm mb-8">Yöneticilerinizin YouTube, LinkedIn veya haber sitelerindeki dijital izini analiz ediyoruz. 1.490 TL + KDV.</p>
+            <p className="text-purple-200/60 text-sm mb-8">Yöneticilerinizin YouTube, LinkedIn veya haber sitelerindeki dijital izini analiz ediyoruz. {dfPriceLabel}.</p>
             <Button onClick={() => setStep("form")} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-8">
               Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <p className="text-purple-300/50 text-xs mt-3">Fiyat: 1.490 TL + KDV · Süre: ~10 dakika</p>
+            <p className="text-purple-300/50 text-xs mt-3">Fiyat: {dfPriceLabel} · Süre: ~10 dakika</p>
           </div>
         </div>
 

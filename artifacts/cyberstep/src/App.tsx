@@ -139,9 +139,18 @@ import Musteri360 from "./pages/admin-panel/musteri-360";
 import AdminKariyer from "./pages/admin-panel/kariyer";
 import AdminServisFiyatlari from "./pages/admin-panel/servis-fiyatlari";
 import AdminManuelTetikle from "./pages/admin-panel/manuel-tetikle";
+import AdminRozetler from "./pages/admin-panel/rozetler";
 import HesabimFaturalar from "./pages/hesabim/faturalar";
 import HesabimDestek from "./pages/hesabim/destek";
 import NpsPage from "./pages/nps";
+import StatusPage from "./pages/status";
+import AdminStatusPage from "./pages/admin-panel/status";
+import SslKontrol from "./pages/araclar/ssl-kontrol";
+import DomainGuvenlikTaramasi from "./pages/araclar/domain-guvenlik-taramasi";
+import KvkkCezaHesaplayici from "./pages/araclar/kvkk-ceza-hesaplayici";
+import DmarcKontrol from "./pages/araclar/dmarc-kontrol";
+import DarkWebSorgulama from "./pages/araclar/dark-web-sorgulama";
+import SiberRiskRoi from "./pages/araclar/siber-risk-roi";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -218,6 +227,7 @@ function Router() {
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
       <Route path="/nps/:token" component={NpsPage} />
+      <Route path="/status" component={StatusPage} />
 
       {/* AI Phishing rapor — full-page (Layout kendi içinde) */}
       <Route path="/ai-phishing-simulasyonu/:id/rapor" component={AiPhishingRapor} />
@@ -271,6 +281,8 @@ function Router() {
       <Route path="/panel/kariyer" component={AdminKariyer} />
       <Route path="/panel/servis-fiyatlari" component={AdminServisFiyatlari} />
       <Route path="/panel/manuel-tetikle" component={AdminManuelTetikle} />
+      <Route path="/panel/status" component={AdminStatusPage} />
+      <Route path="/panel/rozetler" component={AdminRozetler} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}
@@ -351,6 +363,12 @@ function Router() {
             <Route path="/tprm/anket/:token" component={TprmAnket} />
             <Route path="/preview/:token" component={PreviewPage} />
             <Route path="/ai-guvenlik-degerlendirmesi" component={AiAssessmentLanding} />
+            <Route path="/araclar/ssl-kontrol" component={SslKontrol} />
+            <Route path="/araclar/domain-guvenlik-taramasi" component={DomainGuvenlikTaramasi} />
+            <Route path="/araclar/kvkk-ceza-hesaplayici" component={KvkkCezaHesaplayici} />
+            <Route path="/araclar/dmarc-kontrol" component={DmarcKontrol} />
+            <Route path="/araclar/dark-web-sorgulama" component={DarkWebSorgulama} />
+            <Route path="/araclar/siber-risk-roi" component={SiberRiskRoi} />
             <Route path="/araclar" component={TumAraclar} />
             <Route path="/rakip-karsilastirma" component={RakipKarsilastirma} />
             <Route path="/sektor-raporu" component={SektorRaporu} />

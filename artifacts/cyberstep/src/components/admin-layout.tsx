@@ -8,7 +8,7 @@ import {
   Mail, Bell, Package, BadgeCheck, Plug, Heart,
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
-  Play, Tag, UserCheck,
+  Play, Tag, UserCheck, Activity, Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -50,6 +50,8 @@ const NAV_ITEMS = [
   { icon: UserCheck,       label: "Kariyer Başvuruları",  href: "/panel/kariyer" },
   { icon: Tag,             label: "Servis Fiyatları",     href: "/panel/servis-fiyatlari" },
   { icon: Play,            label: "Manuel Tetikleme",     href: "/panel/manuel-tetikle" },
+  { icon: Activity,        label: "Sistem Durumu",        href: "/panel/status" },
+  { icon: Trophy,          label: "Rozet Yönetimi",       href: "/panel/rozetler" },
 ];
 
 interface AdminLayoutProps {

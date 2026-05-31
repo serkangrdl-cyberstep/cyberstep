@@ -29,6 +29,8 @@ import redTeamRouter from "./red-team/index";
 import deepfakeRouter from "./deepfake/index";
 import docScanRouter from "./doc-scan/index";
 import domainScanPurchasesRouter from "./domain-scan/purchases";
+import enterpriseRouter from "./enterprise/index";
+import leadGenRouter from "./lead-gen/index";
 
 const router: IRouter = Router();
 
@@ -62,5 +64,7 @@ router.use(redTeamRouter);
 router.use(deepfakeRouter);
 router.use(docScanRouter);
 router.use(domainScanPurchasesRouter);
+router.use(enterpriseRouter);
+router.use(leadGenRouter);
 
 export default router;

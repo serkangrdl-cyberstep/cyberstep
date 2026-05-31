@@ -621,6 +621,212 @@ async function ensureIsrTables() {
       processed_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);
+  // ─── Enterprise & LeadGen tables ─────────────────────────────────────────────
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS enterprise_prospects (
+      id SERIAL PRIMARY KEY,
+      company_name VARCHAR(255) NOT NULL,
+      domain VARCHAR(255) NOT NULL,
+      sector VARCHAR(100),
+      employee_count VARCHAR(50),
+      city VARCHAR(100),
+      contact_name VARCHAR(255),
+      contact_title VARCHAR(100),
+      contact_email VARCHAR(255),
+      contact_phone VARCHAR(50),
+      linkedin_url VARCHAR(500),
+      source VARCHAR(50) DEFAULT 'manual',
+      assigned_to VARCHAR(100),
+      status VARCHAR(30) DEFAULT 'new',
+      notes TEXT,
+      lost_reason VARCHAR(255),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      last_activity_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS teaser_reports (
+      id SERIAL PRIMARY KEY,
+      prospect_id INTEGER REFERENCES enterprise_prospects(id),
+      domain_scan_data JSONB,
+      attack_scenarios JSONB,
+      overall_risk_score INTEGER,
+      risk_level VARCHAR(20),
+      critical_count INTEGER DEFAULT 0,
+      high_count INTEGER DEFAULT 0,
+      medium_count INTEGER DEFAULT 0,
+      low_count INTEGER DEFAULT 0,
+      teaser_headline TEXT,
+      teaser_findings JSONB,
+      teaser_scenario_preview TEXT,
+      locked_sections_hint TEXT,
+      urgency_note TEXT,
+      preview_token VARCHAR(64) UNIQUE NOT NULL,
+      email_sent_at TIMESTAMP,
+      email_opened_at TIMESTAMP,
+      preview_viewed_at TIMESTAMP,
+      cta_clicked_at TIMESTAMP,
+      cta_contact_name VARCHAR(255),
+      cta_contact_email VARCHAR(255),
+      cta_contact_phone VARCHAR(50),
+      cta_message TEXT,
+      followup_1_sent_at TIMESTAMP,
+      followup_2_sent_at TIMESTAMP,
+      approved_by VARCHAR(100),
+      approved_at TIMESTAMP,
+      status VARCHAR(20) DEFAULT 'draft',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS enterprise_contracts (
+      id SERIAL PRIMARY KEY,
+      prospect_id INTEGER REFERENCES enterprise_prospects(id),
+      customer_id INTEGER,
+      contract_number VARCHAR(30) UNIQUE NOT NULL,
+      company_name VARCHAR(255) NOT NULL,
+      company_tax_id VARCHAR(50),
+      company_tax_office VARCHAR(100),
+      company_address TEXT,
+      billing_contact_name VARCHAR(255),
+      billing_contact_email VARCHAR(255),
+      contract_type VARCHAR(30) DEFAULT 'annual',
+      billing_cycle VARCHAR(20) DEFAULT 'annual',
+      payment_method VARCHAR(30) DEFAULT 'bank_transfer',
+      payment_terms INTEGER DEFAULT 30,
+      start_date DATE NOT NULL,
+      end_date DATE,
+      total_amount_tl DECIMAL(12,2),
+      discount_pct INTEGER DEFAULT 0,
+      discount_reason VARCHAR(255),
+      status VARCHAR(30) DEFAULT 'draft',
+      sent_at TIMESTAMP,
+      signed_at TIMESTAMP,
+      signed_by VARCHAR(255),
+      activated_at TIMESTAMP,
+      activated_by VARCHAR(100),
+      contract_pdf_path VARCHAR(500),
+      signed_pdf_path VARCHAR(500),
+      internal_notes TEXT,
+      created_by VARCHAR(100),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS enterprise_contract_services (
+      id SERIAL PRIMARY KEY,
+      contract_id INTEGER REFERENCES enterprise_contracts(id),
+      service_slug VARCHAR(100) NOT NULL,
+      service_name VARCHAR(255) NOT NULL,
+      unit_price_tl DECIMAL(10,2) NOT NULL,
+      quantity INTEGER DEFAULT 1,
+      line_total_tl DECIMAL(10,2) NOT NULL,
+      is_active BOOLEAN DEFAULT false,
+      activated_at TIMESTAMP,
+      expires_at TIMESTAMP,
+      usage_limit INTEGER,
+      usage_count INTEGER DEFAULT 0,
+      notes VARCHAR(500),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS enterprise_invoices (
+      id SERIAL PRIMARY KEY,
+      contract_id INTEGER REFERENCES enterprise_contracts(id),
+      customer_id INTEGER,
+      invoice_number VARCHAR(30) UNIQUE NOT NULL,
+      period_start DATE,
+      period_end DATE,
+      subtotal_tl DECIMAL(12,2),
+      vat_rate INTEGER DEFAULT 20,
+      vat_amount_tl DECIMAL(12,2),
+      total_tl DECIMAL(12,2),
+      due_date DATE,
+      paid_at TIMESTAMP,
+      paid_amount_tl DECIMAL(12,2),
+      status VARCHAR(20) DEFAULT 'pending',
+      pdf_path VARCHAR(500),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS lead_scan_queue (
+      id SERIAL PRIMARY KEY,
+      domain VARCHAR(255) NOT NULL,
+      company_name VARCHAR(255),
+      source VARCHAR(50),
+      scan_status VARCHAR(20) DEFAULT 'pending',
+      domain_scan_data JSONB,
+      risk_score INTEGER,
+      risk_level VARCHAR(20),
+      critical_count INTEGER DEFAULT 0,
+      high_count INTEGER DEFAULT 0,
+      lead_score INTEGER,
+      lead_score_factors JSONB,
+      contacts JSONB,
+      imported_at TIMESTAMP,
+      imported_to_customer_id INTEGER,
+      skipped_reason VARCHAR(255),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      scanned_at TIMESTAMP
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS contact_enrichment_log (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      domain VARCHAR(255),
+      apollo_searched_at TIMESTAMP,
+      apollo_contacts_found INTEGER DEFAULT 0,
+      apollo_data JSONB,
+      hunter_searched_at TIMESTAMP,
+      hunter_emails_found INTEGER DEFAULT 0,
+      hunter_data JSONB,
+      linkedin_searched_at TIMESTAMP,
+      linkedin_notes TEXT,
+      selected_contact_name VARCHAR(255),
+      selected_contact_title VARCHAR(100),
+      selected_contact_email VARCHAR(255),
+      selected_contact_phone VARCHAR(50),
+      selected_contact_linkedin VARCHAR(500),
+      selection_confidence VARCHAR(20),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sales_team (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      title VARCHAR(100),
+      phone VARCHAR(50),
+      is_active BOOLEAN DEFAULT true,
+      monthly_target_tl DECIMAL(12,2),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS lead_campaigns (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      target_sectors TEXT[],
+      target_employee_min INTEGER,
+      target_employee_max INTEGER,
+      target_cities TEXT[],
+      sources TEXT[],
+      status VARCHAR(20) DEFAULT 'active',
+      domains_found INTEGER DEFAULT 0,
+      domains_scanned INTEGER DEFAULT 0,
+      leads_imported INTEGER DEFAULT 0,
+      deals_created INTEGER DEFAULT 0,
+      deals_won INTEGER DEFAULT 0,
+      created_by VARCHAR(100),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMP
+    )
+  `);
 }
 
 function startIsrImapCron() {

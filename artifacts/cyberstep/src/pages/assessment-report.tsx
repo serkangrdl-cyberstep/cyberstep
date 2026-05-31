@@ -1173,7 +1173,7 @@ function AssessmentReportCore({ id }: { id: number }) {
                 Öncelikli Aksiyon Alanları
               </CardTitle>
               <CardDescription>
-                Skorunuza göre aşağıdaki alanlarda adım atmak işletmenizi korumada en büyük etkiyi yaratır.
+                Skorunuza göre aşağıdaki alanlarda adım atmak şirketinizi korumada en büyük etkiyi yaratır.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1703,37 +1703,66 @@ function AssessmentReportCore({ id }: { id: number }) {
       {/* CyberStep Rozet Avantajları */}
       <BadgeAdvantagesSection hasVerificationToken={!!report.verificationToken} />
 
-      {/* Expert review notice */}
-      <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row items-start gap-5">
-            <div className="shrink-0 bg-primary/10 p-4 rounded-xl">
-              <Clock className="h-8 w-8 text-primary" />
+      {/* Expert review notice / badge */}
+      {(report as any).expertBadgeEarned ? (
+        <Card className="shadow-sm mb-6 border-emerald-300/60 bg-emerald-50/60 dark:bg-emerald-950/20 dark:border-emerald-800">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="shrink-0 bg-emerald-100 dark:bg-emerald-900/40 p-3 rounded-xl">
+                <Shield className="h-7 w-7 text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-sm">Uzman Doğrulandı</h3>
+                  <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200" variant="outline">Siber Güvenlik Uzmanı</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mb-1">
+                  Bu rapor bir CyberStep sertifikalı siber güvenlik uzmanı tarafından incelendi ve doğrulandı.
+                  {(report as any).expertReviewedBy && (
+                    <span className="font-medium text-foreground"> İnceleyen: {(report as any).expertReviewedBy}</span>
+                  )}
+                </p>
+                {(report as any).expertNotes && (
+                  <p className="text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-2 rounded-lg mt-2">
+                    <span className="font-semibold">Uzman Notu:</span> {(report as any).expertNotes}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-lg mb-2">Detaylı Raporunuz Hazırlanıyor</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-3">
-                Risk skoru ve alan dağılımınız yukarıda gösterilmektedir. Uzman ekibimiz yapay zeka ön analizini inceleyerek
-                şirketinize özel detaylı değerlendirmeyi <strong>24-48 saat içinde</strong> e-posta ile iletecektir.
-              </p>
-              <div className="flex flex-wrap gap-3 text-sm">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Risk skoru hesaplandı
-                </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  AI ön analizi tamamlandı
-                </div>
-                <div className="flex items-center gap-1.5 text-orange-600 font-medium">
-                  <Clock className="h-4 w-4" />
-                  Uzman değerlendirmesi bekleniyor
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="shadow-sm mb-6 border-primary/30 bg-primary/5">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-start gap-5">
+              <div className="shrink-0 bg-primary/10 p-4 rounded-xl">
+                <Clock className="h-8 w-8 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg mb-2">Detaylı Raporunuz Hazırlanıyor</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-3">
+                  Risk skoru ve alan dağılımınız yukarıda gösterilmektedir. Uzman ekibimiz yapay zeka ön analizini inceleyerek
+                  şirketinize özel detaylı değerlendirmeyi <strong>24-48 saat içinde</strong> e-posta ile iletecektir.
+                </p>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    Risk skoru hesaplandı
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    AI ön analizi tamamlandı
+                  </div>
+                  <div className="flex items-center gap-1.5 text-orange-600 font-medium">
+                    <Clock className="h-4 w-4" />
+                    Uzman değerlendirmesi bekleniyor
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Answers accordion */}
       <Card className="shadow-sm mb-6">

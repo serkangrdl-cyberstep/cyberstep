@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, jsonb, boolean, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { assessmentsTable } from "./assessments";
@@ -50,6 +50,11 @@ export const reportsTable = pgTable("reports", {
     description: string;
     recommendation: string;
   }>>().notNull().default([]),
+  expertReviewStatus: varchar("expert_review_status", { length: 20 }).default("pending"),
+  expertReviewedAt: timestamp("expert_reviewed_at"),
+  expertNotes: text("expert_notes"),
+  expertReviewedBy: varchar("expert_reviewed_by", { length: 100 }),
+  expertBadgeEarned: boolean("expert_badge_earned").default(false),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true });

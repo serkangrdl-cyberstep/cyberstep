@@ -105,14 +105,14 @@ export default function EuAiActPage() {
             <Globe className="h-3.5 w-3.5 mr-1" /> AB Yapay Zeka Yasası
           </Badge>
           <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4 leading-tight">
-            EU AI Act<br />
+            AB Yapay Zeka Yasası<br />
             <span className="text-blue-400">Uyum Skoru</span>
           </h1>
           <p className="text-blue-100/80 text-lg mb-3">
-            1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet satan şirketler AB AI Yasası kapsamına giriyor.<br />
+            1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet satan şirketler EU AI Act kapsamına giriyor.<br />
             <strong className="text-white">Cezalar: 35 milyon Euro'ya kadar.</strong>
           </p>
-          <p className="text-blue-200/60 text-sm mb-8">20 soruda uyum durumunuzu öğrenin. 10 dakika.</p>
+          <p className="text-blue-200/60 text-sm mb-8">20 soruda uyum durumunuzu öğrenin. 10 dakika. 1.990 TL.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={() => setStep("form")} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8">
               Uyum Skorumu Öğren <ArrowRight className="ml-2 h-4 w-4" />

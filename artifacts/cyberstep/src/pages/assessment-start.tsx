@@ -104,7 +104,7 @@ export default function AssessmentStart() {
           <Card>
             <CardHeader>
               <CardTitle>Şirket Bilgileri</CardTitle>
-              <CardDescription>Raporunuzun hazırlanabilmesi için temel işletme bilgileri.</CardDescription>
+              <CardDescription>Raporunuzun hazırlanabilmesi için temel şirket bilgileri.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

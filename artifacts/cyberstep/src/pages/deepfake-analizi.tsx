@@ -82,14 +82,14 @@ export default function DeepfakeAnaliziPage() {
               <Mic className="h-3.5 w-3.5 mr-1" /> Deepfake & Ses Klonu Analizi
             </Badge>
             <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
-              Yöneticinizin Sesi<br />
-              <span className="text-purple-400">Kopyalanabilir mi?</span>
+              Deepfake &amp; Ses Klonu<br />
+              <span className="text-purple-400">Tehdit Analizi</span>
             </h1>
             <p className="text-purple-100/80 text-lg mb-3">
               Modern ses klonlama araçları <strong className="text-white">3 dakika ses</strong> ile çalışıyor.<br />
               CEO fraud saldırıları Türkiye'de yılda milyonlarca TL zarara neden oluyor.
             </p>
-            <p className="text-purple-200/60 text-sm mb-8">Yöneticilerinizin YouTube, LinkedIn veya haber sitelerindeki dijital izini analiz ediyoruz.</p>
+            <p className="text-purple-200/60 text-sm mb-8">Yöneticilerinizin YouTube, LinkedIn veya haber sitelerindeki dijital izini analiz ediyoruz. 1.490 TL.</p>
             <Button onClick={() => setStep("form")} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-8">
               Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

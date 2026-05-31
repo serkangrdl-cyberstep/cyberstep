@@ -26,6 +26,7 @@ interface IntegrationDef {
   how: string;
   setup?: string;
   docs?: string;
+  superAdminOnly?: boolean;
 }
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -250,7 +251,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "Replit Secrets'a SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS ortam değişkenlerini ekleyin.",
   },
   {
-    id: "isr-imap", name: "ISR IMAP (AI Satış Asistanı)", category: "İletişim", icon: "🧠",
+    id: "isr-imap", name: "ISR IMAP (AI Satış Asistanı)", category: "İletişim", icon: "🧠", superAdminOnly: true,
     cost: "free", costLabel: "Ücretsiz", always: false,
     desc: "AI Satış Asistanı'nın gelen kutusunu okuyarak potansiyel müşteri e-postalarına otomatik Türkçe yanıt vermesi",
     why: "7/24 çalışan AI satış temsilcisi — potansiyel müşteri e-postasını 5 dakika içinde yanıtlar, kapanma oranını artırır.",
@@ -366,15 +367,17 @@ export default function AdminEntegrasyonlar() {
     return !!apiKeys[integration.envKey];
   };
 
-  const filtered = activeCategory === "Tümü"
-    ? INTEGRATIONS
-    : INTEGRATIONS.filter(i => i.category === activeCategory);
+  const PUBLIC_INTEGRATIONS = INTEGRATIONS.filter(i => !i.superAdminOnly);
 
-  const totalActive = INTEGRATIONS.filter(i => isActive(i)).length;
-  const totalNeedsConfig = INTEGRATIONS.filter(i => !isActive(i) && !!i.envKey).length;
+  const filtered = activeCategory === "Tümü"
+    ? PUBLIC_INTEGRATIONS
+    : PUBLIC_INTEGRATIONS.filter(i => i.category === activeCategory);
+
+  const totalActive = PUBLIC_INTEGRATIONS.filter(i => isActive(i)).length;
+  const totalNeedsConfig = PUBLIC_INTEGRATIONS.filter(i => !isActive(i) && !!i.envKey).length;
 
   const categories = Object.keys(
-    INTEGRATIONS.reduce<Record<string, true>>((acc, i) => { acc[i.category] = true; return acc; }, {})
+    PUBLIC_INTEGRATIONS.reduce<Record<string, true>>((acc, i) => { acc[i.category] = true; return acc; }, {})
   );
 
   return (
@@ -384,7 +387,7 @@ export default function AdminEntegrasyonlar() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Toplam Entegrasyon", value: INTEGRATIONS.length, color: "text-white" },
+            { label: "Toplam Entegrasyon", value: PUBLIC_INTEGRATIONS.length, color: "text-white" },
             { label: "Aktif Servis", value: totalActive, color: "text-emerald-400" },
             { label: "API Anahtarı Bekliyor", value: totalNeedsConfig, color: "text-amber-400" },
           ].map(({ label, value, color }) => (

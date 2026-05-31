@@ -547,7 +547,7 @@ function BusinessContinuityMap({ services }: { services: ShadowItService[] }) {
             )}
           </div>
           <p className="text-xs text-muted-foreground mb-2">
-            Bu alan adında tespit edilen servisler çöktüğünde işletmeniz nasıl etkilenir? Aşağıda her servis için acil durum senaryosu görüntüleyin.
+            Bu alan adında tespit edilen servisler çöktüğünde şirketiniz nasıl etkilenir? Aşağıda her servis için acil durum senaryosu görüntüleyin.
           </p>
           <button
             onClick={() => setOpen(!open)}

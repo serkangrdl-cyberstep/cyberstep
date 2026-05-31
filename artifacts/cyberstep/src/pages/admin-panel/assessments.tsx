@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Eye, Clock, CheckCircle, AlertTriangle, ShieldCheck, ShieldOff } from "lucide-react";
+import { Eye, Clock, CheckCircle, AlertTriangle, ShieldCheck, ShieldOff, UserCheck } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +33,9 @@ export default function AdminAssessments() {
   const [confirmAction, setConfirmAction] = useState<"issue" | "revoke" | null>(null);
   const [durationYears, setDurationYears] = useState<1 | 2>(1);
   const [certificationTier, setCertificationTier] = useState<1 | 2 | 3>(1);
+  const [expertReviewId, setExpertReviewId] = useState<number | null>(null);
+  const [expertName, setExpertName] = useState("");
+  const [expertNotes, setExpertNotes] = useState("");
 
   const { data: assessments, isLoading } = useQuery<Assessment[]>({
     queryKey: ["admin-assessments"],
@@ -78,6 +83,25 @@ export default function AdminAssessments() {
     },
   });
 
+  const submitExpertReview = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: "approved" | "rejected" }) => {
+      const r = await fetch(`/api/admin-panel/assessments/${id}/expert-review`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status, notes: expertNotes || undefined, expertName }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Hata");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-assessments"] });
+      setExpertReviewId(null);
+      setExpertName("");
+      setExpertNotes("");
+    },
+  });
+
   const list = Array.isArray(assessments) ? assessments : [];
 
   const fmt = (d: string) =>
@@ -88,6 +112,70 @@ export default function AdminAssessments() {
   return (
     <AdminLayout title="Değerlendirmeler" description={`Tüm anket sonuçları (${list.length} kayıt)`}>
       {/* Onay diyaloğu */}
+      {/* Uzman İnceleme Diyaloğu */}
+      {expertReviewId !== null && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <Card className="bg-slate-800 border-slate-700 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <UserCheck className="h-6 w-6 text-emerald-400 shrink-0" />
+              <h3 className="font-semibold text-white text-sm">Uzman İnceleme</h3>
+            </div>
+            <p className="text-slate-400 text-xs">Değerlendirmeyi incelediniz. Onayladığınızda müşteriye bildirim e-postası gönderilir ve raporunda "Uzman Doğrulandı" rozeti görünür.</p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-medium">Uzman Adı Soyadı <span className="text-red-400">*</span></label>
+                <Input
+                  value={expertName}
+                  onChange={e => setExpertName(e.target.value)}
+                  placeholder="Uzman adı..."
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-sm h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-medium">Uzman Notu (isteğe bağlı)</label>
+                <Textarea
+                  value={expertNotes}
+                  onChange={e => setExpertNotes(e.target.value)}
+                  placeholder="Müşteriye iletilecek notlar..."
+                  rows={3}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-sm resize-none"
+                />
+              </div>
+            </div>
+            {submitExpertReview.isError && (
+              <p className="text-red-400 text-xs">{(submitExpertReview.error as Error | null)?.message}</p>
+            )}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-400 hover:text-white flex-1"
+                onClick={() => { setExpertReviewId(null); setExpertName(""); setExpertNotes(""); }}
+                disabled={submitExpertReview.isPending}
+              >
+                İptal
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-700 hover:bg-red-600 text-white flex-1"
+                onClick={() => submitExpertReview.mutate({ id: expertReviewId, status: "rejected" })}
+                disabled={!expertName.trim() || submitExpertReview.isPending}
+              >
+                Reddet
+              </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white flex-1"
+                onClick={() => submitExpertReview.mutate({ id: expertReviewId, status: "approved" })}
+                disabled={!expertName.trim() || submitExpertReview.isPending}
+              >
+                Onayla
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {confirmId !== null && confirmAction !== null && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <Card className="bg-slate-800 border-slate-700 max-w-sm w-full p-6 space-y-4">
@@ -254,10 +342,18 @@ export default function AdminAssessments() {
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{fmt(a.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white h-7 w-7 p-0"
-                        onClick={() => navigate(`/panel/degerlendirmeler/${a.id}/rapor`)}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {a.status === "report_ready" && (
+                          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-emerald-400 h-7 w-7 p-0" title="Uzman İnceleme"
+                            onClick={() => { setExpertReviewId(a.id); setExpertName(""); setExpertNotes(""); }}>
+                            <UserCheck className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white h-7 w-7 p-0"
+                          onClick={() => navigate(`/panel/degerlendirmeler/${a.id}/rapor`)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -89,7 +89,7 @@ export default function Hakkimizda() {
               2024 yılında Türkiye'de 94 firmaya toplam <strong className="text-foreground">47 milyon TL</strong> KVKK cezası kesildi. Bu cezaların büyük çoğunluğu teknik uzman gerektirmeyen, 30 dakikada kapatılabilecek açıklardan kaynaklandı.
             </p>
             <p className="text-lg leading-relaxed text-muted-foreground mb-6">
-              Problem şu: Türkiye'deki şirketlerin <strong className="text-foreground">yüzde doksan beşinin</strong> güvenlik ekibi yok. Mevcut araçlar İngilizce, kurumsal ölçeğe göre fiyatlandırılmış ve teknik bilgi gerektiriyor. Büyük kurumlar için yapılmış araçlar, orta ölçekli şirketlerin sorununu çözmüyor.
+              Problem şu: Türkiye'deki şirketlerin <strong className="text-foreground">yüzde doksan beşinin</strong> güvenlik ekibi yok. Mevcut araçlar İngilizce, kurumsal ölçeğe göre fiyatlandırılmış ve teknik bilgi gerektiriyor. Büyük kurumlar için yapılmış araçlar, çoğu şirketin gerçek sorununu çözmüyor.
             </p>
             <p className="text-lg leading-relaxed text-muted-foreground">
               CyberStep bu boşluk için kuruldu.
@@ -207,6 +207,8 @@ export default function Hakkimizda() {
               ["USOM korelasyonu yok", "Türkiye'ye özgü tehdit istihbaratı"],
               ["AI araç güvenliği kapsam dışı", "AI araç izleme, phishing sim, EU AI Act uyumu"],
               ["Tespit et, rapor ver — bitti", "Bul, gönder, düzelt, doğrula — kapalı döngü"],
+              ["AB'ye ihraç edenler için EU AI Act desteği yok", "EU AI Act uyum skoru ve aksiyon planı"],
+              ["Türkçe destek yok", "Türkçe arayüz, Türkçe rapor, Türkçe destek"],
             ].map(([old, neo], i) => (
               <div key={i} className="grid grid-cols-2 border-b last:border-0">
                 <div className="px-6 py-4 text-sm text-muted-foreground border-r flex items-start gap-2">

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, Eye, FileText, ActivitySquare, ShieldCheck } from "lucide-react";
+import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, Eye, FileText, ActivitySquare, ShieldCheck, Wrench } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Footer } from "./footer";
 import { useWhiteLabel } from "@/contexts/white-label-context";
@@ -9,7 +9,6 @@ import { useLanguage } from "@/contexts/language-context";
 import { TRANSLATIONS as T, t } from "@/lib/translations";
 
 const NAV_LINKS = (lang: "tr" | "en") => [
-  { href: "/sizinti-izleyici", label: "Sızıntı Kontrolü" },
   { href: "/blog", label: t(T.nav.blog, lang) },
   { href: "/fiyatlar", label: t(T.nav.pricing, lang) },
   { href: "/hakkimizda", label: t(T.nav.about, lang) },
@@ -22,9 +21,21 @@ const AI_GUVENLIK_ITEMS = [
   { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: ActivitySquare, available: true },
   { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, available: true },
   { href: "/deepfake-analizi", label: "Deepfake Tehdit Analizi", icon: Eye, available: true },
-  { href: "/sahte-dokuman", label: "Sahte Belge Tespiti", icon: FileText, available: true },
+  { href: "/sahte-dokuman", label: "AI Sahte Doküman Tespiti", icon: FileText, available: true },
   { href: "/eu-ai-act", label: "EU AI Act Uyum Skoru", icon: Cpu, available: true },
   { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Bot, available: true },
+  { href: "/sanal-ciso", label: "Sanal CISO", icon: ShieldCheck, available: true },
+];
+
+const ARACLAR_ITEMS = [
+  { href: "/domain-tarama", label: "Alan Adı Güvenlik Taraması" },
+  { href: "/sizinti-izleyici", label: "Sızıntı İzleyici" },
+  { href: "/kvkk-ceza-sim", label: "KVKK Ceza Simülatörü" },
+  { href: "/m365-denetim", label: "Microsoft 365 Denetimi" },
+  { href: "/sektorel-kiyaslama", label: "Sektörel Kıyaslama" },
+  { href: "/roi-hesaplayici", label: "ROI Hesaplayıcı" },
+  { href: "/marka-koruma", label: "Marka Koruma" },
+  { href: "/araclar", label: "Tüm Araçlar" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -36,12 +47,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const aiRef = useRef<HTMLDivElement>(null);
+  const toolsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (aiRef.current && !aiRef.current.contains(e.target as Node)) {
         setAiOpen(false);
+      }
+      if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) {
+        setToolsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -92,7 +109,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setAiOpen(v => !v)}
                   className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
-                    location.startsWith("/ai-") ? "text-primary" : "text-muted-foreground"
+                    location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/sanal-ciso") ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
                   AI Güvenlik
@@ -116,6 +133,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         {!available && (
                           <span className="ml-auto text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">Yakında</span>
                         )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {!wl && (
+              <div ref={toolsRef} className="relative">
+                <button
+                  onClick={() => setToolsOpen(v => !v)}
+                  className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
+                    toolsOpen ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <Wrench className="h-3.5 w-3.5" />
+                  Araçlar
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${toolsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {toolsOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-56 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden">
+                    {ARACLAR_ITEMS.map(({ href, label }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setToolsOpen(false)}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${label === "Tüm Araçlar" ? "font-semibold text-primary border-t mt-1 pt-2.5" : "text-foreground"}`}
+                      >
+                        {label === "Tüm Araçlar" ? <>{label} <ChevronRight className="h-3.5 w-3.5 ml-auto" /></> : label}
                       </Link>
                     ))}
                   </div>
@@ -208,7 +253,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => setMobileAiOpen(v => !v)}
                     className={`flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      location.startsWith("/ai-") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                      location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/sanal-ciso") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
                     }`}
                   >
                     AI Güvenlik
@@ -225,6 +270,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         >
                           {label}
                           {!available && <span className="text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">Yakında</span>}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Araçlar accordion */}
+              {!wl && (
+                <div>
+                  <button
+                    onClick={() => setMobileToolsOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors text-foreground hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2"><Wrench className="h-4 w-4" />Araçlar</span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileToolsOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {mobileToolsOpen && (
+                    <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3">
+                      {ARACLAR_ITEMS.map(({ href, label }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => { setMobileOpen(false); setMobileToolsOpen(false); }}
+                          className="flex items-center w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+                        >
+                          {label}
                         </Link>
                       ))}
                     </div>

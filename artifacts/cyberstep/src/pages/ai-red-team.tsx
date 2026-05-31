@@ -73,13 +73,13 @@ export default function AiRedTeamPage() {
               <Eye className="h-3.5 w-3.5 mr-1" /> AI Red Team
             </Badge>
             <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
-              Saldırgan Gözüyle<br />
-              <span className="text-red-400">30 Dakika</span>
+              AI Red Team<br />
+              <span className="text-red-400">Raporu</span>
             </h1>
             <p className="text-slate-300 text-lg mb-3">
               Bir saldırgan şirketinizi hedef almadan önce 30 dakikada <strong className="text-white">ne öğrenir?</strong>
             </p>
-            <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi.</p>
+            <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 2.490 TL.</p>
             <Button onClick={() => setStep("form")} size="lg" className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8">
               Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

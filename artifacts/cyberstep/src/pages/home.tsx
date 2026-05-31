@@ -247,9 +247,9 @@ export default function Home() {
 
   const STATS = [
     { value: "500+", label: t(T.home.statsAnalyzed, lang) },
-    { value: "3.2dk", label: t(T.home.statsTime, lang) },
-    { value: "%94", label: t(T.home.statsSatisfaction, lang) },
-    { value: "20", label: t(T.home.statsPoints, lang) },
+    { value: "20dk", label: t(T.home.statsTime, lang) },
+    { value: "60+", label: t(T.home.statsSatisfaction, lang) },
+    { value: "22", label: t(T.home.statsPoints, lang) },
   ];
 
   const SECTOR_RISKS = [
@@ -385,10 +385,10 @@ export default function Home() {
     <div className="flex flex-col flex-1">
       <SpecialDayBanner />
       {/* Beta Banner */}
-      <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 py-2.5 px-4 text-sm text-center">
+      <div className="bg-primary/10 border-b border-primary/20 text-primary py-2.5 px-4 text-sm text-center">
         <span className="inline-flex items-center gap-2">
-          <span className="font-semibold bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded">BETA</span>
-          Platform gelistirme asamasindadir. Bu donemde olusturulan rozetler resmi gecerlilik tasimaz.
+          <span className="font-semibold bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded">YENİ</span>
+          Platform sürekli gelişiyor. Yeni özellikler her hafta ekleniyor.
         </span>
       </div>
       {/* Hero */}
@@ -453,12 +453,12 @@ export default function Home() {
             <p className="text-muted-foreground mt-4">{t(T.home.howSub, lang)}</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             <div className="bg-card border rounded-lg p-6 shadow-sm flex flex-col items-center text-center space-y-4">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <CheckCircle className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-semibold">{lang === "en" ? "1. Complete the Form" : "1. Formu Doldurun"}</h3>
+              <h3 className="text-xl font-semibold">{lang === "en" ? "1. Complete the Assessment" : "1. Değerlendirmeyi Tamamlayın"}</h3>
               <p className="text-muted-foreground">{t(T.home.step1sub, lang)}</p>
             </div>
 
@@ -474,8 +474,20 @@ export default function Home() {
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <ShieldAlert className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-semibold">{lang === "en" ? "3. Get Your Expert Report" : "3. Uzman Raporunuzu Alın"}</h3>
+              <h3 className="text-xl font-semibold">{lang === "en" ? "3. Get Your AI Report Instantly" : "3. AI Raporunuzu Anında Alın"}</h3>
               <p className="text-muted-foreground">{t(T.home.step3sub, lang)}</p>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300/60 dark:border-amber-700/50 rounded-lg p-6 shadow-sm flex flex-col items-center text-center space-y-4">
+              <div className="h-16 w-16 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Shield className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-semibold text-amber-800 dark:text-amber-200">{lang === "en" ? "4. Expert Verification" : "4. Uzman Doğrulaması"}</h3>
+              <p className="text-amber-700 dark:text-amber-300 text-sm leading-relaxed">
+                {lang === "en"
+                  ? "Full Assessment reports are reviewed by a certified cybersecurity consultant within 24 hours. After approval, the 'Expert Verified' badge is added to your report."
+                  : "Tam Değerlendirme raporları 24 saat içinde uzman siber güvenlik danışmanı tarafından incelenir. Onay sonrası raporunuza 'Uzman Doğrulandı' rozeti eklenir ve sizi bilgilendiririz."}
+              </p>
             </div>
           </div>
         </div>
@@ -882,7 +894,7 @@ export default function Home() {
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-5">
-              <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">Neden CyberStep?</p>
+              <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">Felsefemiz</p>
               <h2 className="text-3xl md:text-4xl font-bold leading-tight">
                 {lang === "en"
                   ? "Don't buy 'security'. Buy business continuity."
@@ -909,7 +921,7 @@ export default function Home() {
               {[
                 { num: "1", title: lang === "en" ? "Find your biggest threat" : "En büyük tehdidini bul", desc: lang === "en" ? "20 questions reveal which gap ransomware, data breach or KVKK fines would exploit first." : "20 soru; fidye saldırısının, veri sızıntısının ya da KVKK cezasının hangi açıktan gireceğini gösterir." },
                 { num: "2", title: lang === "en" ? "Close it in order" : "Öncelik sırasıyla kapat", desc: lang === "en" ? "'Close this first' — a ranked action plan, no jargon, written for business owners not IT teams." : "'Önce şunu kapat' — teknik bilgi gerektirmeden, iş sahibinin anlayacağı dilde öncelik planı." },
-                { num: "3", title: lang === "en" ? "Measure your progress" : "İlerlemeyi belgele", desc: lang === "en" ? "Your Cyber Health Score grows with each step — visible proof for customers, banks and insurers." : "Siber Sağlık Skorun her adımda yükselir — müşterilere, bankaya, sigortacıya gösterebileceğin somut kayıt." },
+                { num: "3", title: lang === "en" ? "Measure your progress" : "İlerlemeyi belgele", desc: lang === "en" ? "Your security score grows with each step — visible proof for customers, banks, insurers and tender committees." : "Güvenlik skorunuz her adımda yükselir — müşterilere, bankaya, sigortacıya, ihale komitesine gösterebileceğiniz somut kanıt." },
               ].map((item) => (
                 <div key={item.num} className="flex gap-4 p-5 bg-white/5 border border-white/10 rounded-xl">
                   <div className="h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold shrink-0">
@@ -983,6 +995,7 @@ export default function Home() {
                 title: lang === "en" ? "Dark Web Leak Monitor" : "Karanlık Web Sızıntı İzleyici",
                 what: lang === "en" ? "Checks if your corporate domain or email addresses have appeared in dark web data dumps." : "Şirket alan adınızın veya e-postalarınızın karanlık web veri ihlali listelerinde yer alıp almadığını kontrol eder.",
                 why: lang === "en" ? "Leaked credentials are used in 80% of cyberattacks. Early detection prevents account takeovers." : "Sızdırılan kimlik bilgileri siber saldırıların %80'inde kullanılır. Erken tespit hesap ele geçirilmesini önler.",
+                price: "2.900 TL/yıl",
               },
               {
                 href: "/kvkk-verbis",
@@ -1074,6 +1087,7 @@ export default function Home() {
                 title: "Yapay Zeka Güvenlik Değerlendirmesi",
                 what: "ChatGPT, Gemini, Copilot gibi 20+ AI aracının KVKK uyum durumu, veri saklama politikası ve şirket riskleri. 25 soruluk analizle AI veri maruz kalma haritası çıkarılır.",
                 why: "KVKK'ya göre ABD menşeli AI araçlarına kişisel veri göndermek yurt dışı aktarım sayılır. Ücretsiz ChatGPT'ye girilen veriler model eğitimi için kullanılabilir.",
+                price: "2.900 TL",
               },
               {
                 href: "/tedarik-zinciri",
@@ -1134,6 +1148,38 @@ export default function Home() {
                 what: "Fatura, sözleşme, kimlik ve diğer belgeleri yapay zeka ile analiz eder. Metadata anomalisi, format tutarsızlığı ve manipülasyon izleri tespit edilir.",
                 why: "AI ile üretilen sahte belgeler artık gözle ayırt edilemiyor. Muhasebe ve hukuk süreçlerinde tedarikçi kimliği doğrulaması kritik.",
                 price: "49 TL / tarama",
+              },
+              {
+                href: "/ai-phishing-simulasyonu",
+                icon: "🎣",
+                title: "AI Phishing Simülasyonu",
+                what: "Şirketinizi hedef alacak yapay zeka destekli phishing e-postasını saldırganlardan önce görün. OSINT analizi + 3 gerçekçi senaryo + her senaryo için koruma yöntemi.",
+                why: "Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.",
+                price: "1.990 TL",
+              },
+              {
+                href: "/ai-arac-izleme",
+                icon: "📡",
+                title: "AI Araç İzleme",
+                what: "ChatGPT, Gemini, Copilot gizlilik politikası değişince anında e-posta bildirimi alın. 20+ AI aracı haftalık kontrol, KVKK uyum puanı güncelleme.",
+                why: "AI araç politikaları sessiz sedasız değişiyor. Şirketinize ait veri aniden farklı bir ülkede işlenmeye başlayabilir.",
+                price: "490 TL/ay",
+              },
+              {
+                href: "/ai-politika",
+                icon: "📑",
+                title: "AI Politika Otogüncelleme",
+                what: "Şirketinizin yapay zeka kullanım politikasını yasal değişikliklere göre otomatik güncelleyen canlı belge. KVKK, EU AI Act ve sektörel düzenlemeler takip edilir.",
+                why: "Manuel politika güncelleme hem zaman alır hem hatalara açıktır. Politika boşlukları KVKK ihlali ve EU AI Act cezasına yol açabilir.",
+                price: "990 TL/yıl",
+              },
+              {
+                href: "/sanal-ciso",
+                icon: "🛡️",
+                title: "Sanal CISO",
+                what: "Sertifikalı partner CISO'lardan aylık yönetim kurulu raporu, güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek.",
+                why: "CISO pozisyonu yıllık 2-4 milyon TL maaşla geliyor. Şirketlerin %99'unun tam zamanlı CISO'ya ihtiyacı yok — ama CISO düzeyinde stratejiye ihtiyacı var.",
+                price: "8.000 TL/ay",
               },
             ].map((tool) => (
               <a

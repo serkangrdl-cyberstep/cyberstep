@@ -16,7 +16,7 @@ function fmtTL(price: string | undefined): string {
 const TRUST_ITEMS = [
   { icon: Shield, text: "256-bit SSL şifreli güvenli ödeme" },
   { icon: Users, text: "500+ şirket tarafından tercih edildi" },
-  { icon: Clock, text: "24-48 saat içinde uzman değerlendirmesi" },
+  { icon: Clock, text: "Tam Değerlendirme'de uzman doğrulaması dahil" },
   { icon: Award, text: "KVKK uyumlu veri işleme" },
 ];
 
@@ -334,12 +334,12 @@ export default function Pricing() {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
                   <h3 className="text-lg font-bold">AI Koruma Paketi</h3>
-                  <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">%30 Tasarruf</span>
+                  <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">%32 Tasarruf</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">AI Politika + AI Araç İzleme (12 ay) + AI Phishing Simülasyonu — tam koruma paketinde.</p>
+                <p className="text-sm text-muted-foreground mb-3">AI Güvenlik Değerlendirmesi + AI Araç İzleme (12 ay) + AI Politika Otogüncelleme — üç AI güvenlik servisini birlikte alın.</p>
                 <div className="flex items-center gap-3 text-sm">
-                  <span className="line-through text-muted-foreground">8.850 TL</span>
-                  <span className="text-2xl font-bold text-primary">5.990 TL</span>
+                  <span className="line-through text-muted-foreground">9.770 TL</span>
+                  <span className="text-2xl font-bold text-primary">9.990 TL</span>
                   <span className="text-muted-foreground">/ yıl</span>
                 </div>
               </div>

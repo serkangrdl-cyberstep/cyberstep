@@ -114,8 +114,14 @@ app.use(
 );
 
 // ─── Body parsing + payload limits ───────────────────────────────────────────
-app.use(express.json({ limit: "512kb" }));
-app.use(express.urlencoded({ extended: true, limit: "512kb" }));
+// Public Fortinet ingest paths must NEVER hit the global JSON/urlencoded parsers:
+// those would 413 (or mis-consume the body) before the route's own raw-text parser,
+// breaking the always-200 contract Fortinet devices rely on to avoid retry storms.
+const fabricIngestPath = /^\/api\/fabric\/(webhook|syslog)\//;
+const jsonParser = express.json({ limit: "512kb" });
+const urlencodedParser = express.urlencoded({ extended: true, limit: "512kb" });
+app.use((req, res, next) => (fabricIngestPath.test(req.path) ? next() : jsonParser(req, res, next)));
+app.use((req, res, next) => (fabricIngestPath.test(req.path) ? next() : urlencodedParser(req, res, next)));
 
 // ─── Rate limiters ───────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
@@ -141,6 +147,10 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Çok fazla istek. Lütfen daha sonra tekrar deneyin." },
+  // Public Fortinet ingest/verify endpoints must always return 200; a 429 here
+  // would trigger Fortinet device retry storms. They carry a secret token in the
+  // path and are gated by token validation in the handler instead.
+  skip: (req) => /^\/api\/fabric\/(webhook|syslog|verify)\//.test(req.originalUrl),
 });
 
 // Ödeme girişimi: saatte 5 (kart kötüye kullanım koruması)

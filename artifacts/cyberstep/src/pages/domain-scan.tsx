@@ -1686,6 +1686,40 @@ export default function DomainScanPage() {
       {/* Results */}
       {result && scoreInfo && (
         <>
+          {/* ── TEHDİT ANALİZİ BANNER ─────────────────────────────────── */}
+          {attackTeaserStatus === "loading" && (
+            <div className="mb-6 rounded-xl border-2 border-orange-400/60 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-500/40 overflow-hidden">
+              <div className="flex items-center gap-4 px-5 py-4">
+                <div className="relative shrink-0">
+                  <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-orange-500 animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-orange-800 dark:text-orange-300">
+                    MITRE ATT&CK Tehdit Analizi Çalışıyor
+                  </p>
+                  <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
+                    Saldırı senaryoları ve risk derecelendirmesi hesaplanıyor — bu birkaç dakika sürebilir. Rapor analiz bittikten sonra e-postanıza gönderilecek.
+                  </p>
+                </div>
+                <div className="shrink-0 hidden sm:flex flex-col items-end gap-1">
+                  <span className="text-xs text-orange-600/70 dark:text-orange-400/60 font-medium">Analiz ediliyor...</span>
+                  <div className="flex gap-0.5">
+                    {[0, 1, 2, 3].map(i => (
+                      <div
+                        key={i}
+                        className="h-1.5 w-5 rounded-full bg-orange-300 dark:bg-orange-700 animate-pulse"
+                        style={{ animationDelay: `${i * 150}ms` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Overall score */}
           <Card className={`shadow-sm mb-6 border ${scoreInfo.bg}`}>
             <CardContent className="p-6">
@@ -1762,18 +1796,32 @@ export default function DomainScanPage() {
             </CardContent>
           </Card>
 
-          {/* Rapor e-postanıza kaydedildi (email tarama başında zorunlu alındı) */}
-          <Card className="mb-6 border-primary/20 bg-primary/5">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Mail className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Rapor <span className="text-primary">{result.email ?? email}</span> adresine gönderildi</p>
-                <p className="text-xs text-muted-foreground">30 gün içinde alan adı değişikliklerini ve güvenlik uyarılarını e-posta ile alacaksınız.</p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* E-posta durumu: analiz bitmeden "bekliyor", bittikten sonra "gönderildi" */}
+          {attackTeaserStatus === "loading" ? (
+            <Card className="mb-6 border-orange-200/60 bg-orange-50/40 dark:bg-orange-950/10 dark:border-orange-800/30">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+                  <Mail className="h-4 w-4 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">Rapor hazırlanıyor...</p>
+                  <p className="text-xs text-muted-foreground">Tehdit analizi tamamlandıktan sonra <span className="font-medium">{result.email ?? email}</span> adresine gönderilecek.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mb-6 border-primary/20 bg-primary/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Mail className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Rapor <span className="text-primary">{result.email ?? email}</span> adresine gönderildi</p>
+                  <p className="text-xs text-muted-foreground">30 gün içinde alan adı değişikliklerini ve güvenlik uyarılarını e-posta ile alacaksınız.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* ── LOCKED GATE ─────────────────────────────────────────────── */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
@@ -1784,12 +1832,6 @@ export default function DomainScanPage() {
             </div>
 
             {/* Tehdit analizi teaser */}
-            {attackTeaserStatus === "loading" && (
-              <div className="px-5 py-3 bg-red-50/40 dark:bg-red-950/10 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2.5">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-red-500 shrink-0" />
-                <p className="text-xs text-muted-foreground">Tehdit analizi çalışıyor — MITRE ATT&CK senaryoları hesaplanıyor...</p>
-              </div>
-            )}
             {attackTeaserStatus === "ready" && attackTeaser && (
               <div className="px-5 py-4 bg-red-50/60 dark:bg-red-950/20 border-b border-red-200/60 dark:border-red-900/40">
                 <div className="flex items-center gap-2 mb-2.5">

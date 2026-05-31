@@ -6,7 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, and, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { runBatchCorrelation } from "./fabric-correlation";
+import { runBatchCorrelation, runWeeklyFabricReport } from "./fabric-correlation";
 import { decryptSecret } from "./fabric-crypto";
 import { fmTestConnection, fmVerifyBlock, fmDiscoverDevices } from "./fabric-fortimanager";
 
@@ -51,6 +51,12 @@ export function startFabricCrons(): void {
     }
   }, TZ);
   logger.info("Fabric FortiManager health cron scheduled (02:45 Istanbul)");
+
+  // Weekly fabric summary report — Mondays 08:00 Istanbul
+  cron.schedule("0 8 * * 1", () => {
+    runWeeklyFabricReport().catch((err) => logger.warn({ err }, "Fabric weekly report cron failed"));
+  }, TZ);
+  logger.info("Fabric weekly report cron scheduled (Mon 08:00 Istanbul)");
 
   // Verify pending/success blocks still present — every 6 hours
   cron.schedule("20 */6 * * *", async () => {

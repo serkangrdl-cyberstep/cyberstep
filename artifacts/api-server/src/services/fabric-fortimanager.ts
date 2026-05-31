@@ -107,12 +107,19 @@ export async function fmBlockIp(creds: FortiManagerCreds, ip: string, reason: st
       return { ok: false, message: `Adres nesnesi oluşturulamadı: ${addrRes.message}` };
     }
 
-    // 2) Ensure block group exists and append member
+    // 2) Read current group members so we append instead of clobbering existing blocks
+    const grpUrl = `/pm/config/adom/${adom}/obj/firewall/addrgrp/${encodeURIComponent(creds.blockGroup)}`;
+    const existingRes = await rpc(creds.url, { id: 30, method: "get", session, params: [{ url: grpUrl }] });
+    const existing = (existingRes.data as { result?: Array<{ data?: { member?: string[] } }> })
+      ?.result?.[0]?.data?.member ?? [];
+    const merged = Array.from(new Set([...existing, addrName]));
+
+    // 2b) Upsert the block group with the merged member list (preserves prior blocks)
     const grpRes = rpcStatus(await rpc(creds.url, {
       id: 3, method: "set", session,
       params: [{
         url: `/pm/config/adom/${adom}/obj/firewall/addrgrp`,
-        data: { name: creds.blockGroup, "member": [addrName], comment: "CyberStep threat auto-blocklist" },
+        data: { name: creds.blockGroup, "member": merged, comment: "CyberStep threat auto-blocklist" },
       }],
     }));
     if (grpRes.code !== 0) {

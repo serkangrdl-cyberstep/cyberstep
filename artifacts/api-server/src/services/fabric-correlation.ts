@@ -8,7 +8,7 @@ import {
   customersTable,
   assessmentsTable,
 } from "@workspace/db";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, gte } from "drizzle-orm";
 import { getClaudeAiFn } from "./ai-client";
 import { decryptSecret } from "./fabric-crypto";
 import { fmBlockIp } from "./fabric-fortimanager";
@@ -273,3 +273,67 @@ export async function runBatchCorrelation(): Promise<void> {
     catch (err) { logger.warn({ err, integrationId: integration.id }, "Batch correlation failed for integration"); }
   }
 }
+
+// Weekly fabric summary report e-mailed to each integration's alert address.
+export async function runWeeklyFabricReport(): Promise<void> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const integrations = await db.select().from(fortinetIntegrationsTable)
+    .where(eq(fortinetIntegrationsTable.status, "connected"));
+  for (const integration of integrations) {
+    try {
+      const to = integration.alertEmail;
+      if (!to) continue;
+
+      const events = await db.select().from(fabricEventsTable)
+        .where(and(eq(fabricEventsTable.integrationId, integration.id), gte(fabricEventsTable.createdAt, since)));
+      const correlations = await db.select().from(fabricCorrelationsTable)
+        .where(and(eq(fabricCorrelationsTable.integrationId, integration.id), gte(fabricCorrelationsTable.createdAt, since)))
+        .orderBy(desc(fabricCorrelationsTable.createdAt));
+      const blocks = await db.select().from(fortimanagerBlockActionsTable)
+        .where(and(eq(fortimanagerBlockActionsTable.integrationId, integration.id), gte(fortimanagerBlockActionsTable.createdAt, since)));
+
+      const critical = correlations.filter((c) => c.severity === "critical").length;
+      const high = correlations.filter((c) => c.severity === "high").length;
+      const topRows = correlations.slice(0, 5).map((c) => `
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a">${c.title}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b">${SEV_TR[c.severity] ?? c.severity}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b">%${c.confidence}</td>
+        </tr>`).join("");
+
+      const html = `
+<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+      <span style="background:#10b981;color:#fff;font-size:12px;padding:4px 10px;border-radius:20px;margin-left:12px">Haftalık Fabric Raporu</span></div>
+    <div style="padding:32px">
+      <p style="margin:0 0 20px;color:#334155;font-size:14px">Son 7 günde Fortinet Security Fabric entegrasyonunuzdan toplanan özet:</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+        <tr>
+          <td style="padding:12px;background:#f8fafc;border-radius:8px;text-align:center"><div style="font-size:24px;font-weight:700;color:#0f172a">${events.length}</div><div style="font-size:12px;color:#64748b">Olay</div></td>
+          <td style="width:8px"></td>
+          <td style="padding:12px;background:#f8fafc;border-radius:8px;text-align:center"><div style="font-size:24px;font-weight:700;color:#0f172a">${correlations.length}</div><div style="font-size:12px;color:#64748b">Korelasyon</div></td>
+          <td style="width:8px"></td>
+          <td style="padding:12px;background:#f8fafc;border-radius:8px;text-align:center"><div style="font-size:24px;font-weight:700;color:#dc2626">${critical + high}</div><div style="font-size:12px;color:#64748b">Kritik/Yüksek</div></td>
+          <td style="width:8px"></td>
+          <td style="padding:12px;background:#f8fafc;border-radius:8px;text-align:center"><div style="font-size:24px;font-weight:700;color:#0f172a">${blocks.length}</div><div style="font-size:12px;color:#64748b">Engelleme</div></td>
+        </tr>
+      </table>
+      ${topRows ? `<h3 style="margin:0 0 8px;font-size:15px;color:#0f172a">Öne Çıkan Senaryolar</h3>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">${topRows}</table>`
+        : `<p style="margin:0;color:#64748b;font-size:13px">Bu hafta önemli bir korelasyon oluşmadı.</p>`}
+    </div>
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">CyberStep.io · Fortinet Security Fabric · Haftalık Özet</p>
+    </div>
+  </div>
+</body></html>`;
+      await sendMail({ to, subject: "[CyberStep] Haftalık Fortinet Fabric Raporu", html });
+    } catch (err) {
+      logger.warn({ err, integrationId: integration.id }, "Weekly fabric report failed for integration");
+    }
+  }
+}
+
+const SEV_TR: Record<string, string> = { critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük" };

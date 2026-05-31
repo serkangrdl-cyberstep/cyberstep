@@ -25,6 +25,11 @@ Per-customer Fortinet integration: HTTPS-only event ingestion, Claude correlatio
 - Admin must expose a **global event stream** (`GET /api/admin/fabric/events`) in addition to correlations/streams; the customer portal dashboard must render events, correlations, **block history**, and **discovered fabric devices** — all four, not just events/correlations.
 - **AI correlation context must be tenant-scoped.** `domain_scans` has no `customerId` — it links by `email`. Filter the latest scan by the customer's email, or another tenant's scan leaks into the Claude prompt.
 
+## FortiManager JSON-RPC gotchas (do not regress)
+
+- **FM returns HTTP 200 even on logical failure** — must check the JSON body `result[0].status.code === 0`. A `rpcStatus()` helper enforces this on every write (address create, group set, policy install) and read (verify, discovery); a non-zero install fails the block instead of being best-effort.
+- **Block-group update must append, not clobber.** `set` on `addrgrp` with `member:[x]` overwrites the whole member list. `fmBlockIp` first `get`s current members, merges (dedup), then `set`s the union — otherwise each new block silently removes all previously blocked IPs.
+
 ## AI
 
 - Correlation uses `getClaudeAiFn()` → `(prompt: string) => Promise<string>`; heuristic fallback if AI fails. Critical/high correlations send a Turkish email alert via `sendMail`.

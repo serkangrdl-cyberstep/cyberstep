@@ -92,7 +92,7 @@ export default function Hakkimizda() {
               Problem şu: Türkiye'deki şirketlerin <strong className="text-foreground">yüzde doksan beşinin</strong> güvenlik ekibi yok. Mevcut araçlar İngilizce, kurumsal ölçeğe göre fiyatlandırılmış ve teknik bilgi gerektiriyor. Büyük kurumlar için yapılmış araçlar, çoğu şirketin gerçek sorununu çözmüyor.
             </p>
             <p className="text-lg leading-relaxed text-muted-foreground">
-              CyberStep bu boşluk için kuruldu.
+              CyberStep bu boşluk için kuruldu. Türkçe, Türkiye ölçeğinde, aksiyona odaklı. Tek seferlik denetim değil, sürekli yönetim.
             </p>
           </div>
         </div>

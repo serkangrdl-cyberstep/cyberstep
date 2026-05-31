@@ -270,7 +270,7 @@ export const PRICING_PLANS = [
     name: "Tam Değerlendirme",
     price: 4900,
     priceLabel: "₺4.900",
-    priceSuffix: "/ tek seferlik",
+    priceSuffix: "/ tek seferlik + KDV",
     description: "Derinlemesine analiz, kapsamlı tehdit istihbaratı ve birebir uzman görüşmesiyle güvenliğinizi zirveye taşıyın.",
     questionCount: 60,
     domainCount: 10,

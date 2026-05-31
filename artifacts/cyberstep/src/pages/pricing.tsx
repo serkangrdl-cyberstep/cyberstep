@@ -10,7 +10,7 @@ interface DbPlan { id: number; slug: string; name: string; price: string; curren
 function fmtTL(price: string | undefined): string {
   const n = parseFloat(price ?? "0");
   if (!n) return "";
-  return new Intl.NumberFormat("tr-TR").format(n) + " TL";
+  return new Intl.NumberFormat("tr-TR").format(n) + " TL + KDV";
 }
 
 const TRUST_ITEMS = [
@@ -272,7 +272,7 @@ export default function Pricing() {
                 ))}
               </ul>
               <div className="mt-auto pt-3 border-t">
-                <p className="text-xl font-bold text-primary mb-3">990 TL <span className="text-sm font-normal text-muted-foreground">/ yıl</span></p>
+                <p className="text-xl font-bold text-primary mb-3">990 TL <span className="text-sm font-normal text-muted-foreground">/ yıl + KDV</span></p>
                 <Link href="/ai-politika" className="block text-center bg-primary text-primary-foreground py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors">
                   Politikamı Oluştur <ChevronRight className="inline h-3.5 w-3.5 ml-0.5" />
                 </Link>
@@ -296,7 +296,7 @@ export default function Pricing() {
                 ))}
               </ul>
               <div className="mt-auto pt-3 border-t">
-                <p className="text-xl font-bold text-primary mb-3">490 TL <span className="text-sm font-normal text-muted-foreground">/ ay</span></p>
+                <p className="text-xl font-bold text-primary mb-3">490 TL <span className="text-sm font-normal text-muted-foreground">/ ay + KDV</span></p>
                 <Link href="/ai-arac-izleme" className="block text-center bg-primary text-primary-foreground py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors">
                   İzlemeyi Başlat <ChevronRight className="inline h-3.5 w-3.5 ml-0.5" />
                 </Link>
@@ -320,7 +320,7 @@ export default function Pricing() {
                 ))}
               </ul>
               <div className="mt-auto pt-3 border-t">
-                <p className="text-xl font-bold text-primary mb-3">1.990 TL <span className="text-sm font-normal text-muted-foreground">· tek seferlik</span></p>
+                <p className="text-xl font-bold text-primary mb-3">1.990 TL <span className="text-sm font-normal text-muted-foreground">· tek seferlik + KDV</span></p>
                 <Link href="/ai-phishing-simulasyonu" className="block text-center bg-primary text-primary-foreground py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors">
                   Simülasyonu Başlat <ChevronRight className="inline h-3.5 w-3.5 ml-0.5" />
                 </Link>
@@ -338,9 +338,9 @@ export default function Pricing() {
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">AI Güvenlik Değerlendirmesi + AI Araç İzleme (12 ay) + AI Politika Otogüncelleme — üç AI güvenlik servisini birlikte alın.</p>
                 <div className="flex items-center gap-3 text-sm">
-                  <span className="line-through text-muted-foreground">9.770 TL</span>
+                  <span className="line-through text-muted-foreground">9.770 TL + KDV</span>
                   <span className="text-2xl font-bold text-primary">9.990 TL</span>
-                  <span className="text-muted-foreground">/ yıl</span>
+                  <span className="text-muted-foreground">/ yıl + KDV</span>
                 </div>
               </div>
               <Link href="/iletisim" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shrink-0">
@@ -365,7 +365,7 @@ export default function Pricing() {
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
                 CISO'nuz yoksa, kiralamak zorunda da degilsiniz. Sertifikalı partner CISO'lardan aylık yönetim kurulu raporu,
-                güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek — aylık <strong className="text-foreground">8.000 TL</strong>'den.
+                güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek — aylık <strong className="text-foreground">8.000 TL + KDV</strong>'den.
               </p>
             </div>
             <Link

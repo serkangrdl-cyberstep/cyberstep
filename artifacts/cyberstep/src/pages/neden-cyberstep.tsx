@@ -1,42 +1,7 @@
-import { Shield, ArrowRight, Users, Lightbulb, Target, Award, Coffee, Code, Globe } from "lucide-react";
+import { Shield, ArrowRight, Users, Lightbulb, Target, Award, Coffee, Globe } from "lucide-react";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
-const TEAM = [
-  {
-    name: "Ahmet Yılmaz",
-    role: "Kurucu & CEO",
-    bio: "15 yıl kurumsal siber güvenlik ve risk danışmanlığı. Bankacılık ve fintech sektörlerinde 200'den fazla KOBİ değerlendirmesi.",
-    icon: Shield,
-  },
-  {
-    name: "Zeynep Kara",
-    role: "Kurucu & CTO",
-    bio: "Saldırı yüzeyi yönetimi ve tehdit istihbaratı alanında uzman. Açık kaynak güvenlik araçlarına katkı sağlayan aktif araştırmacı.",
-    icon: Code,
-  },
-  {
-    name: "Mehmet Demir",
-    role: "Ürün & Büyüme",
-    bio: "B2B SaaS ürün yönetimi ve Türkiye KOBİ ekosistemi konusunda deneyimli. Kullanıcı merkezli tasarım odaklı.",
-    icon: Target,
-  },
-];
-
-const NAME_STORY = [
-  {
-    icon: Globe,
-    word: "Cyber",
-    meaning: "Siber Güvenlik",
-    desc: "Dijital tehditlere karşı Türkiye'deki şirketleri korumak. Siber kelimesi hem teknik kapsamı hem de odaklandığımız alanı net biçimde ifade ediyor.",
-  },
-  {
-    icon: ArrowRight,
-    word: "Step",
-    meaning: "Adım",
-    desc: "Güvenlik karmaşık görünebilir. Biz onu adım adım ilerlenebilir bir sürece dönüştürüyoruz. Her şirket kendi hızında, doğru sırayla ilerleyebilmeli.",
-  },
-];
 
 const MILESTONES = [
   {
@@ -107,7 +72,7 @@ export default function NedenCyberStep() {
             Neden <span className="text-emerald-400">CyberStep?</span>
           </h1>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            Bir ismin arkasında her zaman bir neden vardır. Bizimkinde iki kelime, bir sorun ve Türkiye'deki yüzbinlerce şirket var.
+            Bir ismin arkasında her zaman bir neden vardır. Bizim ismimizde iki kelime, bir sorun ve Türkiye'deki yüz binlerce şirket var.
           </p>
         </div>
       </section>
@@ -121,26 +86,30 @@ export default function NedenCyberStep() {
               "CyberStep" ismini seçmeden önce onlarca alternatif değerlendirdik. Bu iki kelimeye yerleşmemizin nedeni basit: ikisi birlikte tam olarak ne yapmak istediğimizi anlatıyor.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
-            {NAME_STORY.map(({ icon: Icon, word, meaning, desc }) => (
-              <div key={word} className="bg-card border rounded-2xl p-8 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
-                    <Icon className="h-7 w-7 text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="text-3xl font-black text-foreground tracking-tight">{word}</div>
-                    <div className="text-sm font-semibold text-emerald-600">{meaning}</div>
-                  </div>
-                </div>
-                <p className="text-muted-foreground leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-8 text-center">
-            <p className="text-lg font-medium text-foreground leading-relaxed max-w-2xl mx-auto">
-              CyberStep = Siber tehditlere karşı, <span className="text-emerald-600 font-semibold">adım adım</span>, teknik bilgi gerektirmeden, <span className="text-emerald-600 font-semibold">Türkçe</span> ilerleyebilmek.
+          <div className="prose prose-lg dark:prose-invert max-w-none space-y-6">
+            <p className="text-muted-foreground leading-relaxed">
+              Siber güvenlik bir gecede tamamlanmaz. Merdiveni tek seferde çıkmak mümkün değildir — her basamak bir üsttekinin zeminini hazırlar. Bir basamağı atlayamazsın. Kısamazsın. Ama doğru basamakları, doğru sırayla atarsan zirveye ulaşırsın.
             </p>
+            <p className="text-muted-foreground leading-relaxed">
+              Türkiye'deki şirketlerin büyük çoğunluğu bu merdivende nerede durduğunu bilmiyor. Hangi basamakta olduklarını görecek araçları yok. Yol haritaları yok. Mevcut araçlar İngilizce, erişilmez fiyatlı ve teknik ekip gerektiriyor.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              CyberStep bu boşluk için doğdu — ve büyüdükçe o boşluğun ne kadar derin olduğunu gördük.
+            </p>
+          </div>
+          <div className="mt-10 space-y-5">
+            <div className="bg-card border rounded-2xl p-8">
+              <h3 className="text-lg font-bold mb-3">İsmimizde iki anlam iç içe:</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                İngilizce'de <span className="font-semibold text-foreground">step</span> hem <span className="text-emerald-600 font-semibold">adım</span> hem de <span className="text-emerald-600 font-semibold">ayak izi</span> demek. Bu tesadüf değil — bilinçli bir tercih. Siber güvenliğin en kritik kavramlarından biri dijital ayak izi: şirketinizin dışarıdan görünen saldırı yüzeyi. Bir saldırgan sizi hedef almadan önce ayak izinizi takip eder — hangi sistemler açık, hangi veriler sızmış, hangi kapılar kilitlenmemiş. CyberStep hem güvenlik adımlarınızı planlar hem dijital izinizi yönetir. Adım adım, iz bırakarak.
+              </p>
+            </div>
+            <div className="bg-card border rounded-2xl p-8">
+              <h3 className="text-lg font-bold mb-3">Neden .io?</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Bu bir danışmanlık firması değil, bir platform. <span className="font-semibold text-foreground">.io</span> bilinçli bir sinyal: yapay zeka ve bulut altyapısı üzerine kurulu, sürekli büyüyen bir teknoloji ekosistemi. Dış saldırı yüzeyi taraması, sürekli maruz kalma yönetimi, yapay zeka güvenlik analizi, EU AI Act uyumu, KVKK entegrasyonu, firewall otomasyonu — bunlar ayrı araçlar değil, birbiriyle konuşan tek bir platform. Türkiye'de ilk kez, Türkçe.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -159,7 +128,7 @@ export default function NedenCyberStep() {
               2024 yılında Türkiye'de 94 firmaya toplam <strong className="text-foreground">47 milyon TL</strong> KVKK cezası kesildi. Bu cezaların büyük çoğunluğu 30 dakikada kapatılabilecek açıklardan kaynaklandı. Araçlar yoktu değil — erişilebilir değildi.
             </p>
             <p className="text-muted-foreground leading-relaxed">
-              CyberStep bu boşluk için kuruldu. Türkçe, KOBİ ölçeğinde, aksiyona odaklı. Tek seferlik denetim değil, sürekli yönetim.
+              CyberStep bu boşluk için kuruldu. Türkçe, Türkiye ölçeğinde, aksiyona odaklı. Tek seferlik denetim değil, sürekli yönetim.
             </p>
           </div>
         </div>
@@ -221,29 +190,25 @@ export default function NedenCyberStep() {
             </div>
             <h2 className="text-3xl font-bold">Arkasındaki İnsanlar</h2>
             <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              CyberStep, siber güvenliği gerçekten erişilebilir kılmak için bir araya gelen küçük ama odaklı bir ekip tarafından yönetiliyor.
+              CyberStep, siber güvenliği gerçekten erişilebilir kılmak için bir araya gelen, odaklı bir ekip tarafından yönetiliyor.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {TEAM.map(({ name, role, bio, icon: Icon }) => (
-              <div key={name} className="bg-card border rounded-2xl p-6 space-y-4 text-center">
-                <div className="mx-auto h-16 w-16 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                  <Icon className="h-8 w-8 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-lg">{name}</div>
-                  <div className="text-sm text-emerald-600 font-medium">{role}</div>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{bio}</p>
-              </div>
-            ))}
+          <div className="max-w-3xl mx-auto space-y-6">
+            <p className="text-muted-foreground leading-relaxed text-lg">
+              Ekibimiz; kurumsal güvenlik altyapıları, yazılım geliştirme ve ürün tasarımı alanlarında onlarca yıllık birleşik deneyimi olan insanlardan oluşuyor. Büyük kurumsal güvenlik projelerinde çalıştık, sahada ne işe yaradığını gördük — ve aynı kaliteyi erişilebilir bir formatta sunmanın mümkün olduğuna inandık.
+            </p>
+            <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-8">
+              <p className="text-lg font-medium text-foreground leading-relaxed">
+                Bizi farklı kılan şey teknik bilgimiz değil, o bilgiyi sıradan bir patronun anlayabileceği dile çevirme kararlılığımız.
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Ekibimize katılmak ister misiniz?{" "}
+              <Link href="/iletisim" className="text-emerald-600 hover:underline font-medium">
+                Bize yazın
+              </Link>
+            </p>
           </div>
-          <p className="text-center text-sm text-muted-foreground mt-10">
-            Ekibimize katılmak ister misiniz?{" "}
-            <Link href="/iletisim" className="text-emerald-600 hover:underline font-medium">
-              Bize yazın
-            </Link>
-          </p>
         </div>
       </section>
 

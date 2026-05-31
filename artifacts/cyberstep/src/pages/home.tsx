@@ -995,7 +995,7 @@ export default function Home() {
                 title: lang === "en" ? "Dark Web Leak Monitor" : "Karanlık Web Sızıntı İzleyici",
                 what: lang === "en" ? "Checks if your corporate domain or email addresses have appeared in dark web data dumps." : "Şirket alan adınızın veya e-postalarınızın karanlık web veri ihlali listelerinde yer alıp almadığını kontrol eder.",
                 why: lang === "en" ? "Leaked credentials are used in 80% of cyberattacks. Early detection prevents account takeovers." : "Sızdırılan kimlik bilgileri siber saldırıların %80'inde kullanılır. Erken tespit hesap ele geçirilmesini önler.",
-                price: "2.900 TL/yıl",
+                price: "2.900 TL/yıl + KDV",
               },
               {
                 href: "/kvkk-verbis",
@@ -1087,7 +1087,7 @@ export default function Home() {
                 title: "Yapay Zeka Güvenlik Değerlendirmesi",
                 what: "ChatGPT, Gemini, Copilot gibi 20+ AI aracının KVKK uyum durumu, veri saklama politikası ve şirket riskleri. 25 soruluk analizle AI veri maruz kalma haritası çıkarılır.",
                 why: "KVKK'ya göre ABD menşeli AI araçlarına kişisel veri göndermek yurt dışı aktarım sayılır. Ücretsiz ChatGPT'ye girilen veriler model eğitimi için kullanılabilir.",
-                price: "2.900 TL",
+                price: "2.900 TL + KDV",
               },
               {
                 href: "/tedarik-zinciri",
@@ -1123,7 +1123,7 @@ export default function Home() {
                 title: "EU AI Act Uyum Skoru",
                 what: "20 soruluk değerlendirme ile şirketinizin AB Yapay Zeka Yasası kapsamındaki uyum durumunu ve risk kategorisini belirler.",
                 why: "1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar.",
-                price: "1.990 TL",
+                price: "1.990 TL + KDV",
               },
               {
                 href: "/ai-red-team",
@@ -1131,7 +1131,7 @@ export default function Home() {
                 title: "AI Red Team Raporu",
                 what: "Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 30 dakikada saldırgan bakış açısı.",
                 why: "Bir saldırgan sizi hedef almadan önce tam olarak bu analizi yapar. Açığı onlardan önce görün.",
-                price: "2.490 TL",
+                price: "2.490 TL + KDV",
               },
               {
                 href: "/deepfake-analizi",
@@ -1139,7 +1139,7 @@ export default function Home() {
                 title: "Deepfake & Ses Klonu Analizi",
                 what: "Yöneticilerinizin YouTube, LinkedIn ve haber kaynaklarındaki dijital izini analiz eder. CEO fraud saldırılarına karşı ses klonu risk haritası çıkarır.",
                 why: "Modern ses klonlama araçları 3 dakika ses örnekle çalışıyor. CEO fraud saldırıları Türkiye'de yılda milyonlarca TL zarara neden oluyor.",
-                price: "1.490 TL",
+                price: "1.490 TL + KDV",
               },
               {
                 href: "/sahte-dokuman",
@@ -1147,7 +1147,7 @@ export default function Home() {
                 title: "AI Sahte Doküman Tespiti",
                 what: "Fatura, sözleşme, kimlik ve diğer belgeleri yapay zeka ile analiz eder. Metadata anomalisi, format tutarsızlığı ve manipülasyon izleri tespit edilir.",
                 why: "AI ile üretilen sahte belgeler artık gözle ayırt edilemiyor. Muhasebe ve hukuk süreçlerinde tedarikçi kimliği doğrulaması kritik.",
-                price: "49 TL / tarama",
+                price: "49 TL / tarama + KDV",
               },
               {
                 href: "/ai-phishing-simulasyonu",
@@ -1155,7 +1155,7 @@ export default function Home() {
                 title: "AI Phishing Simülasyonu",
                 what: "Şirketinizi hedef alacak yapay zeka destekli phishing e-postasını saldırganlardan önce görün. OSINT analizi + 3 gerçekçi senaryo + her senaryo için koruma yöntemi.",
                 why: "Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.",
-                price: "1.990 TL",
+                price: "1.990 TL + KDV",
               },
               {
                 href: "/ai-arac-izleme",
@@ -1163,7 +1163,7 @@ export default function Home() {
                 title: "AI Araç İzleme",
                 what: "ChatGPT, Gemini, Copilot gizlilik politikası değişince anında e-posta bildirimi alın. 20+ AI aracı haftalık kontrol, KVKK uyum puanı güncelleme.",
                 why: "AI araç politikaları sessiz sedasız değişiyor. Şirketinize ait veri aniden farklı bir ülkede işlenmeye başlayabilir.",
-                price: "490 TL/ay",
+                price: "490 TL/ay + KDV",
               },
               {
                 href: "/ai-politika",
@@ -1171,7 +1171,7 @@ export default function Home() {
                 title: "AI Politika Otogüncelleme",
                 what: "Şirketinizin yapay zeka kullanım politikasını yasal değişikliklere göre otomatik güncelleyen canlı belge. KVKK, EU AI Act ve sektörel düzenlemeler takip edilir.",
                 why: "Manuel politika güncelleme hem zaman alır hem hatalara açıktır. Politika boşlukları KVKK ihlali ve EU AI Act cezasına yol açabilir.",
-                price: "990 TL/yıl",
+                price: "990 TL/yıl + KDV",
               },
               {
                 href: "/sanal-ciso",
@@ -1179,7 +1179,7 @@ export default function Home() {
                 title: "Sanal CISO",
                 what: "Sertifikalı partner CISO'lardan aylık yönetim kurulu raporu, güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek.",
                 why: "CISO pozisyonu yıllık 2-4 milyon TL maaşla geliyor. Şirketlerin %99'unun tam zamanlı CISO'ya ihtiyacı yok — ama CISO düzeyinde stratejiye ihtiyacı var.",
-                price: "8.000 TL/ay",
+                price: "8.000 TL/ay + KDV",
               },
             ].map((tool) => (
               <a
@@ -1279,7 +1279,7 @@ export default function Home() {
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="text-center mb-1">
                   <p className="text-xs text-muted-foreground">Baslangic fiyati</p>
-                  <p className="text-3xl font-black text-primary">8.000 TL<span className="text-sm font-normal text-muted-foreground">/ay</span></p>
+                  <p className="text-3xl font-black text-primary">8.000 TL<span className="text-sm font-normal text-muted-foreground">/ay + KDV</span></p>
                 </div>
                 <Link
                   href="/sanal-ciso"

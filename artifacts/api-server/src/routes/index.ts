@@ -21,6 +21,9 @@ import pentestLiteRouter from "./pentest-lite/index";
 import healthRouter from "./health/index";
 import boardReportRouter from "./board-report/index";
 import aiAssessmentRouter from "./ai-assessment/index";
+import aiPolicyRouter from "./ai-policy/index";
+import aiMonitoringRouter from "./ai-monitoring/index";
+import phishingSimRouter from "./phishing-sim/index";
 
 const router: IRouter = Router();
 
@@ -46,5 +49,8 @@ router.use(pentestLiteRouter);
 router.use(healthRouter);
 router.use(boardReportRouter);
 router.use(aiAssessmentRouter);
+router.use(aiPolicyRouter);
+router.use(aiMonitoringRouter);
+router.use(phishingSimRouter);
 
 export default router;

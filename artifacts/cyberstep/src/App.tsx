@@ -106,6 +106,10 @@ import AiAssessmentStart from "./pages/ai-assessment-start";
 import AiAssessmentTools from "./pages/ai-assessment-tools";
 import AiAssessmentRunner from "./pages/ai-assessment-runner";
 import AiAssessmentReport from "./pages/ai-assessment-report";
+import AiPolitika from "./pages/ai-politika";
+import AiAracIzleme from "./pages/ai-arac-izleme";
+import AiPhishingSimulasyonu from "./pages/ai-phishing-simulasyonu";
+import AiPhishingRapor from "./pages/ai-phishing-rapor";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -178,6 +182,9 @@ function Router() {
       <Route path="/hesabim/davet" component={CustomerDavet} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
+
+      {/* AI Phishing rapor — full-page (Layout kendi içinde) */}
+      <Route path="/ai-phishing-simulasyonu/:id/rapor" component={AiPhishingRapor} />
 
       {/* AI Güvenlik Değerlendirmesi — full-page akış (layout yok) */}
       <Route path="/ai-guvenlik/start" component={AiAssessmentStart} />
@@ -255,6 +262,9 @@ function Router() {
             <Route path="/sektorel-kiyaslama" component={SektorelKiyaslama} />
             <Route path="/kvkk-ceza-sim" component={KvkkCezaSim} />
             <Route path="/phishing-sim" component={PhishingSim} />
+            <Route path="/ai-politika" component={AiPolitika} />
+            <Route path="/ai-arac-izleme" component={AiAracIzleme} />
+            <Route path="/ai-phishing-simulasyonu" component={AiPhishingSimulasyonu} />
             <Route path="/saldiri-simulasyonu" component={SaldiriSimulasyonu} />
             <Route path="/finansal-kayip" component={FinansalKayip} />
             <Route path="/marka-koruma" component={MarkaKoruma} />

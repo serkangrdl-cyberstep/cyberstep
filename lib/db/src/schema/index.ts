@@ -48,3 +48,6 @@ export * from "./pentest-lite";
 export * from "./health";
 export * from "./board-reports";
 export * from "./ai-assessment";
+export * from "./ai-monitoring";
+export * from "./ai-policy";
+export * from "./phishing-sim";

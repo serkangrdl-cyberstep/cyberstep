@@ -1280,6 +1280,34 @@ function startBlogAutopilotCron() {
   logger.info("Blog autopilot cron scheduled (Mon & Thu 09:00 Istanbul)");
 }
 
+// ─── Cron: AI Araç Politika İzleme (her Pazar 02:00 İstanbul) ─────────────────
+function startAiToolMonitorCron() {
+  cron.schedule("0 2 * * 0", async () => {
+    try {
+      logger.info("AI araç politika kontrolü başlıyor");
+      const { checkAllToolsForChanges } = await import("./services/ai-tool-monitor");
+      await checkAllToolsForChanges();
+    } catch (err) {
+      logger.error({ err }, "AI araç politika kontrol cron hatası");
+    }
+  }, { timezone: "Europe/Istanbul" });
+  logger.info("AI araç politika izleme cron zamanlandı (Pazar 02:00 İstanbul)");
+}
+
+// ─── Cron: AI Politika Çeyreklik Güncelleme (1 Oca/Nis/Tem/Eki 03:00) ─────────
+function startQuarterlyPolicyUpdateCron() {
+  cron.schedule("0 3 1 1,4,7,10 *", async () => {
+    try {
+      logger.info("AI politika çeyreklik güncelleme başlıyor");
+      const { runQuarterlyPolicyUpdate } = await import("./services/policy-generator");
+      await runQuarterlyPolicyUpdate();
+    } catch (err) {
+      logger.error({ err }, "AI politika çeyreklik güncelleme cron hatası");
+    }
+  }, { timezone: "Europe/Istanbul" });
+  logger.info("AI politika çeyreklik güncelleme cron zamanlandı (1 Oca/Nis/Tem/Eki 03:00 İstanbul)");
+}
+
 startup()
   .then(() => {
     startReminderCron();
@@ -1288,6 +1316,8 @@ startup()
     startInflationReminderCron();
     startBlogAutopilotCron();
     startDigestCron();
+    startAiToolMonitorCron();
+    startQuarterlyPolicyUpdateCron();
     seedDefaultSources().catch((err) => logger.warn({ err }, "Digest: default sources seed failed"));
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));

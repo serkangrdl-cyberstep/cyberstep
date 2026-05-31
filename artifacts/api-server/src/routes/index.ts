@@ -32,6 +32,8 @@ import domainScanPurchasesRouter from "./domain-scan/purchases";
 import enterpriseRouter from "./enterprise/index";
 import leadGenRouter from "./lead-gen/index";
 import growthEngineRouter from "./growth-engine/index";
+import invoicesRouter from "./invoices/index";
+import crmRouter from "./crm/index";
 
 const router: IRouter = Router();
 
@@ -68,5 +70,7 @@ router.use(domainScanPurchasesRouter);
 router.use(enterpriseRouter);
 router.use(leadGenRouter);
 router.use("/growth-engine", growthEngineRouter);
+router.use(invoicesRouter);
+router.use(crmRouter);
 
 export default router;

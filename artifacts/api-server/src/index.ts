@@ -11,6 +11,8 @@ import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
 import { calculateAllHealthScores } from "./routes/health/index";
+import { runCollectionReminderCron } from "./services/invoice";
+import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -1590,6 +1592,26 @@ startup()
       calculateAllHealthScores().catch((err) => logger.warn({ err }, "Health score cron failed"));
     }, { timezone: "Europe/Istanbul" });
     logger.info("Health score cron scheduled (02:00 Istanbul)");
+    // Tahsilat hatırlatıcı — her gün 10:00'da vadesi geçen faturaları kontrol et
+    cron.schedule("0 10 * * *", () => {
+      runCollectionReminderCron(sendMail).catch((err) => logger.warn({ err }, "Collection reminder cron failed"));
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Collection reminder cron scheduled (10:00 Istanbul)");
+    // Otomatik CRM etiketleme — her gece 03:30'da
+    cron.schedule("30 3 * * *", () => {
+      runAutoTagCron().catch((err) => logger.warn({ err }, "Auto-tag cron failed"));
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Auto-tag cron scheduled (03:30 Istanbul)");
+    // Görev hatırlatıcı — her gün 08:30'da
+    cron.schedule("30 8 * * *", () => {
+      runTaskReminderCron().catch((err) => logger.warn({ err }, "Task reminder cron failed"));
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Task reminder cron scheduled (08:30 Istanbul)");
+    // NPS otomatik gönderim — her Salı 11:00'da
+    cron.schedule("0 11 * * 2", () => {
+      runNpsCron().catch((err) => logger.warn({ err }, "NPS cron failed"));
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("NPS cron scheduled (Tuesday 11:00 Istanbul)");
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

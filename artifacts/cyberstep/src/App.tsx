@@ -130,6 +130,15 @@ import PreviewPage from "./pages/preview";
 import RakipKarsilastirma from "./pages/rakip-karsilastirma";
 import SektorRaporu from "./pages/sektor-raporu";
 import AdminGrowthEngine from "./pages/admin/growth-engine";
+import AdminFaturalar from "./pages/admin-panel/faturalar";
+import AdminGelir from "./pages/admin-panel/gelir";
+import AdminGorevler from "./pages/admin-panel/gorevler";
+import AdminNps from "./pages/admin-panel/nps-page";
+import AdminMuhasebe from "./pages/admin-panel/muhasebe";
+import Musteri360 from "./pages/admin-panel/musteri-360";
+import HesabimFaturalar from "./pages/hesabim/faturalar";
+import HesabimDestek from "./pages/hesabim/destek";
+import NpsPage from "./pages/nps";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -201,8 +210,11 @@ function Router() {
       <Route path="/entegrasyonlarim" component={CustomerIntegrations} />
       <Route path="/hesabim/enterprise" component={EnterpriseTab} />
       <Route path="/hesabim/davet" component={CustomerDavet} />
+      <Route path="/hesabim/faturalar" component={HesabimFaturalar} />
+      <Route path="/hesabim/destek" component={HesabimDestek} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
+      <Route path="/nps/:token" component={NpsPage} />
 
       {/* AI Phishing rapor — full-page (Layout kendi içinde) */}
       <Route path="/ai-phishing-simulasyonu/:id/rapor" component={AiPhishingRapor} />
@@ -247,6 +259,12 @@ function Router() {
       <Route path="/panel/enterprise/contracts" component={EnterpriseContracts} />
       <Route path="/panel/lead-gen/queue" component={LeadGenQueue} />
       <Route path="/panel/lead-gen/campaigns" component={LeadGenCampaigns} />
+      <Route path="/panel/faturalar" component={AdminFaturalar} />
+      <Route path="/panel/gelir" component={AdminGelir} />
+      <Route path="/panel/gorevler" component={AdminGorevler} />
+      <Route path="/panel/nps" component={AdminNps} />
+      <Route path="/panel/muhasebe" component={AdminMuhasebe} />
+      <Route path="/panel/musteriler/:id" component={Musteri360} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

@@ -19,6 +19,15 @@ interface RpcResult {
   data: unknown;
 }
 
+// FortiManager returns HTTP 200 even on logical failure; the real outcome is in
+// the JSON body at result[0].status.code (0 = success). Always validate this,
+// never just the transport status.
+function rpcStatus(res: RpcResult): { code: number; message: string } {
+  const r = res.data as { result?: Array<{ status?: { code?: number; message?: string } }> };
+  const s = r?.result?.[0]?.status;
+  return { code: s?.code ?? -1, message: s?.message ?? "Bilinmeyen FortiManager yanıtı" };
+}
+
 function rpc(urlStr: string, payload: unknown): Promise<RpcResult> {
   return new Promise((resolve, reject) => {
     let u: URL;
@@ -86,32 +95,44 @@ export async function fmBlockIp(creds: FortiManagerCreds, ip: string, reason: st
     const addrName = `CS-${ip.replace(/[.:]/g, "-")}`;
 
     // 1) Create/update address object
-    await rpc(creds.url, {
+    const addrRes = rpcStatus(await rpc(creds.url, {
       id: 2, method: "set", session,
       params: [{
         url: `/pm/config/adom/${adom}/obj/firewall/address`,
         data: { name: addrName, subnet: `${ip}/32`, type: 0, comment: `CyberStep auto-block: ${reason}`.slice(0, 255) },
       }],
-    });
+    }));
+    if (addrRes.code !== 0) {
+      await logout(creds, session);
+      return { ok: false, message: `Adres nesnesi oluşturulamadı: ${addrRes.message}` };
+    }
 
     // 2) Ensure block group exists and append member
-    await rpc(creds.url, {
+    const grpRes = rpcStatus(await rpc(creds.url, {
       id: 3, method: "set", session,
       params: [{
         url: `/pm/config/adom/${adom}/obj/firewall/addrgrp`,
         data: { name: creds.blockGroup, "member": [addrName], comment: "CyberStep threat auto-blocklist" },
       }],
-    });
+    }));
+    if (grpRes.code !== 0) {
+      await logout(creds, session);
+      return { ok: false, message: `Engelleme grubu güncellenemedi: ${grpRes.message}` };
+    }
 
-    // 3) Install policy package (best-effort)
-    await rpc(creds.url, {
+    // 3) Install policy package — required for the block to take effect on devices
+    const installRes = rpcStatus(await rpc(creds.url, {
       id: 4, method: "exec", session,
       params: [{ url: "/securityconsole/install/package", data: { adom, flags: ["none"] } }],
-    }).catch(() => null);
+    }).catch(() => ({ status: 0, data: {} } as RpcResult)));
+    if (installRes.code !== 0) {
+      await logout(creds, session);
+      return { ok: false, message: `${ip} gruba eklendi ancak politika kurulumu başarısız: ${installRes.message}` };
+    }
 
     await logout(creds, session);
     logger.info({ ip, group: creds.blockGroup }, "FortiManager block pushed");
-    return { ok: true, message: `${ip} "${creds.blockGroup}" grubuna eklendi` };
+    return { ok: true, message: `${ip} "${creds.blockGroup}" grubuna eklendi ve politika kuruldu` };
   } catch (e) {
     if (session) await logout(creds, session);
     return { ok: false, message: String(e) };
@@ -130,6 +151,8 @@ export async function fmVerifyBlock(creds: FortiManagerCreds, ip: string): Promi
       params: [{ url: `/pm/config/adom/${adom}/obj/firewall/addrgrp/${encodeURIComponent(creds.blockGroup)}` }],
     });
     await logout(creds, session);
+    const st = rpcStatus(res);
+    if (st.code !== 0) return { ok: false, present: false, message: `Grup okunamadı: ${st.message}` };
     const data = res.data as { result?: Array<{ data?: { member?: string[] } }> };
     const members = data?.result?.[0]?.data?.member ?? [];
     const addrName = `CS-${ip.replace(/[.:]/g, "-")}`;
@@ -152,6 +175,7 @@ export async function fmDiscoverDevices(creds: FortiManagerCreds): Promise<Array
       params: [{ url: "/dvmdb/device", option: ["get meta"] }],
     });
     await logout(creds, session);
+    if (rpcStatus(res).code !== 0) return [];
     const data = res.data as { result?: Array<{ data?: Array<Record<string, unknown>> }> };
     const devices = data?.result?.[0]?.data ?? [];
     return devices.slice(0, 50).map((d) => ({

@@ -101,9 +101,9 @@ app.use(
     serializers: {
       req(req) {
         // Strip query string and mask ingestion tokens embedded in the path so
-        // they never land in logs (e.g. /api/public/fabric/ingest/<token>).
+        // they never land in logs (e.g. /api/fabric/webhook/<token>).
         const path = (req.url?.split("?")[0] ?? "")
-          .replace(/(\/fabric\/(?:ingest|syslog|verify)\/)[^/]+/, "$1***");
+          .replace(/(\/fabric\/(?:webhook|ingest|syslog|verify)\/)[^/]+/, "$1***");
         return { id: req.id, method: req.method, url: path };
       },
       res(res) {

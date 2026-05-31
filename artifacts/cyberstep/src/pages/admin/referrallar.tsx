@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { adminFetchJson } from "@/lib/admin-fetch";
 import { Share2, Trophy, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,12 +24,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 export default function AdminReferrallarPage() {
   const { data: codes = [], isLoading: codesLoading } = useQuery<ReferralCode[]>({
     queryKey: ["admin-referral-codes"],
-    queryFn: () => fetch("/api/admin/referrals/codes", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<ReferralCode[]>("/api/admin/referrals/codes"),
   });
 
   const { data: events = [], isLoading: eventsLoading } = useQuery<ReferralEvent[]>({
     queryKey: ["admin-referral-events"],
-    queryFn: () => fetch("/api/admin/referrals", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<ReferralEvent[]>("/api/admin/referrals"),
   });
 
   const totalReferrals = events.length;

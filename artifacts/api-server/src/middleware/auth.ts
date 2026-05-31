@@ -1,14 +1,58 @@
 import type { Request, Response, NextFunction } from "express";
+import { db, tenantsTable, tenantUsersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 function sess(req: Request) {
   return req.session as unknown as Record<string, unknown>;
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+// Ensure the authenticated admin has an active workspace selected in the session.
+// Tenant-scoped admin features (e-posta şablonları, bildirim merkezi, ISR/teknoloji
+// ortakları) require session.tenantId. If none is selected we pick the admin's first
+// workspace, auto-provisioning a default one when the admin has no workspace yet.
+// Race-safe via onConflictDoNothing so parallel page-load requests do not collide.
+async function ensureTenantForAdmin(req: Request, adminId: number): Promise<void> {
+  const s = sess(req);
+  if (s["tenantId"]) return;
+
+  const [membership] = await db
+    .select({ tenantId: tenantUsersTable.tenantId })
+    .from(tenantUsersTable)
+    .where(eq(tenantUsersTable.adminUserId, adminId))
+    .limit(1);
+
+  if (membership) {
+    s["tenantId"] = membership.tenantId;
+    return;
+  }
+
+  const slug = `workspace-${adminId}`;
+  await db.insert(tenantsTable).values({ name: "CyberStep", slug }).onConflictDoNothing();
+  const [tenant] = await db
+    .select({ id: tenantsTable.id })
+    .from(tenantsTable)
+    .where(eq(tenantsTable.slug, slug));
+  if (!tenant) return;
+
+  await db
+    .insert(tenantUsersTable)
+    .values({ tenantId: tenant.id, adminUserId: adminId, role: "owner" })
+    .onConflictDoNothing();
+  s["tenantId"] = tenant.id;
+}
+
+export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const adminId = sess(req)["adminId"] as number | undefined;
   if (!adminId) {
     res.status(401).json({ error: "Yetkisiz erişim" });
     return;
+  }
+  if (!sess(req)["tenantId"]) {
+    try {
+      await ensureTenantForAdmin(req, adminId);
+    } catch {
+      // Non-fatal: tenant-scoped routes still guard for a missing workspace.
+    }
   }
   next();
 }

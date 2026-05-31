@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRequireAdmin } from "@/hooks/use-admin";
+import { adminFetchJson } from "@/lib/admin-fetch";
 import {
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ExternalLink,
   Image, Mail, Phone, UserCircle, Users, X,
@@ -81,12 +82,12 @@ export default function AdminPartnerlar() {
 
   const { data: partners = [], isLoading } = useQuery<TechPartner[]>({
     queryKey: ["admin-tech-partners"],
-    queryFn: () => fetch("/api/admin-panel/tech-partners", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<TechPartner[]>("/api/admin-panel/tech-partners"),
   });
 
   const { data: isrVendors = [] } = useQuery<IsrVendor[]>({
     queryKey: ["isr-vendors"],
-    queryFn: () => fetch("/api/admin-panel/isr/vendors", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<IsrVendor[]>("/api/admin-panel/isr/vendors"),
   });
 
   const isrVendorByName = (partnerName: string) =>

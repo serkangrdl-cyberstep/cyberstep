@@ -301,22 +301,25 @@ router.get("/admin/referrals", requireAdmin, async (req: Request, res: Response)
 
 // GET /api/admin/referrals/codes
 router.get("/admin/referrals/codes", requireAdmin, async (_req: Request, res: Response) => {
+  // referral_codes does not store per-status counters; aggregate them from referral_events.
   const codes = await db
     .select({
       id: referralCodesTable.id,
       customerId: referralCodesTable.customerId,
       code: referralCodesTable.code,
-      totalReferrals: referralCodesTable.totalReferrals,
-      successfulReferrals: referralCodesTable.successfulReferrals,
-      pendingReferrals: referralCodesTable.pendingReferrals,
-      totalRewardMonths: referralCodesTable.totalRewardMonths,
+      totalReferrals: sql<number>`count(${referralEventsTable.id})::int`,
+      successfulReferrals: sql<number>`count(*) filter (where ${referralEventsTable.status} in ('converted','rewarded'))::int`,
+      pendingReferrals: sql<number>`count(*) filter (where ${referralEventsTable.status} = 'pending')::int`,
+      totalRewardMonths: referralCodesTable.totalRewardsGiven,
       createdAt: referralCodesTable.createdAt,
       customerName: customersTable.fullName,
       customerEmail: customersTable.email,
     })
     .from(referralCodesTable)
     .innerJoin(customersTable, eq(customersTable.id, referralCodesTable.customerId))
-    .orderBy(desc(referralCodesTable.successfulReferrals));
+    .leftJoin(referralEventsTable, eq(referralEventsTable.referralCodeId, referralCodesTable.id))
+    .groupBy(referralCodesTable.id, customersTable.fullName, customersTable.email)
+    .orderBy(desc(sql`count(*) filter (where ${referralEventsTable.status} in ('converted','rewarded'))`));
   res.json(codes);
 });
 

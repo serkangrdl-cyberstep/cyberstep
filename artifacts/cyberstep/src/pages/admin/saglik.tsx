@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, AlertTriangle, Users, TrendingDown, RefreshCw, Phone, Mail, MessageSquare } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, TrendingDown, RefreshCw, Phone, Mail, MessageSquare } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { AdminLayout } from "@/components/admin-layout";
+import { adminFetchJson } from "@/lib/admin-fetch";
 
 interface HealthOverview {
   healthy: number; atRisk: number; critical: number; churned: number; total: number;
@@ -54,18 +56,18 @@ export default function AdminSaglikPage() {
 
   const { data: overview } = useQuery<HealthOverview>({
     queryKey: ["admin-health-overview"],
-    queryFn: () => fetch("/api/admin/health/overview", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<HealthOverview>("/api/admin/health/overview"),
   });
 
   const { data: atRiskList = [] } = useQuery<AtRiskCustomer[]>({
     queryKey: ["admin-health-at-risk"],
-    queryFn: () => fetch("/api/admin/health/at-risk", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<AtRiskCustomer[]>("/api/admin/health/at-risk"),
     enabled: activeTab === "at-risk",
   });
 
   const { data: interventions = [] } = useQuery<Intervention[]>({
     queryKey: ["admin-health-interventions"],
-    queryFn: () => fetch("/api/admin/health/interventions", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<Intervention[]>("/api/admin/health/interventions"),
     enabled: activeTab === "interventions",
   });
 
@@ -79,17 +81,9 @@ export default function AdminSaglikPage() {
   });
 
   return (
-    <div className="min-h-screen bg-secondary px-4 py-8">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Heart className="h-6 w-6 text-red-400" />
-              Musteri Saglik Skoru
-            </h1>
-            <p className="text-slate-400 mt-1">Churn tahmini ve mudahale yonetimi</p>
-          </div>
+    <AdminLayout title="Musteri Saglik Skoru" description="Churn tahmini ve mudahale yonetimi">
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Button onClick={() => recalcMutation.mutate()} disabled={recalcMutation.isPending}
             variant="outline" className="border-slate-600 text-slate-300">
             <RefreshCw className={`h-4 w-4 mr-2 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
@@ -260,6 +254,6 @@ export default function AdminSaglikPage() {
           </Card>
         )}
       </div>
-    </div>
+    </AdminLayout>
   );
 }

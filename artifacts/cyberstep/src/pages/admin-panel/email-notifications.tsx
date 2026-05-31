@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
+import { adminFetchJson } from "@/lib/admin-fetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,8 +60,7 @@ export default function AdminEmailNotifications() {
   const { data: history = [], isLoading } = useQuery<EmailSend[]>({
     queryKey: ["email-history", page],
     queryFn: () =>
-      fetch(`/api/admin-panel/emails/history?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`, { credentials: "include" })
-        .then(r => r.json()),
+      adminFetchJson<EmailSend[]>(`/api/admin-panel/emails/history?limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`),
   });
 
   const [allHistory, setAllHistory] = useState<EmailSend[]>([]);
@@ -78,7 +78,7 @@ export default function AdminEmailNotifications() {
 
   const { data: templates = [] } = useQuery<EmailTemplate[]>({
     queryKey: ["email-templates"],
-    queryFn: () => fetch("/api/admin-panel/email-templates", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => adminFetchJson<EmailTemplate[]>("/api/admin-panel/email-templates"),
   });
 
   const sendMutation = useMutation({

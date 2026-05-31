@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
+import { adminFetchJson } from "@/lib/admin-fetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,8 +85,7 @@ export default function AdminEmailTemplates() {
   const { data: templates = [] } = useQuery<EmailTemplate[]>({
     queryKey: ["email-templates", showInactive],
     queryFn: () =>
-      fetch(`/api/admin-panel/email-templates${showInactive ? "?showInactive=true" : ""}`, { credentials: "include" })
-        .then(r => r.json()),
+      adminFetchJson<EmailTemplate[]>(`/api/admin-panel/email-templates${showInactive ? "?showInactive=true" : ""}`),
   });
 
   const createMutation = useMutation({

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, integer, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -49,7 +49,9 @@ export const tenantUsersTable = pgTable("tenant_users", {
   role: text("role").notNull().default("member"), // owner | admin | member
   invitedByAdminUserId: integer("invited_by_admin_user_id"),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("tenant_users_tenant_admin_uq").on(table.tenantId, table.adminUserId),
+]);
 
 export const insertTenantSchema = createInsertSchema(tenantsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTenantUserSchema = createInsertSchema(tenantUsersTable).omit({ id: true, joinedAt: true });

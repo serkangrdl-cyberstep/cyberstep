@@ -33,3 +33,9 @@ Per-customer Fortinet integration: HTTPS-only event ingestion, Claude correlatio
 ## AI
 
 - Correlation uses `getClaudeAiFn()` → `(prompt: string) => Promise<string>`; heuristic fallback if AI fails. Critical/high correlations send a Turkish email alert via `sendMail`.
+
+## Parser severity/eventType quirks (validated against real FortiGate formats)
+
+- **CEF severity is inverted vs FortiGate syslog.** CEF uses 0-10 where HIGHER = more severe; FortiGate syslog `pri`/`level` use 0-7 where LOWER = more severe. `fabric-parser.ts` has one numeric `mapSeverity` that assumes syslog semantics, so CEF header severity (e.g. `9`) was misread as `info`. Fix: `mapCefSeverity()` maps the CEF header number to a word in the CEF branch *before* `normalizeFromKv`. **Why:** a real critical CEF event was silently downgraded to info and never triggered correlation. Do not route CEF severity through the plain numeric path.
+- **Prefer FortiGate `subtype` over `type` for eventType.** Real UTM logs carry `type=utm` with the meaningful class in `subtype` (ips/virus/webfilter/app-ctrl). `deriveEventType()` uses `subtype` when `type` ∈ CONTAINER_TYPES (utm/traffic/event/anomaly/voip/waf/dlp/gtp), matching demo data granularity. Plain `type` collapses all threats to "utm".
+- **attackName key order matters.** `app` (app-control) and `catdesc` (webfilter) must come before generic `msg`, or app-ctrl/webfilter events fall back to the description string instead of the real indicator.

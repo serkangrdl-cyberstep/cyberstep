@@ -42,6 +42,18 @@ function mapSeverity(value: unknown): FabricSeverity {
   return "info";
 }
 
+// CEF severity is 0-10 where HIGHER is more severe — the inverse of FortiGate
+// syslog priority. Map it to a word before normalizeFromKv's numeric mapping
+// (which assumes syslog semantics) can mis-rank it. Word severities pass through.
+function mapCefSeverity(value: string): string {
+  const n = Number(value);
+  if (Number.isNaN(n)) return value;
+  if (n >= 9) return "critical";
+  if (n >= 7) return "high";
+  if (n >= 4) return "medium";
+  return "low";
+}
+
 function firstStr(obj: Record<string, unknown>, keys: string[]): string | null {
   for (const k of keys) {
     const v = obj[k];
@@ -104,8 +116,20 @@ function parseCef(text: string): { header: Record<string, string>; ext: Record<s
   };
 }
 
+// FortiGate "type" is a broad container (utm/traffic/event/...) while "subtype"
+// holds the meaningful class (ips/virus/webfilter/app-ctrl/...). Prefer subtype
+// for these containers so real-device logs classify as precisely as demo data.
+const CONTAINER_TYPES = new Set(["utm", "traffic", "event", "anomaly", "voip", "waf", "dlp", "gtp"]);
+
+function deriveEventType(kv: Record<string, unknown>): string {
+  const typeVal = firstStr(kv, ["type"]);
+  const subtypeVal = firstStr(kv, ["subtype"]);
+  if (typeVal && subtypeVal && CONTAINER_TYPES.has(typeVal.toLowerCase())) return subtypeVal;
+  return typeVal ?? subtypeVal ?? firstStr(kv, ["logid", "cat", "eventtype"]) ?? "unknown";
+}
+
 function normalizeFromKv(kv: Record<string, unknown>, rawFormat: NormalizedEvent["rawFormat"]): NormalizedEvent {
-  const eventType = firstStr(kv as Record<string, unknown>, ["type", "subtype", "logid", "cat", "eventtype"]) ?? "unknown";
+  const eventType = deriveEventType(kv as Record<string, unknown>);
   const severity = mapSeverity(
     firstStr(kv as Record<string, unknown>, ["severity", "level", "crlevel", "pri", "crscore"]),
   );
@@ -117,7 +141,7 @@ function normalizeFromKv(kv: Record<string, unknown>, rawFormat: NormalizedEvent
     srcIp: firstStr(kv as Record<string, unknown>, ["srcip", "src", "sourceip", "src_ip", "attacker"]),
     dstIp: firstStr(kv as Record<string, unknown>, ["dstip", "dst", "destinationip", "dst_ip", "victim"]),
     dstPort: (() => { const p = firstStr(kv as Record<string, unknown>, ["dstport", "dpt", "destinationport"]); return p ? Number(p) || null : null; })(),
-    attackName: firstStr(kv as Record<string, unknown>, ["attack", "attackname", "virus", "msg", "name", "signature", "eventname"]),
+    attackName: firstStr(kv as Record<string, unknown>, ["attack", "attackname", "virus", "app", "signature", "eventname", "catdesc", "msg", "name"]),
     message: firstStr(kv as Record<string, unknown>, ["msg", "logdesc", "message", "name"]),
     deviceName: firstStr(kv as Record<string, unknown>, ["devname", "devid", "dvc", "deviceExternalId", "hostname"]),
     deviceTime: toDate(firstStr(kv as Record<string, unknown>, ["eventtime", "time", "rt", "date", "_time"])),
@@ -168,7 +192,7 @@ function parseTextLine(line: string): NormalizedEvent {
       const kv: Record<string, unknown> = {
         ...cef.ext,
         name: cef.header.name,
-        severity: cef.header.severity,
+        severity: mapCefSeverity(cef.header.severity),
         type: cef.ext["cat"] ?? cef.header.product,
         srcip: cef.ext["src"],
         dstip: cef.ext["dst"],

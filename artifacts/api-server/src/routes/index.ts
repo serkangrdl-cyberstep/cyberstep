@@ -40,6 +40,9 @@ import badgesRouter from "./badges/index";
 import onboardingRouter from "./onboarding/index";
 import fabricRouter from "./fabric/index";
 import socRouter from "./soc/index";
+import remediationRouter from "./remediation/index";
+import cloudCspmRouter from "./cloud-cspm/index";
+import codeSecretsRouter from "./code-secrets/index";
 
 const router: IRouter = Router();
 
@@ -84,5 +87,8 @@ router.use(badgesRouter);
 router.use(onboardingRouter);
 router.use(fabricRouter);
 router.use(socRouter);
+router.use(remediationRouter);
+router.use(cloudCspmRouter);
+router.use(codeSecretsRouter);
 
 export default router;

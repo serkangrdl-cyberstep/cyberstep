@@ -20,6 +20,7 @@ export const customersTable = pgTable("customers", {
   // AI SOC service tier
   socTier: text("soc_tier").$type<"none" | "lite" | "standart" | "pro">().notNull().default("none"),
   socEnabled: boolean("soc_enabled").notNull().default(false),
+  githubOrg: varchar("github_org", { length: 255 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

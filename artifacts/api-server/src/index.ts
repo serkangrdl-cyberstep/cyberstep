@@ -1617,6 +1617,86 @@ startup()
     logger.info("NPS cron scheduled (Tuesday 11:00 Istanbul)");
     startFabricCrons();
     startSOCCrons();
+
+    // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
+    cron.schedule("0 2 * * *", async () => {
+      try {
+        const { analyzeAttackPaths, getLatestScan, getActiveCustomers } = await import("./services/attackPathAnalyzer");
+        const customers = await getActiveCustomers();
+        for (const c of customers) {
+          const scan = await getLatestScan(c.id);
+          if (scan) {
+            await analyzeAttackPaths(c.id, scan.id);
+            await new Promise(r => setTimeout(r, 3000));
+          }
+        }
+      } catch (err) {
+        logger.error({ err }, "Attack path cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Attack path analysis cron scheduled (02:00 Istanbul)");
+
+    // ─── CASM: Remediation doğrulama kuyruğu — Her saat ─────────────────────
+    cron.schedule("0 * * * *", async () => {
+      try {
+        const { processVerificationQueue } = await import("./services/verificationScanner");
+        await processVerificationQueue();
+      } catch (err) {
+        logger.error({ err }, "Verification queue cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Verification queue cron scheduled (hourly)");
+
+    // ─── CASM: SLA ihlal kontrolü — Her gün 08:00 ────────────────────────────
+    cron.schedule("0 8 * * *", async () => {
+      try {
+        const { checkRemediationSLABreaches } = await import("./services/verificationScanner");
+        await checkRemediationSLABreaches();
+      } catch (err) {
+        logger.error({ err }, "SLA breach check cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("SLA breach cron scheduled (08:00 Istanbul)");
+
+    // ─── CASM: Cloud CSPM taraması — Her gece 03:00 ──────────────────────────
+    cron.schedule("0 3 * * *", async () => {
+      try {
+        const { db: dbI } = await import("@workspace/db");
+        const { cloudConnectionsTable } = await import("@workspace/db");
+        const { eq } = await import("drizzle-orm");
+        const { runCloudScan } = await import("./routes/cloud-cspm/index");
+        const conns = await dbI.select().from(cloudConnectionsTable).where(eq(cloudConnectionsTable.isActive, true));
+        for (const conn of conns) {
+          await runCloudScan(conn, conn.customerId!);
+          await new Promise(r => setTimeout(r, 5000));
+        }
+      } catch (err) {
+        logger.error({ err }, "Cloud CSPM cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Cloud CSPM cron scheduled (03:00 Istanbul)");
+
+    // ─── CASM: GitHub secrets tarama — Her Pazar 04:00 ───────────────────────
+    cron.schedule("0 4 * * 0", async () => {
+      try {
+        const { getCustomersWithGitHub, scanGitHubOrg } = await import("./services/githubScanner");
+        const { db: dbI } = await import("@workspace/db");
+        const { codeSecretsFindingsTable } = await import("@workspace/db");
+        const customers = await getCustomersWithGitHub();
+        for (const c of customers) {
+          if (!c.githubOrg) continue;
+          const findings = await scanGitHubOrg(c.githubOrg, c.id);
+          for (const f of findings) {
+            await dbI.insert(codeSecretsFindingsTable).values(f).onConflictDoNothing();
+          }
+          await new Promise(r => setTimeout(r, 10000));
+        }
+      } catch (err) {
+        logger.error({ err }, "GitHub secrets cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("GitHub secrets scan cron scheduled (Sunday 04:00 Istanbul)");
+
     const server = app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

@@ -16,6 +16,9 @@ import emailTemplatesRouter from "./email-templates";
 import partnersAdminRouter from "./partners";
 import apiKeysAdminRouter from "../v1/admin";
 import expertReviewRouter from "./expert-review";
+import remediationAdminRouter from "./remediation";
+import cloudCspmAdminRouter from "./cloud-cspm";
+import codeSecretsAdminRouter from "./code-secrets";
 
 const router = Router();
 router.use(authRouter);
@@ -35,5 +38,8 @@ router.use(emailTemplatesRouter);
 router.use(partnersAdminRouter);
 router.use(apiKeysAdminRouter);
 router.use(expertReviewRouter);
+router.use(remediationAdminRouter);
+router.use(cloudCspmAdminRouter);
+router.use(codeSecretsAdminRouter);
 
 export default router;

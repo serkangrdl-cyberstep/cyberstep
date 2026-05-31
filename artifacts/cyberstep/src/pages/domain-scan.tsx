@@ -1173,7 +1173,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
   useEffect(() => {
     if (status !== "generating") return;
     const startedAt = Date.now();
-    const MAX_WAIT_MS = 4.5 * 60 * 1000; // Claude can take ~2 min; allow generous headroom
+    const MAX_WAIT_MS = 2 * 60 * 1000; // Haiku model target ~20-30s; 2min is generous headroom
     const interval = setInterval(() => {
       if (Date.now() - startedAt > MAX_WAIT_MS) {
         setStatus("error");
@@ -1269,7 +1269,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
             </div>
             <div>
               <p className="font-semibold text-sm">Saldırı Senaryosu Analizi</p>
-              <p className="text-xs text-muted-foreground">Yapay zeka tehdit modeli oluşturuyor, bu işlem 1-2 dakika sürebilir...</p>
+              <p className="text-xs text-muted-foreground">Yapay zeka tehdit modeli oluşturuyor, bu işlem yaklaşık 30 saniye sürer...</p>
             </div>
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />
           </div>

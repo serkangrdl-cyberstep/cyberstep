@@ -28,6 +28,7 @@ description: Claude-powered attack chain generator for domain scan results — a
 - Fire-and-forget + polling chosen (same pattern as assessment report generation) for UX simplicity
 - Scenarios expand/collapse with first scenario open by default
 - MITRE technique codes are clickable links to attack.mitre.org
+- **Model: claude-haiku-4-5** (not sonnet) — switched for speed; target ~20-30s vs ~2min with sonnet. max_tokens=2000. Generates 2 scenarios (not 3). STALE_MS=2min.
 
 **Why non-streaming:** Claude must return valid JSON; streaming partial JSON cannot be rendered as structured cards. Full response → parse → show cards gives cleaner UX than streaming markdown.
 

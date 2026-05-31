@@ -52,7 +52,8 @@ router.post("/domain-scan/:id/attack-scenarios", async (req: Request, res: Respo
 
 // ─── Generation claim (compare-and-set) ───────────────────────────────────────
 
-const STALE_MS = 4 * 60 * 1000;
+// Haiku is fast (~20-30s); 2 min is generous headroom for stuck-run recovery
+const STALE_MS = 2 * 60 * 1000;
 
 /**
  * Atomically transition a scan into "generating" iff it is eligible to (re)start:
@@ -99,8 +100,8 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
     const prompt = buildPrompt(scan);
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
+      model: "claude-haiku-4-5",
+      max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -133,111 +134,79 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string }> ?? []);
   const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string }> ?? []);
 
-  const criticalCves = cveSummary.filter(c => c.cvssScore >= 7.0);
+  const criticalCves = cveSummary.filter(c => c.cvssScore >= 7.0).slice(0, 3);
 
   const riskFlags: string[] = [];
-  if (!scan.spfPass) riskFlags.push("SPF kaydı eksik — phishing kolaylaşıyor");
-  if (!scan.dmarcPass) riskFlags.push("DMARC koruması yok — domain spoofing mümkün");
-  if (!scan.dkimPass) riskFlags.push("DKIM imzası eksik");
-  if (scan.sslDaysUntilExpiry !== null && scan.sslDaysUntilExpiry < 30) riskFlags.push(`SSL sertifikası ${scan.sslDaysUntilExpiry} gün içinde sona eriyor`);
-  if (scan.blacklisted) riskFlags.push(`${scan.blacklistCount} kara listede kayıtlı`);
-  if (scan.urlhausListed) riskFlags.push("URLhaus tehdit veritabanında kayıtlı");
-  if (scan.usomListed) riskFlags.push("USOM Türkiye siber tehdit listesinde");
-  if (scan.hibpBreachCount > 0) riskFlags.push(`${scan.hibpBreachCount} veri ihlali kaydı var`);
-  if (scan.virusTotalMalicious > 0) riskFlags.push(`VirusTotal'de ${scan.virusTotalMalicious} zararlı tespit`);
-  if (scan.httpHeadersScore < 40) riskFlags.push(`HTTP güvenlik başlıkları zayıf (skor: ${scan.httpHeadersScore}/100)`);
-  if ((scan.abuseIpdbScore ?? 0) > 50) riskFlags.push(`AbuseIPDB itibar skoru yüksek: ${scan.abuseIpdbScore}`);
+  if (!scan.spfPass) riskFlags.push("SPF eksik — phishing riski");
+  if (!scan.dmarcPass) riskFlags.push("DMARC yok — domain spoofing");
+  if (!scan.dkimPass) riskFlags.push("DKIM eksik");
+  if (scan.sslDaysUntilExpiry !== null && scan.sslDaysUntilExpiry < 30) riskFlags.push(`SSL ${scan.sslDaysUntilExpiry}g içinde sona eriyor`);
+  if (scan.blacklisted) riskFlags.push(`${scan.blacklistCount} kara listede`);
+  if (scan.urlhausListed) riskFlags.push("URLhaus'ta kayıtlı");
+  if (scan.usomListed) riskFlags.push("USOM listesinde");
+  if (scan.hibpBreachCount > 0) riskFlags.push(`${scan.hibpBreachCount} veri ihlali`);
+  if (scan.virusTotalMalicious > 0) riskFlags.push(`VirusTotal: ${scan.virusTotalMalicious} zararlı`);
+  if (scan.httpHeadersScore < 40) riskFlags.push(`HTTP başlıkları zayıf (${scan.httpHeadersScore}/100)`);
+  if ((scan.abuseIpdbScore ?? 0) > 50) riskFlags.push(`AbuseIPDB: ${scan.abuseIpdbScore}`);
 
-  return `Sen kıdemli bir penetrasyon testi uzmanı ve tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
+  const portsSummary = openPorts.length > 0
+    ? openPorts.slice(0, 5).map(p => `${p.port}/${p.protocol} ${p.service} ${p.product}`.trim()).join(", ")
+    : "tespit edilmedi";
 
-TARAMA VERİLERİ
-===============
-Domain: ${scan.domain}
-Genel Risk Skoru: ${scan.overallScore}/100
+  const shadowSummary = shadowIt.length > 0
+    ? shadowIt.slice(0, 4).map(s => `${s.name}(${s.risk})`).join(", ")
+    : "yok";
 
-E-POSTA GÜVENLİĞİ:
-- SPF: ${scan.spfPass ? "PASS" : "FAIL"}${scan.spfRecord ? ` (${scan.spfRecord})` : ""}
-- DMARC: ${scan.dmarcPass ? "PASS" : "FAIL"}${scan.dmarcRecord ? ` (${scan.dmarcRecord})` : ""}
-- DKIM: ${scan.dkimPass ? "PASS" : "FAIL"}
-- MX: ${scan.mxPass ? "PASS" : "FAIL"}
+  return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
-SSL/TLS:
-- Durum: ${scan.sslPass ? "Geçerli" : "Sorunlu"}
-- SSL Labs Notu: ${scan.sslLabsGrade ?? "Bilinmiyor"}
-- Süre Kalan: ${scan.sslDaysUntilExpiry !== null ? `${scan.sslDaysUntilExpiry} gün` : "Bilinmiyor"}
+TARAMA ÖZETİ
+============
+Domain: ${scan.domain} | Risk Skoru: ${scan.overallScore}/100
+E-posta: SPF=${scan.spfPass ? "OK" : "FAIL"} DMARC=${scan.dmarcPass ? "OK" : "FAIL"} DKIM=${scan.dkimPass ? "OK" : "FAIL"}
+SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${scan.sslDaysUntilExpiry !== null ? `${scan.sslDaysUntilExpiry}g kaldı` : "süre bilinmiyor"}
+Açık portlar: ${portsSummary}
+Kritik CVE'ler: ${criticalCves.length > 0 ? criticalCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})
+Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
+VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100
+HIBP ihlaller: ${scan.hibpBreachCount} | Shadow IT: ${shadowSummary}
+HTTP başlıkları: ${scan.httpHeadersScore}/100 | Subdomain: ${scan.ctSubdomainCount}
+Risk bayrakları: ${riskFlags.length > 0 ? riskFlags.join("; ") : "yok"}
 
-AÇIK PORTLAR VE SERVİSLER:
-${openPorts.length > 0 ? openPorts.map(p => `- Port ${p.port}/${p.protocol}: ${p.service} ${p.product} ${p.version}`.trim()).join("\n") : "- Tespit edilmedi (Shodan'dan)"}
-Toplam Shodan güvenlik açığı sayısı: ${scan.shodanVulnCount}
-ISP: ${scan.shodanIsp ?? "Bilinmiyor"} (${scan.shodanCountry ?? ""})
+GÖREV
+=====
+Bu verilerden hareketle en olası 2 saldırı senaryosunu oluştur. Her senaryo kısa ve pratik olmalı.
 
-GÜVENLİK AÇIKLARI (CVE):
-${criticalCves.length > 0 ? criticalCves.map(c => `- ${c.cveId} [CVSS: ${c.cvssScore}] ${c.service}: ${c.description}`).join("\n") : "- Kritik CVE tespit edilmedi"}
-Toplam CVE sayısı: ${cveSummary.length}
-
-TEHDİT İSTİHBARATI:
-- Kara Liste: ${scan.blacklisted ? `${scan.blacklistCount} listede kayıtlı` : "Temiz"}
-- URLhaus: ${scan.urlhausListed ? `Zararlı (${scan.urlhausThreat ?? ""})` : "Temiz"}
-- USOM Türkiye: ${scan.usomListed ? "Listede!" : "Temiz"}
-- VirusTotal: ${scan.virusTotalMalicious} zararlı, ${scan.virusTotalSuspicious} şüpheli
-- AbuseIPDB: ${scan.abuseIpdbScore !== null ? `${scan.abuseIpdbScore}/100 (${scan.abuseIpdbTotalReports} rapor)` : "N/A"}
-- Google Safe Browsing: ${scan.safeBrowsingFlagged ? "Tehdit tespit edildi!" : "Temiz"}
-
-VERİ İHLALİ GEÇMİŞİ (Have I Been Pwned):
-- ${scan.hibpBreachCount} ihlal kaydı bulundu
-
-SHADOW IT (Tespit Edilen SaaS/Bulut Hizmetleri):
-${shadowIt.length > 0 ? shadowIt.map(s => `- ${s.name} (${s.category}, risk: ${s.risk})`).join("\n") : "- Tespit edilmedi"}
-
-HTTP GÜVENLİK BAŞLIKLARI: ${scan.httpHeadersScore}/100
-ALT DOMAIN SAYISI (CT Log): ${scan.ctSubdomainCount}
-
-TESPİT EDİLEN RİSK BAYRAKLARI:
-${riskFlags.length > 0 ? riskFlags.map(f => `⚠️ ${f}`).join("\n") : "Kritik risk bayrağı yok"}
-
-ANALİZ GÖREVİ
-==============
-Bu verilere dayanarak, bu şirkete yönelik en olası 3 gerçekçi saldırı senaryosunu oluştur. Her senaryo:
-- Mevcut bulgulara dayalı ve gerçekçi olmalı
-- Saldırgan perspektifinden adım adım anlatılmalı  
-- MITRE ATT&CK teknikleriyle eşleştirilmeli
-- KVKK/kişisel veri riski dahil iş etkisini içermeli
-- Acil önlemler pratik ve uygulanabilir olmalı
-
-ZORUNLU ÇIKTI FORMATI — Sadece aşağıdaki JSON'u döndür, başka hiçbir metin ekleme:
+Sadece şu JSON'u döndür, başka metin ekleme:
 
 {
-  "risk_ozet": "2-3 cümlelik yönetici özeti. Bu şirketin en kritik güvenlik sorunu nedir?",
+  "risk_ozet": "1-2 cümle: en kritik güvenlik sorunu nedir?",
   "genel_tehdit_seviyesi": "Kritik|Yüksek|Orta|Düşük",
   "senaryolar": [
     {
-      "baslik": "Senaryo başlığı (örn: Fidye Yazılımı Saldırısı)",
+      "baslik": "Senaryo başlığı",
       "olasilik": "Yüksek|Orta|Düşük",
       "acillik": "Acil|Yüksek|Orta",
-      "giris_noktasi": "Saldırganın ilk erişim vektörünü somut olarak açıkla",
+      "giris_noktasi": "İlk erişim vektörü (1 cümle)",
       "saldiri_zinciri": [
         "1. Keşif: ...",
         "2. İlk Erişim: ...",
-        "3. Kalıcılık/Yanal Hareket: ...",
-        "4. Hedef: ...",
-        "5. Etki/İstismar: ..."
+        "3. Yanal Hareket/Kalıcılık: ...",
+        "4. Etki: ..."
       ],
       "mitre_teknikler": [
         {"kod": "T1190", "isim": "Açık Uygulama İstismarı"}
       ],
-      "etki": "Saldırının iş etkisi — operasyonel, finansal, itibar",
-      "kvkk_etkisi": "KVKK Madde 12 kapsamında kişisel veri riski ve tahmini yaptırım",
+      "etki": "İş etkisi — operasyonel, finansal, itibar (1-2 cümle)",
+      "kvkk_etkisi": "KVKK riski ve tahmini yaptırım (1 cümle)",
       "acil_onlemler": [
-        "1. Yapılacak ilk şey",
-        "2. İkinci önlem",
-        "3. Üçüncü önlem"
+        "1. İlk önlem",
+        "2. İkinci önlem"
       ]
     }
   ],
   "once_kapat": [
-    {"oncelik": 1, "aksiyon": "En acil aksiyon", "neden": "Neden bu öncelikli?"},
-    {"oncelik": 2, "aksiyon": "İkinci aksiyon", "neden": "..."},
-    {"oncelik": 3, "aksiyon": "Üçüncü aksiyon", "neden": "..."}
+    {"oncelik": 1, "aksiyon": "En acil aksiyon", "neden": "Neden?"},
+    {"oncelik": 2, "aksiyon": "İkinci aksiyon", "neden": "Neden?"}
   ]
 }`;
 }

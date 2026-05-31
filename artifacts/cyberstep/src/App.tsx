@@ -49,6 +49,8 @@ import Payment from "./pages/payment";
 import AdminReview from "./pages/admin-review";
 import Hakkimizda from "./pages/hakkimizda";
 import Iletisim from "./pages/iletisim";
+import Kurumsal from "./pages/kurumsal";
+import PartnerPage from "./pages/partner";
 import Kvkk from "./pages/kvkk";
 import KullanimKosullari from "./pages/kullanim-kosullari";
 import GizlilikPolitikasi from "./pages/gizlilik-politikasi";
@@ -233,6 +235,8 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/fiyatlar" component={Pricing} />
             <Route path="/hakkimizda" component={Hakkimizda} />
+            <Route path="/kurumsal" component={Kurumsal} />
+            <Route path="/partner" component={PartnerPage} />
             <Route path="/iletisim" component={Iletisim} />
             <Route path="/kvkk" component={Kvkk} />
             <Route path="/kullanim-kosullari" component={KullanimKosullari} />

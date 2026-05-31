@@ -29,13 +29,13 @@ export const TRANSLATIONS = {
 
   // ─── Home page ───────────────────────────────────────────────────────────────
   home: {
-    heroBadge: { tr: "KOBİ'ler için Siber Sağlık Karnesi", en: "Cyber Health Report for SMEs" },
-    heroTitle: { tr: "Fidye ödemeyin. İşinizi durdurmayın. Müşteri verinizi kaybetmeyin.", en: "Don't pay ransom. Don't halt your business. Don't lose customer data." },
+    heroBadge: { tr: "Türkiye'nin Siber Güvenlik Risk Platformu", en: "Turkey's Cybersecurity Risk Platform" },
+    heroTitle: { tr: "Şirketinize Saldırgan Gözüyle Bakın", en: "See Your Company Through an Attacker's Eyes" },
     heroSubtitle: {
-      tr: "Şirketinizin siber güvenlik açıklarını 10 dakikada öğrenin. Hangi riskin iş sürecinizi nasıl tehdit ettiğini görün, öncelikli adımlarınızı alın.",
-      en: "Discover your company's cybersecurity gaps in 10 minutes. See which risks threaten your operations and get your prioritized action steps.",
+      tr: "Dışarıdan ne görünüyorsunuz, içeride ne açık var, yapay zeka araçlarınız ne sızdırıyor. Türkçe. Otomatik. Aksiyona hazır.",
+      en: "What do you look like from outside, what's exposed inside, what are your AI tools leaking. Turkish. Automated. Action-ready.",
     },
-    heroCta: { tr: "Ücretsiz Siber Sağlık Karnesi Al", en: "Get Your Free Cyber Health Report" },
+    heroCta: { tr: "Ücretsiz Değerlendirme Başlat", en: "Start Free Assessment" },
 
     statsAnalyzed: { tr: "KOBİ Analiz Edildi", en: "SMEs Analyzed" },
     statsTime: { tr: "Ortalama Test Süresi", en: "Avg. Test Duration" },

@@ -1,22 +1,70 @@
-import { Shield, Target, Users, ArrowRight, TrendingUp, Lock, Eye } from "lucide-react";
+import { Shield, Target, Eye, Lock, ArrowRight, CheckCircle, TrendingUp, Globe, Zap } from "lucide-react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 export default function Hakkimizda() {
-  const { data: settings } = useQuery<Record<string, string>>({
-    queryKey: ["public-settings"],
-    queryFn: () => fetch("/api/public/settings").then(r => r.json()),
-    staleTime: 60000,
+  usePageMeta({
+    title: "Hakkımızda — Türkiye'de Siber Güvenlik Neden Eksik? | CyberStep.io",
+    description: "CyberStep, Türkiye'deki şirketlerin saldırganın gözüyle kendine bakmasını sağlayan platformdur. Teknik bilgi gerektirmeden. Türkçe. Aksiyona hazır.",
+    canonicalPath: "/hakkimizda",
+    lang: "tr",
   });
 
-  const heroTitle = settings?.["about.title"] || "İş sürekliliğinizi koruyun.";
-  const heroContent = settings?.["about.content"] || "";
+  const PRINCIPLES = [
+    {
+      icon: Target,
+      title: "Patron Dili",
+      desc: "Teknik rapor değil, finansal karar desteği. 'Port 3389 açık' değil, 'Bu açık kapatılmazsa tahminen 180.000–620.000 TL risk taşıyorsunuz.' CEO için yaratılan raporlar, CFO'nun anlayabileceği dil.",
+    },
+    {
+      icon: Globe,
+      title: "Türkiye'ye Özgü",
+      desc: "USOM korelasyonu, KVKK entegrasyonu, Türkiye sektör benchmarkları. Türkiye'deki ihale süreçlerini, denetim yapısını, sektöre özgü riski bilen bir platform. Global araçların yapmadığı şey.",
+    },
+    {
+      icon: Zap,
+      title: "Bul — Gönder — Doğrula",
+      desc: "Sadece rapor vermiyoruz. Bulguyu güvenlik sisteminize iletiyoruz, düzeltilince yeniden tarayıp doğruluyoruz. Kapalı döngü. Haftalık delta. Skor sürekli güncel.",
+    },
+  ];
+
+  const TIMELINE = [
+    { year: "2024", title: "Dış Saldırı Yüzeyi Analizi", desc: "Domain taraması, HIBP, USOM korelasyonu, dark web izleme." },
+    { year: "2025", title: "AI Güvenlik Servisleri", desc: "AI araç risk değerlendirmesi, phishing simülasyonu, KVKK politika otogüncelleme." },
+    { year: "2026", title: "Sürekli Maruz Kalma Yönetimi", desc: "CEM platformu — firewall entegrasyonu, kapalı döngü doğrulama, yönetim kurulu raporlaması." },
+    { year: "2026", title: "EU AI Act Uyum Servisi", desc: "Türkiye'deki şirketlerin AB pazarına ihracat yapabilmesi için EU AI Act uyum skoru ve sertifikasyonu." },
+  ];
+
+  const STATS = [
+    { value: "3.5M+", label: "Türkiye'deki KOBİ sayısı" },
+    { value: "%95", label: "Güvenlik ekibi olmayan şirket oranı" },
+    { value: "47M TL", label: "2024 yılı KVKK ceza toplamı" },
+    { value: "30dk", label: "Kapatılabilecek açıkların ortalama kapanma süresi" },
+  ];
+
+  const VALUES = [
+    {
+      icon: Target,
+      title: "Misyon",
+      desc: "Her ölçekteki Türk şirketine, saldırganın gözüyle kendine bakma ve riski anlaşılır biçimde görme imkânı. Teknik bilgi gerektirmeden. Türkçe. Aksiyona hazır.",
+    },
+    {
+      icon: Eye,
+      title: "Vizyon",
+      desc: "Türkiye'nin her şirketinin siber riskini gerçek zamanlı görebildiği, sektörel benchmarklarla karşılaştırabildiği ve otomatik olarak yönetilebildiği bir ekosistem.",
+    },
+    {
+      icon: Lock,
+      title: "Yöntem",
+      desc: "Dış saldırı yüzeyi + AI güvenlik + uyum ve sertifikasyon. Üç katman birlikte çalışır. Tespit et, gönder, düzelt, belgele. Sonra yeniden başla.",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
 
       {/* Hero */}
-      <section className="bg-slate-900 text-white py-20 relative overflow-hidden">
+      <section className="bg-slate-900 text-white py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-emerald-900/40 via-slate-900 to-slate-900 pointer-events-none" />
         <div className="container mx-auto px-4 max-w-4xl text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium mb-6">
@@ -24,146 +72,56 @@ export default function Hakkimizda() {
             Hakkımızda
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-            {heroTitle}
+            Türkiye'de Siber Güvenlik<br />
+            <span className="text-emerald-400">Neden Bu Kadar Eksik?</span>
           </h1>
-          {heroContent ? (
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
-              {heroContent}
-            </p>
-          ) : (
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-              CyberStep.io; KOBİ'lerin fidye saldırısı, veri sızıntısı ve KVKK uyumsuzluk risklerini
-              10 dakikada ölçmesini, önceliklendirmesini ve adım adım kapatmasını sağlayan
-              yapay zeka destekli bir platformdur.
-            </p>
-          )}
+          <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+            Ve biz bu boşluğu nasıl doldurmaya başladık.
+          </p>
         </div>
       </section>
 
-      {/* Origin Story */}
+      {/* Problem tanımı */}
       <section className="py-20 bg-background">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-5">
-              <h2 className="text-3xl font-bold text-foreground">İsmin Arkındaki Fikir</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Siber güvenlik sıkılaştırmaları kat merdivenini çıkar gibi yapılır — her basamakta
-                bir üst seviyeye ulaşırsın. Bir basamağı atlayamazsın, kısamazsın. Ama doğru
-                basamakları, doğru sırayla atarsan zirveye ulaşırsın.
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                Tüm güvenlik önlemlerini bir gecede almanın imkânı yoktur — büyük kurumlar için bile.
-                KOBİ'ler için ise yol haritasız bu merdiveni çıkmak neredeyse imkânsızdır.
-                CyberStep tam bu boşluğu kapatmak için doğdu.
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                İngilizce'de "step" hem <em>adım</em> hem de <em>ayak izi</em> anlamına gelir.
-                Bu istemeden ortaya çıkmış bir anlam derinliği değil, bilinçli bir tercih:
-                siber güvenlikteki en kritik kavramlardan biri de "dijital ayak izi" —
-                yani şirketinizin saldırı yüzeyi. CyberStep, hem güvenlik adımlarınızı
-                hem de dijital izinizi yönetir.
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                <strong className="text-foreground">.io</strong> uzantısı ise bilinçli bir sinyal:
-                bu bir yerel IT şirketi değil, yapay zeka ve bulut altyapısı üzerine kurulu
-                modern bir teknoloji platformu. KOBİ'lere enterprise kalitesinde araçları
-                erişilebilir hale getiren bir ürün.
-              </p>
-            </div>
-            <div className="space-y-4">
-              {[
-                { step: "1. Basamak", title: "Nerede durduğunu bil", desc: "20 soruda risk profilinizi tespit edin. Yapay zeka analiz eder, kişiselleştirilmiş rapor oluşturur." },
-                { step: "2. Basamak", title: "Önceliğini belirle", desc: "Hangi açığı önce kapatmanız gerekiyor? Sektörünüze ve ölçeğinize göre sıralı aksiyon planı." },
-                { step: "3. Basamak", title: "İlerle ve ölç", desc: "Her adımda güvenlik olgunluğunuz artar ve belgelenir. Müşterilerinize, ortaklarınıza gösterebileceğiniz somut bir kayıt." },
-              ].map((item) => (
-                <div key={item.step} className="flex gap-4 p-5 bg-card border rounded-xl">
-                  <div className="shrink-0">
-                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full">
-                      {item.step}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm mb-1">{item.title}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Persona */}
-      <section className="py-20 bg-muted/30 border-y">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold">Kimin için inşa ettik?</h2>
-            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              CyberStep'i tasarlarken aklımızda hep aynı kişi vardı.
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="prose prose-lg dark:prose-invert max-w-none">
+            <p className="text-lg leading-relaxed text-muted-foreground mb-6">
+              2024 yılında Türkiye'de 94 firmaya toplam <strong className="text-foreground">47 milyon TL</strong> KVKK cezası kesildi. Bu cezaların büyük çoğunluğu teknik uzman gerektirmeyen, 30 dakikada kapatılabilecek açıklardan kaynaklandı.
+            </p>
+            <p className="text-lg leading-relaxed text-muted-foreground mb-6">
+              Problem şu: Türkiye'deki şirketlerin <strong className="text-foreground">yüzde doksan beşinin</strong> güvenlik ekibi yok. Mevcut araçlar İngilizce, kurumsal ölçeğe göre fiyatlandırılmış ve teknik bilgi gerektiriyor. Büyük kurumlar için yapılmış araçlar, KOBİ'lerin sorununu çözmüyor.
+            </p>
+            <p className="text-lg leading-relaxed text-muted-foreground">
+              CyberStep bu boşluk için kuruldu.
             </p>
           </div>
-          <div className="bg-card border rounded-2xl p-8 md:p-10 max-w-2xl mx-auto relative">
-            <div className="absolute -top-4 left-8">
-              <span className="bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Hedef Kitlemiz</span>
-            </div>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl font-bold text-slate-600 dark:text-slate-300">
-                E
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="py-16 bg-muted/30 border-y">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {STATS.map(({ value, label }) => (
+              <div key={label}>
+                <div className="text-3xl md:text-4xl font-bold text-emerald-600 mb-2">{value}</div>
+                <div className="text-sm text-muted-foreground leading-snug">{label}</div>
               </div>
-              <div>
-                <p className="font-bold text-lg">Emre Bey</p>
-                <p className="text-sm text-muted-foreground">45 kişilik üretim firmasının sahibi</p>
-              </div>
-            </div>
-            <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-              <p>Muhasebe yazılımı, ERP ve bir e-ticaret sitesi kullanıyor. Çalışanlarından biri sahte e-postaya tıkladı — sisteme fidye yazılımı girdi. Üç gün üretim durdu.</p>
-              <p>Bir siber güvenlik firmasını aradı — 3 aylık proje teklifi, büyük bütçe. <em>"Biz o kadar büyük değiliz"</em> deyip kapattı. Ama büyük olmak gerekmiyordu — doğru adımı atmak yeterliydi.</p>
-              <p>Müşteri verisini koruyamadığı için KVKK kapsamında soruşturma başladı. Müşteri ilişkisi bitti.</p>
-              <p className="text-foreground font-medium pt-2 border-t">
-                Emre Bey'in sorunu siber güvenliği bilmemek değildi. Nereden başlayacağını bilmemekti.
-              </p>
-            </div>
-            <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-                CyberStep, Emre Bey'e şunu söylüyor:
-              </p>
-              <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
-                "Önce şu üç açığı kapat. Fidye saldırısının en sık girdiği yol burası. Geri kalanı için zamanın var."
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Mission / Values */}
+      {/* Mission / Vision / Method */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold">Ne için varız?</h2>
-          </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Target,
-                title: "Misyon",
-                desc: "KOBİ'lerin iş sürekliliğini tehdit eden açıkları — fidye saldırısı, veri sızıntısı, KVKK uyumsuzluğu — teknik jargon olmadan görmelerini ve öncelikli adımları anında almalarını sağlamak.",
-              },
-              {
-                icon: Eye,
-                title: "Vizyon",
-                desc: "Türkiye'deki her KOBİ'nin siber güvenliği büyük bütçeler beklemeden, nereden başlayacağını bilerek uygulayabildiği bir ekosistem. Güvenlik bir lüks değil, ulaşılabilir bir standart.",
-              },
-              {
-                icon: Lock,
-                title: "Yöntem",
-                desc: "Yapay zeka destekli Siber Sağlık Karnesi ile uzman incelemesini birleştiren hibrit model. Anında skor, ardından 'önce şunu kapat' formatında öncelik sıralı aksiyon planı.",
-              },
-            ].map(({ icon: Icon, title, desc }) => (
+            {VALUES.map(({ icon: Icon, title, desc }) => (
               <div key={title} className="bg-card border rounded-xl p-6 space-y-4">
                 <div className="h-11 w-11 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
                   <Icon className="h-5 w-5 text-emerald-600" />
                 </div>
-                <h3 className="font-semibold text-base">{title}</h3>
+                <h3 className="font-semibold">{title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
               </div>
             ))}
@@ -171,31 +129,92 @@ export default function Hakkimizda() {
         </div>
       </section>
 
-      {/* Value Proposition vs Competitors */}
+      {/* Platform Evrimi */}
       <section className="py-20 bg-muted/30 border-y">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold">Geleneksel danışmanlıktan farkımız</h2>
+            <h2 className="text-3xl font-bold">Platform Evrimi</h2>
+            <p className="text-muted-foreground mt-3">
+              Tek bir araç değil, büyüyen bir ekosistem.
+            </p>
+          </div>
+          <div className="relative">
+            <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+            <div className="space-y-8">
+              {TIMELINE.map((item, i) => (
+                <div key={i} className="flex gap-6 items-start pl-10 relative">
+                  <div className="absolute left-0 h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 bg-card border rounded-xl p-5">
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full">{item.year}</span>
+                    <h3 className="font-semibold mt-3 mb-1">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-6 items-start pl-10 relative">
+                <div className="absolute left-0 h-8 w-8 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold">
+                  ...
+                </div>
+                <div className="flex-1 bg-card border border-dashed rounded-xl p-5">
+                  <p className="text-sm text-muted-foreground italic">Devam ediyor. Roadmap'e girin.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3 İlke */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold">CyberStep'i Farklı Kılan 3 İlke</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {PRINCIPLES.map(({ icon: Icon, title, desc }, i) => (
+              <div key={title} className="bg-card border rounded-xl p-6 space-y-4 relative">
+                <div className="absolute -top-3 -left-3 h-7 w-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                  {i + 1}
+                </div>
+                <div className="h-11 w-11 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mt-2">
+                  <Icon className="h-5 w-5 text-emerald-600" />
+                </div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Global vs CyberStep */}
+      <section className="py-20 bg-muted/30 border-y">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold">Global Araçlar Ne Yapamıyor?</h2>
           </div>
           <div className="bg-card border rounded-2xl overflow-hidden shadow-sm">
             <div className="grid grid-cols-2 bg-slate-50 dark:bg-slate-800/50 border-b">
-              <div className="px-6 py-3 text-sm font-semibold text-slate-500 border-r">Geleneksel Yaklaşım</div>
-              <div className="px-6 py-3 text-sm font-semibold text-emerald-600">CyberStep.io</div>
+              <div className="px-6 py-3 text-sm font-semibold text-slate-500 border-r">Global Araçlar</div>
+              <div className="px-6 py-3 text-sm font-semibold text-emerald-600">CyberStep</div>
             </div>
             {[
-              ["Kapsamlı denetim, büyük proje bütçesi", "10 dakikada Siber Sağlık Karnesi, anında skor"],
-              ['"Her şeyi düzelt" listesi', '"Önce şu üç açığı kapat" öncelik planı'],
-              ["Teknik jargon dolu raporlar", "Jargonsuz, iş etkisiyle açıklanan sade Türkçe analiz"],
-              ["Fidye/KVKK riski kör nokta kalır", "Fidye, veri sızıntısı ve KVKK uyumu ayrı ayrı değerlendirme"],
-              ["Tek seferlik danışmanlık", "Sürekli olgunluk takibi ve ölçülebilir ilerleme kaydı"],
+              ["İngilizce, teknik raporlar", "Türkçe, patron dili — TL bazında risk tahmini"],
+              ["Kurumsal fiyatlandırma ($$$)", "KOBİ'den kurumsal ölçeğe erişilebilir fiyat"],
+              ["KVKK'yı bilmez", "KVKK uyum skoru, DPA sözleşme şablonu dahil"],
+              ["USOM korelasyonu yok", "Türkiye'ye özgü tehdit istihbaratı"],
+              ["AI araç güvenliği kapsam dışı", "AI araç izleme, phishing sim, EU AI Act uyumu"],
+              ["Tespit et, rapor ver — bitti", "Bul, gönder, düzelt, doğrula — kapalı döngü"],
             ].map(([old, neo], i) => (
               <div key={i} className="grid grid-cols-2 border-b last:border-0">
-                <div className="px-6 py-4 text-sm text-muted-foreground border-r flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0" />
+                <div className="px-6 py-4 text-sm text-muted-foreground border-r flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0" />
                   {old}
                 </div>
-                <div className="px-6 py-4 text-sm text-foreground font-medium flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <div className="px-6 py-4 text-sm text-foreground font-medium flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
                   {neo}
                 </div>
               </div>
@@ -204,63 +223,30 @@ export default function Hakkimizda() {
         </div>
       </section>
 
-      {/* Tagline + CTA */}
+      {/* CTA */}
       <section className="py-24 bg-slate-900 text-white">
-        <div className="container mx-auto px-4 max-w-3xl text-center space-y-6">
-          <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">Sloganımız</p>
-          <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-            Siber güvenlik,<br />adım adım.
+        <div className="container mx-auto px-4 max-w-2xl text-center space-y-6">
+          <TrendingUp className="h-10 w-10 text-emerald-400 mx-auto" />
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Saldırgan sizi 5 dakikada tarar.<br />Siz kaç dakikada?
           </h2>
-          <p className="text-slate-400 text-lg max-w-xl mx-auto">
-            Fidye saldırısı, veri sızıntısı, KVKK cezası — üç tehdidin hangisine en açık olduğunuzu
-            10 dakikada öğrenin. İlk karne ücretsiz.
+          <p className="text-slate-400 text-base max-w-xl mx-auto">
+            Ücretsiz domain taraması veya 20 soruluk Mini Değerlendirme ile başlayın. Teknik bilgi gerekmez.
           </p>
-          <div className="pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Link
               href="/assessment/start"
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-4 rounded-lg transition-colors text-base"
+              className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-4 rounded-lg transition-colors"
             >
-              Ücretsiz Siber Sağlık Karnesi Al
+              Ücretsiz Değerlendirme Başlat
               <ArrowRight className="h-5 w-5" />
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-16 bg-background border-b">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: "3.5M+", label: "Türkiye'deki KOBİ" },
-              { value: "%60", label: "Fidye saldırılarında KOBİ payı" },
-              { value: "10dk", label: "Siber Sağlık Karnesi süresi" },
-              { value: "₺1.8M", label: "Ortalama fidye maliyeti (KOBİ)" },
-            ].map(({ value, label }) => (
-              <div key={label}>
-                <div className="text-4xl font-bold text-emerald-600 mb-1">{value}</div>
-                <div className="text-sm text-muted-foreground leading-snug">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* About content from admin (if any) */}
-      <section className="py-16 bg-background">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { icon: Target, title: "Odağımız", desc: "İş sürekliliğini tehdit eden üç ana risk: fidye saldırısı, müşteri/çalışan verisi sızıntısı ve KVKK uyumsuzluğu. Bu üçünü öncelik sırasıyla kapatmak, KOBİ'ler için en etkili başlangıç noktasıdır." },
-              { icon: Users, title: "Kitlemiz", desc: "1'den 250'ye kadar çalışanı olan, muhasebe yazılımı kullanan perakende satış noktasından imalat tesisine kadar tüm sektörlerden Türkiye'deki KOBİ'ler." },
-              { icon: TrendingUp, title: "Yöntemimiz", desc: "Yapay zeka ile üretilen Siber Sağlık Karnesi, uzman ekibimizce doğrulanır. Teknik bilgi gerektirmeyen sorular, iş etkisiyle açıklanan bulgular, uygulanabilir öncelik planı." },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="bg-card border rounded-xl p-6">
-                <Icon className="h-8 w-8 text-emerald-500 mb-4" />
-                <h3 className="font-semibold text-lg mb-2">{title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
+            <Link
+              href="/domain-tarama"
+              className="inline-flex items-center justify-center gap-2 border border-white/20 text-white hover:bg-white/10 font-medium px-8 py-4 rounded-lg transition-colors"
+            >
+              Domain'inizi Tarayın
+            </Link>
           </div>
         </div>
       </section>

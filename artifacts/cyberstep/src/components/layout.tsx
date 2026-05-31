@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight } from "lucide-react";
+import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, Eye, FileText, ActivitySquare, ShieldCheck } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Footer } from "./footer";
 import { useWhiteLabel } from "@/contexts/white-label-context";
@@ -16,6 +16,16 @@ const NAV_LINKS = (lang: "tr" | "en") => [
   { href: "/iletisim", label: t(T.nav.contact, lang) },
 ];
 
+const AI_GUVENLIK_ITEMS = [
+  { href: "/ai-guvenlik", label: "AI Risk Değerlendirmesi", icon: ShieldCheck, available: true },
+  { href: "/ai-phishing-simulasyonu", label: "AI Phishing Simülasyonu", icon: Mail, available: true },
+  { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: ActivitySquare, available: true },
+  { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, available: true },
+  { href: "/fiyatlar", label: "Deepfake Tehdit Analizi", icon: Eye, available: false },
+  { href: "/fiyatlar", label: "EU AI Act Uyum Skoru", icon: Cpu, available: false },
+  { href: "/fiyatlar", label: "AI Red Team Raporu", icon: Bot, available: false },
+];
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const wl = useWhiteLabel();
@@ -23,6 +33,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { lang, toggle: toggleLang } = useLanguage();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [mobileAiOpen, setMobileAiOpen] = useState(false);
+  const aiRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (aiRef.current && !aiRef.current.contains(e.target as Node)) {
+        setAiOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const isAdminPanel = location.startsWith("/panel");
   if (isAdminPanel) return <>{children}</>;
@@ -63,6 +86,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav — sadece md ve üstü */}
           <nav className="hidden md:flex items-center gap-1">
+            {!wl && (
+              <div ref={aiRef} className="relative">
+                <button
+                  onClick={() => setAiOpen(v => !v)}
+                  className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
+                    location.startsWith("/ai-") ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  AI Güvenlik
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${aiOpen ? "rotate-180" : ""}`} />
+                </button>
+                {aiOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-64 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden">
+                    {AI_GUVENLIK_ITEMS.map(({ href, label, icon: Icon, available }) => (
+                      <Link
+                        key={label}
+                        href={href}
+                        onClick={() => setAiOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors"
+                      >
+                        <div className={`h-7 w-7 rounded-md flex items-center justify-center shrink-0 ${available ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-muted"}`}>
+                          <Icon className={`h-4 w-4 ${available ? "text-emerald-600" : "text-muted-foreground"}`} />
+                        </div>
+                        <span className={available ? "text-foreground font-medium" : "text-muted-foreground"}>
+                          {label}
+                        </span>
+                        {!available && (
+                          <span className="ml-auto text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">Yakında</span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {!wl && navLinks.map(({ href, label }) => (
               <Link
                 key={href}
@@ -143,6 +201,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {mobileOpen && (
           <div className="md:hidden border-t bg-background/98 backdrop-blur shadow-lg">
             <div className="container mx-auto px-4 py-3 space-y-1">
+              {/* AI Güvenlik accordion */}
+              {!wl && (
+                <div>
+                  <button
+                    onClick={() => setMobileAiOpen(v => !v)}
+                    className={`flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
+                      location.startsWith("/ai-") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    AI Güvenlik
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileAiOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {mobileAiOpen && (
+                    <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-emerald-500/30 pl-3">
+                      {AI_GUVENLIK_ITEMS.map(({ href, label, available }) => (
+                        <Link
+                          key={label}
+                          href={href}
+                          onClick={() => { setMobileOpen(false); setMobileAiOpen(false); }}
+                          className="flex items-center justify-between w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+                        >
+                          {label}
+                          {!available && <span className="text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">Yakında</span>}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {!wl && navLinks.map(({ href, label }) => (
                 <Link
                   key={href}

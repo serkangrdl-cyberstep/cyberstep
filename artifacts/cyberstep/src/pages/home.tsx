@@ -158,11 +158,11 @@ export default function Home() {
   }
   usePageMeta({
     title: lang === "en"
-      ? "Free Cybersecurity Risk Analysis for SMBs | CyberStep.io"
-      : "KOBİ'ler icin Ucretsiz Siber Guvenlik Risk Analizi | CyberStep.io",
+      ? "Turkey's Cybersecurity Risk Platform | CyberStep.io"
+      : "Turkiye'nin Siber Guvenlik Risk Platformu | CyberStep.io",
     description: lang === "en"
-      ? "Measure your company's cybersecurity maturity in 5 minutes. Discover vulnerabilities and get a personalized action roadmap."
-      : "Sirketinizin siber guvenlik olgunlugunu 5 dakikada olcun. Zayif noktalarinizi kesfedin ve kisisellestirilmis yol haritasi alin.",
+      ? "See your company through an attacker's eyes. AI-powered analysis, KVKK compliance, financial risk estimation. Start with a free domain scan."
+      : "Saldirgánin gozuyle sirketinize bakin. Dis saldiri yüzeyi, AI guvenlik analizi, KVKK uyumu. Ucretsiz domain taramasiyla baslayin.",
     canonicalPath: "/",
     lang,
   });
@@ -406,13 +406,25 @@ export default function Home() {
             <p className="text-lg md:text-xl text-muted-foreground">
               {t(T.home.heroSubtitle, lang)}
             </p>
-            <div className="pt-4">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-400 pt-2">
+              <span>{lang === "en" ? "Avg. cyberattack cost:" : "Ortalama siber saldırı maliyeti:"} <strong className="text-white">285.000 TL</strong></span>
+              <span className="opacity-30">·</span>
+              <span>{lang === "en" ? "CyberStep annual cost:" : "CyberStep yıllık maliyeti:"} <strong className="text-emerald-400">23.880 TL</strong></span>
+            </div>
+            <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href="/assessment/start"
                 className="inline-flex items-center justify-center rounded-md text-lg font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-14 px-8"
               >
                 {t(T.home.heroCta, lang)}
                 <ChevronRight className="ml-2 h-5 w-5" />
+              </Link>
+              <Link
+                href="/domain-tarama"
+                className="inline-flex items-center justify-center rounded-md text-base font-medium transition-colors border border-white/20 text-white hover:bg-white/10 h-14 px-8"
+              >
+                {lang === "en" ? "Scan Your Domain Free" : "Domain'inizi Ücretsiz Tarayın"}
+                <ChevronRight className="ml-2 h-4 w-4" />
               </Link>
             </div>
           </div>

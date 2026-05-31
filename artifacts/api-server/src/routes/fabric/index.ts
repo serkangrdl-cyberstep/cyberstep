@@ -69,6 +69,12 @@ async function handleIngest(req: Request, res: Response, source: "webhook" | "sy
     }
     const events = parseEvent(req.body, req.headers["content-type"]);
     const count = await persistEvents(integration, events, source);
+    // Critical/high events trigger an immediate correlation (fire-and-forget);
+    // everything else is picked up by the 15-min batch cron.
+    if (events.some((e) => e.severity === "critical" || e.severity === "high")) {
+      void correlateForIntegration({ ...integration, eventsReceived: (integration.eventsReceived ?? 0) + count })
+        .catch((err) => logger.error({ err, integrationId: integration.id }, "Immediate fabric correlation failed"));
+    }
     res.status(200).json({ ok: true, received: count });
   } catch (err) {
     logger.error({ err, source }, "Fabric ingest error");

@@ -100,7 +100,11 @@ app.use(
     logger,
     serializers: {
       req(req) {
-        return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
+        // Strip query string and mask ingestion tokens embedded in the path so
+        // they never land in logs (e.g. /api/public/fabric/ingest/<token>).
+        const path = (req.url?.split("?")[0] ?? "")
+          .replace(/(\/fabric\/(?:ingest|syslog|verify)\/)[^/]+/, "$1***");
+        return { id: req.id, method: req.method, url: path };
       },
       res(res) {
         return { statusCode: res.statusCode };

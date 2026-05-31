@@ -142,10 +142,21 @@ export function parseEvent(body: unknown, contentType?: string): NormalizedEvent
     });
   }
 
-  // String payload: could be newline-delimited
+  // String payload: ingestion routes deliver the body as raw text, so a JSON
+  // forward (FortiAnalyzer HTTPS, custom webhooks) arrives here as a string.
+  // Try JSON first, then fall back to newline-delimited FortiLog/CEF parsing.
   const text = String(body ?? "");
   if (!text.trim()) return [];
   void contentType;
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const json: unknown = JSON.parse(trimmed);
+      if (json && typeof json === "object") return parseEvent(json);
+    } catch {
+      // not valid JSON — fall through to text parsing
+    }
+  }
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   return lines.map(parseTextLine);
 }

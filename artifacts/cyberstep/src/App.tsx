@@ -141,6 +141,8 @@ import AdminServisFiyatlari from "./pages/admin-panel/servis-fiyatlari";
 import AdminManuelTetikle from "./pages/admin-panel/manuel-tetikle";
 import AdminRozetler from "./pages/admin-panel/rozetler";
 import HesabimFaturalar from "./pages/hesabim/faturalar";
+import FortinetEntegrasyonu from "./pages/hesabim/fortinet";
+import AdminFortinet from "./pages/admin-panel/fortinet";
 import HesabimDestek from "./pages/hesabim/destek";
 import NpsPage from "./pages/nps";
 import StatusPage from "./pages/status";
@@ -223,6 +225,7 @@ function Router() {
       <Route path="/hesabim/enterprise" component={EnterpriseTab} />
       <Route path="/hesabim/davet" component={CustomerDavet} />
       <Route path="/hesabim/faturalar" component={HesabimFaturalar} />
+      <Route path="/hesabim/fortinet-entegrasyonu" component={FortinetEntegrasyonu} />
       <Route path="/hesabim/destek" component={HesabimDestek} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
@@ -283,6 +286,7 @@ function Router() {
       <Route path="/panel/manuel-tetikle" component={AdminManuelTetikle} />
       <Route path="/panel/status" component={AdminStatusPage} />
       <Route path="/panel/rozetler" component={AdminRozetler} />
+      <Route path="/panel/fortinet" component={AdminFortinet} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

@@ -55,9 +55,13 @@ async function getContext(customerId: number): Promise<{ companyName: string; se
     if (assessment?.sector) sector = assessment.sector;
   }
 
-  // Latest domain scan as external-signal source
-  const [scan] = await db.select().from(domainScansTable)
-    .orderBy(desc(domainScansTable.createdAt)).limit(1);
+  // Latest domain scan as external-signal source — scoped to this customer's email
+  // to prevent another tenant's scan leaking into the AI prompt.
+  const scan = customer?.email
+    ? (await db.select().from(domainScansTable)
+        .where(eq(domainScansTable.email, customer.email))
+        .orderBy(desc(domainScansTable.createdAt)).limit(1))[0]
+    : undefined;
 
   const signals: string[] = [];
   if (scan) {

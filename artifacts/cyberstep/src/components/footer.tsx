@@ -137,7 +137,7 @@ export function Footer() {
                 { label: "Marka ve Domain Koruma", href: "/marka-koruma" },
                 { label: "Tedarik Zinciri Skorkart", href: "/tedarik-zinciri" },
                 { label: "AI Güven Rozeti", href: "/guven-rozeti" },
-                { label: "BDDK/DORA Uyum Analizi", href: "/dora-bddk-uyum" },
+                { label: "Regülasyonlara Uyum Analizi", href: "/dora-bddk-uyum" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
@@ -173,8 +173,8 @@ export function Footer() {
                 {[
                   { label: "İsmin Hikayesi", href: "/neden-cyberstep" },
                   { label: "Ekibimiz", href: "/neden-cyberstep#ekibimiz" },
-                  { label: "Nasıl Çalışır?", href: "/hakkimizda" },
-                  { label: "Platform Evrimi", href: "/hakkimizda" },
+                  { label: "Nasıl Çalışır?", href: "/neden-cyberstep#nasil-calisir" },
+                  { label: "Platform Evrimi", href: "/hakkimizda#platform-evrimi" },
                 ].map(item => (
                   <li key={item.label}>
                     <Link href={item.href} className="text-slate-400 text-sm hover:text-white transition-colors">{item.label}</Link>

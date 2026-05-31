@@ -180,6 +180,57 @@ export default function NedenCyberStep() {
         </div>
       </section>
 
+      {/* Nasıl Çalışır? */}
+      <section id="nasil-calisir" className="py-20 bg-muted/30 border-y">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-sm font-medium mb-4">
+              <Target className="h-4 w-4" />
+              3 Adım
+            </div>
+            <h2 className="text-3xl font-bold">Nasıl Çalışır?</h2>
+            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+              Teknik bilgi gerekmeden, 20 dakikada siber güvenlik durumunuzu öğrenin.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                step: "01",
+                title: "Şirket Bilgilerini Girin",
+                desc: "Firma adı, sektör ve çalışan sayısı gibi temel bilgileri girin. Kayıt gerekmez — hemen başlayabilirsiniz.",
+              },
+              {
+                step: "02",
+                title: "20 Soruyu Yanıtlayın",
+                desc: "5 güvenlik alanında, günlük iş dilinde hazırlanmış sorular. Teknik terim yok. Ortalama tamamlama süresi: 12 dakika.",
+              },
+              {
+                step: "03",
+                title: "Kişisel Raporunuzu Alın",
+                desc: "Gemini AI ile üretilen risk analizi, skor, sektör karşılaştırması ve öncelikli aksiyon önerileri anında e-postanıza gönderilir.",
+              },
+            ].map(({ step, title, desc }) => (
+              <div key={step} className="bg-card border rounded-2xl p-7 relative">
+                <div className="text-5xl font-black text-emerald-600/15 absolute top-5 right-6 select-none leading-none">{step}</div>
+                <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm font-bold mb-5">{step}</div>
+                <h3 className="font-semibold text-lg mb-2">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-10 text-center">
+            <a
+              href="/assessment/start"
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
+            >
+              Ücretsiz Değerlendirme Başlat
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Ekibimiz */}
       <section className="py-20 bg-background" id="ekibimiz">
         <div className="container mx-auto px-4 max-w-5xl">

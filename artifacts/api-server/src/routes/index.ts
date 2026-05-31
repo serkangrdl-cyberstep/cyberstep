@@ -24,6 +24,10 @@ import aiAssessmentRouter from "./ai-assessment/index";
 import aiPolicyRouter from "./ai-policy/index";
 import aiMonitoringRouter from "./ai-monitoring/index";
 import phishingSimRouter from "./phishing-sim/index";
+import euAiActRouter from "./eu-aiact/index";
+import redTeamRouter from "./red-team/index";
+import deepfakeRouter from "./deepfake/index";
+import docScanRouter from "./doc-scan/index";
 
 const router: IRouter = Router();
 
@@ -52,5 +56,9 @@ router.use(aiAssessmentRouter);
 router.use(aiPolicyRouter);
 router.use(aiMonitoringRouter);
 router.use(phishingSimRouter);
+router.use(euAiActRouter);
+router.use(redTeamRouter);
+router.use(deepfakeRouter);
+router.use(docScanRouter);
 
 export default router;

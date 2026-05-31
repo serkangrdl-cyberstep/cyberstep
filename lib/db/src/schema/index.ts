@@ -51,3 +51,7 @@ export * from "./ai-assessment";
 export * from "./ai-monitoring";
 export * from "./ai-policy";
 export * from "./phishing-sim";
+export * from "./eu-aiact";
+export * from "./red-team";
+export * from "./deepfake";
+export * from "./doc-scans";

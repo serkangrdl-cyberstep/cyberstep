@@ -8,6 +8,8 @@ export const questionsTable = pgTable("questions", {
   type: text("type").notNull().default("mini"),
   domain: text("domain").notNull(),
   text: text("text").notNull(),
+  helpText: text("help_text"),
+  areaLabel: text("area_label"),
   weight: integer("weight").notNull().default(1),
   isRedAlarm: boolean("is_red_alarm").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),

@@ -51,6 +51,12 @@ import Hakkimizda from "./pages/hakkimizda";
 import Iletisim from "./pages/iletisim";
 import Kurumsal from "./pages/kurumsal";
 import PartnerPage from "./pages/partner";
+import EuAiAct from "./pages/eu-ai-act";
+import EuAiActSorular from "./pages/eu-ai-act-sorular";
+import EuAiActRapor from "./pages/eu-ai-act-rapor";
+import AiRedTeam from "./pages/ai-red-team";
+import DeepfakeAnalizi from "./pages/deepfake-analizi";
+import SahteDoküman from "./pages/sahte-dokuman";
 import Kvkk from "./pages/kvkk";
 import KullanimKosullari from "./pages/kullanim-kosullari";
 import GizlilikPolitikasi from "./pages/gizlilik-politikasi";
@@ -237,6 +243,14 @@ function Router() {
             <Route path="/hakkimizda" component={Hakkimizda} />
             <Route path="/kurumsal" component={Kurumsal} />
             <Route path="/partner" component={PartnerPage} />
+            <Route path="/eu-ai-act" component={EuAiAct} />
+            <Route path="/eu-ai-act/sorular/:id" component={EuAiActSorular} />
+            <Route path="/eu-ai-act/rapor/:id" component={EuAiActRapor} />
+            <Route path="/ai-red-team/:id" component={AiRedTeam} />
+            <Route path="/ai-red-team" component={AiRedTeam} />
+            <Route path="/deepfake-analizi/:id" component={DeepfakeAnalizi} />
+            <Route path="/deepfake-analizi" component={DeepfakeAnalizi} />
+            <Route path="/sahte-dokuman" component={SahteDoküman} />
             <Route path="/iletisim" component={Iletisim} />
             <Route path="/kvkk" component={Kvkk} />
             <Route path="/kullanim-kosullari" component={KullanimKosullari} />

@@ -1,0 +1,27 @@
+Haklısın, tutarsızlık yaptım. Yazdığım metinde "KOBİ'lerin büyük çoğunluğu" ve "KOBİ'lere enterprise kalitesinde araçlar" ifadeleri hâlâ var — bu tam olarak kırmak istediğimiz çerçeve.
+Sorun şu: "KOBİ'lere enterprise araçlar" demek "biz aslında küçüklere hitap ediyoruz ama büyük gibi görünmeye çalışıyoruz" mesajı veriyor. Oysa CyberStep artık gerçekten kurumsal ölçekte bir platform.
+Güncellenmiş versiyon:
+Neden CyberStep?
+Siber güvenlik bir gecede tamamlanmaz. Merdiveni tek seferde çıkmak mümkün değildir — her basamak bir üstekinin zeminini hazırlar. Bir basamağı atlayamazsın. Kısamazsın. Ama doğru basamakları, doğru sırayla atarsan zirveye ulaşırsın.
+Türkiye'deki şirketlerin büyük çoğunluğu bu merdivende nerede durduğunu bilmiyor. Hangi basamakta olduklarını görecek araçları yok. Yol haritaları yok. Mevcut araçlar İngilizce, erişilmez fiyatlı ve teknik ekip gerektiriyor.
+CyberStep bu boşluk için doğdu — ve büyüdükçe o boşluğun ne kadar derin olduğunu gördük.
+İsmimizde iki anlam iç içe:
+İngilizce'de step hem adım hem de ayak izi demek. Bu tesadüf değil — bilinçli bir tercih.
+Siber güvenliğin en kritik kavramlarından biri dijital ayak izi: şirketinizin dışarıdan görünen saldırı yüzeyi. Bir saldırgan sizi hedef almadan önce ayak izinizi takip eder — hangi sistemler açık, hangi veriler sızmış, hangi kapılar kilitlenmemiş.
+CyberStep hem güvenlik adımlarınızı planlar hem dijital izinizi yönetir. Adım adım, iz bırakarak.
+Neden .io?
+Bu bir danışmanlık firması değil, bir platform. .io bilinçli bir sinyal: yapay zeka ve bulut altyapısı üzerine kurulu, sürekli büyüyen bir teknoloji ekosistemi.
+Dış saldırı yüzeyi taraması, sürekli maruz kalma yönetimi, yapay zeka güvenlik analizi, EU AI Act uyumu, KVKK entegrasyonu, firewall otomasyonu — bunlar ayrı araçlar değil, birbiriyle konuşan tek bir platform. Türkiye'de ilk kez, Türkçe.
+Daha geniş bir değişiklik de gerekiyor:
+Sadece bu sayfayı değil, tüm sitedeki "KOBİ" kelimesini geçtiği her yerde gözden geçirmek lazım. Önerilen çerçeve:
+Mevcut
+Yerine
+KOBİ'ler için
+Her ölçekteki Türk şirketi için
+KOBİ patronu
+Şirket sahibi, yönetici, karar verici
+KOBİ fiyatı
+Erişilebilir fiyatlandırma
+KOBİ odaklı
+Türkiye odaklı
+Tek istisna: Sektör sayfaları ve blog yazılarında "KOBİ" SEO değeri taşıdığı yerlerde kullanılabilir — ama ana konumlandırmada değil.

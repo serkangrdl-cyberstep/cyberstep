@@ -12,3 +12,9 @@ id = "Vh4pBgxOmIJvA_QOaBEim"
 uri = "file://editorial-review.md"
 type = "text"
 title = "CyberStep.io — Editoryal İnceleme Belgesi"
+
+[[outputs]]
+id = "sTiLlLIENOap89NvIJ7L-"
+uri = "file://SISTEM_AUDIT_RAPORU.md"
+type = "text"
+title = "CyberStep.io — Sistem Audit Raporu"

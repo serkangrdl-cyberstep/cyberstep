@@ -16,7 +16,7 @@ const NAV_LINKS = (lang: "tr" | "en") => [
 ];
 
 const AI_GUVENLIK_ITEMS = [
-  { href: "/ai-guvenlik", label: "AI Risk Değerlendirmesi", icon: ShieldCheck, available: true },
+  { href: "/ai-guvenlik-degerlendirmesi", label: "AI Risk Değerlendirmesi", icon: ShieldCheck, available: true },
   { href: "/ai-phishing-simulasyonu", label: "AI Phishing Simülasyonu", icon: Mail, available: true },
   { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: ActivitySquare, available: true },
   { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, available: true },
@@ -96,9 +96,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </span>
             </div>
           ) : (
-            <Link href="/" className="flex items-center gap-2 text-primary shrink-0">
-              <Shield className="h-6 w-6" />
-              <span className="font-bold text-xl tracking-tight text-foreground">CyberStep.io</span>
+            <Link href="/" className="flex items-center gap-2 shrink-0">
+              <svg width="28" height="28" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="nav-grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#00C8FF"/>
+                    <stop offset="100%" stopColor="#0080FF"/>
+                  </linearGradient>
+                </defs>
+                <rect width="512" height="512" rx="96" fill="#060D1A"/>
+                <path d="M256 48 L432 112 L432 276 C432 372 352 444 256 480 C160 444 80 372 80 276 L80 112 Z" fill="#0A1628" stroke="url(#nav-grad)" strokeWidth="12"/>
+                <path d="M 181 320 L 181 278 L 234 278 L 234 235 L 181 235 L 181 192 L 331 192 L 331 235 L 278 235 L 278 278 L 331 278 L 331 320 Z" fill="url(#nav-grad)" fillOpacity="0.95"/>
+                <circle cx="181" cy="192" r="18" fill="#00C8FF"/>
+                <circle cx="331" cy="192" r="18" fill="#00C8FF"/>
+                <circle cx="181" cy="320" r="18" fill="#00C8FF"/>
+                <circle cx="331" cy="320" r="18" fill="#00C8FF"/>
+              </svg>
+              <span className="font-bold text-xl tracking-tight text-foreground">Cyber<span className="text-primary">Step</span><span className="text-muted-foreground text-sm font-medium">.io</span></span>
             </Link>
           )}
 

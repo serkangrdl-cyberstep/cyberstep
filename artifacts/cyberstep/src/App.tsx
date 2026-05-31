@@ -110,6 +110,7 @@ import AdminYonetimRaporlari from "./pages/admin/yonetim-raporlari";
 import AdminReferrallar from "./pages/admin/referrallar";
 import SifreSifirla from "./pages/customer/sifre-sifirla";
 import AiAssessmentLanding from "./pages/ai-assessment-landing";
+import TumAraclar from "./pages/tum-araclar";
 import AiAssessmentStart from "./pages/ai-assessment-start";
 import AiAssessmentTools from "./pages/ai-assessment-tools";
 import AiAssessmentRunner from "./pages/ai-assessment-runner";
@@ -306,6 +307,7 @@ function Router() {
             <Route path="/compliance-calendar" component={ComplianceCalendar} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
             <Route path="/ai-guvenlik-degerlendirmesi" component={AiAssessmentLanding} />
+            <Route path="/araclar" component={TumAraclar} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

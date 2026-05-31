@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, Search, Mail, Shield, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { Layout } from "@/components/layout";
 
 const SECTORS = [
   "Finans / Bankacılık", "Saglik", "Perakende / E-ticaret",
@@ -196,10 +195,10 @@ export default function AiPhishingSimulasyonu() {
   const [simId, setSimId] = useState<number | null>(null);
 
   return (
-    <Layout>
+    <div>
       {view === "landing" && <LandingPage onStart={() => setView("form")} />}
       {view === "form" && <ConsentForm onCreated={id => { setSimId(id); setView("progress"); }} />}
       {view === "progress" && simId && <ProgressView simId={simId} />}
-    </Layout>
+    </div>
   );
 }

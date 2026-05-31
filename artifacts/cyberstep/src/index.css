@@ -87,10 +87,10 @@
   --popover-foreground: 222 47% 11%;
   --popover-border: 214 32% 91%;
 
-  --primary: 160 84% 39%; /* Emerald */
-  --primary-foreground: 0 0% 100%;
+  --primary: 193 100% 38%; /* CyberStep Cyan */
+  --primary-foreground: 214 79% 7%;
 
-  --secondary: 217 33% 17%; /* Deep Slate */
+  --secondary: 217 33% 17%; /* Deep Navy */
   --secondary-foreground: 210 40% 98%;
 
   --muted: 210 40% 96.1%;
@@ -104,9 +104,9 @@
 
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 160 84% 39%;
+  --ring: 193 100% 38%;
 
-  --chart-1: 160 84% 39%;
+  --chart-1: 193 100% 38%;
   --chart-2: 217 33% 17%;
   --chart-3: 35 92% 60%;
   --chart-4: 0 84% 60%;
@@ -115,11 +115,11 @@
   --sidebar: 217 33% 17%;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-border: 217 33% 20%;
-  --sidebar-primary: 160 84% 39%;
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary: 193 100% 50%;
+  --sidebar-primary-foreground: 214 79% 7%;
   --sidebar-accent: 217 33% 25%;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 160 84% 39%;
+  --sidebar-ring: 193 100% 50%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -165,8 +165,8 @@
   --popover-foreground: 210 40% 98%;
   --popover-border: 217 33% 15%;
 
-  --primary: 160 84% 39%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 193 100% 50%; /* CyberStep Cyan */
+  --primary-foreground: 214 79% 7%;
 
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 40% 98%;
@@ -182,9 +182,9 @@
 
   --border: 217 33% 17%;
   --input: 217 33% 17%;
-  --ring: 160 84% 39%;
+  --ring: 193 100% 50%;
 
-  --chart-1: 160 84% 39%;
+  --chart-1: 193 100% 50%;
   --chart-2: 217 33% 30%;
   --chart-3: 35 92% 60%;
   --chart-4: 0 84% 60%;
@@ -193,11 +193,11 @@
   --sidebar: 217 33% 10%;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-border: 217 33% 17%;
-  --sidebar-primary: 160 84% 39%;
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary: 193 100% 50%;
+  --sidebar-primary-foreground: 214 79% 7%;
   --sidebar-accent: 217 33% 17%;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 160 84% 39%;
+  --sidebar-ring: 193 100% 50%;
 }
 
 @layer base {

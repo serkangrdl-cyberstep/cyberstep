@@ -6,6 +6,7 @@ import {
   FileText, Users, Briefcase, Award, Building2, DollarSign,
   BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2, Bot,
   Mail, Bell, Package, BadgeCheck, Plug, Heart,
+  Telescope, Handshake, ListTodo, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -35,6 +36,10 @@ const NAV_ITEMS = [
   { icon: Plug,            label: "Entegrasyonlar",       href: "/panel/entegrasyonlar" },
   { icon: Settings,        label: "Site Ayarları",       href: "/panel/ayarlar" },
   { icon: Shield,          label: "2FA Güvenlik",        href: "/panel/totp" },
+  { icon: Telescope,       label: "Enterprise: Adaylar",  href: "/panel/enterprise/prospects" },
+  { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
+  { icon: ListTodo,        label: "Lead Kuyruğu",        href: "/panel/lead-gen/queue" },
+  { icon: Target,          label: "Lead Kampanyaları",    href: "/panel/lead-gen/campaigns" },
 ];
 
 interface AdminLayoutProps {

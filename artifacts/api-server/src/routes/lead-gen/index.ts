@@ -56,7 +56,7 @@ router.post("/api/lead-gen/queue", requireAdmin, async (req: Request, res: Respo
 });
 
 router.post("/api/lead-gen/queue/:id/score", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(leadScanQueueTable).where(eq(leadScanQueueTable.id, id));
   if (!row) return void res.status(404).json({ error: "Bulunamadı" });
 
@@ -87,7 +87,7 @@ router.post("/api/lead-gen/queue/:id/score", requireAdmin, async (req: Request, 
 });
 
 router.post("/api/lead-gen/queue/:id/enrich", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(leadScanQueueTable).where(eq(leadScanQueueTable.id, id));
   if (!row) return void res.status(404).json({ error: "Bulunamadı" });
 
@@ -118,14 +118,14 @@ router.post("/api/lead-gen/queue/:id/enrich", requireAdmin, async (req: Request,
 });
 
 router.patch("/api/lead-gen/queue/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const { scanStatus } = req.body as { scanStatus: string };
   await db.update(leadScanQueueTable).set({ scanStatus }).where(eq(leadScanQueueTable.id, id));
   res.json({ ok: true });
 });
 
 router.delete("/api/lead-gen/queue/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   await db.delete(leadScanQueueTable).where(eq(leadScanQueueTable.id, id));
   res.json({ ok: true });
 });
@@ -156,7 +156,7 @@ router.post("/api/lead-gen/campaigns", requireAdmin, async (req: Request, res: R
 });
 
 router.patch("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"];
   await db.update(leadCampaignsTable).set(updates as typeof updates).where(eq(leadCampaignsTable.id, id));
@@ -164,7 +164,7 @@ router.patch("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, r
 });
 
 router.delete("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   await db.update(leadCampaignsTable).set({ status: "archived" }).where(eq(leadCampaignsTable.id, id));
   res.json({ ok: true });
 });

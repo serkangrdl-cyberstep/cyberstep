@@ -37,7 +37,7 @@ router.get("/api/enterprise/prospects/stats", requireAdmin, async (req: Request,
 });
 
 router.get("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(enterpriseProspectsTable).where(eq(enterpriseProspectsTable.id, id));
   if (!row) return void res.status(404).json({ error: "Bulunamadı" });
   const teasers = await db.select().from(teaserReportsTable)
@@ -59,7 +59,7 @@ router.post("/api/enterprise/prospects", requireAdmin, async (req: Request, res:
 });
 
 router.patch("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"];
   await db.update(enterpriseProspectsTable)
@@ -69,7 +69,7 @@ router.patch("/api/enterprise/prospects/:id", requireAdmin, async (req: Request,
 });
 
 router.delete("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   await db.delete(enterpriseProspectsTable).where(eq(enterpriseProspectsTable.id, id));
   res.json({ ok: true });
 });
@@ -77,7 +77,7 @@ router.delete("/api/enterprise/prospects/:id", requireAdmin, async (req: Request
 // ─── Teaser Report Generation ─────────────────────────────────────────────────
 
 router.post("/api/enterprise/prospects/:id/scan", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [prospect] = await db.select().from(enterpriseProspectsTable).where(eq(enterpriseProspectsTable.id, id));
   if (!prospect) return void res.status(404).json({ error: "Aday bulunamadı" });
 
@@ -118,8 +118,8 @@ router.post("/api/enterprise/prospects/:id/scan", requireAdmin, async (req: Requ
         attackScenarios: result.full_scenarios,
         previewToken: token,
         status: "draft",
-        criticalCount: result.teaser.findings.filter((f: { severity: string }) => f.severity === "critical" && !f.locked).length,
-        highCount: result.teaser.findings.filter((f: { severity: string }) => f.severity === "high" && !f.locked).length,
+        criticalCount: result.teaser.findings.filter((f: { severity: string; locked: boolean }) => f.severity === "critical" && !f.locked).length,
+        highCount: result.teaser.findings.filter((f: { severity: string; locked: boolean }) => f.severity === "high" && !f.locked).length,
       });
 
       await db.update(enterpriseProspectsTable)
@@ -139,14 +139,14 @@ router.post("/api/enterprise/prospects/:id/scan", requireAdmin, async (req: Requ
 // ─── Teaser Reports ──────────────────────────────────────────────────────────
 
 router.get("/api/enterprise/teaser/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(teaserReportsTable).where(eq(teaserReportsTable.id, id));
   if (!row) return void res.status(404).json({ error: "Teaser bulunamadı" });
   res.json(row);
 });
 
 router.post("/api/enterprise/teaser/:id/approve", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const { approvedBy } = req.body as { approvedBy: string };
   await db.update(teaserReportsTable).set({
     status: "approved",
@@ -157,7 +157,7 @@ router.post("/api/enterprise/teaser/:id/approve", requireAdmin, async (req: Requ
 });
 
 router.post("/api/enterprise/teaser/:id/send", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [report] = await db.select({
     report: teaserReportsTable,
     prospect: enterpriseProspectsTable,
@@ -234,7 +234,7 @@ router.get("/preview/:token", async (req: Request, res: Response) => {
   })
     .from(teaserReportsTable)
     .innerJoin(enterpriseProspectsTable, eq(teaserReportsTable.prospectId, enterpriseProspectsTable.id))
-    .where(eq(teaserReportsTable.previewToken, token!));
+    .where(eq(teaserReportsTable.previewToken, String(token ?? "")));
 
   if (!row) return void res.status(404).json({ error: "Rapor bulunamadı" });
 
@@ -243,7 +243,7 @@ router.get("/preview/:token", async (req: Request, res: Response) => {
     await db.update(teaserReportsTable).set({
       previewViewedAt: new Date(),
       status: "viewed",
-    }).where(eq(teaserReportsTable.previewToken, token!));
+    }).where(eq(teaserReportsTable.previewToken, String(token ?? "")));
   }
 
   const findings = (row.report.teaserFindings as Array<{ title: string; severity: string; locked: boolean; preview_text: string | null }> ?? []);
@@ -273,7 +273,7 @@ router.post("/preview/:token/cta", async (req: Request, res: Response) => {
     ctaContactPhone: phone,
     ctaMessage: message,
     status: "cta_clicked",
-  }).where(eq(teaserReportsTable.previewToken, token!));
+  }).where(eq(teaserReportsTable.previewToken, String(token ?? "")));
 
   res.json({ ok: true });
 });
@@ -286,7 +286,7 @@ router.get("/api/enterprise/contracts", requireAdmin, async (req: Request, res: 
 });
 
 router.get("/api/enterprise/contracts/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const [contract] = await db.select().from(enterpriseContractsTable).where(eq(enterpriseContractsTable.id, id));
   if (!contract) return void res.status(404).json({ error: "Sözleşme bulunamadı" });
   const services = await db.select().from(enterpriseContractServicesTable)
@@ -367,7 +367,7 @@ router.post("/api/enterprise/contracts", requireAdmin, async (req: Request, res:
 });
 
 router.patch("/api/enterprise/contracts/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"]; delete updates["services"]; delete updates["invoices"];
   await db.update(enterpriseContractsTable)
@@ -377,7 +377,7 @@ router.patch("/api/enterprise/contracts/:id", requireAdmin, async (req: Request,
 });
 
 router.post("/api/enterprise/contracts/:id/activate", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const { activatedBy, serviceIds } = req.body as { activatedBy: string; serviceIds?: number[] };
 
   await db.update(enterpriseContractsTable).set({
@@ -443,10 +443,92 @@ router.post("/api/enterprise/invoices", requireAdmin, async (req: Request, res: 
 });
 
 router.patch("/api/enterprise/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"];
   await db.update(enterpriseInvoicesTable).set(updates as typeof updates).where(eq(enterpriseInvoicesTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Customer-facing: my prospect ─────────────────────────────────────────────
+
+router.get("/api/enterprise/my-prospect", async (req: Request, res: Response) => {
+  const session = (req as unknown as { session?: { customerId?: number; customer?: { email?: string } } }).session;
+  if (!session?.customerId) return void res.status(401).json({ error: "Yetkisiz" });
+
+  // Look up prospect by customer's email domain
+  const customer = session.customer as { email?: string } | undefined;
+  if (!customer?.email) return void res.status(404).json({ error: "Bulunamadı" });
+
+  const emailDomain = customer.email.split("@")[1] ?? "";
+  if (!emailDomain) return void res.status(404).json({ error: "Bulunamadı" });
+
+  const [prospect] = await db
+    .select({
+      id: enterpriseProspectsTable.id,
+      domain: enterpriseProspectsTable.domain,
+      companyName: enterpriseProspectsTable.companyName,
+      status: enterpriseProspectsTable.status,
+      lastActivityAt: enterpriseProspectsTable.lastActivityAt,
+      createdAt: enterpriseProspectsTable.createdAt,
+    })
+    .from(enterpriseProspectsTable)
+    .where(eq(enterpriseProspectsTable.domain, emailDomain))
+    .limit(1);
+
+  if (!prospect) return void res.status(404).json({ error: "Bulunamadı" });
+
+  // Fetch the latest teaser report for this prospect
+  const [report] = await db
+    .select({
+      overallRiskScore: teaserReportsTable.overallRiskScore,
+      riskLevel: teaserReportsTable.riskLevel,
+      teaserHeadline: teaserReportsTable.teaserHeadline,
+      previewToken: teaserReportsTable.previewToken,
+      criticalCount: teaserReportsTable.criticalCount,
+      highCount: teaserReportsTable.highCount,
+    })
+    .from(teaserReportsTable)
+    .where(eq(teaserReportsTable.prospectId, prospect.id))
+    .orderBy(desc(teaserReportsTable.createdAt))
+    .limit(1);
+
+  res.json({ ...prospect, ...(report ?? {}) });
+});
+
+router.post("/api/enterprise/my-prospect/contact", async (req: Request, res: Response) => {
+  const session = (req as unknown as { session?: { customerId?: number; customer?: { email?: string } } }).session;
+  if (!session?.customerId) return void res.status(401).json({ error: "Yetkisiz" });
+
+  const { name, phone, message } = req.body as Record<string, string>;
+  const customer = session.customer as { email?: string } | undefined;
+  const emailDomain = customer?.email?.split("@")[1] ?? "";
+
+  const [prospect] = await db
+    .select({ id: enterpriseProspectsTable.id })
+    .from(enterpriseProspectsTable)
+    .where(eq(enterpriseProspectsTable.domain, emailDomain))
+    .limit(1);
+
+  if (prospect) {
+    // Update teaser report CTA with contact info
+    await db.update(teaserReportsTable)
+      .set({
+        ctaClickedAt: new Date(),
+        ctaContactName: name,
+        ctaContactPhone: phone,
+        ctaMessage: message,
+        ctaContactEmail: customer?.email ?? "",
+        status: "cta_clicked",
+      })
+      .where(eq(teaserReportsTable.prospectId, prospect.id));
+
+    await db.update(enterpriseProspectsTable)
+      .set({ status: "interested", lastActivityAt: new Date() })
+      .where(eq(enterpriseProspectsTable.id, prospect.id));
+  }
+
+  logger.info({ emailDomain, name, phone }, "Customer enterprise contact request");
   res.json({ ok: true });
 });
 

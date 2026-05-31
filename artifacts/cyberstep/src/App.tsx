@@ -119,6 +119,13 @@ import AiPolitika from "./pages/ai-politika";
 import AiAracIzleme from "./pages/ai-arac-izleme";
 import AiPhishingSimulasyonu from "./pages/ai-phishing-simulasyonu";
 import AiPhishingRapor from "./pages/ai-phishing-rapor";
+import EnterpriseTab from "./pages/hesabim/enterprise-tab";
+import EnterpriseProspects from "./pages/admin-panel/enterprise/prospects";
+import EnterprisePipeline from "./pages/admin-panel/enterprise/pipeline";
+import EnterpriseContracts from "./pages/admin-panel/enterprise/contracts";
+import LeadGenQueue from "./pages/admin-panel/lead-gen/queue";
+import LeadGenCampaigns from "./pages/admin-panel/lead-gen/campaigns";
+import PreviewPage from "./pages/preview";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -188,6 +195,7 @@ function Router() {
       <Route path="/hesabim" component={CustomerAccount} />
       <Route path="/raporlarim" component={CustomerReports} />
       <Route path="/entegrasyonlarim" component={CustomerIntegrations} />
+      <Route path="/hesabim/enterprise" component={EnterpriseTab} />
       <Route path="/hesabim/davet" component={CustomerDavet} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
@@ -229,6 +237,11 @@ function Router() {
       <Route path="/panel/saglik" component={AdminSaglik} />
       <Route path="/panel/yonetim-raporlari" component={AdminYonetimRaporlari} />
       <Route path="/panel/referrallar" component={AdminReferrallar} />
+      <Route path="/panel/enterprise/prospects" component={EnterpriseProspects} />
+      <Route path="/panel/enterprise/pipeline" component={EnterprisePipeline} />
+      <Route path="/panel/enterprise/contracts" component={EnterpriseContracts} />
+      <Route path="/panel/lead-gen/queue" component={LeadGenQueue} />
+      <Route path="/panel/lead-gen/campaigns" component={LeadGenCampaigns} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}
@@ -306,6 +319,7 @@ function Router() {
             <Route path="/tedarikci-onboarding" component={TedarikciOnboarding} />
             <Route path="/compliance-calendar" component={ComplianceCalendar} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
+            <Route path="/preview/:token" component={PreviewPage} />
             <Route path="/ai-guvenlik-degerlendirmesi" component={AiAssessmentLanding} />
             <Route path="/araclar" component={TumAraclar} />
             <Route component={NotFound} />

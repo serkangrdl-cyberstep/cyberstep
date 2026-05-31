@@ -106,6 +106,7 @@ export default function CustomerAccount() {
               <Link href="/pentest-lite" className="text-slate-400 hover:text-white text-sm transition-colors">Pentest Lite</Link>
               <Link href="/hesabim/yonetim-raporu" className="text-slate-400 hover:text-white text-sm transition-colors">YK Raporu</Link>
               <Link href="/hesabim/davet" className="text-slate-400 hover:text-white text-sm transition-colors">Davet</Link>
+              <Link href="/hesabim/enterprise" className="text-slate-400 hover:text-white text-sm transition-colors">Enterprise</Link>
             </nav>
           </div>
           <Button

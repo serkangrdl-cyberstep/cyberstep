@@ -68,7 +68,7 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
           {/* Brand */}
-          <div className="md:col-span-2">
+          <div>
             <div className="flex items-center gap-2 mb-3">
               <Shield className="h-6 w-6 text-emerald-400" />
               <span className="font-bold text-white text-lg">{company}</span>
@@ -107,8 +107,8 @@ export function Footer() {
                 { label: t(T.footer.pricing, lang), href: "/fiyatlar" },
                 { label: t(T.footer.dashboard, lang), href: "/dashboard" },
                 { label: t(T.footer.blog, lang), href: "/blog" },
-                { label: "Alan Adi Guvenlik Taramasi", href: "/domain-tarama" },
-                { label: "KVKK DPA Sozlesme Taslagi", href: "/kvkk-dpa-olustur" },
+                { label: "Alan Adı Güvenlik Taraması", href: "/domain-tarama" },
+                { label: "KVKK DPA Sözleşme Taslağı", href: "/kvkk-dpa-olustur" },
                 { label: "Siber Panik Butonu", href: "/siber-panik" },
               ].map(({ label, href }) => (
                 <li key={href}>
@@ -120,23 +120,23 @@ export function Footer() {
 
           {/* Araçlar */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Ucretsiz Araclar</h4>
+            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Ücretsiz Araçlar</h4>
             <ul className="space-y-2.5">
               {[
-                { label: "Sizinti Izleyici", href: "/sizinti-izleyici" },
-                { label: "KVKK VERBiS Kontrol", href: "/kvkk-verbis" },
-                { label: "M365 Guvenlik Denetimi", href: "/m365-denetim" },
-                { label: "Siber Sigorta Hesaplayici", href: "/siber-sigorta" },
-                { label: "KEP Ihtiyac Rehberi", href: "/kep-rehberi" },
-                { label: "ERP Guvenlik Tarama", href: "/erp-tarama" },
-                { label: "Sektorel Kiyaslama", href: "/sektorel-kiyaslama" },
-                { label: "KVKK Ceza Simulatoru", href: "/kvkk-ceza-sim" },
+                { label: "Sızıntı İzleyici", href: "/sizinti-izleyici" },
+                { label: "KVKK VERBİS Kontrol", href: "/kvkk-verbis" },
+                { label: "M365 Güvenlik Denetimi", href: "/m365-denetim" },
+                { label: "Siber Sigorta Hesaplayıcı", href: "/siber-sigorta" },
+                { label: "KEP İhtiyaç Rehberi", href: "/kep-rehberi" },
+                { label: "ERP Güvenlik Tarama", href: "/erp-tarama" },
+                { label: "Sektörel Kıyaslama", href: "/sektorel-kiyaslama" },
+                { label: "KVKK Ceza Simülatörü", href: "/kvkk-ceza-sim" },
                 { label: "Phishing Testi", href: "/phishing-sim" },
-                { label: "Saldiri Simulasyonu", href: "/saldiri-simulasyonu" },
-                { label: "Siber Kayip Hesaplayici", href: "/finansal-kayip" },
+                { label: "Saldırı Simülasyonu", href: "/saldiri-simulasyonu" },
+                { label: "Siber Kayıp Hesaplayıcı", href: "/finansal-kayip" },
                 { label: "Marka ve Domain Koruma", href: "/marka-koruma" },
                 { label: "Tedarik Zinciri Skorkart", href: "/tedarik-zinciri" },
-                { label: "AI Guven Rozeti", href: "/guven-rozeti" },
+                { label: "AI Güven Rozeti", href: "/guven-rozeti" },
                 { label: "BDDK/DORA Uyum Analizi", href: "/dora-bddk-uyum" },
               ].map(({ label, href }) => (
                 <li key={href}>
@@ -146,20 +146,42 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Kurumsal / Company */}
-          <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.corporate, lang)}</h4>
-            <ul className="space-y-2.5">
-              {[
-                { label: t(T.footer.about, lang), href: "/hakkimizda" },
-                { label: t(T.footer.contact, lang), href: "/iletisim" },
-                { label: t(T.footer.kvkk, lang), href: "/kvkk" },
-              ].map(({ label, href }) => (
-                <li key={href}>
-                  <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
-                </li>
-              ))}
-            </ul>
+          {/* Kurumsal + Neden CyberStep? */}
+          <div className="space-y-8">
+            {/* Kurumsal */}
+            <div>
+              <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.corporate, lang)}</h4>
+              <ul className="space-y-2.5">
+                {[
+                  { label: t(T.footer.about, lang), href: "/hakkimizda" },
+                  { label: t(T.footer.contact, lang), href: "/iletisim" },
+                  { label: t(T.footer.kvkk, lang), href: "/kvkk" },
+                ].map(({ label, href }) => (
+                  <li key={href}>
+                    <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Neden CyberStep? */}
+            <div>
+              <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Neden CyberStep?</h4>
+              <ul className="space-y-2.5">
+                {[
+                  "Yapay zeka destekli risk analizi",
+                  "20 dakikada kapsamlı değerlendirme",
+                  "KOBİ'lere özel Türkçe rehberlik",
+                  "KVKK ve ISO 27001 uyumlu çerçeve",
+                  "7/24 izleme ve anlık uyarılar",
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="text-emerald-500 mt-0.5 shrink-0 text-xs">✓</span>
+                    <span className="text-slate-400 text-sm">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 

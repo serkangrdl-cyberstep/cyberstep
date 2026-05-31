@@ -17,7 +17,12 @@ Per-customer Fortinet integration: HTTPS-only event ingestion, Claude correlatio
 ## Security rules (do not regress)
 
 - **`ENCRYPTION_KEY` must be a Secret, never a shared env var.** Shared env vars are written to `.replit`, which is git-tracked → committing the key leaks it. It encrypts FortiManager credentials (AES-256-GCM). The crypto layer returns null (no crash) when the key is absent; FM features just disable until it's set.
-- **Ingestion tokens live in the URL path** (`/fabric/ingest/:token` etc.). The pino-http request serializer in `app.ts` masks these path segments so tokens never land in logs.
+- **Ingestion tokens live in the URL path** (`/fabric/webhook/:token`, `/fabric/syslog/:token`, `/fabric/verify/:token` — all POST). The pino-http request serializer in `app.ts` masks these path segments so tokens never land in logs.
+
+## Public API contract (spec-mandated — do not rename)
+
+- Public ingestion endpoints are exactly `POST /api/fabric/webhook/:token`, `POST /api/fabric/syslog/:token`, `POST /api/fabric/verify/:token` (verify is POST, not GET). The demo trigger is `POST /api/fabric/demo/trigger` and is **admin-guarded** (picks the most recent integration, or one by `integrationId` in the body). **Why:** the task acceptance criteria pin these exact paths; an earlier `/api/public/fabric/ingest/...` naming was rejected in code review. The customer wizard also has a self-service `POST /api/portal/fabric/demo`, separate from the admin trigger.
+- Admin must expose a **global event stream** (`GET /api/admin/fabric/events`) in addition to correlations/streams; the customer portal dashboard must render events, correlations, **block history**, and **discovered fabric devices** — all four, not just events/correlations.
 - **AI correlation context must be tenant-scoped.** `domain_scans` has no `customerId` — it links by `email`. Filter the latest scan by the customer's email, or another tenant's scan leaks into the Claude prompt.
 
 ## AI

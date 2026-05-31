@@ -65,6 +65,15 @@ interface FabricEventRow {
   createdAt: string;
 }
 
+interface BlockAction {
+  id: number;
+  ip: string;
+  reason: string | null;
+  status: "pending" | "success" | "error" | "verified";
+  message: string | null;
+  createdAt: string;
+}
+
 const SEV: Record<string, { label: string; cls: string }> = {
   critical: { label: "Kritik", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
   high: { label: "Yüksek", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
@@ -104,6 +113,13 @@ export default function FortinetEntegrasyonu() {
     queryFn: () => fetch("/api/portal/fabric/events?limit=30", { credentials: "include" }).then(r => r.json()),
     enabled: !!customer && integration?.setupStep === 5,
     refetchInterval: 15000,
+  });
+
+  const { data: blocks = [] } = useQuery<BlockAction[]>({
+    queryKey: ["fabric-blocks"],
+    queryFn: () => fetch("/api/portal/fabric/blocks", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer && integration?.setupStep === 5,
+    refetchInterval: 20000,
   });
 
   const setup = useMutation({
@@ -180,6 +196,7 @@ export default function FortinetEntegrasyonu() {
             integration={integration}
             correlations={correlations}
             events={events}
+            blocks={blocks}
             onDemo={() => demo.mutate()}
             demoLoading={demo.isPending}
             onCorrelate={() => correlate.mutate()}
@@ -213,8 +230,8 @@ function Wizard(props: {
   onDemo: () => void; demoLoading: boolean;
 }) {
   const { integration, base, step, onCopy, onSetup, setupLoading, onDemo, demoLoading } = props;
-  const webhookUrl = `${base}/api/public/fabric/ingest/${integration.webhookToken}`;
-  const syslogUrl = `${base}/api/public/fabric/syslog/${integration.syslogToken}`;
+  const webhookUrl = `${base}/api/fabric/webhook/${integration.webhookToken}`;
+  const syslogUrl = `${base}/api/fabric/syslog/${integration.syslogToken}`;
   const [alertEmail, setAlertEmail] = useState(integration.alertEmail ?? "");
 
   return (
@@ -398,10 +415,10 @@ function FortiManagerStep(props: { integration: Integration; onBack: () => void;
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
 function Dashboard(props: {
-  integration: Integration; correlations: Correlation[]; events: FabricEventRow[];
+  integration: Integration; correlations: Correlation[]; events: FabricEventRow[]; blocks: BlockAction[];
   onDemo: () => void; demoLoading: boolean; onCorrelate: () => void; correlateLoading: boolean;
 }) {
-  const { integration, correlations, events, onDemo, demoLoading, onCorrelate, correlateLoading } = props;
+  const { integration, correlations, events, blocks, onDemo, demoLoading, onCorrelate, correlateLoading } = props;
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -498,9 +515,70 @@ function Dashboard(props: {
           )}
         </CardContent>
       </Card>
+
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader><CardTitle className="text-white text-lg">Engelleme Geçmişi</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          {blocks.length === 0 ? (
+            <p className="text-slate-400 text-sm py-6 text-center">Henüz engellenen IP yok.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-slate-500 text-xs border-b border-slate-800">
+                  <th className="text-left p-3">IP</th><th className="text-left p-3">Neden</th>
+                  <th className="text-left p-3">Durum</th><th className="text-left p-3">Zaman</th>
+                </tr></thead>
+                <tbody>
+                  {blocks.map((b) => (
+                    <tr key={b.id} className="border-b border-slate-800/60 text-slate-300">
+                      <td className="p-3 font-mono text-xs">{b.ip}</td>
+                      <td className="p-3">{b.reason ?? "-"}</td>
+                      <td className="p-3"><Badge variant="outline" className={BLOCK_STATUS[b.status]?.cls}>{BLOCK_STATUS[b.status]?.label ?? b.status}</Badge></td>
+                      <td className="p-3 text-xs text-slate-500">{fmtDate(b.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader><CardTitle className="text-white text-lg">Keşfedilen Fabric Cihazları</CardTitle></CardHeader>
+        <CardContent>
+          {integration.fabricDevices.length === 0 ? (
+            <p className="text-slate-400 text-sm py-6 text-center">Henüz cihaz keşfedilmedi. FortiManager bağlıysa gece taramasında listelenir.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {integration.fabricDevices.map((d, i) => (
+                <div key={`${d.name}-${i}`} className="rounded-lg border border-slate-800 bg-slate-800/40 p-3">
+                  <div className="flex items-center gap-2">
+                    <Server className="h-4 w-4 text-emerald-400" />
+                    <span className="text-white font-medium text-sm">{d.name}</span>
+                    <Badge variant="secondary" className="bg-slate-700 text-slate-200 text-[10px]">{d.type}</Badge>
+                  </div>
+                  <div className="text-slate-500 text-xs mt-2 space-y-0.5">
+                    {d.ip && <p>IP: <span className="font-mono">{d.ip}</span></p>}
+                    {d.serial && <p>Seri: <span className="font-mono">{d.serial}</span></p>}
+                    {d.version && <p>Sürüm: {d.version}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+const BLOCK_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: "Bekliyor", cls: "border-yellow-500/40 text-yellow-300" },
+  success: { label: "Engellendi", cls: "border-emerald-500/40 text-emerald-300" },
+  verified: { label: "Doğrulandı", cls: "border-emerald-500/40 text-emerald-300" },
+  error: { label: "Hata", cls: "border-red-500/40 text-red-300" },
+};
 
 // ─── Small components ───────────────────────────────────────────────────────
 

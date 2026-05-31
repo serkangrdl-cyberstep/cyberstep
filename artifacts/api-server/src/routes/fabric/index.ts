@@ -83,11 +83,11 @@ async function handleIngest(req: Request, res: Response, source: "webhook" | "sy
 }
 
 const rawText = text({ type: () => true, limit: "1mb" });
-router.post("/public/fabric/ingest/:token", rawText, (req, res) => { void handleIngest(req, res, "webhook"); });
-router.post("/public/fabric/syslog/:token", rawText, (req, res) => { void handleIngest(req, res, "syslog"); });
+router.post("/fabric/webhook/:token", rawText, (req, res) => { void handleIngest(req, res, "webhook"); });
+router.post("/fabric/syslog/:token", rawText, (req, res) => { void handleIngest(req, res, "syslog"); });
 
 // Connectivity check used by the setup wizard / FortiGate test
-router.get("/public/fabric/verify/:token", async (req: Request, res: Response) => {
+router.post("/fabric/verify/:token", async (req: Request, res: Response) => {
   const token = String(req.params["token"] ?? "");
   const [integration] = await db.select({ id: fortinetIntegrationsTable.id }).from(fortinetIntegrationsTable)
     .where(sql`${fortinetIntegrationsTable.webhookToken} = ${token} OR ${fortinetIntegrationsTable.syslogToken} = ${token}`);
@@ -415,6 +415,48 @@ router.get("/admin/fabric/correlations", requireAdmin, async (_req: Request, res
   } catch (err) {
     logger.error({ err }, "Failed to get admin correlations");
     res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// Global event stream across all integrations
+router.get("/admin/fabric/events", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(fabricEventsTable).orderBy(desc(fabricEventsTable.createdAt)).limit(200);
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "Failed to get admin fabric events");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// Demo trigger: injects a realistic attack burst into a chosen integration and
+// runs the full immediate correlation path. Admin-only.
+const demoTriggerSchema = z.object({ integrationId: z.number().int().positive().optional() });
+
+router.post("/fabric/demo/trigger", requireAdmin, async (req: Request, res: Response) => {
+  const parsed = demoTriggerSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: "Geçersiz veri" }); return; }
+  try {
+    let integration: Integration | undefined;
+    if (parsed.data.integrationId) {
+      [integration] = await db.select().from(fortinetIntegrationsTable)
+        .where(eq(fortinetIntegrationsTable.id, parsed.data.integrationId)).limit(1);
+    } else {
+      [integration] = await db.select().from(fortinetIntegrationsTable)
+        .orderBy(desc(fortinetIntegrationsTable.updatedAt)).limit(1);
+    }
+    if (!integration) { res.status(404).json({ error: "Demo için entegrasyon bulunamadı" }); return; }
+    const events = generateDemoEvents();
+    await persistEvents(integration, events, "demo");
+    await db.update(fortinetIntegrationsTable)
+      .set({ demoMode: true, status: "connected", updatedAt: new Date() })
+      .where(eq(fortinetIntegrationsTable.id, integration.id));
+    const [fresh] = await db.select().from(fortinetIntegrationsTable).where(eq(fortinetIntegrationsTable.id, integration.id));
+    const correlationId = await correlateForIntegration(fresh!);
+    res.json({ ok: true, integrationId: integration.id, eventsGenerated: events.length, correlationId });
+  } catch (err) {
+    logger.error({ err }, "Admin demo trigger failed");
+    res.status(500).json({ error: "Demo oluşturulamadı" });
   }
 });
 

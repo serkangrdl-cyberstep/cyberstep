@@ -1,7 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, PlayCircle } from "lucide-react";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface Summary {
   total: number;
@@ -35,6 +38,18 @@ interface AdminCorrelation {
   createdAt: string;
 }
 
+interface AdminEvent {
+  id: number;
+  customerId: number;
+  eventType: string;
+  severity: string;
+  attackName: string | null;
+  srcIp: string | null;
+  dstIp: string | null;
+  deviceName: string | null;
+  createdAt: string;
+}
+
 const SEV: Record<string, string> = {
   critical: "bg-red-500/15 text-red-400 border-red-500/30",
   high: "bg-orange-500/15 text-orange-400 border-orange-500/30",
@@ -52,6 +67,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 function fmtDate(d: string | null) { return d ? new Date(d).toLocaleString("tr-TR") : "-"; }
 
 export default function AdminFortinet() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const { data: summary } = useQuery<Summary>({
     queryKey: ["admin-fabric-summary"],
     queryFn: () => fetch("/api/admin/fabric/summary", { credentials: "include" }).then(r => r.json()),
@@ -67,6 +84,29 @@ export default function AdminFortinet() {
     queryFn: () => fetch("/api/admin/fabric/correlations", { credentials: "include" }).then(r => r.json()),
     refetchInterval: 30000,
   });
+  const { data: events = [] } = useQuery<AdminEvent[]>({
+    queryKey: ["admin-fabric-events"],
+    queryFn: () => fetch("/api/admin/fabric/events", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 30000,
+  });
+
+  const demo = useMutation({
+    mutationFn: () => fetch("/api/fabric/demo/trigger", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}",
+    }).then(r => r.json()),
+    onSuccess: (d: { ok?: boolean; error?: string; eventsGenerated?: number }) => {
+      if (d.ok) {
+        toast({ title: "Demo tetiklendi", description: `${d.eventsGenerated} örnek olay üretildi ve analiz edildi.` });
+        qc.invalidateQueries({ queryKey: ["admin-fabric-summary"] });
+        qc.invalidateQueries({ queryKey: ["admin-fabric-streams"] });
+        qc.invalidateQueries({ queryKey: ["admin-fabric-correlations"] });
+        qc.invalidateQueries({ queryKey: ["admin-fabric-events"] });
+      } else {
+        toast({ title: "Demo tetiklenemedi", description: d.error ?? "Önce bir müşteri entegrasyonu gerekli.", variant: "destructive" });
+      }
+    },
+    onError: () => toast({ title: "Hata", description: "Demo tetiklenemedi.", variant: "destructive" }),
+  });
 
   const stat = (label: string, value: number | undefined) => (
     <Card className="bg-slate-800/40 border-slate-700">
@@ -80,6 +120,12 @@ export default function AdminFortinet() {
   return (
     <AdminLayout title="Fortinet Security Fabric" description="Müşteri entegrasyonları, olay akışı ve AI korelasyon izleme">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" className="border-slate-700" onClick={() => demo.mutate()} disabled={demo.isPending}>
+            {demo.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlayCircle className="h-4 w-4 mr-2" />} Demo Tetikle
+          </Button>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {stat("Entegrasyon", summary?.total)}
           {stat("Bağlı", summary?.connected)}
@@ -150,6 +196,39 @@ export default function AdminFortinet() {
                         <td className="p-3">%{c.confidence}</td>
                         <td className="p-3">{c.autoBlocked ? <span className="text-red-400">Evet</span> : <span className="text-slate-500">Hayır</span>}</td>
                         <td className="p-3 text-xs text-slate-500">{fmtDate(c.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-900 border-slate-800">
+          <CardHeader><CardTitle className="text-white text-lg">Global Olay Akışı</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            {events.length === 0 ? (
+              <p className="text-slate-400 text-sm py-8 text-center">Henüz olay yok.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-slate-500 text-xs border-b border-slate-800">
+                    <th className="text-left p-3">Önem</th><th className="text-left p-3">Müşteri</th><th className="text-left p-3">Tür</th>
+                    <th className="text-left p-3">Saldırı</th><th className="text-left p-3">Kaynak</th><th className="text-left p-3">Hedef</th>
+                    <th className="text-left p-3">Cihaz</th><th className="text-left p-3">Zaman</th>
+                  </tr></thead>
+                  <tbody>
+                    {events.map((e) => (
+                      <tr key={e.id} className="border-b border-slate-800/60 text-slate-300">
+                        <td className="p-3"><Badge variant="outline" className={SEV[e.severity] ?? "border-slate-600 text-slate-400"}>{e.severity}</Badge></td>
+                        <td className="p-3">#{e.customerId}</td>
+                        <td className="p-3">{e.eventType}</td>
+                        <td className="p-3">{e.attackName ?? "-"}</td>
+                        <td className="p-3 font-mono text-xs">{e.srcIp ?? "-"}</td>
+                        <td className="p-3 font-mono text-xs">{e.dstIp ?? "-"}</td>
+                        <td className="p-3">{e.deviceName ?? "-"}</td>
+                        <td className="p-3 text-xs text-slate-500">{fmtDate(e.createdAt)}</td>
                       </tr>
                     ))}
                   </tbody>

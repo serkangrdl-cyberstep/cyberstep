@@ -1141,7 +1141,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
   const [result, setResult] = useState<AttackScenariosResult | null>(null);
   const [expanded, setExpanded] = useState<number | null>(0);
 
-  // Check for cached result on mount
+  // Check for cached result on mount — auto-trigger generation if not started yet
   useEffect(() => {
     fetch(`/api/domain-scan/${scanId}/attack-scenarios`)
       .then(r => r.json())
@@ -1151,6 +1151,18 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
           setStatus("complete");
         } else if (data.status === "generating") {
           setStatus("generating");
+        } else {
+          // status "none"/"error" — kick off generation so full details always load
+          setStatus("generating");
+          fetch(`/api/domain-scan/${scanId}/attack-scenarios`, { method: "POST" })
+            .then(r => r.json())
+            .then((d: { status: string; result?: AttackScenariosResult }) => {
+              if (d.status === "complete" && d.result) {
+                setResult(d.result);
+                setStatus("complete");
+              }
+            })
+            .catch(() => setStatus("error"));
         }
       })
       .catch(() => {});
@@ -1940,21 +1952,14 @@ export default function DomainScanPage() {
                   </div>
                 )}
 
-                {/* MITRE ATT&CK Teaser */}
-                {attackTeaserStatus === "ready" && attackTeaser && (
-                  <div className="px-5 py-4 bg-orange-50/60 dark:bg-orange-950/10 border-t border-orange-200/60 dark:border-orange-900/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Swords className="h-4 w-4 text-orange-500 shrink-0" />
-                      <p className="text-sm font-semibold">MITRE ATT&CK Saldırı Analizi — {attackTeaser.overallLevel} Tehdit</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {attackTeaser.yuksek > 0 && <span className="text-xs bg-red-100 text-red-700 border border-red-200 rounded-full px-2.5 py-1 font-semibold">{attackTeaser.yuksek} kritik senaryo</span>}
-                      {attackTeaser.orta > 0 && <span className="text-xs bg-orange-100 text-orange-700 border border-orange-200 rounded-full px-2.5 py-1 font-semibold">{attackTeaser.orta} orta risk</span>}
-                      {attackTeaser.dusuk > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-full px-2.5 py-1 font-semibold">{attackTeaser.dusuk} düşük risk</span>}
-                      <span className="text-xs text-muted-foreground ml-1 self-center">PDF'te tam detay</span>
-                    </div>
+                {/* MITRE ATT&CK — tam saldırı senaryosu analizi (tam erişim) */}
+                <div className="px-5 py-4 bg-orange-50/40 dark:bg-orange-950/10 border-t border-orange-200/60 dark:border-orange-900/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Swords className="h-4 w-4 text-orange-500 shrink-0" />
+                    <p className="text-sm font-semibold">Yapay Zeka Saldırı Senaryosu Analizi (MITRE ATT&CK)</p>
                   </div>
-                )}
+                  <AttackScenarioPanel scanId={result.id} />
+                </div>
               </div>
             </div>
           ) : (

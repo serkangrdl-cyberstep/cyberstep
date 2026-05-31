@@ -30,3 +30,9 @@ description: Claude-powered attack chain generator for domain scan results — a
 - MITRE technique codes are clickable links to attack.mitre.org
 
 **Why non-streaming:** Claude must return valid JSON; streaming partial JSON cannot be rendered as structured cards. Full response → parse → show cards gives cleaner UX than streaming markdown.
+
+## Full-access inline rendering
+- Gating is purely frontend: GET/POST `/api/domain-scan/:id/attack-scenarios` are PUBLIC (no authz). Anonymous free-scan flow depends on this, so do not add ownership checks without redesigning the free flow (known IDOR tradeoff).
+- Full-access users (`subscriptionPlan` in [full,pro], incl. test@cyberstep.io) render the complete `<AttackScenarioPanel>` inline in the "Detaylı Güvenlik Raporu" branch; non-full users keep the teaser counts + upsell.
+- `AttackScenarioPanel` self-triggers generation on mount when status is "none"/"error" (POST), so full details always load even if the backend fire-and-forget auto-trigger hasn't started yet.
+- The main page's `attackTeaser` state is still used by the locked branch and to gate the PDF button (`attackTeaserStatus === "loading"`) — keep that effect even though the full branch no longer reads the counts.

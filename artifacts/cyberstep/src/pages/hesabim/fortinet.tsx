@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, Loader2, CheckCircle2, AlertTriangle, Copy, Server,
-  Activity, Ban, Network, PlayCircle, RefreshCw, ChevronRight, Lock,
+  Activity, Ban, Network, PlayCircle, RefreshCw, ChevronRight, Lock, ShieldOff,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +69,7 @@ interface BlockAction {
   id: number;
   ip: string;
   reason: string | null;
-  status: "pending" | "success" | "error" | "verified";
+  status: "pending" | "success" | "error" | "verified" | "removed";
   message: string | null;
   createdAt: string;
 }
@@ -422,6 +422,17 @@ function Dashboard(props: {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const unblock = useMutation({
+    mutationFn: (ip: string) =>
+      fetch("/api/portal/fabric/unblock", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ip }) }).then(r => r.json()),
+    onSuccess: (d: { ok: boolean; message?: string }) => {
+      toast({ title: d.ok ? "Engelleme kaldırıldı" : "Engelleme kaldırılamadı", description: d.message, variant: d.ok ? undefined : "destructive" });
+      qc.invalidateQueries({ queryKey: ["fabric-blocks"] });
+      qc.invalidateQueries({ queryKey: ["fabric-status"] });
+    },
+    onError: () => toast({ title: "Engelleme kaldırılamadı", variant: "destructive" }),
+  });
+
   const reconfigure = () => {
     fetch("/api/portal/fabric/setup", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ setupStep: 1 }) })
       .then(() => { qc.invalidateQueries({ queryKey: ["fabric-status"] }); toast({ title: "Kurulum sihirbazı açıldı" }); });
@@ -527,6 +538,7 @@ function Dashboard(props: {
                 <thead><tr className="text-slate-500 text-xs border-b border-slate-800">
                   <th className="text-left p-3">IP</th><th className="text-left p-3">Neden</th>
                   <th className="text-left p-3">Durum</th><th className="text-left p-3">Zaman</th>
+                  <th className="text-right p-3">İşlem</th>
                 </tr></thead>
                 <tbody>
                   {blocks.map((b) => (
@@ -535,6 +547,22 @@ function Dashboard(props: {
                       <td className="p-3">{b.reason ?? "-"}</td>
                       <td className="p-3"><Badge variant="outline" className={BLOCK_STATUS[b.status]?.cls}>{BLOCK_STATUS[b.status]?.label ?? b.status}</Badge></td>
                       <td className="p-3 text-xs text-slate-500">{fmtDate(b.createdAt)}</td>
+                      <td className="p-3 text-right">
+                        {b.status !== "removed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-slate-700 text-slate-300 hover:text-emerald-300 h-7 text-xs"
+                            onClick={() => unblock.mutate(b.ip)}
+                            disabled={unblock.isPending && unblock.variables === b.ip}
+                          >
+                            {unblock.isPending && unblock.variables === b.ip
+                              ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              : <ShieldOff className="h-3 w-3 mr-1" />}
+                            Engellemeyi kaldır
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -578,6 +606,7 @@ const BLOCK_STATUS: Record<string, { label: string; cls: string }> = {
   success: { label: "Engellendi", cls: "border-emerald-500/40 text-emerald-300" },
   verified: { label: "Doğrulandı", cls: "border-emerald-500/40 text-emerald-300" },
   error: { label: "Hata", cls: "border-red-500/40 text-red-300" },
+  removed: { label: "Kaldırıldı", cls: "border-slate-500/40 text-slate-400" },
 };
 
 // ─── Small components ───────────────────────────────────────────────────────

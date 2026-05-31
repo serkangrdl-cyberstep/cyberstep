@@ -14,7 +14,7 @@ import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { parseEvent, type NormalizedEvent } from "../../services/fabric-parser";
 import { encryptSecret, generateToken } from "../../services/fabric-crypto";
-import { fmTestConnection, fmBlockIp, fmDiscoverDevices } from "../../services/fabric-fortimanager";
+import { fmTestConnection, fmBlockIp, fmUnblockIp, fmDiscoverDevices } from "../../services/fabric-fortimanager";
 import { decryptSecret } from "../../services/fabric-crypto";
 import { correlateForIntegration } from "../../services/fabric-correlation";
 
@@ -335,6 +335,44 @@ router.post("/portal/fabric/block", requireCustomer, async (req: Request, res: R
   } catch (err) {
     logger.error({ err }, "Manual block failed");
     res.status(500).json({ error: "Engelleme başarısız" });
+  }
+});
+
+const unblockSchema = z.object({ ip: z.string().min(3) });
+
+router.post("/portal/fabric/unblock", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  const parsed = unblockSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Geçersiz IP" }); return; }
+  try {
+    const integration = await getOrInit(customerId);
+    const password = decryptSecret(integration.fmPasswordEnc);
+    if (!integration.fmUrl || !integration.fmUsername || !password) {
+      res.status(400).json({ error: "FortiManager yapılandırılmamış" }); return;
+    }
+    const r = await fmUnblockIp({
+      url: integration.fmUrl, username: integration.fmUsername, password,
+      adom: integration.fmAdom ?? "root", blockGroup: integration.fmBlockGroup ?? "CyberStep-BlockList",
+    }, parsed.data.ip);
+    if (r.ok) {
+      await db.update(fortimanagerBlockActionsTable)
+        .set({ status: "removed", message: r.message })
+        .where(and(
+          eq(fortimanagerBlockActionsTable.customerId, customerId),
+          eq(fortimanagerBlockActionsTable.ip, parsed.data.ip),
+        ));
+    } else {
+      await db.update(fortimanagerBlockActionsTable)
+        .set({ message: r.message })
+        .where(and(
+          eq(fortimanagerBlockActionsTable.customerId, customerId),
+          eq(fortimanagerBlockActionsTable.ip, parsed.data.ip),
+        ));
+    }
+    res.json(r);
+  } catch (err) {
+    logger.error({ err }, "Manual unblock failed");
+    res.status(500).json({ error: "Engelleme kaldırılamadı" });
   }
 });
 

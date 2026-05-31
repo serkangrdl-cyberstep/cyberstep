@@ -25,7 +25,7 @@ function LandingView() {
       <section className="py-20 bg-secondary relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">990 TL / yıl</Badge>
+          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">990 TL / yıl + KDV</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">AI Politika Otomatik Güncelleme</h1>
           <p className="text-xl text-muted-foreground mb-2">KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Siz sadece imzalayın.</p>
@@ -58,7 +58,7 @@ function LandingView() {
           </div>
 
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center">
-            <p className="text-3xl font-bold text-primary mb-1">990 TL / yıl</p>
+            <p className="text-3xl font-bold text-primary mb-1">990 TL / yıl <span className="text-sm font-normal text-muted-foreground">+ KDV</span></p>
             <p className="text-muted-foreground mb-6">4 otomatik güncelleme — yılda bir kez faturalama</p>
             <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
               Şimdi Başla <ChevronRight className="h-4 w-4" />
@@ -108,7 +108,7 @@ function ManagementView({ customerId }: { customerId: number }) {
         <p className="text-muted-foreground mb-8">Şirketinize özel KVKK uyumlu AI kullanım politikası oluşturun. Her çeyrek otomatik güncellenir.</p>
         <button onClick={() => subscribeMutation.mutate()} disabled={subscribeMutation.isPending}
           className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {subscribeMutation.isPending ? "Başlatılıyor..." : "Aboneliği Başlat — 990 TL/yıl"}
+          {subscribeMutation.isPending ? "Başlatılıyor..." : "Aboneliği Başlat — 990 TL/yıl + KDV"}
         </button>
       </div>
     );
@@ -229,7 +229,7 @@ function ManagementView({ customerId }: { customerId: number }) {
         <div className="rounded-xl border bg-card p-6">
           <h3 className="font-semibold mb-4">Abonelik Bilgileri</h3>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Plan</span><span className="font-medium">990 TL / yıl</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Plan</span><span className="font-medium">990 TL / yıl + KDV</span></div>
             <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Durum</span><span className={`font-medium ${sub.status === "active" ? "text-green-600" : "text-red-500"}`}>{sub.status === "active" ? "Aktif" : "Pasif"}</span></div>
             <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Sonraki fatura</span><span>{sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString("tr-TR") : "—"}</span></div>
             <div className="flex justify-between py-2"><span className="text-muted-foreground">Otomatik güncelleme</span><span>{sub.autoGenerate ? "Açık" : "Kapalı"}</span></div>

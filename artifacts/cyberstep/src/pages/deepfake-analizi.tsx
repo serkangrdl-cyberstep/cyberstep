@@ -89,11 +89,11 @@ export default function DeepfakeAnaliziPage() {
               Modern ses klonlama araçları <strong className="text-white">3 dakika ses</strong> ile çalışıyor.<br />
               CEO fraud saldırıları Türkiye'de yılda milyonlarca TL zarara neden oluyor.
             </p>
-            <p className="text-purple-200/60 text-sm mb-8">Yöneticilerinizin YouTube, LinkedIn veya haber sitelerindeki dijital izini analiz ediyoruz. 1.490 TL.</p>
+            <p className="text-purple-200/60 text-sm mb-8">Yöneticilerinizin YouTube, LinkedIn veya haber sitelerindeki dijital izini analiz ediyoruz. 1.490 TL + KDV.</p>
             <Button onClick={() => setStep("form")} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-8">
               Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <p className="text-purple-300/50 text-xs mt-3">Fiyat: 1.490 TL · Süre: ~10 dakika</p>
+            <p className="text-purple-300/50 text-xs mt-3">Fiyat: 1.490 TL + KDV · Süre: ~10 dakika</p>
           </div>
         </div>
 

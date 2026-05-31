@@ -1,7 +1,87 @@
-import { Shield, ArrowRight, Users, Lightbulb, Target, Award, Coffee, Globe } from "lucide-react";
+import { useState } from "react";
+import { Shield, ArrowRight, Users, Lightbulb, Target, Award, Coffee, Globe, Eye, Bot, CheckCircle, FileText, Lock, Paperclip } from "lucide-react";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
+
+function CareerForm() {
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", message: "" });
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errMsg, setErrMsg] = useState("");
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => setCvFile(e.target.files?.[0] ?? null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("loading");
+    try {
+      let cvFileName: string | undefined;
+      let cvFileData: string | undefined;
+      if (cvFile) {
+        cvFileName = cvFile.name;
+        const buf = await cvFile.arrayBuffer();
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        cvFileData = `data:${cvFile.type};base64,${b64}`;
+      }
+      const res = await fetch("/api/public/job-application", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, cvFileName, cvFileData }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Hata"); }
+      setStatus("success");
+    } catch (err) {
+      setErrMsg(err instanceof Error ? err.message : "Sunucu hatası");
+      setStatus("error");
+    }
+  };
+
+  if (status === "success") return (
+    <div className="mt-8 p-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-center">
+      <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto mb-3" />
+      <p className="font-semibold text-emerald-700 dark:text-emerald-400">Başvurunuz alındı.</p>
+      <p className="text-sm text-muted-foreground mt-1">En kısa sürede sizinle iletişime geçeceğiz.</p>
+    </div>
+  );
+
+  return (
+    <form onSubmit={submit} className="mt-8 space-y-4 bg-card border rounded-2xl p-6">
+      <h3 className="font-semibold text-lg">Ekibimize Katılın</h3>
+      <p className="text-sm text-muted-foreground">Siber güvenliği erişilebilir kılma misyonumuza ortak olmak ister misiniz?</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground block mb-1">Ad Soyad *</label>
+          <input required className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500" value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} placeholder="Ahmet Yılmaz" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground block mb-1">Telefon *</label>
+          <input required className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+90 555 000 0000" />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">E-posta *</label>
+        <input required type="email" className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="ad@sirketiniz.com" />
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">CV (PDF, DOCX — max 5 MB)</label>
+        <label className="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm bg-background cursor-pointer hover:bg-muted/50 transition-colors">
+          <Paperclip className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">{cvFile ? cvFile.name : "Dosya seç..."}</span>
+          <input type="file" accept=".pdf,.doc,.docx" onChange={handleFile} className="hidden" />
+        </label>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">Kısa Tanıtım (isteğe bağlı)</label>
+        <textarea rows={3} className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} placeholder="Deneyimlerinizden, ilgi alanlarınızdan bahsedin..." />
+      </div>
+      {status === "error" && <p className="text-sm text-red-500">{errMsg}</p>}
+      <button type="submit" disabled={status === "loading"} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 text-sm">
+        {status === "loading" ? "Gönderiliyor..." : "Başvuruyu Gönder"}
+      </button>
+    </form>
+  );
+}
 
 const MILESTONES = [
   {
@@ -182,51 +262,86 @@ export default function NedenCyberStep() {
 
       {/* Nasıl Çalışır? */}
       <section id="nasil-calisir" className="py-20 bg-muted/30 border-y">
-        <div className="container mx-auto px-4 max-w-4xl">
+        <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-sm font-medium mb-4">
               <Target className="h-4 w-4" />
-              3 Adım
+              Platform Yetenekleri
             </div>
             <h2 className="text-3xl font-bold">Nasıl Çalışır?</h2>
-            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              Teknik bilgi gerekmeden, 20 dakikada siber güvenlik durumunuzu öğrenin.
+            <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+              CyberStep tek bir araç değil, birbirine bağlı altı katmanlı bir güvenlik platformudur. Her katman bir üsttekinin zeminini hazırlar.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
               {
-                step: "01",
-                title: "Şirket Bilgilerini Girin",
-                desc: "Firma adı, sektör ve çalışan sayısı gibi temel bilgileri girin. Kayıt gerekmez — hemen başlayabilirsiniz.",
+                icon: Globe,
+                num: "01",
+                title: "Dış Saldırı Yüzeyi Taraması",
+                desc: "Domain güvenlik analizi, açık port tespiti, SSL durumu, HIBP sızıntı kontrolü, USOM korelasyonu ve dark web izleme. Teknik bilgi gerekmez.",
+                href: "/domain-tarama",
+                tag: "Ücretsiz başlangıç",
               },
               {
-                step: "02",
-                title: "20 Soruyu Yanıtlayın",
-                desc: "5 güvenlik alanında, günlük iş dilinde hazırlanmış sorular. Teknik terim yok. Ortalama tamamlama süresi: 12 dakika.",
+                icon: Shield,
+                num: "02",
+                title: "Yapay Zeka Risk Değerlendirmesi",
+                desc: "20 soruluk Mini (ücretsiz) veya 55 soruluk Tam Değerlendirme. Gemini AI ile kişiselleştirilmiş risk raporu, sektör karşılaştırması ve öncelikli aksiyon planı.",
+                href: "/assessment/start",
+                tag: "Ücretsiz Mini",
               },
               {
-                step: "03",
-                title: "Kişisel Raporunuzu Alın",
-                desc: "Gemini AI ile üretilen risk analizi, skor, sektör karşılaştırması ve öncelikli aksiyon önerileri anında e-postanıza gönderilir.",
+                icon: Bot,
+                num: "03",
+                title: "AI Güvenlik Servisleri",
+                desc: "Phishing simülasyonu, AI Red Team istihbaratı, deepfake tehdit analizi, AI araç izleme ve KVKK uyumlu AI politika otogüncelleme.",
+                href: "/ai-guvenlik-degerlendirmesi",
+                tag: "AI destekli",
               },
-            ].map(({ step, title, desc }) => (
-              <div key={step} className="bg-card border rounded-2xl p-7 relative">
-                <div className="text-5xl font-black text-emerald-600/15 absolute top-5 right-6 select-none leading-none">{step}</div>
-                <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm font-bold mb-5">{step}</div>
-                <h3 className="font-semibold text-lg mb-2">{title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              {
+                icon: CheckCircle,
+                num: "04",
+                title: "Uyum & Regülasyon Analizi",
+                desc: "KVKK uyum denetimi, BDDK/DORA madde bazlı analiz, EU AI Act uyum skoru ve sektöre özgü regülasyon takvimi. Ceza riskinizi öğrenin.",
+                href: "/dora-bddk-uyum",
+                tag: "KVKK · DORA · EU AI Act",
+              },
+              {
+                icon: Eye,
+                num: "05",
+                title: "Sürekli Maruz Kalma Yönetimi",
+                desc: "Haftalık delta raporları, zero-day uyarıları, firewall entegrasyonu ve kapalı döngü doğrulama. Tek seferlik denetimden sürekli güvenliğe geçiş.",
+                href: "/domain-tarama",
+                tag: "CEM Platformu",
+              },
+              {
+                icon: FileText,
+                num: "06",
+                title: "Yönetim Raporlaması",
+                desc: "Yönetim kurulu güvenlik raporu, müşteri sağlık skoru dashboard'u, sektörel kıyaslama ve CFO'nun anlayabileceği finansal risk analizi.",
+                href: "/hesabim/yonetim-raporu",
+                tag: "C-Suite için",
+              },
+            ].map(({ icon: Icon, num, title, desc, href, tag }) => (
+              <div key={num} className="bg-card border rounded-2xl p-6 relative hover:border-emerald-500/30 transition-colors group">
+                <div className="text-5xl font-black text-emerald-600/10 absolute top-4 right-5 select-none leading-none">{num}</div>
+                <div className="h-11 w-11 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5 text-emerald-600" />
+                </div>
+                <span className="inline-block text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full mb-3">{tag}</span>
+                <h3 className="font-semibold text-base mb-2">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">{desc}</p>
+                <Link href={href} className="inline-flex items-center gap-1 text-sm text-emerald-600 font-medium hover:underline">
+                  İncele <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             ))}
           </div>
           <div className="mt-10 text-center">
-            <a
-              href="/assessment/start"
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
-            >
-              Ücretsiz Değerlendirme Başlat
-              <ArrowRight className="h-4 w-4" />
-            </a>
+            <Link href="/assessment/start" className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-3.5 rounded-lg transition-colors">
+              Ücretsiz Değerlendirme Başlat <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -253,12 +368,7 @@ export default function NedenCyberStep() {
                 Bizi farklı kılan şey teknik bilgimiz değil, o bilgiyi sıradan bir patronun anlayabileceği dile çevirme kararlılığımız.
               </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Ekibimize katılmak ister misiniz?{" "}
-              <Link href="/iletisim" className="text-emerald-600 hover:underline font-medium">
-                Bize yazın
-              </Link>
-            </p>
+            <CareerForm />
           </div>
         </div>
       </section>

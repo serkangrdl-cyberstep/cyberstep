@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema } from "@workspace/db";
+import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { rateLimit } from "express-rate-limit";
 import { logger } from "../../lib/logger";
 
@@ -152,6 +153,49 @@ router.post("/public/partner-lead", partnerLeadLimiter, async (req: Request, res
     res.status(201).json({ ok: true, message: "Başvurunuz alındı" });
   } catch (err) {
     logger.error({ err }, "Failed to save partner lead");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// GET /api/public/prices — all service prices (public, no auth)
+router.get("/public/prices", async (_req, res: Response) => {
+  try {
+    const rows = await db.select().from(servicePricesTable);
+    const map: Record<string, { label: string; amount: number; unit: string }> = {};
+    for (const r of rows) map[r.slug] = { label: r.label, amount: parseFloat(r.amountTl), unit: r.unit };
+    res.json(map);
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch service prices");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/public/job-application — career applications
+const FREE_EMAIL_DOMAINS = ["gmail.com","hotmail.com","yahoo.com","outlook.com","yandex.com","icloud.com","live.com","msn.com","me.com","aol.com","protonmail.com","mail.com","zoho.com"];
+function isCorporateEmail(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase() ?? "";
+  return !!domain && !FREE_EMAIL_DOMAINS.includes(domain);
+}
+
+const jobAppLimiter = rateLimit({ windowMs: 60*60*1000, limit: 3, standardHeaders: true, legacyHeaders: false, message: { error: "Çok fazla başvuru." }, keyGenerator: (req) => req.ip ?? "unknown" });
+
+router.post("/public/job-application", jobAppLimiter, async (req: Request, res: Response) => {
+  const { fullName, email, phone, cvFileName, cvFileData, position, message } = req.body as Record<string, string>;
+  if (!fullName?.trim() || !email?.trim() || !phone?.trim()) {
+    res.status(400).json({ error: "Ad soyad, e-posta ve telefon zorunludur." });
+    return;
+  }
+  try {
+    const corporate = isCorporateEmail(email);
+    await db.insert(jobApplicationsTable).values({ fullName: fullName.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), cvFileName: cvFileName ?? null, cvFileData: cvFileData ?? null, position: position ?? null, message: message ?? null, isCorporateEmail: corporate });
+    if (corporate) {
+      const domain = email.split("@")[1]!;
+      await db.execute(sql.raw(`INSERT INTO lead_gen_leads (domain, score, discovery_method, status, created_at) VALUES ('${domain}', 40, 'job_application', 'new', now()) ON CONFLICT (domain) DO NOTHING`));
+    }
+    logger.info({ email, corporate }, "New job application");
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to save job application");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

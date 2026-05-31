@@ -16,7 +16,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
       <section className="py-20 bg-secondary relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">1.990 TL · Tek Seferlik</Badge>
+          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">1.990 TL + KDV · Tek Seferlik</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">Yapay Zeka ile Sizi Hedef Alan Saldırı Böyle Görünür</h1>
           <p className="text-lg text-muted-foreground mb-6">
             Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.
@@ -138,7 +138,7 @@ function ConsentForm({ onCreated }: { onCreated: (id: number) => void }) {
 
         <button type="submit" disabled={loading || !form.consentAccepted}
           className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {loading ? "Başlatılıyor..." : "Simülasyonu Başlat — 1.990 TL"}
+          {loading ? "Başlatılıyor..." : "Simülasyonu Başlat — 1.990 TL + KDV"}
         </button>
       </form>
     </div>

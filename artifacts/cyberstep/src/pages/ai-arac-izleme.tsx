@@ -35,7 +35,7 @@ function LandingView() {
       <section className="py-20 bg-secondary relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">490 TL / ay</Badge>
+          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">490 TL / ay + KDV</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">AI Araç İzleme</h1>
           <p className="text-xl text-muted-foreground mb-2">ChatGPT, Gemini, Copilot... Gizlilik politikaları sürekli değişiyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Değişikliği siz öğrenmeden önce CyberStep size bildiriyor.</p>
@@ -63,7 +63,7 @@ function LandingView() {
           </div>
 
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center">
-            <p className="text-3xl font-bold text-primary mb-1">490 TL / ay</p>
+            <p className="text-3xl font-bold text-primary mb-1">490 TL / ay <span className="text-sm font-normal text-muted-foreground">+ KDV</span></p>
             <p className="text-muted-foreground mb-6">Tüm kullandığınız AI araçları için</p>
             <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
               Hemen Başla <ChevronRight className="h-4 w-4" />
@@ -142,7 +142,7 @@ function DashboardView({ customerId }: { customerId: number }) {
         <p className="text-muted-foreground mb-8">Haftalık otomatik kontrol ile AI araçlarındaki politika değişikliklerinden anında haberdar olun.</p>
         <button onClick={() => subscribeMutation.mutate()} disabled={subscribeMutation.isPending}
           className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {subscribeMutation.isPending ? "Baslatiliyor..." : "İzlemeyi Başlat — 490 TL/ay"}
+          {subscribeMutation.isPending ? "Başlatılıyor..." : "İzlemeyi Başlat — 490 TL/ay + KDV"}
         </button>
       </div>
     );
@@ -233,7 +233,7 @@ function DashboardView({ customerId }: { customerId: number }) {
         <p className="font-semibold mb-1">Araç değişikliklerinde politikanız otomatik güncellensin mi?</p>
         <p className="text-sm text-muted-foreground mb-3">AI Politika Otogüncelleme servisiyle her büyük değişiklikte KVKK politikanız otomatik yeniden üretilir.</p>
         <Link href="/ai-politika" className="inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline">
-          AI Politika Servisi — 990 TL/yıl <ChevronRight className="h-4 w-4" />
+          AI Politika Servisi — 990 TL/yıl + KDV <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
 

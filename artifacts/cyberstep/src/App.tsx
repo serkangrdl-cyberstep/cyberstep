@@ -136,6 +136,9 @@ import AdminGorevler from "./pages/admin-panel/gorevler";
 import AdminNps from "./pages/admin-panel/nps-page";
 import AdminMuhasebe from "./pages/admin-panel/muhasebe";
 import Musteri360 from "./pages/admin-panel/musteri-360";
+import AdminKariyer from "./pages/admin-panel/kariyer";
+import AdminServisFiyatlari from "./pages/admin-panel/servis-fiyatlari";
+import AdminManuelTetikle from "./pages/admin-panel/manuel-tetikle";
 import HesabimFaturalar from "./pages/hesabim/faturalar";
 import HesabimDestek from "./pages/hesabim/destek";
 import NpsPage from "./pages/nps";
@@ -265,6 +268,9 @@ function Router() {
       <Route path="/panel/nps" component={AdminNps} />
       <Route path="/panel/muhasebe" component={AdminMuhasebe} />
       <Route path="/panel/musteriler/:id" component={Musteri360} />
+      <Route path="/panel/kariyer" component={AdminKariyer} />
+      <Route path="/panel/servis-fiyatlari" component={AdminServisFiyatlari} />
+      <Route path="/panel/manuel-tetikle" component={AdminManuelTetikle} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

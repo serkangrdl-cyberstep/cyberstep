@@ -112,13 +112,13 @@ export default function EuAiActPage() {
             1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet satan şirketler EU AI Act kapsamına giriyor.<br />
             <strong className="text-white">Cezalar: 35 milyon Euro'ya kadar.</strong>
           </p>
-          <p className="text-blue-200/60 text-sm mb-8">20 soruda uyum durumunuzu öğrenin. 10 dakika. 1.990 TL.</p>
+          <p className="text-blue-200/60 text-sm mb-8">20 soruda uyum durumunuzu öğrenin. 10 dakika. 1.990 TL + KDV.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={() => setStep("form")} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8">
               Uyum Skorumu Öğren <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
-          <p className="text-blue-300/50 text-xs mt-4">Fiyat: 1.990 TL — AB'ye ihracat yapmasanız da değerlendirin</p>
+          <p className="text-blue-300/50 text-xs mt-4">Fiyat: 1.990 TL + KDV — AB'ye ihracat yapmasanız da değerlendirin</p>
         </div>
       </div>
 
@@ -149,7 +149,7 @@ export default function EuAiActPage() {
           <p className="text-center text-xl font-semibold">
             AB uyum danışmanı bu analizi <span className="line-through text-muted-foreground">5.000-20.000 TL</span>'ye yapar.
           </p>
-          <p className="text-center text-blue-400 font-bold text-2xl mt-1">CyberStep: 1.990 TL</p>
+          <p className="text-center text-blue-400 font-bold text-2xl mt-1">CyberStep: 1.990 TL + KDV</p>
         </div>
 
         <div className="text-center mt-10">

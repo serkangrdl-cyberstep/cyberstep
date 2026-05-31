@@ -79,11 +79,11 @@ export default function AiRedTeamPage() {
             <p className="text-slate-300 text-lg mb-3">
               Bir saldırgan şirketinizi hedef almadan önce 30 dakikada <strong className="text-white">ne öğrenir?</strong>
             </p>
-            <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 2.490 TL.</p>
+            <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 2.490 TL + KDV.</p>
             <Button onClick={() => setStep("form")} size="lg" className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8">
               Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <p className="text-slate-500 text-xs mt-3">Fiyat: 2.490 TL · Phishing Simülasyonu ile birlikte: 3.490 TL</p>
+            <p className="text-slate-500 text-xs mt-3">Fiyat: 2.490 TL + KDV · Phishing Simülasyonu ile birlikte: 3.490 TL + KDV</p>
           </div>
         </div>
 

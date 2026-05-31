@@ -34,6 +34,7 @@ import leadGenRouter from "./lead-gen/index";
 import growthEngineRouter from "./growth-engine/index";
 import invoicesRouter from "./invoices/index";
 import crmRouter from "./crm/index";
+import adminExtrasRouter from "./admin-extras/index";
 
 const router: IRouter = Router();
 
@@ -72,5 +73,6 @@ router.use(leadGenRouter);
 router.use("/growth-engine", growthEngineRouter);
 router.use(invoicesRouter);
 router.use(crmRouter);
+router.use(adminExtrasRouter);
 
 export default router;

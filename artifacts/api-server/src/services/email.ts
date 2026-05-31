@@ -21,11 +21,22 @@ function getTransport() {
   });
 }
 
-export async function sendMail(params: { to: string; subject: string; html: string }): Promise<void> {
+export async function sendMail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: Array<{ filename: string; path?: string; content?: Buffer; contentType?: string }>;
+}): Promise<void> {
   const transport = getTransport();
   if (!transport) return;
   const user = process.env["SMTP_USER"]!;
-  await transport.sendMail({ from: `CyberStep <${user}>`, to: params.to, subject: params.subject, html: params.html });
+  await transport.sendMail({
+    from: `CyberStep <${user}>`,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    ...(params.attachments?.length ? { attachments: params.attachments } : {}),
+  });
 }
 
 function getBaseUrl(): string {

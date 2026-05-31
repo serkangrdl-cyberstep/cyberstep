@@ -183,29 +183,167 @@ router.post("/api/enterprise/teaser/:id/send", requireAdmin, async (req: Request
 
   try {
     const { sendMail } = await import("../../services/email");
-    const findings = (report.report.teaserFindings as { title: string; locked: boolean }[] ?? []);
-    const unlockedFinding = findings.find(f => !f.locked);
+
+    type Finding = { title: string; severity?: string; locked: boolean; preview_text?: string | null };
+    const findings = (report.report.teaserFindings as Finding[] ?? []);
+    const openFindings = findings.filter(f => !f.locked);
     const lockedCount = findings.filter(f => f.locked).length;
+    const riskLevel = report.report.riskLevel ?? "medium";
+    const score = report.report.overallRiskScore ?? 0;
+
+    const RISK_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
+      critical: { label: "KRİTİK",  color: "#dc2626", bg: "#fef2f2", border: "#fca5a5" },
+      high:     { label: "YÜKSEK",  color: "#ea580c", bg: "#fff7ed", border: "#fdba74" },
+      medium:   { label: "ORTA",    color: "#ca8a04", bg: "#fefce8", border: "#fde047" },
+      low:      { label: "DÜŞÜK",   color: "#16a34a", bg: "#f0fdf4", border: "#86efac" },
+    };
+    const rm = RISK_META[riskLevel] ?? RISK_META["medium"]!;
+
+    // Severity badge helper
+    const sevBadge = (sev?: string) => {
+      const m: Record<string, string> = { critical: "#dc2626", high: "#ea580c", medium: "#ca8a04", low: "#16a34a" };
+      const c = m[sev ?? "medium"] ?? "#ca8a04";
+      const l: Record<string, string> = { critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük" };
+      return `<span style="display:inline-block;background:${c};color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;">${l[sev ?? "medium"] ?? "Orta"}</span>`;
+    };
+
+    const findingRows = openFindings.map(f => `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${f.title}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;">${sevBadge(f.severity)}</td>
+      </tr>`).join("");
+
+    // Pricing PDF attachment if configured
+    const pricingPdfPath = process.env["ENTERPRISE_PRICING_PDF_PATH"];
+    const attachments = pricingPdfPath
+      ? [{ filename: "CyberStep-Enterprise-Teklif.pdf", path: pricingPdfPath, contentType: "application/pdf" }]
+      : [];
 
     await sendMail({
       to: contactEmail,
-      subject: `${report.prospect.domain} için güvenlik uyarısı — CyberStep.io`,
+      subject: `${report.prospect.domain} Güvenlik Analizi — CyberStep.io`,
+      attachments,
       html: `
-<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#222;">
-  <p>Sayın ${report.prospect.contactName ?? "İlgili Kişi"},</p>
-  <p><strong>${report.prospect.companyName}</strong> (${report.prospect.domain}) üzerinde gerçekleştirdiğimiz dış güvenlik taramasında dikkat gerektiren bulgular tespit ettik.</p>
-  <div style="background:#f8f8f8;border:1px solid #ddd;border-radius:8px;padding:20px;margin:20px 0;">
-    <p style="margin:0 0 8px;"><strong>Güvenlik Skoru:</strong> ${report.report.overallRiskScore ?? "—"}/100</p>
-    <p style="margin:0 0 8px;"><strong>Risk Seviyesi:</strong> ${report.report.riskLevel ?? "—"}</p>
-    ${unlockedFinding ? `<p style="margin:0 0 8px;">● ${unlockedFinding.title}</p>` : ""}
-    <p style="margin:0 0 4px;color:#888;">🔒 ${lockedCount} bulgu daha kilitli</p>
-    ${report.report.teaserScenarioPreview ? `<p style="margin:12px 0 0;font-style:italic;color:#555;">${report.report.teaserScenarioPreview}...</p>` : ""}
-  </div>
-  <p>Tam raporu görüntülemek için: <a href="${previewUrl}" style="color:#0066cc;">${previewUrl}</a></p>
-  <p>Saygılarımla,<br>CyberStep.io Güvenlik Ekibi<br>security@cyberstep.io</p>
-  <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-  <p style="font-size:11px;color:#aaa;">Bu e-posta ${report.prospect.domain} domaininin kamuya açık güvenlik taramasına dayanmaktadır. Herhangi bir sisteminize yetkisiz erişim yapılmamıştır.</p>
-</div>`,
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);">
+
+  <!-- Header -->
+  <tr>
+    <td style="background:#0f172a;padding:24px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td>
+            <span style="font-size:20px;font-weight:700;color:#ffffff;">CyberStep</span><span style="font-size:20px;color:#10b981;">.io</span>
+          </td>
+          <td align="right">
+            <span style="font-size:11px;color:#94a3b8;">Güvenlik Analiz Raporu</span>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Body -->
+  <tr><td style="padding:32px;">
+
+    <!-- Greeting -->
+    <p style="margin:0 0 16px;font-size:15px;color:#222;">Sayın ${report.prospect.contactName ?? "İlgili Kişi"},</p>
+
+    <!-- Intro / identity paragraph -->
+    <p style="margin:0 0 16px;font-size:14px;color:#444;line-height:1.7;">
+      CyberStep.io, Türkiye'deki şirketlerin siber güvenlik risklerini ölçmek ve yönetmek için geliştirilmiş
+      yerli bir platformdur. 500'den fazla Türk şirketine dış saldırı yüzeyi analizi, yapay zeka destekli
+      tehdit değerlendirmesi ve KVKK uyum hizmetleri sunmaktayız.
+    </p>
+    <p style="margin:0 0 28px;font-size:14px;color:#444;line-height:1.7;">
+      Rutin güvenlik taramalarımız kapsamında <strong>${report.prospect.domain}</strong> alan adınızı
+      inceledik ve kritik önem taşıdığını değerlendirdiğimiz güvenlik açıkları tespit ettik.
+      Aşağıda bulgularımızın bir özetini bulabilirsiniz.
+    </p>
+
+    <!-- Risk score banner -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${rm.bg};border:1px solid ${rm.border};border-radius:8px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Güvenlik Skoru</p>
+                <p style="margin:0;font-size:36px;font-weight:700;color:${rm.color};">${score}<span style="font-size:16px;color:#888;">/100</span></p>
+              </td>
+              <td align="right" style="vertical-align:top;">
+                <span style="display:inline-block;background:${rm.color};color:#fff;font-size:12px;font-weight:700;padding:4px 12px;border-radius:4px;letter-spacing:.5px;">${rm.label}</span>
+                <p style="margin:6px 0 0;font-size:11px;color:#666;text-align:right;">${report.prospect.companyName ?? report.prospect.domain}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Findings table -->
+    ${openFindings.length > 0 ? `
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#222;text-transform:uppercase;letter-spacing:.4px;">Tespit Edilen Açık Bulgular</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:16px;">
+      <tr style="background:#f8f8f8;">
+        <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888;font-weight:600;text-transform:uppercase;">Bulgu</th>
+        <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888;font-weight:600;text-transform:uppercase;">Önem</th>
+      </tr>
+      ${findingRows}
+    </table>` : ""}
+
+    <!-- Locked hint -->
+    ${lockedCount > 0 ? `
+    <p style="margin:0 0 24px;font-size:13px;color:#888;background:#f8f8f8;border-radius:6px;padding:10px 14px;">
+      🔒 Tam raporda <strong>${lockedCount} ek bulgu</strong> daha yer almaktadır. Erişim için aşağıdaki bağlantıyı kullanın.
+    </p>` : ""}
+
+    <!-- Attack scenario preview -->
+    ${report.report.teaserScenarioPreview ? `
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#222;text-transform:uppercase;letter-spacing:.4px;">Saldırı Senaryosu Önizlemesi</p>
+    <div style="background:#fafafa;border-left:3px solid #e5e7eb;padding:12px 16px;margin-bottom:24px;border-radius:0 6px 6px 0;">
+      <p style="margin:0;font-size:13px;color:#555;line-height:1.7;font-style:italic;">${report.report.teaserScenarioPreview}</p>
+    </div>` : ""}
+
+    <!-- CTA -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr>
+        <td align="center">
+          <a href="${previewUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:14px;font-weight:700;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:.3px;">
+            Tam Raporu Görüntüle →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Closing -->
+    <p style="margin:0 0 4px;font-size:14px;color:#444;">Saygılarımla,</p>
+    <p style="margin:0;font-size:14px;color:#222;font-weight:600;">CyberStep.io Güvenlik Ekibi</p>
+    <p style="margin:4px 0 0;font-size:13px;color:#0066cc;"><a href="mailto:security@cyberstep.io" style="color:#0066cc;">security@cyberstep.io</a></p>
+
+  </td></tr>
+
+  <!-- Footer -->
+  <tr>
+    <td style="background:#f8f8f8;border-top:1px solid #e5e7eb;padding:16px 32px;">
+      <p style="margin:0;font-size:11px;color:#aaa;line-height:1.6;">
+        Bu e-posta, <strong>${report.prospect.domain}</strong> alan adının kamuya açık güvenlik taramasına dayanmaktadır.
+        Herhangi bir sisteminize yetkisiz erişim gerçekleştirilmemiştir. Tüm veriler OSINT ve pasif keşif teknikleriyle elde edilmiştir.
+        Artık e-posta almak istemiyorsanız <a href="mailto:security@cyberstep.io?subject=Abonelikten%20Çık%20${encodeURIComponent(report.prospect.domain)}" style="color:#aaa;">abonelikten çıkabilirsiniz</a>.
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
     });
 
     await db.update(teaserReportsTable).set({

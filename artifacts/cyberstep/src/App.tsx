@@ -127,6 +127,9 @@ import EnterpriseContracts from "./pages/admin-panel/enterprise/contracts";
 import LeadGenQueue from "./pages/admin-panel/lead-gen/queue";
 import LeadGenCampaigns from "./pages/admin-panel/lead-gen/campaigns";
 import PreviewPage from "./pages/preview";
+import RakipKarsilastirma from "./pages/rakip-karsilastirma";
+import SektorRaporu from "./pages/sektor-raporu";
+import AdminGrowthEngine from "./pages/admin/growth-engine";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -236,6 +239,7 @@ function Router() {
       <Route path="/panel/is-ortaklari" component={AdminIsOrtaklari} />
       <Route path="/panel/is-paketleri" component={AdminIsPaketleri} />
       <Route path="/panel/saglik" component={AdminSaglik} />
+      <Route path="/panel/growth-engine" component={AdminGrowthEngine} />
       <Route path="/panel/yonetim-raporlari" component={AdminYonetimRaporlari} />
       <Route path="/panel/referrallar" component={AdminReferrallar} />
       <Route path="/panel/enterprise/prospects" component={EnterpriseProspects} />
@@ -324,6 +328,8 @@ function Router() {
             <Route path="/preview/:token" component={PreviewPage} />
             <Route path="/ai-guvenlik-degerlendirmesi" component={AiAssessmentLanding} />
             <Route path="/araclar" component={TumAraclar} />
+            <Route path="/rakip-karsilastirma" component={RakipKarsilastirma} />
+            <Route path="/sektor-raporu" component={SektorRaporu} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

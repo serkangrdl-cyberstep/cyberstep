@@ -1536,6 +1536,38 @@ function startQuarterlyPolicyUpdateCron() {
   logger.info("AI politika çeyreklik güncelleme cron zamanlandı (1 Oca/Nis/Tem/Eki 03:00 İstanbul)");
 }
 
+// ─── Growth Engine Crons ──────────────────────────────────────────────────────
+function startGrowthEngineCrons() {
+  // SSL bitiş taraması — her gece 01:00 İstanbul (22:00 UTC)
+  cron.schedule("0 22 * * *", async () => {
+    try {
+      const { runSSLExpiryCron } = await import("./services/growth-engine");
+      await runSSLExpiryCron();
+    } catch (err) {
+      logger.warn({ err }, "SSL expiry growth cron failed");
+    }
+  });
+  // CVE uyarısı — her gece 02:30 İstanbul (23:30 UTC)
+  cron.schedule("30 23 * * *", async () => {
+    try {
+      const { runCVEAlertCron } = await import("./services/growth-engine");
+      await runCVEAlertCron();
+    } catch (err) {
+      logger.warn({ err }, "CVE alert growth cron failed");
+    }
+  });
+  // Port değişikliği — her Pazar 04:00 İstanbul (01:00 UTC)
+  cron.schedule("0 1 * * 0", async () => {
+    try {
+      const { runPortChangeCron } = await import("./services/growth-engine");
+      await runPortChangeCron();
+    } catch (err) {
+      logger.warn({ err }, "Port change growth cron failed");
+    }
+  });
+  logger.info("Growth engine crons scheduled (SSL 01:00, CVE 02:30, Port Sun 04:00 Istanbul)");
+}
+
 startup()
   .then(() => {
     startReminderCron();
@@ -1546,6 +1578,7 @@ startup()
     startDigestCron();
     startAiToolMonitorCron();
     startQuarterlyPolicyUpdateCron();
+    startGrowthEngineCrons();
     seedDefaultSources().catch((err) => logger.warn({ err }, "Digest: default sources seed failed"));
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));

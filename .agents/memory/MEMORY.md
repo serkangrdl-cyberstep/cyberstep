@@ -11,4 +11,5 @@
 - [Board Report](board-report.md) — board_reports + board_report_recipients; Claude AI executive summary; email delivery; /api/board-report/*; /hesabim/yonetim-raporu page with recipient mgmt + approve + send flow
 - [AI Security Assessment](ai-assessment.md) — ai_tools_registry (20 tools seeded) + ai_assessments + ai_assessment_answers; 25Q across 4 areas; Claude report+policy; /ai-guvenlik/* multi-page flow; AiGenerateFn takes 1 arg (concat system+user prompt)
 - [AI Güvenlik Servisleri](ai-guvenlik-servisleri.md) — 3 new paid services: AI Politika (990 TL/yr), AI Araç İzleme (490 TL/mo), AI Phishing Sim (1990 TL one-time); DB tables, routes, cron, pricing page section added
+- [Growth Engine](growth-engine.md) — proactive outbound automation; fireTrigger() + 7 DB tables + /api/growth-engine/* (prefix-mounted) + 3 crons + /rakip-karsilastirma + /sektor-raporu + /panel/growth-engine
 - [ISR LeadGen & Enterprise Sales](isr-enterprise.md) — 9 DB tables; Apollo/Hunter/scoring/teaser services; /api/enterprise/* + /api/lead-gen/* routes; admin pages at /panel/enterprise/* + /panel/lead-gen/*; public preview at /preview/:token; customer portal at /hesabim/enterprise

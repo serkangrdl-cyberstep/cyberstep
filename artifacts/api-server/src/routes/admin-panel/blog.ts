@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { blogPostsTable, newsletterSubscribersTable, socialMediaLinksTable } from "@workspace/db";
+import { blogPostsTable, newsletterSubscribersTable, socialMediaLinksTable, blogContentCalendarTable } from "@workspace/db";
 import { eq, desc, asc, and } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
@@ -462,6 +462,44 @@ router.get("/public/social-links", async (_req, res) => {
     .where(eq(socialMediaLinksTable.isActive, true))
     .orderBy(asc(socialMediaLinksTable.sortOrder));
   res.json(rows);
+});
+
+// ─── Content Calendar ──────────────────────────────────────────────────────────
+
+router.get("/admin-panel/blog-calendar", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { category, audience, status } = req.query as Record<string, string>;
+    let query = db.select().from(blogContentCalendarTable).$dynamic();
+    const conditions = [];
+    if (category) conditions.push(eq(blogContentCalendarTable.category, category));
+    if (audience) conditions.push(eq(blogContentCalendarTable.targetAudience, audience));
+    if (status) conditions.push(eq(blogContentCalendarTable.status, status));
+    if (conditions.length > 0) {
+      const { and: andFn } = await import("drizzle-orm");
+      query = query.where(andFn(...conditions));
+    }
+    const rows = await query.orderBy(asc(blogContentCalendarTable.sortOrder));
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "blog-calendar: liste alınamadı");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+router.patch("/admin-panel/blog-calendar/:id/status", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body as { status: string };
+    const valid = ["planned", "in_progress", "published", "archived"];
+    if (!valid.includes(status)) return void res.status(400).json({ error: "Geçersiz durum" });
+    await db.update(blogContentCalendarTable)
+      .set({ status, ...(status === "published" ? { publishedAt: new Date() } : {}) })
+      .where(eq(blogContentCalendarTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "blog-calendar: durum güncellenemedi");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
 export default router;

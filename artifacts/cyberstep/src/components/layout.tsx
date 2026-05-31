@@ -22,6 +22,7 @@ const AI_GUVENLIK_ITEMS = [
   { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: ActivitySquare, available: true },
   { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, available: true },
   { href: "/deepfake-analizi", label: "Deepfake Tehdit Analizi", icon: Eye, available: true },
+  { href: "/sahte-dokuman", label: "Sahte Belge Tespiti", icon: FileText, available: true },
   { href: "/eu-ai-act", label: "EU AI Act Uyum Skoru", icon: Cpu, available: true },
   { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Bot, available: true },
 ];

@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Plus, Pencil, Trash2, Globe, EyeOff, Users, ArrowLeft, ImagePlus, X,
-  Bot, Play, ChevronRight, CalendarCheck2, Zap,
+  Bot, Play, ChevronRight, CalendarCheck2, Zap, BookOpen, Filter,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -739,13 +739,76 @@ function PostForm({
 
 // ─── AdminBlog main view ──────────────────────────────────────────────────────
 
+// ─── Category/Audience labels ─────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  FA: { label: "Farkındalık", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  RE: { label: "Rehberlik", color: "bg-sky-500/20 text-sky-400 border-sky-500/30" },
+  SE: { label: "Sektörel", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  DU: { label: "Düzenleyici", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+  CO: { label: "Conversion", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  AI: { label: "Yapay Zeka", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  KU: { label: "Kurumsal", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+};
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  planned: { label: "Planlandı", color: "bg-slate-600 text-slate-300" },
+  in_progress: { label: "Devam Ediyor", color: "bg-amber-500/20 text-amber-400" },
+  published: { label: "Yayında", color: "bg-emerald-500/20 text-emerald-400" },
+  archived: { label: "Arşiv", color: "bg-slate-700 text-slate-500" },
+};
+
+interface CalendarEntry {
+  id: number;
+  sortOrder: number;
+  titleTr: string;
+  category: string;
+  targetAudience: string;
+  seoKeyword: string | null;
+  cyberstepTool: string | null;
+  priority: number | null;
+  publishWeek: number | null;
+  status: string;
+  aiPromptNotes: string | null;
+}
+
 export default function AdminBlog() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [view, setView] = useState<"list" | "new" | "edit">("list");
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [mainTab, setMainTab] = useState<"posts" | "calendar">("posts");
+  const [calendarCategory, setCalendarCategory] = useState("");
+  const [calendarAudience, setCalendarAudience] = useState("");
+  const [calendarStatus, setCalendarStatus] = useState("");
 
   const { data: admin } = useRequireAdmin();
+
+  const calendarParams = new URLSearchParams();
+  if (calendarCategory) calendarParams.set("category", calendarCategory);
+  if (calendarAudience) calendarParams.set("audience", calendarAudience);
+  if (calendarStatus) calendarParams.set("status", calendarStatus);
+
+  const { data: calendarEntries, isLoading: calendarLoading, refetch: refetchCalendar } = useQuery<CalendarEntry[]>({
+    queryKey: ["blog-calendar", calendarCategory, calendarAudience, calendarStatus],
+    queryFn: async () => {
+      const r = await fetch(`/api/admin-panel/blog-calendar?${calendarParams.toString()}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Yetkisiz");
+      return r.json();
+    },
+    enabled: !!admin,
+  });
+
+  const calendarStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      fetch(`/api/admin-panel/blog-calendar/${id}/status`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }).then(r => r.json()),
+    onSuccess: () => { toast({ title: "Durum güncellendi" }); void refetchCalendar(); },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
 
   const { data: posts, isLoading } = useQuery<BlogPost[]>({
     queryKey: ["admin-blog"],
@@ -902,9 +965,160 @@ export default function AdminBlog() {
     );
   }
 
+  // ── Calendar stats
+  const calendarCatCounts = (calendarEntries ?? []).reduce((acc, e) => {
+    acc[e.category] = (acc[e.category] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <AdminLayout title="Blog Yonetimi" description="Yazi olustur, yayinla ve abone istatistiklerini gorun">
       <div className="space-y-6">
+
+        {/* Main tab toggle */}
+        <div className="flex gap-0 border-b border-slate-700">
+          <button
+            onClick={() => setMainTab("posts")}
+            className={`flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${mainTab === "posts" ? "border-emerald-400 text-emerald-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}
+          >
+            <BookOpen className="h-4 w-4" />Yazılar
+          </button>
+          <button
+            onClick={() => setMainTab("calendar")}
+            className={`flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${mainTab === "calendar" ? "border-emerald-400 text-emerald-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}
+          >
+            <CalendarCheck2 className="h-4 w-4" />
+            İçerik Takvimi
+            <span className="ml-1 text-xs bg-slate-700 text-slate-300 rounded px-1.5 py-0.5">104</span>
+          </button>
+        </div>
+
+        {/* ══ İçerik Takvimi ════════════════════════════════════════ */}
+        {mainTab === "calendar" && (
+          <div className="space-y-4">
+            {/* Category distribution */}
+            <div className="grid grid-cols-7 gap-2">
+              {Object.entries(CATEGORY_LABELS).map(([code, { label, color }]) => (
+                <button
+                  key={code}
+                  onClick={() => setCalendarCategory(calendarCategory === code ? "" : code)}
+                  className={`rounded-lg p-3 text-center transition-colors border ${calendarCategory === code ? `${color} border-current` : "bg-slate-800 border-slate-700 hover:border-slate-500"}`}
+                >
+                  <div className={`text-lg font-bold ${calendarCategory === code ? "" : "text-white"}`}>{calendarCatCounts[code] ?? 0}</div>
+                  <div className={`text-xs mt-0.5 ${calendarCategory === code ? "" : "text-slate-400"}`}>{code}</div>
+                  <div className={`text-xs leading-tight ${calendarCategory === code ? "" : "text-slate-500"}`}>{label}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <Filter className="h-4 w-4 text-slate-400 shrink-0" />
+              <select
+                value={calendarAudience}
+                onChange={e => setCalendarAudience(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded px-2 py-1.5"
+              >
+                <option value="">Tüm Kitleler</option>
+                <option value="genel">Genel</option>
+                <option value="patron">Patron / CEO</option>
+                <option value="it_yoneticisi">IT Yöneticisi</option>
+                <option value="cfo">CFO</option>
+                <option value="kvkk_danismani">KVKK Danışmanı</option>
+                <option value="kurumsal">Kurumsal</option>
+              </select>
+              <select
+                value={calendarStatus}
+                onChange={e => setCalendarStatus(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded px-2 py-1.5"
+              >
+                <option value="">Tüm Durumlar</option>
+                <option value="planned">Planlandı</option>
+                <option value="in_progress">Devam Ediyor</option>
+                <option value="published">Yayında</option>
+                <option value="archived">Arşiv</option>
+              </select>
+              {(calendarCategory || calendarAudience || calendarStatus) && (
+                <button
+                  onClick={() => { setCalendarCategory(""); setCalendarAudience(""); setCalendarStatus(""); }}
+                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  Filtreleri Temizle
+                </button>
+              )}
+              <span className="ml-auto text-xs text-slate-500">
+                {calendarLoading ? "Yükleniyor..." : `${calendarEntries?.length ?? 0} başlık`}
+              </span>
+            </div>
+
+            {/* Calendar table */}
+            <div className="space-y-1.5">
+              {calendarLoading && <div className="text-slate-400 text-center py-8">Yükleniyor...</div>}
+              {!calendarLoading && calendarEntries?.map(entry => {
+                const cat = CATEGORY_LABELS[entry.category];
+                const st = STATUS_LABELS[entry.status] ?? STATUS_LABELS.planned;
+                return (
+                  <div key={entry.id} className="bg-slate-800 border border-slate-700 rounded-lg p-3 flex items-start gap-3">
+                    {/* Sort order / week */}
+                    <div className="w-10 shrink-0 text-center">
+                      <div className="text-xs font-mono text-slate-500">#{entry.sortOrder}</div>
+                      {entry.publishWeek && (
+                        <div className="text-xs text-slate-600 mt-0.5">H{entry.publishWeek}</div>
+                      )}
+                    </div>
+
+                    {/* Category badge */}
+                    <div className="shrink-0 pt-0.5">
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${cat?.color ?? "bg-slate-600 text-slate-300 border-slate-500"}`}>
+                        {entry.category}
+                      </span>
+                    </div>
+
+                    {/* Title + meta */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-white font-medium leading-snug mb-1">{entry.titleTr}</div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {entry.seoKeyword && (
+                          <span className="text-xs text-slate-500 font-mono">{entry.seoKeyword}</span>
+                        )}
+                        {entry.cyberstepTool && (
+                          <span className="text-xs text-cyan-500/70">/{entry.cyberstepTool}</span>
+                        )}
+                        {entry.targetAudience && (
+                          <span className="text-xs text-slate-600">{entry.targetAudience.replace("_", " ")}</span>
+                        )}
+                      </div>
+                      {entry.aiPromptNotes && (
+                        <div className="mt-1 text-xs text-slate-500 italic line-clamp-1">{entry.aiPromptNotes}</div>
+                      )}
+                    </div>
+
+                    {/* Status + actions */}
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${st.color}`}>
+                        {st.label}
+                      </span>
+                      <select
+                        value={entry.status}
+                        onChange={e => calendarStatusMutation.mutate({ id: entry.id, status: e.target.value })}
+                        className="bg-slate-700 border border-slate-600 text-slate-300 text-xs rounded px-1.5 py-1"
+                      >
+                        <option value="planned">Planlandı</option>
+                        <option value="in_progress">Devam Ediyor</option>
+                        <option value="published">Yayında</option>
+                        <option value="archived">Arşiv</option>
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ══ Yazılar ══════════════════════════════════════════════ */}
+        {mainTab === "posts" && (
+        <>
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-slate-800 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">Toplam Yazi</div>
@@ -1090,6 +1304,8 @@ export default function AdminBlog() {
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
     </AdminLayout>
   );

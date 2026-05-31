@@ -82,7 +82,25 @@ export const specialDayMessagesTable = pgTable("special_day_messages", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const blogContentCalendarTable = pgTable("blog_content_calendar", {
+  id: serial("id").primaryKey(),
+  sortOrder: integer("sort_order").unique().notNull(),
+  titleTr: text("title_tr").notNull(),
+  slug: text("slug"),
+  category: text("category").notNull(),
+  targetAudience: text("target_audience").notNull(),
+  seoKeyword: text("seo_keyword"),
+  cyberstepTool: text("cyberstep_tool"),
+  priority: integer("priority").default(3),
+  publishWeek: integer("publish_week"),
+  status: text("status").notNull().default("planned"),
+  aiPromptNotes: text("ai_prompt_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  publishedAt: timestamp("published_at"),
+});
+
 export type BlogPost = typeof blogPostsTable.$inferSelect;
 export type NewsletterSubscriber = typeof newsletterSubscribersTable.$inferSelect;
 export type SocialMediaLink = typeof socialMediaLinksTable.$inferSelect;
 export type SpecialDayMessage = typeof specialDayMessagesTable.$inferSelect;
+export type BlogContentCalendar = typeof blogContentCalendarTable.$inferSelect;

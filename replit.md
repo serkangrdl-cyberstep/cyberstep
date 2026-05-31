@@ -11,6 +11,7 @@ KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. Şirketler ücr
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 - Required env: `AI_INTEGRATIONS_GEMINI_BASE_URL`, `AI_INTEGRATIONS_GEMINI_API_KEY` — auto-provisioned by Replit AI Integrations
+- Required secret: `ENCRYPTION_KEY` (64 hex chars) — AES-256-GCM key for FortiManager credentials; must be a Secret, never a shared env var (shared env vars land in git-tracked `.replit`)
 
 ## Stack
 

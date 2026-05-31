@@ -34,11 +34,11 @@ export default function AdminAiCosts() {
     <AdminLayout title="AI Maliyet Paneli" description="SOC triyaj ve analiz için tahmini yapay zeka kullanım maliyetleri (bu ay)">
       <div className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {stat("Bu Ay Toplam", usd(data?.month.total))}
+          {stat("Bu Ay Toplam", usd(data?.month?.total))}
           {stat("Ay Sonu Tahmini", usd(data?.projectionUsd))}
-          {stat("AI Çağrısı", String(data?.month.calls ?? 0))}
-          {stat("Önbellek Oranı", `%${cacheRate}`, `${data?.month.cached ?? 0} önbellekten`)}
-          {stat("Token (G/Ç)", `${data?.month.inputTokens ?? 0} / ${data?.month.outputTokens ?? 0}`)}
+          {stat("AI Çağrısı", String(data?.month?.calls ?? 0))}
+          {stat("Önbellek Oranı", `%${cacheRate}`, `${data?.month?.cached ?? 0} önbellekten`)}
+          {stat("Token (G/Ç)", `${data?.month?.inputTokens ?? 0} / ${data?.month?.outputTokens ?? 0}`)}
         </div>
 
         <Card className="bg-slate-900 border-slate-800">

@@ -159,18 +159,8 @@ export default function GrowthEngine() {
     : 0;
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Büyüme Motoru" description="Proaktif satış otomasyonu ve trigger sistemi">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-emerald-600" />
-              Büyüme Motoru
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Proaktif satış otomasyonu ve trigger sistemi</p>
-          </div>
-        </div>
 
         {/* Tabs */}
         <div className="flex gap-1 border-b">

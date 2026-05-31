@@ -551,7 +551,7 @@ export default function AdminDomainTaramalar() {
               <Shield className="h-6 w-6 text-sky-400 shrink-0" />
               <div>
                 <p className="text-slate-400 text-xs">SSL Geçiş Oranı</p>
-                <p className={`text-3xl font-bold ${scoreColor(stats?.passRates.ssl ?? 0)}`}>%{stats?.passRates.ssl ?? 0}</p>
+                <p className={`text-3xl font-bold ${scoreColor(stats?.passRates?.ssl ?? 0)}`}>%{stats?.passRates?.ssl ?? 0}</p>
               </div>
             </CardContent>
           </Card>

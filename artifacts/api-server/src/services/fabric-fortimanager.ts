@@ -146,6 +146,60 @@ export async function fmBlockIp(creds: FortiManagerCreds, ip: string, reason: st
   }
 }
 
+// Remove an IP from the block group and delete its address object.
+// Used by the validation harness for non-destructive cleanup, and available
+// for manual un-blocking. Mirrors fmBlockIp's append-not-clobber discipline.
+export async function fmUnblockIp(creds: FortiManagerCreds, ip: string): Promise<{ ok: boolean; message: string }> {
+  let session: string | null = null;
+  try {
+    session = await login(creds);
+    if (!session) return { ok: false, message: "FortiManager oturumu açılamadı" };
+
+    const adom = creds.adom || "root";
+    const addrName = `CS-${ip.replace(/[.:]/g, "-")}`;
+    const grpUrl = `/pm/config/adom/${adom}/obj/firewall/addrgrp/${encodeURIComponent(creds.blockGroup)}`;
+
+    // 1) Read current members and remove this address (preserve the rest)
+    const existingRes = await rpc(creds.url, { id: 40, method: "get", session, params: [{ url: grpUrl }] });
+    const existing = (existingRes.data as { result?: Array<{ data?: { member?: string[] } }> })
+      ?.result?.[0]?.data?.member ?? [];
+    const remaining = existing.filter((m) => m !== addrName);
+
+    if (remaining.length !== existing.length) {
+      const grpRes = rpcStatus(await rpc(creds.url, {
+        id: 41, method: "set", session,
+        params: [{
+          url: `/pm/config/adom/${adom}/obj/firewall/addrgrp`,
+          data: { name: creds.blockGroup, "member": remaining, comment: "CyberStep threat auto-blocklist" },
+        }],
+      }));
+      if (grpRes.code !== 0) {
+        await logout(creds, session);
+        return { ok: false, message: `Engelleme grubundan çıkarılamadı: ${grpRes.message}` };
+      }
+    }
+
+    // 2) Delete the address object (best-effort — may be referenced elsewhere)
+    const delRes = rpcStatus(await rpc(creds.url, {
+      id: 42, method: "delete", session,
+      params: [{ url: `/pm/config/adom/${adom}/obj/firewall/address/${encodeURIComponent(addrName)}` }],
+    }));
+
+    // 3) Install policy so the removal takes effect on devices
+    rpcStatus(await rpc(creds.url, {
+      id: 43, method: "exec", session,
+      params: [{ url: "/securityconsole/install/package", data: { adom, flags: ["none"] } }],
+    }).catch(() => ({ status: 0, data: {} } as RpcResult)));
+
+    await logout(creds, session);
+    logger.info({ ip, group: creds.blockGroup }, "FortiManager block removed");
+    return { ok: true, message: delRes.code === 0 ? `${ip} engellemesi kaldırıldı` : `${ip} gruptan çıkarıldı (adres nesnesi: ${delRes.message})` };
+  } catch (e) {
+    if (session) await logout(creds, session);
+    return { ok: false, message: String(e) };
+  }
+}
+
 // Verify an IP is present in the block group.
 export async function fmVerifyBlock(creds: FortiManagerCreds, ip: string): Promise<{ ok: boolean; present: boolean; message: string }> {
   let session: string | null = null;

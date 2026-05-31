@@ -25,6 +25,12 @@ Per-customer Fortinet integration: HTTPS-only event ingestion, Claude correlatio
 - Admin must expose a **global event stream** (`GET /api/admin/fabric/events`) in addition to correlations/streams; the customer portal dashboard must render events, correlations, **block history**, and **discovered fabric devices** — all four, not just events/correlations.
 - **AI correlation context must be tenant-scoped.** `domain_scans` has no `customerId` — it links by `email`. Filter the latest scan by the customer's email, or another tenant's scan leaks into the Claude prompt.
 
+## Validating auto-block against a real appliance
+
+- A one-command harness exists: `pnpm --filter @workspace/api-server run validate:fortimanager` (script `src/scripts/validate-fortimanager.ts`). It reads creds from env (`FM_URL/FM_USERNAME/FM_PASSWORD/FM_ADOM/FM_BLOCK_GROUP`, optional `FM_TEST_IP` default TEST-NET-2 `198.51.100.66`, `FM_SKIP_CLEANUP=1`) and runs login → device discovery → block → verify → unblock cleanup, all via the production `fabric-fortimanager.ts` functions. Per-stage PASS/FAIL, exit 0 only if all pass.
+- `fmUnblockIp(creds, ip)` complements `fmBlockIp`: removes the address from the group (append-not-clobber discipline preserved) + deletes the address object + installs policy. Used for non-destructive cleanup.
+- **Why this can't be auto-validated in the Replit env:** needs a live, internet-reachable FortiManager + creds, and Replit egress IPs are non-static so the appliance must allowlist our outbound in Trusted Hosts. That makes the live run a user-side blocker; the harness is the deliverable that makes it a single safe command.
+
 ## FortiManager JSON-RPC gotchas (do not regress)
 
 - **FM returns HTTP 200 even on logical failure** — must check the JSON body `result[0].status.code === 0`. A `rpcStatus()` helper enforces this on every write (address create, group set, policy install) and read (verify, discovery); a non-zero install fails the block instead of being best-effort.

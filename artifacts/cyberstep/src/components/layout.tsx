@@ -12,6 +12,7 @@ const NAV_LINKS = (lang: "tr" | "en") => [
   { href: "/blog", label: t(T.nav.blog, lang) },
   { href: "/fiyatlar", label: t(T.nav.pricing, lang) },
   { href: "/hakkimizda", label: t(T.nav.about, lang) },
+  { href: "/neden-cyberstep", label: "Neden CyberStep?" },
   { href: "/iletisim", label: t(T.nav.contact, lang) },
 ];
 

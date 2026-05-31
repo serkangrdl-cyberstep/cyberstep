@@ -48,6 +48,7 @@ import FullAssessmentRunner from "./pages/full-assessment-runner";
 import Payment from "./pages/payment";
 import AdminReview from "./pages/admin-review";
 import Hakkimizda from "./pages/hakkimizda";
+import NedenCyberStep from "./pages/neden-cyberstep";
 import Iletisim from "./pages/iletisim";
 import Kurumsal from "./pages/kurumsal";
 import PartnerPage from "./pages/partner";
@@ -255,6 +256,7 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/fiyatlar" component={Pricing} />
             <Route path="/hakkimizda" component={Hakkimizda} />
+            <Route path="/neden-cyberstep" component={NedenCyberStep} />
             <Route path="/kurumsal" component={Kurumsal} />
             <Route path="/partner" component={PartnerPage} />
             <Route path="/eu-ai-act" component={EuAiAct} />

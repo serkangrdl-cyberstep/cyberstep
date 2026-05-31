@@ -166,18 +166,18 @@ export function Footer() {
 
             {/* Neden CyberStep? */}
             <div>
-              <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Neden CyberStep?</h4>
+              <Link href="/neden-cyberstep">
+                <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer">Neden CyberStep?</h4>
+              </Link>
               <ul className="space-y-2.5">
                 {[
-                  "Yapay zeka destekli risk analizi",
-                  "20 dakikada kapsamlı değerlendirme",
-                  "KOBİ'lere özel Türkçe rehberlik",
-                  "KVKK ve ISO 27001 uyumlu çerçeve",
-                  "7/24 izleme ve anlık uyarılar",
+                  { label: "İsmin Hikayesi", href: "/neden-cyberstep" },
+                  { label: "Ekibimiz", href: "/neden-cyberstep#ekibimiz" },
+                  { label: "Nasıl Çalışır?", href: "/hakkimizda" },
+                  { label: "Platform Evrimi", href: "/hakkimizda" },
                 ].map(item => (
-                  <li key={item} className="flex items-start gap-2">
-                    <span className="text-emerald-500 mt-0.5 shrink-0 text-xs">✓</span>
-                    <span className="text-slate-400 text-sm">{item}</span>
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-slate-400 text-sm hover:text-white transition-colors">{item.label}</Link>
                   </li>
                 ))}
               </ul>

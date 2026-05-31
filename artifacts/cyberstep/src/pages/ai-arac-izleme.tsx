@@ -31,7 +31,7 @@ const RISK_STYLE: Record<string, string> = {
 
 function LandingView() {
   return (
-    <Layout>
+    <>
       <section className="py-20 bg-secondary relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
@@ -71,7 +71,7 @@ function LandingView() {
           </div>
         </div>
       </section>
-    </Layout>
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
@@ -44,8 +44,30 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
+function useHashNav() {
+  const [, navigate] = useLocation();
+  return (href: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const hashIdx = href.indexOf("#");
+    if (hashIdx === -1) { navigate(href); return; }
+    const path = href.slice(0, hashIdx);
+    const hash = href.slice(hashIdx + 1);
+    const isSamePage = window.location.pathname === path;
+    const scroll = () => {
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    };
+    if (isSamePage) { scroll(); }
+    else {
+      navigate(path);
+      setTimeout(scroll, 150);
+    }
+  };
+}
+
 export function Footer() {
   const { lang } = useLanguage();
+  const hashNav = useHashNav();
 
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],
@@ -177,7 +199,13 @@ export function Footer() {
                   { label: "Platform Evrimi", href: "/hakkimizda#platform-evrimi" },
                 ].map(item => (
                   <li key={item.label}>
-                    <Link href={item.href} className="text-slate-400 text-sm hover:text-white transition-colors">{item.label}</Link>
+                    <a
+                      href={item.href}
+                      onClick={hashNav(item.href)}
+                      className="text-slate-400 text-sm hover:text-white transition-colors cursor-pointer"
+                    >
+                      {item.label}
+                    </a>
                   </li>
                 ))}
               </ul>

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp,
   Save, Eye, EyeOff, Shield, Zap, Globe, Mail, Brain, Server, Lock, Bot,
+  CreditCard, Settings, SlidersHorizontal,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ interface IntegrationDef {
   id: string;
   name: string;
   category: string;
+  type: "security" | "platform";
   icon: string;
   cost: "free" | "freemium" | "paid" | "varies";
   costLabel: string;
@@ -32,7 +34,7 @@ interface IntegrationDef {
 const INTEGRATIONS: IntegrationDef[] = [
   // ─── Tehdit İstihbaratı ─────────────────────────────────────────────────────
   {
-    id: "cisa-kev", name: "CISA KEV", category: "Tehdit İstihbaratı", icon: "🏛️",
+    id: "cisa-kev", name: "CISA KEV", category: "Tehdit İstihbaratı", type: "security", icon: "🏛️",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "ABD Siber Güvenlik Ajansı'nın aktif fidye ve APT saldırılarında kullanıldığını doğruladığı ~1.100 CVE kataloğu",
     why: "Teorik açıkları değil, gerçekten istismar edilenleri gösterir. CISA KEV'deki bir CVE varsa müşteri için en kritik uyarıdır.",
@@ -41,7 +43,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
   },
   {
-    id: "urlhaus", name: "URLhaus (Abuse.ch)", category: "Tehdit İstihbaratı", icon: "🔗",
+    id: "urlhaus", name: "URLhaus (Abuse.ch)", category: "Tehdit İstihbaratı", type: "security", icon: "🔗",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "200.000+ zararlı URL ve alan adının anlık kara listesi — fidye yazılımı ve malware dağıtım noktaları",
     why: "Sitenin zararlı içerik dağıtımında kullanılıp kullanılmadığını doğrular. E-posta filtrelerinden geçen phishing linkleri dahil.",
@@ -50,7 +52,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://urlhaus-api.abuse.ch/",
   },
   {
-    id: "feodo-tracker", name: "Feodo Tracker (Abuse.ch)", category: "Tehdit İstihbaratı", icon: "🤖",
+    id: "feodo-tracker", name: "Feodo Tracker (Abuse.ch)", category: "Tehdit İstihbaratı", type: "security", icon: "🤖",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "Emotet, TrickBot, IcedID, QakBot gibi aktif botnet C2 (komuta-kontrol) sunucularının IP listesi",
     why: "Sitenin barındığı IP adresi botnet altyapısıyla ilişkiliyse saldırganlar sistemi zaten kontrol altında tutabilir.",
@@ -59,7 +61,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://feodotracker.abuse.ch/",
   },
   {
-    id: "threatfox", name: "ThreatFox (Abuse.ch)", category: "Tehdit İstihbaratı", icon: "🦊",
+    id: "threatfox", name: "ThreatFox (Abuse.ch)", category: "Tehdit İstihbaratı", type: "security", icon: "🦊",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "APT grupları ve fidye çeteleriyle ilişkili IOC veritabanı — 1M+ güvenlik ihlali göstergesi",
     why: "Domain veya IP'nin bilinen siber saldırı altyapısıyla bağlantısını tespit eder. Cobalt Strike, LockBit, Emotet gibi malware grouplarını yakalar.",
@@ -68,7 +70,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://threatfox.abuse.ch/api/",
   },
   {
-    id: "usom", name: "USOM", category: "Tehdit İstihbaratı", icon: "🇹🇷",
+    id: "usom", name: "USOM", category: "Tehdit İstihbaratı", type: "security", icon: "🇹🇷",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "BTK/USOM (Ulusal Siber Olaylara Müdahale Merkezi) Türkiye siber tehdit kara listesi",
     why: "Uluslararası listelerde görünmeyebilecek Türkiye'ye özgü tehditleri yakalar. BTK'nın zararlı olarak işaretlediği domain'leri kontrol eder.",
@@ -78,7 +80,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   // ─── İtibar & Kötücül Yazılım ──────────────────────────────────────────────
   {
-    id: "virustotal", name: "VirusTotal", category: "İtibar & Kötücül Yazılım", icon: "🦠",
+    id: "virustotal", name: "VirusTotal", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🦠",
     cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 500 istek/gün | Premium: $30/ay",
     envKey: "VIRUSTOTAL_API_KEY", always: false,
     desc: "70+ antivirüs motorunun domain/IP taraması — Google altyapısı üzerinde çalışır",
@@ -88,7 +90,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://developers.virustotal.com/",
   },
   {
-    id: "google-sb", name: "Google Safe Browsing", category: "İtibar & Kötücül Yazılım", icon: "🛡️",
+    id: "google-sb", name: "Google Safe Browsing", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🛡️",
     cost: "free", costLabel: "Ücretsiz", costNote: "10.000 istek/gün ücretsiz",
     envKey: "GOOGLE_SAFE_BROWSING_API_KEY", always: false,
     desc: "Chrome/Firefox/Safari'nin güvensiz işaretlediği domain listesi — 4 milyar kullanıcı verisiyle beslenir",
@@ -98,7 +100,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://developers.google.com/safe-browsing/v4/get-started",
   },
   {
-    id: "abuseipdb", name: "AbuseIPDB", category: "İtibar & Kötücül Yazılım", icon: "🚨",
+    id: "abuseipdb", name: "AbuseIPDB", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🚨",
     cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 1.000/gün | Basic: $20/ay",
     envKey: "ABUSEIPDB_API_KEY", always: false,
     desc: "Spam, brute-force ve DDoS saldırılarında kullanılan IP adreslerinin küresel raporlama veritabanı",
@@ -108,7 +110,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://www.abuseipdb.com/api.html",
   },
   {
-    id: "otx", name: "AlienVault OTX", category: "İtibar & Kötücül Yazılım", icon: "👁️",
+    id: "otx", name: "AlienVault OTX", category: "İtibar & Kötücül Yazılım", type: "security", icon: "👁️",
     cost: "free", costLabel: "Ücretsiz", costNote: "Tamamen ücretsiz",
     envKey: "OTX_API_KEY", always: false,
     desc: "200.000+ güvenlik araştırmacısının katkısıyla oluşan küresel tehdit istihbarat platformu",
@@ -118,7 +120,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://otx.alienvault.com/api/",
   },
   {
-    id: "greynoise", name: "GreyNoise", category: "İtibar & Kötücül Yazılım", icon: "📡",
+    id: "greynoise", name: "GreyNoise", category: "İtibar & Kötücül Yazılım", type: "security", icon: "📡",
     cost: "freemium", costLabel: "Freemium", costNote: "Community: Ücretsiz 1.000/gün | Teams: $99/ay",
     envKey: "GREYNOISE_API_KEY", always: false,
     desc: "İnternet genelinde port tarama yapan botları gerçek hedefli saldırganlardan ayıran IP niyeti analiz platformu",
@@ -129,7 +131,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   // ─── Altyapı & Açık Yönetimi ───────────────────────────────────────────────
   {
-    id: "shodan", name: "Shodan", category: "Altyapı & Açık Yönetimi", icon: "🔍",
+    id: "shodan", name: "Shodan", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🔍",
     cost: "paid", costLabel: "Ücretli", costNote: "Free (çok sınırlı) | Member: $49/ay",
     envKey: "SHODAN_API_KEY", always: false,
     desc: "Tüm internetin port ve servis haritası — açık portlar, çalışan yazılımlar, donanım parmak izi",
@@ -139,7 +141,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://developer.shodan.io/api",
   },
   {
-    id: "whoisxml", name: "WhoisXML API", category: "Altyapı & Açık Yönetimi", icon: "📋",
+    id: "whoisxml", name: "WhoisXML API", category: "Altyapı & Açık Yönetimi", type: "security", icon: "📋",
     cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 1.000/ay | Basic: $29/ay",
     envKey: "WHOISXML_API_KEY", always: false,
     desc: "Domain kayıt geçmişi, sahiplik değişiklikleri ve DNS geçmişi — Domain Hijacking tespiti",
@@ -150,16 +152,16 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   // ─── Protokol & Sertifika ──────────────────────────────────────────────────
   {
-    id: "ssllabs", name: "Qualys SSL Labs", category: "Protokol & Sertifika", icon: "🔐",
+    id: "ssllabs", name: "Qualys SSL Labs", category: "Protokol & Sertifika", type: "security", icon: "🔐",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "TLS protokol versiyonu, şifre zayıflığı, sertifika zinciri ve HSTS kontrolü — endüstri standardı değerlendirmesi",
-    why: "A+ ile F arasında bağımsız harf notu verir. PCI-DSS uyumluluk için SSL notunun A olması zorunlu. Müşteri bankadan 'sertifikanız zayıf' uyarısı almadan önce tespit eder.",
+    why: "A+ ile F arasında bağımsız harf notu verir. PCI-DSS uyumluluk için SSL notunun A olması zorunlu.",
     how: "SSLLabs önbellekten not alınır (24 saatlik cache). Tarama raporunda 'SSLLabs Notu' başlığında gösterilir.",
     setup: "Kurulum gerekmez. api.ssllabs.com açık ve ücretsizdir.",
     docs: "https://github.com/ssllabs/ssllabs-scan/blob/master/ssllabs-api-docs-v3.md",
   },
   {
-    id: "mozilla-obs", name: "Mozilla Observatory", category: "Protokol & Sertifika", icon: "🦊",
+    id: "mozilla-obs", name: "Mozilla Observatory", category: "Protokol & Sertifika", type: "security", icon: "🦊",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "HTTP Güvenlik Başlıkları analizi — CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy değerlendirmesi",
     why: "SSLLabs ile tamamlayıcı: SSL/TLS değil HTTP katmanı başlıklarının güvenliğini ölçer. Eksik CSP başlığı XSS saldırılarının kapısını açar.",
@@ -168,7 +170,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://observatory.mozilla.org/",
   },
   {
-    id: "nvd-cve", name: "NVD CVE (NIST)", category: "Protokol & Sertifika", icon: "🐛",
+    id: "nvd-cve", name: "NVD CVE (NIST)", category: "Protokol & Sertifika", type: "security", icon: "🐛",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "ABD Ulusal Güvenlik Açığı Veritabanı — 200.000+ CVE kaydı, CVSS kritiklik puanları",
     why: "Shadow IT ile tespit edilen yazılımların (WordPress eklenti versiyonu, jQuery sürümü vb.) bilinen açıklarını tek tek tarar.",
@@ -177,16 +179,16 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://nvd.nist.gov/developers/vulnerabilities",
   },
   {
-    id: "epss", name: "EPSS (FIRST.org)", category: "Protokol & Sertifika", icon: "📊",
+    id: "epss", name: "EPSS (FIRST.org)", category: "Protokol & Sertifika", type: "security", icon: "📊",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "CVE başına gerçek dünya istismar olasılığı puanı — 'Bu açık önümüzdeki 30 günde kullanılma ihtimali %94'",
-    why: "NVD'nin CVSS puanı teorik şiddet ölçer; EPSS gerçek saldırı verilerinden makine öğrenimiyle hesaplanır. Önceliklendirmeyi tamamen değiştirir.",
-    how: "NVD'den alınan CVE'ler EPSS API'siyle zenginleştirilir. Her CVE için istismar olasılığı yüzdesi ve percentile rapora eklenir.",
+    why: "NVD'nin CVSS puanı teorik şiddet ölçer; EPSS gerçek saldırı verilerinden makine öğrenimiyle hesaplanır.",
+    how: "NVD'den alınan CVE'ler EPSS API'siyle zenginleştirilir. Her CVE için istismar olasılığı yüzdesi rapora eklenir.",
     setup: "Kurulum gerekmez. api.first.org tamamen ücretsizdir.",
     docs: "https://www.first.org/epss/api",
   },
   {
-    id: "crt-sh", name: "crt.sh (CT Logs)", category: "Protokol & Sertifika", icon: "📜",
+    id: "crt-sh", name: "crt.sh (CT Logs)", category: "Protokol & Sertifika", type: "security", icon: "📜",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "Sertifika Şeffaflığı günlükleri — domain'e ait tüm alt alanları ve sertifika geçmişini ortaya çıkarır",
     why: "Yöneticinin habersiz açılan subdomain'leri (eski test sunucusu, terk edilmiş proje) tespit eder. Bu subdomain'ler genellikle korumasız bırakılır.",
@@ -196,16 +198,16 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   // ─── E-posta & Kimlik ──────────────────────────────────────────────────────
   {
-    id: "hibp", name: "Have I Been Pwned", category: "E-posta & Kimlik", icon: "💀",
+    id: "hibp", name: "Have I Been Pwned", category: "E-posta & Kimlik", type: "security", icon: "💀",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "Domain'e ait e-posta adreslerinin 750+ veri sızıntısında yer alıp almadığını kontrol eder",
-    why: "Çalışan kimlik bilgilerinin dark web'de bulunması hesap ele geçirme riskini dramatik artırır. LinkedIn, Adobe, RockYou sızıntıları hâlâ aktif olarak kullanılıyor.",
+    why: "Çalışan kimlik bilgilerinin dark web'de bulunması hesap ele geçirme riskini dramatik artırır.",
     how: "Domain HIBP API'siyle sorgulanır. Kaç sızıntıda kaç hesap bulunduğu ve hangi sızıntılar olduğu raporda gösterilir.",
     setup: "Kurulum gerekmez.",
     docs: "https://haveibeenpwned.com/API/v3",
   },
   {
-    id: "spf-dmarc", name: "SPF / DMARC / DKIM", category: "E-posta & Kimlik", icon: "✉️",
+    id: "spf-dmarc", name: "SPF / DMARC / DKIM", category: "E-posta & Kimlik", type: "security", icon: "✉️",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "E-posta kimlik doğrulama kayıtları — phishing ve e-posta sahteciliği (spoofing) tespiti",
     why: "Bu kayıtlar eksikse saldırganlar şirket adına sahte e-posta gönderebilir. CEO fraud saldırılarının %91'i e-posta sahteciliğiyle başlar.",
@@ -214,36 +216,36 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://dmarcian.com/what-is-spf/",
   },
   {
-    id: "dnsbl", name: "DNSBL Kara Listeleri", category: "E-posta & Kimlik", icon: "🚫",
+    id: "dnsbl", name: "DNSBL Kara Listeleri", category: "E-posta & Kimlik", type: "security", icon: "🚫",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "Spamhaus, Barracuda, SORBS, SpamCop gibi 15+ DNS tabanlı kara listede IP ve domain kontrolü",
-    why: "Kara listedeki mail sunucusunun gönderdiği e-postalar otomatik spam kutusuna düşer. Müşteri sözleşme e-postasını karşı tarafın görmediğini düşünün.",
-    how: "Domain ve MX IP'leri 15+ DNSBL listesine DNS sorgusuyla kontrol edilir. Kara listede görünme durumu ve hangi liste olduğu gösterilir.",
+    why: "Kara listedeki mail sunucusunun gönderdiği e-postalar otomatik spam kutusuna düşer.",
+    how: "Domain ve MX IP'leri 15+ DNSBL listesine DNS sorgusuyla kontrol edilir. Kara listede görünme durumu gösterilir.",
     setup: "Kurulum gerekmez. DNS sorguları ile çalışır.",
     docs: "https://www.spamhaus.org/lookup/",
   },
   // ─── Yapay Zeka ────────────────────────────────────────────────────────────
   {
-    id: "gemini-ai", name: "Gemini 2.5 Flash", category: "Yapay Zeka", icon: "✨",
+    id: "gemini-ai", name: "Gemini 2.5 Flash", category: "Yapay Zeka", type: "security", icon: "✨",
     cost: "free", costLabel: "Ücretsiz Plan", always: true,
     desc: "Ücretsiz plan için Google'ın hızlı AI modeli — tarama bulgularından Türkçe risk raporu üretir",
-    why: "Ham güvenlik verilerini CEO'nun anlayabileceği aksiyona dönüştürülebilir Türkçe rapora çevirir. Ücretsiz planda varsayılan model.",
+    why: "Ham güvenlik verilerini CEO'nun anlayabileceği aksiyona dönüştürülebilir Türkçe rapora çevirir.",
     how: "Assessment tamamlanınca tüm bulgular Gemini'ye gönderilir. Sektöre özel, risk öncelikli Türkçe rapor oluşturulur.",
     setup: "Replit AI Integrations tarafından otomatik sağlanır. Ek kurulum gerekmez.",
     docs: "https://ai.google.dev/",
   },
   {
-    id: "claude-sonnet", name: "Claude Sonnet 4.6", category: "Yapay Zeka", icon: "🧠",
+    id: "claude-sonnet", name: "Claude Sonnet 4.6", category: "Yapay Zeka", type: "security", icon: "🧠",
     cost: "paid", costLabel: "Starter / Pro Plan", always: true,
     desc: "Anthropic'in en ileri analiz modeli — ücretli planlarda otomatik devreye girer, Gemini'den belirgin biçimde üstün rapor kalitesi",
-    why: "Güvenlik bulgularında bağlam anlama, nüans ve Türkçe ifade kalitesi açısından Gemini ve ChatGPT'den önde gelir. Ücretli müşteriye sunulan somut fark budur.",
-    how: "Starter veya Pro plandaki tenant'lar için rapor üretimi otomatik olarak Claude Sonnet'e yönlendirilir. Tenant'ın kendi API key'i gerekmez — Replit yönetir.",
-    setup: "Ekstra kurulum gerekmez. Tenant planı Starter veya Pro olduğunda sistem otomatik Claude kullanır. Replit AI Integrations tarafından sağlanır.",
+    why: "Güvenlik bulgularında bağlam anlama, nüans ve Türkçe ifade kalitesi açısından Gemini ve ChatGPT'den önde gelir.",
+    how: "Starter veya Pro plandaki tenant'lar için rapor üretimi otomatik olarak Claude Sonnet'e yönlendirilir.",
+    setup: "Ekstra kurulum gerekmez. Tenant planı Starter veya Pro olduğunda sistem otomatik Claude kullanır.",
     docs: "https://www.anthropic.com/claude",
   },
   // ─── İletişim ──────────────────────────────────────────────────────────────
   {
-    id: "smtp", name: "SMTP E-posta", category: "İletişim", icon: "📧",
+    id: "smtp", name: "SMTP E-posta", category: "İletişim", type: "platform", icon: "📧",
     cost: "varies", costLabel: "Değişken", always: false,
     desc: "Bülten, rapor ve güvenlik bildirimi e-postalarının gönderimi",
     why: "Müşterilere 30 günlük yeniden tarama raporu, skor değişikliği bildirimi ve güvenlik uyarıları göndermek için gerekli.",
@@ -251,25 +253,37 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "Replit Secrets'a SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS ortam değişkenlerini ekleyin.",
   },
   {
-    id: "isr-imap", name: "ISR IMAP (AI Satış Asistanı)", category: "İletişim", icon: "🧠", superAdminOnly: true,
+    id: "isr-imap", name: "ISR IMAP (AI Satış Asistanı)", category: "İletişim", type: "platform", icon: "🧠",
+    superAdminOnly: true,
     cost: "free", costLabel: "Ücretsiz", always: false,
     desc: "AI Satış Asistanı'nın gelen kutusunu okuyarak potansiyel müşteri e-postalarına otomatik Türkçe yanıt vermesi",
-    why: "7/24 çalışan AI satış temsilcisi — potansiyel müşteri e-postasını 5 dakika içinde yanıtlar, kapanma oranını artırır.",
+    why: "7/24 çalışan AI satış temsilcisi — potansiyel müşteri e-postasını 5 dakika içinde yanıtlar.",
     how: "Her 5 dakikada bir IMAP'ten e-posta okunur, Gemini AI ile bağlam bilinçli Türkçe yanıt oluşturulur ve SMTP ile gönderilir.",
     setup: "Replit Secrets'a ISR_IMAP_HOST, ISR_IMAP_PORT, ISR_IMAP_USER, ISR_IMAP_PASS ekleyin.",
   },
+  // ─── Ödeme & Faturalandırma ────────────────────────────────────────────────
+  {
+    id: "iyzico", name: "Iyzico Ödeme", category: "Ödeme & Faturalandırma", type: "platform", icon: "💳",
+    cost: "paid", costLabel: "Komisyonlu", costNote: "İşlem başına %2,5 + 0,25 TL",
+    envKey: "IYZICO_API_KEY", always: false,
+    desc: "Türkiye'nin lider ödeme altyapısı — kredi kartı, havale ve taksit desteğiyle abonelik ve tek seferlik ödeme tahsilatı",
+    why: "Yerli ödeme altyapısı: BKM Express, 3D Secure, taksit desteği. Stripe'a kıyasla Türk bankalarıyla daha az red oranı. BDDK lisanslı.",
+    how: "Müşteri kayıt/yükseltme akışında ödeme formu gösterilir. Abonelik yenilemeleri otomatik tahsil edilir. Fatura PDF'i e-postayla gönderilir.",
+    setup: "1. iyzico.com'dan işyeri hesabı açın  2. Geliştirici Merkezi → API Anahtarları  3. IYZICO_API_KEY ve IYZICO_SECRET_KEY'i Secrets'a ekleyin.",
+    docs: "https://dev.iyzipay.com/",
+  },
   // ─── AI Analiz Modülleri ────────────────────────────────────────────────────
   {
-    id: "eu-aiact", name: "EU AI Act Uyum Skoru", category: "AI Analiz Modülleri", icon: "🇪🇺",
+    id: "eu-aiact", name: "EU AI Act Uyum Skoru", category: "AI Analiz Modülleri", type: "platform", icon: "🇪🇺",
     cost: "paid", costLabel: "1.990 TL", always: false,
     desc: "20 soruluk değerlendirme ile şirketin AB Yapay Zeka Yasası kapsamındaki uyum durumu ve risk kategorisi",
-    why: "1 Ağustos 2026'dan itibaren AB pazarına ürün/hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar. Claude AI ile kişiselleştirilmiş uyum raporu.",
+    why: "1 Ağustos 2026'dan itibaren AB pazarına ürün/hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar.",
     how: "POST /api/eu-aiact — 20 soru değerlendirmesi, Claude AI rapor üretimi, fire-and-forget + polling pattern.",
-    setup: "ANTHROPIC_API_KEY gerekli. Entegre Claude Sonnet ile otomatik çalışır.",
+    setup: "ANTHROPIC_API_KEY (Replit AI Integrations) gerekli. Entegre Claude Sonnet ile otomatik çalışır.",
     docs: "/eu-ai-act",
   },
   {
-    id: "ai-red-team", name: "AI Red Team Raporu", category: "AI Analiz Modülleri", icon: "🎯",
+    id: "ai-red-team", name: "AI Red Team Raporu", category: "AI Analiz Modülleri", type: "platform", icon: "🎯",
     cost: "paid", costLabel: "2.490 TL", always: false,
     desc: "Kamuya açık kaynaklardan AI ile toplanan saldırgan bakış açısı istihbaratı — altyapı, yöneticiler, e-posta formatı, sızıntı geçmişi",
     why: "Bir saldırgan şirketi hedef almadan önce tam olarak bu analizi yapar. Shodan, HaveIBeenPwned, DNS, OSINT verileri tek raporda.",
@@ -278,7 +292,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "/ai-red-team",
   },
   {
-    id: "deepfake-analizi", name: "Deepfake & Ses Klonu Analizi", category: "AI Analiz Modülleri", icon: "🎭",
+    id: "deepfake-analizi", name: "Deepfake & Ses Klonu Analizi", category: "AI Analiz Modülleri", type: "platform", icon: "🎭",
     cost: "paid", costLabel: "1.490 TL", always: false,
     desc: "Yöneticilerin dijital izini analiz ederek CEO fraud saldırılarına karşı ses klonu risk haritası çıkarır",
     why: "Modern ses klonlama 3 dakika ses örnekle çalışıyor. YouTube, LinkedIn, haber arşivlerindeki ses maruziyeti deepfake riskini doğrudan belirliyor.",
@@ -287,7 +301,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "/deepfake-analizi",
   },
   {
-    id: "sahte-dokuman", name: "AI Sahte Doküman Tespiti", category: "AI Analiz Modülleri", icon: "📄",
+    id: "sahte-dokuman", name: "AI Sahte Doküman Tespiti", category: "AI Analiz Modülleri", type: "platform", icon: "📄",
     cost: "paid", costLabel: "49 TL / tarama", always: false,
     desc: "Fatura, sözleşme, kimlik belgelerinde metadata anomalisi, format tutarsızlığı ve AI üretimi izlerini tespit eder",
     why: "AI ile üretilen sahte belgeler gözle ayırt edilemiyor. Muhasebe ve hukuk süreçlerinde tedarikçi doğrulaması kritik hale geldi.",
@@ -306,6 +320,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   "E-posta & Kimlik": Mail,
   "Yapay Zeka": Brain,
   "İletişim": Globe,
+  "Ödeme & Faturalandırma": CreditCard,
   "AI Analiz Modülleri": Bot,
 };
 
@@ -316,22 +331,28 @@ const COST_COLORS: Record<string, string> = {
   varies:   "bg-slate-500/15 text-slate-400 border-slate-500/30",
 };
 
-const CATEGORIES = [
-  "Tümü",
+const SECURITY_CATEGORIES = [
   "Tehdit İstihbaratı",
   "İtibar & Kötücül Yazılım",
   "Altyapı & Açık Yönetimi",
   "Protokol & Sertifika",
   "E-posta & Kimlik",
   "Yapay Zeka",
+];
+
+const PLATFORM_CATEGORIES = [
   "İletişim",
+  "Ödeme & Faturalandırma",
   "AI Analiz Modülleri",
 ];
+
+type StatusFilter = "all" | "active" | "needs-api" | "needs-setup";
 
 export default function AdminEntegrasyonlar() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [activeCategory, setActiveCategory] = useState("Tümü");
+  const [categoryFilter, setCategoryFilter] = useState("Tümü");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
@@ -361,53 +382,245 @@ export default function AdminEntegrasyonlar() {
     onError: () => toast({ title: "Hata", description: "Kaydetme başarısız.", variant: "destructive" }),
   });
 
-  const isActive = (integration: IntegrationDef): boolean => {
-    if (integration.always) return true;
-    if (!integration.envKey) return false;
-    return !!apiKeys[integration.envKey];
+  const isActive = (i: IntegrationDef): boolean => {
+    if (i.always) return true;
+    if (!i.envKey) return false;
+    return !!apiKeys[i.envKey];
   };
 
-  const PUBLIC_INTEGRATIONS = INTEGRATIONS.filter(i => !i.superAdminOnly);
+  const getStatus = (i: IntegrationDef): StatusFilter => {
+    if (isActive(i)) return "active";
+    if (i.envKey) return "needs-api";
+    return "needs-setup";
+  };
 
-  const filtered = activeCategory === "Tümü"
-    ? PUBLIC_INTEGRATIONS
-    : PUBLIC_INTEGRATIONS.filter(i => i.category === activeCategory);
+  const PUBLIC = INTEGRATIONS.filter(i => !i.superAdminOnly);
 
-  const totalActive = PUBLIC_INTEGRATIONS.filter(i => isActive(i)).length;
-  const totalNeedsConfig = PUBLIC_INTEGRATIONS.filter(i => !isActive(i) && !!i.envKey).length;
+  // Stats
+  const totalActive      = PUBLIC.filter(i => isActive(i)).length;
+  const totalNeedsApi    = PUBLIC.filter(i => !isActive(i) && !!i.envKey).length;
+  const totalNeedsSetup  = PUBLIC.filter(i => !isActive(i) && !i.envKey && !i.always).length;
 
-  const categories = Object.keys(
-    PUBLIC_INTEGRATIONS.reduce<Record<string, true>>((acc, i) => { acc[i.category] = true; return acc; }, {})
-  );
+  // Apply filters
+  const applyFilters = (items: IntegrationDef[]) => {
+    let result = items;
+    if (categoryFilter !== "Tümü") result = result.filter(i => i.category === categoryFilter);
+    if (statusFilter === "active")      result = result.filter(i => isActive(i));
+    if (statusFilter === "needs-api")   result = result.filter(i => !isActive(i) && !!i.envKey);
+    if (statusFilter === "needs-setup") result = result.filter(i => !isActive(i) && !i.envKey && !i.always);
+    return result;
+  };
+
+  const securityItems  = applyFilters(PUBLIC.filter(i => i.type === "security"));
+  const platformItems  = applyFilters(PUBLIC.filter(i => i.type === "platform"));
+
+  const allCategories = ["Tümü", ...SECURITY_CATEGORIES.filter(c => PUBLIC.some(i => i.category === c)), ...PLATFORM_CATEGORIES.filter(c => PUBLIC.some(i => i.category === c))];
+
+  const toggleStat = (s: StatusFilter) => {
+    setStatusFilter(prev => prev === s ? "all" : s);
+    setCategoryFilter("Tümü");
+  };
+
+  const renderCard = (integration: IntegrationDef) => {
+    const active = isActive(integration);
+    const expanded = expandedId === integration.id;
+    const hasKey = !!integration.envKey;
+    const inputVal = keyInputs[integration.envKey ?? ""] ?? "";
+    const visible = !!showKey[integration.envKey ?? ""];
+    const status = getStatus(integration);
+
+    return (
+      <Card
+        key={integration.id}
+        className={`bg-slate-800 border transition-colors ${
+          status === "active"      ? "border-slate-700" :
+          status === "needs-api"   ? "border-amber-800/40" :
+                                     "border-slate-700/50"
+        }`}
+      >
+        <CardHeader className="pb-2 pt-4 px-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl shrink-0">{integration.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                <span className="text-white font-semibold text-sm">{integration.name}</span>
+                {status === "active"
+                  ? <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"><CheckCircle className="h-3 w-3" /> Aktif</span>
+                  : status === "needs-api"
+                    ? <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-700/40"><XCircle className="h-3 w-3" /> API Anahtarı Gerekli</span>
+                    : <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 border border-slate-600"><Settings className="h-3 w-3" /> Kurulum Gerekli</span>
+                }
+                <span className={`text-xs px-1.5 py-0.5 rounded border ${COST_COLORS[integration.cost]}`}>
+                  {integration.costLabel}
+                </span>
+              </div>
+              <p className="text-slate-400 text-xs leading-relaxed">{integration.desc}</p>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="px-4 pb-4 pt-0 space-y-3">
+          {integration.costNote && (
+            <p className="text-xs text-slate-500 italic">{integration.costNote}</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-md bg-slate-900/60 p-2.5">
+              <p className="text-xs font-medium text-slate-300 mb-1">Neden Değerli?</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{integration.why}</p>
+            </div>
+            <div className="rounded-md bg-slate-900/60 p-2.5">
+              <p className="text-xs font-medium text-slate-300 mb-1">Nasıl Katkı Sağlar?</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{integration.how}</p>
+            </div>
+          </div>
+
+          {(hasKey || (integration.setup && !integration.always)) && (
+            <button
+              onClick={() => setExpandedId(expanded ? null : integration.id)}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors font-medium"
+            >
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {hasKey ? (active ? "API Anahtarını Güncelle / Sil" : "API Anahtarını Yapılandır") : "Kurulum Rehberi"}
+            </button>
+          )}
+
+          {expanded && (
+            <div className="space-y-3 rounded-lg bg-slate-900 border border-slate-700 p-3">
+              {integration.setup && (
+                <div>
+                  <p className="text-xs font-medium text-slate-300 mb-1.5">Kurulum Adımları</p>
+                  <p className="text-xs text-slate-400 whitespace-pre-line leading-relaxed">{integration.setup}</p>
+                </div>
+              )}
+
+              {integration.docs && (
+                <a
+                  href={integration.docs}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 hover:underline font-medium"
+                >
+                  <ExternalLink className="h-3 w-3" /> Resmi Dokümantasyon
+                </a>
+              )}
+
+              {hasKey && integration.envKey && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-300">
+                    {active ? "Mevcut anahtar aktif — değiştirmek için yeni anahtar girin, silmek için boş bırakıp kaydedin" : "API Anahtarı"}
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={visible ? "text" : "password"}
+                        placeholder={active ? "Yeni anahtar (değiştirmek için)" : `${integration.envKey} değerini girin`}
+                        value={inputVal}
+                        onChange={e => setKeyInputs(prev => ({ ...prev, [integration.envKey!]: e.target.value }))}
+                        className="bg-slate-800 border-slate-600 text-white text-xs font-mono pr-8"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(prev => ({ ...prev, [integration.envKey!]: !prev[integration.envKey!] }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      >
+                        {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => saveMutation.mutate({ envKey: integration.envKey!, value: inputVal })}
+                      disabled={saveMutation.isPending}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-xs shrink-0"
+                    >
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                      {inputVal === "" && active ? "Sil" : "Kaydet"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Ortam değişken adı: <code className="text-slate-500">{integration.envKey}</code>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderSection = (items: IntegrationDef[], categories: string[]) => {
+    return categories.map(cat => {
+      const catItems = items.filter(i => i.category === cat);
+      if (catItems.length === 0) return null;
+      const CatIcon = CATEGORY_ICONS[cat] ?? Shield;
+      return (
+        <div key={cat}>
+          <div className="flex items-center gap-2 mb-3">
+            <CatIcon className="h-4 w-4 text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{cat}</h3>
+            <div className="flex-1 h-px bg-slate-700" />
+            <span className="text-xs text-slate-600">{catItems.length} entegrasyon</span>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {catItems.map(renderCard)}
+          </div>
+        </div>
+      );
+    });
+  };
 
   return (
     <AdminLayout title="Entegrasyon Merkezi" description="Tüm güvenlik veri kaynakları, API bağlantıları ve servis durumları">
       <div className="max-w-5xl space-y-6">
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: "Toplam Entegrasyon", value: PUBLIC_INTEGRATIONS.length, color: "text-white" },
-            { label: "Aktif Servis", value: totalActive, color: "text-emerald-400" },
-            { label: "API Anahtarı Bekliyor", value: totalNeedsConfig, color: "text-amber-400" },
-          ].map(({ label, value, color }) => (
-            <Card key={label} className="bg-slate-800 border-slate-700">
-              <CardContent className="pt-4 pb-4 text-center">
+        {/* Stats — tıklanabilir filtre */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {([
+            { key: "all" as StatusFilter,         label: "Toplam Entegrasyon",      value: PUBLIC.length,      color: "text-white",        border: "border-slate-700",         bg: "" },
+            { key: "active" as StatusFilter,      label: "Aktif Servis",            value: totalActive,        color: "text-emerald-400",  border: "border-emerald-700/40",    bg: "bg-emerald-500/5" },
+            { key: "needs-api" as StatusFilter,   label: "API Anahtarı Bekliyor",   value: totalNeedsApi,      color: "text-amber-400",    border: "border-amber-700/40",      bg: "bg-amber-500/5" },
+            { key: "needs-setup" as StatusFilter, label: "Kurulum Gerekli",         value: totalNeedsSetup,    color: "text-slate-400",    border: "border-slate-600",         bg: "" },
+          ] as const).map(({ key, label, value, color, border, bg }) => {
+            const active = statusFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => toggleStat(key)}
+                className={`rounded-xl border p-4 text-center transition-all hover:opacity-80 ${bg} ${border} ${active ? "ring-2 ring-emerald-500/50 scale-[1.02]" : "bg-slate-800"}`}
+              >
                 <p className={`text-3xl font-bold ${color}`}>{value}</p>
                 <p className="text-slate-400 text-xs mt-1">{label}</p>
-              </CardContent>
-            </Card>
-          ))}
+                {active && key !== "all" && (
+                  <p className="text-emerald-400 text-xs mt-1 font-medium">Filtrelendi</p>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Category filter */}
+        {/* Aktif filtre göstergesi */}
+        {statusFilter !== "all" && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-sm text-emerald-400">
+              Filtre aktif:{" "}
+              <strong>
+                {statusFilter === "active" ? "Aktif servisler" : statusFilter === "needs-api" ? "API Anahtarı Bekleyenler" : "Kurulum Gerektiren Servisler"}
+              </strong>
+            </span>
+            <button onClick={() => setStatusFilter("all")} className="ml-auto text-xs text-emerald-400/70 hover:text-emerald-400 underline">Temizle</button>
+          </div>
+        )}
+
+        {/* Kategori filtreleri */}
         <div className="flex flex-wrap gap-2">
-          {CATEGORIES.filter(c => c === "Tümü" || categories.includes(c)).map(cat => (
+          {allCategories.map(cat => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => setCategoryFilter(cat)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                activeCategory === cat
+                categoryFilter === cat
                   ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
                   : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600"
               }`}
@@ -417,150 +630,51 @@ export default function AdminEntegrasyonlar() {
           ))}
         </div>
 
-        {/* Integration cards grouped by category */}
-        {(activeCategory === "Tümü" ? categories : [activeCategory]).map(cat => {
-          const items = filtered.filter(i => i.category === cat);
-          if (items.length === 0) return null;
-          const CatIcon = CATEGORY_ICONS[cat] ?? Shield;
-          return (
-            <div key={cat}>
-              <div className="flex items-center gap-2 mb-3">
-                <CatIcon className="h-4 w-4 text-slate-400" />
-                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{cat}</h2>
-                <div className="flex-1 h-px bg-slate-700" />
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                {items.map(integration => {
-                  const active = isActive(integration);
-                  const expanded = expandedId === integration.id;
-                  const hasKey = !!integration.envKey;
-                  const inputVal = keyInputs[integration.envKey ?? ""] ?? "";
-                  const visible = !!showKey[integration.envKey ?? ""];
-
-                  return (
-                    <Card
-                      key={integration.id}
-                      className={`bg-slate-800 border transition-colors ${active ? "border-slate-700" : hasKey ? "border-amber-800/40" : "border-slate-700"}`}
-                    >
-                      <CardHeader className="pb-2 pt-4 px-4">
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl shrink-0">{integration.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center flex-wrap gap-1.5 mb-1">
-                              <span className="text-white font-semibold text-sm">{integration.name}</span>
-                              {active
-                                ? <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                    <CheckCircle className="h-3 w-3" /> Aktif
-                                  </span>
-                                : hasKey
-                                  ? <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-700/40">
-                                      <XCircle className="h-3 w-3" /> API Anahtarı Gerekli
-                                    </span>
-                                  : <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-500 border border-slate-600">
-                                      Yapılandırma Gerekli
-                                    </span>}
-                              <span className={`text-xs px-1.5 py-0.5 rounded border ${COST_COLORS[integration.cost]}`}>
-                                {integration.costLabel}
-                              </span>
-                            </div>
-                            <p className="text-slate-400 text-xs leading-relaxed">{integration.desc}</p>
-                          </div>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="px-4 pb-4 pt-0 space-y-3">
-                        {integration.costNote && (
-                          <p className="text-xs text-slate-500 italic">{integration.costNote}</p>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="rounded-md bg-slate-900/60 p-2.5">
-                            <p className="text-xs font-medium text-slate-300 mb-1">Neden Değerli?</p>
-                            <p className="text-xs text-slate-500 leading-relaxed">{integration.why}</p>
-                          </div>
-                          <div className="rounded-md bg-slate-900/60 p-2.5">
-                            <p className="text-xs font-medium text-slate-300 mb-1">Nasıl Katkı Sağlar?</p>
-                            <p className="text-xs text-slate-500 leading-relaxed">{integration.how}</p>
-                          </div>
-                        </div>
-
-                        {(hasKey || (integration.setup && !integration.always)) && (
-                          <button
-                            onClick={() => setExpandedId(expanded ? null : integration.id)}
-                            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors font-medium"
-                          >
-                            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                            {hasKey ? (active ? "API Anahtarını Güncelle / Sil" : "API Anahtarını Yapılandır") : "Kurulum Rehberi"}
-                          </button>
-                        )}
-
-                        {expanded && (
-                          <div className="space-y-3 rounded-lg bg-slate-900 border border-slate-700 p-3">
-                            {integration.setup && (
-                              <div>
-                                <p className="text-xs font-medium text-slate-300 mb-1.5">Kurulum Adımları</p>
-                                <p className="text-xs text-slate-400 whitespace-pre-line leading-relaxed">{integration.setup}</p>
-                              </div>
-                            )}
-
-                            {integration.docs && (
-                              <a
-                                href={integration.docs}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 hover:underline font-medium"
-                              >
-                                <ExternalLink className="h-3 w-3" /> Resmi Dokümantasyon
-                              </a>
-                            )}
-
-                            {hasKey && integration.envKey && (
-                              <div className="space-y-2">
-                                <p className="text-xs font-medium text-slate-300">
-                                  {active ? "Mevcut anahtar aktif — değiştirmek için yeni anahtar girin, silmek için boş bırakıp kaydedin" : "API Anahtarı"}
-                                </p>
-                                <div className="flex gap-2">
-                                  <div className="relative flex-1">
-                                    <Input
-                                      type={visible ? "text" : "password"}
-                                      placeholder={active ? "Yeni anahtar (değiştirmek için)" : `${integration.envKey} değerini girin`}
-                                      value={inputVal}
-                                      onChange={e => setKeyInputs(prev => ({ ...prev, [integration.envKey!]: e.target.value }))}
-                                      className="bg-slate-800 border-slate-600 text-white text-xs font-mono pr-8"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowKey(prev => ({ ...prev, [integration.envKey!]: !prev[integration.envKey!] }))}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                                    >
-                                      {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                                    </button>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => saveMutation.mutate({ envKey: integration.envKey!, value: inputVal })}
-                                    disabled={saveMutation.isPending}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-xs shrink-0"
-                                  >
-                                    <Save className="h-3.5 w-3.5 mr-1" />
-                                    {inputVal === "" && active ? "Sil" : "Kaydet"}
-                                  </Button>
-                                </div>
-                                <p className="text-xs text-slate-600">
-                                  Ortam değişken adı: <code className="text-slate-500">{integration.envKey}</code>
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+        {/* ── GÜVENLIK & ANALİZ KAYNAKLARI ─────────────────────────────────── */}
+        {securityItems.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-700" />
+              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-widest px-3">
+                <Shield className="h-3.5 w-3.5 text-emerald-500" />
+                Güvenlik & Analiz Kaynakları
+              </span>
+              <div className="h-px flex-1 bg-slate-700" />
             </div>
-          );
-        })}
+            <div className="space-y-6">
+              {renderSection(securityItems, SECURITY_CATEGORIES)}
+            </div>
+          </div>
+        )}
+
+        {/* ── PLATFORM & ALTYAPI ────────────────────────────────────────────── */}
+        {platformItems.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-700" />
+              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-widest px-3">
+                <Settings className="h-3.5 w-3.5 text-blue-400" />
+                Platform & Altyapı Servisleri
+              </span>
+              <div className="h-px flex-1 bg-slate-700" />
+            </div>
+            <p className="text-xs text-slate-500 -mt-3">İletişim, ödeme ve platforma ait ücretli analiz modülleri. Siber güvenlik tarama motoru ile doğrudan ilişkili değildir.</p>
+            <div className="space-y-6">
+              {renderSection(platformItems, PLATFORM_CATEGORIES)}
+            </div>
+          </div>
+        )}
+
+        {/* Boş durum */}
+        {securityItems.length === 0 && platformItems.length === 0 && (
+          <div className="text-center py-16 text-slate-500">
+            <SlidersHorizontal className="h-8 w-8 mx-auto mb-3 opacity-40" />
+            <p>Bu filtreyle eşleşen entegrasyon bulunamadı.</p>
+            <button onClick={() => { setStatusFilter("all"); setCategoryFilter("Tümü"); }} className="text-emerald-400 text-sm mt-2 hover:underline">
+              Filtreleri temizle
+            </button>
+          </div>
+        )}
 
         <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
           <p className="text-xs text-slate-400">

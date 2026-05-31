@@ -55,6 +55,20 @@ router.post("/domain-scan/:id/attack-scenarios", async (req: Request, res: Respo
   );
 });
 
+// ─── Auto-trigger helper (called from domain-scan route) ──────────────────────
+
+export async function triggerAttackScenariosBackground(scanId: number, scan: typeof domainScansTable.$inferSelect): Promise<void> {
+  if (scan.attackScenariosStatus === "complete" || scan.attackScenariosStatus === "generating") return;
+
+  await db.update(domainScansTable)
+    .set({ attackScenariosStatus: "generating" })
+    .where(eq(domainScansTable.id, scanId));
+
+  generateAttackScenarios(scanId, scan).catch(err =>
+    logger.error({ err, scanId }, "Attack scenario background generation failed")
+  );
+}
+
 // ─── Core generation logic ────────────────────────────────────────────────────
 
 async function generateAttackScenarios(scanId: number, scan: typeof domainScansTable.$inferSelect) {

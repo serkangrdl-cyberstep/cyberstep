@@ -28,6 +28,7 @@ import euAiActRouter from "./eu-aiact/index";
 import redTeamRouter from "./red-team/index";
 import deepfakeRouter from "./deepfake/index";
 import docScanRouter from "./doc-scan/index";
+import domainScanPurchasesRouter from "./domain-scan/purchases";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(euAiActRouter);
 router.use(redTeamRouter);
 router.use(deepfakeRouter);
 router.use(docScanRouter);
+router.use(domainScanPurchasesRouter);
 
 export default router;

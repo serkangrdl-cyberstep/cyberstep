@@ -1179,7 +1179,24 @@ async function startup() {
   await ensurePasswordResetColumns();
   await ensureBreachMonitorTable();
   await ensureReferralCodeColumn();
+  await ensureDomainScanPurchasesTable();
   await loadApiKeysFromDb();
+}
+
+async function ensureDomainScanPurchasesTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS domain_scan_purchases (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      domain TEXT,
+      scan_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'pending',
+      amount_try INTEGER NOT NULL DEFAULT 99000,
+      payment_ref TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      paid_at TIMESTAMP
+    )
+  `);
 }
 
 // ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:00'da) ────

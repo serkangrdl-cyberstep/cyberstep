@@ -1223,7 +1223,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
             <div>
               <p className="text-sm font-bold text-foreground mb-0.5">Saldırı Senaryosu Analizi</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Claude AI, tarama bulgularını analiz ederek bu domaine yönelik en olası saldırı zincirlerini,
+                  Tarama bulgularını analiz ederek bu domaine yönelik en olası saldırı zincirlerini,
                 MITRE ATT&CK eşleştirmeleri ve KVKK etkisiyle birlikte oluşturur.
               </p>
             </div>
@@ -1251,7 +1251,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
             </div>
             <div>
               <p className="font-semibold text-sm">Saldırı Senaryosu Analizi</p>
-              <p className="text-xs text-muted-foreground">Claude AI tehdit modeli oluşturuyor...</p>
+              <p className="text-xs text-muted-foreground">Tehdit modeli oluşturuyor...</p>
             </div>
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />
           </div>
@@ -1298,7 +1298,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
               </div>
               <div>
                 <CardTitle className="text-base">Saldırı Senaryosu Analizi</CardTitle>
-                <CardDescription className="text-xs mt-0.5">Claude AI — MITRE ATT&CK eşleştirmeli tehdit modeli</CardDescription>
+                <CardDescription className="text-xs mt-0.5">MITRE ATT&CK eşleştirmeli Tehdit Modeli</CardDescription>
               </div>
             </div>
             <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${threatColor(result.genel_tehdit_seviyesi)}`}>
@@ -1466,10 +1466,15 @@ export default function DomainScanPage() {
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
-  const [leadEmail, setLeadEmail] = useState("");
-  const [leadSent, setLeadSent] = useState(false);
-  const [leadLoading, setLeadLoading] = useState(false);
   const [wpModalOpen, setWpModalOpen] = useState(false);
+  const [attackTeaserStatus, setAttackTeaserStatus] = useState<"idle" | "loading" | "ready">("idle");
+  const [attackTeaser, setAttackTeaser] = useState<{
+    totalScenarios: number;
+    yuksek: number;
+    orta: number;
+    dusuk: number;
+    overallLevel: string;
+  } | null>(null);
   const [wpForm, setWpForm] = useState({ title: "", category: "E-posta Güvenliği", priority: "high", description: "", estimatedCost: "" });
   const [wpDone, setWpDone] = useState(false);
 
@@ -1513,12 +1518,14 @@ export default function DomainScanPage() {
     }
   }
 
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   const scanMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/domain-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: domain.trim(), email: email.trim() || undefined }),
+        body: JSON.stringify({ domain: domain.trim(), email: email.trim() }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -1530,6 +1537,69 @@ export default function DomainScanPage() {
 
   const result = scanMutation.data;
   const scoreInfo = result ? ScoreColor(result.overallScore) : null;
+
+  // Auto-trigger attack scenarios when scan completes, poll for teaser data
+  useEffect(() => {
+    if (!result?.id) { setAttackTeaserStatus("idle"); setAttackTeaser(null); return; }
+    setAttackTeaserStatus("loading");
+    fetch(`/api/domain-scan/${result.id}/attack-scenarios`)
+      .then(r => r.json())
+      .then((data: { status: string; result: AttackScenariosResult | null }) => {
+        if (data.status === "complete" && data.result) {
+          const scenarios = data.result.senaryolar ?? [];
+          setAttackTeaser({
+            totalScenarios: scenarios.length,
+            yuksek: scenarios.filter(s => s.olasilik === "Yüksek").length,
+            orta: scenarios.filter(s => s.olasilik === "Orta").length,
+            dusuk: scenarios.filter(s => s.olasilik === "Düşük").length,
+            overallLevel: data.result.genel_tehdit_seviyesi,
+          });
+          setAttackTeaserStatus("ready");
+        }
+      })
+      .catch(() => {});
+  }, [result?.id]);
+
+  useEffect(() => {
+    if (attackTeaserStatus !== "loading" || !result?.id) return;
+    const id = result.id;
+    const interval = setInterval(() => {
+      fetch(`/api/domain-scan/${id}/attack-scenarios`)
+        .then(r => r.json())
+        .then((data: { status: string; result: AttackScenariosResult | null }) => {
+          if (data.status === "complete" && data.result) {
+            const scenarios = data.result.senaryolar ?? [];
+            setAttackTeaser({
+              totalScenarios: scenarios.length,
+              yuksek: scenarios.filter(s => s.olasilik === "Yüksek").length,
+              orta: scenarios.filter(s => s.olasilik === "Orta").length,
+              dusuk: scenarios.filter(s => s.olasilik === "Düşük").length,
+              overallLevel: data.result.genel_tehdit_seviyesi,
+            });
+            setAttackTeaserStatus("ready");
+            clearInterval(interval);
+          } else if (data.status === "error") {
+            setAttackTeaserStatus("idle");
+            clearInterval(interval);
+          }
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [attackTeaserStatus, result?.id]);
+
+  const handleBuyDomainScan = useCallback(async () => {
+    if (!result?.id || !result?.domain) return;
+    try {
+      const res = await fetch("/api/domain-scan/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email || result.email, domain: result.domain, scanId: result.id }),
+      });
+      const data = await res.json() as { id?: number };
+      window.location.href = `/fiyatlar?from=domain-scan&ref=${data.id ?? ""}&email=${encodeURIComponent(email || "")}`;
+    } catch { /* silent */ }
+  }, [result, email]);
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-3xl">
@@ -1565,7 +1635,8 @@ export default function DomainScanPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">
-                E-posta <span className="text-muted-foreground text-xs">(opsiyonel — 30 günde bir bildirim)</span>
+                E-posta <span className="text-red-500">*</span>
+                <span className="text-muted-foreground text-xs ml-1">(rapor + 30 günlük izleme bildirimleri)</span>
               </Label>
               <Input
                 id="email"
@@ -1579,7 +1650,7 @@ export default function DomainScanPage() {
           </div>
           <Button
             onClick={() => scanMutation.mutate()}
-            disabled={!domain.trim() || scanMutation.isPending}
+            disabled={!domain.trim() || !isEmailValid || scanMutation.isPending}
             className="w-full sm:w-auto"
           >
             {scanMutation.isPending ? (
@@ -1691,64 +1762,18 @@ export default function DomainScanPage() {
             </CardContent>
           </Card>
 
-          {/* E-posta ile rapor al */}
-          {!leadSent ? (
-            <Card className="mb-6 border-primary/20 bg-primary/5">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold mb-0.5">Raporu e-posta ile alın</p>
-                    <p className="text-xs text-muted-foreground">Sonuçları kaydedin ve düzeltme rehberini e-postanıza gönderelim.</p>
-                  </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Input
-                      type="email"
-                      placeholder="e-posta@sirket.com"
-                      value={leadEmail}
-                      onChange={e => setLeadEmail(e.target.value)}
-                      className="h-9 text-sm sm:w-52"
-                    />
-                    <Button
-                      size="sm"
-                      disabled={leadLoading || !leadEmail.includes("@")}
-                      onClick={async () => {
-                        setLeadLoading(true);
-                        try {
-                          await fetch("/api/scan-leads", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              email: leadEmail,
-                              domain: result.domain,
-                              scanId: result.id,
-                              overallScore: result.overallScore,
-                            }),
-                          });
-                          setLeadSent(true);
-                        } finally {
-                          setLeadLoading(false);
-                        }
-                      }}
-                    >
-                      {leadLoading ? "..." : "Gönder"}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="mb-6 border-emerald-200 bg-emerald-50/40">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                  <Mail className="h-4 w-4 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-emerald-700">Rapor e-postanıza gönderildi</p>
-                  <p className="text-xs text-muted-foreground">Sonraki 7 gün içinde 3 ek rehber e-posta daha alacaksınız.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Rapor e-postanıza kaydedildi (email tarama başında zorunlu alındı) */}
+          <Card className="mb-6 border-primary/20 bg-primary/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Mail className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Rapor <span className="text-primary">{result.email ?? email}</span> adresine gönderildi</p>
+                <p className="text-xs text-muted-foreground">30 gün içinde alan adı değişikliklerini ve güvenlik uyarılarını e-posta ile alacaksınız.</p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* ── LOCKED GATE ─────────────────────────────────────────────── */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
@@ -1757,6 +1782,50 @@ export default function DomainScanPage() {
               <Lock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-semibold text-muted-foreground">Detaylı Güvenlik Raporu — Ücretli Pakete Dahil</span>
             </div>
+
+            {/* Tehdit analizi teaser */}
+            {attackTeaserStatus === "loading" && (
+              <div className="px-5 py-3 bg-red-50/40 dark:bg-red-950/10 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-red-500 shrink-0" />
+                <p className="text-xs text-muted-foreground">Tehdit analizi çalışıyor — MITRE ATT&CK senaryoları hesaplanıyor...</p>
+              </div>
+            )}
+            {attackTeaserStatus === "ready" && attackTeaser && (
+              <div className="px-5 py-4 bg-red-50/60 dark:bg-red-950/20 border-b border-red-200/60 dark:border-red-900/40">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <AlertOctagon className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                  <p className="text-sm font-bold text-red-700 dark:text-red-400">
+                    Tehdit Analizi Tamamlandı — {attackTeaser.overallLevel} Tehdit Seviyesi
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {attackTeaser.yuksek > 0 && (
+                    <span className="inline-flex items-center gap-1.5 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-full px-2.5 py-1 text-xs font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                      {attackTeaser.yuksek} Kritik Senaryo
+                    </span>
+                  )}
+                  {attackTeaser.orta > 0 && (
+                    <span className="inline-flex items-center gap-1.5 bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 rounded-full px-2.5 py-1 text-xs font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                      {attackTeaser.orta} Orta Risk
+                    </span>
+                  )}
+                  {attackTeaser.dusuk > 0 && (
+                    <span className="inline-flex items-center gap-1.5 bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-500 border border-yellow-200 dark:border-yellow-800 rounded-full px-2.5 py-1 text-xs font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 inline-block" />
+                      {attackTeaser.dusuk} Düşük Risk
+                    </span>
+                  )}
+                  {attackTeaser.totalScenarios === 0 && (
+                    <span className="text-xs text-muted-foreground">Senaryo üretilemedi</span>
+                  )}
+                </div>
+                <p className="text-xs text-red-600/80 dark:text-red-400/70">
+                  Saldırı zinciri detayları, MITRE ATT&CK haritalama ve aksiyon planı ücretli pakette görüntülenir.
+                </p>
+              </div>
+            )}
 
             {/* Gated categories — blurred previews */}
             <div className="divide-y divide-slate-100 dark:divide-slate-800 select-none pointer-events-none">
@@ -1807,27 +1876,38 @@ export default function DomainScanPage() {
               ))}
             </div>
 
-            {/* Upsell CTA */}
-            <div className="bg-gradient-to-b from-transparent via-primary/5 to-primary/10 px-5 py-5 border-t border-primary/20 flex flex-col sm:flex-row items-center gap-4">
-              <div className="flex-1 text-center sm:text-left">
-                <p className="font-semibold text-sm mb-1">Tüm detayları görmek için Tam Değerlendirme alın</p>
-                <p className="text-xs text-muted-foreground">
-                  38 kontrol · AI saldırı analizi · İş sürekliliği haritası · 1 yıl izleme
-                </p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <a
-                  href="/fiyatlar"
-                  className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold px-5 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity"
-                >
-                  Paketleri Gör <ArrowRight className="h-3.5 w-3.5" />
-                </a>
-                <a
-                  href="/assessment/start"
-                  className="inline-flex items-center gap-1.5 border border-primary/30 text-primary font-medium px-4 py-2 rounded-lg text-sm hover:bg-primary/5 transition-colors"
-                >
-                  Ücretsiz Değerlendirme
-                </a>
+            {/* Upsell CTA — 2 seçenek */}
+            <div className="bg-gradient-to-b from-transparent via-primary/5 to-primary/10 px-5 py-5 border-t border-primary/20">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tüm detaylara erişmek için</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Ücretli tek tarama */}
+                <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 flex flex-col gap-2">
+                  <div>
+                    <p className="font-bold text-sm text-primary">Ücretli Alan Adı Taraması</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Bu domain için tek seferlik tam rapor. Değerlendirme gerekmez.</p>
+                  </div>
+                  <p className="text-xl font-black text-foreground">990 TL <span className="text-xs font-normal text-muted-foreground">+ KDV</span></p>
+                  <button
+                    onClick={handleBuyDomainScan}
+                    className="w-full inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity"
+                  >
+                    Hemen Satın Al <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {/* Ücretsiz değerlendirme */}
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-2">
+                  <div>
+                    <p className="font-bold text-sm">Ücretsiz Değerlendirme</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">20 soruluk mini risk değerlendirmesi + tarama detayları dahil.</p>
+                  </div>
+                  <p className="text-xl font-black text-foreground">Ücretsiz</p>
+                  <a
+                    href="/assessment/start"
+                    className="w-full inline-flex items-center justify-center gap-1.5 border border-primary/30 text-primary font-medium px-4 py-2 rounded-lg text-sm hover:bg-primary/5 transition-colors"
+                  >
+                    Değerlendirmeye Başla <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>

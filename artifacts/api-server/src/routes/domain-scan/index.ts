@@ -4,9 +4,10 @@ import https from "https";
 import http from "http";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
-import { domainScansTable, scanLeadsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { domainScansTable, scanLeadsTable, customersTable } from "@workspace/db";
+import { eq, desc, count } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { getCustomerId } from "../../middleware/auth";
 
 const router = Router();
 
@@ -1093,6 +1094,31 @@ router.post("/domain-scan", async (req, res) => {
     return;
   }
 
+  // ─── Domain scan limit check (for logged-in customers) ───────────────────
+  const customerId = getCustomerId(req);
+  if (customerId) {
+    const [customer] = await db.select({
+      domainScanLimit: customersTable.domainScanLimit,
+      email: customersTable.email,
+    }).from(customersTable).where(eq(customersTable.id, customerId));
+
+    if (customer?.domainScanLimit !== null && customer?.domainScanLimit !== undefined) {
+      const [scanCountRow] = await db.select({ cnt: count() })
+        .from(domainScansTable)
+        .where(eq(domainScansTable.email, customer.email));
+      const usedCount = scanCountRow?.cnt ?? 0;
+      if (usedCount >= customer.domainScanLimit) {
+        res.status(429).json({
+          error: `Domain tarama limitinize ulaştınız (${usedCount}/${customer.domainScanLimit}). Daha fazla domain eklemek için plan yükseltin.`,
+          code: "DOMAIN_SCAN_LIMIT_REACHED",
+          used: usedCount,
+          limit: customer.domainScanLimit,
+        });
+        return;
+      }
+    }
+  }
+
   logger.info({ domain }, "Starting domain scan");
 
   const rawRef = req.body?.referralSource;
@@ -1248,6 +1274,11 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
   if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
   try {
     const { generateDomainScanPDF } = await import("../../services/pdf");
+
+    const attackScenariosData = (scan.attackScenariosStatus === "complete" && scan.attackScenariosJson)
+      ? (scan.attackScenariosJson as { genel_tehdit_seviyesi: string; senaryolar: Array<{ baslik: string; olasilik: string; etki: string }> })
+      : null;
+
     const buf = await generateDomainScanPDF({
       id: scan.id,
       domain: scan.domain,
@@ -1278,6 +1309,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       abuseIpdbCountry: scan.abuseIpdbCountry,
       abuseIpdbIsp: scan.abuseIpdbIsp,
       createdAt: scan.createdAt.toISOString(),
+      attackScenarios: attackScenariosData,
     });
     const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");
     res.setHeader("Content-Type", "application/pdf");

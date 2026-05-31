@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, varchar } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, varchar, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -16,6 +16,7 @@ export const customersTable = pgTable("customers", {
   passwordResetExpiresAt: timestamp("password_reset_expires_at"),
   nextBillingDate: timestamp("next_billing_date"),
   referralCodeUsed: varchar("referral_code_used", { length: 20 }),
+  domainScanLimit: integer("domain_scan_limit"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

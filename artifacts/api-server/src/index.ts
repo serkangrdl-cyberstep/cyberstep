@@ -1345,6 +1345,10 @@ async function ensureVerificationColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS reports ADD COLUMN IF NOT EXISTS verification_duration_years INTEGER`);
 }
 
+async function ensureDomainScanLimitColumn() {
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS domain_scan_limit INTEGER`);
+}
+
 async function ensureBadgeAdvantagesTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS badge_advantages (
@@ -1382,6 +1386,7 @@ async function startup() {
   await seedBlogPosts();
   await ensureVerificationColumns();
   await ensureBadgeAdvantagesTable();
+  await ensureDomainScanLimitColumn();
   await ensurePasswordResetColumns();
   await ensureBreachMonitorTable();
   await ensureReferralCodeColumn();

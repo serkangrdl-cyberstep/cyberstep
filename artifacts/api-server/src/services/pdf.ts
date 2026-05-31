@@ -217,6 +217,15 @@ interface DomainScanData {
   abuseIpdbCountry: string | null;
   abuseIpdbIsp: string | null;
   createdAt: string;
+  attackScenarios?: {
+    genel_tehdit_seviyesi: string;
+    senaryolar: Array<{
+      baslik: string;
+      olasilik: string;
+      etki: string;
+      teknikler?: Array<{ adi: string; tactic: string }>;
+    }>;
+  } | null;
 }
 
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
@@ -410,6 +419,39 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
           `${portStr}${data.shodanVulnCount > 0 ? ` — ${data.shodanVulnCount} CVE acigi` : ""}${data.shodanCountry ? `. Konum: ${data.shodanCountry}` : ""}${data.shodanIsp ? `, ${data.shodanIsp}` : ""}`,
           sOk
         );
+      }
+      doc.y += 4;
+    }
+
+    // ── MITRE ATT&CK Saldiri Senaryolari ────────────────────────────────────
+    if (data.attackScenarios && data.attackScenarios.senaryolar.length > 0) {
+      sectionTitle(doc, "MITRE ATT&CK Saldin Senaryolari", MARGIN, CONTENT_W);
+
+      const levelColor: [number, number, number] =
+        data.attackScenarios.genel_tehdit_seviyesi === "Kritik" ? [220, 38, 38] :
+        data.attackScenarios.genel_tehdit_seviyesi === "Yüksek" ? [234, 88, 12] :
+        data.attackScenarios.genel_tehdit_seviyesi === "Orta" ? [217, 119, 6] : [22, 163, 74];
+
+      checkPageBreak(doc, 28);
+      doc.fillColor(levelColor).fontSize(10).font(FONT_BOLD)
+        .text(`Genel Tehdit Seviyesi: ${data.attackScenarios.genel_tehdit_seviyesi}`, MARGIN, doc.y, { width: CONTENT_W });
+      doc.y += 10;
+
+      for (const s of data.attackScenarios.senaryolar.slice(0, 5)) {
+        checkPageBreak(doc, 50);
+        const sy = doc.y;
+        const sColor: [number, number, number] =
+          s.olasilik === "Yüksek" ? [220, 38, 38] :
+          s.olasilik === "Orta" ? [217, 119, 6] : [22, 163, 74];
+
+        doc.rect(MARGIN, sy, CONTENT_W, 42).fillAndStroke([254, 249, 245], [253, 186, 116]);
+        doc.fillColor(sColor).fontSize(8).font(FONT_BOLD)
+          .text(s.olasilik.toUpperCase(), MARGIN + 6, sy + 5, { width: 55, lineBreak: false });
+        doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
+          .text(s.baslik, MARGIN + 64, sy + 4, { width: CONTENT_W - 70, lineBreak: false });
+        doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
+          .text(s.etki.substring(0, 130), MARGIN + 6, sy + 20, { width: CONTENT_W - 12 });
+        doc.y = sy + 50;
       }
       doc.y += 4;
     }

@@ -1149,10 +1149,11 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
         if (data.status === "complete" && data.result) {
           setResult(data.result);
           setStatus("complete");
-        } else if (data.status === "generating") {
-          setStatus("generating");
         } else {
-          // status "none"/"error" — kick off generation so full details always load
+          // status "none"/"error"/"generating" — POST to ensure generation is
+          // running. The backend returns "generating" if a fresh run is already
+          // in progress, or restarts a stale/stuck run (e.g. one interrupted by
+          // a server restart), so full details always load.
           setStatus("generating");
           fetch(`/api/domain-scan/${scanId}/attack-scenarios`, { method: "POST" })
             .then(r => r.json())
@@ -1168,10 +1169,17 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
       .catch(() => {});
   }, [scanId]);
 
-  // Poll while generating
+  // Poll while generating, with a hard timeout so it never spins forever
   useEffect(() => {
     if (status !== "generating") return;
+    const startedAt = Date.now();
+    const MAX_WAIT_MS = 4.5 * 60 * 1000; // Claude can take ~2 min; allow generous headroom
     const interval = setInterval(() => {
+      if (Date.now() - startedAt > MAX_WAIT_MS) {
+        setStatus("error");
+        clearInterval(interval);
+        return;
+      }
       fetch(`/api/domain-scan/${scanId}/attack-scenarios`)
         .then(r => r.json())
         .then((data: { status: string; result: AttackScenariosResult | null }) => {
@@ -1261,7 +1269,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
             </div>
             <div>
               <p className="font-semibold text-sm">Saldırı Senaryosu Analizi</p>
-              <p className="text-xs text-muted-foreground">Tehdit modeli oluşturuyor...</p>
+              <p className="text-xs text-muted-foreground">Yapay zeka tehdit modeli oluşturuyor, bu işlem 1-2 dakika sürebilir...</p>
             </div>
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />
           </div>

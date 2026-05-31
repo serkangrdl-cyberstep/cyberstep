@@ -75,6 +75,7 @@ export const domainScansTable = pgTable("domain_scans", {
   kepSecure: boolean("kep_secure"),
   attackScenariosJson: jsonb("attack_scenarios_json").$type<AttackScenariosResult>(),
   attackScenariosStatus: text("attack_scenarios_status").$type<"none" | "generating" | "complete" | "error">().default("none"),
+  attackScenariosStartedAt: timestamp("attack_scenarios_started_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
 });

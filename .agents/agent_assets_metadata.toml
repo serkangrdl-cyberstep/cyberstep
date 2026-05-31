@@ -6,3 +6,9 @@ id = "aHWKtkGawT-z5fVdpjwdb"
 uri = "file://CLAUDE_REVIEW_PROMPT.md"
 type = "text"
 title = "CyberStep.io — Claude İnceleme Promptu"
+
+[[outputs]]
+id = "Vh4pBgxOmIJvA_QOaBEim"
+uri = "file://editorial-review.md"
+type = "text"
+title = "CyberStep.io — Editoryal İnceleme Belgesi"

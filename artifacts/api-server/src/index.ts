@@ -8,6 +8,8 @@ import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMail } from "./services/email";
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { startFabricCrons } from "./services/fabric-cron";
+import { startSOCCrons } from "./services/soc/soc-cron";
+import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
@@ -1614,13 +1616,15 @@ startup()
     }, { timezone: "Europe/Istanbul" });
     logger.info("NPS cron scheduled (Tuesday 11:00 Istanbul)");
     startFabricCrons();
-    app.listen(port, (err) => {
+    startSOCCrons();
+    const server = app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");
         process.exit(1);
       }
       logger.info({ port }, "Server listening");
     });
+    initSOCWebSocket(server);
   })
   .catch((err: unknown) => {
     logger.error({ err }, "Startup error");

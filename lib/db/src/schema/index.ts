@@ -65,3 +65,4 @@ export * from "./status";
 export * from "./onboarding";
 export * from "./badges";
 export * from "./fortinet";
+export * from "./soc";

@@ -17,6 +17,9 @@ export const customersTable = pgTable("customers", {
   nextBillingDate: timestamp("next_billing_date"),
   referralCodeUsed: varchar("referral_code_used", { length: 20 }),
   domainScanLimit: integer("domain_scan_limit"),
+  // AI SOC service tier
+  socTier: text("soc_tier").$type<"none" | "lite" | "standart" | "pro">().notNull().default("none"),
+  socEnabled: boolean("soc_enabled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

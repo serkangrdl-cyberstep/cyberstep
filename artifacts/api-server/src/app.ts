@@ -223,25 +223,25 @@ db.execute(sql`
   db.execute(sql`CREATE INDEX IF NOT EXISTS sessions_expire_idx ON sessions (expire)`)
 ).catch((err: unknown) => logger.error({ err }, "Failed to create sessions table"));
 
-app.use(
-  session({
-    store: new PgStore({
-      conString: process.env["DATABASE_URL"],
-      tableName: "sessions",
-      pruneSessionInterval: 3600,
-    }),
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    name: "cstep.sid",
-    cookie: {
-      httpOnly: true,
-      secure: process.env["NODE_ENV"] === "production",
-      sameSite: "strict",
-      maxAge: 8 * 60 * 60 * 1000,
-    },
+export const sessionMiddleware = session({
+  store: new PgStore({
+    conString: process.env["DATABASE_URL"],
+    tableName: "sessions",
+    pruneSessionInterval: 3600,
   }),
-);
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  name: "cstep.sid",
+  cookie: {
+    httpOnly: true,
+    secure: process.env["NODE_ENV"] === "production",
+    sameSite: "strict",
+    maxAge: 8 * 60 * 60 * 1000,
+  },
+});
+
+app.use(sessionMiddleware);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api", router);

@@ -69,6 +69,13 @@ export const fabricEventsTable = pgTable("fabric_events", {
   raw: jsonb("raw").$type<Record<string, unknown>>().notNull().default({}),
 
   processed: boolean("processed").notNull().default(false),
+
+  // SOC triage pipeline state
+  socTriaged: boolean("soc_triaged").notNull().default(false),
+  socTriagedAt: timestamp("soc_triaged_at"),
+  socTriageLevel: integer("soc_triage_level"), // 0..3 which layer decided
+  socTriageAction: text("soc_triage_action"), // skip, batch, false_positive, log_and_watch, auto_block, case_created
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -8,7 +8,7 @@ import {
   Mail, Bell, Package, BadgeCheck, Plug, Heart,
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
-  Play, Tag, UserCheck, Activity, Trophy, Network,
+  Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -53,6 +53,8 @@ const NAV_ITEMS = [
   { icon: Activity,        label: "Sistem Durumu",        href: "/panel/status" },
   { icon: Trophy,          label: "Rozet Yönetimi",       href: "/panel/rozetler" },
   { icon: Network,         label: "Fortinet Fabric",      href: "/panel/fortinet" },
+  { icon: ShieldAlert,     label: "SOC Operasyon",        href: "/panel/soc" },
+  { icon: DollarSign,      label: "AI Maliyet",           href: "/panel/ai-costs" },
 ];
 
 interface AdminLayoutProps {

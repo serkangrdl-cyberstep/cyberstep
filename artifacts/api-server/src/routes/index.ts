@@ -39,6 +39,7 @@ import statusRouter from "./status/index";
 import badgesRouter from "./badges/index";
 import onboardingRouter from "./onboarding/index";
 import fabricRouter from "./fabric/index";
+import socRouter from "./soc/index";
 
 const router: IRouter = Router();
 
@@ -82,5 +83,6 @@ router.use(statusRouter);
 router.use(badgesRouter);
 router.use(onboardingRouter);
 router.use(fabricRouter);
+router.use(socRouter);
 
 export default router;

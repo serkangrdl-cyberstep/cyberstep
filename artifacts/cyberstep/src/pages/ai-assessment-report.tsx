@@ -99,6 +99,7 @@ export default function AiAssessmentReport() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
   const [activeTab, setActiveTab] = useState("genel");
 
   const fetchReport = async () => {
@@ -107,7 +108,25 @@ export default function AiAssessmentReport() {
       if (!res.ok) return;
       const data = await res.json() as Assessment;
       setAssessment(data);
-      if (data.status === "report_ready") setPolling(false);
+      if (data.status === "report_ready" || data.status === "report_failed") setPolling(false);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRetry = async () => {
+    setTimedOut(false);
+    try {
+      const res = await fetch(`/api/ai-assessment/${id}/regenerate-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const data = await res.json() as Assessment;
+        setAssessment(data);
+      }
     } catch {
       // ignore
     }
@@ -119,10 +138,16 @@ export default function AiAssessmentReport() {
 
   useEffect(() => {
     if (!assessment) return undefined;
-    if (assessment.status === "completed" || assessment.status === "in_progress") {
+    const generatingStatuses = ["completed", "in_progress", "generating_report"];
+    if (generatingStatuses.includes(assessment.status)) {
       setPolling(true);
       const interval = setInterval(fetchReport, 2000);
-      return () => clearInterval(interval);
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        setPolling(false);
+        setTimedOut(true);
+      }, 4.5 * 60 * 1000);
+      return () => { clearInterval(interval); clearTimeout(timeout); };
     }
     return undefined;
   }, [assessment?.status]);
@@ -147,6 +172,30 @@ export default function AiAssessmentReport() {
   const riskConf = RISK_CONFIG[assessment.riskLevel ?? "ORTA"] ?? RISK_CONFIG.ORTA;
   const report = assessment.reportJson as ReportData | null;
 
+  // Hata / zaman aşımı ekranı
+  const isFailed = assessment.status === "report_failed" || timedOut;
+  if (isFailed) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
+            Rapor Oluşturulamadı
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">
+            Yapay zeka analizi sırasında bir sorun oluştu. Tekrar denemek için aşağıdaki butona tıklayın.
+          </p>
+          <Button onClick={handleRetry} className="bg-violet-600 hover:bg-violet-700 text-white">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Tekrar Dene
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Hazırlanıyor ekranı
   if (!isReady) {
     return (
@@ -160,7 +209,7 @@ export default function AiAssessmentReport() {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mb-6">
             Yapay zeka güvenlik analiziniz oluşturuluyor. KVKK uyum haritası ve şirketinize özel kullanım politikası da hazırlanıyor.
-            <br /><br />Bu işlem genellikle 30-60 saniye sürer.
+            <br /><br />Bu işlem genellikle 1-2 dakika sürer.
           </p>
           <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />

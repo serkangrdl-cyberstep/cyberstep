@@ -6,7 +6,7 @@ import {
   aiAssessmentAnswersTable,
   aiToolsRegistryTable,
 } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or, isNull, lt, inArray } from "drizzle-orm";
 import { getClaudeAiFn } from "../../services/ai-client";
 import { requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
@@ -270,6 +270,34 @@ router.post("/ai-assessment/:id/answers", requireAiAssessmentOwner, async (req, 
   }
 });
 
+// ─── Report generation claim (compare-and-set) ────────────────────────────────
+
+const REPORT_STALE_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Atomically transition an AI assessment into "generating_report" iff eligible:
+ * "completed" or "report_failed" status, or a stale "generating_report" whose
+ * startedAt is older than REPORT_STALE_MS (i.e. orphaned by a server restart).
+ * Returns true only to the winner so the caller knows whether to launch the job.
+ */
+async function claimReportGeneration(assessmentId: number): Promise<boolean> {
+  const staleCutoff = new Date(Date.now() - REPORT_STALE_MS);
+  const claimed = await db.update(aiAssessmentsTable)
+    .set({ status: "generating_report", reportGenerationStartedAt: new Date() })
+    .where(and(
+      eq(aiAssessmentsTable.id, assessmentId),
+      or(
+        inArray(aiAssessmentsTable.status, ["completed", "report_failed"]),
+        and(
+          eq(aiAssessmentsTable.status, "generating_report"),
+          or(isNull(aiAssessmentsTable.reportGenerationStartedAt), lt(aiAssessmentsTable.reportGenerationStartedAt, staleCutoff)),
+        ),
+      ),
+    ))
+    .returning({ id: aiAssessmentsTable.id });
+  return claimed.length > 0;
+}
+
 // POST /api/ai-assessment/:id/complete
 router.post("/ai-assessment/:id/complete", requireAiAssessmentOwner, async (req, res) => {
   const id = Number(req.params["id"]);
@@ -293,6 +321,7 @@ router.post("/ai-assessment/:id/complete", requireAiAssessmentOwner, async (req,
     res.json({ ok: true, ...scores });
 
     // Fire-and-forget: AI raporu ve politika belgesi oluştur
+    // claimReportGeneration inside guards against duplicate/stale runs
     generateAiReport(id, assessment, answerMap, scores).catch((err: unknown) => {
       logger.error({ err, assessmentId: id }, "AI report generation failed");
     });
@@ -309,6 +338,19 @@ router.get("/ai-assessment/:id/report", requireAiAssessmentOwner, async (req, re
     const [assessment] = await db.select().from(aiAssessmentsTable).where(eq(aiAssessmentsTable.id, id));
     if (!assessment) { res.status(404).json({ error: "Değerlendirme bulunamadı" }); return; }
 
+    // Auto-recover stale "generating_report" — server restart mid-AI-generation leaves them stuck
+    if (assessment.status === "generating_report") {
+      const startedAt = assessment.reportGenerationStartedAt;
+      if (!startedAt || Date.now() - new Date(startedAt).getTime() > REPORT_STALE_MS) {
+        await db.update(aiAssessmentsTable)
+          .set({ status: "report_failed" })
+          .where(and(eq(aiAssessmentsTable.id, id), eq(aiAssessmentsTable.status, "generating_report")));
+        const updated = { ...assessment, status: "report_failed" };
+        res.json({ ...updated, declaredTools: [] });
+        return;
+      }
+    }
+
     // Beyan edilen araç detaylarını da getir
     let declaredTools: import("@workspace/db").AiToolsRegistry[] = [];
     if (assessment.declaredToolIds && Array.isArray(assessment.declaredToolIds)) {
@@ -323,6 +365,29 @@ router.get("/ai-assessment/:id/report", requireAiAssessmentOwner, async (req, re
     res.json({ ...assessment, declaredTools });
   } catch (err) {
     req.log.error({ err }, "ai-assessment report get error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/ai-assessment/:id/regenerate-report — retry after failure or timeout
+router.post("/ai-assessment/:id/regenerate-report", requireAiAssessmentOwner, async (req, res) => {
+  const id = Number(req.params["id"]);
+  try {
+    const [assessment] = await db.select().from(aiAssessmentsTable).where(eq(aiAssessmentsTable.id, id));
+    if (!assessment) { res.status(404).json({ error: "Değerlendirme bulunamadı" }); return; }
+    if (assessment.status === "report_ready") { res.json({ status: "report_ready", message: "Rapor zaten hazır" }); return; }
+
+    const answerRows = await db.select().from(aiAssessmentAnswersTable)
+      .where(eq(aiAssessmentAnswersTable.aiAssessmentId, id));
+    const answerMap: Record<number, string> = {};
+    for (const row of answerRows) { answerMap[row.questionNumber] = row.answer; }
+    const scores = calculateAiScore(answerMap);
+
+    // Fire-and-forget; claimReportGeneration inside prevents duplicate runs
+    void generateAiReport(id, assessment, answerMap, scores);
+    res.json({ status: "generating_report", message: "Rapor oluşturma yeniden başlatıldı" });
+  } catch (err) {
+    req.log.error({ err }, "ai-assessment regenerate-report error");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });
@@ -387,27 +452,33 @@ async function generateAiReport(
   answers: Record<number, string>,
   scores: ReturnType<typeof calculateAiScore>
 ) {
-  // Beyan edilen araçları getir
-  let declaredTools: import("@workspace/db").AiToolsRegistry[] = [];
-  if (assessment.declaredToolIds && Array.isArray(assessment.declaredToolIds)) {
-    const toolIds = assessment.declaredToolIds as number[];
-    if (toolIds.length > 0) {
-      const allTools = await db.select().from(aiToolsRegistryTable).where(eq(aiToolsRegistryTable.isActive, true));
-      declaredTools = allTools.filter(t => toolIds.includes(t.id));
+  // Atomically claim the generation slot — prevents duplicate jobs and recovers
+  // orphaned "generating_report" runs left by server restarts mid-generation
+  const claimed = await claimReportGeneration(assessmentId);
+  if (!claimed) return; // another job is already running
+
+  try {
+    // Beyan edilen araçları getir
+    let declaredTools: import("@workspace/db").AiToolsRegistry[] = [];
+    if (assessment.declaredToolIds && Array.isArray(assessment.declaredToolIds)) {
+      const toolIds = assessment.declaredToolIds as number[];
+      if (toolIds.length > 0) {
+        const allTools = await db.select().from(aiToolsRegistryTable).where(eq(aiToolsRegistryTable.isActive, true));
+        declaredTools = allTools.filter(t => toolIds.includes(t.id));
+      }
     }
-  }
 
-  const redAlarmQuestions = AI_QUESTIONS.filter(q => q.isRedAlarm);
-  const redAlarmAnswers = redAlarmQuestions.map(q => ({
-    questionText: q.text,
-    answer: answers[q.number] ?? "bilmiyorum",
-  }));
+    const redAlarmQuestions = AI_QUESTIONS.filter(q => q.isRedAlarm);
+    const redAlarmAnswers = redAlarmQuestions.map(q => ({
+      questionText: q.text,
+      answer: answers[q.number] ?? "bilmiyorum",
+    }));
 
-  const toolsText = declaredTools.length > 0
-    ? declaredTools.map(t => `- ${t.toolName} (${t.tier ?? "?"}) — Risk: ${t.riskLevel ?? "?"}`).join("\n")
-    : "Beyan edilmedi";
+    const toolsText = declaredTools.length > 0
+      ? declaredTools.map(t => `- ${t.toolName} (${t.tier ?? "?"}) — Risk: ${t.riskLevel ?? "?"}`).join("\n")
+      : "Beyan edilmedi";
 
-  const prompt = `
+    const prompt = `
 Şirket: ${assessment.companyName}
 Sektör: ${assessment.sector}
 Çalışan Sayısı: ${assessment.employeeCount}
@@ -460,25 +531,25 @@ Lütfen aşağıdaki JSON formatında Türkçe rapor üret. Sadece JSON döndür
   }
 }`;
 
-  const systemPrompt = `Sen CyberStep.io'nun Yapay Zeka Güvenlik Danışmanısın. KOBİ'ler için AI araçlarının getirdiği KVKK ve siber güvenlik risklerini analiz edersin. Teknik jargon kullanmadan, patron dilinde, somut ve uygulanabilir tavsiyeler verirsin. SADECE geçerli JSON döndür.`;
+    const systemPrompt = `Sen CyberStep.io'nun Yapay Zeka Güvenlik Danışmanısın. KOBİ'ler için AI araçlarının getirdiği KVKK ve siber güvenlik risklerini analiz edersin. Teknik jargon kullanmadan, patron dilinde, somut ve uygulanabilir tavsiyeler verirsin. SADECE geçerli JSON döndür.`;
 
-  const claudeFn = getClaudeAiFn();
-  const fullPrompt = `${systemPrompt}\n\n${prompt}`;
-  const reportText = await claudeFn(fullPrompt);
+    const claudeFn = getClaudeAiFn();
+    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+    const reportText = await claudeFn(fullPrompt);
 
-  // JSON parse
-  let reportJson: unknown;
-  try {
-    const match = reportText.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("JSON bulunamadı");
-    reportJson = JSON.parse(match[0]);
-  } catch {
-    logger.warn({ assessmentId }, "AI report JSON parse failed, storing raw text");
-    reportJson = { raw: reportText, parse_error: true };
-  }
+    // JSON parse
+    let reportJson: unknown;
+    try {
+      const match = reportText.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("JSON bulunamadı");
+      reportJson = JSON.parse(match[0]);
+    } catch {
+      logger.warn({ assessmentId }, "AI report JSON parse failed, storing raw text");
+      reportJson = { raw: reportText, parse_error: true };
+    }
 
-  // Politika belgesi oluştur
-  const policyPrompt = `${assessment.companyName} şirketi için "Yapay Zeka Araçları Kabul Edilebilir Kullanım Politikası" hazırla.
+    // Politika belgesi oluştur
+    const policyPrompt = `${assessment.companyName} şirketi için "Yapay Zeka Araçları Kabul Edilebilir Kullanım Politikası" hazırla.
 
 Şirkette kullanılan araçlar: ${declaredTools.map(t => t.toolName).join(", ") || "belirtilmedi"}
 Sektör: ${assessment.sector}
@@ -497,18 +568,25 @@ Politika şu bölümleri içermeli:
 
 Format: Türkçe, resmi belge formatı, imzalanmaya hazır. Anlaşılır dil, 600-800 kelime.`;
 
-  const policyDoc = await claudeFn(
-    `Sen bir KVKK uyum uzmanısın. Şirketler için açık, uygulanabilir politika belgeleri yazarsın.\n\n${policyPrompt}`
-  );
+    const policyDoc = await claudeFn(
+      `Sen bir KVKK uyum uzmanısın. Şirketler için açık, uygulanabilir politika belgeleri yazarsın.\n\n${policyPrompt}`
+    );
 
-  await db.update(aiAssessmentsTable).set({
-    reportJson: reportJson as Record<string, unknown>,
-    policyDocument: policyDoc,
-    status: "report_ready",
-    reportGeneratedAt: new Date(),
-  }).where(eq(aiAssessmentsTable.id, assessmentId));
+    await db.update(aiAssessmentsTable).set({
+      reportJson: reportJson as Record<string, unknown>,
+      policyDocument: policyDoc,
+      status: "report_ready",
+      reportGeneratedAt: new Date(),
+    }).where(eq(aiAssessmentsTable.id, assessmentId));
 
-  logger.info({ assessmentId }, "AI assessment report generated");
+    logger.info({ assessmentId }, "AI assessment report generated");
+  } catch (err) {
+    logger.error({ err, assessmentId }, "AI assessment report generation error");
+    await db.update(aiAssessmentsTable)
+      .set({ status: "report_failed" })
+      .where(eq(aiAssessmentsTable.id, assessmentId))
+      .catch(() => null);
+  }
 }
 
 export default router;

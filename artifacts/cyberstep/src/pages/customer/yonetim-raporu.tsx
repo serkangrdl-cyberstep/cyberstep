@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Plus, Trash2, Send, CheckCircle2, Clock, Users, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { FileText, Plus, Trash2, Send, CheckCircle2, Clock, Users, TrendingUp, TrendingDown, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -163,6 +163,27 @@ export default function YonetimRaporuPage() {
     queryKey: ["board-report", selectedId],
     queryFn: () => fetch(`/api/board-report/reports/${selectedId}`, { credentials: "include" }).then(r => r.json()),
     enabled: !!selectedId,
+    refetchInterval: (q) => q.state.data?.status === "generating" ? 3000 : false,
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/board-report/reports/${id}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      }).then(async r => {
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error ?? "Tekrar denenemedi");
+        return j;
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["board-reports"] });
+      qc.invalidateQueries({ queryKey: ["board-report", selectedId] });
+      toast({ title: "Rapor tekrar olusturuluyor", description: "1-2 dakika icinde tamamlanacak." });
+    },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
   const addRecipientMutation = useMutation({
@@ -294,8 +315,8 @@ export default function YonetimRaporuPage() {
                         <p className="text-slate-300 text-sm">{MONTH_NAMES[(r.reportMonth - 1)]} {r.reportYear}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <RiskBadge level={r.riskLevel} />
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${r.status === "sent" ? "bg-blue-500/20 text-blue-400" : r.status === "approved" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"}`}>
-                            {r.status === "sent" ? "Gonderildi" : r.status === "approved" ? "Onaylandi" : "Taslak"}
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${r.status === "sent" ? "bg-blue-500/20 text-blue-400" : r.status === "approved" ? "bg-emerald-500/20 text-emerald-400" : r.status === "generating" ? "bg-yellow-500/20 text-yellow-400" : r.status === "failed_generation" ? "bg-red-500/20 text-red-400" : "bg-slate-700 text-slate-400"}`}>
+                            {r.status === "sent" ? "Gonderildi" : r.status === "approved" ? "Onaylandi" : r.status === "generating" ? "Olusturuluyor" : r.status === "failed_generation" ? "Hata" : "Taslak"}
                           </span>
                         </div>
                       </div>
@@ -312,12 +333,35 @@ export default function YonetimRaporuPage() {
         {displayReport && (
           <Card className="bg-slate-900 border-slate-700">
             <CardContent className="pt-5">
-              {displayReport.status === "draft" && !displayReport.executiveSummary ? (
+              {displayReport.status === "generating" ? (
+                <div className="flex items-center gap-3 py-4">
+                  <Loader2 className="h-5 w-5 text-yellow-400 animate-spin shrink-0" />
+                  <div>
+                    <p className="text-slate-300 text-sm">AI rapor olusturuluyor...</p>
+                    <p className="text-xs text-slate-500">Bu islem 1-2 dakika surebilir. Sayfa otomatik guncellenir.</p>
+                  </div>
+                </div>
+              ) : displayReport.status === "failed_generation" ? (
+                <div className="space-y-3 py-4">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+                    <div>
+                      <p className="text-slate-300 text-sm">Rapor olusturulamadi</p>
+                      <p className="text-xs text-slate-500">AI analizi sirasinda bir sorun olustu</p>
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={() => regenerateMutation.mutate(displayReport.id)}
+                    disabled={regenerateMutation.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />Tekrar Dene
+                  </Button>
+                </div>
+              ) : displayReport.status === "draft" && !displayReport.executiveSummary ? (
                 <div className="flex items-center gap-3 py-4">
                   <Clock className="h-5 w-5 text-yellow-400 animate-spin" />
                   <div>
                     <p className="text-slate-300 text-sm">Rapor hazirlaniyor...</p>
-                    <p className="text-xs text-slate-500">AI analizi birkaç dakika surebilir</p>
+                    <p className="text-xs text-slate-500">AI analizi 1-2 dakika surebilir</p>
                   </div>
                 </div>
               ) : (

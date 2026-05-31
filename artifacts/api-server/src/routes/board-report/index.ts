@@ -6,7 +6,7 @@ import {
   customersTable,
   domainScansTable,
 } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, isNull, lt } from "drizzle-orm";
 import { requireCustomer, getCustomerId, requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
@@ -17,6 +17,34 @@ const router = Router();
 function getBaseUrl(): string {
   const domains = process.env["REPLIT_DOMAINS"];
   return domains ? `https://${domains.split(",")[0]?.trim()}` : "http://localhost:80";
+}
+
+// ─── Generation claim (compare-and-set) ──────────────────────────────────────
+
+const STALE_MS = 4 * 60 * 1000; // 4 minutes
+
+/**
+ * Atomically transition a board report into "generating" iff eligible:
+ * "failed_generation" status, or a stale "generating" whose startedAt is older
+ * than STALE_MS (i.e. orphaned by a server restart). Returns true only to the
+ * winner so the caller knows whether to launch the background job.
+ */
+async function claimBoardReportGeneration(reportId: number): Promise<boolean> {
+  const staleCutoff = new Date(Date.now() - STALE_MS);
+  const claimed = await db.update(boardReportsTable)
+    .set({ status: "generating", generationStartedAt: new Date() })
+    .where(and(
+      eq(boardReportsTable.id, reportId),
+      or(
+        eq(boardReportsTable.status, "failed_generation"),
+        and(
+          eq(boardReportsTable.status, "generating"),
+          or(isNull(boardReportsTable.generationStartedAt), lt(boardReportsTable.generationStartedAt, staleCutoff)),
+        ),
+      ),
+    ))
+    .returning({ id: boardReportsTable.id });
+  return claimed.length > 0;
 }
 
 // ─── AI Report Generation ─────────────────────────────────────────────────────
@@ -119,6 +147,40 @@ async function collectReportData(customerId: number, month: number, year: number
   };
 }
 
+// ─── Background generation task ───────────────────────────────────────────────
+
+async function runBoardReportGeneration(reportId: number, customerId: number, month: number, year: number): Promise<void> {
+  try {
+    const reportData = await collectReportData(customerId, month, year);
+    const aiReport = await generateBoardReportAI(reportData);
+
+    await db.update(boardReportsTable).set({
+      currentScore: reportData["currentScore"] as number,
+      previousScore: reportData["previousScore"] as number,
+      scoreChange: reportData["scoreChange"] as number,
+      riskLevel: reportData["riskLevel"] as string,
+      criticalFindings: reportData["criticalFindings"] as number,
+      highFindings: reportData["highFindings"] as number,
+      estimatedRiskTl: reportData["estimatedRiskTl"] as number,
+      executiveSummary: aiReport.executiveSummary,
+      keyAchievements: aiReport.keyAchievements,
+      keyRisks: aiReport.keyRisks,
+      requiredDecisions: aiReport.requiredDecisions,
+      nextMonthPlan: aiReport.nextMonthFocus,
+      reportJson: { ...aiReport, rawData: reportData },
+      status: "draft",
+    }).where(eq(boardReportsTable.id, reportId));
+
+    logger.info({ boardReportId: reportId, customerId }, "Board report generated");
+  } catch (err) {
+    logger.error({ err, boardReportId: reportId }, "Board report generation failed");
+    await db.update(boardReportsTable)
+      .set({ status: "failed_generation" })
+      .where(eq(boardReportsTable.id, reportId))
+      .catch(() => null);
+  }
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // GET /api/board-report/recipients
@@ -180,6 +242,19 @@ router.get("/board-report/reports/:id", requireCustomer, async (req: Request, re
   const [row] = await db.select().from(boardReportsTable)
     .where(and(eq(boardReportsTable.id, id), eq(boardReportsTable.customerId, customerId)));
   if (!row) { res.status(404).json({ error: "Rapor bulunamadi" }); return; }
+
+  // Auto-recover stale "generating" reports — server restart mid-AI-generation leaves them stuck
+  if (row.status === "generating") {
+    const startedAt = row.generationStartedAt;
+    if (!startedAt || Date.now() - new Date(startedAt).getTime() > STALE_MS) {
+      await db.update(boardReportsTable)
+        .set({ status: "failed_generation" })
+        .where(and(eq(boardReportsTable.id, id), eq(boardReportsTable.status, "generating")));
+      res.json({ ...row, status: "failed_generation" });
+      return;
+    }
+  }
+
   res.json(row);
 });
 
@@ -190,41 +265,42 @@ router.post("/board-report/reports/generate", requireCustomer, async (req: Reque
   const month = (req.body as Record<string, unknown>)["month"] as number ?? now.getMonth() + 1;
   const year = (req.body as Record<string, unknown>)["year"] as number ?? now.getFullYear();
 
-  // Create draft
+  // Create record in "generating" state with timestamp so recovery can detect orphaned jobs
   const [draft] = await db.insert(boardReportsTable)
-    .values({ customerId, reportMonth: month, reportYear: year, status: "draft" })
+    .values({ customerId, reportMonth: month, reportYear: year, status: "generating", generationStartedAt: new Date() })
     .returning();
 
-  // Fire-and-forget generation
-  void (async () => {
-    try {
-      const reportData = await collectReportData(customerId, month, year);
-      const aiReport = await generateBoardReportAI(reportData);
-
-      await db.update(boardReportsTable).set({
-        currentScore: reportData["currentScore"] as number,
-        previousScore: reportData["previousScore"] as number,
-        scoreChange: reportData["scoreChange"] as number,
-        riskLevel: reportData["riskLevel"] as string,
-        criticalFindings: reportData["criticalFindings"] as number,
-        highFindings: reportData["highFindings"] as number,
-        estimatedRiskTl: reportData["estimatedRiskTl"] as number,
-        executiveSummary: aiReport.executiveSummary,
-        keyAchievements: aiReport.keyAchievements,
-        keyRisks: aiReport.keyRisks,
-        requiredDecisions: aiReport.requiredDecisions,
-        nextMonthPlan: aiReport.nextMonthFocus,
-        reportJson: { ...aiReport, rawData: reportData },
-        status: "draft",
-      }).where(eq(boardReportsTable.id, draft!.id));
-
-      logger.info({ boardReportId: draft!.id, customerId }, "Board report generated");
-    } catch (err) {
-      logger.error({ err, boardReportId: draft!.id }, "Board report generation failed");
-    }
-  })();
+  // Fire-and-forget — claimBoardReportGeneration guards against duplicate/stale retries
+  void runBoardReportGeneration(draft!.id, customerId, month, year);
 
   res.status(201).json({ id: draft!.id, status: "generating" });
+});
+
+// POST /api/board-report/reports/:id/regenerate — retry after failure or timeout
+router.post("/board-report/reports/:id/regenerate", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req) as number;
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Gecersiz ID" }); return; }
+
+  const [row] = await db.select({
+    id: boardReportsTable.id,
+    customerId: boardReportsTable.customerId,
+    reportMonth: boardReportsTable.reportMonth,
+    reportYear: boardReportsTable.reportYear,
+    status: boardReportsTable.status,
+  }).from(boardReportsTable)
+    .where(and(eq(boardReportsTable.id, id), eq(boardReportsTable.customerId, customerId)));
+
+  if (!row) { res.status(404).json({ error: "Rapor bulunamadi" }); return; }
+  if (row.status === "draft" || row.status === "approved" || row.status === "sent") {
+    res.json({ status: row.status, message: "Rapor zaten hazir" }); return;
+  }
+
+  const claimed = await claimBoardReportGeneration(id);
+  if (!claimed) { res.json({ status: "generating", message: "Rapor zaten olusturuluyor" }); return; }
+
+  void runBoardReportGeneration(id, customerId, row.reportMonth, row.reportYear);
+  res.json({ status: "generating", message: "Rapor olusturma yeniden baslatildi" });
 });
 
 // PUT /api/board-report/reports/:id/approve
@@ -269,6 +345,8 @@ router.post("/board-report/reports/:id/send", requireCustomer, async (req: Reque
     .from(customersTable).where(eq(customersTable.id, customerId));
 
   const company = customer?.companyName ?? customer?.fullName ?? "Sirketiniz";
+
+  void ai;
 
   const sentEmails: string[] = [];
   for (const recipient of recipients) {

@@ -27,6 +27,7 @@ export const boardReportsTable = pgTable("board_reports", {
   nextMonthPlan: text("next_month_plan"),
   reportJson: jsonb("report_json"),
   autoSendDay: integer("auto_send_day").default(5),
+  generationStartedAt: timestamp("generation_started_at"),
 });
 
 export const boardReportRecipientsTable = pgTable("board_report_recipients", {

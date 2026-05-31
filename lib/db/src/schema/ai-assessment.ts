@@ -42,6 +42,7 @@ export const aiAssessmentsTable = pgTable("ai_assessments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
   reportGeneratedAt: timestamp("report_generated_at"),
+  reportGenerationStartedAt: timestamp("report_generation_started_at"),
 });
 
 export const aiAssessmentAnswersTable = pgTable("ai_assessment_answers", {

@@ -7,6 +7,7 @@ import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshU
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMail } from "./services/email";
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
+import { startFabricCrons } from "./services/fabric-cron";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
@@ -1612,6 +1613,7 @@ startup()
       runNpsCron().catch((err) => logger.warn({ err }, "NPS cron failed"));
     }, { timezone: "Europe/Istanbul" });
     logger.info("NPS cron scheduled (Tuesday 11:00 Istanbul)");
+    startFabricCrons();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

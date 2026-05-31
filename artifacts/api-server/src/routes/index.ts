@@ -38,6 +38,7 @@ import adminExtrasRouter from "./admin-extras/index";
 import statusRouter from "./status/index";
 import badgesRouter from "./badges/index";
 import onboardingRouter from "./onboarding/index";
+import fabricRouter from "./fabric/index";
 
 const router: IRouter = Router();
 
@@ -80,5 +81,6 @@ router.use(adminExtrasRouter);
 router.use(statusRouter);
 router.use(badgesRouter);
 router.use(onboardingRouter);
+router.use(fabricRouter);
 
 export default router;

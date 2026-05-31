@@ -64,3 +64,4 @@ export * from "./growth-engine";
 export * from "./status";
 export * from "./onboarding";
 export * from "./badges";
+export * from "./fortinet";

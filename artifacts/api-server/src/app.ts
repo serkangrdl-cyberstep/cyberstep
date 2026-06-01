@@ -17,6 +17,7 @@ const app: Express = express();
 app.set("trust proxy", 1);
 
 // ─── Security headers via Helmet ─────────────────────────────────────────────
+// OWASP ASVS 14.4 — HTTP Security Headers; OWASP Top-10 A05 Security Misconfiguration
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -28,18 +29,32 @@ app.use(
         connectSrc: ["'self'"],
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
+        // form-action: prevent form hijacking to external origins (OWASP A01)
+        formAction: ["'self'"],
+        // base-uri: prevent <base> tag injection attacks (OWASP A03)
+        baseUri: ["'self'"],
+        workerSrc: ["'none'"],
+        manifestSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
     },
     hsts: {
-      maxAge: 31536000,
+      // HSTS preload: 1 year min for preload list submission (hstspreload.org)
+      maxAge: 63072000, // 2 years — Chrome preload list requirement
       includeSubDomains: true,
       preload: true,
     },
     frameguard: { action: "deny" },
     noSniff: true,
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    crossOriginEmbedderPolicy: false, // allow Gemini SSE
+    // COEP disabled: Gemini SSE and external API calls need cross-origin fetch
+    crossOriginEmbedderPolicy: false,
+    // COOP: prevent window.opener leaks across origins (OWASP A05)
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+    // CORP: block cross-origin resource reads by default (OWASP A05)
+    crossOriginResourcePolicy: { policy: "same-origin" },
+    // X-Permitted-Cross-Domain-Policies: block Adobe Flash/PDF cross-domain reads
+    permittedCrossDomainPolicies: { permittedPolicies: "none" },
   }),
 );
 
@@ -48,7 +63,22 @@ app.use(
 app.use((_req, res, next) => {
   res.setHeader(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()",
+    [
+      "camera=()",
+      "microphone=()",
+      "geolocation=()",
+      "payment=()",
+      "usb=()",
+      "interest-cohort=()",
+      "browsing-topics=()",
+      "display-capture=()",
+      "screen-wake-lock=()",
+      "serial=()",
+      "ambient-light-sensor=()",
+      "accelerometer=()",
+      "gyroscope=()",
+      "magnetometer=()",
+    ].join(", "),
   );
   next();
 });
@@ -122,6 +152,37 @@ const jsonParser = express.json({ limit: "512kb" });
 const urlencodedParser = express.urlencoded({ extended: true, limit: "512kb" });
 app.use((req, res, next) => (fabricIngestPath.test(req.path) ? next() : jsonParser(req, res, next)));
 app.use((req, res, next) => (fabricIngestPath.test(req.path) ? next() : urlencodedParser(req, res, next)));
+
+// ─── Input sanitization middleware ───────────────────────────────────────────
+// OWASP A03 Injection / XSS: strip HTML tags + null bytes from all string
+// fields in the parsed JSON body before routes process them.
+// • SQL Injection: Drizzle ORM uses parameterized queries — this is a defence-
+//   in-depth layer on top, not a replacement.
+// • XSS: strips <script>, <img onerror=...> and all other HTML/SVG tags that
+//   could be stored and later reflected to other users (Stored XSS, OWASP A03).
+// • Fortinet raw-text ingest paths are explicitly excluded to preserve the
+//   always-200 / no-retry-storm contract.
+function stripHtmlTags(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value.replace(/<[^>]*>/g, "").replace(/\0/g, "").trim();
+  }
+  if (Array.isArray(value)) return value.map(stripHtmlTags);
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = stripHtmlTags(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.body && typeof req.body === "object" && !fabricIngestPath.test(req.path)) {
+    req.body = stripHtmlTags(req.body) as Record<string, unknown>;
+  }
+  next();
+});
 
 // ─── Rate limiters ───────────────────────────────────────────────────────────
 const authLimiter = rateLimit({

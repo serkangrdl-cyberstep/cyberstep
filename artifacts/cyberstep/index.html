@@ -126,6 +126,93 @@
       ]
     }
     </script>
+
+    <!-- JSON-LD: SoftwareApplication — Google Rich Results için uygulama kartı -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "@id": "https://cyberstep.io/#app",
+      "name": "CyberStep.io",
+      "applicationCategory": "SecurityApplication",
+      "operatingSystem": "Web",
+      "url": "https://cyberstep.io",
+      "description": "Türkiye'nin siber güvenlik risk analizi platformu. Dış saldırı yüzeyi taraması, AI güvenlik değerlendirmesi ve KVKK uyum raporlaması.",
+      "provider": { "@id": "https://cyberstep.io/#organization" },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "TRY",
+        "description": "Ücretsiz temel plan — 20 soruluk Mini Değerlendirme"
+      },
+      "featureList": [
+        "Dış saldırı yüzeyi taraması",
+        "AI destekli güvenlik risk analizi",
+        "KVKK ve EU AI Act uyum değerlendirmesi",
+        "Veri sızıntısı kontrolü",
+        "Phishing simülasyonu",
+        "Pentest Lite otomatik sızma testi"
+      ],
+      "screenshot": "https://cyberstep.io/og-image.png",
+      "inLanguage": "tr"
+    }
+    </script>
+
+    <!-- JSON-LD: FAQPage — Google Arama'da SSS zengin snippet'i -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "CyberStep.io nedir?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CyberStep.io, Türkiye'deki KOBİ ve orta ölçekli işletmelere yönelik Türkçe siber güvenlik risk analizi platformudur. AI destekli değerlendirme, dış saldırı yüzeyi taraması ve KVKK uyum raporlaması sunar."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Mini Değerlendirme ücretsiz mi?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Evet. 20 soruluk Mini Siber Güvenlik Değerlendirmesi tamamen ücretsizdir. Tamamlandığında AI destekli kişiselleştirilmiş risk raporu oluşturulur."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Domain taraması ne kadar sürer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Dış saldırı yüzeyi domain taraması genellikle 30-60 saniye içinde tamamlanır. SPF, DMARC, DKIM, SSL sertifikası ve açık port kontrollerini kapsar."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "KVKK uyumu için ne yapmalıyım?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CyberStep.io, KVKK uyum değerlendirmesi modülü aracılığıyla kişisel veri envanteri, teknik ve idari tedbirler ile veri işleme faaliyetleri konusunda rehberlik sunar. Mini Değerlendirme ile başlayabilirsiniz."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Siber güvenlik değerlendirmesi raporu ne içerir?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "AI destekli rapor; genel risk skoru, 5 farklı güvenlik domaininde puan dağılımı, kritik açıklar, öncelikli aksiyon önerileri ve sektörel karşılaştırma içerir. Tam Değerlendirme'de uzman görüşmesi de eklenir."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Coğrafi hedefleme meta etiketleri (Google ve Yandex için) -->
+    <meta name="geo.region" content="TR" />
+    <meta name="geo.placename" content="Türkiye" />
+    <meta name="geo.position" content="39.9334;32.8597" />
+    <meta name="ICBM" content="39.9334, 32.8597" />
   </head>
   <body>
     <div id="root"></div>

@@ -57,6 +57,47 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Core Web Vitals — LCP/FID: split large vendor bundles to enable parallel
+    // download and improve cache utilization (Google PageSpeed Insights).
+    // OWASP: Smaller chunks reduce the surface for supply-chain attacks per bundle.
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string) => {
+          // React core — almost never changes, long-lived cache
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/scheduler")) {
+            return "vendor-react";
+          }
+          // Routing
+          if (id.includes("node_modules/wouter")) {
+            return "vendor-router";
+          }
+          // Data fetching
+          if (id.includes("node_modules/@tanstack")) {
+            return "vendor-query";
+          }
+          // UI component library
+          if (id.includes("node_modules/@radix-ui") || id.includes("node_modules/lucide-react") || id.includes("node_modules/class-variance-authority") || id.includes("node_modules/clsx") || id.includes("node_modules/tailwind-merge")) {
+            return "vendor-ui";
+          }
+          // Charts
+          if (id.includes("node_modules/recharts") || id.includes("node_modules/d3-")) {
+            return "vendor-charts";
+          }
+          // Animation
+          if (id.includes("node_modules/framer-motion")) {
+            return "vendor-motion";
+          }
+          // Zod validation
+          if (id.includes("node_modules/zod")) {
+            return "vendor-zod";
+          }
+        },
+      },
+    },
+    // CSS code splitting: each async chunk gets its own CSS → faster LCP
+    cssCodeSplit: true,
+    // Warn when any chunk exceeds 600 kB (Google PageSpeed threshold)
+    chunkSizeWarningLimit: 600,
   },
   server: {
     port,

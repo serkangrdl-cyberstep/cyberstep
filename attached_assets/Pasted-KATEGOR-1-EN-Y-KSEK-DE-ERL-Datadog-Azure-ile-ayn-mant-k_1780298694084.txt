@@ -1,0 +1,34 @@
+KATEGORİ 1 — EN YÜKSEK DEĞERLİ (Datadog/Azure ile aynı mantık)
+Microsoft 365 + Azure AD
+Türkiye'deki şirketlerin %70'i Microsoft ekosistemi kullanıyor. M365 Defender e-posta tehditlerini, Azure AD ise kim ne zaman nereden giriş yaptı bilgisini tutuyor. CyberStep SOC bunu FortiGate verileriyle birleştirince: "CEO'nun hesabı İzmir'den girildi, aynı anda FortiGate'de Rusya'dan SSH denemesi var — bu koordineli saldırı." Bu korelasyonu yapan başka araç yok.
+Cloudflare
+WAF blokları, DDoS olayları, DNS sorgu anormallikleri, Bot Score. Çok sayıda Türk şirket Cloudflare kullanıyor. Cloudflare'den gelen "bu IP WAF'ı 500 kez tetikledi" bilgisi + CyberStep IoC veritabanıyla eşleşince anlık aksiyon. API ücretsiz, entegrasyon 1-2 günlük iş.
+Google Workspace
+Microsoft ekosistemi dışında kalan şirketler için aynı değer. Gmail güvenlik uyarıları, admin konsol olayları (kullanıcı silindi, dışarıya paylaşım yapıldı), Drive anomali tespiti. KVKK açısından da değerli: "Müşteri verisi Google Drive'dan dışarıya paylaşıldı" tespiti.
+KATEGORİ 2 — FARKLILAŞTIRICI
+DNS Değişiklik İzleyici (Gerçek Zamanlı)
+Şu an domain periyodik taranıyor. Sürekli DNS izleme çok farklı: müşterinin domain'inde A kaydı, MX kaydı, NS kaydı değişince anlık bildirim. DNS hijacking tespiti. Sahte subdomain kurulumu (attacker subdomain olarak mail.acme.com.tr alıyor) anlık görünür. Gerçek zamanlı, ücretsiz (kendi DNS sorgu altyapısı), çok güçlü.
+BGP / ASN İzleme
+Büyük şirketler için: kendi IP bloğunun BGP rotasını izle. BGP hijacking — başkası senin IP aralığını duyuruyor — anlık tespit. Türkiye'de telko, banka, büyük holdingler için ciddi değer. Recon Labs veya RIPE API'si ücretsiz.
+Sertifika Şeffaflığı (Certificate Transparency) Gerçek Zamanlı
+crt.sh periyodik tarama yapıyor. Sürekli izleme çok farklı: müşterinin domain'i için yeni sertifika kesilince anlık bildirim. "acme.com.tr için birisi yeni SSL sertifikası aldı — sizin IT'niz mi?" Phishing domain tespitinin en erken sinyali. crt.sh webhook yok ama Google'ın CT log stream'i var, Certstream API'si ücretsiz.
+ServiceNow Entegrasyonu
+Kurumsal müşterilerin büyük kısmı ServiceNow kullanıyor. CyberStep SOC case'i açıldığında ServiceNow'da otomatik incident ticket oluşsun. Kapandığında ServiceNow'da da kapansın. "Güvenlik olayı IT sürecine otomatik giriyor" argümanı kurumsal satışta çok güçlü. ServiceNow API temiz ve iyi dokümanlı.
+KATEGORİ 3 — TÜRKİYE'YE ÖZGÜ FRSATLAR
+BTK / Siber Güvenlik Başkanlığı Entegrasyonu
+Türkiye'de fidye yazılımı saldırılarını BTK'ya bildirme zorunluluğu geliyor. KVKK 72 saat bildirimi zaten var. CyberStep SOC case tespit edince "bu KVKK bildirimi gerektiriyor mu?" otomatik değerlendirsin, şablon mektup üretsin, başvuru takibi yapsın. Türkiye'de rakiplerden tamamen farklılaştırıcı.
+Muhasebe Yazılımı Anomali Korelasyonu
+Logo, Mikro, Netsis, Luca — Türkiye'nin yaygın muhasebe yazılımları. API'leri mevcut. "Muhasebede olağandışı transfer + aynı saatte yeni kullanıcı girişi" CEO fraud tespiti. Türkiye'deki işletme büyüklüğü düşünülünce bu entegrasyon rakiplerimizde asla olmayacak.
+E-devlet / KEP İzleme
+KEP (Kayıtlı Elektronik Posta) sistemini izle: yetkisiz KEP hesabı açılmış mı, şirket adına sahte KEP var mı? E-devlet üzerinden şirkete yapılan başvuruları takip et. Türkiye'ye tamamen özgü, hiçbir global araç bu veriyi işleyemiyor.
+KATEGORİ 4 — ÜRÜN GENİŞLEMESİ
+Tarayıcı Uzantısı (Chrome/Firefox)
+Çalışan zararlı bir siteye gittiğinde arka planda CyberStep IoC veritabanıyla kontrol ediyor. "Bu site şirket politikasına aykırı" uyarısı. Hem endpoint koruma hem lead generation — kurumsal müşteriye "çalışanlarınızı da koruyun" satışı. Uzantı ücretsiz, premium özellikler ücretli.
+E-posta Başlık Analizi Aracı
+Ücretsiz web aracı: e-posta başlığını yapıştır, CyberStep analiz et. SPF/DKIM geçerli mi, gönderen IP IoC listesinde mi, routing şüpheli mi. Phishing tespit için çok pratik araç. Lead generation için güçlü: muhasebe, satın alma, HR ekipleri hedef.
+Kimlik Avı Simülasyon Platformu (Genişleme)
+Şu an tek senaryo üretiyoruz. Gerçek gönderim altyapısı kur: müşterinin kendi çalışanlarına test e-postası gönder, kimin tıkladığını gör, otomatik farkındalık eğitimi tetikle. KnowBe4'ün Türkçe rakibi. Ayrı fiyatlandırılabilir servis.
+EN HIZLI DEĞER YARATACAK 3'Ü
+Öncelik 1 — DNS Değişiklik İzleyici: Kendi altyapımızda çalışır, dış API gerekmez, 2-3 günlük iş, "sürekli izleme" değer önerisi anında somutlaşır.
+Öncelik 2 — Cloudflare Webhook: Çok sayıda Türk şirket kullanıyor, API ücretsiz, Datadog entegrasyonuyla neredeyse aynı kod yapısı — 1 günlük ek iş.
+Öncelik 3 — Microsoft 365 / Azure AD: En geniş Türkiye pazarını kapsıyor, Microsoft Graph API iyi dokümanlı, SOC korelasyonunu dramatik güçlendiriyor

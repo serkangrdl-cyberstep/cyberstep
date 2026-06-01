@@ -13,5 +13,29 @@ Disallow: /payment/
 Disallow: /assessment/
 Disallow: /full-assessment/
 Disallow: /w/
+Disallow: /api/
+Disallow: /digest/
+
+# Agresif bot'lar icin gecikme (saniye cinsinden)
+Crawl-delay: 2
+
+# AI egitim bot'larinin icerik kazimasi engelleniyor (Google Search Quality Guidelines)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
 
 Sitemap: https://cyberstep.io/sitemap.xml

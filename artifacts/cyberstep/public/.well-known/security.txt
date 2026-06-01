@@ -1,0 +1,9 @@
+# CyberStep.io — Security Disclosure Policy
+# RFC 9116 — https://www.rfc-editor.org/rfc/rfc9116
+
+Contact: mailto:guvenlik@cyberstep.io
+Expires: 2027-06-01T00:00:00.000Z
+Preferred-Languages: tr, en
+Canonical: https://cyberstep.io/.well-known/security.txt
+Policy: https://cyberstep.io/gizlilik-politikasi
+Acknowledgments: https://cyberstep.io/hakkimizda

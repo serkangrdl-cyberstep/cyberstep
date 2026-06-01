@@ -170,6 +170,19 @@ export default function EntegrasyonlarimPage() {
     onError: () => toast({ title: "Hata", variant: "destructive" }),
   });
 
+  const toggleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/portal/integrations/observability/${id}/toggle`, { method: "PATCH", credentials: "include" });
+      if (!r.ok) throw new Error();
+      return r.json() as Promise<{ isActive: boolean }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: data.isActive ? "Entegrasyon aktiflestirildi" : "Entegrasyon durduruldu" });
+      qc.invalidateQueries({ queryKey: ["obs-integrations"] });
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
   const integrations = intData?.integrations ?? [];
   const events = evData?.events ?? [];
 
@@ -329,42 +342,73 @@ export default function EntegrasyonlarimPage() {
                 Henuz Cloudflare entegrasyonu yok.
               </div>
             ) : (
-              cloudflareList.map(integ => (
-                <div key={integ.id} className="border border-gray-800 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+              cloudflareList.map(integ => {
+                const last5 = events.filter(e => e.provider === "cloudflare").slice(0, 5);
+                return (
+                  <div key={integ.id} className="border border-gray-800 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-white">{integ.displayName}</p>
+                          <Badge className={integ.isActive ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-gray-500/20 text-gray-400 border-gray-500/30 text-[10px]"}>
+                            {integ.isActive ? "Aktif" : "Pasif"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {integ.eventCount} event
+                          {integ.lastEventAt ? ` · Son: ${timeSince(integ.lastEventAt)}` : " · Henuz event yok"}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleMutation.mutate(integ.id)}
+                          disabled={toggleMutation.isPending}
+                          className={`border-gray-700 text-xs h-7 ${integ.isActive ? "text-yellow-400 hover:text-yellow-300" : "text-emerald-400 hover:text-emerald-300"}`}
+                        >
+                          {integ.isActive ? "Durdur" : "Baslat"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => testMutation.mutate(integ.id)} className="text-gray-400 text-xs h-7">
+                          Test
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(integ.id)} className="text-red-400 hover:text-red-300 h-7">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{integ.displayName}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {integ.eventCount} event
-                        {integ.lastEventAt ? ` · Son: ${timeSince(integ.lastEventAt)}` : " · Henuz event yok"}
-                      </p>
+                      <p className="text-xs text-gray-500 mb-1">Webhook URL:</p>
+                      <WebhookUrl token={integ.webhookToken} provider="cloudflare" />
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => testMutation.mutate(integ.id)} className="text-gray-400 text-xs h-7">
-                        Test
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(integ.id)} className="text-red-400 hover:text-red-300 h-7">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    {last5.length > 0 && (
+                      <div className="border border-gray-800 rounded p-3 bg-gray-950/50 space-y-1.5">
+                        <p className="text-xs font-medium text-gray-400 mb-2">Son 5 Cloudflare Olayi</p>
+                        {last5.map(ev => (
+                          <div key={ev.id} className="flex items-center gap-2">
+                            <Badge className={`text-[10px] shrink-0 border ${SEV_COLORS[ev.severity ?? "info"] ?? SEV_COLORS["info"]}`}>
+                              {(ev.severity ?? "info").toUpperCase()}
+                            </Badge>
+                            <p className="text-xs text-gray-300 truncate flex-1">{ev.title}</p>
+                            <span className="text-[10px] text-gray-600 shrink-0">{timeSince(ev.receivedAt)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="border border-gray-800 rounded p-3 bg-gray-950/50 text-xs text-gray-400 space-y-1">
+                      <p className="font-medium text-gray-300">Cloudflare'de yapilacaklar:</p>
+                      <p>1. Cloudflare Dashboard → Notifications → Add Notification</p>
+                      <p>2. Tip secin: WAF Alerts / DDoS / Bot Management</p>
+                      <p>3. Delivery Method: Webhook → URL olarak yukardaki adresi girin</p>
+                      <p>4. Desteklenen olay tipleri: WAF Block, DDoS, Bot Score, DNS Anomaly</p>
+                      <a href="https://developers.cloudflare.com/notifications/get-started/" target="_blank" rel="noreferrer"
+                         className="text-blue-400 hover:underline inline-flex items-center gap-1 mt-1">
+                        Dokumantasyon <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Webhook URL:</p>
-                    <WebhookUrl token={integ.webhookToken} provider="cloudflare" />
-                  </div>
-                  <div className="border border-gray-800 rounded p-3 bg-gray-950/50 text-xs text-gray-400 space-y-1">
-                    <p className="font-medium text-gray-300">Cloudflare'de yapilacaklar:</p>
-                    <p>1. Cloudflare Dashboard → Notifications → Add Notification</p>
-                    <p>2. Tip secin: WAF Alerts / DDoS / Bot Management</p>
-                    <p>3. Delivery Method: Webhook → URL olarak yukardaki adresi girin</p>
-                    <p>4. Desteklenen olay tipleri: WAF Block, DDoS, Bot Score, DNS Anomaly</p>
-                    <a href="https://developers.cloudflare.com/notifications/get-started/" target="_blank" rel="noreferrer"
-                       className="text-blue-400 hover:underline inline-flex items-center gap-1 mt-1">
-                      Dokumantasyon <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>

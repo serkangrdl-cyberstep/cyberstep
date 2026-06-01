@@ -192,6 +192,98 @@ export function normalizeCloudflareEvent(payload: CloudflarePayload): Normalized
   };
 }
 
+// ─── Cloudflare webhook header verification ───────────────────────────────────
+
+export function verifyCloudflareHeader(
+  cfAuthHeader: string | string[] | undefined,
+  storedSecret: string | null,
+): boolean {
+  if (!storedSecret) return true;
+  if (!cfAuthHeader) return false;
+  try {
+    const crypto = require("node:crypto") as typeof import("node:crypto");
+    const provided = Array.isArray(cfAuthHeader) ? cfAuthHeader[0]! : cfAuthHeader;
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(storedSecret));
+  } catch {
+    return false;
+  }
+}
+
+// ─── Cloudflare-specific SOC correlation ─────────────────────────────────────
+
+export async function correlateCloudflareWithSOC(
+  customerId: number,
+  obsEvent: NormalizedObsEvent,
+  _integrationId: number,
+  obsEventId: number,
+): Promise<void> {
+  const { eventType, severity, sourceIp, title } = obsEvent;
+
+  // DDoS → always open critical SOC case immediately
+  if (eventType === "ddos.attack") {
+    const socCase = await createCaseWithNumber({
+      customerId,
+      severity: "critical",
+      category: "ddos",
+      title: `Cloudflare DDoS Saldırısı: ${title}`,
+      description: "Cloudflare tarafından tespit edilen L7/L4 DDoS saldırısı.",
+      attackNarrative: "Cloudflare DDoS algılama sistemi aktif saldırı tespit etti. Trafik filtreleme devrede.",
+      triggerEventIds: [],
+    });
+    if (socCase) {
+      await pool.query(
+        `UPDATE observability_events SET processed = true, correlated_soc_case_id = $1 WHERE id = $2`,
+        [socCase.id, obsEventId]
+      );
+    }
+    logger.info({ customerId, socCaseId: socCase?.id }, "Cloudflare DDoS: critical SOC case created");
+    return;
+  }
+
+  // Bot score < 10 → suspicious traffic note (low severity, no case)
+  if (eventType === "bot.score" && severity === "low") {
+    await pool.query(
+      `UPDATE observability_events SET processed = true WHERE id = $1`,
+      [obsEventId]
+    );
+    return;
+  }
+
+  // WAF block → check source IP against known threats in fabric_events
+  if (eventType === "waf.block" && sourceIp) {
+    const { rows: knownBadRows } = await pool.query<{ cnt: string }>(
+      `SELECT count(*)::int AS cnt
+       FROM fabric_events
+       WHERE customer_id = $1 AND src_ip = $2 AND created_at >= NOW() - INTERVAL '7 days'`,
+      [customerId, sourceIp]
+    );
+    const knownBad = Number(knownBadRows[0]?.cnt ?? 0) > 0;
+
+    if (knownBad) {
+      const socCase = await createCaseWithNumber({
+        customerId,
+        severity: "high",
+        category: "waf_ioc_match",
+        title: `WAF Engelleme + Bilinen Tehdit IP: ${sourceIp}`,
+        description: `Cloudflare WAF ${sourceIp} adresini engelledi. Bu IP son 7 gün içinde Fortinet Fabric event'lerinde de görüldü.`,
+        attackNarrative: `${sourceIp} adresi hem Cloudflare WAF hem de Fortinet altyapısında tespit edildi. Koordineli saldırı riski.`,
+        triggerEventIds: [],
+      });
+      if (socCase) {
+        await pool.query(
+          `UPDATE observability_events SET processed = true, correlated_soc_case_id = $1 WHERE id = $2`,
+          [socCase.id, obsEventId]
+        );
+      }
+      logger.info({ customerId, sourceIp, socCaseId: socCase?.id }, "Cloudflare WAF+IoC match: SOC case created");
+      return;
+    }
+  }
+
+  // Fallback: use generic correlation for remaining high-severity events
+  await correlateWithSOC(customerId, obsEvent, _integrationId, obsEventId);
+}
+
 // ─── Azure webhook signature verification ─────────────────────────────────────
 
 export function verifyAzureSignature(body: unknown, signature: string | string[] | undefined): boolean {

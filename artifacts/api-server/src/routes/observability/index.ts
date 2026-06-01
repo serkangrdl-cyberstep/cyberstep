@@ -9,8 +9,11 @@ import {
   normalizeAzureEvent,
   normalizeCloudflareEvent,
   verifyAzureSignature,
+  verifyCloudflareHeader,
   correlateWithSOC,
+  correlateCloudflareWithSOC,
 } from "../../services/observabilityCorrelation";
+import { decryptSecret } from "../../services/fabric-crypto";
 import { getMetrics, getContentType, observabilityEventsTotal } from "../../monitoring/prometheusMetrics";
 
 const router = Router();
@@ -37,8 +40,8 @@ interface IntegrationRow extends Record<string, unknown> {
 }
 
 async function getIntegrationByToken(token: string, provider: string) {
-  const { rows } = await pool.query<IntegrationRow>(
-    `SELECT * FROM observability_integrations
+  const { rows } = await pool.query<IntegrationRow & { api_key_encrypted: string | null }>(
+    `SELECT *, api_key_encrypted FROM observability_integrations
      WHERE webhook_token = $1 AND provider = $2 AND is_active = true
      LIMIT 1`,
     [token, provider]
@@ -47,6 +50,7 @@ async function getIntegrationByToken(token: string, provider: string) {
     id: rows[0].id,
     customerId: rows[0].customer_id,
     provider: rows[0].provider,
+    apiKeyEncrypted: rows[0].api_key_encrypted,
   } : null;
 }
 
@@ -145,8 +149,18 @@ router.post("/webhook/azure/:token", async (req, res) => {
 // POST /api/webhook/cloudflare/:token
 router.post("/webhook/cloudflare/:token", async (req, res) => {
   const integration = await getIntegrationByToken(req.params["token"]!, "cloudflare").catch(() => null);
+
+  // Always respond 200 to Cloudflare (regardless of auth) to avoid retry storms
   res.status(200).json({ ok: true });
   if (!integration) return;
+
+  // Verify cf-webhook-auth header against stored shared secret (if configured)
+  const storedSecret = decryptSecret(integration.apiKeyEncrypted);
+  const cfAuthHeader = req.headers["cf-webhook-auth"];
+  if (!verifyCloudflareHeader(cfAuthHeader, storedSecret)) {
+    logger.warn({ integrationId: integration.id }, "Cloudflare webhook: cf-webhook-auth mismatch — dropping");
+    return;
+  }
 
   const payload = req.body as Record<string, unknown>;
   const event = normalizeCloudflareEvent(payload as Parameters<typeof normalizeCloudflareEvent>[0]);
@@ -173,8 +187,12 @@ router.post("/webhook/cloudflare/:token", async (req, res) => {
     observabilityEventsTotal.inc({ provider: "cloudflare", event_type: event.eventType, severity: event.severity });
 
     if (["critical", "high"].includes(event.severity) && obsEvent) {
-      setImmediate(() => correlateWithSOC(integration.customerId, event, integration.id, obsEvent.id).catch(err => {
-        logger.error({ err }, "Cloudflare correlateWithSOC error");
+      setImmediate(() => correlateCloudflareWithSOC(integration.customerId, event, integration.id, obsEvent.id).catch(err => {
+        logger.error({ err }, "Cloudflare correlateCloudflareWithSOC error");
+      }));
+    } else if (event.eventType === "bot.score" && obsEvent) {
+      setImmediate(() => correlateCloudflareWithSOC(integration.customerId, event, integration.id, obsEvent.id).catch(err => {
+        logger.error({ err }, "Cloudflare bot.score processing error");
       }));
     }
   } catch (err) {
@@ -239,6 +257,27 @@ router.post("/portal/integrations/observability", requireCustomer, async (req, r
     res.status(201).json({ integration, message: "Entegrasyon oluşturuldu." });
   } catch (err) {
     req.log.error({ err }, "POST /api/portal/integrations/observability error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// PATCH /api/portal/integrations/observability/:id/toggle
+router.patch("/portal/integrations/observability/:id/toggle", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+  const id = Number(req.params["id"]);
+  try {
+    const { rows } = await pool.query<{ is_active: boolean }>(
+      `UPDATE observability_integrations
+       SET is_active = NOT is_active
+       WHERE id = $1 AND customer_id = $2
+       RETURNING is_active`,
+      [id, customerId]
+    );
+    if (!rows[0]) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    res.json({ ok: true, isActive: rows[0].is_active });
+  } catch (err) {
+    req.log.error({ err }, "PATCH /api/portal/integrations/observability/:id/toggle error");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

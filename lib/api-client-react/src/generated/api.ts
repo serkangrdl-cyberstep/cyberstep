@@ -35,6 +35,7 @@ import type {
   GeminiMessageInput,
   GetServiceSubscriptionsParams,
   HealthStatus,
+  IyzicoCallbackPayload,
   Report,
   ReportPending,
   ServiceCatalogInput,
@@ -42,6 +43,7 @@ import type {
   ServiceCatalogUpdate,
   ServiceCheckoutInput,
   ServiceCheckoutResult,
+  ServicePaymentCallback200,
   ServiceSubscription,
   StatsSummary
 } from './api.schemas';
@@ -127,6 +129,77 @@ export const useServiceCheckout = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getServiceCheckoutMutationOptions(options));
+    }
+
+export const getServicePaymentCallbackUrl = () => {
+
+
+
+
+  return `/api/payments/service-callback`
+}
+
+/**
+ * @summary Iyzico async ödeme callback bildirimi (webhook)
+ */
+export const servicePaymentCallback = async (iyzicoCallbackPayload: IyzicoCallbackPayload, options?: RequestInit): Promise<ServicePaymentCallback200> => {
+
+  return customFetch<ServicePaymentCallback200>(getServicePaymentCallbackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      iyzicoCallbackPayload,)
+  }
+);}
+
+
+
+
+export const getServicePaymentCallbackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof servicePaymentCallback>>, TError,{data: BodyType<IyzicoCallbackPayload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof servicePaymentCallback>>, TError,{data: BodyType<IyzicoCallbackPayload>}, TContext> => {
+
+const mutationKey = ['servicePaymentCallback'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof servicePaymentCallback>>, {data: BodyType<IyzicoCallbackPayload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  servicePaymentCallback(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ServicePaymentCallbackMutationResult = NonNullable<Awaited<ReturnType<typeof servicePaymentCallback>>>
+    export type ServicePaymentCallbackMutationBody = BodyType<IyzicoCallbackPayload>
+    export type ServicePaymentCallbackMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Iyzico async ödeme callback bildirimi (webhook)
+ */
+export const useServicePaymentCallback = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof servicePaymentCallback>>, TError,{data: BodyType<IyzicoCallbackPayload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof servicePaymentCallback>>,
+        TError,
+        {data: BodyType<IyzicoCallbackPayload>},
+        TContext
+      > => {
+      return useMutation(getServicePaymentCallbackMutationOptions(options));
     }
 
 export const getGetServiceSubscriptionsUrl = (params?: GetServiceSubscriptionsParams,) => {

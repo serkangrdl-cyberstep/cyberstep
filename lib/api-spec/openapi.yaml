@@ -52,6 +52,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /payments/service-callback:
+    post:
+      operationId: servicePaymentCallback
+      tags: [payments]
+      summary: Iyzico async ödeme callback bildirimi (webhook)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IyzicoCallbackPayload"
+      responses:
+        "200":
+          description: Callback işlendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  subscriptionId:
+                    type: ["integer", "null"]
+                  idempotent:
+                    type: ["boolean", "null"]
+                  reason:
+                    type: ["string", "null"]
+                required:
+                  - ok
+
   /payments/service-subscriptions:
     get:
       operationId: getServiceSubscriptions
@@ -1133,6 +1163,14 @@ components:
         - slug
         - label
         - monthlyPriceTl
+    IyzicoCallbackPayload:
+      type: object
+      properties:
+        paymentId:
+          type: string
+        conversationId:
+          type: string
+
     ServiceCheckoutInput:
       type: object
       properties:

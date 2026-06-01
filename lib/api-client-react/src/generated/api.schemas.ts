@@ -344,6 +344,11 @@ export interface ServiceCatalogInput {
   sortOrder?: number;
 }
 
+export interface IyzicoCallbackPayload {
+  paymentId?: string;
+  conversationId?: string;
+}
+
 export type ServiceCheckoutInputBillingCycle = typeof ServiceCheckoutInputBillingCycle[keyof typeof ServiceCheckoutInputBillingCycle];
 
 
@@ -410,6 +415,16 @@ export interface ServiceCatalogUpdate {
   isActive?: boolean;
   sortOrder?: number;
 }
+
+export type ServicePaymentCallback200 = {
+  ok: boolean;
+  /** @nullable */
+  subscriptionId?: number | null;
+  /** @nullable */
+  idempotent?: boolean | null;
+  /** @nullable */
+  reason?: string | null;
+};
 
 export type GetServiceSubscriptionsParams = {
 email?: string;

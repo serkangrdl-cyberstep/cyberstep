@@ -109,7 +109,7 @@ export default function SatinAl() {
 
       if (data.success) {
         setSuccess(true);
-        setTimeout(() => setLocation("/hesabim"), 3000);
+        setTimeout(() => setLocation("/hesabim/servislerim"), 3000);
       } else {
         setError(data.error ?? "Ödeme başarısız. Lütfen kart bilgilerinizi kontrol edin.");
       }

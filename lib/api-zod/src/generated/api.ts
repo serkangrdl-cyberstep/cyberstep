@@ -33,6 +33,22 @@ export const ServiceCheckoutResponse = zod.object({
 
 
 /**
+ * @summary Iyzico async ödeme callback bildirimi (webhook)
+ */
+export const ServicePaymentCallbackBody = zod.object({
+  "paymentId": zod.string().optional(),
+  "conversationId": zod.string().optional()
+})
+
+export const ServicePaymentCallbackResponse = zod.object({
+  "ok": zod.boolean(),
+  "subscriptionId": zod.number().nullish(),
+  "idempotent": zod.boolean().nullish(),
+  "reason": zod.string().nullish()
+})
+
+
+/**
  * @summary Müşteriye ait servis aboneliklerini getir
  */
 export const GetServiceSubscriptionsQueryParams = zod.object({

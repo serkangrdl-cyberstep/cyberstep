@@ -1,9 +1,10 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { createPayment } from "../../services/iyzico";
+import { eq, or } from "drizzle-orm";
+import { createPayment, checkPayment } from "../../services/iyzico";
 import { sendMail } from "../../services/email";
+import { requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -84,6 +85,8 @@ async function sendReceiptEmail(params: {
   });
 }
 
+// POST /api/payments/service-checkout
+// Synchronous Iyzico card charge; creates subscription on success.
 router.post("/payments/service-checkout", async (req: Request, res: Response) => {
   const {
     serviceSlug, billingCycle = "monthly",
@@ -205,23 +208,81 @@ router.post("/payments/service-checkout", async (req: Request, res: Response) =>
   res.json({ success: true, subscriptionId: subscription?.id });
 });
 
-router.get("/payments/service-subscriptions", async (req: Request, res: Response) => {
+// POST /api/payments/service-callback
+// Iyzico async webhook / server-side callback notification.
+// Verifies the paymentId with Iyzico and idempotently marks the linked subscription active.
+// Returns 200 for all valid calls so Iyzico does not retry unnecessarily.
+router.post("/payments/service-callback", async (req: Request, res: Response) => {
+  const paymentId = typeof req.body?.paymentId === "string" ? req.body.paymentId : null;
+  const conversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
+
+  if (!paymentId && !conversationId) {
+    logger.warn({ body: req.body }, "service-callback: missing paymentId and conversationId");
+    res.status(400).json({ error: "paymentId veya conversationId gerekli" });
+    return;
+  }
+
+  // Verify payment status with Iyzico
+  let paymentVerified = false;
+  if (paymentId) {
+    const verification = await checkPayment(paymentId).catch(err => {
+      logger.warn({ err, paymentId }, "service-callback: checkPayment error");
+      return { success: false };
+    });
+    paymentVerified = verification.success;
+  }
+
+  if (!paymentVerified) {
+    logger.warn({ paymentId, conversationId }, "service-callback: payment not verified — ignoring");
+    res.json({ ok: false, reason: "payment_not_verified" });
+    return;
+  }
+
+  // Find the subscription by paymentRef or conversationId (idempotent lookup)
+  const conditions = [];
+  if (paymentId) conditions.push(eq(customerServiceSubscriptionsTable.paymentRef, paymentId));
+  if (conversationId) conditions.push(eq(customerServiceSubscriptionsTable.iyzicoConversationId, conversationId));
+
+  const [existing] = await db.select()
+    .from(customerServiceSubscriptionsTable)
+    .where(or(...conditions))
+    .limit(1);
+
+  if (!existing) {
+    logger.warn({ paymentId, conversationId }, "service-callback: no matching subscription found");
+    res.json({ ok: false, reason: "subscription_not_found" });
+    return;
+  }
+
+  // Already active — idempotent success
+  if (existing.status === "active") {
+    res.json({ ok: true, subscriptionId: existing.id, idempotent: true });
+    return;
+  }
+
+  // Activate the subscription
+  await db.update(customerServiceSubscriptionsTable)
+    .set({ status: "active" })
+    .where(eq(customerServiceSubscriptionsTable.id, existing.id));
+
+  logger.info({ subscriptionId: existing.id, paymentId }, "service-callback: subscription activated via callback");
+  res.json({ ok: true, subscriptionId: existing.id });
+});
+
+// GET /api/payments/service-subscriptions — admin-only: query subscriptions by email or customerId
+router.get("/payments/service-subscriptions", requireAdmin, async (req: Request, res: Response) => {
   const email = typeof req.query["email"] === "string" ? req.query["email"].trim() : null;
-  const customerId = typeof req.query["customerId"] === "string" ? Number(req.query["customerId"]) : null;
+  const customerIdRaw = typeof req.query["customerId"] === "string" ? Number(req.query["customerId"]) : null;
+  const customerId = customerIdRaw && !Number.isNaN(customerIdRaw) ? customerIdRaw : null;
 
   if (!email && !customerId) {
     res.status(400).json({ error: "email veya customerId gerekli" });
     return;
   }
 
-  let rows;
-  if (customerId) {
-    const { eq } = await import("drizzle-orm");
-    rows = await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.customerId, customerId));
-  } else {
-    const { eq } = await import("drizzle-orm");
-    rows = await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.email, email!));
-  }
+  const rows = customerId
+    ? await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.customerId, customerId))
+    : await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.email, email!));
 
   res.json(rows);
 });

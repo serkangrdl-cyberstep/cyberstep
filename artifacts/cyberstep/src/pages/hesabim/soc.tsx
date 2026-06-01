@@ -220,10 +220,11 @@ export default function SocDashboard() {
                                 target="_blank"
                                 rel="noreferrer"
                                 className="flex items-center gap-1 text-[10px] font-mono text-violet-400 hover:text-violet-300 border border-violet-500/30 bg-violet-500/10 rounded px-1.5 py-0.5"
-                                title={`ServiceNow: ${SN_STATE_LABEL[sn.snState] ?? sn.snState}`}
                               >
                                 <Network className="h-2.5 w-2.5" />
-                                {sn.snNumber}
+                                <span>{sn.snNumber}</span>
+                                <span className="text-violet-300/70">·</span>
+                                <span>{SN_STATE_LABEL[sn.snState] ?? `S${sn.snState}`}</span>
                                 <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
                               </a>
                             )}

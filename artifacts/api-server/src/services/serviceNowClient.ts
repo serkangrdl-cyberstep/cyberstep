@@ -3,6 +3,7 @@
  * SOC case ↔ ServiceNow INC çift yönlü senkronizasyonu
  */
 
+import { promises as dns } from "node:dns";
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { decryptSecret, encryptSecret } from "./fabric-crypto";
@@ -186,9 +187,33 @@ async function getSnIncident(cfg: SnConfig, sysId: string): Promise<{ state: num
 
 // ─── Config Loader ─────────────────────────────────────────────────────────────
 
-// Validate URL before every outbound request (defense-in-depth)
-function assertSafeUrl(instanceUrl: string): void {
-  validateServiceNowUrl(instanceUrl); // throws on invalid/private
+// DNS-level SSRF guard: resolve hostname, reject if any IP is in a private range
+async function resolveAndCheckPrivate(hostname: string): Promise<void> {
+  let addrs: string[] = [];
+  try {
+    const v4 = await dns.resolve4(hostname).catch(() => [] as string[]);
+    const v6 = await dns.resolve6(hostname).catch(() => [] as string[]);
+    addrs = [...v4, ...v6];
+  } catch {
+    return; // If DNS fails entirely, let fetch fail naturally
+  }
+  for (const addr of addrs) {
+    if (addr === "::1" || /^127\./.test(addr)) {
+      throw new Error("Güvenli olmayan hedef: loopback adresi");
+    }
+    for (const re of PRIVATE_RANGES) {
+      if (re.test(addr)) {
+        throw new Error(`Güvenli olmayan hedef: ${addr} dahili IP aralığına çözümleniyor`);
+      }
+    }
+  }
+}
+
+// Validate URL before every outbound request (defense-in-depth), includes async DNS check
+async function assertSafeUrlAsync(instanceUrl: string): Promise<void> {
+  validateServiceNowUrl(instanceUrl); // sync checks first
+  const { hostname } = new URL(instanceUrl);
+  await resolveAndCheckPrivate(hostname);
 }
 
 async function loadConfig(customerId: number): Promise<(SnConfig & { id: number }) | null> {
@@ -231,7 +256,7 @@ export async function openServiceNowIncident(customerId: number, socCaseId: numb
   const cfg = await loadConfig(customerId);
   if (!cfg) return; // Entegrasyon yapılandırılmamış
 
-  assertSafeUrl(cfg.instanceUrl);
+  await assertSafeUrlAsync(cfg.instanceUrl);
 
   // Zaten açık incident var mı?
   const { rows: existing } = await pool.query(
@@ -296,7 +321,7 @@ export async function resolveServiceNowIncident(
   const cfg = await loadConfig(customerId);
   if (!cfg) return;
 
-  assertSafeUrl(cfg.instanceUrl);
+  await assertSafeUrlAsync(cfg.instanceUrl);
 
   const { rows } = await pool.query<{ id: number; sn_sys_id: string; sn_number: string }>(
     `SELECT id, sn_sys_id, sn_number FROM servicenow_incidents
@@ -333,6 +358,70 @@ export async function resolveServiceNowIncident(
   }
 }
 
+// ─── SN → CyberStep: journal entry ingestion (reverse sync) ───────────────────
+
+interface SnJournalEntry { value: string; sys_created_on: string; sys_created_by: string }
+
+async function pullSnJournalNotes(
+  cfg: SnConfig & { id: number },
+  incidentId: number,
+  snSysId: string,
+  socCaseId: number,
+  customerId: number,
+  cursorTs: string | null,
+): Promise<void> {
+  assertSafeUrlSync(cfg.instanceUrl);
+
+  // Query sys_journal_field — work_notes for this incident, after cursor
+  const since = cursorTs ?? "1970-01-01 00:00:00";
+  const encodedSince = encodeURIComponent(since);
+  const url =
+    `${snBaseUrl(cfg.instanceUrl)}/api/now/table/sys_journal_field` +
+    `?sysparm_query=element_id=${snSysId}^element=work_notes^sys_created_on>${encodedSince}` +
+    `&sysparm_orderby=sys_created_on&sysparm_limit=20` +
+    `&sysparm_fields=value,sys_created_on,sys_created_by`;
+
+  let entries: SnJournalEntry[];
+  try {
+    const res = await snRequest<{ result: SnJournalEntry[] }>("GET", url, snHeaders(cfg.username, cfg.password));
+    entries = res.result ?? [];
+  } catch (err) {
+    logger.warn({ err, incidentId, socCaseId }, "SN journal fetch error");
+    return;
+  }
+
+  if (!entries.length) return;
+
+  let latestTs = cursorTs;
+  for (const entry of entries) {
+    if (!entry.value?.trim()) continue;
+    const note = `[ServiceNow] ${entry.sys_created_by}: ${entry.value.trim().slice(0, 2000)}`;
+    try {
+      await pool.query(
+        `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+         VALUES ($1, 'ai', 'ServiceNow', 'note', $2, NOW())
+         ON CONFLICT DO NOTHING`,
+        [socCaseId, note],
+      );
+    } catch { /* ignore duplicate */ }
+    if (!latestTs || entry.sys_created_on > latestTs) latestTs = entry.sys_created_on;
+  }
+
+  if (latestTs && latestTs !== cursorTs) {
+    await pool.query(
+      `UPDATE servicenow_incidents SET sn_journal_cursor = $1 WHERE id = $2`,
+      [latestTs, incidentId],
+    );
+  }
+
+  logger.info({ socCaseId, count: entries.length }, "SN→CyberStep: journal entries ingested");
+}
+
+// Sync-safe (non-DNS) URL assertion for use within snRequest-protected paths
+function assertSafeUrlSync(instanceUrl: string): void {
+  validateServiceNowUrl(instanceUrl);
+}
+
 // ─── Work Notes Sync (SOC not → SN work_notes) ────────────────────────────────
 
 export async function addServiceNowWorkNote(
@@ -343,7 +432,7 @@ export async function addServiceNowWorkNote(
   const cfg = await loadConfig(customerId);
   if (!cfg) return;
 
-  assertSafeUrl(cfg.instanceUrl);
+  await assertSafeUrlAsync(cfg.instanceUrl);
 
   const { rows } = await pool.query<{ sn_sys_id: string; id: number }>(
     `SELECT id, sn_sys_id FROM servicenow_incidents WHERE soc_case_id = $1 AND customer_id = $2 LIMIT 1`,
@@ -378,11 +467,12 @@ export async function syncServiceNowIncidents(): Promise<void> {
     const { rows } = await pool.query<{
       incident_id: number; sn_sys_id: string; sn_number: string;
       soc_case_id: number; customer_id: number; config_id: number;
-      sn_current_state: number;
+      sn_current_state: number; sn_journal_cursor: string | null;
     }>(
       `SELECT sni.id AS incident_id, sni.sn_sys_id, sni.sn_number,
               sni.soc_case_id, sni.customer_id, sni.config_id,
-              sni.sn_state AS sn_current_state
+              sni.sn_state AS sn_current_state,
+              sni.sn_journal_cursor
        FROM servicenow_incidents sni
        JOIN soc_cases sc ON sc.id = sni.soc_case_id
        JOIN servicenow_configs snc ON snc.id = sni.config_id AND snc.active = true
@@ -417,6 +507,9 @@ export async function syncServiceNowIncidents(): Promise<void> {
             [snData.state, row.incident_id],
           );
         }
+
+        // Pull reverse journal entries (SN work_notes → SOC activity log)
+        await pullSnJournalNotes(cfg, row.incident_id, row.sn_sys_id, row.soc_case_id, row.customer_id, row.sn_journal_cursor ?? null);
 
         await pool.query(
           `UPDATE servicenow_configs SET last_sync_at = NOW(), last_sync_error = NULL WHERE id = $1`,
@@ -472,6 +565,8 @@ export async function ensureServiceNowTables(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS sn_incidents_customer_idx ON servicenow_incidents (customer_id)`);
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS sn_configs_customer_uq ON servicenow_configs (customer_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS sn_configs_active_idx ON servicenow_configs (customer_id) WHERE active = true`);
+  // Reverse sync cursor for journal entry deduplication
+  await pool.query(`ALTER TABLE servicenow_incidents ADD COLUMN IF NOT EXISTS sn_journal_cursor TEXT`);
   logger.info("ServiceNow tables ready");
 }
 

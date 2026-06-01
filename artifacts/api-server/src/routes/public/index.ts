@@ -215,4 +215,14 @@ router.post("/public/job-application", jobAppLimiter, async (req: Request, res: 
   }
 });
 
+// GET /api/public/service-catalog — tüm aktif servisler (authenticated gerekmez)
+router.get("/public/service-catalog", async (_req: Request, res: Response) => {
+  const services = await db
+    .select()
+    .from(serviceCatalogTable)
+    .where(eq(serviceCatalogTable.isActive, true))
+    .orderBy(serviceCatalogTable.sortOrder);
+  res.json(services);
+});
+
 export default router;

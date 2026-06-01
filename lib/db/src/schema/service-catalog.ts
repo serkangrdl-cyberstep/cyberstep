@@ -1,4 +1,4 @@
-import { pgTable, serial, text, numeric, boolean, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, varchar, numeric, boolean, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -19,6 +19,18 @@ export const serviceCatalogTable = pgTable("service_catalog", {
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  // Plan A — genişletilmiş alanlar
+  serviceType: varchar("service_type", { length: 20 }).default("monthly"),
+  priceTl: numeric("price_tl", { precision: 12, scale: 2 }),
+  priceTlAnnual: numeric("price_tl_annual", { precision: 12, scale: 2 }),
+  usageUnit: varchar("usage_unit", { length: 50 }),
+  setupTimeHours: integer("setup_time_hours").default(0),
+  deliveryTimeHours: integer("delivery_time_hours").default(0),
+  slaResponseMinutes: integer("sla_response_minutes"),
+  requirements: jsonb("requirements").default([]),
+  targetAudience: text("target_audience").array().default([]),
+  isSelfService: boolean("is_self_service").default(true),
+  requiresAdminApproval: boolean("requires_admin_approval").default(false),
 });
 
 export type ServiceCatalog = typeof serviceCatalogTable.$inferSelect;

@@ -77,3 +77,6 @@ export * from "./kvkk-notifications";
 export * from "./servicenow";
 export * from "./service-catalog";
 export * from "./customer-service-subscriptions";
+export * from "./customer-onboarding";
+export * from "./customer-services";
+export * from "./coupons";

@@ -53,6 +53,7 @@ import webhookRouter from "./integrations/webhook";
 import telegramRouter from "./integrations/telegram";
 import netgsmRouter from "./integrations/netgsm";
 import servicePaymentsRouter from "./payments/index";
+import couponsRouter from "./coupons/index";
 
 const router: IRouter = Router();
 
@@ -110,5 +111,6 @@ router.use(webhookRouter);
 router.use(telegramRouter);
 router.use(netgsmRouter);
 router.use(servicePaymentsRouter);
+router.use(couponsRouter);
 
 export default router;

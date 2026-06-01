@@ -25,6 +25,7 @@ import { generateWeeklyDigest } from "./routes/digest/claude-processor";
 import { calculateAllHealthScores } from "./routes/health/index";
 import { runCollectionReminderCron } from "./services/invoice";
 import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
+import { startRenewalCron } from "./services/subscription-renewal";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -1855,6 +1856,8 @@ startup()
       try { await retryFailedWebhooks(); } catch (err) { logger.error({ err }, "Webhook retry cron failed"); }
     });
     logger.info("Webhook retry cron scheduled (every 10 min)");
+
+    startRenewalCron();
 
     const server = app.listen(port, (err) => {
       if (err) {

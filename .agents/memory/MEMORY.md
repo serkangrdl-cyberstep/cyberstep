@@ -23,3 +23,4 @@
 - [Notification integrations](notification-integrations.md) — Generic Webhook + Telegram Bot + NetGSM SMS; fire-and-forget setImmediate pattern; SOC hooks: case.opened, closed, critical, sla.breached
 - [MS365 Azure AD Integration](ms365-integration.md) — OAuth2 multi-tenant + Graph API poller + SOC correlation; needs MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET env vars; session cast pattern: `req.session as { ms365_oauth_state?: string }`
 - [DNS Monitor & Onboarding Emails](dns-onboarding.md) — dns_watched_domains/snapshots/change_events tables; 5-min cron in dns-cron.ts; D+3/D+7 onboarding cron at 10:30 Istanbul; customers table gets onboarding_d3/d7_sent_at columns
+- [Platform Operasyon Kataloğu](platform-ops-catalog.md) — service_catalog genişletildi (service_type/price_tl/target_audience vb); 27 servis (23 aktif); customer_onboarding + customer_services + coupons tabloları; renewal cron; /hesabim/servislerim; D/E/F sprint'leri henüz eksik

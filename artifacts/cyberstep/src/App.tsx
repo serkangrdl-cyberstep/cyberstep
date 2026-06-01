@@ -162,6 +162,7 @@ import HesabimDestek from "./pages/hesabim/destek";
 import Bulgularim from "./pages/hesabim/bulgularim";
 import CloudGuvenlik from "./pages/hesabim/cloud-guvenlik";
 import EntegrasyonlarimPage from "./pages/hesabim/entegrasyonlarim";
+import ServislerimPage from "./pages/hesabim/servislerim";
 import NpsPage from "./pages/nps";
 import StatusPage from "./pages/status";
 import AdminStatusPage from "./pages/admin-panel/status";
@@ -250,6 +251,7 @@ function Router() {
       <Route path="/hesabim/cloud-guvenlik" component={CloudGuvenlik} />
       <Route path="/hesabim/entegrasyonlarim" component={EntegrasyonlarimPage} />
       <Route path="/hesabim/dns-izleme" component={DnsIzleme} />
+      <Route path="/hesabim/servislerim" component={ServislerimPage} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
       <Route path="/nps/:token" component={NpsPage} />

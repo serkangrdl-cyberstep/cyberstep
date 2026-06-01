@@ -269,6 +269,61 @@ router.post("/payments/service-callback", async (req: Request, res: Response) =>
   res.json({ ok: true, subscriptionId: existing.id });
 });
 
+// GET /api/customer/service-subscriptions — oturum açmış müşteri kendi aboneliklerini görür
+router.get("/customer/service-subscriptions", async (req: Request, res: Response) => {
+  const session = req.session as unknown as Record<string, unknown>;
+  const customerId = session["customerId"] as number | undefined;
+  const email = session["customerEmail"] as string | undefined;
+
+  if (!customerId && !email) {
+    res.status(401).json({ error: "Oturum gerekli" });
+    return;
+  }
+
+  const rows = customerId
+    ? await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.customerId, customerId))
+    : await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.email, email!));
+
+  res.json(rows);
+});
+
+// POST /api/customer/service-subscriptions/:id/cancel — müşteri iptal
+router.post("/customer/service-subscriptions/:id/cancel", async (req: Request, res: Response) => {
+  const session = req.session as unknown as Record<string, unknown>;
+  const customerId = session["customerId"] as number | undefined;
+  const email = session["customerEmail"] as string | undefined;
+  const id = Number(req.params["id"]);
+
+  if (!customerId && !email) {
+    res.status(401).json({ error: "Oturum gerekli" });
+    return;
+  }
+
+  const [sub] = await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.id, id));
+
+  if (!sub) {
+    res.status(404).json({ error: "Abonelik bulunamadı" });
+    return;
+  }
+
+  // IDOR koruması: sadece kendi aboneliği
+  if (sub.customerId && customerId && sub.customerId !== customerId) {
+    res.status(403).json({ error: "Erişim reddedildi" });
+    return;
+  }
+  if (sub.email && email && sub.email !== email) {
+    res.status(403).json({ error: "Erişim reddedildi" });
+    return;
+  }
+
+  await db.update(customerServiceSubscriptionsTable)
+    .set({ status: "cancelled" })
+    .where(eq(customerServiceSubscriptionsTable.id, id));
+
+  logger.info({ subId: id, customerId, email }, "Subscription cancelled by customer");
+  res.json({ success: true });
+});
+
 // GET /api/payments/service-subscriptions — admin-only: query subscriptions by email or customerId
 router.get("/payments/service-subscriptions", requireAdmin, async (req: Request, res: Response) => {
   const email = typeof req.query["email"] === "string" ? req.query["email"].trim() : null;

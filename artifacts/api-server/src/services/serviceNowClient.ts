@@ -486,6 +486,13 @@ export async function syncServiceNowIncidents(): Promise<void> {
       const cfg = await loadConfig(row.customer_id);
       if (!cfg) continue;
 
+      // Full async SSRF guard on every cron outbound request
+      try { await assertSafeUrlAsync(cfg.instanceUrl); }
+      catch (err) {
+        logger.warn({ err, customerId: row.customer_id }, "ServiceNow config URL güvensiz, senkronizasyon atlanıyor");
+        continue;
+      }
+
       try {
         const snData = await getSnIncident(cfg, row.sn_sys_id);
         if (!snData) continue;

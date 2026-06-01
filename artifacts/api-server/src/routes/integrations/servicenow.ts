@@ -3,7 +3,7 @@ import { pool } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { encryptSecret, decryptSecret } from "../../services/fabric-crypto";
-import { testServiceNowConnection } from "../../services/serviceNowClient";
+import { testServiceNowConnection, validateServiceNowUrl } from "../../services/serviceNowClient";
 
 const router = Router();
 
@@ -91,6 +91,12 @@ router.put("/integrations/servicenow/:id", requireCustomer, async (req, res) => 
   };
 
   try {
+    // Validate instanceUrl even when no apiToken change is submitted
+    if (instanceUrl) {
+      try { validateServiceNowUrl(instanceUrl); }
+      catch (e) { res.status(400).json({ error: `Geçersiz URL: ${(e as Error).message}` }); return; }
+    }
+
     let tokenEnc: string | null = null;
     if (apiToken) {
       tokenEnc = encryptSecret(apiToken);

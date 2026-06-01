@@ -151,6 +151,18 @@ router.patch("/admin/soc/cases/:id", requireAdmin, async (req: Request, res: Res
       });
     }
 
+    // ServiceNow: atama değişikliğini work_note olarak yaz
+    if (parsed.data.assignedTo !== undefined) {
+      const note = parsed.data.assignedTo
+        ? `Vaka ${parsed.data.assignedTo} analistine atandı`
+        : "Vaka ataması kaldırıldı";
+      setImmediate(() => {
+        import("../../services/serviceNowClient").then(({ addServiceNowWorkNote }) =>
+          addServiceNowWorkNote(existing.customerId, id, note)
+        ).catch(err => logger.warn({ err, caseId: id }, "ServiceNow atama work_note failed"));
+      });
+    }
+
     res.json({ case: updated });
   } catch (err) {
     logger.error({ err }, "SOC admin case update failed");

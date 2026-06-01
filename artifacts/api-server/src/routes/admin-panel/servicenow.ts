@@ -39,6 +39,21 @@ router.get("/admin-panel/servicenow/summary", requireAdmin, async (_req, res) =>
        WHERE last_sync_at >= NOW() - INTERVAL '24 hours' OR last_sync_error IS NOT NULL`
     );
 
+    // Pending cases: created in last 48h, no servicenow_incidents record, customer has a SN config
+    const { rows: [pendingRow] } = await pool.query<{ total_pending: string; customers_with_pending: string }>(
+      `SELECT
+         COUNT(sc.id)::int AS total_pending,
+         COUNT(DISTINCT sc.customer_id)::int AS customers_with_pending
+       FROM soc_cases sc
+       WHERE sc.created_at >= NOW() - INTERVAL '48 hours'
+         AND NOT EXISTS (
+           SELECT 1 FROM servicenow_incidents sni WHERE sni.soc_case_id = sc.id
+         )
+         AND EXISTS (
+           SELECT 1 FROM servicenow_configs snc WHERE snc.customer_id = sc.customer_id
+         )`
+    );
+
     res.json({
       totalConfigs: Number(totals?.total_configs ?? 0),
       activeConfigs: Number(totals?.active_configs ?? 0),
@@ -48,6 +63,8 @@ router.get("/admin-panel/servicenow/summary", requireAdmin, async (_req, res) =>
       syncErrors24h: Number(syncStats?.errors ?? 0),
       totalWebhookEvents: Number(webhookTotals?.total_webhook_events ?? 0),
       configsWithWebhook: Number(webhookTotals?.configs_with_webhook ?? 0),
+      totalPendingCases: Number(pendingRow?.total_pending ?? 0),
+      customersWithPending: Number(pendingRow?.customers_with_pending ?? 0),
     });
   } catch (err) {
     logger.error({ err }, "GET /api/admin-panel/servicenow/summary error");
@@ -59,6 +76,7 @@ router.get("/admin-panel/servicenow/summary", requireAdmin, async (_req, res) =>
 router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) => {
   try {
     const errOnly = _req.query.errOnly === "1";
+    const pendingOnly = _req.query.pendingOnly === "1";
     const { rows } = await pool.query(
       `SELECT snc.id, snc.customer_id AS "customerId",
               c.email AS "customerEmail", c.company_name AS "companyName",
@@ -70,13 +88,28 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
               snc.last_webhook_at AS "lastWebhookAt",
               snc.webhook_event_count AS "webhookEventCount",
               COUNT(sni.id)::int AS "incidentCount",
-              COUNT(CASE WHEN sni.sn_state NOT IN (6, 7) THEN 1 END)::int AS "openCount"
+              COUNT(CASE WHEN sni.sn_state NOT IN (6, 7) THEN 1 END)::int AS "openCount",
+              (
+                SELECT COUNT(sc.id)::int
+                FROM soc_cases sc
+                WHERE sc.customer_id = snc.customer_id
+                  AND sc.created_at >= NOW() - INTERVAL '48 hours'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM servicenow_incidents sni2 WHERE sni2.soc_case_id = sc.id
+                  )
+              ) AS "pendingCaseCount"
        FROM servicenow_configs snc
        JOIN customers c ON c.id = snc.customer_id
        LEFT JOIN servicenow_incidents sni ON sni.config_id = snc.id
        ${errOnly ? "WHERE snc.last_sync_error IS NOT NULL" : ""}
        GROUP BY snc.id, c.email, c.company_name
-       ORDER BY snc.last_sync_error DESC NULLS LAST, snc.created_at DESC`
+       ${pendingOnly ? `HAVING (
+         SELECT COUNT(sc.id) FROM soc_cases sc
+         WHERE sc.customer_id = snc.customer_id
+           AND sc.created_at >= NOW() - INTERVAL '48 hours'
+           AND NOT EXISTS (SELECT 1 FROM servicenow_incidents sni2 WHERE sni2.soc_case_id = sc.id)
+       ) > 0` : ""}
+       ORDER BY "pendingCaseCount" DESC NULLS LAST, snc.last_sync_error DESC NULLS LAST, snc.created_at DESC`
     );
     res.json({ configs: rows });
   } catch (err) {

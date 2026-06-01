@@ -149,6 +149,8 @@ import FortinetEntegrasyonu from "./pages/hesabim/fortinet";
 import AdminFortinet from "./pages/admin-panel/fortinet";
 import AdminSoc from "./pages/admin-panel/soc";
 import AdminNoc from "./pages/admin-panel/noc";
+import OnboardingWizard from "./pages/admin-panel/onboarding-wizard";
+import OnboardingDashboard from "./pages/admin-panel/onboarding-dashboard";
 import AdminAiCosts from "./pages/admin-panel/ai-costs";
 import AdminRemediation from "./pages/admin-panel/remediation";
 import AdminCodeSecrets from "./pages/admin-panel/code-secrets";
@@ -321,6 +323,8 @@ function Router() {
       <Route path="/panel/fortinet" component={AdminFortinet} />
       <Route path="/panel/soc" component={AdminSoc} />
       <Route path="/panel/noc" component={AdminNoc} />
+      <Route path="/panel/onboarding" component={OnboardingDashboard} />
+      <Route path="/panel/musteriler/:id/onboarding" component={OnboardingWizard} />
       <Route path="/panel/ai-costs" component={AdminAiCosts} />
       <Route path="/panel/remediation" component={AdminRemediation} />
       <Route path="/panel/kod-guvenligi" component={AdminCodeSecrets} />

@@ -83,3 +83,4 @@ export * from "./coupons";
 export * from "./cron-job-metrics";
 export * from "./email-sequence-queue";
 export * from "./noc";
+export * from "./service-onboarding";

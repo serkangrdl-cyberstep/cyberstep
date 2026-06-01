@@ -26,6 +26,7 @@ import ms365AdminRouter from "./ms365";
 import kvkkAdminRouter from "./kvkk";
 import serviceNowAdminRouter from "./servicenow";
 import serviceCatalogAdminRouter from "./service-catalog";
+import serviceOnboardingRouter from "./service-onboarding";
 
 const router = Router();
 router.use(authRouter);
@@ -55,5 +56,6 @@ router.use(ms365AdminRouter);
 router.use(kvkkAdminRouter);
 router.use(serviceNowAdminRouter);
 router.use(serviceCatalogAdminRouter);
+router.use(serviceOnboardingRouter);
 
 export default router;

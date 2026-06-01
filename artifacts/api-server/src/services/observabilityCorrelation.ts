@@ -120,6 +120,78 @@ export function normalizeAzureEvent(payload: AzurePayload): NormalizedObsEvent {
   };
 }
 
+// ─── Cloudflare payload normalizer ───────────────────────────────────────────
+
+interface CloudflarePayload {
+  alert_type?: string;
+  text?: string;
+  data?: {
+    action?: string;
+    clientIP?: string;
+    client_ip?: string;
+    ruleId?: string;
+    source?: string;
+    botScore?: number;
+    bot_score?: number;
+    requestsPerSecond?: number;
+    queryName?: string;
+    queryType?: string;
+    severity?: string;
+  };
+  metadata?: {
+    action?: string;
+    src_ip?: string;
+    rule_id?: string;
+  };
+}
+
+export function normalizeCloudflareEvent(payload: CloudflarePayload): NormalizedObsEvent {
+  const alertType = payload.alert_type ?? "";
+  const data = payload.data ?? {};
+  const sourceIp = data.clientIP ?? data.client_ip ?? payload.metadata?.src_ip;
+
+  const typeMap: Record<string, string> = {
+    cf_waf_block: "waf.block",
+    dos_attack_l7: "ddos.attack",
+    dos_attack_l4: "ddos.attack",
+    advanced_ddos: "ddos.attack",
+    bot_anomaly: "bot.score",
+    cf_bot_management: "bot.score",
+    dns_anomaly: "dns.anomaly",
+  };
+
+  const eventType = typeMap[alertType] ?? "security_alert";
+
+  let severity = "medium";
+  let title = payload.text ?? "Cloudflare Güvenlik Uyarısı";
+
+  if (eventType === "ddos.attack") {
+    severity = "critical";
+    title = payload.text ?? "Cloudflare DDoS Saldırısı Tespit Edildi";
+  } else if (eventType === "waf.block") {
+    severity = "high";
+    const rps = data.requestsPerSecond;
+    title = payload.text ?? `WAF Engelleme: ${sourceIp ?? "Bilinmeyen IP"}${rps ? ` (${rps} req/s)` : ""}`;
+  } else if (eventType === "bot.score") {
+    const score = data.botScore ?? data.bot_score ?? 100;
+    severity = score < 10 ? "high" : score < 30 ? "medium" : "low";
+    title = payload.text ?? `Bot Skoru Düşük: ${score}`;
+  } else if (eventType === "dns.anomaly") {
+    severity = "medium";
+    title = payload.text ?? `DNS Anomalisi: ${data.queryName ?? "bilinmeyen sorgu"}`;
+  }
+
+  return {
+    provider: "cloudflare",
+    eventType,
+    severity,
+    title,
+    description: `Alert tipi: ${alertType}${data.ruleId ? ` · Kural: ${data.ruleId}` : ""}`,
+    affectedService: data.source ?? alertType,
+    sourceIp,
+  };
+}
+
 // ─── Azure webhook signature verification ─────────────────────────────────────
 
 export function verifyAzureSignature(body: unknown, signature: string | string[] | undefined): boolean {

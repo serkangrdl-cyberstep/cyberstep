@@ -49,6 +49,7 @@ const SEV_COLORS: Record<string, string> = {
 const PROVIDER_LABELS: Record<string, string> = {
   datadog: "Datadog",
   azure_monitor: "Azure Monitor",
+  cloudflare: "Cloudflare",
 };
 
 function timeSince(iso: string) {
@@ -60,7 +61,7 @@ function timeSince(iso: string) {
   return `${Math.floor(h / 24)} gün önce`;
 }
 
-type TabKey = "overview" | "datadog" | "azure" | "metrics";
+type TabKey = "overview" | "datadog" | "azure" | "cloudflare" | "metrics";
 
 export default function AdminObservability() {
   const [tab, setTab] = useState<TabKey>("overview");
@@ -97,6 +98,7 @@ export default function AdminObservability() {
     { key: "overview", label: "Genel Bakis" },
     { key: "datadog", label: "Datadog" },
     { key: "azure", label: "Azure Monitor" },
+    { key: "cloudflare", label: "Cloudflare" },
     { key: "metrics", label: "Platform Metrikleri" },
   ];
 
@@ -187,17 +189,17 @@ export default function AdminObservability() {
           </div>
         )}
 
-        {/* ─── Datadog / Azure Eventleri ────────────────────── */}
-        {(tab === "datadog" || tab === "azure") && (
+        {/* ─── Datadog / Azure / Cloudflare Eventleri ──────── */}
+        {(tab === "datadog" || tab === "azure" || tab === "cloudflare") && (
           <div className="space-y-4">
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant={providerFilter === (tab === "datadog" ? "datadog" : "azure_monitor") ? "default" : "outline"}
-                onClick={() => setProviderFilter(tab === "datadog" ? "datadog" : "azure_monitor")}
+                variant={providerFilter === (tab === "datadog" ? "datadog" : tab === "azure" ? "azure_monitor" : "cloudflare") ? "default" : "outline"}
+                onClick={() => setProviderFilter(tab === "datadog" ? "datadog" : tab === "azure" ? "azure_monitor" : "cloudflare")}
                 className="border-gray-700"
               >
-                {tab === "datadog" ? "Datadog" : "Azure Monitor"} Eventleri
+                {tab === "datadog" ? "Datadog" : tab === "azure" ? "Azure Monitor" : "Cloudflare"} Eventleri
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setProviderFilter(undefined)} className="text-gray-400">
                 Tumunu Goster

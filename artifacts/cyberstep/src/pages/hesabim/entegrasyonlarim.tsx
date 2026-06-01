@@ -35,6 +35,7 @@ interface ObsEvent {
 const PROVIDER_LABELS: Record<string, string> = {
   datadog: "Datadog",
   azure_monitor: "Azure Monitor",
+  cloudflare: "Cloudflare",
 };
 
 const SEV_COLORS: Record<string, string> = {
@@ -71,7 +72,7 @@ function WebhookUrl({ token, provider }: { token: string; provider: string }) {
   );
 }
 
-function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_monitor"; onAdd: () => void }) {
+function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_monitor" | "cloudflare"; onAdd: () => void }) {
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const { toast } = useToast();
@@ -174,6 +175,7 @@ export default function EntegrasyonlarimPage() {
 
   const datadogList = integrations.filter(i => i.provider === "datadog");
   const azureList = integrations.filter(i => i.provider === "azure_monitor");
+  const cloudflareList = integrations.filter(i => i.provider === "cloudflare");
 
   function timeSince(iso: string) {
     const diff = Date.now() - new Date(iso).getTime();
@@ -299,6 +301,64 @@ export default function EntegrasyonlarimPage() {
                     <p>3. Alert Rules'ta bu Action Group'u seciniz</p>
                     <p className="text-yellow-500/80 mt-1">KVKK Notu: Azure Turkey North bolgesinde calisiyorsaniz verileriniz Turkiye'de kalir.</p>
                     <a href="https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups" target="_blank" rel="noreferrer"
+                       className="text-blue-400 hover:underline inline-flex items-center gap-1 mt-1">
+                      Dokumantasyon <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ─── Cloudflare ───────────────────────────────────── */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Activity className="h-4 w-4 text-orange-400" /> Cloudflare
+              </CardTitle>
+              {!isLoading && <AddIntegrationCard provider="cloudflare" onAdd={() => qc.invalidateQueries({ queryKey: ["obs-integrations"] })} />}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+            ) : cloudflareList.length === 0 ? (
+              <div className="text-gray-500 text-sm text-center py-6 border border-dashed border-gray-800 rounded-lg">
+                Henuz Cloudflare entegrasyonu yok.
+              </div>
+            ) : (
+              cloudflareList.map(integ => (
+                <div key={integ.id} className="border border-gray-800 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-white">{integ.displayName}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {integ.eventCount} event
+                        {integ.lastEventAt ? ` · Son: ${timeSince(integ.lastEventAt)}` : " · Henuz event yok"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => testMutation.mutate(integ.id)} className="text-gray-400 text-xs h-7">
+                        Test
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(integ.id)} className="text-red-400 hover:text-red-300 h-7">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Webhook URL:</p>
+                    <WebhookUrl token={integ.webhookToken} provider="cloudflare" />
+                  </div>
+                  <div className="border border-gray-800 rounded p-3 bg-gray-950/50 text-xs text-gray-400 space-y-1">
+                    <p className="font-medium text-gray-300">Cloudflare'de yapilacaklar:</p>
+                    <p>1. Cloudflare Dashboard → Notifications → Add Notification</p>
+                    <p>2. Tip secin: WAF Alerts / DDoS / Bot Management</p>
+                    <p>3. Delivery Method: Webhook → URL olarak yukardaki adresi girin</p>
+                    <p>4. Desteklenen olay tipleri: WAF Block, DDoS, Bot Score, DNS Anomaly</p>
+                    <a href="https://developers.cloudflare.com/notifications/get-started/" target="_blank" rel="noreferrer"
                        className="text-blue-400 hover:underline inline-flex items-center gap-1 mt-1">
                       Dokumantasyon <ExternalLink className="h-3 w-3" />
                     </a>

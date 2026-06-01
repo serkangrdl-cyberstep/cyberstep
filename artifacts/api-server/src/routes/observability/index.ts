@@ -7,6 +7,7 @@ import { encryptSecret } from "../../services/fabric-crypto";
 import {
   normalizeDatadogEvent,
   normalizeAzureEvent,
+  normalizeCloudflareEvent,
   verifyAzureSignature,
   correlateWithSOC,
 } from "../../services/observabilityCorrelation";
@@ -138,6 +139,46 @@ router.post("/webhook/azure/:token", async (req, res) => {
     }
   } catch (err) {
     logger.error({ err }, "POST /api/integrations/azure/:token error");
+  }
+});
+
+// POST /api/webhook/cloudflare/:token
+router.post("/webhook/cloudflare/:token", async (req, res) => {
+  const integration = await getIntegrationByToken(req.params["token"]!, "cloudflare").catch(() => null);
+  res.status(200).json({ ok: true });
+  if (!integration) return;
+
+  const payload = req.body as Record<string, unknown>;
+  const event = normalizeCloudflareEvent(payload as Parameters<typeof normalizeCloudflareEvent>[0]);
+
+  try {
+    const [obsEvent] = await db.insert(observabilityEventsTable).values({
+      integrationId: integration.id,
+      customerId: integration.customerId,
+      provider: "cloudflare",
+      eventType: event.eventType,
+      severity: event.severity,
+      title: event.title,
+      description: event.description,
+      affectedService: event.affectedService,
+      sourceIp: event.sourceIp,
+      rawPayload: payload,
+    }).returning({ id: observabilityEventsTable.id });
+
+    await pool.query(
+      `UPDATE observability_integrations SET last_event_at = NOW(), event_count = event_count + 1 WHERE id = $1`,
+      [integration.id]
+    );
+
+    observabilityEventsTotal.inc({ provider: "cloudflare", event_type: event.eventType, severity: event.severity });
+
+    if (["critical", "high"].includes(event.severity) && obsEvent) {
+      setImmediate(() => correlateWithSOC(integration.customerId, event, integration.id, obsEvent.id).catch(err => {
+        logger.error({ err }, "Cloudflare correlateWithSOC error");
+      }));
+    }
+  } catch (err) {
+    logger.error({ err }, "POST /api/webhook/cloudflare/:token error");
   }
 });
 

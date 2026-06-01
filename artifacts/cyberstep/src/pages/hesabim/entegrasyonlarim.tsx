@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -423,6 +423,8 @@ function ServiceNowSection() {
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [copiedBR, setCopiedBR] = useState(false);
 
   const { data, isLoading } = useQuery<{ config: SnConfig | null }>({
     queryKey: ["sn-config"],
@@ -686,20 +688,162 @@ function ServiceNowSection() {
                 </div>
               )}
 
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-violet-500/30 text-violet-400 hover:text-violet-300 h-8"
-                onClick={() => generateSecretMutation.mutate()}
-                disabled={generateSecretMutation.isPending}
-              >
-                {generateSecretMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                )}
-                {webhookInfo?.hasSecret ? "Secret Yenile" : "Secret Oluştur"}
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-violet-500/30 text-violet-400 hover:text-violet-300 h-8"
+                  onClick={() => generateSecretMutation.mutate()}
+                  disabled={generateSecretMutation.isPending}
+                >
+                  {generateSecretMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  {webhookInfo?.hasSecret ? "Secret Yenile" : "Secret Oluştur"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-gray-700 text-gray-400 hover:text-white h-8"
+                  onClick={() => setShowGuide(g => !g)}
+                >
+                  <BookOpen className="h-3.5 w-3.5 mr-1" />
+                  Kurulum Rehberi
+                  {showGuide ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                </Button>
+              </div>
+
+              {/* ── Kurulum Rehberi ──────────────────────────────────────── */}
+              {showGuide && (
+                <div className="border border-gray-700/50 rounded-lg p-4 space-y-5 bg-gray-950/60 text-xs">
+                  <p className="text-sm font-medium text-white">ServiceNow Kurulum Rehberi</p>
+                  <p className="text-gray-400 text-[11px]">
+                    Aşağıdaki adımları tamamlayarak ServiceNow&apos;daki Incident değişikliklerini (durum, yorum, atama) CyberStep&apos;e anında iletin.
+                  </p>
+
+                  {/* Adım 1 */}
+                  <div className="space-y-2">
+                    <p className="font-semibold text-gray-200 flex items-center gap-1.5">
+                      <span className="bg-violet-600 text-white rounded-full h-4 w-4 flex items-center justify-center text-[10px] shrink-0">1</span>
+                      Outbound REST Message Oluşturun
+                    </p>
+                    <ol className="space-y-1 text-gray-400 text-[11px] pl-6 list-decimal">
+                      <li>ServiceNow&apos;da <span className="text-white">Navigator</span> &rarr; <span className="text-violet-400">System Web Services &gt; Outbound &gt; REST Message</span> açın &rarr; <strong className="text-white">New</strong></li>
+                      <li><strong className="text-gray-200">Name:</strong> <code className="text-violet-400 bg-gray-900 px-1 rounded">CyberStep Webhook</code></li>
+                      <li><strong className="text-gray-200">Endpoint:</strong> Yukarıdaki Webhook URL&apos;ni yapıştırın</li>
+                      <li><strong className="text-gray-200">Authentication type:</strong> <code className="text-gray-300 bg-gray-900 px-1 rounded">No authentication</code> (HMAC header ile doğrulanır)</li>
+                      <li><span className="text-gray-500">HTTP Methods &rarr; New &rarr; </span><strong className="text-gray-200">Method name:</strong> <code className="text-violet-400 bg-gray-900 px-1 rounded">notify</code>, <strong className="text-gray-200">HTTP method:</strong> POST &rarr; <strong className="text-white">Submit</strong></li>
+                    </ol>
+                  </div>
+
+                  {/* Adım 2 */}
+                  <div className="space-y-2">
+                    <p className="font-semibold text-gray-200 flex items-center gap-1.5">
+                      <span className="bg-violet-600 text-white rounded-full h-4 w-4 flex items-center justify-center text-[10px] shrink-0">2</span>
+                      Business Rule Oluşturun
+                    </p>
+                    <ol className="space-y-1 text-gray-400 text-[11px] pl-6 list-decimal">
+                      <li><span className="text-gray-500">Navigator &rarr; </span><span className="text-violet-400">System Policy &gt; Business Rules</span> &rarr; <strong className="text-white">New</strong></li>
+                      <li><strong className="text-gray-200">Table:</strong> <code className="text-gray-300 bg-gray-900 px-1 rounded">Incident [incident]</code> &nbsp;|&nbsp; <strong className="text-gray-200">Name:</strong> <code className="text-violet-400 bg-gray-900 px-1 rounded">CyberStep Webhook Sync</code></li>
+                      <li><strong className="text-gray-200">When:</strong> after &nbsp;|&nbsp; <strong className="text-gray-200">Update:</strong> <span className="text-emerald-400">checked</span> &nbsp;|&nbsp; <strong className="text-gray-200">Insert:</strong> <span className="text-emerald-400">checked</span></li>
+                      <li><strong className="text-gray-200">Advanced:</strong> <span className="text-emerald-400">checked</span></li>
+                      <li><strong className="text-gray-200">Filter Conditions:</strong><br/>
+                        <code className="text-[10px] bg-gray-900 px-1.5 py-0.5 rounded text-gray-300 block mt-1">State | changes &nbsp;OR&nbsp; Work notes | changes &nbsp;OR&nbsp; Assigned to | changes</code>
+                      </li>
+                      <li>Script sekmesine geçin ve aşağıdaki kodu yapıştırın &rarr; <strong className="text-white">Submit</strong></li>
+                    </ol>
+
+                    {/* BR Code Block */}
+                    <div className="relative mt-2">
+                      <pre className="text-[10px] leading-relaxed bg-gray-900 border border-gray-700 rounded-lg p-3 overflow-x-auto text-emerald-400 font-mono whitespace-pre">
+{`(function executeRule(current, previous) {
+  // ─── CyberStep Webhook Business Rule ─────────────────────────
+  // Table  : Incident [incident]
+  // When   : after — Update, Insert
+  // Kosul  : State | degisir VEYA Work notes | degisir
+  //           VEYA Assigned to | degisir
+  // ─────────────────────────────────────────────────────────────
+
+  var WEBHOOK_URL    = "${webhookInfo?.webhookUrl ?? "https://YOUR_DOMAIN/api/integrations/servicenow/webhook"}";
+  var WEBHOOK_SECRET = "YOUR_HMAC_SECRET"; // Secret Olustur ile uretilen degeri girin
+
+  var payload = JSON.stringify({
+    event            : "incident.updated",
+    sn_number        : current.number.toString(),
+    sn_sys_id        : current.sys_id.toString(),
+    sn_state         : parseInt(current.state.toString(), 10),
+    short_description: current.short_description.toString(),
+    comment          : current.work_notes.getJournalEntry(1),
+    assigned_to      : current.assigned_to.getDisplayValue(),
+    assignment_group : current.assignment_group.getDisplayValue(),
+    updated_at       : current.sys_updated_on.toString()
+  });
+
+  // HMAC-SHA256 imzasi (ServiceNow Tokyo / Utah+ gerektirir)
+  var sig = GlideDigest.HMACSHA256(WEBHOOK_SECRET, payload);
+
+  var req = new sn_ws.RESTMessageV2();
+  req.setEndpoint(WEBHOOK_URL);
+  req.setHttpMethod("POST");
+  req.setRequestHeader("Content-Type", "application/json");
+  req.setRequestHeader("X-SN-Signature", "sha256=" + sig);
+  req.setRequestBody(payload);
+
+  try {
+    var resp = req.execute();
+    if (resp.getStatusCode() < 200 || resp.getStatusCode() >= 300) {
+      gs.warn("[CyberStep] Webhook HTTP " + resp.getStatusCode()
+              + ": " + resp.getBody());
+    }
+  } catch (e) {
+    gs.error("[CyberStep] Webhook hata: " + e.message);
+  }
+})(current, previous);`}
+                      </pre>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute top-2 right-2 h-7 border-gray-600 text-gray-400 hover:text-white text-[10px]"
+                        onClick={() => {
+                          const code = `(function executeRule(current, previous) {\n  // ─── CyberStep Webhook Business Rule ─────────────────────────\n  // Table  : Incident [incident]\n  // When   : after — Update, Insert\n  // Kosul  : State | degisir VEYA Work notes | degisir\n  //           VEYA Assigned to | degisir\n  // ─────────────────────────────────────────────────────────────\n\n  var WEBHOOK_URL    = "${webhookInfo?.webhookUrl ?? "https://YOUR_DOMAIN/api/integrations/servicenow/webhook"}";\n  var WEBHOOK_SECRET = "YOUR_HMAC_SECRET"; // Secret Olustur ile uretilen degeri girin\n\n  var payload = JSON.stringify({\n    event            : "incident.updated",\n    sn_number        : current.number.toString(),\n    sn_sys_id        : current.sys_id.toString(),\n    sn_state         : parseInt(current.state.toString(), 10),\n    short_description: current.short_description.toString(),\n    comment          : current.work_notes.getJournalEntry(1),\n    assigned_to      : current.assigned_to.getDisplayValue(),\n    assignment_group : current.assignment_group.getDisplayValue(),\n    updated_at       : current.sys_updated_on.toString()\n  });\n\n  // HMAC-SHA256 imzasi (ServiceNow Tokyo / Utah+ gerektirir)\n  var sig = GlideDigest.HMACSHA256(WEBHOOK_SECRET, payload);\n\n  var req = new sn_ws.RESTMessageV2();\n  req.setEndpoint(WEBHOOK_URL);\n  req.setHttpMethod("POST");\n  req.setRequestHeader("Content-Type", "application/json");\n  req.setRequestHeader("X-SN-Signature", "sha256=" + sig);\n  req.setRequestBody(payload);\n\n  try {\n    var resp = req.execute();\n    if (resp.getStatusCode() < 200 || resp.getStatusCode() >= 300) {\n      gs.warn("[CyberStep] Webhook HTTP " + resp.getStatusCode()\n              + ": " + resp.getBody());\n    }\n  } catch (e) {\n    gs.error("[CyberStep] Webhook hata: " + e.message);\n  }\n})(current, previous);`;
+                          navigator.clipboard.writeText(code);
+                          setCopiedBR(true);
+                          setTimeout(() => setCopiedBR(false), 2000);
+                        }}
+                      >
+                        {copiedBR ? <CheckCircle className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 mr-1" />}
+                        {copiedBR ? "Kopyalandı" : "Kopyala"}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-gray-600">
+                      Not: <code className="text-gray-500">GlideDigest.HMACSHA256</code> ServiceNow Tokyo (2022) ve sonrasında mevcuttur.
+                      Daha eski sürümler için ServiceNow yöneticinizle iletişime geçin.
+                    </p>
+                  </div>
+
+                  {/* Adım 3 */}
+                  <div className="space-y-2">
+                    <p className="font-semibold text-gray-200 flex items-center gap-1.5">
+                      <span className="bg-violet-600 text-white rounded-full h-4 w-4 flex items-center justify-center text-[10px] shrink-0">3</span>
+                      Test Senaryosu
+                    </p>
+                    <ol className="space-y-1 text-gray-400 text-[11px] pl-6 list-decimal">
+                      <li>CyberStep&apos;te bir SOC vakasının ServiceNow&apos;a aktarılmasını bekleyin (veya mevcut bir INC&apos;i bulun)</li>
+                      <li>ServiceNow&apos;da o INC&apos;i açın &rarr; <strong className="text-gray-200">State</strong> alanını değiştirin (örn. <em>In Progress</em>) &rarr; <strong className="text-white">Save</strong></li>
+                      <li>CyberStep &rarr; Bu sayfada <strong className="text-violet-400">Son ServiceNow Incident&apos;lar</strong> listesini yenileyin — güncellenme zamanının değiştiğini görmelisiniz</li>
+                      <li>SOC panonuzda (<span className="text-violet-400">/hesabim/soc</span>) ilgili vakanın aktivite akışında ServiceNow&apos;dan gelen güncelleme notu görünür</li>
+                    </ol>
+                    <div className="border border-emerald-500/20 bg-emerald-950/20 rounded p-2.5 text-[10px] text-emerald-400 space-y-0.5">
+                      <p className="font-medium">Beklenen davranış:</p>
+                      <p>· INC state 2 (In Progress) &rarr; SOC aktivite logu: <em>"ServiceNow: Devam Ediyor"</em></p>
+                      <p>· INC state 6 (Resolved) &rarr; SOC vakası <em>Kapalı</em> olarak işaretlenir</p>
+                      <p>· Work notes eklenmesi &rarr; SOC aktivite loguna yorum eklenir</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         ) : (

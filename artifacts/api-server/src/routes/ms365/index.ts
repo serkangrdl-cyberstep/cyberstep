@@ -63,6 +63,8 @@ export async function ensureMs365Tables(): Promise<void> {
       created_at            TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  // Add last_error_email_at column if not exists (for rate-limiting reconnect emails)
+  await pool.query(`ALTER TABLE ms365_integrations ADD COLUMN IF NOT EXISTS last_error_email_at TIMESTAMPTZ`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ms365_signin_customer_idx ON ms365_signin_logs (customer_id, event_time DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ms365_signin_upn_idx ON ms365_signin_logs (customer_id, user_principal_name, event_time DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ms365_email_alert_id_idx ON ms365_email_alerts (integration_id, alert_id)`);
@@ -100,7 +102,7 @@ router.get("/ms365/callback", async (req, res) => {
 
   if (error) {
     req.log.warn({ error, error_description }, "MS365 OAuth error from Microsoft");
-    res.redirect("/?ms365_error=oauth_denied");
+    res.redirect("/hesabim/entegrasyonlar?ms365_error=oauth_denied");
     return;
   }
 
@@ -124,8 +126,14 @@ router.get("/ms365/callback", async (req, res) => {
     }
 
     const expiresAt = new Date(Date.now() + tokens.expiresIn * 1000);
-    const accessEnc = encryptSecret(tokens.accessToken) ?? tokens.accessToken;
-    const refreshEnc = encryptSecret(tokens.refreshToken) ?? tokens.refreshToken;
+    const accessEnc = encryptSecret(tokens.accessToken);
+    const refreshEnc = encryptSecret(tokens.refreshToken);
+
+    if (!accessEnc || !refreshEnc) {
+      req.log.error("MS365 OAuth callback: ENCRYPTION_KEY not configured — refusing to store plaintext tokens");
+      res.redirect("/hesabim/entegrasyonlar?ms365_error=encryption_unavailable");
+      return;
+    }
 
     const existing = await pool.query(
       `SELECT id FROM ms365_integrations WHERE customer_id = $1 AND azure_tenant_id = $2 LIMIT 1`,

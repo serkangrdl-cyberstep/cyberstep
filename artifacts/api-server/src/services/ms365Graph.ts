@@ -149,32 +149,91 @@ export async function refreshMs365Token(row: Ms365IntegrationRow): Promise<strin
 
   const data = await res.json() as TokenResponse;
   if (data.error || !data.access_token) {
-    logger.warn(
-      { integrationId: row.id, error: data.error },
-      "MS365 token refresh failed — marking error"
-    );
+    const errMsg = data.error_description ?? data.error ?? "Token refresh failed";
+    logger.warn({ integrationId: row.id, error: data.error }, "MS365 token refresh failed — marking error");
     await pool.query(
       `UPDATE ms365_integrations SET status = 'error', sync_error = $1, updated_at = NOW() WHERE id = $2`,
-      [data.error_description ?? data.error ?? "Token refresh failed", row.id]
+      [errMsg, row.id]
+    );
+    await sendMs365ErrorEmail(row.id, row.customer_id).catch(err =>
+      logger.warn({ err, integrationId: row.id }, "MS365 error email failed")
     );
     return null;
   }
 
   const expiresAt = new Date(Date.now() + data.expires_in * 1000);
-  const newAccessEnc = encryptSecret(data.access_token) ?? data.access_token;
-  const newRefreshEnc = data.refresh_token
-    ? (encryptSecret(data.refresh_token) ?? data.refresh_token)
-    : row.refresh_token_enc;
+  const newAccessEnc = encryptSecret(data.access_token);
+  const newRefreshEnc = data.refresh_token ? encryptSecret(data.refresh_token) : null;
+
+  // Fail-closed: if ENCRYPTION_KEY is unavailable, refuse to store plaintext tokens
+  if (!newAccessEnc || (data.refresh_token && !newRefreshEnc)) {
+    logger.error({ integrationId: row.id }, "MS365 token refresh: ENCRYPTION_KEY unavailable — refusing plaintext storage");
+    await pool.query(
+      `UPDATE ms365_integrations SET status = 'error', sync_error = 'Şifreleme anahtarı eksik (ENCRYPTION_KEY)', updated_at = NOW() WHERE id = $1`,
+      [row.id]
+    );
+    return null;
+  }
 
   await pool.query(
     `UPDATE ms365_integrations
      SET access_token_enc = $1, refresh_token_enc = $2, token_expires_at = $3,
          status = 'active', sync_error = NULL, updated_at = NOW()
      WHERE id = $4`,
-    [newAccessEnc, newRefreshEnc, expiresAt.toISOString(), row.id]
+    [newAccessEnc, newRefreshEnc ?? row.refresh_token_enc, expiresAt.toISOString(), row.id]
   );
 
   return data.access_token;
+}
+
+// ─── Reconnection notification email ─────────────────────────────────────────
+
+async function sendMs365ErrorEmail(integrationId: number, customerId: number): Promise<void> {
+  // Rate-limit: at most 1 email per 24 hours per integration
+  const { rows } = await pool.query<{ last_error_email_at: string | null; contact_email: string | null }>(
+    `SELECT i.last_error_email_at, c.contact_email
+     FROM ms365_integrations i
+     JOIN customers c ON c.id = i.customer_id
+     WHERE i.id = $1
+     LIMIT 1`,
+    [integrationId]
+  );
+  const row = rows[0];
+  if (!row?.contact_email) return;
+
+  // Skip if already sent within 24 hours
+  if (row.last_error_email_at) {
+    const lastSent = new Date(row.last_error_email_at).getTime();
+    if (Date.now() - lastSent < 24 * 60 * 60 * 1000) return;
+  }
+
+  const { sendMail } = await import("./email");
+  const baseUrl = process.env["REPLIT_DOMAINS"]
+    ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+    : "http://localhost:80";
+
+  await sendMail({
+    to: row.contact_email,
+    subject: "CyberStep: Microsoft 365 bağlantınız kesildi — yeniden bağlanın",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:8px;">
+        <h2 style="color:#60a5fa;margin-top:0;">Microsoft 365 Bağlantısı Kesildi</h2>
+        <p>Azure AD entegrasyonunuzun erişim token'ı yenilenemedi. SOC izleme geçici olarak duraklatıldı.</p>
+        <p style="font-size:14px;color:#94a3b8;">Bu durum genellikle Azure AD politika değişikliği veya uygulama izninin kaldırılması durumunda oluşur.</p>
+        <a href="${baseUrl}/hesabim/entegrasyonlar"
+           style="display:inline-block;margin-top:16px;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">
+          Yeniden Bağlan
+        </a>
+        <p style="margin-top:24px;font-size:12px;color:#64748b;">CyberStep · Bu e-postayı görmezden gelebilirsiniz Microsoft 365 entegrasyonu kullanmıyorsanız.</p>
+      </div>
+    `,
+  });
+
+  await pool.query(
+    `UPDATE ms365_integrations SET last_error_email_at = NOW() WHERE id = $1`,
+    [integrationId]
+  );
+  logger.info({ integrationId, customerId }, "MS365 reconnect email sent");
 }
 
 // ─── Graph API fetchers ───────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import remediationAdminRouter from "./remediation";
 import cloudCspmAdminRouter from "./cloud-cspm";
 import codeSecretsAdminRouter from "./code-secrets";
 import observabilityAdminRouter from "./observability";
+import dnsMonitorAdminRouter from "./dns-monitor";
 
 const router = Router();
 router.use(authRouter);
@@ -43,5 +44,6 @@ router.use(remediationAdminRouter);
 router.use(cloudCspmAdminRouter);
 router.use(codeSecretsAdminRouter);
 router.use(observabilityAdminRouter);
+router.use(dnsMonitorAdminRouter);
 
 export default router;

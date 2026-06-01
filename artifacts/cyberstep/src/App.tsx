@@ -148,6 +148,8 @@ import AdminAiCosts from "./pages/admin-panel/ai-costs";
 import AdminRemediation from "./pages/admin-panel/remediation";
 import AdminCodeSecrets from "./pages/admin-panel/code-secrets";
 import AdminObservability from "./pages/admin-panel/observability";
+import AdminDnsIzleme from "./pages/admin-panel/dns-izleme";
+import DnsIzleme from "./pages/hesabim/dns-izleme";
 import SocDashboard from "./pages/hesabim/soc";
 import HesabimDestek from "./pages/hesabim/destek";
 import Bulgularim from "./pages/hesabim/bulgularim";
@@ -240,6 +242,7 @@ function Router() {
       <Route path="/hesabim/bulgularim" component={Bulgularim} />
       <Route path="/hesabim/cloud-guvenlik" component={CloudGuvenlik} />
       <Route path="/hesabim/entegrasyonlarim" component={EntegrasyonlarimPage} />
+      <Route path="/hesabim/dns-izleme" component={DnsIzleme} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
       <Route path="/nps/:token" component={NpsPage} />
@@ -305,6 +308,7 @@ function Router() {
       <Route path="/panel/remediation" component={AdminRemediation} />
       <Route path="/panel/kod-guvenligi" component={AdminCodeSecrets} />
       <Route path="/panel/observability" component={AdminObservability} />
+      <Route path="/panel/dns-izleme" component={AdminDnsIzleme} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

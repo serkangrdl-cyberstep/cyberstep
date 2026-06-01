@@ -1188,3 +1188,118 @@ export async function sendScanLeadDripEmail(params: {
     return false;
   }
 }
+
+// ─── Onboarding D+3: Assessment hatırlatma ───────────────────────────────────
+export async function sendOnboardingD3Email(params: {
+  email: string;
+  fullName: string;
+  companyName?: string;
+  assessmentUrl: string;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const greeting = params.companyName
+    ? `${params.fullName} (${params.companyName})`
+    : params.fullName;
+
+  await transport.sendMail({
+    from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+    to: params.email,
+    subject: "Siber güvenlik değerlendirmeniz sizi bekliyor",
+    html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <div style="background:#0f172a;padding:24px 32px">
+      <span style="font-size:22px;font-weight:700;color:#10b981">CyberStep.io</span>
+    </div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Merhaba ${greeting},</h2>
+      <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6">
+        CyberStep.io'ya katıldığınız için teşekkürler. Üç gün önce hesabınızı oluşturdunuz — şimdi şirketinizin siber güvenlik risklerini öğrenme zamanı.
+      </p>
+      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
+        <p style="margin:0;font-size:14px;color:#1e40af;font-weight:600">Ücretsiz Mini Değerlendirme</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#1e40af;line-height:1.5">
+          20 soru, 5 güvenlik alanı, yapay zeka destekli kişisel risk raporu — sadece 10 dakika.
+        </p>
+      </div>
+      <div style="margin-bottom:24px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
+            <p style="margin:0;font-size:22px;font-weight:800;color:#0f172a">20</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Kritik Soru</p>
+          </div>
+          <div style="flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
+            <p style="margin:0;font-size:22px;font-weight:800;color:#10b981">Ucretsiz</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Tamamen Ücretsiz</p>
+          </div>
+          <div style="flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
+            <p style="margin:0;font-size:22px;font-weight:800;color:#0f172a">10dk</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Tamamlama Süresi</p>
+          </div>
+        </div>
+      </div>
+      <a href="${params.assessmentUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:16px 24px;border-radius:8px;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:20px">
+        Degerlendirmeyi Baslat
+      </a>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİler için siber güvenlik platformu</p>
+    </div>
+  </div>
+</body></html>`,
+  });
+  logger.info({ email: params.email }, "Onboarding D+3 email sent");
+}
+
+// ─── Onboarding D+7: Tam Assessment teklifi ──────────────────────────────────
+export async function sendOnboardingD7Email(params: {
+  email: string;
+  fullName: string;
+  companyName?: string;
+  assessmentUrl: string;
+  fullAssessmentUrl: string;
+}): Promise<void> {
+  const transport = getTransport();
+  if (!transport) return;
+
+  const greeting = params.companyName
+    ? `${params.fullName} (${params.companyName})`
+    : params.fullName;
+
+  await transport.sendMail({
+    from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
+    to: params.email,
+    subject: "Şirketinizin siber risk skoru nedir? — 7 günlük hedefiniz",
+    html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <div style="background:#0f172a;padding:24px 32px">
+      <span style="font-size:22px;font-weight:700;color:#10b981">CyberStep.io</span>
+    </div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Merhaba ${greeting},</h2>
+      <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.6">
+        Bir haftadır CyberStep.io'dasınız. KOBİler için siber güvenlik artık bir lüks değil — zorunluluk.
+      </p>
+      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:16px 20px;margin-bottom:24px">
+        <p style="margin:0;font-size:14px;color:#854d0e;font-weight:700">Türkiye'deki KOBİlerin %67'si siber saldırı sonrası 6 ay içinde kapanıyor.</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#92400e">Şirketinizin nerede durduğunu bilmek, ilk adım.</p>
+      </div>
+      <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6">
+        <strong>55 soruluk Tam Değerlendirme</strong> ile 10 güvenlik alanında kapsamlı analiz yapın; PDF rapor, sektörel kıyaslama ve uzman danışmanlık görüşmesi alın.
+      </p>
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-direction:column">
+        <a href="${params.fullAssessmentUrl}" style="display:block;background:#0f172a;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">
+          Tam Degerlendirme — 5.990 TL
+        </a>
+        <a href="${params.assessmentUrl}" style="display:block;background:#fff;color:#0f172a;text-align:center;padding:14px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #e2e8f0">
+          Ucretsiz Mini Degerlendirme (20 soru)
+        </a>
+      </div>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİler için siber güvenlik platformu</p>
+    </div>
+  </div>
+</body></html>`,
+  });
+  logger.info({ email: params.email }, "Onboarding D+7 email sent");
+}

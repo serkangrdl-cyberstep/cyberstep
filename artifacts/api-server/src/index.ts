@@ -9,6 +9,7 @@ import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMai
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { startFabricCrons } from "./services/fabric-cron";
 import { startSOCCrons } from "./services/soc/soc-cron";
+import { startDnsCrons } from "./services/dns-cron";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
@@ -1396,7 +1397,62 @@ async function startup() {
   await ensureBreachMonitorTable();
   await ensureReferralCodeColumn();
   await ensureDomainScanPurchasesTable();
+  await ensureDnsTables();
+  await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
+}
+
+async function ensureDnsTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS dns_watched_domains (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      domain TEXT NOT NULL,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      last_checked_at TIMESTAMP,
+      UNIQUE(customer_id, domain)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS dns_snapshots (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL,
+      domain TEXT NOT NULL,
+      a_records JSONB NOT NULL DEFAULT '[]',
+      mx_records JSONB NOT NULL DEFAULT '[]',
+      ns_records JSONB NOT NULL DEFAULT '[]',
+      txt_records JSONB NOT NULL DEFAULT '[]',
+      cname_records JSONB NOT NULL DEFAULT '[]',
+      checked_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS dns_snapshots_customer_domain_idx
+    ON dns_snapshots(customer_id, domain, checked_at DESC)
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS dns_change_events (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL,
+      domain TEXT NOT NULL,
+      record_type TEXT NOT NULL,
+      old_values JSONB,
+      new_values JSONB,
+      severity TEXT NOT NULL DEFAULT 'medium',
+      soc_case_id INTEGER,
+      detected_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS dns_change_events_customer_idx
+    ON dns_change_events(customer_id, detected_at DESC)
+  `);
+}
+
+async function ensureOnboardingEmailColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS onboarding_d3_sent_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS onboarding_d7_sent_at TIMESTAMP`);
 }
 
 async function ensureDomainScanPurchasesTable() {
@@ -1617,6 +1673,60 @@ startup()
     logger.info("NPS cron scheduled (Tuesday 11:00 Istanbul)");
     startFabricCrons();
     startSOCCrons();
+    startDnsCrons();
+
+    // ─── Onboarding email serisi — Her gün 10:30 (D+3 ve D+7) ───────────────
+    cron.schedule("30 10 * * *", async () => {
+      logger.info("Running onboarding email cron (D+3, D+7)");
+      try {
+        const { sendOnboardingD3Email, sendOnboardingD7Email } = await import("./services/email");
+        const base = process.env["REPLIT_DOMAINS"]
+          ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+          : "http://localhost:80";
+
+        // D+3: kayıt 3-4 gün önce, d3 emaili henüz gönderilmemiş
+        const d3Due = await db.execute<{ id: number; email: string; full_name: string; company_name: string | null }>(sql`
+          SELECT id, email, full_name, company_name
+          FROM customers
+          WHERE created_at >= NOW() - INTERVAL '4 days'
+            AND created_at < NOW() - INTERVAL '3 days'
+            AND onboarding_d3_sent_at IS NULL
+          LIMIT 50
+        `);
+        for (const c of (d3Due as unknown as { rows: { id: number; email: string; full_name: string; company_name: string | null }[] }).rows) {
+          await sendOnboardingD3Email({
+            email: c.email, fullName: c.full_name,
+            companyName: c.company_name ?? undefined,
+            assessmentUrl: `${base}/assessment/start`,
+          }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+3 email failed"));
+          await db.execute(sql`UPDATE customers SET onboarding_d3_sent_at = NOW() WHERE id = ${c.id}`);
+          logger.info({ customerId: c.id }, "Onboarding D+3 email sent");
+        }
+
+        // D+7: kayıt 7-8 gün önce, d7 emaili henüz gönderilmemiş
+        const d7Due = await db.execute<{ id: number; email: string; full_name: string; company_name: string | null }>(sql`
+          SELECT id, email, full_name, company_name
+          FROM customers
+          WHERE created_at >= NOW() - INTERVAL '8 days'
+            AND created_at < NOW() - INTERVAL '7 days'
+            AND onboarding_d7_sent_at IS NULL
+          LIMIT 50
+        `);
+        for (const c of (d7Due as unknown as { rows: { id: number; email: string; full_name: string; company_name: string | null }[] }).rows) {
+          await sendOnboardingD7Email({
+            email: c.email, fullName: c.full_name,
+            companyName: c.company_name ?? undefined,
+            fullAssessmentUrl: `${base}/assessment/full/start`,
+            assessmentUrl: `${base}/assessment/start`,
+          }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+7 email failed"));
+          await db.execute(sql`UPDATE customers SET onboarding_d7_sent_at = NOW() WHERE id = ${c.id}`);
+          logger.info({ customerId: c.id }, "Onboarding D+7 email sent");
+        }
+      } catch (err) {
+        logger.error({ err }, "Onboarding email cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Onboarding email cron scheduled (10:30 Istanbul, D+3 & D+7)");
 
     // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
     cron.schedule("0 2 * * *", async () => {

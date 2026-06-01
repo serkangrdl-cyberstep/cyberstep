@@ -44,6 +44,7 @@ import remediationRouter from "./remediation/index";
 import cloudCspmRouter from "./cloud-cspm/index";
 import codeSecretsRouter from "./code-secrets/index";
 import observabilityRouter from "./observability/index";
+import dnsMonitorRouter from "./dns-monitor/index";
 
 const router: IRouter = Router();
 
@@ -92,5 +93,6 @@ router.use(remediationRouter);
 router.use(cloudCspmRouter);
 router.use(codeSecretsRouter);
 router.use(observabilityRouter);
+router.use(dnsMonitorRouter);
 
 export default router;

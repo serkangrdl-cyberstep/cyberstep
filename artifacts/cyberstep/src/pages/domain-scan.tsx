@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -1136,10 +1136,57 @@ function IntegrationPushPanel({ scanId }: { scanId: number }) {
 }
 
 // ─── Attack Scenario Panel ─────────────────────────────────────────────────────
+const ATTACK_GEN_STEPS = [
+  { label: "Tarama verileri hazırlanıyor", endMs: 8000, maxPct: 30 },
+  { label: "Tehdit modeli oluşturuluyor", endMs: 18000, maxPct: 65 },
+  { label: "Senaryolar yazılıyor", endMs: 26000, maxPct: 95 },
+] as const;
+
 function AttackScenarioPanel({ scanId }: { scanId: number }) {
   const [status, setStatus] = useState<"idle" | "generating" | "complete" | "error">("idle");
   const [result, setResult] = useState<AttackScenariosResult | null>(null);
   const [expanded, setExpanded] = useState<number | null>(0);
+  const [genProgress, setGenProgress] = useState(0);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const genStartRef = useRef<number | null>(null);
+
+  // Snap to 100%, fade out, then reveal results
+  const completeWithTransition = useCallback((scenarioResult: AttackScenariosResult) => {
+    setResult(scenarioResult);
+    setGenProgress(100);
+    setIsFinishing(true);
+    setTimeout(() => {
+      setIsFinishing(false);
+      setStatus("complete");
+    }, 500);
+  }, []);
+
+  // Animate progress bar while generating
+  useEffect(() => {
+    if (status !== "generating") {
+      if (!isFinishing) setGenProgress(0);
+      genStartRef.current = null;
+      return;
+    }
+    genStartRef.current = Date.now();
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - (genStartRef.current ?? Date.now());
+      let pct = 0;
+      const steps = ATTACK_GEN_STEPS;
+      for (let i = 0; i < steps.length; i++) {
+        const prevMs = i === 0 ? 0 : steps[i - 1].endMs;
+        const prevPct = i === 0 ? 0 : steps[i - 1].maxPct;
+        if (elapsed <= steps[i].endMs) {
+          const fraction = (elapsed - prevMs) / (steps[i].endMs - prevMs);
+          pct = prevPct + fraction * (steps[i].maxPct - prevPct);
+          break;
+        }
+        pct = steps[i].maxPct;
+      }
+      setGenProgress(Math.min(95, pct));
+    }, 150);
+    return () => clearInterval(tick);
+  }, [status, isFinishing]);
 
   // Check for cached result on mount — auto-trigger generation if not started yet
   useEffect(() => {
@@ -1147,6 +1194,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
       .then(r => r.json())
       .then((data: { status: string; result: AttackScenariosResult | null }) => {
         if (data.status === "complete" && data.result) {
+          // Already cached — show immediately without animation
           setResult(data.result);
           setStatus("complete");
         } else {
@@ -1159,8 +1207,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
             .then(r => r.json())
             .then((d: { status: string; result?: AttackScenariosResult }) => {
               if (d.status === "complete" && d.result) {
-                setResult(d.result);
-                setStatus("complete");
+                completeWithTransition(d.result);
               }
             })
             .catch(() => setStatus("error"));
@@ -1184,9 +1231,8 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
         .then(r => r.json())
         .then((data: { status: string; result: AttackScenariosResult | null }) => {
           if (data.status === "complete" && data.result) {
-            setResult(data.result);
-            setStatus("complete");
             clearInterval(interval);
+            completeWithTransition(data.result);
           } else if (data.status === "error") {
             setStatus("error");
             clearInterval(interval);
@@ -1203,12 +1249,11 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
       .then(r => r.json())
       .then((data: { status: string; result?: AttackScenariosResult }) => {
         if (data.status === "complete" && data.result) {
-          setResult(data.result);
-          setStatus("complete");
+          completeWithTransition(data.result);
         }
       })
       .catch(() => setStatus("error"));
-  }, [scanId]);
+  }, [scanId, completeWithTransition]);
 
   const threatColor = (level: string) => {
     if (level === "Kritik") return "text-red-600 bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400";
@@ -1258,28 +1303,77 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
     );
   }
 
-  // generating → loading state
-  if (status === "generating") {
+  // generating (or finishing transition) → stepped progress bar
+  if (status === "generating" || isFinishing) {
+    const currentStep = ATTACK_GEN_STEPS.findIndex((s) => {
+      const elapsed = genStartRef.current ? Date.now() - genStartRef.current : 0;
+      return elapsed <= s.endMs;
+    });
+    const activeStep = isFinishing
+      ? ATTACK_GEN_STEPS.length - 1
+      : currentStep === -1 ? ATTACK_GEN_STEPS.length - 1 : currentStep;
     return (
-      <Card className="shadow-sm border-destructive/20">
+      <Card
+        className={`shadow-sm border-destructive/20 transition-opacity duration-500 ${
+          isFinishing ? "opacity-0" : "opacity-100"
+        }`}
+      >
         <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-destructive/10">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="p-2 rounded-lg bg-destructive/10 shrink-0">
               <Swords className="h-5 w-5 text-destructive" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">Saldırı Senaryosu Analizi</p>
-              <p className="text-xs text-muted-foreground">Yapay zeka tehdit modeli oluşturuyor, bu işlem yaklaşık 30 saniye sürer...</p>
+              <p className="text-xs text-muted-foreground">Yapay zeka tehdit modeli oluşturuyor...</p>
             </div>
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
           </div>
-          <div className="space-y-2.5">
-            {[90, 75, 60].map((w, i) => (
-              <div key={i} className="space-y-1">
-                <div className={`h-4 rounded bg-muted animate-pulse`} style={{ width: `${w}%` }} />
-                <div className="h-3 rounded bg-muted/60 animate-pulse" style={{ width: `${w - 15}%` }} />
-              </div>
-            ))}
+
+          {/* Overall progress bar */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-xs text-muted-foreground font-medium">
+                {ATTACK_GEN_STEPS[activeStep].label}
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {Math.round(genProgress)}%
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-destructive transition-all duration-300 ease-out"
+                style={{ width: `${genProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Step indicators */}
+          <div className="flex gap-2">
+            {ATTACK_GEN_STEPS.map((step, i) => {
+              const done = i < activeStep;
+              const active = i === activeStep;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div
+                    className={`w-full h-1 rounded-full transition-all duration-500 ${
+                      done
+                        ? "bg-destructive"
+                        : active
+                        ? "bg-destructive/50"
+                        : "bg-muted"
+                    }`}
+                  />
+                  <span
+                    className={`text-[10px] text-center leading-tight transition-colors duration-300 ${
+                      done || active ? "text-foreground/70" : "text-muted-foreground/40"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

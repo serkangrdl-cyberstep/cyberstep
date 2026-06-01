@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, Loader2, ShieldAlert, Ban, Radio, FileDown, Lock, Activity,
+  ScrollText, AlertTriangle, Clock, CheckCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -210,6 +211,8 @@ export default function SocDashboard() {
               </CardContent>
             </Card>
 
+            <KvkkSection customerId={customer.id} />
+
             <Card className="bg-slate-900 border-slate-800">
               <CardHeader><CardTitle className="text-white text-lg">Engellenen IP Adresleri</CardTitle></CardHeader>
               <CardContent className="p-0">
@@ -240,6 +243,156 @@ export default function SocDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+interface KvkkNotif {
+  id: number; socCaseId: number; caseNumber: string; caseTitle: string;
+  status: string; btkReferenceNo: string | null; deadline72h: string;
+  sentAt: string | null; aiReasoning: string | null; urgency: string | null;
+}
+
+const KVKK_STATUS: Record<string, { label: string; cls: string }> = {
+  draft:    { label: "Taslak",        cls: "bg-slate-500/15 text-slate-400 border-slate-500/30" },
+  sent:     { label: "Gönderildi",    cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  tracking: { label: "Takipte",       cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  closed:   { label: "Kapatıldı",     cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+};
+
+function KvkkCountdown({ deadline }: { deadline: string }) {
+  const ms = new Date(deadline).getTime() - Date.now();
+  if (ms <= 0) return <span className="text-red-400 font-semibold text-xs">Süre Doldu</span>;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const cls = h < 24 ? "text-red-400" : h < 48 ? "text-yellow-400" : "text-emerald-400";
+  return <span className={`${cls} font-semibold text-xs`}>{h}s {m}d kaldı</span>;
+}
+
+function KvkkSection({ customerId: _customerId }: { customerId: number }) {
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery<{ notifications: KvkkNotif[] }>({
+    queryKey: ["kvkk-notifications"],
+    queryFn: () => fetch("/api/portal/kvkk/notifications", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
+  const notifications = (data?.notifications ?? []).filter(n => n.status !== "closed");
+  if (!isLoading && notifications.length === 0) return null;
+
+  async function updateStatus(id: number, status: string, btkRefNo?: string) {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/portal/kvkk/notifications/${id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, btkReferenceNo: btkRefNo }),
+      });
+      if (!res.ok) throw new Error("Güncellenemedi");
+      await qc.invalidateQueries({ queryKey: ["kvkk-notifications"] });
+      toast({ title: "KVKK bildirimi güncellendi" });
+    } catch {
+      toast({ title: "Hata", description: "Güncelleme başarısız", variant: "destructive" });
+    } finally { setUpdatingId(null); }
+  }
+
+  return (
+    <Card className="bg-slate-900 border-red-500/30">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-white text-lg flex items-center gap-2">
+          <ScrollText className="h-5 w-5 text-red-400" />
+          KVKK 12. Madde Bildirimleri
+        </CardTitle>
+        <p className="text-slate-400 text-sm">Veri ihlali bildirimi gerektirebilecek vakalar — 72 saat yasal süreniz vardır.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
+          </div>
+        ) : (
+          notifications.map((n) => {
+            const isOverdue = new Date(n.deadline72h).getTime() < Date.now();
+            return (
+              <div key={n.id} className={`rounded-lg border p-4 space-y-3 ${isOverdue && n.status === "draft" ? "border-red-500/50 bg-red-500/5" : "border-slate-700 bg-slate-800/40"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs text-slate-400">{n.caseNumber}</span>
+                      <Badge className={`text-xs ${KVKK_STATUS[n.status]?.cls ?? ""}`}>{KVKK_STATUS[n.status]?.label ?? n.status}</Badge>
+                      {n.btkReferenceNo && <span className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle className="h-3 w-3" />BTK: {n.btkReferenceNo}</span>}
+                    </div>
+                    <p className="text-white text-sm font-medium mt-1">{n.caseTitle}</p>
+                    {n.aiReasoning && <p className="text-slate-400 text-xs mt-1 line-clamp-2">{n.aiReasoning}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="flex items-center gap-1 justify-end">
+                      <Clock className="h-3 w-3 text-slate-500" />
+                      <KvkkCountdown deadline={n.deadline72h} />
+                    </div>
+                    {isOverdue && n.status === "draft" && (
+                      <div className="flex items-center gap-1 mt-1 justify-end">
+                        <AlertTriangle className="h-3 w-3 text-red-400" />
+                        <span className="text-red-400 text-xs">Bildirim yapılmadı</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-600 text-slate-300 text-xs h-7"
+                    onClick={() => window.open(`/api/portal/kvkk/notifications/${n.id}/pdf`, "_blank")}
+                  >
+                    <FileDown className="h-3 w-3 mr-1" /> Mektup PDF
+                  </Button>
+                  {n.status === "draft" && (
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-500 text-xs h-7"
+                      disabled={updatingId === n.id}
+                      onClick={() => updateStatus(n.id, "sent")}
+                    >
+                      {updatingId === n.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                      Gönderildi Olarak İşaretle
+                    </Button>
+                  )}
+                  {n.status === "sent" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-yellow-500/40 text-yellow-400 text-xs h-7"
+                      disabled={updatingId === n.id}
+                      onClick={() => updateStatus(n.id, "tracking")}
+                    >
+                      Takibe Al
+                    </Button>
+                  )}
+                  {(n.status === "sent" || n.status === "tracking") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-500/40 text-emerald-400 text-xs h-7"
+                      disabled={updatingId === n.id}
+                      onClick={() => {
+                        const refNo = prompt("BTK Takip Numarası girin:");
+                        if (refNo) updateStatus(n.id, "closed", refNo);
+                      }}
+                    >
+                      Kapatıldı (BTK Ref. No Gir)
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

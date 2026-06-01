@@ -8,7 +8,7 @@ import {
   Mail, Bell, Package, BadgeCheck, Plug, Heart,
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
-  Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert,
+  Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -92,6 +92,7 @@ const NAV_SECTIONS = [
       { icon: Globe,           label: "DNS İzleme",            href: "/panel/dns-izleme" },
       { icon: ShieldAlert,     label: "CT Log İzleme",         href: "/panel/ct-izleme" },
       { icon: Building2,       label: "Microsoft 365",         href: "/panel/ms365" },
+      { icon: ScrollText,      label: "KVKK Bildirimler",      href: "/panel/kvkk" },
     ],
   },
   {

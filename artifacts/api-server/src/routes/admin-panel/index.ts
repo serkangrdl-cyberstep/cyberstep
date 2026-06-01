@@ -23,6 +23,7 @@ import observabilityAdminRouter from "./observability";
 import dnsMonitorAdminRouter from "./dns-monitor";
 import ctMonitorAdminRouter from "./ct-monitor";
 import ms365AdminRouter from "./ms365";
+import kvkkAdminRouter from "./kvkk";
 
 const router = Router();
 router.use(authRouter);
@@ -49,5 +50,6 @@ router.use(observabilityAdminRouter);
 router.use(dnsMonitorAdminRouter);
 router.use(ctMonitorAdminRouter);
 router.use(ms365AdminRouter);
+router.use(kvkkAdminRouter);
 
 export default router;

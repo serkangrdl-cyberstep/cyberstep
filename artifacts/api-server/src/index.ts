@@ -13,6 +13,7 @@ import { startDnsCrons } from "./services/dns-cron";
 import { startCertstreamClient } from "./services/certstream-client";
 import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
+import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
@@ -1403,6 +1404,7 @@ async function startup() {
   await ensureDnsTables();
   await ensureCtTable();
   await ensureMs365Tables();
+  await ensureKvkkTables();
   await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
 }
@@ -1823,6 +1825,11 @@ startup()
       }
     }, { timezone: "Europe/Istanbul" });
     logger.info("GitHub secrets scan cron scheduled (Sunday 04:00 Istanbul)");
+
+    cron.schedule("*/30 * * * *", async () => {
+      try { await checkKvkkDeadlines(); } catch (err) { logger.error({ err }, "KVKK deadline cron failed"); }
+    });
+    logger.info("KVKK 72h deadline cron scheduled (every 30 min)");
 
     const server = app.listen(port, (err) => {
       if (err) {

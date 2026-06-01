@@ -235,6 +235,22 @@ async function openCase(customerId: number, events: FabricEvent[], analysis: Dee
   // Ack timer — escalate if not acknowledged within the response window
   scheduleEscalationCheck(created.id, responseMinutes);
 
+  // KVKK 12. Madde değerlendirmesi — ilgili kategorilerde arka planda tetikle
+  setImmediate(() => {
+    import("../kvkkAssessor").then(({ triggerKvkkAssessment }) =>
+      triggerKvkkAssessment(customerId, created.id, {
+        caseId: created.id,
+        caseNumber: created.caseNumber,
+        title: analysis.title,
+        description: analysis.recommendedAction ?? null,
+        attackNarrative: analysis.narrative ?? null,
+        severity: analysis.severity,
+        category: analysis.category,
+        affectedAssets: analysis.affectedAssets,
+      })
+    ).catch((err) => logger.warn({ err, caseId: created.id }, "KVKK assessment trigger failed"));
+  });
+
   return created.id;
 }
 

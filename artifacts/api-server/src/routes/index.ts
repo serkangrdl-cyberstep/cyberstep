@@ -47,6 +47,7 @@ import observabilityRouter from "./observability/index";
 import dnsMonitorRouter from "./dns-monitor/index";
 import ctMonitorRouter from "./ct-monitor/index";
 import ms365Router from "./ms365/index";
+import kvkkBildirimRouter from "./kvkk-bildirim/index";
 
 const router: IRouter = Router();
 
@@ -98,5 +99,6 @@ router.use(observabilityRouter);
 router.use(dnsMonitorRouter);
 router.use(ctMonitorRouter);
 router.use(ms365Router);
+router.use(kvkkBildirimRouter);
 
 export default router;

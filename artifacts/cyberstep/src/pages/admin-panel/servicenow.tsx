@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter } from "lucide-react";
+import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -211,16 +211,28 @@ export default function AdminServiceNow() {
                         </div>
 
                         {cfg.lastSyncError ? (
-                          <div className="mt-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 space-y-1">
+                          <div className="mt-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 space-y-1.5">
                             <div className="flex items-start gap-1.5">
                               <XCircle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
                               <span className="text-red-300 text-xs break-all">{cfg.lastSyncError}</span>
                             </div>
-                            {cfg.connCheckAlertedAt && (
-                              <p className="text-xs text-slate-500 pl-5">
-                                Son uyarı: <span className="text-slate-400">{fmtDate(cfg.connCheckAlertedAt)}</span>
-                                <span className="text-slate-600 ml-1">({timeSince(cfg.connCheckAlertedAt)})</span>
-                              </p>
+                            {cfg.connCheckAlertedAt ? (
+                              <div className="flex items-center gap-1.5 pl-0.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                  <Mail className="h-3 w-3" />
+                                  E-posta Gönderildi
+                                </span>
+                                <span className="text-slate-500 text-[11px]">{fmtDate(cfg.connCheckAlertedAt)}</span>
+                                <span className="text-slate-600 text-[11px]">({timeSince(cfg.connCheckAlertedAt)})</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 pl-0.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-700/60 text-slate-400 border border-slate-600/30">
+                                  <Mail className="h-3 w-3" />
+                                  Bildirim Bekliyor
+                                </span>
+                                <span className="text-slate-600 text-[11px]">bir sonraki saatlik kontrolde gönderilecek</span>
+                              </div>
                             )}
                           </div>
                         ) : cfg.lastSyncAt ? (

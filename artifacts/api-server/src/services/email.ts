@@ -1317,7 +1317,7 @@ export async function sendServiceNowConnectionAlertEmail(params: {
 
   await sendMail({
     to: params.to,
-    subject: "ServiceNow Entegrasyon Baglantisi Kesildi — CyberStep",
+    subject: "ServiceNow Entegrasyon Bağlantısı Kesildi — CyberStep",
     html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
@@ -1326,35 +1326,37 @@ export async function sendServiceNowConnectionAlertEmail(params: {
     </div>
     <div style="padding:32px">
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin-bottom:24px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#b91c1c">Baglanti Hatasi Tespit Edildi</p>
+        <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#b91c1c">Bağlantı Hatası Tespit Edildi</p>
+        <p style="margin:0;font-size:13px;color:#dc2626">ServiceNow entegrasyonunuz şu anda erişilemiyor durumda.</p>
       </div>
-      <p style="margin:0 0 16px;font-size:15px;color:#334155">Sayin <strong>${params.customerName}</strong>,</p>
+      <p style="margin:0 0 16px;font-size:15px;color:#334155">Sayın <strong>${params.customerName}</strong>,</p>
       <p style="margin:0 0 16px;font-size:15px;color:#475569">
-        CyberStep SOC platformunuzun <strong>ServiceNow</strong> entegrasyonu baglantisi kesildi.
-        Bu durumda yeni SOC vakalari ServiceNow'a aktarilamayacak ve mevcut ticketlar senkronize edilemeyecektir.
+        CyberStep SOC platformunuzun <strong>ServiceNow</strong> entegrasyon bağlantısı kesildi.
+        Bu durumda yeni SOC vakaları ServiceNow'a aktarılamayacak ve mevcut ticketlar senkronize edilemeyecektir.
       </p>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:24px">
-        <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Baglanti Bilgisi</p>
+        <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Bağlantı Bilgisi</p>
         <p style="margin:0 0 4px;font-size:14px;color:#0f172a"><strong>Instance URL:</strong> ${params.instanceUrl}</p>
-        <p style="margin:0;font-size:13px;color:#dc2626;word-break:break-all"><strong>Hata:</strong> ${params.errorMessage.slice(0, 300)}</p>
+        <p style="margin:0;font-size:13px;color:#dc2626;word-break:break-all"><strong>Hata Detayı:</strong> ${params.errorMessage.slice(0, 300)}</p>
       </div>
-      <p style="margin:0 0 8px;font-size:15px;color:#475569">Yapilmasi gerekenler:</p>
+      <p style="margin:0 0 8px;font-size:15px;color:#475569">Yapılması gerekenler:</p>
       <ul style="margin:0 0 24px;padding-left:20px;color:#475569;font-size:14px;line-height:1.8">
-        <li>ServiceNow API kullanici adi ve sifresinin gecerli oldugunu dogrulayin.</li>
-        <li>ServiceNow instance URL'sinin dogru ve erisilebilir oldugunu kontrol edin.</li>
-        <li>API hesabinin kilitlenmedigini veya sifresi dolmamis oldugunu kontrol edin.</li>
-        <li>Entegrasyon ayarlarinizi CyberStep uzerinden guncelleyin.</li>
+        <li>ServiceNow API kullanıcı adı ve şifresinin geçerli olduğunu doğrulayın.</li>
+        <li>ServiceNow instance URL'sinin doğru ve erişilebilir olduğunu kontrol edin.</li>
+        <li>API hesabının kilitlenmediğini veya şifresi dolmamış olduğunu kontrol edin.</li>
+        <li>Entegrasyon ayarlarınızı CyberStep üzerinden güncelleyin.</li>
       </ul>
       <a href="${integrationUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:700;margin-bottom:24px">
-        Entegrasyon Ayarlarina Git
+        Entegrasyon Ayarlarına Git
       </a>
       <p style="margin:0;font-size:13px;color:#94a3b8">
-        Bu bildirim, CyberStep'in gunluk baglanti saglik kontrolu tarafindan otomatik olarak gonderilmistir.
-        Sorun giderildikten sonra bir sonraki kontrol gunu bildirim gonderilmeyecektir.
+        Bu bildirim, CyberStep'in saatlik bağlantı sağlık kontrolü tarafından otomatik olarak gönderilmiştir.
+        Sorun giderildikten sonra bir sonraki kontrol gününde bildirim gönderilmeyecektir.
+        Aynı hata için yeniden bildirim almak için destek ekibimizle iletişime geçin.
       </p>
     </div>
     <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0">
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİler için siber guvenlik platformu</p>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİ'ler için siber güvenlik platformu</p>
     </div>
   </div>
 </body></html>`,

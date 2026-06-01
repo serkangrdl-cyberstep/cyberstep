@@ -147,11 +147,14 @@ app.use(
 // Public Fortinet ingest paths must NEVER hit the global JSON/urlencoded parsers:
 // those would 413 (or mis-consume the body) before the route's own raw-text parser,
 // breaking the always-200 contract Fortinet devices rely on to avoid retry storms.
+// ServiceNow webhook also needs raw body for HMAC-SHA256 signature verification.
 const fabricIngestPath = /^\/api\/fabric\/(webhook|syslog)\//;
+const snWebhookPath = /^\/api\/integrations\/servicenow\/webhook$/;
+const skipJsonParsing = (path: string) => fabricIngestPath.test(path) || snWebhookPath.test(path);
 const jsonParser = express.json({ limit: "512kb" });
 const urlencodedParser = express.urlencoded({ extended: true, limit: "512kb" });
-app.use((req, res, next) => (fabricIngestPath.test(req.path) ? next() : jsonParser(req, res, next)));
-app.use((req, res, next) => (fabricIngestPath.test(req.path) ? next() : urlencodedParser(req, res, next)));
+app.use((req, res, next) => (skipJsonParsing(req.path) ? next() : jsonParser(req, res, next)));
+app.use((req, res, next) => (skipJsonParsing(req.path) ? next() : urlencodedParser(req, res, next)));
 
 // ─── Input sanitization middleware ───────────────────────────────────────────
 // OWASP A03 Injection / XSS: strip HTML tags + null bytes from all string
@@ -178,7 +181,7 @@ function stripHtmlTags(value: unknown): unknown {
 }
 
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  if (req.body && typeof req.body === "object" && !fabricIngestPath.test(req.path)) {
+  if (req.body && typeof req.body === "object" && !skipJsonParsing(req.path)) {
     req.body = stripHtmlTags(req.body) as Record<string, unknown>;
   }
   next();

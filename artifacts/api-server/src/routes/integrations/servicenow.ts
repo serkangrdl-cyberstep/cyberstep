@@ -1,9 +1,16 @@
 import { Router } from "express";
+import express from "express";
+import rateLimit from "express-rate-limit";
 import { pool } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { encryptSecret, decryptSecret } from "../../services/fabric-crypto";
-import { testServiceNowConnection, validateServiceNowUrl } from "../../services/serviceNowClient";
+import {
+  testServiceNowConnection,
+  validateServiceNowUrl,
+  generateAndStoreWebhookSecret,
+  processServiceNowWebhook,
+} from "../../services/serviceNowClient";
 
 const router = Router();
 
@@ -227,5 +234,90 @@ router.patch("/integrations/servicenow/:id/toggle", requireCustomer, async (req,
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });
+
+// ─── GET /api/integrations/servicenow/webhook-info ────────────────────────────
+// Returns the webhook endpoint URL and whether a secret has been configured.
+router.get("/integrations/servicenow/webhook-info", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  try {
+    const { rows } = await pool.query<{ has_secret: boolean }>(
+      `SELECT (webhook_secret_enc IS NOT NULL) AS has_secret
+       FROM servicenow_configs
+       WHERE customer_id = $1
+       LIMIT 1`,
+      [customerId],
+    );
+
+    const baseUrl = process.env["REPLIT_DOMAINS"]
+      ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+      : "http://localhost";
+
+    res.json({
+      webhookUrl: `${baseUrl}/api/integrations/servicenow/webhook`,
+      hasSecret: rows[0]?.has_secret ?? false,
+    });
+  } catch (err) {
+    req.log.error({ err }, "GET /api/integrations/servicenow/webhook-info error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ─── POST /api/integrations/servicenow/webhook-secret ─────────────────────────
+// Generates (or rotates) the HMAC webhook secret. Returns plaintext ONCE.
+router.post("/integrations/servicenow/webhook-secret", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  try {
+    const secret = await generateAndStoreWebhookSecret(customerId);
+    if (!secret) {
+      res.status(400).json({ error: "ServiceNow entegrasyonu bulunamadı veya secret oluşturulamadı" });
+      return;
+    }
+    // Return plaintext once — customer must copy this to ServiceNow immediately
+    res.json({ ok: true, secret, note: "Bu secret yalnızca bir kez gösterilir. ServiceNow Outbound REST Message yapılandırmanıza kopyalayın." });
+  } catch (err) {
+    req.log.error({ err }, "POST /api/integrations/servicenow/webhook-secret error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ─── POST /api/integrations/servicenow/webhook ────────────────────────────────
+// Public endpoint — called by ServiceNow Business Rule / Outbound REST Message.
+// No session auth; authentication is via HMAC-SHA256 (X-SN-Signature header).
+// Raw body is required for signature verification; JSON parser is bypassed for
+// this path in app.ts (skipJsonParsing).
+const webhookRateLimiter = rateLimit({
+  windowMs: 60 * 1000,       // 1 minute
+  max: 120,                  // generous: ~2 req/sec per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla istek" },
+});
+
+router.post(
+  "/integrations/servicenow/webhook",
+  webhookRateLimiter,
+  express.raw({ type: "*/*", limit: "64kb" }),
+  async (req, res) => {
+    const rawBody = req.body as Buffer;
+    if (!Buffer.isBuffer(rawBody) || rawBody.length === 0) {
+      res.status(400).json({ error: "Boş gövde" });
+      return;
+    }
+
+    const signatureHeader = req.headers["x-sn-signature"] as string | undefined;
+
+    try {
+      const result = await processServiceNowWebhook(rawBody, signatureHeader);
+      res.status(result.status).json({ ok: result.ok, message: result.message });
+    } catch (err) {
+      logger.error({ err }, "POST /api/integrations/servicenow/webhook unhandled error");
+      res.status(500).json({ ok: false, message: "Sunucu hatası" });
+    }
+  },
+);
 
 export default router;

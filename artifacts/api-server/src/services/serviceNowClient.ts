@@ -3,6 +3,7 @@
  * SOC case ↔ ServiceNow INC çift yönlü senkronizasyonu
  */
 
+import crypto from "node:crypto";
 import { promises as dns } from "node:dns";
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
@@ -535,6 +536,232 @@ export async function syncServiceNowIncidents(): Promise<void> {
   }
 }
 
+// ─── Webhook: Secret Generation & HMAC Verification ──────────────────────────
+
+/**
+ * Generate a new random webhook secret, encrypt + store it for the customer,
+ * and return the plaintext once so the customer can configure ServiceNow.
+ */
+export async function generateAndStoreWebhookSecret(customerId: number): Promise<string | null> {
+  const { rows } = await pool.query<{ id: number }>(
+    `SELECT id FROM servicenow_configs WHERE customer_id = $1 LIMIT 1`,
+    [customerId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+
+  const plaintext = crypto.randomBytes(32).toString("hex"); // 64 hex chars
+  const encrypted = encryptSecret(plaintext);
+  if (!encrypted) {
+    logger.error({ customerId }, "Webhook secret şifrelenemedi — ENCRYPTION_KEY eksik");
+    return null;
+  }
+
+  await pool.query(
+    `UPDATE servicenow_configs SET webhook_secret_enc = $1, updated_at = NOW() WHERE id = $2`,
+    [encrypted, row.id],
+  );
+  logger.info({ customerId, configId: row.id }, "ServiceNow webhook secret oluşturuldu");
+  return plaintext;
+}
+
+/**
+ * Constant-time HMAC-SHA256 comparison.
+ * Signature header format: "sha256=<hex>"
+ */
+function verifyWebhookHmac(secret: string, rawBody: Buffer, signatureHeader: string): boolean {
+  try {
+    const expected = crypto
+      .createHmac("sha256", secret)
+      .update(rawBody)
+      .digest("hex");
+    const provided = signatureHeader.startsWith("sha256=")
+      ? signatureHeader.slice(7)
+      : signatureHeader;
+    // Constant-time compare — both must be same byte length for timingSafeEqual
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(provided.length === expected.length ? provided : expected, "hex");
+    if (provided.length !== expected.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Payload sent by ServiceNow Business Rule / Outbound REST Message.
+ * sys_id is mandatory — it is the only globally-unique, tenant-safe identifier.
+ * Using sn_number alone is unsafe in multi-tenant scenarios (numbers are not global).
+ */
+interface SnWebhookPayload {
+  sys_id: string;
+  state?: number | string;
+  incident_state?: number | string;
+  work_notes?: string;
+  comments?: string;
+  assigned_to?: string;
+}
+
+/**
+ * Main webhook handler — looks up the incident by sys_id (only), verifies HMAC
+ * (mandatory — fails closed when secret not configured), then applies state,
+ * work_notes, comments, and assigned_to changes to CyberStep DB.
+ * Returns { ok, status, message }.
+ */
+export async function processServiceNowWebhook(
+  rawBody: Buffer,
+  signatureHeader: string | undefined,
+): Promise<{ ok: boolean; status: number; message: string }> {
+  // 1. Parse payload
+  let payload: SnWebhookPayload;
+  try {
+    payload = JSON.parse(rawBody.toString("utf8")) as SnWebhookPayload;
+  } catch {
+    return { ok: false, status: 400, message: "Geçersiz JSON gövdesi" };
+  }
+
+  // sys_id is the only safe lookup key — globally unique within a SN instance and
+  // not guessable like a sequential incident number.
+  const snSysId = typeof payload.sys_id === "string" ? payload.sys_id.trim() : "";
+  if (!snSysId) {
+    return { ok: false, status: 400, message: "sys_id alanı zorunludur" };
+  }
+
+  // 2. Look up incident → config (scoped by sys_id only — no number fallback)
+  const { rows } = await pool.query<{
+    id: number; soc_case_id: number; customer_id: number; config_id: number;
+    sn_sys_id: string; sn_number: string; sn_state: number;
+    sn_journal_cursor: string | null; webhook_secret_enc: string | null;
+  }>(
+    `SELECT sni.id, sni.soc_case_id, sni.customer_id, sni.config_id,
+            sni.sn_sys_id, sni.sn_number, sni.sn_state, sni.sn_journal_cursor,
+            snc.webhook_secret_enc
+     FROM servicenow_incidents sni
+     JOIN servicenow_configs snc ON snc.id = sni.config_id
+     WHERE sni.sn_sys_id = $1
+     LIMIT 1`,
+    [snSysId],
+  );
+
+  const incident = rows[0];
+  if (!incident) {
+    // Return 200 to avoid ServiceNow retry storms for unknown incidents.
+    // Note: we cannot verify the signature here (no config found), so we return 200
+    // to avoid revealing the existence/absence of the sys_id.
+    logger.warn({ snSysId }, "ServiceNow webhook: bilinmeyen sys_id, yoksayıldı");
+    return { ok: true, status: 200, message: "Bilinmeyen incident — yoksayıldı" };
+  }
+
+  // 3. HMAC verification — MANDATORY (fail closed)
+  // If no secret is configured the endpoint refuses the request.
+  // Customers must generate a secret before ServiceNow can push updates.
+  if (!incident.webhook_secret_enc) {
+    logger.warn({ configId: incident.config_id }, "ServiceNow webhook: secret yapılandırılmamış — 401 döndürülüyor");
+    return { ok: false, status: 401, message: "Webhook secret yapılandırılmamış. Müşteri portalından önce secret oluşturun." };
+  }
+  if (!signatureHeader) {
+    logger.warn({ configId: incident.config_id }, "ServiceNow webhook: X-SN-Signature başlığı eksik");
+    return { ok: false, status: 401, message: "X-SN-Signature başlığı zorunludur" };
+  }
+  const secret = decryptSecret(incident.webhook_secret_enc);
+  if (!secret) {
+    logger.error({ configId: incident.config_id }, "ServiceNow webhook: secret çözülemedi");
+    return { ok: false, status: 500, message: "Sunucu hatası" };
+  }
+  if (!verifyWebhookHmac(secret, rawBody, signatureHeader)) {
+    logger.warn({ configId: incident.config_id }, "ServiceNow webhook: HMAC doğrulaması başarısız");
+    return { ok: false, status: 401, message: "İmza doğrulaması başarısız" };
+  }
+
+  // 4. Parse state
+  const rawState = payload.incident_state ?? payload.state;
+  const newState = rawState !== undefined ? parseInt(String(rawState), 10) : null;
+
+  // 5. Handle state changes
+  let stateChanged = false;
+  if (newState !== null && !isNaN(newState) && newState !== incident.sn_state) {
+    await pool.query(
+      `UPDATE servicenow_incidents
+       SET sn_state = $1, last_synced_at = NOW(), sync_error = NULL
+       WHERE id = $2`,
+      [newState, incident.id],
+    );
+    await pool.query(
+      `UPDATE servicenow_configs SET last_sync_at = NOW(), last_sync_error = NULL WHERE id = $1`,
+      [incident.config_id],
+    );
+
+    // Eğer SN resolved/closed olduysa SOC case'i de kapat
+    if (newState >= RESOLVE_STATE) {
+      await pool.query(
+        `UPDATE soc_cases SET status = 'closed', updated_at = NOW() WHERE id = $1 AND status NOT IN ('closed', 'false_positive')`,
+        [incident.soc_case_id],
+      );
+      await pool.query(
+        `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+         VALUES ($1, 'ai', 'ServiceNow', 'status_change', $2, NOW())`,
+        [incident.soc_case_id, `ServiceNow incident ${incident.sn_number} kapatıldı (state: ${newState}) — webhook ile senkronize edildi`],
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+         VALUES ($1, 'ai', 'ServiceNow', 'note', $2, NOW())`,
+        [incident.soc_case_id, `ServiceNow incident ${incident.sn_number} durumu güncellendi: state ${incident.sn_state} → ${newState} (webhook)`],
+      );
+    }
+    stateChanged = true;
+  }
+
+  // 6. Ingest work_notes
+  const workNote = payload.work_notes?.trim();
+  if (workNote) {
+    try {
+      await pool.query(
+        `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+         VALUES ($1, 'ai', 'ServiceNow', 'note', $2, NOW())
+         ON CONFLICT DO NOTHING`,
+        [incident.soc_case_id, `[ServiceNow work_note] ${workNote.slice(0, 2000)}`],
+      );
+    } catch { /* ignore duplicate */ }
+  }
+
+  // 7. Ingest public comments
+  const comment = payload.comments?.trim();
+  if (comment) {
+    try {
+      await pool.query(
+        `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+         VALUES ($1, 'ai', 'ServiceNow', 'note', $2, NOW())
+         ON CONFLICT DO NOTHING`,
+        [incident.soc_case_id, `[ServiceNow yorum] ${comment.slice(0, 2000)}`],
+      );
+    } catch { /* ignore duplicate */ }
+  }
+
+  // 8. Handle assignment changes
+  const assignedTo = payload.assigned_to?.trim();
+  if (assignedTo) {
+    // Update the SOC case assignee when ServiceNow assignment changes
+    await pool.query(
+      `UPDATE soc_cases SET assigned_to = $1, updated_at = NOW() WHERE id = $2`,
+      [assignedTo, incident.soc_case_id],
+    );
+    await pool.query(
+      `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+       VALUES ($1, 'ai', 'ServiceNow', 'assignment', $2, NOW())
+       ON CONFLICT DO NOTHING`,
+      [incident.soc_case_id, `ServiceNow'da atama değişti: ${incident.sn_number} → ${assignedTo} (webhook)`],
+    );
+  }
+
+  logger.info(
+    { customerId: incident.customer_id, socCaseId: incident.soc_case_id, snNumber: incident.sn_number, newState, stateChanged, assignedTo: assignedTo ?? null },
+    "ServiceNow webhook işlendi",
+  );
+
+  return { ok: true, status: 200, message: "Webhook işlendi" };
+}
+
 // ─── DB tabloları oluştur ─────────────────────────────────────────────────────
 
 export async function ensureServiceNowTables(): Promise<void> {
@@ -574,6 +801,8 @@ export async function ensureServiceNowTables(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS sn_configs_active_idx ON servicenow_configs (customer_id) WHERE active = true`);
   // Reverse sync cursor for journal entry deduplication
   await pool.query(`ALTER TABLE servicenow_incidents ADD COLUMN IF NOT EXISTS sn_journal_cursor TEXT`);
+  // Webhook secret for HMAC-SHA256 signature verification
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_secret_enc TEXT`);
   logger.info("ServiceNow tables ready");
 }
 

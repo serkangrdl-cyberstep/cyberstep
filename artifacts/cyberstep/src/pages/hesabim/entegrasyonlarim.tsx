@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, Send, Smartphone, X, ChevronDown } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -420,6 +420,9 @@ function ServiceNowSection() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ instanceUrl: "", username: "", apiToken: "", assignmentGroup: "", category: "Software" });
   const [testing, setTesting] = useState(false);
+  const [newSecret, setNewSecret] = useState<string | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const { data, isLoading } = useQuery<{ config: SnConfig | null }>({
     queryKey: ["sn-config"],
@@ -432,6 +435,29 @@ function ServiceNowSection() {
     queryFn: () => fetch("/api/integrations/servicenow/incidents", { credentials: "include" }).then(r => r.json()),
     enabled: !!data?.config,
     refetchInterval: 60000,
+  });
+
+  const { data: webhookInfo } = useQuery<{ webhookUrl: string; hasSecret: boolean }>({
+    queryKey: ["sn-webhook-info"],
+    queryFn: () => fetch("/api/integrations/servicenow/webhook-info", { credentials: "include" }).then(r => r.json()),
+    enabled: !!data?.config?.active,
+  });
+
+  const generateSecretMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/servicenow/webhook-secret", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json() as Promise<{ ok: boolean; secret: string }>;
+    },
+    onSuccess: (d) => {
+      setNewSecret(d.secret);
+      qc.invalidateQueries({ queryKey: ["sn-webhook-info"] });
+      toast({ title: "Yeni webhook secret oluşturuldu", description: "Bu değeri hemen ServiceNow'a kopyalayın." });
+    },
+    onError: () => toast({ title: "Hata", description: "Secret oluşturulamadı", variant: "destructive" }),
   });
 
   const saveMutation = useMutation({
@@ -584,7 +610,96 @@ function ServiceNowSection() {
               <p className="font-medium text-gray-300">Nasıl çalışır:</p>
               <p>· Yeni SOC vakası açıldığında ServiceNow&apos;da INC ticket oluşur</p>
               <p>· Vaka kapatıldığında INC otomatik "Resolved" olarak güncellenir</p>
-              <p>· ServiceNow&apos;da elle kapatılan INC&apos;ler 15 dakikada bir SOC&apos;a yansır</p>
+              <p>· ServiceNow&apos;da elle kapatılan INC&apos;ler 15 dakikada bir SOC&apos;a yansır (polling)</p>
+              <p>· <span className="text-violet-400 font-medium">Webhook</span> yapılandırıldığında tüm değişiklikler <span className="text-emerald-400">anında</span> yansır</p>
+            </div>
+
+            {/* ── Webhook Konfigürasyonu ─────────────────────────── */}
+            <div className="border border-violet-500/20 rounded-lg p-4 bg-violet-950/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-white flex items-center gap-2">
+                  <Webhook className="h-4 w-4 text-violet-400" />
+                  Webhook Konfigürasyonu
+                  {webhookInfo?.hasSecret ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">HMAC Aktif</Badge>
+                  ) : (
+                    <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px]">Secret Yok</Badge>
+                  )}
+                </p>
+              </div>
+
+              <p className="text-xs text-gray-400">
+                ServiceNow Business Rule veya Outbound REST Message ile bu URL&apos;e POST atarak tüm değişiklikleri (durum, yorum, atama) anlık olarak CyberStep&apos;e yansıtın.
+              </p>
+
+              {/* Webhook URL */}
+              {webhookInfo?.webhookUrl && (
+                <div className="space-y-1">
+                  <p className="text-[11px] text-gray-500 font-medium">Webhook URL</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-[11px] bg-gray-900 text-emerald-400 px-3 py-2 rounded border border-gray-700 truncate font-mono">
+                      {webhookInfo.webhookUrl}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-gray-700 text-gray-400 hover:text-white shrink-0 h-8"
+                      onClick={() => {
+                        navigator.clipboard.writeText(webhookInfo.webhookUrl);
+                        setCopiedUrl(true);
+                        setTimeout(() => setCopiedUrl(false), 2000);
+                      }}
+                    >
+                      {copiedUrl ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Yeni secret göster */}
+              {newSecret && (
+                <div className="border border-amber-500/30 rounded p-3 bg-amber-950/20 space-y-2">
+                  <p className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Bu secret yalnızca bir kez gösterilir — hemen kopyalayın
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-[11px] bg-gray-900 text-amber-400 px-3 py-2 rounded border border-amber-500/30 truncate font-mono">
+                      {newSecret}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500/30 text-amber-400 hover:text-amber-300 shrink-0 h-8"
+                      onClick={() => {
+                        navigator.clipboard.writeText(newSecret);
+                        setCopiedSecret(true);
+                        setTimeout(() => setCopiedSecret(false), 2000);
+                      }}
+                    >
+                      {copiedSecret ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    ServiceNow Outbound REST Message &rarr; HTTP Header olarak <code className="text-violet-400">X-SN-Signature: sha256=&lt;HMAC-SHA256(secret, rawBody)&gt;</code> gönderin.
+                  </p>
+                </div>
+              )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-violet-500/30 text-violet-400 hover:text-violet-300 h-8"
+                onClick={() => generateSecretMutation.mutate()}
+                disabled={generateSecretMutation.isPending}
+              >
+                {generateSecretMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                )}
+                {webhookInfo?.hasSecret ? "Secret Yenile" : "Secret Oluştur"}
+              </Button>
             </div>
           </>
         ) : (

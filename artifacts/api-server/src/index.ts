@@ -26,6 +26,7 @@ import { calculateAllHealthScores } from "./routes/health/index";
 import { runCollectionReminderCron } from "./services/invoice";
 import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
 import { startRenewalCron } from "./services/subscription-renewal";
+import { processEmailQueue } from "./services/email-sequences";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -1858,6 +1859,12 @@ startup()
     logger.info("Webhook retry cron scheduled (every 10 min)");
 
     startRenewalCron();
+
+    // ─── E-posta dizi kuyruğu — her 30 dakika ─────────────────────────────────
+    cron.schedule("*/30 * * * *", async () => {
+      try { await processEmailQueue(); } catch (err) { logger.warn({ err }, "Email sequence cron failed"); }
+    });
+    logger.info("Email sequence cron scheduled (every 30 min)");
 
     const server = app.listen(port, (err) => {
       if (err) {

@@ -26,19 +26,22 @@ description: Master plan uygulama durumu — service_catalog şeması, yeni tabl
 - /hesabim/servislerim sayfası: aktif servisler + entegrasyon durumu + satın alınabilecekler
 - Route App.tsx'e eklendi
 
-## Eksik Sprintler (henüz uygulanmadı)
+## Sprint D — Entegrasyon (TAMAMLANDI)
+- Slack OAuth: slack_integrations tablosu; GET/DELETE/POST /api/integrations/slack/*; SlackSection bileşeni
+- Adım bazlı kurulum kılavuzu UI entegrasyonlarim'a eklendi
+- SLACK_CLIENT_ID + SLACK_CLIENT_SECRET + SLACK_REDIRECT_URI env var'ları gerekli
 
-**D — Entegrasyon Sihirbazları**
-- Fortinet 5-adım, Datadog 4-adım, Azure 3-adım wizard UI (test butonları)
-- Slack OAuth flow, Telegram bot token setup
+## Sprint E — Platform Monitoring (TAMAMLANDI)
+- cron_job_metrics tablosu + Drizzle şeması; recordCronRun() heartbeat helper
+- /api/admin/platform-health (servis sağlığı), /crons (job metrikleri), /email-queue (kuyruk)
+- /panel/platform-saglik admin sayfası (3 tab: Servis Sağlığı, Cron Joblar, E-posta Kuyruğu)
+- admin-layout NAV_SECTIONS'a "Platform Sağlığı" eklendi
 
-**E — Platform Monitoring**
-- /panel/platform-health admin sayfası
-- Cron job sağlık metrikleri tablosu (cronJobMetrics)
-- SLA takip fonksiyonları (getCustomerSLAMetrics)
-
-**F — E-posta Dizileri**
-- Zamanlı e-posta sequence motoru (kayıt×5, değerlendirme×4, SOC×3)
+## Sprint F — E-posta Dizileri (TAMAMLANDI)
+- email_sequence_queue tablosu + Drizzle şeması
+- enqueueSequence() + processEmailQueue() servisleri
+- Diziler: registration (5 adım: D0/D2/D5/D10/D14), full_assessment_purchased (4), soc_activated (3)
+- Her 30 dk cron (index.ts'e eklendi)
 
 ## Önemli Notlar
 - useRequireCustomer() → { data: customer, isLoading } (TanStack Query result, `customer/loading` DEĞİL)

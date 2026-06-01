@@ -110,6 +110,7 @@ import CustomerDavet from "./pages/customer/davet";
 import PentestLite from "./pages/pentest-lite";
 import YonetimRaporu from "./pages/customer/yonetim-raporu";
 import AdminSaglik from "./pages/admin/saglik";
+import PlatformSaglik from "./pages/admin-panel/platform-saglik";
 import AdminYonetimRaporlari from "./pages/admin/yonetim-raporlari";
 import AdminReferrallar from "./pages/admin/referrallar";
 import SifreSifirla from "./pages/customer/sifre-sifirla";
@@ -292,6 +293,7 @@ function Router() {
       <Route path="/panel/is-ortaklari" component={AdminIsOrtaklari} />
       <Route path="/panel/is-paketleri" component={AdminIsPaketleri} />
       <Route path="/panel/saglik" component={AdminSaglik} />
+      <Route path="/panel/platform-saglik" component={PlatformSaglik} />
       <Route path="/panel/growth-engine" component={AdminGrowthEngine} />
       <Route path="/panel/yonetim-raporlari" component={AdminYonetimRaporlari} />
       <Route path="/panel/referrallar" component={AdminReferrallar} />

@@ -101,6 +101,7 @@ const NAV_SECTIONS = [
   {
     title: "Sistem & Ayarlar",
     items: [
+      { icon: Activity,        label: "Platform Sağlığı",      href: "/panel/platform-saglik" },
       { icon: Plug,            label: "Entegrasyonlar",        href: "/panel/entegrasyonlar" },
       { icon: Settings,        label: "Site Ayarları",         href: "/panel/ayarlar" },
       { icon: Shield,          label: "2FA Güvenlik",          href: "/panel/totp" },

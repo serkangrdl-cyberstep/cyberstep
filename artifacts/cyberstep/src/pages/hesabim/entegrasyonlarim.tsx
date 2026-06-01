@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1542,6 +1542,120 @@ function NetgsmSection() {
   );
 }
 
+// ─── Slack OAuth Section ──────────────────────────────────────────────────────
+function SlackSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [testing, setTesting] = useState(false);
+
+  const { data, isLoading } = useQuery<{ config: { id: number; teamName: string; channelName: string; active: boolean; events: string[] } | null }>({
+    queryKey: ["slack-config"],
+    queryFn: () => fetch("/api/integrations/slack", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/slack/oauth", { credentials: "include" });
+      const d = await r.json() as { url?: string; error?: string };
+      if (!r.ok || !d.url) throw new Error(d.error ?? "OAuth başlatılamadı");
+      window.location.href = d.url;
+    },
+    onError: (e: Error) => toast({ title: "Slack bağlanamadı", description: e.message, variant: "destructive" }),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/slack", { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => { toast({ title: "Slack bağlantısı kesildi" }); void qc.invalidateQueries({ queryKey: ["slack-config"] }); },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  async function handleTest() {
+    setTesting(true);
+    try {
+      const r = await fetch("/api/integrations/slack/test", { method: "POST", credentials: "include" });
+      const d = await r.json() as { ok: boolean; error?: string };
+      toast({ title: d.ok ? "Slack mesajı gönderildi" : "Test başarısız", description: d.error, variant: d.ok ? "default" : "destructive" });
+    } catch { toast({ title: "Hata", variant: "destructive" }); }
+    finally { setTesting(false); }
+  }
+
+  const cfg = data?.config;
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-violet-400" />
+            Slack
+          </CardTitle>
+          {cfg?.active && (
+            <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 h-7"
+              onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending}>
+              <Unplug className="h-3.5 w-3.5 mr-1" /> Kes
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+        ) : cfg?.active ? (
+          <>
+            <div className="border border-gray-800 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="text-sm font-medium text-white">Bağlı — {cfg.teamName}</span>
+              </div>
+              {cfg.channelName && (
+                <div className="text-xs text-gray-500">
+                  Kanal: <span className="text-gray-300">#{cfg.channelName}</span>
+                </div>
+              )}
+              <Button size="sm" variant="outline" onClick={handleTest} disabled={testing} className="h-7 text-xs">
+                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                Test Mesajı Gönder
+              </Button>
+            </div>
+            <div className="border border-primary/20 bg-primary/5 rounded-lg p-3 text-xs text-gray-400">
+              SOC alarmlari, kritik vakalar ve SLA ihlalleri otomatik olarak belirtilen kanala iletilir.
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-gray-400 text-sm">
+              SOC alarmlarını doğrudan Slack kanalınıza iletin. OAuth ile güvenli bağlantı.
+            </p>
+            <div className="border border-gray-800 rounded-lg p-4 space-y-2 text-sm text-gray-400">
+              <p className="font-medium text-gray-200">Kurulum adımları</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Aşağıdaki butona tıklayın ve Slack çalışma alanınızı seçin</li>
+                <li>CyberStep uygulamasının erişim izinlerini onaylayın</li>
+                <li>Bildirimlerin gönderileceği kanalı seçin</li>
+              </ol>
+            </div>
+            <Button
+              onClick={() => connectMutation.mutate()}
+              disabled={connectMutation.isPending}
+              className="w-full bg-violet-600 hover:bg-violet-700"
+            >
+              {connectMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <MessageSquare className="h-4 w-4 mr-2" />
+              )}
+              Slack ile Bağlan
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function EntegrasyonlarimPage() {
   useRequireCustomer();
   const { toast } = useToast();
@@ -1564,6 +1678,12 @@ export default function EntegrasyonlarimPage() {
         description: errMap[params.get("ms365_error") ?? ""] ?? "Bilinmeyen hata.",
         variant: "destructive",
       });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("slack") === "connected") {
+      toast({ title: "Slack bağlandı", description: "SOC alarmlari artik Slack kanaliniza iletilecek." });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("slack") === "denied" || params.get("slack") === "error") {
+      toast({ title: "Slack bağlantısı başarısız", description: "Yetkilendirme reddedildi veya hata olustu.", variant: "destructive" });
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [toast]);
@@ -1654,6 +1774,9 @@ export default function EntegrasyonlarimPage() {
 
         {/* ─── NetGSM SMS ──────────────────────────────────── */}
         <NetgsmSection />
+
+        {/* ─── Slack OAuth ─────────────────────────────────── */}
+        <SlackSection />
 
         {/* ─── Datadog ─────────────────────────────────────── */}
         <Card className="bg-gray-900 border-gray-800">

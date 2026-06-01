@@ -821,12 +821,107 @@ export async function ensureServiceNowTables(): Promise<void> {
   logger.info("ServiceNow tables ready");
 }
 
+// ─── Retry pending SOC cases after connection restore ─────────────────────────
+
+const RETRY_WINDOW_HOURS = 48;
+
+/**
+ * Called when a ServiceNow connection is restored after a period of errors.
+ * Finds SOC cases created within the last RETRY_WINDOW_HOURS that never got
+ * a ServiceNow incident (because the connection was down), and retries them.
+ * Each retry attempt is recorded in soc_activity_log.
+ */
+const RETRY_BATCH_SIZE = 20; // rows per cursor page — keeps memory bounded
+
+async function retryPendingServiceNowCases(customerId: number): Promise<void> {
+  try {
+    let totalAttempted = 0;
+    let totalSucceeded = 0;
+    let batchCount = 0;
+    // ID-based cursor: each case is visited exactly once regardless of success or failure.
+    // openServiceNowIncident suppresses its own errors, so we cannot rely on NOT EXISTS
+    // shrinking after each iteration — using a forward cursor guarantees termination.
+    let lastId = 0;
+
+    while (true) {
+      const { rows: pending } = await pool.query<{
+        id: number;
+        case_number: string;
+        title: string;
+        description: string | null;
+        severity: string;
+        category: string;
+      }>(
+        `SELECT sc.id, sc.case_number, sc.title, sc.description, sc.severity, sc.category
+         FROM soc_cases sc
+         WHERE sc.customer_id = $1
+           AND sc.id > $2
+           AND sc.status NOT IN ('closed', 'false_positive')
+           AND sc.created_at >= NOW() - INTERVAL '${RETRY_WINDOW_HOURS} hours'
+           AND NOT EXISTS (
+             SELECT 1 FROM servicenow_incidents sni WHERE sni.soc_case_id = sc.id
+           )
+         ORDER BY sc.id ASC
+         LIMIT $3`,
+        [customerId, lastId, RETRY_BATCH_SIZE],
+      );
+
+      if (!pending.length) break; // no more eligible cases ahead of the cursor
+
+      batchCount++;
+      logger.info(
+        { customerId, batch: batchCount, count: pending.length, afterId: lastId },
+        "ServiceNow retry: processing batch",
+      );
+
+      for (const sc of pending) {
+        // Advance cursor first so a crash mid-batch doesn't revisit already-attempted cases
+        lastId = sc.id;
+        totalAttempted++;
+
+        // Log the retry attempt before trying
+        await pool.query(
+          `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+           VALUES ($1, 'ai', 'ServiceNow', 'note', $2, NOW())`,
+          [sc.id, `ServiceNow bağlantısı yeniden kuruldu — vaka ServiceNow'a otomatik olarak yeniden gönderiliyor`],
+        );
+
+        // openServiceNowIncident handles deduplication, SN API call, and success logging.
+        // It suppresses errors internally; we detect success by checking the DB afterward.
+        await openServiceNowIncident(customerId, sc.id, {
+          caseId: sc.id,
+          caseNumber: sc.case_number,
+          title: sc.title,
+          description: sc.description ?? "",
+          severity: sc.severity,
+          category: sc.category,
+        });
+
+        // Check if the incident was actually created (success detection)
+        const { rows: check } = await pool.query(
+          `SELECT 1 FROM servicenow_incidents WHERE soc_case_id = $1 LIMIT 1`,
+          [sc.id],
+        );
+        if (check.length > 0) totalSucceeded++;
+      }
+    }
+
+    logger.info(
+      { customerId, totalAttempted, totalSucceeded, batchCount },
+      "ServiceNow retry: drain complete",
+    );
+  } catch (err) {
+    logger.error({ err, customerId }, "ServiceNow retry: bekleyen vaka gönderimi başarısız");
+  }
+}
+
 // ─── Proactive Connection Health Check ────────────────────────────────────────
 
 /**
  * Test all active ServiceNow configs and notify the customer by email
  * if the connection is broken. Alerts are rate-limited to once per day per
- * customer. Successful re-connections clear the alert timestamp.
+ * customer. Successful re-connections clear the alert timestamp and trigger
+ * a retry of any SOC cases missed during the outage window (last 48 h).
  * Intended to be called from a daily cron (09:00 Istanbul).
  */
 export async function checkServiceNowConnections(): Promise<void> {
@@ -840,6 +935,7 @@ export async function checkServiceNowConnections(): Promise<void> {
       assignment_group: string | null;
       category: string | null;
       conn_check_alerted_at: string | null;
+      last_sync_error: string | null;
       customer_email: string | null;
       customer_name: string | null;
     }>(`
@@ -852,6 +948,7 @@ export async function checkServiceNowConnections(): Promise<void> {
         snc.assignment_group,
         snc.category,
         snc.conn_check_alerted_at,
+        snc.last_sync_error,
         c.email  AS customer_email,
         c.full_name AS customer_name
       FROM servicenow_configs snc
@@ -878,6 +975,9 @@ export async function checkServiceNowConnections(): Promise<void> {
         });
 
         if (result.ok) {
+          // Was there a prior error? If so, this is a re-connection — retry pending cases.
+          const wasErrored = !!row.last_sync_error;
+
           // Connection healthy — clear any existing error + alert timestamp
           await pool.query(
             `UPDATE servicenow_configs
@@ -885,7 +985,17 @@ export async function checkServiceNowConnections(): Promise<void> {
              WHERE id = $1`,
             [row.id],
           );
-          logger.info({ configId: row.id, customerId: row.customer_id }, "ServiceNow connection healthy");
+          logger.info({ configId: row.id, customerId: row.customer_id, wasErrored }, "ServiceNow connection healthy");
+
+          // Re-connection detected: push SOC cases that were lost during the outage
+          if (wasErrored) {
+            logger.info({ configId: row.id, customerId: row.customer_id }, "ServiceNow bağlantısı yeniden kuruldu — bekleyen vakalar için retry tetikleniyor");
+            setImmediate(() => {
+              retryPendingServiceNowCases(row.customer_id).catch((err) =>
+                logger.error({ err, customerId: row.customer_id }, "ServiceNow retry: beklenmedik hata"),
+              );
+            });
+          }
         } else {
           // Connection broken — persist error
           await pool.query(

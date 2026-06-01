@@ -22,6 +22,58 @@ router.get("/admin-panel/service-catalog", requireAdmin, async (_req: Request, r
   }
 });
 
+// POST /api/admin-panel/service-catalog — yeni servis ekle
+router.post("/admin-panel/service-catalog", requireAdmin, async (req: Request, res: Response) => {
+  const {
+    slug, label, shortDescription, longDescription, features, howItWorks, faq,
+    monthlyPriceTl, setupFeeTl, category, icon, isActive, sortOrder,
+  } = req.body as {
+    slug: string;
+    label: string;
+    shortDescription?: string;
+    longDescription?: string;
+    features?: string[];
+    howItWorks?: { step: string; desc: string }[];
+    faq?: { q: string; a: string }[];
+    monthlyPriceTl: string;
+    setupFeeTl?: string;
+    category?: string;
+    icon?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  };
+
+  if (!slug || !label || !monthlyPriceTl) {
+    res.status(400).json({ error: "slug, label ve monthlyPriceTl zorunludur" });
+    return;
+  }
+
+  try {
+    const [created] = await db
+      .insert(serviceCatalogTable)
+      .values({
+        slug,
+        label,
+        shortDescription: shortDescription ?? "",
+        longDescription: longDescription ?? "",
+        features: features ?? [],
+        howItWorks: howItWorks ?? [],
+        faq: faq ?? [],
+        monthlyPriceTl,
+        setupFeeTl: setupFeeTl ?? "0",
+        category: category ?? "monitoring",
+        icon: icon ?? "Shield",
+        isActive: isActive ?? true,
+        sortOrder: sortOrder ?? 0,
+      })
+      .returning();
+    res.status(201).json(created);
+  } catch (err) {
+    logger.error({ err }, "Failed to create service catalog entry");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // PUT /api/admin-panel/service-catalog/:slug
 router.put("/admin-panel/service-catalog/:slug", requireAdmin, async (req: Request, res: Response) => {
   const slug = req.params["slug"] as string;

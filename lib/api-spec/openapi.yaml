@@ -16,7 +16,82 @@ tags:
     description: Rapor işlemleri
   - name: gemini
     description: Gemini AI chat and image operations
+  - name: service-catalog
+    description: Kurumsal servis kataloğu işlemleri
 paths:
+  /public/service-catalog:
+    get:
+      operationId: getPublicServiceCatalog
+      tags: [service-catalog]
+      summary: Aktif kurumsal servis kataloğunu getir
+      description: Kimlik doğrulama gerektirmez. Sadece aktif servisleri döner.
+      responses:
+        "200":
+          description: Aktif servis listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceCatalogItem"
+
+  /admin-panel/service-catalog:
+    get:
+      operationId: adminGetServiceCatalog
+      tags: [service-catalog]
+      summary: Tüm servis kataloğunu getir (admin)
+      responses:
+        "200":
+          description: Servis listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceCatalogItem"
+    post:
+      operationId: adminCreateServiceCatalogEntry
+      tags: [service-catalog]
+      summary: Yeni servis ekle (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceCatalogInput"
+      responses:
+        "201":
+          description: Oluşturulan servis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceCatalogItem"
+
+  /admin-panel/service-catalog/{slug}:
+    put:
+      operationId: adminUpdateServiceCatalogEntry
+      tags: [service-catalog]
+      summary: Servis kaydını güncelle (admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceCatalogUpdate"
+      responses:
+        "200":
+          description: Güncellenen servis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceCatalogItem"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -898,3 +973,104 @@ components:
         - bodyHtml
         - status
         - createdAt
+    ServiceCatalogItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        label:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        howItWorks:
+          type: array
+          items:
+            type: object
+        faq:
+          type: array
+          items:
+            type: object
+        monthlyPriceTl:
+          type: string
+        setupFeeTl:
+          type: string
+        category:
+          type: string
+        icon:
+          type: string
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - slug
+        - label
+        - shortDescription
+        - monthlyPriceTl
+        - category
+        - icon
+        - isActive
+        - sortOrder
+    ServiceCatalogInput:
+      type: object
+      properties:
+        slug:
+          type: string
+        label:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        monthlyPriceTl:
+          type: string
+        setupFeeTl:
+          type: string
+        category:
+          type: string
+        icon:
+          type: string
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+      required:
+        - slug
+        - label
+        - monthlyPriceTl
+    ServiceCatalogUpdate:
+      type: object
+      properties:
+        label:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        monthlyPriceTl:
+          type: string
+        setupFeeTl:
+          type: string
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer

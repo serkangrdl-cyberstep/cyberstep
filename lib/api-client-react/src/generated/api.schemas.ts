@@ -307,3 +307,50 @@ export interface EmailSend {
   createdAt: string;
 }
 
+export type ServiceCatalogItemHowItWorksItem = { [key: string]: unknown };
+
+export type ServiceCatalogItemFaqItem = { [key: string]: unknown };
+
+export interface ServiceCatalogItem {
+  id: number;
+  slug: string;
+  label: string;
+  shortDescription: string;
+  longDescription?: string;
+  features?: string[];
+  howItWorks?: ServiceCatalogItemHowItWorksItem[];
+  faq?: ServiceCatalogItemFaqItem[];
+  monthlyPriceTl: string;
+  setupFeeTl?: string;
+  category: string;
+  icon: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ServiceCatalogInput {
+  slug: string;
+  label: string;
+  shortDescription?: string;
+  longDescription?: string;
+  features?: string[];
+  monthlyPriceTl: string;
+  setupFeeTl?: string;
+  category?: string;
+  icon?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface ServiceCatalogUpdate {
+  label?: string;
+  shortDescription?: string;
+  longDescription?: string;
+  monthlyPriceTl?: string;
+  setupFeeTl?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+

@@ -505,22 +505,26 @@ export default function Pricing() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {ENTERPRISE_SERVICES_DATA.map((svc) => {
-              const dbSvc = (serviceCatalog as ServiceCatalogItem[]).find(s => s.slug === svc.slug);
-              const price = dbSvc ? new Intl.NumberFormat("tr-TR").format(Number(dbSvc.monthlyPriceTl)) : svc.price;
-              const Icon = svc.icon;
+            {/* Render from DB catalog; fallback to static icons only */}
+            {((serviceCatalog as ServiceCatalogItem[]).length > 0
+              ? (serviceCatalog as ServiceCatalogItem[])
+              : ENTERPRISE_SERVICES_DATA.map(s => ({ slug: s.slug, label: s.label, shortDescription: s.desc, features: s.features, monthlyPriceTl: s.price.replace(".", ""), icon: s.slug, isActive: true } as unknown as ServiceCatalogItem))
+            ).map((svc) => {
+              const Icon = SERVICE_ICONS[svc.icon] ?? SERVICE_ICONS[ENTERPRISE_SERVICES_DATA.find(s => s.slug === svc.slug)?.slug ?? ""] ?? Shield;
+              const price = new Intl.NumberFormat("tr-TR").format(Number(svc.monthlyPriceTl));
+              const features: string[] = Array.isArray(svc.features) ? svc.features.slice(0, 3) : (ENTERPRISE_SERVICES_DATA.find(s => s.slug === svc.slug)?.features ?? []);
               return (
                 <div key={svc.slug} className="rounded-xl border bg-card p-5 flex flex-col gap-3 hover:border-primary/40 transition-colors">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-sm mb-1">{dbSvc?.label ?? svc.label}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{dbSvc?.shortDescription ?? svc.desc}</p>
+                    <p className="font-semibold text-sm mb-1">{svc.label}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{svc.shortDescription}</p>
                   </div>
                   <ul className="space-y-1 flex-1">
-                    {svc.features.map(f => (
-                      <li key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {features.map((f, i) => (
+                      <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />{f}
                       </li>
                     ))}
@@ -528,8 +532,8 @@ export default function Pricing() {
                   <div className="pt-2 border-t">
                     <p className="text-base font-bold text-primary mb-2">{price} TL <span className="text-xs font-normal text-muted-foreground">/ ay + KDV</span></p>
                     <div className="flex gap-1.5">
-                      <Link href={`/satin-al/${svc.slug}`} className="flex-1 text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
-                        Satın Al
+                      <Link href={`/servisler/${svc.slug}`} className="flex-1 text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        İncele
                       </Link>
                       <Link href={`/iletisim?servis=${svc.slug}`} className="flex-1 text-center text-xs border border-border py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
                         Demo

@@ -9,6 +9,122 @@ import * as zod from 'zod';
 
 
 /**
+ * Kimlik doğrulama gerektirmez. Sadece aktif servisleri döner.
+ * @summary Aktif kurumsal servis kataloğunu getir
+ */
+export const GetPublicServiceCatalogResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "label": zod.string(),
+  "shortDescription": zod.string(),
+  "longDescription": zod.string().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "howItWorks": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "faq": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "monthlyPriceTl": zod.string(),
+  "setupFeeTl": zod.string().optional(),
+  "category": zod.string(),
+  "icon": zod.string(),
+  "isActive": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const GetPublicServiceCatalogResponse = zod.array(GetPublicServiceCatalogResponseItem)
+
+
+/**
+ * @summary Tüm servis kataloğunu getir (admin)
+ */
+export const AdminGetServiceCatalogResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "label": zod.string(),
+  "shortDescription": zod.string(),
+  "longDescription": zod.string().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "howItWorks": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "faq": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "monthlyPriceTl": zod.string(),
+  "setupFeeTl": zod.string().optional(),
+  "category": zod.string(),
+  "icon": zod.string(),
+  "isActive": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const AdminGetServiceCatalogResponse = zod.array(AdminGetServiceCatalogResponseItem)
+
+
+/**
+ * @summary Yeni servis ekle (admin)
+ */
+export const AdminCreateServiceCatalogEntryBody = zod.object({
+  "slug": zod.string(),
+  "label": zod.string(),
+  "shortDescription": zod.string().optional(),
+  "longDescription": zod.string().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "monthlyPriceTl": zod.string(),
+  "setupFeeTl": zod.string().optional(),
+  "category": zod.string().optional(),
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
+  "sortOrder": zod.number().optional()
+})
+
+
+/**
+ * @summary Servis kaydını güncelle (admin)
+ */
+export const AdminUpdateServiceCatalogEntryParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const AdminUpdateServiceCatalogEntryBody = zod.object({
+  "label": zod.string().optional(),
+  "shortDescription": zod.string().optional(),
+  "longDescription": zod.string().optional(),
+  "monthlyPriceTl": zod.string().optional(),
+  "setupFeeTl": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const AdminUpdateServiceCatalogEntryResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "label": zod.string(),
+  "shortDescription": zod.string(),
+  "longDescription": zod.string().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "howItWorks": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "faq": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "monthlyPriceTl": zod.string(),
+  "setupFeeTl": zod.string().optional(),
+  "category": zod.string(),
+  "icon": zod.string(),
+  "isActive": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

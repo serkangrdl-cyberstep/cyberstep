@@ -36,6 +36,9 @@ import type {
   HealthStatus,
   Report,
   ReportPending,
+  ServiceCatalogInput,
+  ServiceCatalogItem,
+  ServiceCatalogUpdate,
   StatsSummary
 } from './api.schemas';
 
@@ -50,6 +53,304 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
+export const getGetPublicServiceCatalogUrl = () => {
+
+
+
+
+  return `/api/public/service-catalog`
+}
+
+/**
+ * Kimlik doğrulama gerektirmez. Sadece aktif servisleri döner.
+ * @summary Aktif kurumsal servis kataloğunu getir
+ */
+export const getPublicServiceCatalog = async ( options?: RequestInit): Promise<ServiceCatalogItem[]> => {
+
+  return customFetch<ServiceCatalogItem[]>(getGetPublicServiceCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicServiceCatalogQueryKey = () => {
+    return [
+    `/api/public/service-catalog`
+    ] as const;
+    }
+
+
+export const getGetPublicServiceCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getPublicServiceCatalog>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicServiceCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicServiceCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicServiceCatalog>>> = ({ signal }) => getPublicServiceCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicServiceCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicServiceCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicServiceCatalog>>>
+export type GetPublicServiceCatalogQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Aktif kurumsal servis kataloğunu getir
+ */
+
+export function useGetPublicServiceCatalog<TData = Awaited<ReturnType<typeof getPublicServiceCatalog>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicServiceCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicServiceCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminGetServiceCatalogUrl = () => {
+
+
+
+
+  return `/api/admin-panel/service-catalog`
+}
+
+/**
+ * @summary Tüm servis kataloğunu getir (admin)
+ */
+export const adminGetServiceCatalog = async ( options?: RequestInit): Promise<ServiceCatalogItem[]> => {
+
+  return customFetch<ServiceCatalogItem[]>(getAdminGetServiceCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetServiceCatalogQueryKey = () => {
+    return [
+    `/api/admin-panel/service-catalog`
+    ] as const;
+    }
+
+
+export const getAdminGetServiceCatalogQueryOptions = <TData = Awaited<ReturnType<typeof adminGetServiceCatalog>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetServiceCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetServiceCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetServiceCatalog>>> = ({ signal }) => adminGetServiceCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetServiceCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetServiceCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetServiceCatalog>>>
+export type AdminGetServiceCatalogQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Tüm servis kataloğunu getir (admin)
+ */
+
+export function useAdminGetServiceCatalog<TData = Awaited<ReturnType<typeof adminGetServiceCatalog>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetServiceCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetServiceCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminCreateServiceCatalogEntryUrl = () => {
+
+
+
+
+  return `/api/admin-panel/service-catalog`
+}
+
+/**
+ * @summary Yeni servis ekle (admin)
+ */
+export const adminCreateServiceCatalogEntry = async (serviceCatalogInput: ServiceCatalogInput, options?: RequestInit): Promise<ServiceCatalogItem> => {
+
+  return customFetch<ServiceCatalogItem>(getAdminCreateServiceCatalogEntryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      serviceCatalogInput,)
+  }
+);}
+
+
+
+
+export const getAdminCreateServiceCatalogEntryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateServiceCatalogEntry>>, TError,{data: BodyType<ServiceCatalogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateServiceCatalogEntry>>, TError,{data: BodyType<ServiceCatalogInput>}, TContext> => {
+
+const mutationKey = ['adminCreateServiceCatalogEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateServiceCatalogEntry>>, {data: BodyType<ServiceCatalogInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateServiceCatalogEntry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateServiceCatalogEntryMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateServiceCatalogEntry>>>
+    export type AdminCreateServiceCatalogEntryMutationBody = BodyType<ServiceCatalogInput>
+    export type AdminCreateServiceCatalogEntryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Yeni servis ekle (admin)
+ */
+export const useAdminCreateServiceCatalogEntry = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateServiceCatalogEntry>>, TError,{data: BodyType<ServiceCatalogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateServiceCatalogEntry>>,
+        TError,
+        {data: BodyType<ServiceCatalogInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateServiceCatalogEntryMutationOptions(options));
+    }
+
+export const getAdminUpdateServiceCatalogEntryUrl = (slug: string,) => {
+
+
+
+
+  return `/api/admin-panel/service-catalog/${slug}`
+}
+
+/**
+ * @summary Servis kaydını güncelle (admin)
+ */
+export const adminUpdateServiceCatalogEntry = async (slug: string,
+    serviceCatalogUpdate: ServiceCatalogUpdate, options?: RequestInit): Promise<ServiceCatalogItem> => {
+
+  return customFetch<ServiceCatalogItem>(getAdminUpdateServiceCatalogEntryUrl(slug),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      serviceCatalogUpdate,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateServiceCatalogEntryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateServiceCatalogEntry>>, TError,{slug: string;data: BodyType<ServiceCatalogUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateServiceCatalogEntry>>, TError,{slug: string;data: BodyType<ServiceCatalogUpdate>}, TContext> => {
+
+const mutationKey = ['adminUpdateServiceCatalogEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateServiceCatalogEntry>>, {slug: string;data: BodyType<ServiceCatalogUpdate>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  adminUpdateServiceCatalogEntry(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateServiceCatalogEntryMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateServiceCatalogEntry>>>
+    export type AdminUpdateServiceCatalogEntryMutationBody = BodyType<ServiceCatalogUpdate>
+    export type AdminUpdateServiceCatalogEntryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Servis kaydını güncelle (admin)
+ */
+export const useAdminUpdateServiceCatalogEntry = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateServiceCatalogEntry>>, TError,{slug: string;data: BodyType<ServiceCatalogUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateServiceCatalogEntry>>,
+        TError,
+        {slug: string;data: BodyType<ServiceCatalogUpdate>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateServiceCatalogEntryMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

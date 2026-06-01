@@ -19,6 +19,7 @@ import expertReviewRouter from "./expert-review";
 import remediationAdminRouter from "./remediation";
 import cloudCspmAdminRouter from "./cloud-cspm";
 import codeSecretsAdminRouter from "./code-secrets";
+import observabilityAdminRouter from "./observability";
 
 const router = Router();
 router.use(authRouter);
@@ -41,5 +42,6 @@ router.use(expertReviewRouter);
 router.use(remediationAdminRouter);
 router.use(cloudCspmAdminRouter);
 router.use(codeSecretsAdminRouter);
+router.use(observabilityAdminRouter);
 
 export default router;

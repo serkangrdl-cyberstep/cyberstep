@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -14,7 +14,7 @@ const publicScoreLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Çok fazla istek, 1 dakika sonra tekrar deneyin." },
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
 });
 
 function scoreToGrade(score: number): string {
@@ -110,7 +110,7 @@ const cisoLeadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Çok fazla talep gönderildi, lütfen daha sonra tekrar deneyin." },
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
 });
 
 router.post("/public/ciso-lead", cisoLeadLimiter, async (req: Request, res: Response) => {
@@ -137,7 +137,7 @@ const partnerLeadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Çok fazla talep, lütfen daha sonra tekrar deneyin." },
-  keyGenerator: (req) => req.ip ?? "unknown",
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
 });
 
 router.post("/public/partner-lead", partnerLeadLimiter, async (req: Request, res: Response) => {
@@ -177,7 +177,7 @@ function isCorporateEmail(email: string): boolean {
   return !!domain && !FREE_EMAIL_DOMAINS.includes(domain);
 }
 
-const jobAppLimiter = rateLimit({ windowMs: 60*60*1000, limit: 3, standardHeaders: true, legacyHeaders: false, message: { error: "Çok fazla başvuru." }, keyGenerator: (req) => req.ip ?? "unknown" });
+const jobAppLimiter = rateLimit({ windowMs: 60*60*1000, limit: 3, standardHeaders: true, legacyHeaders: false, message: { error: "Çok fazla başvuru." }, keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown") });
 
 router.post("/public/job-application", jobAppLimiter, async (req: Request, res: Response) => {
   const { fullName, email, phone, cvFileName, cvFileData, position, message } = req.body as Record<string, string>;

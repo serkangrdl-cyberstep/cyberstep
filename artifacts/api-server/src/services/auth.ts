@@ -4,9 +4,9 @@ import { adminUsersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
-async function getAuthenticator() {
-  const otplib = await import("otplib");
-  return otplib.authenticator ?? (otplib as unknown as { default: { authenticator: unknown } }).default?.authenticator ?? (otplib as unknown as Record<string, unknown>)["authenticator"];
+async function getAuthenticator(): Promise<unknown> {
+  const otplib = await import("otplib") as unknown as Record<string, unknown> & { default?: Record<string, unknown> };
+  return otplib["authenticator"] ?? otplib.default?.["authenticator"];
 }
 
 export async function createAdminUser(email: string, password: string): Promise<void> {

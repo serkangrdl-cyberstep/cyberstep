@@ -43,6 +43,7 @@ import socRouter from "./soc/index";
 import remediationRouter from "./remediation/index";
 import cloudCspmRouter from "./cloud-cspm/index";
 import codeSecretsRouter from "./code-secrets/index";
+import observabilityRouter from "./observability/index";
 
 const router: IRouter = Router();
 
@@ -90,5 +91,6 @@ router.use(socRouter);
 router.use(remediationRouter);
 router.use(cloudCspmRouter);
 router.use(codeSecretsRouter);
+router.use(observabilityRouter);
 
 export default router;

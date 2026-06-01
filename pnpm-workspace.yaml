@@ -7,6 +7,7 @@ packages:
 autoInstallPeers: false
 
 catalog:
+  '@opentelemetry/api': ^1.9.1
   '@replit/vite-plugin-cartographer': ^0.5.1
   '@replit/vite-plugin-dev-banner': ^0.1.1
   '@replit/vite-plugin-runtime-error-modal': ^0.0.6
@@ -43,6 +44,7 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  '@opentelemetry/api': ^1.9.1
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'

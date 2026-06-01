@@ -1,0 +1,236 @@
+import { db, pool } from "@workspace/db";
+import { observabilityEventsTable } from "@workspace/db";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { createCaseWithNumber } from "./soc/soc-cases";
+import { logger } from "../lib/logger";
+
+export interface NormalizedObsEvent {
+  provider: string;
+  eventType: string;
+  severity: string;
+  title: string;
+  description?: string;
+  affectedService?: string;
+  affectedHost?: string;
+  sourceIp?: string;
+}
+
+// ─── Datadog payload normalizer ───────────────────────────────────────────────
+
+interface DatadogPayload {
+  id?: string;
+  title?: string;
+  type?: string;
+  message?: string;
+  severity?: string;
+  hostname?: string;
+  tags?: string[];
+  url?: string;
+  date?: number;
+}
+
+export function normalizeDatadogEvent(payload: DatadogPayload): NormalizedObsEvent {
+  const severityMap: Record<string, string> = {
+    CRITICAL: "critical", ERROR: "high", WARNING: "medium", INFO: "low",
+  };
+  const typeMap: Record<string, string> = {
+    "monitor alert": "anomaly_detected",
+    "error tracking alert": "error_spike",
+    "security signal": "security_alert",
+    "apm alert": "latency_spike",
+  };
+
+  const tags = Object.fromEntries(
+    (payload.tags ?? [])
+      .filter((t) => t.includes(":"))
+      .map((t) => t.split(":") as [string, string])
+  );
+
+  return {
+    provider: "datadog",
+    eventType: typeMap[payload.type ?? ""] ?? "anomaly_detected",
+    severity: severityMap[payload.severity ?? ""] ?? "medium",
+    title: payload.title ?? "Datadog Alert",
+    description: payload.message,
+    affectedService: tags["service"],
+    affectedHost: payload.hostname,
+  };
+}
+
+// ─── Azure payload normalizer ─────────────────────────────────────────────────
+
+interface AzurePayload {
+  data?: {
+    context?: {
+      activityLog?: {
+        category?: string;
+        level?: string;
+        operationName?: string;
+        description?: string;
+        resourceId?: string;
+      };
+      condition?: {
+        allOf?: Array<{ metricName?: string; metricValue?: number }>;
+      };
+      name?: string;
+      resourceName?: string;
+      resourceGroupName?: string;
+    };
+    status?: string;
+  };
+}
+
+export function normalizeAzureEvent(payload: AzurePayload): NormalizedObsEvent {
+  const actLog = payload.data?.context?.activityLog;
+  const ctx = payload.data?.context;
+
+  if (actLog?.category === "Security") {
+    const level = actLog.level ?? "";
+    const sevMap: Record<string, string> = { Critical: "critical", Error: "high", Warning: "medium", Informational: "low" };
+    return {
+      provider: "azure_monitor",
+      eventType: "security_alert",
+      severity: sevMap[level] ?? "medium",
+      title: actLog.operationName ?? "Azure Security Alert",
+      description: actLog.description,
+      affectedService: actLog.resourceId?.split("/").pop(),
+      affectedHost: actLog.resourceId ?? undefined,
+    };
+  }
+
+  if (ctx?.condition) {
+    const metric = ctx.condition.allOf?.[0];
+    return {
+      provider: "azure_monitor",
+      eventType: "anomaly_detected",
+      severity: payload.data?.status === "Activated" ? "medium" : "low",
+      title: ctx.name ?? "Azure Metric Alert",
+      description: metric ? `${metric.metricName}: ${metric.metricValue}` : undefined,
+      affectedService: ctx.resourceName,
+      affectedHost: ctx.resourceGroupName,
+    };
+  }
+
+  return {
+    provider: "azure_monitor",
+    eventType: "resource_change",
+    severity: "low",
+    title: actLog?.operationName ?? "Azure Event",
+    description: undefined,
+  };
+}
+
+// ─── Azure webhook signature verification ─────────────────────────────────────
+
+export function verifyAzureSignature(body: unknown, signature: string | string[] | undefined): boolean {
+  const secret = process.env["AZURE_WEBHOOK_SECRET"];
+  if (!secret) return true;
+  if (!signature) return false;
+  try {
+    const crypto = require("node:crypto") as typeof import("node:crypto");
+    const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
+    const hmac = crypto.createHmac("sha256", secret).update(bodyStr).digest("hex");
+    const sig = Array.isArray(signature) ? signature[0] : signature;
+    return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(sig.replace(/^sha256=/, "")));
+  } catch {
+    return false;
+  }
+}
+
+// ─── SOC korelasyon ───────────────────────────────────────────────────────────
+
+interface FabricEventRow { id: number; event_type: string; severity: string; src_ip: string | null; dst_ip: string | null; dst_port: number | null }
+interface SocCaseRow { id: number; title: string }
+
+export async function correlateWithSOC(
+  customerId: number,
+  obsEvent: NormalizedObsEvent,
+  _integrationId: number,
+  obsEventId: number,
+): Promise<void> {
+  const WINDOW_MS = 30 * 60 * 1000;
+  const windowDate = new Date(Date.now() - WINDOW_MS);
+  const socWindowDate = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+  const { rows: recentFabricEvents } = await pool.query<FabricEventRow>(
+    `SELECT id, event_type, severity, src_ip, dst_ip, dst_port
+     FROM fabric_events
+     WHERE customer_id = $1 AND created_at >= $2
+     LIMIT 20`,
+    [customerId, windowDate]
+  );
+
+  const { rows: recentSOCCases } = await pool.query<SocCaseRow>(
+    `SELECT id, title FROM soc_cases
+     WHERE customer_id = $1 AND status IN ('open','investigating') AND created_at >= $2`,
+    [customerId, socWindowDate]
+  );
+
+  if (recentSOCCases.length > 0 && obsEvent.severity !== "critical") {
+    const latestCase = recentSOCCases[0]!;
+    await pool.query(
+      `UPDATE observability_events SET processed = true, correlated_soc_case_id = $1 WHERE id = $2`,
+      [latestCase.id, obsEventId]
+    );
+    return;
+  }
+
+  if (recentFabricEvents.length === 0 && !["critical", "high"].includes(obsEvent.severity)) {
+    return;
+  }
+
+  const prompt = `SOC analisti olarak aşağıdaki iki veri kaynağını değerlendir.
+
+OBSERVABİLİTY (${obsEvent.provider.toUpperCase()}):
+  Servis: ${obsEvent.affectedService ?? "belirtilmemiş"}
+  Olay: ${obsEvent.title}
+  Açıklama: ${obsEvent.description ?? "yok"}
+  Ciddiyet: ${obsEvent.severity}
+
+SON 30 DAKİKA AĞSAL OLAYLAR (${recentFabricEvents.length} adet):
+${recentFabricEvents.slice(0, 5).map((e) => `${e.event_type}: ${e.src_ip ?? "?"} → ${e.dst_ip ?? "?"}:${e.dst_port ?? "?"}`).join("\n") || "Olay yok"}
+
+Bu iki kaynak arasında anlamlı bir korelasyon var mı?
+JSON formatında cevap ver: { "correlated": true/false, "confidence": 0-100, "narrative": "1-2 cümle Türkçe", "severity": "critical|high|medium|low" }`;
+
+  let result: { correlated: boolean; confidence: number; narrative: string; severity: string };
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = msg.content.map((b) => ("text" in b ? b.text : "")).join("");
+    const match = raw.match(/\{[\s\S]*\}/);
+    result = JSON.parse(match ? match[0] : raw) as typeof result;
+  } catch (err) {
+    logger.error({ err, customerId }, "correlateWithSOC: Claude error");
+    return;
+  }
+
+  if (result.correlated && result.confidence > 60) {
+    const socCase = await createCaseWithNumber({
+      customerId,
+      severity: result.severity as "critical" | "high" | "medium" | "low",
+      category: "observability_correlation",
+      title: `${obsEvent.provider} Anomalisi: ${obsEvent.affectedService ?? obsEvent.title}`,
+      description: `${obsEvent.provider.toUpperCase()} kaynağından gelen alert: ${obsEvent.title}`,
+      attackNarrative: result.narrative,
+      triggerEventIds: recentFabricEvents.map((e) => e.id),
+    });
+
+    if (socCase) {
+      await pool.query(
+        `UPDATE observability_events SET processed = true, correlated_soc_case_id = $1 WHERE id = $2`,
+        [socCase.id, obsEventId]
+      );
+    }
+
+    logger.info({ customerId, socCaseId: socCase?.id, provider: obsEvent.provider }, "correlateWithSOC: SOC case created");
+  } else {
+    await pool.query(
+      `UPDATE observability_events SET processed = true WHERE id = $1`,
+      [obsEventId]
+    );
+  }
+}

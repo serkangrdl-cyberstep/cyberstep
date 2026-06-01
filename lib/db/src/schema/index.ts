@@ -70,3 +70,4 @@ export * from "./onboarding";
 export * from "./badges";
 export * from "./fortinet";
 export * from "./soc";
+export * from "./observability";

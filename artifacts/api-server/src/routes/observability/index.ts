@@ -154,11 +154,11 @@ router.post("/webhook/cloudflare/:token", async (req, res) => {
   res.status(200).json({ ok: true });
   if (!integration) return;
 
-  // Verify cf-webhook-auth header against stored shared secret (if configured)
+  // Verify CF-Webhook-Token header against stored shared secret (if configured)
   const storedSecret = decryptSecret(integration.apiKeyEncrypted);
-  const cfAuthHeader = req.headers["cf-webhook-auth"];
+  const cfAuthHeader = req.headers["cf-webhook-token"];
   if (!verifyCloudflareHeader(cfAuthHeader, storedSecret)) {
-    logger.warn({ integrationId: integration.id }, "Cloudflare webhook: cf-webhook-auth mismatch — dropping");
+    logger.warn({ integrationId: integration.id }, "Cloudflare webhook: CF-Webhook-Token mismatch — dropping");
     return;
   }
 

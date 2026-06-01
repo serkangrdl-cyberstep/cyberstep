@@ -195,14 +195,14 @@ export function normalizeCloudflareEvent(payload: CloudflarePayload): Normalized
 // ─── Cloudflare webhook header verification ───────────────────────────────────
 
 export function verifyCloudflareHeader(
-  cfAuthHeader: string | string[] | undefined,
+  cfTokenHeader: string | string[] | undefined,
   storedSecret: string | null,
 ): boolean {
   if (!storedSecret) return true;
-  if (!cfAuthHeader) return false;
+  if (!cfTokenHeader) return false;
   try {
     const crypto = require("node:crypto") as typeof import("node:crypto");
-    const provided = Array.isArray(cfAuthHeader) ? cfAuthHeader[0]! : cfAuthHeader;
+    const provided = Array.isArray(cfTokenHeader) ? cfTokenHeader[0]! : cfTokenHeader;
     return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(storedSecret));
   } catch {
     return false;
@@ -240,33 +240,50 @@ export async function correlateCloudflareWithSOC(
     return;
   }
 
-  // Bot score < 10 → suspicious traffic note (low severity, no case)
-  if (eventType === "bot.score" && severity === "low") {
-    await pool.query(
-      `UPDATE observability_events SET processed = true WHERE id = $1`,
-      [obsEventId]
-    );
+  // Bot score < 10 → severity=high in normalizer; create suspicious traffic record
+  if (eventType === "bot.score" && severity === "high") {
+    const socCase = await createCaseWithNumber({
+      customerId,
+      severity: "medium",
+      category: "suspicious_bot",
+      title: `Cloudflare Bot Skoru Kritik Düşük: ${title}`,
+      description: "Cloudflare Bot Management bot skoru 10'un altında tespit etti. Otomatik araç veya saldırı yazılımı olabilir.",
+      attackNarrative: "Çok düşük bot skoru genellikle otomatik saldırı araçlarını işaret eder. Kaynak IP izlemeye alınması önerilir.",
+      triggerEventIds: [],
+    });
+    if (socCase) {
+      await pool.query(
+        `UPDATE observability_events SET processed = true, correlated_soc_case_id = $1 WHERE id = $2`,
+        [socCase.id, obsEventId]
+      );
+    }
     return;
   }
 
-  // WAF block → check source IP against known threats in fabric_events
-  if (eventType === "waf.block" && sourceIp) {
-    const { rows: knownBadRows } = await pool.query<{ cnt: string }>(
-      `SELECT count(*)::int AS cnt
-       FROM fabric_events
-       WHERE customer_id = $1 AND src_ip = $2 AND created_at >= NOW() - INTERVAL '7 days'`,
-      [customerId, sourceIp]
-    );
-    const knownBad = Number(knownBadRows[0]?.cnt ?? 0) > 0;
+  // Bot score >= 30 (severity=low) → just mark processed, no case needed
+  if (eventType === "bot.score" && severity === "low") {
+    await pool.query(`UPDATE observability_events SET processed = true WHERE id = $1`, [obsEventId]);
+    return;
+  }
 
-    if (knownBad) {
+  // WAF block → check source IP against FortiManager confirmed block list (IoC registry)
+  if (eventType === "waf.block" && sourceIp) {
+    const { rows: iocRows } = await pool.query<{ cnt: string }>(
+      `SELECT count(*)::int AS cnt
+       FROM fortimanager_block_actions
+       WHERE ip_address = $1 AND status IN ('success', 'verified')`,
+      [sourceIp]
+    );
+    const isKnownIoc = Number(iocRows[0]?.cnt ?? 0) > 0;
+
+    if (isKnownIoc) {
       const socCase = await createCaseWithNumber({
         customerId,
         severity: "high",
         category: "waf_ioc_match",
         title: `WAF Engelleme + Bilinen Tehdit IP: ${sourceIp}`,
-        description: `Cloudflare WAF ${sourceIp} adresini engelledi. Bu IP son 7 gün içinde Fortinet Fabric event'lerinde de görüldü.`,
-        attackNarrative: `${sourceIp} adresi hem Cloudflare WAF hem de Fortinet altyapısında tespit edildi. Koordineli saldırı riski.`,
+        description: `Cloudflare WAF ${sourceIp} adresini engelledi. Bu IP CyberStep IoC kaydında (FortiManager onaylı blok listesi) bulunuyor.`,
+        attackNarrative: `${sourceIp} daha önce FortiManager tarafından doğrulanmış tehdit olarak bloklanmış ve şimdi Cloudflare WAF tarafından da engellendi. Koordineli saldırı riski yüksek.`,
         triggerEventIds: [],
       });
       if (socCase) {
@@ -275,7 +292,7 @@ export async function correlateCloudflareWithSOC(
           [socCase.id, obsEventId]
         );
       }
-      logger.info({ customerId, sourceIp, socCaseId: socCase?.id }, "Cloudflare WAF+IoC match: SOC case created");
+      logger.info({ customerId, sourceIp, socCaseId: socCase?.id }, "Cloudflare WAF+IoC match (FortiManager registry): SOC case created");
       return;
     }
   }

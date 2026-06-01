@@ -474,6 +474,17 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "HIVE_API_KEY opsiyonel — olmadan da heuristik + Claude AI ile çalışır. Daha derin görsel analiz için Hive Moderation API key ekleyin.",
     docs: "/sahte-dokuman",
   },
+  // ─── ITSM & Operasyon ───────────────────────────────────────────────────────
+  {
+    id: "servicenow", name: "ServiceNow ITSM", category: "ITSM & Operasyon", type: "platform", icon: "🎫",
+    cost: "paid", costLabel: "Lisans", always: false,
+    envKey: "SERVICENOW_INSTANCE_URL",
+    desc: "SOC vakaları açıldığında ServiceNow'da otomatik INC ticket oluşturur; kapatıldığında çözüldü olarak günceller. 15 dakikalık çift yönlü senkronizasyon ile work note'lar ve durum değişiklikleri her iki sistemde de yansıtılır.",
+    why: "ITSM süreçleri ServiceNow üzerinden yürüyen müşterilerde SOC vakalarının IT operasyon iş akışlarıyla entegre olması gerekir. Manuel veri girişini ortadan kaldırır, SLA takibini merkezileştirir.",
+    how: "Müşteri /hesabim/entegrasyonlarim sayfasından instance URL + kullanıcı adı + API token girer. SOC triage'da case açılınca TableAPI'ye POST atılır. 15 dakikada bir cron SN durumunu çeker; SN'de kapanan vakalar CyberStep'te de kapatılır. Analist notları SN work_notes'a yazılır.",
+    setup: "1. ServiceNow instance URL'ini edinin (örn. dev12345.service-now.com)  2. Yönetici hesabıyla API erişimi olan kullanıcı oluşturun  3. /hesabim/entegrasyonlarim → ServiceNow bölümünden bağlayın.",
+    docs: "https://developer.servicenow.com/dev.do#!/reference/api/sandiego/rest/c_TableAPI",
+  },
 ];
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -490,6 +501,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   "Ödeme & Faturalandırma": CreditCard,
   "Üretkenlik": Calendar,
   "AI Analiz Modülleri": Bot,
+  "ITSM & Operasyon": Settings,
 };
 
 const COST_COLORS: Record<string, string> = {
@@ -516,6 +528,7 @@ const PLATFORM_CATEGORIES = [
   "Ödeme & Faturalandırma",
   "Üretkenlik",
   "AI Analiz Modülleri",
+  "ITSM & Operasyon",
 ];
 
 type StatusFilter = "all" | "active" | "needs-api" | "needs-setup";

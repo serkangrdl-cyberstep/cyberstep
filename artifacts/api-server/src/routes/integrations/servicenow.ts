@@ -24,6 +24,8 @@ router.get("/integrations/servicenow", requireCustomer, async (req, res) => {
       `SELECT id, instance_url AS "instanceUrl", username,
               assignment_group AS "assignmentGroup", category,
               active, last_sync_at AS "lastSyncAt", last_sync_error AS "lastSyncError",
+              last_webhook_at AS "lastWebhookAt",
+              webhook_event_count AS "webhookEventCount",
               created_at AS "createdAt"
        FROM servicenow_configs
        WHERE customer_id = $1

@@ -754,6 +754,16 @@ export async function processServiceNowWebhook(
     );
   }
 
+  // 9. Stamp last_webhook_at and increment webhook_event_count on the config
+  await pool.query(
+    `UPDATE servicenow_configs
+     SET last_webhook_at = NOW(),
+         webhook_event_count = webhook_event_count + 1,
+         updated_at = NOW()
+     WHERE id = $1`,
+    [incident.config_id],
+  );
+
   logger.info(
     { customerId: incident.customer_id, socCaseId: incident.soc_case_id, snNumber: incident.sn_number, newState, stateChanged, assignedTo: assignedTo ?? null },
     "ServiceNow webhook işlendi",
@@ -805,6 +815,9 @@ export async function ensureServiceNowTables(): Promise<void> {
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_secret_enc TEXT`);
   // Connection health check alert timestamp (rate-limit to 1 alert/day per customer)
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS conn_check_alerted_at TIMESTAMPTZ`);
+  // Webhook activity tracking
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS last_webhook_at TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_event_count INTEGER NOT NULL DEFAULT 0`);
   logger.info("ServiceNow tables ready");
 }
 

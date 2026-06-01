@@ -397,6 +397,8 @@ interface SnConfig {
   active: boolean;
   lastSyncAt: string | null;
   lastSyncError: string | null;
+  lastWebhookAt: string | null;
+  webhookEventCount: number;
 }
 
 interface SnIncident {
@@ -586,6 +588,21 @@ function ServiceNowSection() {
                     <p className="text-xs text-gray-300 font-medium mt-0.5">{item.value}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Webhook activity indicator */}
+              <div className={`flex items-center gap-2 rounded p-2.5 text-xs ${cfg.lastWebhookAt ? "bg-emerald-950/30 border border-emerald-500/20" : "bg-gray-950/40 border border-gray-800"}`}>
+                <Webhook className={`h-3.5 w-3.5 shrink-0 ${cfg.lastWebhookAt ? "text-emerald-400" : "text-gray-600"}`} />
+                {cfg.lastWebhookAt ? (
+                  <span className="text-gray-300">
+                    Son webhook: <span className="text-emerald-400 font-medium">{timeSince(cfg.lastWebhookAt)}</span>
+                    {cfg.webhookEventCount > 0 && (
+                      <span className="text-gray-500 ml-1">· Toplam {cfg.webhookEventCount} olay</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-gray-500">Henüz webhook olayı alınmadı</span>
+                )}
               </div>
             </div>
 

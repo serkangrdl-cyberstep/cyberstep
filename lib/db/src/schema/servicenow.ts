@@ -13,6 +13,8 @@ export const servicenowConfigsTable = pgTable("servicenow_configs", {
   category: text("category").default("Software"),
   lastSyncAt: timestamp("last_sync_at"),
   lastSyncError: text("last_sync_error"),
+  lastWebhookAt: timestamp("last_webhook_at"),
+  webhookEventCount: integer("webhook_event_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

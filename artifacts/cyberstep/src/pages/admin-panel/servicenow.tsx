@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck } from "lucide-react";
+import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ interface Summary {
   openIncidents: number;
   syncSuccess24h: number;
   syncErrors24h: number;
+  totalWebhookEvents: number;
+  configsWithWebhook: number;
 }
 
 interface SnConfig {
@@ -27,6 +29,8 @@ interface SnConfig {
   active: boolean;
   lastSyncAt: string | null;
   lastSyncError: string | null;
+  lastWebhookAt: string | null;
+  webhookEventCount: number;
   incidentCount: number;
   openCount: number;
 }
@@ -57,6 +61,16 @@ const SEV_COLORS: Record<string, string> = {
 };
 
 function fmtDate(d: string | null) { return d ? new Date(d).toLocaleString("tr-TR") : "-"; }
+
+function timeSince(iso: string | null) {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m} dk önce`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} saat önce`;
+  return `${Math.floor(h / 24)} gün önce`;
+}
 
 export default function AdminServiceNow() {
   const [activeTab, setActiveTab] = useState<"configs" | "incidents">("configs");
@@ -89,6 +103,8 @@ export default function AdminServiceNow() {
           { label: "Aktif Entegrasyon", value: summary?.activeConfigs ?? 0, icon: <Network className="h-4 w-4 text-blue-400" /> },
           { label: "Açık Incident", value: summary?.openIncidents ?? 0, icon: <TicketCheck className="h-4 w-4 text-yellow-400" /> },
           { label: "Toplam Incident", value: summary?.totalIncidents ?? 0, icon: <CheckCircle className="h-4 w-4 text-emerald-400" /> },
+          { label: "Toplam Webhook Olayı", value: summary?.totalWebhookEvents ?? 0, icon: <Webhook className="h-4 w-4 text-violet-400" /> },
+          { label: "Webhook Aktif Tenant", value: summary?.configsWithWebhook ?? 0, icon: <Webhook className="h-4 w-4 text-emerald-400" /> },
         ].map(item => (
           <Card key={item.label} className="bg-slate-900 border-slate-800">
             <CardContent className="pt-4">
@@ -162,6 +178,17 @@ export default function AdminServiceNow() {
                         ) : cfg.lastSyncAt ? (
                           <p className="text-slate-600 text-xs mt-1">Son sync: {fmtDate(cfg.lastSyncAt)}</p>
                         ) : null}
+                        <div className={`inline-flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs ${cfg.lastWebhookAt ? "bg-violet-500/10 border border-violet-500/20" : "bg-slate-800/60 border border-slate-700/40"}`}>
+                          <Webhook className={`h-3 w-3 ${cfg.lastWebhookAt ? "text-violet-400" : "text-slate-600"}`} />
+                          {cfg.lastWebhookAt ? (
+                            <span className="text-slate-300">
+                              Webhook: <span className="text-violet-400 font-medium">{timeSince(cfg.lastWebhookAt)}</span>
+                              <span className="text-slate-500 ml-1">· {cfg.webhookEventCount} olay</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">Webhook olayı yok</span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-2xl font-bold text-white">{cfg.incidentCount}</p>

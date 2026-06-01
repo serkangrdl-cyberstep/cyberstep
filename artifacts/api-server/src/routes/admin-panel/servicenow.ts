@@ -21,6 +21,16 @@ router.get("/admin-panel/servicenow/summary", requireAdmin, async (_req, res) =>
        LEFT JOIN servicenow_incidents sni ON sni.config_id = snc.id`
     );
 
+    // Aggregate webhook stats from configs only — no incident join to avoid row multiplication
+    const { rows: [webhookTotals] } = await pool.query<{
+      total_webhook_events: string; configs_with_webhook: string;
+    }>(
+      `SELECT
+         COALESCE(SUM(webhook_event_count), 0)::int AS total_webhook_events,
+         COUNT(CASE WHEN last_webhook_at IS NOT NULL THEN 1 END)::int AS configs_with_webhook
+       FROM servicenow_configs`
+    );
+
     const { rows: [syncStats] } = await pool.query<{ success: string; errors: string }>(
       `SELECT
          COUNT(CASE WHEN last_sync_error IS NULL AND last_sync_at IS NOT NULL THEN 1 END)::int AS success,
@@ -36,6 +46,8 @@ router.get("/admin-panel/servicenow/summary", requireAdmin, async (_req, res) =>
       openIncidents: Number(totals?.open_incidents ?? 0),
       syncSuccess24h: Number(syncStats?.success ?? 0),
       syncErrors24h: Number(syncStats?.errors ?? 0),
+      totalWebhookEvents: Number(webhookTotals?.total_webhook_events ?? 0),
+      configsWithWebhook: Number(webhookTotals?.configs_with_webhook ?? 0),
     });
   } catch (err) {
     logger.error({ err }, "GET /api/admin-panel/servicenow/summary error");
@@ -53,6 +65,8 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
               snc.assignment_group AS "assignmentGroup", snc.category,
               snc.active, snc.last_sync_at AS "lastSyncAt",
               snc.last_sync_error AS "lastSyncError",
+              snc.last_webhook_at AS "lastWebhookAt",
+              snc.webhook_event_count AS "webhookEventCount",
               COUNT(sni.id)::int AS "incidentCount",
               COUNT(CASE WHEN sni.sn_state NOT IN (6, 7) THEN 1 END)::int AS "openCount"
        FROM servicenow_configs snc

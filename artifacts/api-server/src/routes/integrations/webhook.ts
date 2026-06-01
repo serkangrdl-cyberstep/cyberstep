@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod/v4";
 import { pool } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { encryptSecret, decryptSecret } from "../../services/fabric-crypto";
@@ -10,6 +11,28 @@ const ALL_EVENTS: WebhookEvent[] = [
   "soc.case.opened", "soc.case.closed", "soc.case.critical",
   "soc.sla.breached", "scan.completed", "report.ready",
 ];
+
+const VALID_EVENTS = z.enum([
+  "soc.case.opened", "soc.case.closed", "soc.case.critical",
+  "soc.sla.breached", "scan.completed", "report.ready",
+]);
+
+const webhookCreateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  url: z.string().url().max(2048),
+  secret: z.string().min(8).max(256).optional(),
+  events: z.array(VALID_EVENTS).min(1).max(20).optional(),
+  headers: z.record(z.string().max(100), z.string().max(512)).optional(),
+});
+
+const webhookUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  url: z.string().url().max(2048).optional(),
+  secret: z.string().min(8).max(256).optional(),
+  events: z.array(VALID_EVENTS).min(1).max(20).optional(),
+  active: z.boolean().optional(),
+  headers: z.record(z.string().max(100), z.string().max(512)).optional(),
+});
 
 // ─── GET /api/integrations/webhook ───────────────────────────────────────────
 router.get("/integrations/webhook", requireCustomer, async (req, res) => {
@@ -33,12 +56,13 @@ router.post("/integrations/webhook", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { name, url, secret, events, headers } = req.body as {
-    name?: string; url: string; secret?: string;
-    events?: WebhookEvent[]; headers?: Record<string, string>;
-  };
+  const parsed = webhookCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
+  }
+  const { name, url, secret, events, headers } = parsed.data;
 
-  if (!url) { res.status(400).json({ error: "url zorunludur" }); return; }
   try { validateWebhookUrl(url); }
   catch (e) { res.status(400).json({ error: `Geçersiz URL: ${(e as Error).message}` }); return; }
 
@@ -66,10 +90,12 @@ router.put("/integrations/webhook/:id", requireCustomer, async (req, res) => {
   const id = Number(req.params["id"]);
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
 
-  const { name, url, secret, events, active, headers } = req.body as {
-    name?: string; url?: string; secret?: string;
-    events?: WebhookEvent[]; active?: boolean; headers?: Record<string, string>;
-  };
+  const parsed = webhookUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
+  }
+  const { name, url, secret, events, active, headers } = parsed.data;
 
   if (url) {
     try { validateWebhookUrl(url); }

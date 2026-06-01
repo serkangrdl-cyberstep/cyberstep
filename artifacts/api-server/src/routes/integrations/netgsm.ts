@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod/v4";
 import { pool } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { encryptSecret, decryptSecret } from "../../services/fabric-crypto";
@@ -9,6 +10,36 @@ const router = Router();
 const ALL_EVENTS: NetgsmEvent[] = [
   "soc.case.opened", "soc.case.closed", "soc.case.critical", "soc.sla.breached",
 ];
+
+const VALID_NETGSM_EVENTS = z.enum([
+  "soc.case.opened", "soc.case.closed", "soc.case.critical", "soc.sla.breached",
+]);
+
+const TR_PHONE_RE = /^(\+90|0)?[5][0-9]{9}$|^\+[1-9][0-9]{6,14}$/;
+
+const netgsmCreateSchema = z.object({
+  username: z.string().min(1).max(50),
+  password: z.string().min(1).max(100),
+  header: z.string().min(1).max(11).optional(),
+  phoneNumbers: z.array(z.string().regex(TR_PHONE_RE, "Geçersiz telefon numarası")).min(1).max(10),
+  events: z.array(VALID_NETGSM_EVENTS).min(1).max(10).optional(),
+});
+
+const netgsmUpdateSchema = z.object({
+  username: z.string().min(1).max(50).optional(),
+  password: z.string().min(1).max(100).optional(),
+  header: z.string().min(1).max(11).optional(),
+  phoneNumbers: z.array(z.string().regex(TR_PHONE_RE, "Geçersiz telefon numarası")).min(1).max(10).optional(),
+  events: z.array(VALID_NETGSM_EVENTS).min(1).max(10).optional(),
+  active: z.boolean().optional(),
+});
+
+const netgsmTestSchema = z.object({
+  username: z.string().min(1).max(50).optional(),
+  password: z.string().min(1).max(100).optional(),
+  header: z.string().min(1).max(11).optional(),
+  testPhone: z.string().regex(TR_PHONE_RE, "Geçersiz telefon numarası").optional(),
+});
 
 // ─── GET /api/integrations/netgsm ────────────────────────────────────────────
 router.get("/integrations/netgsm", requireCustomer, async (req, res) => {
@@ -33,14 +64,12 @@ router.post("/integrations/netgsm", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { username, password, header, phoneNumbers, events } = req.body as {
-    username: string; password: string; header?: string;
-    phoneNumbers: string[]; events?: NetgsmEvent[];
-  };
-
-  if (!username || !password || !phoneNumbers?.length) {
-    res.status(400).json({ error: "username, password ve en az 1 telefon numarası zorunludur" }); return;
+  const parsed = netgsmCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
   }
+  const { username, password, header, phoneNumbers, events } = parsed.data;
 
   const usernameEnc = encryptSecret(username);
   const passwordEnc = encryptSecret(password);
@@ -76,10 +105,12 @@ router.put("/integrations/netgsm", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { username, password, header, phoneNumbers, events, active } = req.body as {
-    username?: string; password?: string; header?: string;
-    phoneNumbers?: string[]; events?: NetgsmEvent[]; active?: boolean;
-  };
+  const parsed = netgsmUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
+  }
+  const { username, password, header, phoneNumbers, events, active } = parsed.data;
 
   try {
     const usernameEnc = username ? encryptSecret(username) : undefined;
@@ -122,9 +153,12 @@ router.post("/integrations/netgsm/test", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { username, password, header, testPhone } = req.body as {
-    username?: string; password?: string; header?: string; testPhone?: string;
-  };
+  const parsed = netgsmTestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
+  }
+  const { username, password, header, testPhone } = parsed.data;
 
   try {
     let uname = username;

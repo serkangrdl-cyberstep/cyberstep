@@ -312,14 +312,20 @@ app.use("/api", router);
 app.use("/api", adminPanelRouter);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
-app.use((err: Error & { status?: number; type?: string }, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {
   // Payload too large
   if (err.status === 413 || err.type === "entity.too.large") {
     res.status(413).json({ error: "İstek boyutu çok büyük (max 512kb)" });
     return;
   }
-  logger.error({ err }, "Unhandled error");
-  res.status(500).json({ error: "Sunucu hatası" });
+  logger.error({ err, path: req.path, method: req.method }, "Unhandled error");
+  // In production, never leak stack traces or internal error details.
+  // The requestId lets support teams correlate logs without exposing internals.
+  if (process.env["NODE_ENV"] === "production") {
+    res.status(500).json({ error: "Sunucu hatası oluştu. Lütfen tekrar deneyin.", requestId: req.id });
+  } else {
+    res.status(500).json({ error: err.message, stack: err.stack, requestId: req.id });
+  }
 });
 
 export default app;

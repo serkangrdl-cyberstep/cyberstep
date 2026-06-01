@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod/v4";
 import { pool } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { encryptSecret } from "../../services/fabric-crypto";
@@ -9,6 +10,28 @@ const router = Router();
 const ALL_EVENTS: TelegramEvent[] = [
   "soc.case.opened", "soc.case.closed", "soc.case.critical", "soc.sla.breached", "scan.completed",
 ];
+
+const VALID_TELEGRAM_EVENTS = z.enum([
+  "soc.case.opened", "soc.case.closed", "soc.case.critical", "soc.sla.breached", "scan.completed",
+]);
+
+const telegramCreateSchema = z.object({
+  botToken: z.string().min(20).max(200).regex(/^\d+:[A-Za-z0-9_-]{35,}$/, "Geçersiz bot token formatı"),
+  chatId: z.string().min(1).max(100),
+  events: z.array(VALID_TELEGRAM_EVENTS).min(1).max(10).optional(),
+});
+
+const telegramUpdateSchema = z.object({
+  botToken: z.string().min(20).max(200).regex(/^\d+:[A-Za-z0-9_-]{35,}$/, "Geçersiz bot token formatı").optional(),
+  chatId: z.string().min(1).max(100).optional(),
+  events: z.array(VALID_TELEGRAM_EVENTS).min(1).max(10).optional(),
+  active: z.boolean().optional(),
+});
+
+const telegramTestSchema = z.object({
+  botToken: z.string().min(20).max(200).optional(),
+  chatId: z.string().min(1).max(100).optional(),
+});
 
 // ─── GET /api/integrations/telegram ──────────────────────────────────────────
 router.get("/integrations/telegram", requireCustomer, async (req, res) => {
@@ -33,14 +56,13 @@ router.post("/integrations/telegram", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { botToken, chatId, events } = req.body as {
-    botToken: string; chatId: string; events?: TelegramEvent[];
-  };
-  if (!botToken || !chatId) {
-    res.status(400).json({ error: "botToken ve chatId zorunludur" }); return;
+  const parsed = telegramCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
   }
+  const { botToken, chatId, events } = parsed.data;
 
-  // Verify bot token + chat before saving
   const info = await getTelegramBotInfo(botToken);
   if (!info.ok) {
     res.status(400).json({ error: `Bot token geçersiz: ${info.message}` }); return;
@@ -76,9 +98,12 @@ router.put("/integrations/telegram", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { botToken, chatId, events, active } = req.body as {
-    botToken?: string; chatId?: string; events?: TelegramEvent[]; active?: boolean;
-  };
+  const parsed = telegramUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
+  }
+  const { botToken, chatId, events, active } = parsed.data;
 
   try {
     const tokenEnc = botToken ? encryptSecret(botToken) : undefined;
@@ -118,14 +143,18 @@ router.post("/integrations/telegram/test", requireCustomer, async (req, res) => 
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
-  const { botToken, chatId } = req.body as { botToken?: string; chatId?: string };
+  const parsed = telegramTestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Geçersiz istek", details: z.treeifyError(parsed.error) });
+    return;
+  }
+  const { botToken, chatId } = parsed.data;
 
   try {
     let token = botToken;
     let chat = chatId;
 
     if (!token || !chat) {
-      // Try saved config
       const { rows } = await pool.query(
         `SELECT bot_token_enc, chat_id FROM telegram_configs WHERE customer_id = $1 LIMIT 1`,
         [customerId],

@@ -8,6 +8,7 @@ import { promises as dns } from "node:dns";
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { decryptSecret, encryptSecret } from "./fabric-crypto";
+import { sendSOCNotification } from "./soc/soc-notify";
 
 // ─── Priority / State Mapping ─────────────────────────────────────────────────
 
@@ -710,6 +711,47 @@ export async function processServiceNowWebhook(
       );
     }
     stateChanged = true;
+
+    // Fire-and-forget: müşteriyi webhook durum değişikliğinden haberdar et
+    const _notifyIncident = { ...incident };
+    const _notifyNewState = newState;
+    const _notifyResolved = newState >= RESOLVE_STATE;
+    setImmediate(() => {
+      pool.query<{ case_number: string; severity: string }>(
+        `SELECT case_number, severity FROM soc_cases WHERE id = $1 LIMIT 1`,
+        [_notifyIncident.soc_case_id],
+      ).then(({ rows }) => {
+        const socCase = rows[0];
+        const caseNumber = socCase?.case_number ?? String(_notifyIncident.soc_case_id);
+        const severity = (["critical", "high", "medium", "low"].includes(socCase?.severity ?? "")
+          ? socCase!.severity
+          : "medium") as "critical" | "high" | "medium" | "low";
+
+        const title = _notifyResolved
+          ? `ServiceNow'da ${_notifyIncident.sn_number} kapandı — SOC vakanız da güncellendi`
+          : `ServiceNow'da ${_notifyIncident.sn_number} durumu değişti (state: ${_notifyNewState})`;
+
+        const narrative = _notifyResolved
+          ? `ServiceNow incident ${_notifyIncident.sn_number} çözüme kavuşturuldu veya kapatıldı. SOC vakanız (${caseNumber}) otomatik olarak güncellendi.`
+          : `ServiceNow incident ${_notifyIncident.sn_number} için durum değişikliği algılandı. SOC vakanız (${caseNumber}) buna göre senkronize edildi.`;
+
+        return sendSOCNotification(
+          _notifyIncident.customer_id,
+          _notifyIncident.soc_case_id,
+          { title, severity, narrative, caseNumber },
+        );
+      }).then((results) => {
+        logger.info(
+          { results, socCaseId: _notifyIncident.soc_case_id, snNumber: _notifyIncident.sn_number },
+          "ServiceNow webhook: müşteri bildirimi gönderildi",
+        );
+      }).catch((err: unknown) => {
+        logger.error(
+          { err, socCaseId: _notifyIncident.soc_case_id },
+          "ServiceNow webhook: müşteri bildirimi gönderilemedi",
+        );
+      });
+    });
   }
 
   // 6. Ingest work_notes

@@ -9,6 +9,7 @@ import {
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -121,6 +122,21 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
   const { data: admin } = useRequireAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Aktif sayfanın bulunduğu grup açık, diğerleri kapalı başlar
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    const activeSection = NAV_SECTIONS.find(s =>
+      s.items.some(item => location === item.href || (item.href !== "/panel" && location.startsWith(item.href)))
+    );
+    return new Set(NAV_SECTIONS.filter(s => s !== activeSection).map(s => s.title));
+  });
+
+  const toggleSection = (title: string) =>
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title); else next.add(title);
+      return next;
+    });
+
   const logoutMutation = useMutation({
     mutationFn: () =>
       fetch("/api/admin-panel/auth/logout", { method: "POST", credentials: "include" }).then(r => r.json()),
@@ -149,31 +165,47 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
         </div>
         <div className="text-slate-500 text-xs mt-1 truncate">{admin?.email}</div>
       </div>
-      <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.title} className="space-y-0.5">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              {section.title}
-            </p>
-            {section.items.map(({ icon: Icon, label, href }) => {
-              const active = location === href || (href !== "/panel" && location.startsWith(href));
-              return (
-                <button
-                  key={href}
-                  onClick={() => handleNav(href)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
-                    active
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        {NAV_SECTIONS.map((section) => {
+          const isCollapsed = collapsedSections.has(section.title);
+          const hasActiveItem = section.items.some(
+            item => location === item.href || (item.href !== "/panel" && location.startsWith(item.href))
+          );
+          return (
+            <div key={section.title} className="mb-1">
+              <button
+                onClick={() => toggleSection(section.title)}
+                className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors group"
+              >
+                <span className={hasActiveItem && isCollapsed ? "text-emerald-500" : ""}>{section.title}</span>
+                <ChevronDown
+                  className={`h-3 w-3 shrink-0 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}
+                />
+              </button>
+              {!isCollapsed && (
+                <div className="mt-0.5 space-y-0.5">
+                  {section.items.map(({ icon: Icon, label, href }) => {
+                    const active = location === href || (href !== "/panel" && location.startsWith(href));
+                    return (
+                      <button
+                        key={href}
+                        onClick={() => handleNav(href)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
+                          active
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
       <div className="p-3 border-t border-slate-800">
         <Button

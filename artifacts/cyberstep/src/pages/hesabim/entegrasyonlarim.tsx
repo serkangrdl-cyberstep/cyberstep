@@ -75,16 +75,24 @@ function WebhookUrl({ token, provider }: { token: string; provider: string }) {
 function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_monitor" | "cloudflare"; onAdd: () => void }) {
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const isCloudflare = provider === "cloudflare";
+
   const addMutation = useMutation({
     mutationFn: async () => {
+      const body: Record<string, string> = {
+        provider,
+        displayName: displayName || PROVIDER_LABELS[provider]!,
+      };
+      if (isCloudflare) body["apiKey"] = webhookSecret;
       const r = await fetch("/api/portal/integrations/observability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ provider, displayName: displayName || PROVIDER_LABELS[provider] }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
@@ -94,9 +102,10 @@ function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_
       qc.invalidateQueries({ queryKey: ["obs-integrations"] });
       setOpen(false);
       setDisplayName("");
+      setWebhookSecret("");
       onAdd();
     },
-    onError: () => toast({ title: "Hata", description: "Entegrasyon oluşturulamadı.", variant: "destructive" }),
+    onError: (err) => toast({ title: "Hata", description: String(err) || "Entegrasyon oluşturulamadı.", variant: "destructive" }),
   });
 
   if (!open) {
@@ -109,7 +118,7 @@ function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_
 
   return (
     <div className="border border-gray-700 rounded-lg p-4 space-y-3 bg-gray-900/50">
-      <p className="text-sm font-medium text-white">{PROVIDER_LABELS[provider]} Entegrasyon Adı</p>
+      <p className="text-sm font-medium text-white">{PROVIDER_LABELS[provider]} Entegrasyonu</p>
       <div>
         <Label className="text-gray-400 text-xs">Görünen Ad (opsiyonel)</Label>
         <Input
@@ -119,8 +128,28 @@ function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_
           className="mt-1 bg-gray-900 border-gray-700 text-white"
         />
       </div>
+      {isCloudflare && (
+        <div>
+          <Label className="text-gray-400 text-xs">Webhook Secret <span className="text-red-400">*</span></Label>
+          <Input
+            type="password"
+            value={webhookSecret}
+            onChange={e => setWebhookSecret(e.target.value)}
+            placeholder="Cloudflare Notifications → Webhook → Secret"
+            className="mt-1 bg-gray-900 border-gray-700 text-white font-mono"
+          />
+          <p className="text-[11px] text-gray-600 mt-1">
+            Cloudflare Dashboard → Notifications → Webhooks → Secret alanındaki degeri girin.
+            Bu deger CF-Webhook-Token header dogrulamasi icin kullanilir.
+          </p>
+        </div>
+      )}
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => addMutation.mutate()} disabled={addMutation.isPending}>
+        <Button
+          size="sm"
+          onClick={() => addMutation.mutate()}
+          disabled={addMutation.isPending || (isCloudflare && !webhookSecret.trim())}
+        >
           {addMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
           Oluştur
         </Button>

@@ -233,6 +233,10 @@ router.post("/portal/integrations/observability", requireCustomer, async (req, r
   };
 
   if (!provider) { res.status(400).json({ error: "Provider zorunlu" }); return; }
+  if (provider === "cloudflare" && !apiKey) {
+    res.status(400).json({ error: "Cloudflare entegrasyonu için Webhook Secret zorunludur" });
+    return;
+  }
 
   try {
     const webhookToken = generateToken();

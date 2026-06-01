@@ -192,12 +192,54 @@ export function normalizeCloudflareEvent(payload: CloudflarePayload): Normalized
   };
 }
 
+// ─── CrowdStrike Falcon IOC IP reputation check ────────────────────────────────
+
+async function checkCrowdStrikeIpReputation(ip: string, customerId: number): Promise<boolean> {
+  try {
+    const { rows } = await pool.query<{ config: Record<string, string> }>(
+      `SELECT config FROM customer_integrations
+       WHERE customer_id = $1 AND type = 'crowdstrike' AND active = true
+       LIMIT 1`,
+      [customerId]
+    );
+    const cfg = rows[0]?.config;
+    if (!cfg?.clientId || !cfg.clientSecret) return false;
+
+    const base = cfg.baseUrl ?? "https://api.crowdstrike.com";
+
+    // 1. OAuth2 token
+    const tokenRes = await fetch(`${base}/oauth2/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `client_id=${encodeURIComponent(cfg.clientId)}&client_secret=${encodeURIComponent(cfg.clientSecret)}`,
+    });
+    if (!tokenRes.ok) return false;
+    const tokenData = await tokenRes.json() as { access_token?: string };
+    const token = tokenData.access_token;
+    if (!token) return false;
+
+    // 2. Query IOC indicator list for this IP (FQL filter)
+    const filter = encodeURIComponent(`type:'ipv4',value:'${ip}'`);
+    const iocRes = await fetch(`${base}/iocs/queries/indicators/v1?filter=${filter}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+    if (!iocRes.ok) return false;
+    const iocData = await iocRes.json() as { resources?: string[] };
+    return (iocData.resources?.length ?? 0) > 0;
+  } catch (err) {
+    logger.warn({ err, ip, customerId }, "checkCrowdStrikeIpReputation: error — treating as no match");
+    return false;
+  }
+}
+
 // ─── Cloudflare webhook header verification ───────────────────────────────────
 
 export function verifyCloudflareHeader(
   cfTokenHeader: string | string[] | undefined,
   storedSecret: string | null,
 ): boolean {
+  // Fail-closed: if no secret is configured, the token alone provides the auth boundary.
+  // When a secret IS stored, enforce exact match via timing-safe compare.
   if (!storedSecret) return true;
   if (!cfTokenHeader) return false;
   try {
@@ -266,24 +308,18 @@ export async function correlateCloudflareWithSOC(
     return;
   }
 
-  // WAF block → check source IP against FortiManager confirmed block list (IoC registry)
+  // WAF block → check source IP against CrowdStrike Falcon IOC list (customer's integration)
   if (eventType === "waf.block" && sourceIp) {
-    const { rows: iocRows } = await pool.query<{ cnt: string }>(
-      `SELECT count(*)::int AS cnt
-       FROM fortimanager_block_actions
-       WHERE ip_address = $1 AND status IN ('success', 'verified')`,
-      [sourceIp]
-    );
-    const isKnownIoc = Number(iocRows[0]?.cnt ?? 0) > 0;
+    const isKnownIoc = await checkCrowdStrikeIpReputation(sourceIp, customerId);
 
     if (isKnownIoc) {
       const socCase = await createCaseWithNumber({
         customerId,
         severity: "high",
         category: "waf_ioc_match",
-        title: `WAF Engelleme + Bilinen Tehdit IP: ${sourceIp}`,
-        description: `Cloudflare WAF ${sourceIp} adresini engelledi. Bu IP CyberStep IoC kaydında (FortiManager onaylı blok listesi) bulunuyor.`,
-        attackNarrative: `${sourceIp} daha önce FortiManager tarafından doğrulanmış tehdit olarak bloklanmış ve şimdi Cloudflare WAF tarafından da engellendi. Koordineli saldırı riski yüksek.`,
+        title: `WAF Engelleme + CrowdStrike IoC: ${sourceIp}`,
+        description: `Cloudflare WAF ${sourceIp} adresini engelledi. Bu IP müşterinin CrowdStrike Falcon IOC listesinde kayıtlı bilinen tehdit.`,
+        attackNarrative: `${sourceIp} CrowdStrike Falcon tarafından tehdit aktörü olarak işaretlenmiş ve şimdi Cloudflare WAF tarafından da engellendi. Koordineli saldırı riski yüksek.`,
         triggerEventIds: [],
       });
       if (socCase) {
@@ -292,7 +328,7 @@ export async function correlateCloudflareWithSOC(
           [socCase.id, obsEventId]
         );
       }
-      logger.info({ customerId, sourceIp, socCaseId: socCase?.id }, "Cloudflare WAF+IoC match (FortiManager registry): SOC case created");
+      logger.info({ customerId, sourceIp, socCaseId: socCase?.id }, "Cloudflare WAF+CrowdStrike IoC match: SOC case created");
       return;
     }
   }

@@ -218,12 +218,13 @@ async function assertSafeUrlAsync(instanceUrl: string): Promise<void> {
   await resolveAndCheckPrivate(hostname);
 }
 
-async function loadConfig(customerId: number): Promise<(SnConfig & { id: number }) | null> {
+async function loadConfig(customerId: number): Promise<(SnConfig & { id: number; retryWindowHours: number }) | null> {
   const { rows } = await pool.query<{
     id: number; instance_url: string; username: string; api_token_enc: string;
-    assignment_group: string | null; category: string | null;
+    assignment_group: string | null; category: string | null; retry_window_hours: number;
   }>(
-    `SELECT id, instance_url, username, api_token_enc, assignment_group, category
+    `SELECT id, instance_url, username, api_token_enc, assignment_group, category,
+            COALESCE(retry_window_hours, 48) AS retry_window_hours
      FROM servicenow_configs
      WHERE customer_id = $1 AND active = true
      LIMIT 1`,
@@ -240,6 +241,7 @@ async function loadConfig(customerId: number): Promise<(SnConfig & { id: number 
     password,
     assignmentGroup: row.assignment_group,
     category: row.category,
+    retryWindowHours: row.retry_window_hours,
   };
 }
 
@@ -860,16 +862,16 @@ export async function ensureServiceNowTables(): Promise<void> {
   // Webhook activity tracking
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS last_webhook_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_event_count INTEGER NOT NULL DEFAULT 0`);
+  // Configurable retry window for pending SOC cases after connection restore (default 48h)
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS retry_window_hours INTEGER NOT NULL DEFAULT 48`);
   logger.info("ServiceNow tables ready");
 }
 
 // ─── Retry pending SOC cases after connection restore ─────────────────────────
 
-const RETRY_WINDOW_HOURS = 48;
-
 /**
  * Called when a ServiceNow connection is restored after a period of errors.
- * Finds SOC cases created within the last RETRY_WINDOW_HOURS that never got
+ * Finds SOC cases created within the last retryWindowHours that never got
  * a ServiceNow incident (because the connection was down), and retries them.
  * Each retry attempt is recorded in soc_activity_log.
  */
@@ -877,6 +879,7 @@ const RETRY_BATCH_SIZE = 20; // rows per cursor page — keeps memory bounded
 
 async function retryPendingServiceNowCases(
   customerId: number,
+  retryWindowHours: number,
   notify?: { customerEmail: string; customerName: string; instanceUrl: string },
 ): Promise<void> {
   try {
@@ -902,13 +905,13 @@ async function retryPendingServiceNowCases(
          WHERE sc.customer_id = $1
            AND sc.id > $2
            AND sc.status NOT IN ('closed', 'false_positive')
-           AND sc.created_at >= NOW() - INTERVAL '${RETRY_WINDOW_HOURS} hours'
+           AND sc.created_at >= NOW() - ($4 * INTERVAL '1 hour')
            AND NOT EXISTS (
              SELECT 1 FROM servicenow_incidents sni WHERE sni.soc_case_id = sc.id
            )
          ORDER BY sc.id ASC
          LIMIT $3`,
-        [customerId, lastId, RETRY_BATCH_SIZE],
+        [customerId, lastId, RETRY_BATCH_SIZE, retryWindowHours],
       );
 
       if (!pending.length) break; // no more eligible cases ahead of the cursor
@@ -995,6 +998,7 @@ export async function checkServiceNowConnections(): Promise<void> {
       api_token_enc: string;
       assignment_group: string | null;
       category: string | null;
+      retry_window_hours: number;
       conn_check_alerted_at: string | null;
       last_sync_error: string | null;
       customer_email: string | null;
@@ -1008,6 +1012,7 @@ export async function checkServiceNowConnections(): Promise<void> {
         snc.api_token_enc,
         snc.assignment_group,
         snc.category,
+        COALESCE(snc.retry_window_hours, 48) AS retry_window_hours,
         snc.conn_check_alerted_at,
         snc.last_sync_error,
         c.email  AS customer_email,
@@ -1055,7 +1060,7 @@ export async function checkServiceNowConnections(): Promise<void> {
               ? { customerEmail: row.customer_email, customerName: row.customer_name ?? row.customer_email, instanceUrl: row.instance_url }
               : undefined;
             setImmediate(() => {
-              retryPendingServiceNowCases(row.customer_id, notifyPayload).catch((err) =>
+              retryPendingServiceNowCases(row.customer_id, row.retry_window_hours, notifyPayload).catch((err) =>
                 logger.error({ err, customerId: row.customer_id }, "ServiceNow retry: beklenmedik hata"),
               );
             });

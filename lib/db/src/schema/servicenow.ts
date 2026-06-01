@@ -11,6 +11,7 @@ export const servicenowConfigsTable = pgTable("servicenow_configs", {
   active: boolean("active").notNull().default(true),
   assignmentGroup: text("assignment_group"),
   category: text("category").default("Software"),
+  retryWindowHours: integer("retry_window_hours").notNull().default(48),
   lastSyncAt: timestamp("last_sync_at"),
   lastSyncError: text("last_sync_error"),
   connCheckAlertedAt: timestamp("conn_check_alerted_at"),

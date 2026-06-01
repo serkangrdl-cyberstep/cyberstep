@@ -82,6 +82,7 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
               c.email AS "customerEmail", c.company_name AS "companyName",
               snc.instance_url AS "instanceUrl", snc.username,
               snc.assignment_group AS "assignmentGroup", snc.category,
+              COALESCE(snc.retry_window_hours, 48) AS "retryWindowHours",
               snc.active, snc.last_sync_at AS "lastSyncAt",
               snc.last_sync_error AS "lastSyncError",
               snc.conn_check_alerted_at AS "connCheckAlertedAt",
@@ -93,7 +94,7 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
                 SELECT COUNT(sc.id)::int
                 FROM soc_cases sc
                 WHERE sc.customer_id = snc.customer_id
-                  AND sc.created_at >= NOW() - INTERVAL '48 hours'
+                  AND sc.created_at >= NOW() - (COALESCE(snc.retry_window_hours, 48) * INTERVAL '1 hour')
                   AND NOT EXISTS (
                     SELECT 1 FROM servicenow_incidents sni2 WHERE sni2.soc_case_id = sc.id
                   )
@@ -106,7 +107,7 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
        ${pendingOnly ? `HAVING (
          SELECT COUNT(sc.id) FROM soc_cases sc
          WHERE sc.customer_id = snc.customer_id
-           AND sc.created_at >= NOW() - INTERVAL '48 hours'
+           AND sc.created_at >= NOW() - (COALESCE(snc.retry_window_hours, 48) * INTERVAL '1 hour')
            AND NOT EXISTS (SELECT 1 FROM servicenow_incidents sni2 WHERE sni2.soc_case_id = sc.id)
        ) > 0` : ""}
        ORDER BY "pendingCaseCount" DESC NULLS LAST, snc.last_sync_error DESC NULLS LAST, snc.created_at DESC`
@@ -137,6 +138,42 @@ router.get("/admin-panel/servicenow/incidents", requireAdmin, async (_req, res) 
     res.json({ incidents: rows });
   } catch (err) {
     logger.error({ err }, "GET /api/admin-panel/servicenow/incidents error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// PATCH /api/admin-panel/servicenow/configs/:id/retry-window
+router.patch("/admin-panel/servicenow/configs/:id/retry-window", requireAdmin, async (req, res) => {
+  try {
+    const configId = parseInt(String(req.params["id"] ?? ""), 10);
+    if (isNaN(configId)) {
+      res.status(400).json({ error: "Geçersiz config ID" });
+      return;
+    }
+
+    const rawHours = req.body?.retryWindowHours;
+    const hours = parseInt(String(rawHours ?? ""), 10);
+    if (isNaN(hours) || hours < 1 || hours > 720) {
+      res.status(400).json({ error: "retryWindowHours 1 ile 720 arasında bir tam sayı olmalıdır" });
+      return;
+    }
+
+    const { rowCount } = await pool.query(
+      `UPDATE servicenow_configs
+       SET retry_window_hours = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [hours, configId],
+    );
+
+    if (!rowCount) {
+      res.status(404).json({ error: "Konfigürasyon bulunamadı" });
+      return;
+    }
+
+    logger.info({ configId, retryWindowHours: hours }, "ServiceNow retry_window_hours güncellendi");
+    res.json({ ok: true, retryWindowHours: hours });
+  } catch (err) {
+    logger.error({ err }, "PATCH /api/admin-panel/servicenow/configs/:id/retry-window error");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

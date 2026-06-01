@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter, Mail, Clock } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter, Mail, Clock, Pencil, Save, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AdminLayout } from "@/components/admin-layout";
 
 interface Summary {
@@ -28,6 +29,7 @@ interface SnConfig {
   username: string;
   assignmentGroup: string | null;
   category: string | null;
+  retryWindowHours: number;
   active: boolean;
   lastSyncAt: string | null;
   lastSyncError: string | null;
@@ -91,7 +93,107 @@ function ConnStatusBadge({ cfg }: { cfg: SnConfig }) {
   );
 }
 
-function ConfigCard({ cfg }: { cfg: SnConfig }) {
+function RetryWindowEditor({ cfg, onSaved }: { cfg: SnConfig; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(cfg.retryWindowHours ?? 48));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function startEdit() {
+    setValue(String(cfg.retryWindowHours ?? 48));
+    setError(null);
+    setEditing(true);
+  }
+
+  function cancel() {
+    setEditing(false);
+    setError(null);
+  }
+
+  async function save() {
+    const hours = parseInt(value, 10);
+    if (isNaN(hours) || hours < 1 || hours > 720) {
+      setError("1-720 arasında bir değer giriniz");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin-panel/servicenow/configs/${cfg.id}/retry-window`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retryWindowHours: hours }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setError(body.error ?? "Kayıt başarısız");
+        return;
+      }
+      setEditing(false);
+      onSaved();
+    } catch {
+      setError("Bağlantı hatası");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="inline-flex items-center gap-1.5 mt-2">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-slate-800/80 border border-slate-700/50 text-slate-300">
+          <Clock className="h-3 w-3 text-slate-500" />
+          Retry penceresi: <span className="font-semibold text-white ml-0.5">{cfg.retryWindowHours ?? 48} saat</span>
+        </span>
+        <button
+          onClick={startEdit}
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+          title="Düzenle"
+        >
+          <Pencil className="h-3 w-3" /> Düzenle
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] text-slate-400">Retry penceresi (saat):</span>
+        <Input
+          type="number"
+          min={1}
+          max={720}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          className="h-6 w-20 text-xs px-1.5 bg-slate-900 border-slate-600 text-white"
+          disabled={saving}
+          onKeyDown={e => { if (e.key === "Enter") void save(); if (e.key === "Escape") cancel(); }}
+          autoFocus
+        />
+        <button
+          onClick={() => void save()}
+          disabled={saving}
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+          Kaydet
+        </button>
+        <button
+          onClick={cancel}
+          disabled={saving}
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+        >
+          <X className="h-3 w-3" /> Vazgeç
+        </button>
+      </div>
+      {error && <p className="text-red-400 text-[11px]">{error}</p>}
+    </div>
+  );
+}
+
+function ConfigCard({ cfg, onRefresh }: { cfg: SnConfig; onRefresh: () => void }) {
   return (
     <div className={`rounded-lg border p-4 ${cfg.lastSyncError ? "border-red-500/30 bg-red-500/5" : "border-slate-700 bg-slate-800/40"}`}>
       <div className="flex items-start justify-between gap-3">
@@ -116,6 +218,8 @@ function ConfigCard({ cfg }: { cfg: SnConfig }) {
             {cfg.assignmentGroup && <span>Grup: <span className="text-slate-300">{cfg.assignmentGroup}</span></span>}
             {cfg.category && <span>Kategori: <span className="text-slate-300">{cfg.category}</span></span>}
           </div>
+
+          <RetryWindowEditor cfg={cfg} onSaved={onRefresh} />
 
           {cfg.lastSyncError ? (
             <div className="mt-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 space-y-1.5">
@@ -178,6 +282,7 @@ function ConfigCard({ cfg }: { cfg: SnConfig }) {
 export default function AdminServiceNow() {
   const [activeTab, setActiveTab] = useState<"configs" | "incidents" | "pending">("configs");
   const [errOnly, setErrOnly] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: summary, isLoading: sLoading } = useQuery<Summary>({
     queryKey: ["admin-sn-summary"],
@@ -205,6 +310,12 @@ export default function AdminServiceNow() {
     enabled: activeTab === "incidents",
     refetchInterval: 60000,
   });
+
+  function refreshConfigs() {
+    void queryClient.invalidateQueries({ queryKey: ["admin-sn-configs"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-sn-pending"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-sn-summary"] });
+  }
 
   const errorCount = configData?.configs.filter(c => c.lastSyncError).length ?? 0;
   const totalPending = summary?.totalPendingCases ?? 0;
@@ -236,7 +347,7 @@ export default function AdminServiceNow() {
               <Clock className={`h-5 w-5 ${totalPending > 0 ? "text-amber-400" : "text-slate-500"}`} />
               <div>
                 <p className="text-sm font-medium text-white">Bekleyen SOC Vakaları</p>
-                <p className="text-xs text-slate-400">Son 48 saatte ServiceNow'a iletilemeyen vakalar</p>
+                <p className="text-xs text-slate-400">Her müşterinin retry penceresi içinde ServiceNow'a iletilemeyen vakalar</p>
               </div>
             </div>
             <div className="text-right">
@@ -342,7 +453,7 @@ export default function AdminServiceNow() {
             ) : (
               <div className="space-y-3">
                 {configData.configs.map(cfg => (
-                  <ConfigCard key={cfg.id} cfg={cfg} />
+                  <ConfigCard key={cfg.id} cfg={cfg} onRefresh={refreshConfigs} />
                 ))}
               </div>
             )}
@@ -368,19 +479,20 @@ export default function AdminServiceNow() {
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <CheckCircle className="h-8 w-8 text-emerald-400" />
                 <p className="text-slate-300 font-medium">Bekleyen vaka yok</p>
-                <p className="text-slate-500 text-sm">Son 48 saatte tüm SOC vakaları ServiceNow'a iletildi.</p>
+                <p className="text-slate-500 text-sm">Her müşterinin retry penceresi içinde tüm SOC vakaları ServiceNow'a iletildi.</p>
               </div>
             ) : (
               <>
                 <p className="text-slate-400 text-xs mb-4">
-                  Son 48 saatte oluşan ve henüz ServiceNow'a iletilemeyen vakalar müşteri bazında gösteriliyor.
+                  Her müşterinin yapılandırılmış retry penceresi içinde oluşan ve henüz ServiceNow'a iletilemeyen vakalar müşteri bazında gösteriliyor.
                 </p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-slate-500 text-xs border-b border-slate-800">
                         <th className="text-left p-3">Müşteri</th>
-                        <th className="text-left p-3">Bekleyen Vaka (48s)</th>
+                        <th className="text-left p-3">Bekleyen Vaka</th>
+                        <th className="text-left p-3">Retry Penceresi</th>
                         <th className="text-left p-3">Bağlantı Durumu</th>
                         <th className="text-left p-3">Son Sync</th>
                         <th className="text-left p-3">Toplam Incident</th>
@@ -398,6 +510,9 @@ export default function AdminServiceNow() {
                               <Clock className="h-3.5 w-3.5" />
                               {cfg.pendingCaseCount}
                             </span>
+                          </td>
+                          <td className="p-3 text-slate-300 text-xs">
+                            {cfg.retryWindowHours ?? 48} saat
                           </td>
                           <td className="p-3">
                             <ConnStatusBadge cfg={cfg} />

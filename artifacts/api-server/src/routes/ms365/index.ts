@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createHmac, randomBytes } from "node:crypto";
 import { pool } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
@@ -8,6 +9,36 @@ import {
   exchangeMs365Code,
   getMs365RedirectUri,
 } from "../../services/ms365Graph";
+
+// ─── HMAC-signed OAuth state (avoids SameSite=Strict session cookie issue) ───
+
+function signMs365State(customerId: number): string {
+  const nonce = randomBytes(16).toString("hex");
+  const exp = Date.now() + 10 * 60 * 1000; // 10 minutes
+  const payload = Buffer.from(JSON.stringify({ customerId, nonce, exp })).toString("base64url");
+  const secret = process.env["SESSION_SECRET"] ?? "ms365-state-signing-fallback";
+  const sig = createHmac("sha256", secret).update(payload).digest("hex");
+  return `${payload}.${sig}`;
+}
+
+function verifyMs365State(state: string): { customerId: number } | null {
+  const dot = state.lastIndexOf(".");
+  if (dot < 0) return null;
+  const payload = state.slice(0, dot);
+  const sig = state.slice(dot + 1);
+  const secret = process.env["SESSION_SECRET"] ?? "ms365-state-signing-fallback";
+  const expectedSig = createHmac("sha256", secret).update(payload).digest("hex");
+  if (sig !== expectedSig) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      customerId: number; exp: number;
+    };
+    if (Date.now() > data.exp) return null;
+    return { customerId: data.customerId };
+  } catch {
+    return null;
+  }
+}
 
 const router = Router();
 
@@ -81,14 +112,13 @@ router.get("/ms365/auth", requireCustomer, (req, res) => {
   }
 
   try {
-    const state = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const sess = req.session as { ms365_oauth_state?: string; ms365_customer_id?: number };
-    sess.ms365_oauth_state = state;
-    sess.ms365_customer_id = getCustomerId(req) ?? undefined;
-    req.session.save(() => {
-      const authUrl = buildMs365AuthUrl(state);
-      res.redirect(authUrl);
-    });
+    const customerId = getCustomerId(req);
+    if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+    // Encode customerId + nonce + expiry directly in state — no session cookie needed,
+    // which avoids SameSite=Strict breakage on Microsoft's cross-site redirect.
+    const state = signMs365State(customerId);
+    const authUrl = buildMs365AuthUrl(state);
+    res.redirect(authUrl);
   } catch (err) {
     req.log.error({ err }, "GET /api/ms365/auth error");
     res.status(500).json({ error: "OAuth baslatilamadi" });
@@ -106,17 +136,13 @@ router.get("/ms365/callback", async (req, res) => {
     return;
   }
 
-  const sess = req.session as { ms365_oauth_state?: string; ms365_customer_id?: number };
-  const expectedState = sess.ms365_oauth_state;
-  const customerId = sess.ms365_customer_id;
-
-  if (!expectedState || state !== expectedState || !customerId) {
+  // Verify HMAC-signed state — no session cookie required, works under SameSite=Strict
+  const verified = verifyMs365State(state ?? "");
+  if (!verified) {
     res.redirect("/hesabim/entegrasyonlar?ms365_error=invalid_state");
     return;
   }
-
-  delete sess.ms365_oauth_state;
-  delete sess.ms365_customer_id;
+  const customerId = verified.customerId;
 
   try {
     const tokens = await exchangeMs365Code(code ?? "");

@@ -505,6 +505,26 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "1. netgsm.com.tr'den hesap açın  2. API şifresi oluşturun  3. SMS başlığı (alfanümerik, maks. 11 karakter) onaylayın  4. /hesabim/entegrasyonlarim → NetGSM → kaydet.",
     docs: "https://www.netgsm.com.tr/dokuman/",
   },
+  {
+    id: "teams", name: "Microsoft Teams", category: "Bildirim & Alarm", type: "platform", icon: "💬",
+    cost: "freemium", costLabel: "Microsoft 365 dahil", always: false,
+    envKey: "",
+    desc: "Incoming Webhook üzerinden SOC alarmları Adaptive Card olarak Teams kanalına iletilir. Kritik vakalar, SLA ihlalleri ve case güncellemeleri doğrudan Teams'de görünür.",
+    why: "KOBİ'lerde Slack'ten yaygın. IT ekiplerinin zaten açık tuttuğu kanala alarm düşmesi yanıt süresini kısaltır. Adaptive Card ile 'Kabul Et' butonu eklenince analist Teams'den çıkmadan acknowledge edebilir.",
+    how: "Müşteri Teams kanalında Incoming Webhook Connector tanımlar. Webhook URL + seçili olaylar kaydedilir. SOC triage case açınca Adaptive Card JSON POST edilir.",
+    setup: "1. Teams kanalı → Connectors → Incoming Webhook → URL al  2. /hesabim/entegrasyonlarim → Microsoft Teams → URL'i yapıştır  3. Olayları seç.",
+    docs: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook",
+  },
+  {
+    id: "opsgenie", name: "OpsGenie", category: "Bildirim & Alarm", type: "platform", icon: "🚨",
+    cost: "paid", costLabel: "Essentials $9/kullanıcı/ay", always: false,
+    envKey: "",
+    desc: "Atlassian OpsGenie API üzerinden on-call rotasyonu ve eskalasyon. Kritik SOC vakası açılınca OpsGenie alert oluşturur; vaka kapatılınca alert otomatik kapatılır.",
+    why: "Türkiye'de PagerDuty'den yaygın, Jira ile native entegre. SOC Pro tier için on-call rotasyonu şart — SLA ihlali anında nöbetçi analist uyandırılır, eskalasyon politikası OpsGenie tarafında yönetilir.",
+    how: "API key AES-256-GCM ile şifrelenir. Alert create/close Alerts API v2'ye POST edilir. Team ID opsiyonel — alert doğrudan rotasyona yönlendirmek için kullanılır.",
+    setup: "1. OpsGenie → Settings → API Key oluştur  2. Opsiyonel: hedef team ID'yi kopyala  3. /hesabim/entegrasyonlarim → OpsGenie → bağla.",
+    docs: "https://docs.opsgenie.com/docs/alert-api",
+  },
   // ─── ITSM & Operasyon ───────────────────────────────────────────────────────
   {
     id: "servicenow", name: "ServiceNow ITSM", category: "ITSM & Operasyon", type: "platform", icon: "🎫",

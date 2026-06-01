@@ -58,6 +58,7 @@ router.get("/admin-panel/servicenow/summary", requireAdmin, async (_req, res) =>
 // GET /api/admin-panel/servicenow/configs
 router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) => {
   try {
+    const errOnly = _req.query.errOnly === "1";
     const { rows } = await pool.query(
       `SELECT snc.id, snc.customer_id AS "customerId",
               c.email AS "customerEmail", c.company_name AS "companyName",
@@ -65,6 +66,7 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
               snc.assignment_group AS "assignmentGroup", snc.category,
               snc.active, snc.last_sync_at AS "lastSyncAt",
               snc.last_sync_error AS "lastSyncError",
+              snc.conn_check_alerted_at AS "connCheckAlertedAt",
               snc.last_webhook_at AS "lastWebhookAt",
               snc.webhook_event_count AS "webhookEventCount",
               COUNT(sni.id)::int AS "incidentCount",
@@ -72,8 +74,9 @@ router.get("/admin-panel/servicenow/configs", requireAdmin, async (_req, res) =>
        FROM servicenow_configs snc
        JOIN customers c ON c.id = snc.customer_id
        LEFT JOIN servicenow_incidents sni ON sni.config_id = snc.id
+       ${errOnly ? "WHERE snc.last_sync_error IS NOT NULL" : ""}
        GROUP BY snc.id, c.email, c.company_name
-       ORDER BY snc.created_at DESC`
+       ORDER BY snc.last_sync_error DESC NULLS LAST, snc.created_at DESC`
     );
     res.json({ configs: rows });
   } catch (err) {

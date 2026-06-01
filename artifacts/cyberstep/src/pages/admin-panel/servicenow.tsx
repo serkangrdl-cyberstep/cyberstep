@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook } from "lucide-react";
+import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ interface SnConfig {
   active: boolean;
   lastSyncAt: string | null;
   lastSyncError: string | null;
+  connCheckAlertedAt: string | null;
   lastWebhookAt: string | null;
   webhookEventCount: number;
   incidentCount: number;
@@ -72,8 +73,24 @@ function timeSince(iso: string | null) {
   return `${Math.floor(h / 24)} gün önce`;
 }
 
+function ConnStatusBadge({ cfg }: { cfg: SnConfig }) {
+  if (cfg.lastSyncError) {
+    return (
+      <Badge className="text-xs bg-red-500/15 text-red-400 border-red-500/40 flex items-center gap-1">
+        <XCircle className="h-3 w-3" /> HATA
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="text-xs bg-emerald-500/15 text-emerald-400 border-emerald-500/40 flex items-center gap-1">
+      <CheckCircle className="h-3 w-3" /> OK
+    </Badge>
+  );
+}
+
 export default function AdminServiceNow() {
   const [activeTab, setActiveTab] = useState<"configs" | "incidents">("configs");
+  const [errOnly, setErrOnly] = useState(false);
 
   const { data: summary, isLoading: sLoading } = useQuery<Summary>({
     queryKey: ["admin-sn-summary"],
@@ -82,8 +99,8 @@ export default function AdminServiceNow() {
   });
 
   const { data: configData, isLoading: cLoading } = useQuery<{ configs: SnConfig[] }>({
-    queryKey: ["admin-sn-configs"],
-    queryFn: () => fetch("/api/admin-panel/servicenow/configs", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["admin-sn-configs", errOnly],
+    queryFn: () => fetch(`/api/admin-panel/servicenow/configs${errOnly ? "?errOnly=1" : ""}`, { credentials: "include" }).then(r => r.json()),
     enabled: activeTab === "configs",
     refetchInterval: 60000,
   });
@@ -95,6 +112,8 @@ export default function AdminServiceNow() {
     refetchInterval: 60000,
   });
 
+  const errorCount = configData?.configs.filter(c => c.lastSyncError).length ?? 0;
+
   return (
     <AdminLayout title="ServiceNow Entegrasyonu" description="ITSM incident senkronizasyon yönetimi">
       {/* Özet kartları */}
@@ -105,6 +124,7 @@ export default function AdminServiceNow() {
           { label: "Toplam Incident", value: summary?.totalIncidents ?? 0, icon: <CheckCircle className="h-4 w-4 text-emerald-400" /> },
           { label: "Toplam Webhook Olayı", value: summary?.totalWebhookEvents ?? 0, icon: <Webhook className="h-4 w-4 text-violet-400" /> },
           { label: "Webhook Aktif Tenant", value: summary?.configsWithWebhook ?? 0, icon: <Webhook className="h-4 w-4 text-emerald-400" /> },
+          { label: "Bağlantı Hatası (24s)", value: summary?.syncErrors24h ?? 0, icon: <XCircle className="h-4 w-4 text-red-400" /> },
         ].map(item => (
           <Card key={item.label} className="bg-slate-900 border-slate-800">
             <CardContent className="pt-4">
@@ -142,7 +162,23 @@ export default function AdminServiceNow() {
       {activeTab === "configs" && (
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-white text-base">ServiceNow Entegrasyonları</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white text-base">ServiceNow Entegrasyonları</CardTitle>
+              <div className="flex items-center gap-2">
+                {errorCount > 0 && !errOnly && (
+                  <span className="text-xs text-red-400 font-medium">{errorCount} hatalı bağlantı</span>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`h-7 text-xs gap-1 ${errOnly ? "border-red-500/50 text-red-400 bg-red-500/10" : "border-slate-700 text-slate-400"}`}
+                  onClick={() => setErrOnly(v => !v)}
+                >
+                  <Filter className="h-3 w-3" />
+                  {errOnly ? "Tüm Bağlantılar" : "Sadece Hatalı"}
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {cLoading ? (
@@ -150,7 +186,9 @@ export default function AdminServiceNow() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
               </div>
             ) : !configData?.configs.length ? (
-              <p className="text-slate-500 text-sm text-center py-8">Henüz ServiceNow entegrasyonu yok.</p>
+              <p className="text-slate-500 text-sm text-center py-8">
+                {errOnly ? "Hatalı bağlantı bulunamadı." : "Henüz ServiceNow entegrasyonu yok."}
+              </p>
             ) : (
               <div className="space-y-3">
                 {configData.configs.map(cfg => (
@@ -159,6 +197,7 @@ export default function AdminServiceNow() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-white font-medium text-sm">{cfg.companyName ?? cfg.customerEmail}</span>
+                          <ConnStatusBadge cfg={cfg} />
                           <Badge className={`text-xs ${cfg.active ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-slate-500/15 text-slate-400 border-slate-500/30"}`}>
                             {cfg.active ? "Aktif" : "Pasif"}
                           </Badge>
@@ -170,14 +209,24 @@ export default function AdminServiceNow() {
                           {cfg.assignmentGroup && <span>Grup: <span className="text-slate-300">{cfg.assignmentGroup}</span></span>}
                           {cfg.category && <span>Kategori: <span className="text-slate-300">{cfg.category}</span></span>}
                         </div>
+
                         {cfg.lastSyncError ? (
-                          <div className="flex items-center gap-1 mt-2">
-                            <XCircle className="h-3 w-3 text-red-400" />
-                            <span className="text-red-400 text-xs">{cfg.lastSyncError.slice(0, 100)}</span>
+                          <div className="mt-2 rounded-md bg-red-500/10 border border-red-500/20 p-2 space-y-1">
+                            <div className="flex items-start gap-1.5">
+                              <XCircle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
+                              <span className="text-red-300 text-xs break-all">{cfg.lastSyncError}</span>
+                            </div>
+                            {cfg.connCheckAlertedAt && (
+                              <p className="text-xs text-slate-500 pl-5">
+                                Son uyarı: <span className="text-slate-400">{fmtDate(cfg.connCheckAlertedAt)}</span>
+                                <span className="text-slate-600 ml-1">({timeSince(cfg.connCheckAlertedAt)})</span>
+                              </p>
+                            )}
                           </div>
                         ) : cfg.lastSyncAt ? (
                           <p className="text-slate-600 text-xs mt-1">Son sync: {fmtDate(cfg.lastSyncAt)}</p>
                         ) : null}
+
                         <div className={`inline-flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs ${cfg.lastWebhookAt ? "bg-violet-500/10 border border-violet-500/20" : "bg-slate-800/60 border border-slate-700/40"}`}>
                           <Webhook className={`h-3 w-3 ${cfg.lastWebhookAt ? "text-violet-400" : "text-slate-600"}`} />
                           {cfg.lastWebhookAt ? (

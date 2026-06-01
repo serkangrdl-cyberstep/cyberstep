@@ -181,12 +181,15 @@ router.get("/integrations/servicenow/incidents", requireCustomer, async (req, re
   try {
     const { rows } = await pool.query(
       `SELECT sni.id, sni.sn_number AS "snNumber", sni.sn_state AS "snState",
+              sni.soc_case_id AS "socCaseId",
               sni.last_synced_at AS "lastSyncedAt", sni.sync_error AS "syncError",
               sni.created_at AS "createdAt",
               sc.case_number AS "caseNumber", sc.title AS "caseTitle", sc.status AS "caseStatus",
-              sc.severity
+              sc.severity,
+              snc.instance_url AS "instanceUrl"
        FROM servicenow_incidents sni
        JOIN soc_cases sc ON sc.id = sni.soc_case_id
+       JOIN servicenow_configs snc ON snc.id = sni.config_id
        WHERE sni.customer_id = $1
        ORDER BY sni.created_at DESC
        LIMIT 50`,

@@ -192,6 +192,14 @@ router.post("/admin/soc/cases/:id/close", requireAdmin, async (req: Request, res
       description: `Vaka kapatıldı: ${parsed.data.reason}`,
     });
     emitSOC({ type: "case_closed", customerId: existing.customerId, caseId: id });
+
+    // ServiceNow: INC'yi kapat
+    setImmediate(() => {
+      import("../../services/serviceNowClient").then(({ resolveServiceNowIncident }) =>
+        resolveServiceNowIncident(existing.customerId, id, parsed.data.reason)
+      ).catch(err => logger.warn({ err, caseId: id }, "ServiceNow close-route resolve failed"));
+    });
+
     res.json({ case: updated });
   } catch (err) {
     logger.error({ err }, "SOC close failed");

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, Loader2, ShieldAlert, Ban, Radio, FileDown, Lock, Activity,
-  ScrollText, AlertTriangle, Clock, CheckCircle,
+  ScrollText, AlertTriangle, Clock, CheckCircle, Network, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +89,19 @@ export default function SocDashboard() {
     enabled: !!customer && enabled,
     refetchInterval: 30000,
   });
+
+  interface SnIncidentMap { snNumber: string; snState: number; instanceUrl: string }
+  const { data: snIncidents } = useQuery<{ incidents: Array<{ socCaseId: number; snNumber: string; snState: number; instanceUrl: string }> }>({
+    queryKey: ["soc-sn-incidents"],
+    queryFn: () => fetch("/api/integrations/servicenow/incidents", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer && enabled,
+    refetchInterval: 60000,
+  });
+  const snMap = new Map<number, SnIncidentMap>();
+  for (const inc of snIncidents?.incidents ?? []) {
+    snMap.set(inc.socCaseId, { snNumber: inc.snNumber, snState: inc.snState, instanceUrl: inc.instanceUrl });
+  }
+  const SN_STATE_LABEL: Record<number, string> = { 1: "Yeni", 2: "Devam", 3: "Beklemede", 6: "Çözüldü", 7: "Kapatıldı" };
 
   useEffect(() => {
     if (!enabled) return;
@@ -193,19 +206,35 @@ export default function SocDashboard() {
                   <p className="text-slate-400 text-sm py-8 text-center">Aktif güvenlik vakası yok. Sistemleriniz izleniyor.</p>
                 ) : (
                   <div className="divide-y divide-slate-800">
-                    {dashboard.activeCases.map((c) => (
-                      <div key={c.id} className="p-4">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className={SEV[c.severity]?.cls}>{SEV[c.severity]?.label}</Badge>
-                          <Badge variant="outline" className="border-slate-600 text-slate-300">{STATUS[c.status]}</Badge>
-                          {c.slaBreached && <Badge variant="outline" className="border-red-500/40 text-red-300">SLA İhlali</Badge>}
-                          <span className="font-mono text-xs text-slate-500 ml-auto">{c.caseNumber}</span>
+                    {dashboard.activeCases.map((c) => {
+                      const sn = snMap.get(c.id);
+                      return (
+                        <div key={c.id} className="p-4">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Badge variant="outline" className={SEV[c.severity]?.cls}>{SEV[c.severity]?.label}</Badge>
+                            <Badge variant="outline" className="border-slate-600 text-slate-300">{STATUS[c.status]}</Badge>
+                            {c.slaBreached && <Badge variant="outline" className="border-red-500/40 text-red-300">SLA İhlali</Badge>}
+                            {sn && (
+                              <a
+                                href={`${sn.instanceUrl}/nav_to.do?uri=incident_list.do?sysparm_query=number=${sn.snNumber}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1 text-[10px] font-mono text-violet-400 hover:text-violet-300 border border-violet-500/30 bg-violet-500/10 rounded px-1.5 py-0.5"
+                                title={`ServiceNow: ${SN_STATE_LABEL[sn.snState] ?? sn.snState}`}
+                              >
+                                <Network className="h-2.5 w-2.5" />
+                                {sn.snNumber}
+                                <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
+                              </a>
+                            )}
+                            <span className="font-mono text-xs text-slate-500 ml-auto">{c.caseNumber}</span>
+                          </div>
+                          <p className="text-white text-sm font-medium">{c.title}</p>
+                          {c.attackNarrative && <p className="text-slate-400 text-sm mt-1 line-clamp-3">{c.attackNarrative}</p>}
+                          <p className="text-xs text-slate-500 mt-2">{fmtDate(c.createdAt)}</p>
                         </div>
-                        <p className="text-white text-sm font-medium">{c.title}</p>
-                        {c.attackNarrative && <p className="text-slate-400 text-sm mt-1 line-clamp-3">{c.attackNarrative}</p>}
-                        <p className="text-xs text-slate-500 mt-2">{fmtDate(c.createdAt)}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

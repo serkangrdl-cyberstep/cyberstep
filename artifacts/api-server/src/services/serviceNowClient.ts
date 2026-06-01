@@ -45,6 +45,41 @@ interface SnIncidentResult {
   state: number;
 }
 
+// ─── SSRF Protection ──────────────────────────────────────────────────────────
+
+const PRIVATE_RANGES = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^::1$/,
+  /^fc00:/i,
+  /^fd/i,
+];
+
+export function validateServiceNowUrl(instanceUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(instanceUrl);
+  } catch {
+    throw new Error("Geçersiz URL formatı");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("ServiceNow URL'si HTTPS olmalıdır");
+  }
+  const host = parsed.hostname;
+  if (host === "localhost" || host === "") {
+    throw new Error("Geçersiz hostname");
+  }
+  // Block private/internal addresses
+  for (const re of PRIVATE_RANGES) {
+    if (re.test(host)) {
+      throw new Error("Özel/dahili ağ adresine bağlantıya izin verilmez");
+    }
+  }
+}
+
 // ─── Low-level API helpers ─────────────────────────────────────────────────────
 
 async function snRequest<T>(
@@ -74,6 +109,7 @@ async function snRequest<T>(
 
 export async function testServiceNowConnection(cfg: SnConfig): Promise<{ ok: boolean; message: string }> {
   try {
+    validateServiceNowUrl(cfg.instanceUrl);
     const url = `${snBaseUrl(cfg.instanceUrl)}/api/now/table/incident?sysparm_limit=1&sysparm_fields=number`;
     await snRequest<unknown>("GET", url, snHeaders(cfg.username, cfg.password));
     return { ok: true, message: "Bağlantı başarılı" };
@@ -112,6 +148,11 @@ async function getSnIncident(cfg: SnConfig, sysId: string): Promise<{ state: num
 }
 
 // ─── Config Loader ─────────────────────────────────────────────────────────────
+
+// Validate URL before every outbound request (defense-in-depth)
+function assertSafeUrl(instanceUrl: string): void {
+  validateServiceNowUrl(instanceUrl); // throws on invalid/private
+}
 
 async function loadConfig(customerId: number): Promise<(SnConfig & { id: number }) | null> {
   const { rows } = await pool.query<{
@@ -152,6 +193,8 @@ interface CaseData {
 export async function openServiceNowIncident(customerId: number, socCaseId: number, caseData: CaseData): Promise<void> {
   const cfg = await loadConfig(customerId);
   if (!cfg) return; // Entegrasyon yapılandırılmamış
+
+  assertSafeUrl(cfg.instanceUrl);
 
   // Zaten açık incident var mı?
   const { rows: existing } = await pool.query(
@@ -215,6 +258,8 @@ export async function resolveServiceNowIncident(
 ): Promise<void> {
   const cfg = await loadConfig(customerId);
   if (!cfg) return;
+
+  assertSafeUrl(cfg.instanceUrl);
 
   const { rows } = await pool.query<{ id: number; sn_sys_id: string; sn_number: string }>(
     `SELECT id, sn_sys_id, sn_number FROM servicenow_incidents

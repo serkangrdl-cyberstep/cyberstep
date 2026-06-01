@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp,
   Save, Eye, EyeOff, Shield, Zap, Globe, Mail, Brain, Server, Lock, Bot,
-  CreditCard, Settings, SlidersHorizontal, Radar, Network, Cpu, Calendar,
+  CreditCard, Settings, SlidersHorizontal, Radar, Network, Cpu, Calendar, Bell,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -474,6 +474,37 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "HIVE_API_KEY opsiyonel — olmadan da heuristik + Claude AI ile çalışır. Daha derin görsel analiz için Hive Moderation API key ekleyin.",
     docs: "/sahte-dokuman",
   },
+  // ─── Bildirim & Alarm ───────────────────────────────────────────────────────
+  {
+    id: "webhook", name: "Generic Webhook", category: "Bildirim & Alarm", type: "platform", icon: "🔗",
+    cost: "free", costLabel: "Ücretsiz", always: false,
+    envKey: "",
+    desc: "HMAC-SHA256 imzalı outbound webhook. Zapier, Make, n8n veya kendi endpoint'inize SOC alarmlarını, SLA ihlallerini ve tarama sonuçlarını JSON olarak iletir.",
+    why: "Tek entegrasyon noktasıyla 5.000+ uygulamaya köprü kurulur. Müşteri \"biz Notion kullanıyoruz, alert oraya düşsün\" dediğinde webhook + Zapier ile 10 dakikada çözülür.",
+    how: "Müşteri /hesabim/entegrasyonlarim → Generic Webhook bölümünden URL + secret tanımlar. SOC triage case açınca dispatchWebhook() çağrılır; HMAC imzalı POST 15s timeout ile gönderilir. Başarısız teslimatlar 10dk'da bir cron ile 5 denemeye kadar retry yapılır.",
+    setup: "1. Zapier/Make/n8n'de webhook trigger URL alın  2. /hesabim/entegrasyonlarim → Generic Webhook → Ekle  3. URL + opsiyonel secret girin, olayları seçin.",
+    docs: "https://zapier.com/apps/webhook",
+  },
+  {
+    id: "telegram", name: "Telegram Bot", category: "Bildirim & Alarm", type: "platform", icon: "✈️",
+    cost: "free", costLabel: "Ücretsiz", always: false,
+    envKey: "",
+    desc: "Telegram Bot API üzerinden SOC alarmları MarkdownV2 formatında iletilir. Kritik vakalar, SLA ihlalleri ve case kapanışları anlık bildirim olarak gelir.",
+    why: "Türkiye'de IT direktörlerinin tercihi. WhatsApp'a bağımlılığı ortadan kaldırır. API dünyanın en basit bot API'si — kurumsal ağlarda kısıtlanmaz.",
+    how: "Müşteri @BotFather'dan bot oluşturur, token + chat ID girer. sendTelegramAlert() HMAC imzasız direkt Bot API çağrısı yapar. Teslim başarısız olursa sadece log düşer (kritik değil).",
+    setup: "1. Telegram'da @BotFather → /newbot → token al  2. Botu hedef gruba/kanala ekle  3. @userinfobot ile Chat ID öğren  4. /hesabim/entegrasyonlarim → Telegram → kaydet.",
+    docs: "https://core.telegram.org/bots/api",
+  },
+  {
+    id: "netgsm", name: "NetGSM SMS", category: "Bildirim & Alarm", type: "platform", icon: "📱",
+    cost: "paid", costLabel: "Kullanım bazlı", always: false,
+    envKey: "",
+    desc: "NetGSM XML API üzerinden Türkiye SMS. Kritik SOC alarmları ve SLA ihlalleri anında SMS olarak iletilir. Birden fazla alıcı numarası tanımlanabilir.",
+    why: "WhatsApp kurumsal ağlarda kısıtlanabilir veya down olabilir. SMS kritik alarm için şarttır. NetGSM Türkiye'nin lider SMS operatörü, API temiz, günlük 1.000 SMS birkaç kuruş.",
+    how: "username + password AES-256-GCM ile şifrelenir. sendNetgsmRequest() XML body oluşturup https://api.netgsm.com.tr/sms/send/xml'e POST atar. Yanıt '00' ise başarılı.",
+    setup: "1. netgsm.com.tr'den hesap açın  2. API şifresi oluşturun  3. SMS başlığı (alfanümerik, maks. 11 karakter) onaylayın  4. /hesabim/entegrasyonlarim → NetGSM → kaydet.",
+    docs: "https://www.netgsm.com.tr/dokuman/",
+  },
   // ─── ITSM & Operasyon ───────────────────────────────────────────────────────
   {
     id: "servicenow", name: "ServiceNow ITSM", category: "ITSM & Operasyon", type: "platform", icon: "🎫",
@@ -502,6 +533,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   "Üretkenlik": Calendar,
   "AI Analiz Modülleri": Bot,
   "ITSM & Operasyon": Settings,
+  "Bildirim & Alarm": Bell,
 };
 
 const COST_COLORS: Record<string, string> = {
@@ -529,6 +561,7 @@ const PLATFORM_CATEGORIES = [
   "Üretkenlik",
   "AI Analiz Modülleri",
   "ITSM & Operasyon",
+  "Bildirim & Alarm",
 ];
 
 type StatusFilter = "all" | "active" | "needs-api" | "needs-setup";

@@ -91,6 +91,26 @@ export async function checkSLABreaches(): Promise<number> {
       details: { slaDeadline: c.slaDeadline.toISOString() },
     });
     emitSOC({ type: "sla_warning", customerId: c.customerId, caseId: c.id, data: { slaTier: c.slaTier } });
+    // Webhook / Telegram / NetGSM — SLA ihlali
+    const slaPayload: Record<string, unknown> = {
+      caseId: c.id, caseNumber: c.caseNumber, title: c.title,
+      severity: c.severity, slaTier: c.slaTier, slaDeadline: c.slaDeadline?.toISOString(),
+    };
+    setImmediate(() => {
+      import("../webhookDispatcher").then(({ dispatchWebhook }) =>
+        dispatchWebhook(c.customerId, "soc.sla.breached", slaPayload)
+      ).catch((err) => logger.warn({ err, caseId: c.id }, "Webhook SLA breach failed"));
+    });
+    setImmediate(() => {
+      import("../telegramNotifier").then(({ sendTelegramAlert }) =>
+        sendTelegramAlert(c.customerId, "soc.sla.breached", slaPayload)
+      ).catch((err) => logger.warn({ err, caseId: c.id }, "Telegram SLA breach failed"));
+    });
+    setImmediate(() => {
+      import("../netgsmNotifier").then(({ sendNetgsmAlert }) =>
+        sendNetgsmAlert(c.customerId, "soc.sla.breached", slaPayload)
+      ).catch((err) => logger.warn({ err, caseId: c.id }, "NetGSM SLA breach failed"));
+    });
     // Breaching the SLA escalates at least one level beyond current.
     await escalateCase(c.id, Math.max(c.escalationLevel + 1, 3), "SLA süresi aşıldı — otomatik eskalasyon");
     breached++;

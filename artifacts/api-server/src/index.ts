@@ -15,6 +15,9 @@ import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
 import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
 import { ensureServiceNowTables, syncServiceNowIncidents } from "./services/serviceNowClient";
+import { ensureWebhookTables, retryFailedWebhooks } from "./services/webhookDispatcher";
+import { ensureTelegramTables } from "./services/telegramNotifier";
+import { ensureNetgsmTables } from "./services/netgsmNotifier";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
@@ -1407,6 +1410,9 @@ async function startup() {
   await ensureMs365Tables();
   await ensureKvkkTables();
   await ensureServiceNowTables();
+  await ensureWebhookTables();
+  await ensureTelegramTables();
+  await ensureNetgsmTables();
   await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
 }
@@ -1837,6 +1843,11 @@ startup()
       try { await syncServiceNowIncidents(); } catch (err) { logger.error({ err }, "ServiceNow sync cron failed"); }
     });
     logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
+
+    cron.schedule("*/10 * * * *", async () => {
+      try { await retryFailedWebhooks(); } catch (err) { logger.error({ err }, "Webhook retry cron failed"); }
+    });
+    logger.info("Webhook retry cron scheduled (every 10 min)");
 
     const server = app.listen(port, (err) => {
       if (err) {

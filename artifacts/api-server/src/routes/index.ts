@@ -49,6 +49,9 @@ import ctMonitorRouter from "./ct-monitor/index";
 import ms365Router from "./ms365/index";
 import kvkkBildirimRouter from "./kvkk-bildirim/index";
 import serviceNowRouter from "./integrations/servicenow";
+import webhookRouter from "./integrations/webhook";
+import telegramRouter from "./integrations/telegram";
+import netgsmRouter from "./integrations/netgsm";
 
 const router: IRouter = Router();
 
@@ -102,5 +105,8 @@ router.use(ctMonitorRouter);
 router.use(ms365Router);
 router.use(kvkkBildirimRouter);
 router.use(serviceNowRouter);
+router.use(webhookRouter);
+router.use(telegramRouter);
+router.use(netgsmRouter);
 
 export default router;

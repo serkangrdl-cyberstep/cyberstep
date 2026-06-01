@@ -265,6 +265,29 @@ async function openCase(customerId: number, events: FabricEvent[], analysis: Dee
     ).catch((err) => logger.warn({ err, caseId: created.id }, "KVKK assessment trigger failed"));
   });
 
+  // Webhook / Telegram / NetGSM — SOC vakası açıldı
+  const notifPayload: Record<string, unknown> = {
+    caseId: created.id, caseNumber: created.caseNumber,
+    title: analysis.title, severity: analysis.severity,
+    category: analysis.category,
+  };
+  const notifEvent = analysis.severity === "critical" ? "soc.case.critical" : "soc.case.opened";
+  setImmediate(() => {
+    import("../webhookDispatcher").then(({ dispatchWebhook }) =>
+      dispatchWebhook(customerId, notifEvent, notifPayload)
+    ).catch((err) => logger.warn({ err, caseId: created.id }, "Webhook dispatch failed"));
+  });
+  setImmediate(() => {
+    import("../telegramNotifier").then(({ sendTelegramAlert }) =>
+      sendTelegramAlert(customerId, notifEvent, notifPayload)
+    ).catch((err) => logger.warn({ err, caseId: created.id }, "Telegram notify failed"));
+  });
+  setImmediate(() => {
+    import("../netgsmNotifier").then(({ sendNetgsmAlert }) =>
+      sendNetgsmAlert(customerId, notifEvent, notifPayload)
+    ).catch((err) => logger.warn({ err, caseId: created.id }, "NetGSM notify failed"));
+  });
+
   return created.id;
 }
 

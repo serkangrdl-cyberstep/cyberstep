@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, Send, Smartphone, X, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -688,6 +688,516 @@ function ServiceNowSection() {
   );
 }
 
+// ─── Webhook Section ──────────────────────────────────────────────────────────
+
+const WEBHOOK_EVENTS = [
+  { value: "soc.case.opened",   label: "SOC vakası açıldı" },
+  { value: "soc.case.closed",   label: "SOC vakası kapatıldı" },
+  { value: "soc.case.critical", label: "Kritik alarm" },
+  { value: "soc.sla.breached",  label: "SLA ihlali" },
+  { value: "scan.completed",    label: "Tarama tamamlandı" },
+  { value: "report.ready",      label: "Rapor hazır" },
+];
+
+function WebhookSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [showDeliveries, setShowDeliveries] = useState(false);
+  const [form, setForm] = useState({ name: "", url: "", secret: "", events: ["soc.case.opened","soc.case.closed","soc.case.critical","soc.sla.breached"] as string[] });
+  const [testing, setTesting] = useState<number | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["webhook-configs"],
+    queryFn: () => fetch("/api/integrations/webhook", { credentials: "include" }).then(r => r.json()) as Promise<{ webhooks: { id: number; name: string; url: string; events: string[]; active: boolean; createdAt: string }[] }>,
+  });
+  const { data: delivData } = useQuery({
+    queryKey: ["webhook-deliveries"],
+    queryFn: () => fetch("/api/integrations/webhook/deliveries", { credentials: "include" }).then(r => r.json()) as Promise<{ deliveries: { id: number; eventType: string; status: string; attempts: number; responseCode: number | null; deliveredAt: string | null; createdAt: string; webhookName: string; url: string }[] }>,
+    enabled: showDeliveries,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/webhook", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, url: form.url, secret: form.secret || undefined, events: form.events }),
+      });
+      if (!r.ok) { const d = await r.json() as { error: string }; throw new Error(d.error); }
+    },
+    onSuccess: () => {
+      toast({ title: "Webhook eklendi" });
+      setShowAdd(false);
+      setForm({ name: "", url: "", secret: "", events: ["soc.case.opened","soc.case.closed","soc.case.critical","soc.sla.breached"] });
+      void qc.invalidateQueries({ queryKey: ["webhook-configs"] });
+    },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/integrations/webhook/${id}`, { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => { toast({ title: "Webhook silindi" }); void qc.invalidateQueries({ queryKey: ["webhook-configs"] }); },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  async function handleTest(id: number) {
+    setTesting(id);
+    try {
+      const r = await fetch(`/api/integrations/webhook/${id}/test`, { method: "POST", credentials: "include" });
+      const d = await r.json() as { ok: boolean; message: string };
+      toast({ title: d.ok ? "Test gönderildi" : "Test başarısız", description: d.message, variant: d.ok ? "default" : "destructive" });
+      void qc.invalidateQueries({ queryKey: ["webhook-deliveries"] });
+    } catch { toast({ title: "Hata", variant: "destructive" }); }
+    finally { setTesting(null); }
+  }
+
+  function toggleEvent(ev: string) {
+    setForm(f => ({ ...f, events: f.events.includes(ev) ? f.events.filter(e => e !== ev) : [...f.events, ev] }));
+  }
+
+  const webhooks = data?.webhooks ?? [];
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Webhook className="h-4 w-4 text-emerald-400" />
+            Generic Webhook
+          </CardTitle>
+          <Button size="sm" onClick={() => setShowAdd(!showAdd)} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Ekle
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+        ) : (
+          <>
+            {webhooks.length === 0 && !showAdd && (
+              <div className="border border-dashed border-gray-700 rounded-lg p-6 text-center">
+                <Webhook className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm font-medium">Webhook tanımlı değil</p>
+                <p className="text-gray-500 text-xs mt-1">Zapier, Make, n8n veya kendi endpoint&apos;inize SOC alarmlarını iletin.</p>
+              </div>
+            )}
+            {webhooks.map(wh => (
+              <div key={wh.id} className="border border-gray-800 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${wh.active ? "bg-emerald-400" : "bg-gray-600"}`} />
+                    <span className="text-sm font-medium text-white">{wh.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-gray-400 hover:text-white"
+                      onClick={() => handleTest(wh.id)} disabled={testing === wh.id}>
+                      {testing === wh.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-red-400 hover:text-red-300"
+                      onClick={() => deleteMutation.mutate(wh.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-mono truncate">{wh.url}</p>
+                <div className="flex flex-wrap gap-1">
+                  {wh.events.map(ev => (
+                    <Badge key={ev} variant="outline" className="text-xs border-gray-700 text-gray-400">{ev}</Badge>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {showAdd && (
+              <div className="border border-gray-700 rounded-lg p-4 space-y-4">
+                <p className="text-sm font-medium text-white">Yeni Webhook</p>
+                <div className="grid gap-3">
+                  <div>
+                    <Label className="text-xs text-gray-400">Ad</Label>
+                    <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="Zapier Webhook" className="bg-gray-800 border-gray-700 text-white text-sm mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">URL <span className="text-red-400">*</span></Label>
+                    <Input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+                      placeholder="https://hooks.zapier.com/..." className="bg-gray-800 border-gray-700 text-white text-sm mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Secret (HMAC imzası için, opsiyonel)</Label>
+                    <Input value={form.secret} onChange={e => setForm(f => ({ ...f, secret: e.target.value }))}
+                      placeholder="gizli-anahtar" type="password" className="bg-gray-800 border-gray-700 text-white text-sm mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400 mb-2 block">Olaylar</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {WEBHOOK_EVENTS.map(ev => (
+                        <label key={ev.value} className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={form.events.includes(ev.value)}
+                            onChange={() => toggleEvent(ev.value)} className="rounded" />
+                          <span className="text-xs text-gray-300">{ev.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)} className="text-gray-400 h-8">Vazgeç</Button>
+                  <Button size="sm" onClick={() => addMutation.mutate()} disabled={!form.url || addMutation.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 h-8">
+                    {addMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Kaydet"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {webhooks.length > 0 && (
+              <div>
+                <button onClick={() => setShowDeliveries(!showDeliveries)}
+                  className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1">
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showDeliveries ? "rotate-180" : ""}`} />
+                  Teslimat geçmişi
+                </button>
+                {showDeliveries && (
+                  <div className="mt-3 space-y-1">
+                    {(delivData?.deliveries ?? []).slice(0, 10).map(d => (
+                      <div key={d.id} className="flex items-center justify-between text-xs py-1 border-b border-gray-800">
+                        <span className="text-gray-400">{d.eventType}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">{d.webhookName}</span>
+                          <Badge variant="outline" className={`text-xs ${d.status === "delivered" ? "border-emerald-700 text-emerald-400" : "border-red-700 text-red-400"}`}>
+                            {d.status === "delivered" ? "OK" : "FAIL"}
+                          </Badge>
+                          {d.responseCode && <span className="text-gray-600">{d.responseCode}</span>}
+                        </div>
+                      </div>
+                    ))}
+                    {(delivData?.deliveries ?? []).length === 0 && <p className="text-xs text-gray-600 py-2">Henüz teslimat yok</p>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="border border-primary/20 bg-primary/5 rounded-lg p-4 text-xs text-gray-400 space-y-1">
+              <p className="font-medium text-gray-300">HMAC-SHA256 Doğrulama</p>
+              <p>Her istekte <code className="text-emerald-400">X-CyberStep-Signature: sha256=...</code> başlığı gönderilir.</p>
+              <p>Zapier, Make veya n8n ile direkt entegrasyon — 5.000+ uygulamaya bağlanın.</p>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Telegram Section ─────────────────────────────────────────────────────────
+
+function TelegramSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ botToken: "", chatId: "" });
+  const [testing, setTesting] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["telegram-config"],
+    queryFn: () => fetch("/api/integrations/telegram", { credentials: "include" }).then(r => r.json()) as Promise<{ config: { id: number; chatId: string; active: boolean; events: string[]; createdAt: string } | null }>,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/telegram", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botToken: form.botToken, chatId: form.chatId }),
+      });
+      const d = await r.json() as { config?: object; botUsername?: string; error?: string };
+      if (!r.ok) throw new Error(d.error ?? "Hata");
+      return d;
+    },
+    onSuccess: (d) => {
+      toast({ title: "Telegram bağlandı", description: d.botUsername ? `Bot: @${d.botUsername}` : undefined });
+      setShowForm(false);
+      setForm({ botToken: "", chatId: "" });
+      void qc.invalidateQueries({ queryKey: ["telegram-config"] });
+    },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/telegram", { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => { toast({ title: "Telegram bağlantısı kesildi" }); void qc.invalidateQueries({ queryKey: ["telegram-config"] }); },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  async function handleTest() {
+    setTesting(true);
+    try {
+      const r = await fetch("/api/integrations/telegram/test", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const d = await r.json() as { ok: boolean; message: string };
+      toast({ title: d.ok ? "Test mesajı gönderildi" : "Test başarısız", description: d.message, variant: d.ok ? "default" : "destructive" });
+    } catch { toast({ title: "Hata", variant: "destructive" }); }
+    finally { setTesting(false); }
+  }
+
+  const cfg = data?.config;
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Send className="h-4 w-4 text-sky-400" />
+            Telegram Bot
+          </CardTitle>
+          {cfg?.active && (
+            <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 h-7"
+              onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending}>
+              <Unplug className="h-3.5 w-3.5 mr-1" /> Kes
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+        ) : cfg?.active ? (
+          <>
+            <div className="border border-gray-800 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="text-sm font-medium text-white">Bağlı</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div><span className="text-gray-500">Chat ID</span><p className="text-white font-mono mt-0.5">{cfg.chatId}</p></div>
+                <div><span className="text-gray-500">Aktif Olaylar</span><p className="text-white mt-0.5">{cfg.events.length} olay</p></div>
+              </div>
+              <Button size="sm" variant="outline" className="border-gray-700 text-gray-300 h-8 text-xs w-full"
+                onClick={handleTest} disabled={testing}>
+                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                Test Mesajı Gönder
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {!showForm ? (
+              <div className="border border-dashed border-gray-700 rounded-lg p-6 text-center">
+                <Send className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm font-medium">Telegram bağlı değil</p>
+                <p className="text-gray-500 text-xs mt-1">SOC alarmlarını anında Telegram&apos;a iletin.</p>
+                <Button size="sm" onClick={() => setShowForm(true)} className="mt-3 bg-sky-600 hover:bg-sky-700 text-xs h-8">
+                  Telegram Bağla
+                </Button>
+              </div>
+            ) : (
+              <div className="border border-gray-700 rounded-lg p-4 space-y-4">
+                <p className="text-sm font-medium text-white">Telegram Bot Ayarları</p>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-gray-400">Bot Token <span className="text-red-400">*</span></Label>
+                    <Input value={form.botToken} onChange={e => setForm(f => ({ ...f, botToken: e.target.value }))}
+                      placeholder="1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ" type="password"
+                      className="bg-gray-800 border-gray-700 text-white text-sm mt-1 font-mono" />
+                    <p className="text-xs text-gray-500 mt-1">@BotFather&apos;dan alın: /newbot</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Chat ID <span className="text-red-400">*</span></Label>
+                    <Input value={form.chatId} onChange={e => setForm(f => ({ ...f, chatId: e.target.value }))}
+                      placeholder="-100123456789 veya @kanal_adi"
+                      className="bg-gray-800 border-gray-700 text-white text-sm mt-1 font-mono" />
+                    <p className="text-xs text-gray-500 mt-1">@userinfobot ile öğrenin veya kanal ID&apos;si girin</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="text-gray-400 h-8">Vazgeç</Button>
+                  <Button size="sm" onClick={() => saveMutation.mutate()}
+                    disabled={!form.botToken || !form.chatId || saveMutation.isPending}
+                    className="bg-sky-600 hover:bg-sky-700 h-8">
+                    {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Kaydet"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="border border-primary/20 bg-primary/5 rounded-lg p-4 text-xs text-gray-400 space-y-1">
+          <p className="font-medium text-gray-300">Kritik alarm &rarr; anında cep telefonuna</p>
+          <p>Türkiye&apos;de IT direktörlerinin tercih ettiği kanal. WhatsApp&apos;a bağımlılığı ortadan kaldırır.</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── NetGSM SMS Section ───────────────────────────────────────────────────────
+
+function NetgsmSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ username: "", password: "", header: "CYBERSTEP", phoneNumbers: "", events: ["soc.case.critical","soc.sla.breached"] as string[] });
+  const [testing, setTesting] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["netgsm-config"],
+    queryFn: () => fetch("/api/integrations/netgsm", { credentials: "include" }).then(r => r.json()) as Promise<{ config: { id: number; header: string; phoneNumbers: string[]; active: boolean; events: string[]; createdAt: string } | null }>,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const phones = form.phoneNumbers.split(/[\n,;]+/).map(p => p.trim()).filter(Boolean);
+      if (!phones.length) throw new Error("En az 1 telefon numarası girin");
+      const r = await fetch("/api/integrations/netgsm", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: form.username, password: form.password, header: form.header, phoneNumbers: phones, events: form.events }),
+      });
+      const d = await r.json() as { config?: object; error?: string };
+      if (!r.ok) throw new Error(d.error ?? "Hata");
+      return d;
+    },
+    onSuccess: () => {
+      toast({ title: "NetGSM bağlandı", description: "Kritik alarmlar SMS ile iletilecek." });
+      setShowForm(false);
+      setForm({ username: "", password: "", header: "CYBERSTEP", phoneNumbers: "", events: ["soc.case.critical","soc.sla.breached"] });
+      void qc.invalidateQueries({ queryKey: ["netgsm-config"] });
+    },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/netgsm", { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => { toast({ title: "NetGSM bağlantısı kesildi" }); void qc.invalidateQueries({ queryKey: ["netgsm-config"] }); },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  async function handleTest() {
+    setTesting(true);
+    try {
+      const r = await fetch("/api/integrations/netgsm/test", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const d = await r.json() as { ok: boolean; message: string };
+      toast({ title: d.ok ? "SMS gönderildi" : "Test başarısız", description: d.message, variant: d.ok ? "default" : "destructive" });
+    } catch { toast({ title: "Hata", variant: "destructive" }); }
+    finally { setTesting(false); }
+  }
+
+  const cfg = data?.config;
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Smartphone className="h-4 w-4 text-amber-400" />
+            NetGSM SMS
+          </CardTitle>
+          {cfg?.active && (
+            <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 h-7"
+              onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending}>
+              <Unplug className="h-3.5 w-3.5 mr-1" /> Kes
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+        ) : cfg?.active ? (
+          <>
+            <div className="border border-gray-800 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="text-sm font-medium text-white">Bağlı</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div><span className="text-gray-500">Başlık</span><p className="text-white font-mono mt-0.5">{cfg.header}</p></div>
+                <div><span className="text-gray-500">Alıcı</span><p className="text-white mt-0.5">{cfg.phoneNumbers.length} numara</p></div>
+              </div>
+              <div className="text-xs text-gray-500">
+                {cfg.phoneNumbers.slice(0, 3).map(p => <span key={p} className="mr-2 font-mono">{p}</span>)}
+                {cfg.phoneNumbers.length > 3 && <span>+{cfg.phoneNumbers.length - 3} daha</span>}
+              </div>
+              <Button size="sm" variant="outline" className="border-gray-700 text-gray-300 h-8 text-xs w-full"
+                onClick={handleTest} disabled={testing}>
+                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Smartphone className="h-3.5 w-3.5 mr-1" />}
+                Test SMS Gönder
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {!showForm ? (
+              <div className="border border-dashed border-gray-700 rounded-lg p-6 text-center">
+                <Smartphone className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm font-medium">SMS bildirim bağlı değil</p>
+                <p className="text-gray-500 text-xs mt-1">Kritik alarmları SMS ile anlık olarak alın.</p>
+                <Button size="sm" onClick={() => setShowForm(true)} className="mt-3 bg-amber-600 hover:bg-amber-700 text-xs h-8">
+                  NetGSM Bağla
+                </Button>
+              </div>
+            ) : (
+              <div className="border border-gray-700 rounded-lg p-4 space-y-4">
+                <p className="text-sm font-medium text-white">NetGSM Ayarları</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-400">NetGSM Kullanıcı Adı <span className="text-red-400">*</span></Label>
+                      <Input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                        placeholder="kullanici_adi" className="bg-gray-800 border-gray-700 text-white text-sm mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-400">Şifre <span className="text-red-400">*</span></Label>
+                      <Input value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                        placeholder="netgsm_sifresi" type="password" className="bg-gray-800 border-gray-700 text-white text-sm mt-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">SMS Başlığı (maks. 11 karakter)</Label>
+                    <Input value={form.header} onChange={e => setForm(f => ({ ...f, header: e.target.value.slice(0, 11) }))}
+                      placeholder="CYBERSTEP" className="bg-gray-800 border-gray-700 text-white text-sm mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Telefon Numaraları <span className="text-red-400">*</span></Label>
+                    <textarea value={form.phoneNumbers} onChange={e => setForm(f => ({ ...f, phoneNumbers: e.target.value }))}
+                      placeholder={"5551234567\n5559876543"} rows={3}
+                      className="w-full bg-gray-800 border border-gray-700 text-white text-sm mt-1 rounded-md p-2 font-mono resize-none focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <p className="text-xs text-gray-500 mt-1">Her satıra bir numara (başında 0 olmadan)</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="text-gray-400 h-8">Vazgeç</Button>
+                  <Button size="sm" onClick={() => saveMutation.mutate()}
+                    disabled={!form.username || !form.password || !form.phoneNumbers || saveMutation.isPending}
+                    className="bg-amber-600 hover:bg-amber-700 h-8">
+                    {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Kaydet"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="border border-primary/20 bg-primary/5 rounded-lg p-4 text-xs text-gray-400 space-y-1">
+          <p className="font-medium text-gray-300">WhatsApp bağımlılığını ortadan kaldırın</p>
+          <p>Türkiye&apos;nin lider SMS operatörü. Kurumsal ağlarda kısıtlanmaz. Günlük 1.000 SMS birkaç kuruş.</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function EntegrasyonlarimPage() {
   useRequireCustomer();
   const { toast } = useToast();
@@ -791,6 +1301,15 @@ export default function EntegrasyonlarimPage() {
 
         {/* ─── ServiceNow ITSM ─────────────────────────────── */}
         <ServiceNowSection />
+
+        {/* ─── Generic Webhook ─────────────────────────────── */}
+        <WebhookSection />
+
+        {/* ─── Telegram Bot ────────────────────────────────── */}
+        <TelegramSection />
+
+        {/* ─── NetGSM SMS ──────────────────────────────────── */}
+        <NetgsmSection />
 
         {/* ─── Datadog ─────────────────────────────────────── */}
         <Card className="bg-gray-900 border-gray-800">

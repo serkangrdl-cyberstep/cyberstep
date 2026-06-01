@@ -149,6 +149,28 @@ router.patch("/admin/soc/cases/:id", requireAdmin, async (req: Request, res: Res
           resolveServiceNowIncident(existing.customerId, id, "CyberStep SOC vakası kapatıldı")
         ).catch(err => logger.warn({ err, caseId: id }, "ServiceNow resolve failed"));
       });
+
+      // Webhook / Telegram / NetGSM — vaka kapatıldı
+      const closePayload: Record<string, unknown> = {
+        caseId: id, caseNumber: existing.caseNumber,
+        title: existing.title, severity: existing.severity,
+        status: parsed.data.status,
+      };
+      setImmediate(() => {
+        import("../../services/webhookDispatcher").then(({ dispatchWebhook }) =>
+          dispatchWebhook(existing.customerId, "soc.case.closed", closePayload)
+        ).catch(err => logger.warn({ err, caseId: id }, "Webhook case-closed failed"));
+      });
+      setImmediate(() => {
+        import("../../services/telegramNotifier").then(({ sendTelegramAlert }) =>
+          sendTelegramAlert(existing.customerId, "soc.case.closed", closePayload)
+        ).catch(err => logger.warn({ err, caseId: id }, "Telegram case-closed failed"));
+      });
+      setImmediate(() => {
+        import("../../services/netgsmNotifier").then(({ sendNetgsmAlert }) =>
+          sendNetgsmAlert(existing.customerId, "soc.case.closed", closePayload)
+        ).catch(err => logger.warn({ err, caseId: id }, "NetGSM case-closed failed"));
+      });
     }
 
     // ServiceNow: atama değişikliğini work_note olarak yaz

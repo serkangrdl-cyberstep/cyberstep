@@ -5,12 +5,17 @@ import { logger } from "../lib/logger";
 
 export type DnsRecordType = "A" | "MX" | "NS" | "TXT" | "CNAME";
 
+/**
+ * null means the lookup failed (resolver error / timeout).
+ * [] means the query succeeded but no records exist.
+ * Keeping these distinct prevents false-positive diffs on transient failures.
+ */
 export interface DnsSnapshot {
-  A: string[];
-  MX: Array<{ priority: number; exchange: string }>;
-  NS: string[];
-  TXT: string[][];
-  CNAME: string[];
+  A: string[] | null;
+  MX: Array<{ priority: number; exchange: string }> | null;
+  NS: string[] | null;
+  TXT: string[][] | null;
+  CNAME: string[] | null;
 }
 
 export interface DnsChange {
@@ -37,33 +42,84 @@ function parseJsonb<T>(val: unknown, fallback: T): T {
   return val as T;
 }
 
+/**
+ * Canonicalize TXT records for stable comparison.
+ * Each chunk-array is joined, then the resulting strings are sorted.
+ */
+function normalizeTxt(records: string[][] | null): string | null {
+  if (records === null) return null;
+  return JSON.stringify([...records.map(r => r.join("")).sort()]);
+}
+
+function normalizeSorted<T>(arr: T[] | null): string | null {
+  if (arr === null) return null;
+  return JSON.stringify(arr);
+}
+
 export async function resolveDnsSnapshot(domain: string): Promise<DnsSnapshot> {
-  const snap: DnsSnapshot = { A: [], MX: [], NS: [], TXT: [], CNAME: [] };
+  const snap: DnsSnapshot = { A: null, MX: null, NS: null, TXT: null, CNAME: null };
 
   await Promise.allSettled([
-    dns.resolve4(domain).then(v => { snap.A = [...v].sort(); }).catch(() => {}),
-    dns.resolveMx(domain).then(v => {
-      snap.MX = [...v].sort((a, b) => a.priority - b.priority || a.exchange.localeCompare(b.exchange));
-    }).catch(() => {}),
-    dns.resolveNs(domain).then(v => { snap.NS = [...v].sort(); }).catch(() => {}),
-    dns.resolveTxt(domain).then(v => { snap.TXT = v; }).catch(() => {}),
-    dns.resolveCname(domain).then(v => { snap.CNAME = [...v].sort(); }).catch(() => {}),
+    dns.resolve4(domain)
+      .then(v => { snap.A = [...v].sort(); })
+      .catch(() => { snap.A = null; }),
+
+    dns.resolveMx(domain)
+      .then(v => {
+        snap.MX = [...v].sort((a, b) =>
+          a.priority - b.priority || a.exchange.localeCompare(b.exchange)
+        );
+      })
+      .catch(() => { snap.MX = null; }),
+
+    dns.resolveNs(domain)
+      .then(v => { snap.NS = [...v].sort(); })
+      .catch(() => { snap.NS = null; }),
+
+    dns.resolveTxt(domain)
+      .then(v => {
+        // Sort chunks within each record, then sort records for stability
+        snap.TXT = v.map(chunks => [...chunks].sort()).sort((a, b) =>
+          a.join("").localeCompare(b.join(""))
+        );
+      })
+      .catch(() => { snap.TXT = null; }),
+
+    dns.resolveCname(domain)
+      .then(v => { snap.CNAME = [...v].sort(); })
+      .catch(() => { snap.CNAME = null; }),
   ]);
 
   return snap;
 }
 
+/**
+ * Compare two snapshots.
+ * Record types where EITHER snapshot has null (failed lookup) are skipped —
+ * we cannot determine whether a real change occurred vs a transient resolver error.
+ */
 export function diffSnapshots(prev: DnsSnapshot, curr: DnsSnapshot): DnsChange[] {
   const changes: DnsChange[] = [];
 
   for (const type of ["A", "MX", "NS", "TXT", "CNAME"] as DnsRecordType[]) {
-    const prevStr = JSON.stringify(prev[type] ?? null);
-    const currStr = JSON.stringify(curr[type] ?? null);
+    const p = prev[type];
+    const c = curr[type];
+
+    // Skip if either side is null (resolver failure — not a real change)
+    if (p === null || c === null) continue;
+
+    const prevStr = type === "TXT"
+      ? normalizeTxt(p as string[][] | null)
+      : normalizeSorted(p as unknown[] | null);
+    const currStr = type === "TXT"
+      ? normalizeTxt(c as string[][] | null)
+      : normalizeSorted(c as unknown[] | null);
+
     if (prevStr !== currStr) {
       changes.push({
         recordType: type,
-        oldValues: prev[type],
-        newValues: curr[type],
+        oldValues: p,
+        newValues: c,
         severity: RECORD_SEVERITY[type],
       });
     }
@@ -104,7 +160,7 @@ export async function checkAndSaveDnsChanges(params: {
   const { customerId, domain, watchedDomainId, onChanges, onSocCase } = params;
 
   try {
-    // 1. Resolve current DNS
+    // 1. Resolve current DNS (null = resolver failure, [] = genuinely no records)
     const curr = await resolveDnsSnapshot(domain);
 
     // 2. Fetch the most recent snapshot for comparison
@@ -133,24 +189,25 @@ export async function checkAndSaveDnsChanges(params: {
       return;
     }
 
-    // 4. Deserialize JSONB safely (pg driver may return already-parsed objects or strings)
+    // 4. Deserialize JSONB safely (pg driver may return already-parsed objects or strings).
+    //    null stored in the DB means "lookup failed" — preserved as null.
     const prev: DnsSnapshot = {
-      A: parseJsonb<string[]>(prevRow.a_records, []),
-      MX: parseJsonb<Array<{ priority: number; exchange: string }>>(prevRow.mx_records, []),
-      NS: parseJsonb<string[]>(prevRow.ns_records, []),
-      TXT: parseJsonb<string[][]>(prevRow.txt_records, []),
-      CNAME: parseJsonb<string[]>(prevRow.cname_records, []),
+      A: parseJsonb<string[] | null>(prevRow.a_records, null),
+      MX: parseJsonb<Array<{ priority: number; exchange: string }> | null>(prevRow.mx_records, null),
+      NS: parseJsonb<string[] | null>(prevRow.ns_records, null),
+      TXT: parseJsonb<string[][] | null>(prevRow.txt_records, null),
+      CNAME: parseJsonb<string[] | null>(prevRow.cname_records, null),
     };
 
     const changes = diffSnapshots(prev, curr);
 
-    // 5. No changes — only touch last_checked_at, do not insert a new snapshot row
+    // 5. No changes — only touch last_checked_at; do not insert a new snapshot row
     if (changes.length === 0) {
       await db.execute(sql`UPDATE dns_watched_domains SET last_checked_at = NOW() WHERE id = ${watchedDomainId}`);
       return;
     }
 
-    // 6. Changes detected — insert new snapshot and record each change
+    // 6. Changes detected — insert new snapshot and record each change event
     await db.execute(sql`
       INSERT INTO dns_snapshots (customer_id, domain, a_records, mx_records, ns_records, txt_records, cname_records)
       VALUES (

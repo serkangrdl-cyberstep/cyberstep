@@ -266,6 +266,61 @@ router.get("/integrations/servicenow/webhook-info", requireCustomer, async (req,
   }
 });
 
+// ─── POST /api/integrations/servicenow/check ──────────────────────────────────
+// Tests the stored credentials for the current customer and updates sync status.
+router.post("/integrations/servicenow/check", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  try {
+    const { rows } = await pool.query<{
+      id: number; instance_url: string; username: string; api_token_enc: string;
+    }>(
+      `SELECT id, instance_url, username, api_token_enc
+       FROM servicenow_configs
+       WHERE customer_id = $1 AND active = true
+       LIMIT 1`,
+      [customerId],
+    );
+    const row = rows[0];
+    if (!row) {
+      res.status(404).json({ ok: false, message: "ServiceNow entegrasyonu bulunamadı" });
+      return;
+    }
+
+    const { decryptSecret } = await import("../../services/fabric-crypto");
+    const password = decryptSecret(row.api_token_enc);
+    if (!password) {
+      res.status(500).json({ ok: false, message: "Kimlik bilgileri çözümlenemedi" });
+      return;
+    }
+
+    const result = await testServiceNowConnection({
+      instanceUrl: row.instance_url,
+      username: row.username,
+      password,
+    });
+
+    if (result.ok) {
+      await pool.query(
+        `UPDATE servicenow_configs SET last_sync_at = NOW(), last_sync_error = NULL WHERE id = $1`,
+        [row.id],
+      );
+    } else {
+      await pool.query(
+        `UPDATE servicenow_configs SET last_sync_error = $1 WHERE id = $2`,
+        [result.message.slice(0, 500), row.id],
+      );
+    }
+
+    req.log.info({ customerId, ok: result.ok }, "ServiceNow bağlantı testi yapıldı");
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "POST /api/integrations/servicenow/check error");
+    res.status(500).json({ ok: false, message: "Sunucu hatası" });
+  }
+});
+
 // ─── POST /api/integrations/servicenow/webhook-secret ─────────────────────────
 // Generates (or rotates) the HMAC webhook secret. Returns plaintext ONCE.
 router.post("/integrations/servicenow/webhook-secret", requireCustomer, async (req, res) => {

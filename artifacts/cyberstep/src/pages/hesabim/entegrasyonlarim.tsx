@@ -422,6 +422,8 @@ function ServiceNowSection() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ instanceUrl: "", username: "", apiToken: "", assignmentGroup: "", category: "Software" });
   const [testing, setTesting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
@@ -517,6 +519,26 @@ function ServiceNowSection() {
     }
   }
 
+  async function checkConnection() {
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const r = await fetch("/api/integrations/servicenow/check", {
+        method: "POST",
+        credentials: "include",
+      });
+      const d = await r.json() as { ok: boolean; message: string };
+      setCheckResult(d);
+      qc.invalidateQueries({ queryKey: ["sn-config"] });
+      if (d.ok) toast({ title: "Bağlantı sağlıklı", description: "ServiceNow'a başarıyla bağlanıldı." });
+      else toast({ title: "Bağlantı hatası", description: d.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Test başarısız", variant: "destructive" });
+    } finally {
+      setChecking(false);
+    }
+  }
+
   function timeSince(iso: string | null) {
     if (!iso) return "-";
     const diff = Date.now() - new Date(iso).getTime();
@@ -557,26 +579,72 @@ function ServiceNowSection() {
         ) : cfg?.active ? (
           <>
             <div className="border border-gray-800 rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-white">ServiceNow Bağlantısı</p>
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Aktif</Badge>
+                    {cfg.lastSyncError ? (
+                      <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] border">
+                        Baglanti Hatasi
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] border">
+                        Baglanti Saglikli
+                      </Badge>
+                    )}
                   </div>
                   <code className="text-[11px] text-violet-400 block mt-1">{cfg.instanceUrl}</code>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    Son sync: {timeSince(cfg.lastSyncAt)}
+                    Son basarili sync: {timeSince(cfg.lastSyncAt)}
                     {cfg.assignmentGroup ? ` · Grup: ${cfg.assignmentGroup}` : ""}
                   </p>
-                  {cfg.lastSyncError && (
-                    <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      {cfg.lastSyncError.slice(0, 80)}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={checkConnection}
+                  disabled={checking}
+                  className="border-violet-500/30 text-violet-400 hover:text-violet-300 h-8 shrink-0"
+                >
+                  {checking ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Baglantiyi Test Et
+                </Button>
+              </div>
+
+              {/* Error block */}
+              {cfg.lastSyncError && (
+                <div className="border border-red-500/20 bg-red-500/5 rounded p-3 space-y-1">
+                  <p className="text-xs text-red-400 font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    Son Hata
+                  </p>
+                  <p className="text-[11px] text-red-400/80 break-words">{cfg.lastSyncError.slice(0, 200)}</p>
+                  {cfg.lastSyncAt && (
+                    <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-1">
+                      <Clock className="h-3 w-3" />
+                      Son basarili sync: {timeSince(cfg.lastSyncAt)}
                     </p>
                   )}
                 </div>
-              </div>
+              )}
+
+              {/* Inline check result feedback */}
+              {checkResult && (
+                <div className={`border rounded p-2.5 text-xs flex items-center gap-2 ${checkResult.ok ? "border-emerald-500/20 bg-emerald-950/20 text-emerald-400" : "border-red-500/20 bg-red-950/20 text-red-400"}`}>
+                  {checkResult.ok ? (
+                    <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  {checkResult.ok ? "Baglanti basarili — ServiceNow erisilebilir durumda." : checkResult.message.slice(0, 150)}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
                   { label: "Kategori", value: cfg.category ?? "Software" },

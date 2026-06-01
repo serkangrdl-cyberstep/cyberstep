@@ -1148,7 +1148,10 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
   const [expanded, setExpanded] = useState<number | null>(0);
   const [genProgress, setGenProgress] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [sseStep, setSseStep] = useState<number | null>(null);
   const genStartRef = useRef<number | null>(null);
+  // true once the first SSE message arrives — disables time-based animation
+  const sseConnectedRef = useRef(false);
 
   // Snap to 100%, fade out, then reveal results
   const completeWithTransition = useCallback((scenarioResult: AttackScenariosResult) => {
@@ -1161,7 +1164,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
     }, 500);
   }, []);
 
-  // Animate progress bar while generating
+  // Animate progress bar while generating (time-based fallback — disabled once SSE connects)
   useEffect(() => {
     if (status !== "generating") {
       if (!isFinishing) setGenProgress(0);
@@ -1170,6 +1173,8 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
     }
     genStartRef.current = Date.now();
     const tick = setInterval(() => {
+      // SSE is driving the bar — skip time-based updates
+      if (sseConnectedRef.current) return;
       const elapsed = Date.now() - (genStartRef.current ?? Date.now());
       let pct = 0;
       const steps = ATTACK_GEN_STEPS;
@@ -1187,6 +1192,48 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
     }, 150);
     return () => clearInterval(tick);
   }, [status, isFinishing]);
+
+  // SSE subscription — updates genProgress and sseStep from real server milestones.
+  // Falls back gracefully to the time-based animation above if the connection fails.
+  useEffect(() => {
+    if (status !== "generating") {
+      sseConnectedRef.current = false;
+      setSseStep(null);
+      return;
+    }
+
+    const es = new EventSource(`/api/domain-scan/${scanId}/attack-scenarios/progress`);
+
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const data: { step: number; pct: number } = JSON.parse(e.data as string);
+        sseConnectedRef.current = true;
+        setSseStep(data.step);
+        setGenProgress(data.pct);
+      } catch { }
+    };
+
+    // Server signals generation finished — polling will detect the result
+    es.addEventListener("done", () => { es.close(); });
+
+    // Server signals an error — fall back, let polling surface the error state
+    es.addEventListener("generror", () => {
+      sseConnectedRef.current = false;
+      es.close();
+    });
+
+    // Connection-level error (network drop, server restart, etc.) — fall back gracefully
+    es.onerror = () => {
+      sseConnectedRef.current = false;
+      setSseStep(null);
+      es.close();
+    };
+
+    return () => {
+      es.close();
+      sseConnectedRef.current = false;
+    };
+  }, [status, scanId]);
 
   // Check for cached result on mount — auto-trigger generation if not started yet
   useEffect(() => {
@@ -1309,9 +1356,12 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
       const elapsed = genStartRef.current ? Date.now() - genStartRef.current : 0;
       return elapsed <= s.endMs;
     });
+    // SSE overrides the time-based step when connected; finishing always snaps to last
     const activeStep = isFinishing
       ? ATTACK_GEN_STEPS.length - 1
-      : currentStep === -1 ? ATTACK_GEN_STEPS.length - 1 : currentStep;
+      : sseStep !== null
+        ? sseStep
+        : (currentStep === -1 ? ATTACK_GEN_STEPS.length - 1 : currentStep);
     return (
       <Card
         className={`shadow-sm border-destructive/20 transition-opacity duration-500 ${

@@ -5,6 +5,7 @@ import { eq, and, or, isNull, lt, inArray } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { logger } from "../../lib/logger";
 import type { AttackScenariosResult } from "@workspace/db";
+import { progressBus } from "./progress-bus";
 
 const router = Router();
 
@@ -20,6 +21,43 @@ router.get("/domain-scan/:id/attack-scenarios", async (req: Request, res: Respon
 
   if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
   res.json({ status: scan.attackScenariosStatus ?? "none", result: scan.attackScenariosJson ?? null });
+});
+
+// GET /api/domain-scan/:id/attack-scenarios/progress — SSE stream of progress events
+router.get("/domain-scan/:id/attack-scenarios/progress", async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).end(); return; }
+
+  // If generation is already done, tell the client immediately so it can stop polling
+  const [scan] = await db.select({
+    attackScenariosStatus: domainScansTable.attackScenariosStatus,
+  }).from(domainScansTable).where(eq(domainScansTable.id, id));
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  if (!scan || scan.attackScenariosStatus === "complete") {
+    res.write(`event: done\ndata: {}\n\n`);
+    res.end();
+    return;
+  }
+
+  if (scan.attackScenariosStatus === "error") {
+    res.write(`event: generror\ndata: {}\n\n`);
+    res.end();
+    return;
+  }
+
+  const unsubscribe = progressBus.subscribe(id, res);
+
+  const cleanup = () => {
+    unsubscribe();
+  };
+
+  req.on("close", cleanup);
+  req.on("aborted", cleanup);
 });
 
 // POST /api/domain-scan/:id/attack-scenarios — trigger analysis
@@ -97,13 +135,23 @@ export async function triggerAttackScenariosBackground(scanId: number, scan: typ
 
 async function generateAttackScenarios(scanId: number, scan: typeof domainScansTable.$inferSelect) {
   try {
+    // Milestone 1: starting up, reading scan data
+    progressBus.emit(scanId, { step: 0, pct: 10, label: "Tarama verileri hazırlanıyor" });
+
     const prompt = buildPrompt(scan);
+
+    // Milestone 2: prompt ready, sending to AI
+    progressBus.emit(scanId, { step: 0, pct: 30, label: "Tarama verileri hazırlanıyor" });
+    progressBus.emit(scanId, { step: 1, pct: 42, label: "Tehdit modeli oluşturuluyor" });
 
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
     });
+
+    // Milestone 3: AI response received, parsing
+    progressBus.emit(scanId, { step: 1, pct: 65, label: "Tehdit modeli oluşturuluyor" });
 
     const block = message.content[0];
     const rawText = block?.type === "text" ? block.text.trim() : "";
@@ -112,6 +160,9 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
     const jsonMatch = rawText.match(/```json\s*([\s\S]+?)\s*```/) ?? rawText.match(/(\{[\s\S]+\})/);
     const jsonStr = jsonMatch?.[1] ?? rawText;
 
+    // Milestone 4: parsing done, saving to DB
+    progressBus.emit(scanId, { step: 2, pct: 82, label: "Senaryolar yazılıyor" });
+
     const result: AttackScenariosResult = JSON.parse(jsonStr);
     result.generated_at = new Date().toISOString();
 
@@ -119,9 +170,13 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
       .set({ attackScenariosStatus: "complete", attackScenariosJson: result })
       .where(eq(domainScansTable.id, scanId));
 
+    // Milestone 5: complete — notify all SSE subscribers
+    progressBus.complete(scanId);
+
     logger.info({ scanId, scenarios: result.senaryolar?.length }, "Attack scenarios generated");
   } catch (err) {
     logger.error({ err, scanId }, "Attack scenario generation error");
+    progressBus.error(scanId);
     await db.update(domainScansTable)
       .set({ attackScenariosStatus: "error" })
       .where(eq(domainScansTable.id, scanId))

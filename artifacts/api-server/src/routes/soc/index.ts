@@ -127,7 +127,9 @@ router.patch("/admin/soc/cases/:id", requireAdmin, async (req: Request, res: Res
       patch["status"] = parsed.data.status;
       if (parsed.data.status === "resolved") patch["resolvedAt"] = new Date();
     }
-    if (parsed.data.assignedTo !== undefined) patch["assignedTo"] = parsed.data.assignedTo;
+    if (parsed.data.assignedTo !== undefined) {
+      patch["assignedTo"] = parsed.data.assignedTo;
+    }
     if (parsed.data.acknowledge) {
       patch["acknowledgedAt"] = new Date();
       cancelEscalationCheck(id);
@@ -220,6 +222,14 @@ router.post("/admin/soc/cases/:id/note", requireAdmin, async (req: Request, res:
     await logSOCActivity({
       caseId: id, actorType: "analyst", actionType: "note", description: parsed.data.note,
     });
+
+    // ServiceNow work note sync — fire-and-forget
+    setImmediate(() => {
+      import("../../services/serviceNowClient").then(({ addServiceNowWorkNote }) =>
+        addServiceNowWorkNote(socCase.customerId, id, parsed.data.note)
+      ).catch(err => logger.warn({ err, caseId: id }, "ServiceNow work_note sync failed"));
+    });
+
     res.json({ ok: true });
   } catch (err) {
     logger.error({ err }, "SOC note failed");

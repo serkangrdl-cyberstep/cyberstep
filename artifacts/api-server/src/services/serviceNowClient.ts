@@ -58,6 +58,9 @@ const PRIVATE_RANGES = [
   /^fd/i,
 ];
 
+// IP literal regex — blocks bare IPv4/IPv6 addresses as hostname
+const IP_LITERAL = /^(\d{1,3}\.){3}\d{1,3}$|^\[.*\]$/;
+
 export function validateServiceNowUrl(instanceUrl: string): void {
   let parsed: URL;
   try {
@@ -68,43 +71,77 @@ export function validateServiceNowUrl(instanceUrl: string): void {
   if (parsed.protocol !== "https:") {
     throw new Error("ServiceNow URL'si HTTPS olmalıdır");
   }
-  const host = parsed.hostname;
-  if (host === "localhost" || host === "") {
+  const host = parsed.hostname.toLowerCase();
+  if (!host || host === "localhost") {
     throw new Error("Geçersiz hostname");
   }
-  // Block private/internal addresses
+  // Block bare IP literals — ServiceNow instances are always FQDNs
+  if (IP_LITERAL.test(host)) {
+    throw new Error("IP adresi kullanılamaz; ServiceNow instance FQDN kullanılmalıdır");
+  }
+  // Block private/internal addresses (for IP literals that slip through)
   for (const re of PRIVATE_RANGES) {
     if (re.test(host)) {
       throw new Error("Özel/dahili ağ adresine bağlantıya izin verilmez");
     }
   }
+  // Hostname must contain at least one dot (FQDN sanity check)
+  if (!host.includes(".")) {
+    throw new Error("Geçersiz hostname — FQDN gereklidir (örn. dev12345.service-now.com)");
+  }
 }
 
 // ─── Low-level API helpers ─────────────────────────────────────────────────────
+
+function isRetriableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
 
 async function snRequest<T>(
   method: "GET" | "POST" | "PATCH",
   url: string,
   headers: Record<string, string>,
   body?: unknown,
+  maxRetries = 3,
 ): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`ServiceNow ${method} ${url} → HTTP ${res.status}: ${text.slice(0, 200)}`);
+  let lastError: Error = new Error("Unknown error");
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        const err = new Error(`ServiceNow ${method} → HTTP ${res.status}: ${text.slice(0, 200)}`);
+        if (attempt < maxRetries && isRetriableStatus(res.status)) {
+          lastError = err;
+          const jitter = Math.random() * 500;
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt) + jitter));
+          continue;
+        }
+        throw err;
+      }
+      return (await res.json()) as T;
+    } catch (err) {
+      clearTimeout(timeout);
+      // Network/abort errors are retriable
+      if (attempt < maxRetries && (err as NodeJS.ErrnoException).code !== undefined) {
+        lastError = err as Error;
+        const jitter = Math.random() * 500;
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt) + jitter));
+        continue;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
     }
-    return (await res.json()) as T;
-  } finally {
-    clearTimeout(timeout);
   }
+  throw lastError;
 }
 
 export async function testServiceNowConnection(cfg: SnConfig): Promise<{ ok: boolean; message: string }> {
@@ -292,6 +329,43 @@ export async function resolveServiceNowIncident(
     await pool.query(
       `UPDATE servicenow_incidents SET sync_error = $1 WHERE id = $2`,
       [String(err).slice(0, 500), incident.id],
+    );
+  }
+}
+
+// ─── Work Notes Sync (SOC not → SN work_notes) ────────────────────────────────
+
+export async function addServiceNowWorkNote(
+  customerId: number,
+  socCaseId: number,
+  note: string,
+): Promise<void> {
+  const cfg = await loadConfig(customerId);
+  if (!cfg) return;
+
+  assertSafeUrl(cfg.instanceUrl);
+
+  const { rows } = await pool.query<{ sn_sys_id: string; id: number }>(
+    `SELECT id, sn_sys_id FROM servicenow_incidents WHERE soc_case_id = $1 AND customer_id = $2 LIMIT 1`,
+    [socCaseId, customerId],
+  );
+  const inc = rows[0];
+  if (!inc) return; // No ServiceNow incident for this case
+
+  try {
+    await updateSnIncident(cfg, inc.sn_sys_id, {
+      work_notes: `[CyberStep SOC] ${note.slice(0, 4000)}`,
+    });
+    await pool.query(
+      `UPDATE servicenow_incidents SET last_synced_at = NOW(), sync_error = NULL WHERE id = $1`,
+      [inc.id],
+    );
+    logger.info({ customerId, socCaseId }, "ServiceNow work_note eklendi");
+  } catch (err) {
+    logger.warn({ err, customerId, socCaseId }, "ServiceNow work_note eklenemedi");
+    await pool.query(
+      `UPDATE servicenow_incidents SET sync_error = $1 WHERE id = $2`,
+      [String(err).slice(0, 500), inc.id],
     );
   }
 }

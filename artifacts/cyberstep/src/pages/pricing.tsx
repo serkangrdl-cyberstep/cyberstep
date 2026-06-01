@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck, Eye, FileText, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +68,52 @@ export default function Pricing() {
   usePageMeta({
     title: "Fiyatlar | CyberStep.io",
     description: "KOBİ'ler icin siber guvenlik degerlendirme paketleri. Ucretsiz Mini Degerlendirme ile baslayin, tam analizle buyumeye devam edin.",
+    keywords: "siber güvenlik fiyatları, güvenlik değerlendirmesi fiyat, KVKK uyum fiyat, SOC hizmet fiyatı",
+    canonicalPath: "/fiyatlar",
   });
+
+  // Service + Offer JSON-LD — Google zengin sonuçlar ve fiyat kartları için
+  useEffect(() => {
+    const id = "ld-json-service";
+    let el = document.getElementById(id) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = id;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "name": "CyberStep Siber Güvenlik Değerlendirmesi",
+      "provider": {
+        "@type": "Organization",
+        "name": "CyberStep.io",
+        "url": "https://cyberstep.io",
+      },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Mini Değerlendirme",
+          "price": "0",
+          "priceCurrency": "TRY",
+          "description": "20 soruluk ücretsiz siber güvenlik risk değerlendirmesi",
+          "url": "https://cyberstep.io/degerlendirme",
+        },
+        {
+          "@type": "Offer",
+          "name": "Tam Değerlendirme",
+          "price": "5990",
+          "priceCurrency": "TRY",
+          "description": "55 soruluk kapsamlı güvenlik değerlendirmesi, sektör karşılaştırması ve uzman danışmanlık",
+          "url": "https://cyberstep.io/fiyatlar",
+        },
+      ],
+      "areaServed": "TR",
+      "availableLanguage": "Turkish",
+    });
+    return () => { el?.remove(); };
+  }, []);
 
   const { data: dbPlansRaw } = useQuery<DbPlan[]>({
     queryKey: ["public-pricing"],

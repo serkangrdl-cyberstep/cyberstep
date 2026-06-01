@@ -221,6 +221,51 @@ export default function Home() {
     return () => { el?.remove(); };
   }, [lang]);
 
+  // Organization + WebSite JSON-LD — Google Knowledge Panel ve site arama kutusu için
+  useEffect(() => {
+    const id = "ld-json-organization";
+    let el = document.getElementById(id) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = id;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify([
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "CyberStep.io",
+        "url": "https://cyberstep.io",
+        "logo": "https://cyberstep.io/favicon.svg",
+        "description": lang === "en"
+          ? "Turkey's AI-powered cybersecurity risk platform for SMEs"
+          : "Türkiye'nin yapay zeka destekli KOBİ siber güvenlik risk platformu",
+        "sameAs": [
+          "https://linkedin.com/company/cyberstep-io",
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "availableLanguage": "Turkish",
+        },
+        "areaServed": "TR",
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "CyberStep.io",
+        "url": "https://cyberstep.io",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://cyberstep.io/blog?q={search_term_string}",
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ]);
+    return () => { el?.remove(); };
+  }, [lang]);
+
   const { data: pricingPlans, isLoading: pricingLoading } = useQuery<PricingPlan[]>({
     queryKey: ["public-pricing"],
     queryFn: () => fetch("/api/public/pricing").then(r => r.json()),

@@ -6,8 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 export default function Iletisim() {
+  usePageMeta({
+    title: "İletişim | CyberStep.io",
+    description: "CyberStep.io ile iletişime geçin. Siber güvenlik değerlendirmesi, kurumsal çözümler ve destek için bize ulaşın.",
+    keywords: "cyberstep iletişim, siber güvenlik destek, cyberstep.io",
+    canonicalPath: "/iletisim",
+  });
   const { toast } = useToast();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],

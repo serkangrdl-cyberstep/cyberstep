@@ -38,4 +38,4 @@ Disallow: /
 User-agent: Applebot-Extended
 Disallow: /
 
-Sitemap: https://cyberstep.io/sitemap.xml
+Sitemap: https://cyberstep.io/api/public/sitemap.xml

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Calendar, User, ArrowLeft, Clock, Share2, Check } from "lucide-react";
@@ -131,7 +131,45 @@ function BlogPostMeta({ post, lang }: { post: BlogPost | null | undefined; lang:
     description: displayExcerpt,
     ogImage: post?.coverImageBase64 ?? undefined,
     ogType: "article",
+    canonicalPath: post ? `/blog/${post.slug}` : undefined,
+    lang,
   });
+
+  // Article JSON-LD — Google zengin sonuçları için
+  useEffect(() => {
+    if (!post) return;
+    const id = "ld-json-article";
+    let el = document.getElementById(id) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = id;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    const title = (lang === "en" && post.titleEn) ? post.titleEn : post.title;
+    const description = (lang === "en" && post.excerptEn) ? post.excerptEn : post.excerpt;
+    el.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": title,
+      "description": description,
+      "author": {
+        "@type": "Organization",
+        "name": "CyberStep.io",
+        "url": "https://cyberstep.io",
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "CyberStep.io",
+        "logo": { "@type": "ImageObject", "url": "https://cyberstep.io/favicon.svg" },
+      },
+      "image": post.coverImageBase64 || "https://cyberstep.io/opengraph.jpg",
+      "url": `https://cyberstep.io/blog/${post.slug}`,
+      "inLanguage": lang === "en" ? "en-US" : "tr-TR",
+    });
+    return () => { el?.remove(); };
+  }, [post, lang]);
+
   return null;
 }
 

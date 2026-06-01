@@ -3,6 +3,7 @@ import { useEffect } from "react";
 interface PageMeta {
   title: string;
   description?: string;
+  keywords?: string;
   ogImage?: string;
   ogType?: string;
   noIndex?: boolean;
@@ -41,6 +42,7 @@ function setLink(rel: string, href: string, extraAttrs?: Record<string, string>)
 export function usePageMeta({
   title,
   description,
+  keywords,
   ogImage,
   ogType = "website",
   noIndex,
@@ -60,6 +62,10 @@ export function usePageMeta({
       setMeta("description", description);
       setMeta("og:description", description, "property");
       setMeta("twitter:description", description);
+    }
+
+    if (keywords) {
+      setMeta("keywords", keywords);
     }
 
     setMeta("og:title", fullTitle, "property");
@@ -89,5 +95,5 @@ export function usePageMeta({
     } else {
       setMeta("robots", "index, follow");
     }
-  }, [title, description, ogImage, ogType, noIndex, canonicalPath, lang]);
+  }, [title, description, keywords, ogImage, ogType, noIndex, canonicalPath, lang]);
 }

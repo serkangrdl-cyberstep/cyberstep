@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/language-context";
 import { TRANSLATIONS as T, t } from "@/lib/translations";
 import { format } from "date-fns";
 import { tr, enUS } from "date-fns/locale";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 interface BlogPost {
   id: number;
@@ -122,6 +123,17 @@ function NewsletterWidget() {
 
 export default function Blog() {
   const { lang } = useLanguage();
+  usePageMeta({
+    title: lang === "en" ? "Cybersecurity Blog | CyberStep.io" : "Siber Güvenlik Blog | CyberStep.io",
+    description: lang === "en"
+      ? "Latest cybersecurity threats, KVKK news and security tips for businesses in Turkey."
+      : "Türkiye'deki şirketler için güncel siber tehditler, KVKK haberleri ve güvenlik önerileri.",
+    keywords: lang === "en"
+      ? "cybersecurity blog, KVKK news, cyber threats turkey"
+      : "siber güvenlik blog, KVKK haberleri, siber tehdit türkiye",
+    canonicalPath: "/blog",
+    lang,
+  });
   const { data: posts, isLoading } = useQuery<BlogPost[]>({
     queryKey: ["public-blog"],
     queryFn: () => fetch("/api/public/blog").then(r => r.json()),

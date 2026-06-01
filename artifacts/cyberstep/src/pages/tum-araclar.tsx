@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { ArrowRight, Globe, ShieldAlert, FileText, BarChart2, Search, AlertCircle, Target, Bot, Cpu, BookOpen, Scale, Building2, Zap, Activity, Shield, Mail, Eye, Layers, TrendingUp, Lock, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const TOOL_CATEGORIES = [
   {
@@ -65,6 +66,12 @@ const TOOL_CATEGORIES = [
 ];
 
 export default function TumAraclar() {
+  usePageMeta({
+    title: "Siber Güvenlik Araç Seti | CyberStep.io",
+    description: "AI destekli değerlendirmeden uyum rehberlerine, sızıntı izlemeye kadar şirketinizi koruyacak tüm siber güvenlik araçları.",
+    keywords: "siber güvenlik araçları, domain tarama, ssl kontrol, kvkk uyum, phishing testi",
+    canonicalPath: "/tum-araclar",
+  });
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-slate-900 text-white py-16">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1625,6 +1626,12 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
 }
 
 export default function DomainScanPage() {
+  usePageMeta({
+    title: "Ücretsiz Domain Güvenlik Taraması | CyberStep.io",
+    description: "SPF, DKIM, DMARC, SSL, kara liste, dark web sızıntı — tek taramada tüm güvenlik kontrolü. Ücretsiz, anında sonuç.",
+    keywords: "domain güvenlik tarama, ssl kontrol, dmarc kontrol, domain blacklist kontrol, dark web sorgulama",
+    canonicalPath: "/domain-tarama",
+  });
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);

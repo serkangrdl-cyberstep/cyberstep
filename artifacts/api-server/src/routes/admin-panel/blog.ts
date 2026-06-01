@@ -502,4 +502,80 @@ router.patch("/admin-panel/blog-calendar/:id/status", requireAdmin, async (req: 
   }
 });
 
+// ─── Dinamik Sitemap ────────────────────────────────────────────────────────────
+
+router.get("/public/sitemap.xml", async (_req, res) => {
+  const BASE_URL = "https://cyberstep.io";
+  const today = new Date().toISOString().split("T")[0];
+
+  const staticPages = [
+    { url: "/", priority: "1.0", changefreq: "weekly" },
+    { url: "/degerlendirme", priority: "0.9", changefreq: "monthly" },
+    { url: "/fiyatlar", priority: "0.9", changefreq: "weekly" },
+    { url: "/domain-tarama", priority: "0.9", changefreq: "monthly" },
+    { url: "/blog", priority: "0.8", changefreq: "daily" },
+    { url: "/tum-araclar", priority: "0.8", changefreq: "monthly" },
+    { url: "/ai-guvenlik-degerlendirmesi", priority: "0.8", changefreq: "monthly" },
+    { url: "/pentest-lite", priority: "0.8", changefreq: "monthly" },
+    { url: "/phishing-sim", priority: "0.8", changefreq: "monthly" },
+    { url: "/kvkk-ceza-sim", priority: "0.8", changefreq: "monthly" },
+    { url: "/sifre-guvenligi", priority: "0.8", changefreq: "monthly" },
+    { url: "/veri-sizintisi-kontrolu", priority: "0.8", changefreq: "monthly" },
+    { url: "/rakip-karsilastirma", priority: "0.7", changefreq: "weekly" },
+    { url: "/hakkimizda", priority: "0.7", changefreq: "monthly" },
+    { url: "/iletisim", priority: "0.7", changefreq: "monthly" },
+    { url: "/cozum-ortakligi", priority: "0.6", changefreq: "monthly" },
+    { url: "/yatirim-paketi", priority: "0.6", changefreq: "monthly" },
+    { url: "/sektor/saglik", priority: "0.7", changefreq: "monthly" },
+    { url: "/sektor/finans", priority: "0.7", changefreq: "monthly" },
+    { url: "/sektor/perakende", priority: "0.7", changefreq: "monthly" },
+    { url: "/sektor/bilisim", priority: "0.7", changefreq: "monthly" },
+    { url: "/sektor/imalat", priority: "0.7", changefreq: "monthly" },
+    { url: "/kvkk", priority: "0.3", changefreq: "yearly" },
+    { url: "/gizlilik-politikasi", priority: "0.3", changefreq: "yearly" },
+    { url: "/kullanim-kosullari", priority: "0.3", changefreq: "yearly" },
+    { url: "/cerez-politikasi", priority: "0.3", changefreq: "yearly" },
+  ];
+
+  // Blog yazılarını DB'den çek
+  let blogPages: { url: string; lastmod: string; priority: string; changefreq: string }[] = [];
+  try {
+    const blogs = await db
+      .select({ slug: blogPostsTable.slug, publishedAt: blogPostsTable.publishedAt })
+      .from(blogPostsTable)
+      .where(eq(blogPostsTable.status, "published"))
+      .orderBy(desc(blogPostsTable.publishedAt));
+    blogPages = blogs.map(b => ({
+      url: `/blog/${b.slug}`,
+      lastmod: b.publishedAt ? new Date(b.publishedAt).toISOString().split("T")[0] : today,
+      priority: "0.7",
+      changefreq: "monthly",
+    }));
+  } catch {
+    // DB hatasında statik sayfalarla devam et
+  }
+
+  const allPages = [
+    ...staticPages.map(p => ({ ...p, lastmod: today })),
+    ...blogPages,
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${allPages.map(p => `  <url>
+    <loc>${BASE_URL}${p.url}</loc>
+    <lastmod>${p.lastmod}</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="${BASE_URL}${p.url}"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE_URL}${p.url}"/>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join("\n")}
+</urlset>`;
+
+  res.set("Content-Type", "application/xml");
+  res.set("Cache-Control", "public, max-age=3600");
+  res.send(xml);
+});
+
 export default router;

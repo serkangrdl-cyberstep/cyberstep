@@ -74,3 +74,4 @@ export * from "./observability";
 export * from "./ct-events";
 export * from "./ms365";
 export * from "./kvkk-notifications";
+export * from "./servicenow";

@@ -19,5 +19,6 @@
 - [Admin white-screen crashes](admin-white-screen.md) — AdminLayout now wraps pages in AdminErrorBoundary; use adminFetchJson (throws on !ok) not raw fetch().then(json); new admin pages MUST use AdminLayout; nav is grouped NAV_SECTIONS
 - [Admin tenant auto-provision](tenant-auto-provision.md) — requireAdmin is async + self-heals session.tenantId (picks first membership or provisions workspace-${adminId}); needs tenant_users_tenant_admin_uq unique index
 - [AI Destekli SOC Servisi](soc-service.md) — multi-tenant triage/playbook/escalation on fabric_events; SOC_ADMIN_EMAIL must fail closed; use createCaseWithNumber() (case# collides); triage cron must not overlap
+- [ServiceNow Entegrasyonu](servicenow-integration.md) — SOC case↔INC çift yönlü sync; UNIQUE(customer_id) index required for upsert; cron */15; fire-and-forget hooks in soc-triage+soc/index.ts
 - [MS365 Azure AD Integration](ms365-integration.md) — OAuth2 multi-tenant + Graph API poller + SOC correlation; needs MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET env vars; session cast pattern: `req.session as { ms365_oauth_state?: string }`
 - [DNS Monitor & Onboarding Emails](dns-onboarding.md) — dns_watched_domains/snapshots/change_events tables; 5-min cron in dns-cron.ts; D+3/D+7 onboarding cron at 10:30 Istanbul; customers table gets onboarding_d3/d7_sent_at columns

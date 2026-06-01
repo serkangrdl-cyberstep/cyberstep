@@ -235,6 +235,20 @@ async function openCase(customerId: number, events: FabricEvent[], analysis: Dee
   // Ack timer — escalate if not acknowledged within the response window
   scheduleEscalationCheck(created.id, responseMinutes);
 
+  // ServiceNow incident aç — entegrasyon yapılandırılmışsa arka planda tetikle
+  setImmediate(() => {
+    import("../serviceNowClient").then(({ openServiceNowIncident }) =>
+      openServiceNowIncident(customerId, created.id, {
+        caseId: created.id,
+        caseNumber: created.caseNumber,
+        title: analysis.title,
+        description: analysis.recommendedAction ?? "",
+        severity: analysis.severity,
+        category: analysis.category,
+      })
+    ).catch((err) => logger.warn({ err, caseId: created.id }, "ServiceNow incident open failed"));
+  });
+
   // KVKK 12. Madde değerlendirmesi — ilgili kategorilerde arka planda tetikle
   setImmediate(() => {
     import("../kvkkAssessor").then(({ triggerKvkkAssessment }) =>

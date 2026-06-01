@@ -152,6 +152,7 @@ import AdminDnsIzleme from "./pages/admin-panel/dns-izleme";
 import AdminCtIzleme from "./pages/admin-panel/ct-izleme";
 import AdminMs365 from "./pages/admin-panel/ms365";
 import AdminKvkk from "./pages/admin-panel/kvkk";
+import AdminServiceNow from "./pages/admin-panel/servicenow";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
 import SocDashboard from "./pages/hesabim/soc";
 import HesabimDestek from "./pages/hesabim/destek";
@@ -315,6 +316,7 @@ function Router() {
       <Route path="/panel/ct-izleme" component={AdminCtIzleme} />
       <Route path="/panel/ms365" component={AdminMs365} />
       <Route path="/panel/kvkk" component={AdminKvkk} />
+      <Route path="/panel/servicenow" component={AdminServiceNow} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

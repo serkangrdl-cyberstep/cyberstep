@@ -93,6 +93,7 @@ const NAV_SECTIONS = [
       { icon: ShieldAlert,     label: "CT Log İzleme",         href: "/panel/ct-izleme" },
       { icon: Building2,       label: "Microsoft 365",         href: "/panel/ms365" },
       { icon: ScrollText,      label: "KVKK Bildirimler",      href: "/panel/kvkk" },
+      { icon: Network,         label: "ServiceNow",            href: "/panel/servicenow" },
     ],
   },
   {

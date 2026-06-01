@@ -14,6 +14,7 @@ import { startCertstreamClient } from "./services/certstream-client";
 import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
 import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
+import { ensureServiceNowTables, syncServiceNowIncidents } from "./services/serviceNowClient";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
@@ -1405,6 +1406,7 @@ async function startup() {
   await ensureCtTable();
   await ensureMs365Tables();
   await ensureKvkkTables();
+  await ensureServiceNowTables();
   await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
 }
@@ -1830,6 +1832,11 @@ startup()
       try { await checkKvkkDeadlines(); } catch (err) { logger.error({ err }, "KVKK deadline cron failed"); }
     });
     logger.info("KVKK 72h deadline cron scheduled (every 30 min)");
+
+    cron.schedule("*/15 * * * *", async () => {
+      try { await syncServiceNowIncidents(); } catch (err) { logger.error({ err }, "ServiceNow sync cron failed"); }
+    });
+    logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
 
     const server = app.listen(port, (err) => {
       if (err) {

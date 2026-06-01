@@ -24,6 +24,7 @@ import dnsMonitorAdminRouter from "./dns-monitor";
 import ctMonitorAdminRouter from "./ct-monitor";
 import ms365AdminRouter from "./ms365";
 import kvkkAdminRouter from "./kvkk";
+import serviceNowAdminRouter from "./servicenow";
 
 const router = Router();
 router.use(authRouter);
@@ -51,5 +52,6 @@ router.use(dnsMonitorAdminRouter);
 router.use(ctMonitorAdminRouter);
 router.use(ms365AdminRouter);
 router.use(kvkkAdminRouter);
+router.use(serviceNowAdminRouter);
 
 export default router;

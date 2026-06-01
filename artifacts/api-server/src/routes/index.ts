@@ -48,6 +48,7 @@ import dnsMonitorRouter from "./dns-monitor/index";
 import ctMonitorRouter from "./ct-monitor/index";
 import ms365Router from "./ms365/index";
 import kvkkBildirimRouter from "./kvkk-bildirim/index";
+import serviceNowRouter from "./integrations/servicenow";
 
 const router: IRouter = Router();
 
@@ -100,5 +101,6 @@ router.use(dnsMonitorRouter);
 router.use(ctMonitorRouter);
 router.use(ms365Router);
 router.use(kvkkBildirimRouter);
+router.use(serviceNowRouter);
 
 export default router;

@@ -139,6 +139,16 @@ router.patch("/admin/soc/cases/:id", requireAdmin, async (req: Request, res: Res
       details: parsed.data,
     });
     emitSOC({ type: "case_updated", customerId: existing.customerId, caseId: id, data: { ...parsed.data } });
+
+    // ServiceNow: resolve/close durumunda SN incident'ı da kapat
+    if (parsed.data.status && ["resolved", "closed", "false_positive"].includes(parsed.data.status)) {
+      setImmediate(() => {
+        import("../../services/serviceNowClient").then(({ resolveServiceNowIncident }) =>
+          resolveServiceNowIncident(existing.customerId, id, "CyberStep SOC vakası kapatıldı")
+        ).catch(err => logger.warn({ err, caseId: id }, "ServiceNow resolve failed"));
+      });
+    }
+
     res.json({ case: updated });
   } catch (err) {
     logger.error({ err }, "SOC admin case update failed");

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -386,6 +386,308 @@ function Ms365Section() {
   );
 }
 
+// ─── ServiceNow Section ────────────────────────────────────────────────────────
+
+interface SnConfig {
+  id: number;
+  instanceUrl: string;
+  username: string;
+  assignmentGroup: string | null;
+  category: string | null;
+  active: boolean;
+  lastSyncAt: string | null;
+  lastSyncError: string | null;
+}
+
+interface SnIncident {
+  id: number;
+  snNumber: string;
+  snState: number;
+  lastSyncedAt: string | null;
+  caseNumber: string;
+  caseTitle: string;
+  caseStatus: string;
+  severity: string;
+}
+
+const SN_STATES: Record<number, string> = {
+  1: "Yeni", 2: "Devam Ediyor", 3: "Beklemede", 6: "Çözüldü", 7: "Kapatıldı",
+};
+
+function ServiceNowSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ instanceUrl: "", username: "", apiToken: "", assignmentGroup: "", category: "Software" });
+  const [testing, setTesting] = useState(false);
+
+  const { data, isLoading } = useQuery<{ config: SnConfig | null }>({
+    queryKey: ["sn-config"],
+    queryFn: () => fetch("/api/integrations/servicenow", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
+  const { data: incData } = useQuery<{ incidents: SnIncident[] }>({
+    queryKey: ["sn-incidents"],
+    queryFn: () => fetch("/api/integrations/servicenow/incidents", { credentials: "include" }).then(r => r.json()),
+    enabled: !!data?.config,
+    refetchInterval: 60000,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/integrations/servicenow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(form),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "ServiceNow bağlandı", description: "SOC vakaları artık ServiceNow'a aktarılacak." });
+      qc.invalidateQueries({ queryKey: ["sn-config"] });
+      setShowForm(false);
+    },
+    onError: (err) => toast({ title: "Bağlantı başarısız", description: String(err), variant: "destructive" }),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/integrations/servicenow/${id}/toggle`, { method: "PATCH", credentials: "include" });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => {
+      toast({ title: "ServiceNow entegrasyonu devre dışı bırakıldı" });
+      qc.invalidateQueries({ queryKey: ["sn-config"] });
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  async function testConnection() {
+    if (!form.instanceUrl || !form.username || !form.apiToken) {
+      toast({ title: "Tüm alanlar zorunlu", variant: "destructive" }); return;
+    }
+    setTesting(true);
+    try {
+      const r = await fetch("/api/integrations/servicenow/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(form),
+      });
+      const d = await r.json() as { ok: boolean; message: string };
+      if (d.ok) toast({ title: "Bağlantı başarılı" });
+      else toast({ title: "Bağlantı başarısız", description: d.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Hata", variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  function timeSince(iso: string | null) {
+    if (!iso) return "-";
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 60) return `${m} dk önce`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} saat önce`;
+    return `${Math.floor(h / 24)} gün önce`;
+  }
+
+  const cfg = data?.config;
+  const incidents = incData?.incidents ?? [];
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Network className="h-4 w-4 text-violet-400" />
+            ServiceNow ITSM
+          </CardTitle>
+          {cfg?.active && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-400 hover:text-red-300 h-7"
+              onClick={() => disconnectMutation.mutate(cfg.id)}
+              disabled={disconnectMutation.isPending}
+            >
+              <Unplug className="h-3.5 w-3.5 mr-1" /> Kes
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+        ) : cfg?.active ? (
+          <>
+            <div className="border border-gray-800 rounded-lg p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-white">ServiceNow Bağlantısı</p>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Aktif</Badge>
+                  </div>
+                  <code className="text-[11px] text-violet-400 block mt-1">{cfg.instanceUrl}</code>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Son sync: {timeSince(cfg.lastSyncAt)}
+                    {cfg.assignmentGroup ? ` · Grup: ${cfg.assignmentGroup}` : ""}
+                  </p>
+                  {cfg.lastSyncError && (
+                    <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      {cfg.lastSyncError.slice(0, 80)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  { label: "Kategori", value: cfg.category ?? "Software" },
+                  { label: "Sync", value: "Her 15 dakika" },
+                  { label: "Incident", value: String(incidents.length) },
+                ].map(item => (
+                  <div key={item.label} className="bg-gray-950/50 rounded p-2">
+                    <p className="text-[11px] text-gray-500">{item.label}</p>
+                    <p className="text-xs text-gray-300 font-medium mt-0.5">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {incidents.length > 0 && (
+              <div className="border border-gray-800 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                  <TicketCheck className="h-3.5 w-3.5 text-violet-400" />
+                  Son ServiceNow Incident&apos;lar
+                </p>
+                {incidents.slice(0, 5).map(inc => (
+                  <div key={inc.id} className="flex items-center gap-2">
+                    <code className="text-[10px] text-violet-400 font-mono shrink-0">{inc.snNumber}</code>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-300 truncate">{inc.caseTitle}</p>
+                      <p className="text-[10px] text-gray-600">{inc.caseNumber} · {SN_STATES[inc.snState] ?? inc.snState}</p>
+                    </div>
+                    <span className="text-[10px] text-gray-600 shrink-0">{timeSince(inc.lastSyncedAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border border-gray-800 rounded p-3 bg-gray-950/50 text-xs text-gray-400 space-y-1">
+              <p className="font-medium text-gray-300">Nasıl çalışır:</p>
+              <p>· Yeni SOC vakası açıldığında ServiceNow&apos;da INC ticket oluşur</p>
+              <p>· Vaka kapatıldığında INC otomatik "Resolved" olarak güncellenir</p>
+              <p>· ServiceNow&apos;da elle kapatılan INC&apos;ler 15 dakikada bir SOC&apos;a yansır</p>
+            </div>
+          </>
+        ) : (
+          <>
+            {!showForm ? (
+              <div className="text-center py-8 border border-dashed border-gray-800 rounded-lg space-y-3">
+                <Network className="h-10 w-10 text-gray-600 mx-auto" />
+                <p className="text-gray-400 text-sm font-medium">ServiceNow bağlı değil</p>
+                <p className="text-gray-600 text-xs max-w-sm mx-auto">
+                  SOC vakalarını ServiceNow ITSM&apos;inize otomatik olarak aktarın.
+                  Her vaka için INC ticket oluşturulur ve çift yönlü senkronize edilir.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setShowForm(true)}
+                  className="bg-violet-600 hover:bg-violet-700 text-white border-0 mt-2"
+                >
+                  <Network className="h-3.5 w-3.5 mr-1" />
+                  ServiceNow Bağla
+                </Button>
+              </div>
+            ) : (
+              <div className="border border-gray-700 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-medium text-white">ServiceNow Bağlantı Ayarları</p>
+                <div>
+                  <Label className="text-gray-400 text-xs">Instance URL <span className="text-red-400">*</span></Label>
+                  <Input
+                    value={form.instanceUrl}
+                    onChange={e => setForm(f => ({ ...f, instanceUrl: e.target.value }))}
+                    placeholder="https://dev12345.service-now.com"
+                    className="mt-1 bg-gray-900 border-gray-700 text-white font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-xs">Kullanıcı Adı <span className="text-red-400">*</span></Label>
+                  <Input
+                    value={form.username}
+                    onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                    placeholder="admin"
+                    className="mt-1 bg-gray-900 border-gray-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-xs">API Token / Şifre <span className="text-red-400">*</span></Label>
+                  <Input
+                    type="password"
+                    value={form.apiToken}
+                    onChange={e => setForm(f => ({ ...f, apiToken: e.target.value }))}
+                    placeholder="ServiceNow kullanıcı şifresi"
+                    className="mt-1 bg-gray-900 border-gray-700 text-white font-mono"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-gray-400 text-xs">Assignment Group (opsiyonel)</Label>
+                    <Input
+                      value={form.assignmentGroup}
+                      onChange={e => setForm(f => ({ ...f, assignmentGroup: e.target.value }))}
+                      placeholder="Service Desk"
+                      className="mt-1 bg-gray-900 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-400 text-xs">Kategori</Label>
+                    <Input
+                      value={form.category}
+                      onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                      placeholder="Software"
+                      className="mt-1 bg-gray-900 border-gray-700 text-white"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={testConnection}
+                    disabled={testing}
+                    className="border-gray-700 text-gray-300 text-xs h-8"
+                  >
+                    {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                    Bağlantıyı Test Et
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending || !form.instanceUrl || !form.username || !form.apiToken}
+                    className="bg-violet-600 hover:bg-violet-700 text-white border-0 h-8"
+                  >
+                    {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                    Kaydet
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="text-gray-400 h-8">Vazgeç</Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function EntegrasyonlarimPage() {
   useRequireCustomer();
   const { toast } = useToast();
@@ -486,6 +788,9 @@ export default function EntegrasyonlarimPage() {
 
         {/* ─── Microsoft 365 / Azure AD ─────────────────────── */}
         <Ms365Section />
+
+        {/* ─── ServiceNow ITSM ─────────────────────────────── */}
+        <ServiceNowSection />
 
         {/* ─── Datadog ─────────────────────────────────────── */}
         <Card className="bg-gray-900 border-gray-800">

@@ -132,14 +132,14 @@ router.get("/ms365/callback", async (req, res) => {
 
   if (error) {
     req.log.warn({ error, error_description }, "MS365 OAuth error from Microsoft");
-    res.redirect("/hesabim/entegrasyonlar?ms365_error=oauth_denied");
+    res.redirect("/hesabim/entegrasyonlarim?ms365_error=oauth_denied");
     return;
   }
 
   // Verify HMAC-signed state — no session cookie required, works under SameSite=Strict
   const verified = verifyMs365State(state ?? "");
   if (!verified) {
-    res.redirect("/hesabim/entegrasyonlar?ms365_error=invalid_state");
+    res.redirect("/hesabim/entegrasyonlarim?ms365_error=invalid_state");
     return;
   }
   const customerId = verified.customerId;
@@ -147,7 +147,7 @@ router.get("/ms365/callback", async (req, res) => {
   try {
     const tokens = await exchangeMs365Code(code ?? "");
     if (!tokens) {
-      res.redirect("/hesabim/entegrasyonlar?ms365_error=token_exchange");
+      res.redirect("/hesabim/entegrasyonlarim?ms365_error=token_exchange");
       return;
     }
 
@@ -157,7 +157,7 @@ router.get("/ms365/callback", async (req, res) => {
 
     if (!accessEnc || !refreshEnc) {
       req.log.error("MS365 OAuth callback: ENCRYPTION_KEY not configured — refusing to store plaintext tokens");
-      res.redirect("/hesabim/entegrasyonlar?ms365_error=encryption_unavailable");
+      res.redirect("/hesabim/entegrasyonlarim?ms365_error=encryption_unavailable");
       return;
     }
 
@@ -192,10 +192,10 @@ router.get("/ms365/callback", async (req, res) => {
     }
 
     req.log.info({ customerId, tenantId: tokens.tenantId }, "MS365 OAuth complete");
-    res.redirect("/hesabim/entegrasyonlar?ms365_success=1");
+    res.redirect("/hesabim/entegrasyonlarim?ms365_success=1");
   } catch (err) {
     req.log.error({ err }, "GET /api/ms365/callback error");
-    res.redirect("/hesabim/entegrasyonlar?ms365_error=server");
+    res.redirect("/hesabim/entegrasyonlarim?ms365_error=server");
   }
 });
 

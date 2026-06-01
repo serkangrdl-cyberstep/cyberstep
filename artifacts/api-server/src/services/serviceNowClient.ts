@@ -875,7 +875,10 @@ const RETRY_WINDOW_HOURS = 48;
  */
 const RETRY_BATCH_SIZE = 20; // rows per cursor page — keeps memory bounded
 
-async function retryPendingServiceNowCases(customerId: number): Promise<void> {
+async function retryPendingServiceNowCases(
+  customerId: number,
+  notify?: { customerEmail: string; customerName: string; instanceUrl: string },
+): Promise<void> {
   try {
     let totalAttempted = 0;
     let totalSucceeded = 0;
@@ -952,6 +955,22 @@ async function retryPendingServiceNowCases(customerId: number): Promise<void> {
       { customerId, totalAttempted, totalSucceeded, batchCount },
       "ServiceNow retry: drain complete",
     );
+
+    // Notify the customer about the reconnection and transferred cases
+    if (totalAttempted > 0 && notify?.customerEmail) {
+      try {
+        const { sendServiceNowReconnectSummaryEmail } = await import("./email");
+        await sendServiceNowReconnectSummaryEmail({
+          to: notify.customerEmail,
+          customerName: notify.customerName,
+          instanceUrl: notify.instanceUrl,
+          totalSucceeded,
+          totalAttempted,
+        });
+      } catch (emailErr) {
+        logger.warn({ emailErr, customerId }, "ServiceNow retry: reconnect summary email gönderilemedi");
+      }
+    }
   } catch (err) {
     logger.error({ err, customerId }, "ServiceNow retry: bekleyen vaka gönderimi başarısız");
   }
@@ -1032,8 +1051,11 @@ export async function checkServiceNowConnections(): Promise<void> {
           // Re-connection detected: push SOC cases that were lost during the outage
           if (wasErrored) {
             logger.info({ configId: row.id, customerId: row.customer_id }, "ServiceNow bağlantısı yeniden kuruldu — bekleyen vakalar için retry tetikleniyor");
+            const notifyPayload = row.customer_email
+              ? { customerEmail: row.customer_email, customerName: row.customer_name ?? row.customer_email, instanceUrl: row.instance_url }
+              : undefined;
             setImmediate(() => {
-              retryPendingServiceNowCases(row.customer_id).catch((err) =>
+              retryPendingServiceNowCases(row.customer_id, notifyPayload).catch((err) =>
                 logger.error({ err, customerId: row.customer_id }, "ServiceNow retry: beklenmedik hata"),
               );
             });

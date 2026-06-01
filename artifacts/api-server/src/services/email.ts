@@ -1304,6 +1304,76 @@ export async function sendOnboardingD7Email(params: {
   logger.info({ email: params.email }, "Onboarding D+7 email sent");
 }
 
+// ─── ServiceNow Yeniden Bağlanma Özeti ───────────────────────────────────────
+
+export async function sendServiceNowReconnectSummaryEmail(params: {
+  to: string;
+  customerName: string;
+  instanceUrl: string;
+  totalSucceeded: number;
+  totalAttempted: number;
+}): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const socUrl = `${baseUrl}/hesabim/soc`;
+
+  await sendMail({
+    to: params.to,
+    subject: `ServiceNow Bağlantısı Yeniden Kuruldu — ${params.totalSucceeded} Vaka Aktarıldı`,
+    html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+    <div style="background:#0f172a;padding:28px 32px">
+      <span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.5px">CyberStep.io</span>
+    </div>
+    <div style="padding:32px">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#15803d">ServiceNow Bağlantısı Yeniden Kuruldu</p>
+        <p style="margin:0;font-size:13px;color:#16a34a">Bekleyen SOC vakaları ServiceNow'a başarıyla aktarıldı.</p>
+      </div>
+      <p style="margin:0 0 16px;font-size:15px;color:#334155">Sayın <strong>${params.customerName}</strong>,</p>
+      <p style="margin:0 0 20px;font-size:15px;color:#475569;line-height:1.6">
+        CyberStep SOC platformunuzun <strong>ServiceNow</strong> entegrasyon bağlantısı yeniden kuruldu.
+        Bağlantı kesikliği sırasında beklemede kalan SOC vakaları otomatik olarak aktarıldı.
+      </p>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Aktarım Özeti</p>
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="padding:8px 0;font-size:14px;color:#64748b;width:200px">ServiceNow Instance</td>
+            <td style="padding:8px 0;font-size:14px;color:#0f172a;font-weight:600;word-break:break-all">${params.instanceUrl}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;font-size:14px;color:#64748b;border-top:1px solid #f1f5f9">Aktarılan Vaka Sayısı</td>
+            <td style="padding:8px 0;font-size:14px;color:#15803d;font-weight:700;border-top:1px solid #f1f5f9">${params.totalSucceeded} / ${params.totalAttempted}</td>
+          </tr>
+        </table>
+      </div>
+      ${params.totalSucceeded < params.totalAttempted ? `
+      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:14px 18px;margin-bottom:24px">
+        <p style="margin:0;font-size:13px;color:#854d0e;line-height:1.5">
+          <strong>${params.totalAttempted - params.totalSucceeded} vaka</strong> aktarılamadı.
+          SOC panonuzdan durumu kontrol edebilir ve gerekirse manuel aktarım yapabilirsiniz.
+        </p>
+      </div>` : ""}
+      <a href="${socUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:700;margin-bottom:24px">
+        SOC Panosuna Git
+      </a>
+      <p style="margin:0;font-size:13px;color:#94a3b8">
+        Bu bildirim, ServiceNow bağlantısının yeniden kurulması üzerine CyberStep tarafından otomatik olarak gönderilmiştir.
+      </p>
+    </div>
+    <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİ'ler için siber güvenlik platformu</p>
+    </div>
+  </div>
+</body></html>`,
+  });
+  logger.info(
+    { to: params.to, instanceUrl: params.instanceUrl, totalSucceeded: params.totalSucceeded },
+    "ServiceNow reconnect summary email sent",
+  );
+}
+
 // ─── ServiceNow Bağlantı Uyarısı ─────────────────────────────────────────────
 
 export async function sendServiceNowConnectionAlertEmail(params: {

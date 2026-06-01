@@ -56,6 +56,7 @@ import servicePaymentsRouter from "./payments/index";
 import couponsRouter from "./coupons/index";
 import slackRouter from "./integrations/slack";
 import platformHealthRouter from "./platform-health/index";
+import nocRouter from "./noc/index";
 
 const router: IRouter = Router();
 
@@ -116,5 +117,6 @@ router.use(servicePaymentsRouter);
 router.use(couponsRouter);
 router.use(slackRouter);
 router.use(platformHealthRouter);
+router.use(nocRouter);
 
 export default router;

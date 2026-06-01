@@ -27,6 +27,12 @@ import { runCollectionReminderCron } from "./services/invoice";
 import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
 import { startRenewalCron } from "./services/subscription-renewal";
 import { processEmailQueue } from "./services/email-sequences";
+import {
+  runFortiGatePollCron,
+  runAvailabilityCron,
+  runNOCTriageCron,
+  checkAndCompleteBaselines,
+} from "./services/noc-service";
 import cron from "node-cron";
 import bcrypt from "bcryptjs";
 
@@ -1865,6 +1871,30 @@ startup()
       try { await processEmailQueue(); } catch (err) { logger.warn({ err }, "Email sequence cron failed"); }
     });
     logger.info("Email sequence cron scheduled (every 30 min)");
+
+    // ─── NOC: FortiGate polling — her 5 dakika ────────────────────────────────
+    cron.schedule("*/5 * * * *", async () => {
+      try { await runFortiGatePollCron(); } catch (err) { logger.warn({ err }, "NOC FortiGate poll cron failed"); }
+    });
+    logger.info("NOC FortiGate poll cron scheduled (every 5 min)");
+
+    // ─── NOC: Availability monitor — her 5 dakika ─────────────────────────────
+    cron.schedule("*/5 * * * *", async () => {
+      try { await runAvailabilityCron(); } catch (err) { logger.warn({ err }, "NOC availability cron failed"); }
+    });
+    logger.info("NOC availability cron scheduled (every 5 min)");
+
+    // ─── NOC: Claude triage — her 15 dakika ───────────────────────────────────
+    cron.schedule("*/15 * * * *", async () => {
+      try { await runNOCTriageCron(); } catch (err) { logger.warn({ err }, "NOC triage cron failed"); }
+    });
+    logger.info("NOC triage cron scheduled (every 15 min)");
+
+    // ─── NOC: Baseline tamamlama — her saat ──────────────────────────────────
+    cron.schedule("0 * * * *", async () => {
+      try { await checkAndCompleteBaselines(); } catch (err) { logger.warn({ err }, "NOC baseline cron failed"); }
+    });
+    logger.info("NOC baseline check cron scheduled (every hour)");
 
     const server = app.listen(port, (err) => {
       if (err) {

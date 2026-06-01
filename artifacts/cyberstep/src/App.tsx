@@ -148,6 +148,7 @@ import HesabimFaturalar from "./pages/hesabim/faturalar";
 import FortinetEntegrasyonu from "./pages/hesabim/fortinet";
 import AdminFortinet from "./pages/admin-panel/fortinet";
 import AdminSoc from "./pages/admin-panel/soc";
+import AdminNoc from "./pages/admin-panel/noc";
 import AdminAiCosts from "./pages/admin-panel/ai-costs";
 import AdminRemediation from "./pages/admin-panel/remediation";
 import AdminCodeSecrets from "./pages/admin-panel/code-secrets";
@@ -159,6 +160,8 @@ import AdminKvkk from "./pages/admin-panel/kvkk";
 import AdminServiceNow from "./pages/admin-panel/servicenow";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
 import SocDashboard from "./pages/hesabim/soc";
+import NocDashboard from "./pages/hesabim/noc";
+import NocKurulum from "./pages/hesabim/noc-kurulum";
 import HesabimDestek from "./pages/hesabim/destek";
 import Bulgularim from "./pages/hesabim/bulgularim";
 import CloudGuvenlik from "./pages/hesabim/cloud-guvenlik";
@@ -247,6 +250,8 @@ function Router() {
       <Route path="/hesabim/faturalar" component={HesabimFaturalar} />
       <Route path="/hesabim/fortinet-entegrasyonu" component={FortinetEntegrasyonu} />
       <Route path="/hesabim/soc" component={SocDashboard} />
+      <Route path="/hesabim/noc" component={NocDashboard} />
+      <Route path="/hesabim/noc-kurulum" component={NocKurulum} />
       <Route path="/hesabim/destek" component={HesabimDestek} />
       <Route path="/hesabim/bulgularim" component={Bulgularim} />
       <Route path="/hesabim/cloud-guvenlik" component={CloudGuvenlik} />
@@ -315,6 +320,7 @@ function Router() {
       <Route path="/panel/rozetler" component={AdminRozetler} />
       <Route path="/panel/fortinet" component={AdminFortinet} />
       <Route path="/panel/soc" component={AdminSoc} />
+      <Route path="/panel/noc" component={AdminNoc} />
       <Route path="/panel/ai-costs" component={AdminAiCosts} />
       <Route path="/panel/remediation" component={AdminRemediation} />
       <Route path="/panel/kod-guvenligi" component={AdminCodeSecrets} />

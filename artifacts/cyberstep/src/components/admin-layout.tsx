@@ -90,6 +90,7 @@ const NAV_SECTIONS = [
     items: [
       { icon: Network,         label: "Fortinet Fabric",       href: "/panel/fortinet" },
       { icon: ShieldAlert,     label: "SOC Operasyon",         href: "/panel/soc" },
+      { icon: Network,         label: "NOC Operasyon",         href: "/panel/noc" },
       { icon: Activity,        label: "Observability",         href: "/panel/observability" },
       { icon: Globe,           label: "DNS İzleme",            href: "/panel/dns-izleme" },
       { icon: ShieldAlert,     label: "CT Log İzleme",         href: "/panel/ct-izleme" },

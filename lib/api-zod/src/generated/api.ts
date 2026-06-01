@@ -9,6 +9,60 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Kurumsal servis satın alma (Iyzico)
+ */
+export const ServiceCheckoutBody = zod.object({
+  "serviceSlug": zod.string(),
+  "billingCycle": zod.enum(['monthly', 'annual']).optional(),
+  "companyName": zod.string().optional(),
+  "contactName": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "cardHolderName": zod.string(),
+  "cardNumber": zod.string(),
+  "expireMonth": zod.string(),
+  "expireYear": zod.string(),
+  "cvc": zod.string(),
+  "ip": zod.string().nullish()
+})
+
+export const ServiceCheckoutResponse = zod.object({
+  "success": zod.boolean(),
+  "subscriptionId": zod.number().nullish()
+})
+
+
+/**
+ * @summary Müşteriye ait servis aboneliklerini getir
+ */
+export const GetServiceSubscriptionsQueryParams = zod.object({
+  "email": zod.coerce.string().optional(),
+  "customerId": zod.coerce.number().optional()
+})
+
+export const GetServiceSubscriptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "customerId": zod.number().nullish(),
+  "serviceSlug": zod.string(),
+  "serviceLabel": zod.string(),
+  "status": zod.string(),
+  "billingCycle": zod.string(),
+  "contactName": zod.string(),
+  "companyName": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "amountPaid": zod.string().nullish(),
+  "currency": zod.string(),
+  "paymentRef": zod.string().nullish(),
+  "iyzicoConversationId": zod.string().nullish(),
+  "startedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const GetServiceSubscriptionsResponse = zod.array(GetServiceSubscriptionsResponseItem)
+
+
+/**
  * Kimlik doğrulama gerektirmez. Sadece aktif servisleri döner.
  * @summary Aktif kurumsal servis kataloğunu getir
  */

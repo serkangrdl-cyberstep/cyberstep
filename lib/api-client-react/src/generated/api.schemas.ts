@@ -344,6 +344,63 @@ export interface ServiceCatalogInput {
   sortOrder?: number;
 }
 
+export type ServiceCheckoutInputBillingCycle = typeof ServiceCheckoutInputBillingCycle[keyof typeof ServiceCheckoutInputBillingCycle];
+
+
+export const ServiceCheckoutInputBillingCycle = {
+  monthly: 'monthly',
+  annual: 'annual',
+} as const;
+
+export interface ServiceCheckoutInput {
+  serviceSlug: string;
+  billingCycle?: ServiceCheckoutInputBillingCycle;
+  companyName?: string;
+  contactName: string;
+  email: string;
+  /** @nullable */
+  phone?: string | null;
+  cardHolderName: string;
+  cardNumber: string;
+  expireMonth: string;
+  expireYear: string;
+  cvc: string;
+  /** @nullable */
+  ip?: string | null;
+}
+
+export interface ServiceCheckoutResult {
+  success: boolean;
+  /** @nullable */
+  subscriptionId?: number | null;
+}
+
+export interface ServiceSubscription {
+  id: number;
+  /** @nullable */
+  customerId?: number | null;
+  serviceSlug: string;
+  serviceLabel: string;
+  status: string;
+  billingCycle: string;
+  contactName: string;
+  companyName: string;
+  email: string;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  amountPaid?: string | null;
+  currency: string;
+  /** @nullable */
+  paymentRef?: string | null;
+  /** @nullable */
+  iyzicoConversationId?: string | null;
+  startedAt: string;
+  /** @nullable */
+  expiresAt?: string | null;
+  createdAt: string;
+}
+
 export interface ServiceCatalogUpdate {
   label?: string;
   shortDescription?: string;
@@ -353,4 +410,9 @@ export interface ServiceCatalogUpdate {
   isActive?: boolean;
   sortOrder?: number;
 }
+
+export type GetServiceSubscriptionsParams = {
+email?: string;
+customerId?: number;
+};
 

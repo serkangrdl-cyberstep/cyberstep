@@ -95,6 +95,7 @@ import BlogPost from "./pages/blog-post";
 
 import VerifyPage from "./pages/verify";
 import ServislerPage from "./pages/servisler";
+import SatinAl from "./pages/satin-al";
 import AdminServisKatalogu from "./pages/admin-panel/servis-katalogu";
 import DomainScan from "./pages/domain-scan";
 import SizintiIzleyici from "./pages/sizinti-izleyici";
@@ -410,6 +411,7 @@ function Router() {
             <Route path="/rakip-karsilastirma" component={RakipKarsilastirma} />
             <Route path="/sektor-raporu" component={SektorRaporu} />
             <Route path="/servisler/:slug" component={ServislerPage} />
+            <Route path="/satin-al/:slug" component={SatinAl} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

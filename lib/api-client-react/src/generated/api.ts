@@ -33,12 +33,16 @@ import type {
   GeminiImageOutput,
   GeminiMessage,
   GeminiMessageInput,
+  GetServiceSubscriptionsParams,
   HealthStatus,
   Report,
   ReportPending,
   ServiceCatalogInput,
   ServiceCatalogItem,
   ServiceCatalogUpdate,
+  ServiceCheckoutInput,
+  ServiceCheckoutResult,
+  ServiceSubscription,
   StatsSummary
 } from './api.schemas';
 
@@ -51,6 +55,161 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+export const getServiceCheckoutUrl = () => {
+
+
+
+
+  return `/api/payments/service-checkout`
+}
+
+/**
+ * @summary Kurumsal servis satın alma (Iyzico)
+ */
+export const serviceCheckout = async (serviceCheckoutInput: ServiceCheckoutInput, options?: RequestInit): Promise<ServiceCheckoutResult> => {
+
+  return customFetch<ServiceCheckoutResult>(getServiceCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      serviceCheckoutInput,)
+  }
+);}
+
+
+
+
+export const getServiceCheckoutMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof serviceCheckout>>, TError,{data: BodyType<ServiceCheckoutInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof serviceCheckout>>, TError,{data: BodyType<ServiceCheckoutInput>}, TContext> => {
+
+const mutationKey = ['serviceCheckout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof serviceCheckout>>, {data: BodyType<ServiceCheckoutInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  serviceCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ServiceCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof serviceCheckout>>>
+    export type ServiceCheckoutMutationBody = BodyType<ServiceCheckoutInput>
+    export type ServiceCheckoutMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Kurumsal servis satın alma (Iyzico)
+ */
+export const useServiceCheckout = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof serviceCheckout>>, TError,{data: BodyType<ServiceCheckoutInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof serviceCheckout>>,
+        TError,
+        {data: BodyType<ServiceCheckoutInput>},
+        TContext
+      > => {
+      return useMutation(getServiceCheckoutMutationOptions(options));
+    }
+
+export const getGetServiceSubscriptionsUrl = (params?: GetServiceSubscriptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/payments/service-subscriptions?${stringifiedParams}` : `/api/payments/service-subscriptions`
+}
+
+/**
+ * @summary Müşteriye ait servis aboneliklerini getir
+ */
+export const getServiceSubscriptions = async (params?: GetServiceSubscriptionsParams, options?: RequestInit): Promise<ServiceSubscription[]> => {
+
+  return customFetch<ServiceSubscription[]>(getGetServiceSubscriptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetServiceSubscriptionsQueryKey = (params?: GetServiceSubscriptionsParams,) => {
+    return [
+    `/api/payments/service-subscriptions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetServiceSubscriptionsQueryOptions = <TData = Awaited<ReturnType<typeof getServiceSubscriptions>>, TError = ErrorType<unknown>>(params?: GetServiceSubscriptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServiceSubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetServiceSubscriptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getServiceSubscriptions>>> = ({ signal }) => getServiceSubscriptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getServiceSubscriptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetServiceSubscriptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getServiceSubscriptions>>>
+export type GetServiceSubscriptionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Müşteriye ait servis aboneliklerini getir
+ */
+
+export function useGetServiceSubscriptions<TData = Awaited<ReturnType<typeof getServiceSubscriptions>>, TError = ErrorType<unknown>>(
+ params?: GetServiceSubscriptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServiceSubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetServiceSubscriptionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
 
 
 

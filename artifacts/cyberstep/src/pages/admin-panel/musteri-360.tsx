@@ -11,7 +11,24 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, X, Send, Pause, Play, Ban, TrendingUp, FileText, CheckSquare, Tag, MessageSquare, Activity } from "lucide-react";
+import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag } from "lucide-react";
+
+interface ServiceSubscription {
+  id: number;
+  serviceSlug: string;
+  serviceLabel: string;
+  status: string;
+  billingCycle: string;
+  contactName: string;
+  companyName: string;
+  email: string;
+  amountPaid: string | null;
+  currency: string;
+  paymentRef: string | null;
+  startedAt: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
 
 interface Customer360 {
   id: number; full_name: string; company_name: string; email: string;
@@ -51,6 +68,11 @@ export default function Musteri360() {
     queryFn: () => fetch(`/api/crm/customers/${id}`, { credentials: "include" }).then(r => r.json()),
   });
   const { data: allTags = [] } = useQuery<Tag[]>({ queryKey: ["/api/crm/tags"], queryFn: () => fetch("/api/crm/tags", { credentials: "include" }).then(r => r.json()) });
+  const { data: serviceSubscriptions = [] } = useQuery<ServiceSubscription[]>({
+    queryKey: ["/api/payments/service-subscriptions", customer?.email],
+    queryFn: () => fetch(`/api/payments/service-subscriptions?email=${encodeURIComponent(customer!.email)}`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer?.email,
+  });
 
   const save = useMutation({
     mutationFn: () => fetch(`/api/crm/customers/${id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(edits) }).then(r => r.json()),
@@ -137,7 +159,7 @@ export default function Musteri360() {
       </div>
 
       <Tabs defaultValue="info">
-        <TabsList className="bg-slate-900 border border-slate-800 mb-6">
+        <TabsList className="bg-slate-900 border border-slate-800 mb-6 flex-wrap h-auto">
           <TabsTrigger value="info" className="data-[state=active]:bg-slate-700">Bilgi</TabsTrigger>
           <TabsTrigger value="billing" className="data-[state=active]:bg-slate-700">Fatura</TabsTrigger>
           <TabsTrigger value="tags" className="data-[state=active]:bg-slate-700">Etiketler</TabsTrigger>
@@ -145,6 +167,13 @@ export default function Musteri360() {
           <TabsTrigger value="invoices" className="data-[state=active]:bg-slate-700">Faturalar</TabsTrigger>
           <TabsTrigger value="nps" className="data-[state=active]:bg-slate-700">NPS</TabsTrigger>
           <TabsTrigger value="notes" className="data-[state=active]:bg-slate-700">Notlar</TabsTrigger>
+          <TabsTrigger value="servisler" className="data-[state=active]:bg-slate-700">
+            <ShoppingBag className="h-3 w-3 mr-1" />
+            Aktif Servisler
+            {serviceSubscriptions.length > 0 && (
+              <span className="ml-1.5 bg-cyan-500/20 text-cyan-400 text-xs px-1.5 py-0.5 rounded-full">{serviceSubscriptions.length}</span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Info */}
@@ -282,6 +311,67 @@ export default function Musteri360() {
                       {n.category && <span className={`text-xs font-medium ${n.category === "promoter" ? "text-emerald-400" : n.category === "passive" ? "text-yellow-400" : "text-red-400"}`}>{n.category}</span>}
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Aktif Servisler */}
+        <TabsContent value="servisler">
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-slate-200 text-sm flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-cyan-400" />
+                Satın Alınan Servisler
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {serviceSubscriptions.length === 0 ? (
+                <p className="text-slate-500 text-sm p-5">Henüz satın alınmış servis yok</p>
+              ) : (
+                <div className="divide-y divide-slate-800">
+                  {serviceSubscriptions.map(sub => {
+                    const isActive = sub.status === "active";
+                    const isExpired = sub.expiresAt ? new Date(sub.expiresAt) < new Date() : false;
+                    const effectiveStatus = isExpired ? "expired" : sub.status;
+                    const statusColors: Record<string, string> = {
+                      active: "text-emerald-400", cancelled: "text-red-400", trial: "text-yellow-400", expired: "text-slate-500"
+                    };
+                    const statusLabels: Record<string, string> = {
+                      active: "Aktif", cancelled: "İptal", trial: "Deneme", expired: "Süresi Doldu"
+                    };
+                    return (
+                      <div key={sub.id} className="p-4 flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium text-sm">{sub.serviceLabel}</p>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className={`text-xs font-semibold ${statusColors[effectiveStatus] ?? "text-slate-400"}`}>
+                              {statusLabels[effectiveStatus] ?? effectiveStatus}
+                            </span>
+                            <span className="text-slate-500 text-xs">{sub.billingCycle === "annual" ? "Yıllık" : "Aylık"}</span>
+                            <span className="text-slate-500 text-xs">Başlangıç: {fmtDate(sub.startedAt)}</span>
+                            {sub.expiresAt && (
+                              <span className={`text-xs ${isExpired ? "text-red-400" : "text-slate-500"}`}>
+                                Bitiş: {fmtDate(sub.expiresAt)}
+                              </span>
+                            )}
+                          </div>
+                          {sub.paymentRef && (
+                            <p className="text-slate-600 text-xs mt-0.5 font-mono">Ref: {sub.paymentRef}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          {sub.amountPaid && (
+                            <p className="text-cyan-400 font-semibold text-sm">₺{Number(sub.amountPaid).toLocaleString("tr-TR")}</p>
+                          )}
+                          {isActive && !isExpired ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400 ml-auto mt-1" />
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

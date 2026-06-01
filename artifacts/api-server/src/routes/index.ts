@@ -52,6 +52,7 @@ import serviceNowRouter from "./integrations/servicenow";
 import webhookRouter from "./integrations/webhook";
 import telegramRouter from "./integrations/telegram";
 import netgsmRouter from "./integrations/netgsm";
+import servicePaymentsRouter from "./payments/index";
 
 const router: IRouter = Router();
 
@@ -108,5 +109,6 @@ router.use(serviceNowRouter);
 router.use(webhookRouter);
 router.use(telegramRouter);
 router.use(netgsmRouter);
+router.use(servicePaymentsRouter);
 
 export default router;

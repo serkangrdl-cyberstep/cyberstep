@@ -18,7 +18,64 @@ tags:
     description: Gemini AI chat and image operations
   - name: service-catalog
     description: Kurumsal servis kataloğu işlemleri
+  - name: payments
+    description: Ödeme ve servis abonelik işlemleri
 paths:
+  /payments/service-checkout:
+    post:
+      operationId: serviceCheckout
+      tags: [payments]
+      summary: Kurumsal servis satın alma (Iyzico)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceCheckoutInput"
+      responses:
+        "200":
+          description: Ödeme başarılı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceCheckoutResult"
+        "402":
+          description: Ödeme başarısız
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Servis bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payments/service-subscriptions:
+    get:
+      operationId: getServiceSubscriptions
+      tags: [payments]
+      summary: Müşteriye ait servis aboneliklerini getir
+      parameters:
+        - in: query
+          name: email
+          schema:
+            type: string
+        - in: query
+          name: customerId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Abonelik listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceSubscription"
+
   /public/service-catalog:
     get:
       operationId: getPublicServiceCatalog
@@ -1076,6 +1133,107 @@ components:
         - slug
         - label
         - monthlyPriceTl
+    ServiceCheckoutInput:
+      type: object
+      properties:
+        serviceSlug:
+          type: string
+        billingCycle:
+          type: string
+          enum: [monthly, annual]
+        companyName:
+          type: string
+        contactName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        cardHolderName:
+          type: string
+        cardNumber:
+          type: string
+        expireMonth:
+          type: string
+        expireYear:
+          type: string
+        cvc:
+          type: string
+        ip:
+          type: ["string", "null"]
+      required:
+        - serviceSlug
+        - contactName
+        - email
+        - cardHolderName
+        - cardNumber
+        - expireMonth
+        - expireYear
+        - cvc
+
+    ServiceCheckoutResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        subscriptionId:
+          type: ["integer", "null"]
+      required:
+        - success
+
+    ServiceSubscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: ["integer", "null"]
+        serviceSlug:
+          type: string
+        serviceLabel:
+          type: string
+        status:
+          type: string
+        billingCycle:
+          type: string
+        contactName:
+          type: string
+        companyName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        amountPaid:
+          type: ["string", "null"]
+        currency:
+          type: string
+        paymentRef:
+          type: ["string", "null"]
+        iyzicoConversationId:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - serviceSlug
+        - serviceLabel
+        - status
+        - billingCycle
+        - contactName
+        - companyName
+        - email
+        - currency
+        - startedAt
+        - createdAt
+
     ServiceCatalogUpdate:
       type: object
       properties:

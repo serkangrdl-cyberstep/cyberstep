@@ -68,6 +68,25 @@ paths:
                 $ref: "#/components/schemas/ServiceCatalogItem"
 
   /admin-panel/service-catalog/{slug}:
+    get:
+      operationId: adminGetServiceCatalogEntry
+      tags: [service-catalog]
+      summary: Tek servis detayını getir (admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Servis detayı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceCatalogItem"
+        "404":
+          description: Servis bulunamadı
     put:
       operationId: adminUpdateServiceCatalogEntry
       tags: [service-catalog]

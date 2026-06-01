@@ -22,6 +22,26 @@ router.get("/admin-panel/service-catalog", requireAdmin, async (_req: Request, r
   }
 });
 
+// GET /api/admin-panel/service-catalog/:slug — tek servis detayı
+router.get("/admin-panel/service-catalog/:slug", requireAdmin, async (req: Request, res: Response) => {
+  const slug = req.params["slug"] as string;
+  try {
+    const [row] = await db
+      .select()
+      .from(serviceCatalogTable)
+      .where(eq(serviceCatalogTable.slug, slug))
+      .limit(1);
+    if (!row) {
+      res.status(404).json({ error: "Servis bulunamadı" });
+      return;
+    }
+    res.json(row);
+  } catch (err) {
+    logger.error({ err, slug }, "Failed to fetch service catalog entry");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // POST /api/admin-panel/service-catalog — yeni servis ekle
 router.post("/admin-panel/service-catalog", requireAdmin, async (req: Request, res: Response) => {
   const {

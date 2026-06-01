@@ -280,6 +280,83 @@ export const useAdminCreateServiceCatalogEntry = <TError = ErrorType<unknown>,
       return useMutation(getAdminCreateServiceCatalogEntryMutationOptions(options));
     }
 
+export const getAdminGetServiceCatalogEntryUrl = (slug: string,) => {
+
+
+
+
+  return `/api/admin-panel/service-catalog/${slug}`
+}
+
+/**
+ * @summary Tek servis detayını getir (admin)
+ */
+export const adminGetServiceCatalogEntry = async (slug: string, options?: RequestInit): Promise<ServiceCatalogItem> => {
+
+  return customFetch<ServiceCatalogItem>(getAdminGetServiceCatalogEntryUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetServiceCatalogEntryQueryKey = (slug: string,) => {
+    return [
+    `/api/admin-panel/service-catalog/${slug}`
+    ] as const;
+    }
+
+
+export const getAdminGetServiceCatalogEntryQueryOptions = <TData = Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>, TError = ErrorType<void>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetServiceCatalogEntryQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>> = ({ signal }) => adminGetServiceCatalogEntry(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetServiceCatalogEntryQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>>
+export type AdminGetServiceCatalogEntryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Tek servis detayını getir (admin)
+ */
+
+export function useAdminGetServiceCatalogEntry<TData = Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>, TError = ErrorType<void>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetServiceCatalogEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetServiceCatalogEntryQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getAdminUpdateServiceCatalogEntryUrl = (slug: string,) => {
 
 

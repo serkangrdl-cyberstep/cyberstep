@@ -412,6 +412,14 @@ interface SnIncident {
   severity: string;
 }
 
+interface SnWebhookEvent {
+  id: number;
+  actionType: string;
+  description: string;
+  createdAt: string;
+  incNumber: string | null;
+}
+
 const SN_STATES: Record<number, string> = {
   1: "Yeni", 2: "Devam Ediyor", 3: "Beklemede", 6: "Çözüldü", 7: "Kapatıldı",
 };
@@ -447,6 +455,13 @@ function ServiceNowSection() {
     queryKey: ["sn-webhook-info"],
     queryFn: () => fetch("/api/integrations/servicenow/webhook-info", { credentials: "include" }).then(r => r.json()),
     enabled: !!data?.config?.active,
+  });
+
+  const { data: webhookEventsData } = useQuery<{ events: SnWebhookEvent[] }>({
+    queryKey: ["sn-webhook-events"],
+    queryFn: () => fetch("/api/integrations/servicenow/webhook-events", { credentials: "include" }).then(r => r.json()),
+    enabled: !!data?.config?.active && (data?.config?.webhookEventCount ?? 0) > 0,
+    refetchInterval: 60000,
   });
 
   const generateSecretMutation = useMutation({
@@ -549,8 +564,21 @@ function ServiceNowSection() {
     return `${Math.floor(h / 24)} gün önce`;
   }
 
+  const ACTION_TYPE_LABELS: Record<string, string> = {
+    status_change: "Durum Degisikligi",
+    note: "Yorum / Not",
+    assignment: "Atama Degisikligi",
+  };
+
+  const ACTION_TYPE_COLORS: Record<string, string> = {
+    status_change: "bg-violet-500/20 text-violet-400 border-violet-500/30",
+    note: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    assignment: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  };
+
   const cfg = data?.config;
   const incidents = incData?.incidents ?? [];
+  const webhookEvents = webhookEventsData?.events ?? [];
 
   return (
     <Card className="bg-gray-900 border-gray-800">
@@ -688,6 +716,31 @@ function ServiceNowSection() {
                       <p className="text-[10px] text-gray-600">{inc.caseNumber} · {SN_STATES[inc.snState] ?? inc.snState}</p>
                     </div>
                     <span className="text-[10px] text-gray-600 shrink-0">{timeSince(inc.lastSyncedAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {webhookEvents.length > 0 && (
+              <div className="border border-gray-800 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                  <Webhook className="h-3.5 w-3.5 text-violet-400" />
+                  Son Webhook Olaylari
+                </p>
+                {webhookEvents.map(ev => (
+                  <div key={ev.id} className="flex items-start gap-2">
+                    <Badge className={`text-[10px] shrink-0 border mt-0.5 ${ACTION_TYPE_COLORS[ev.actionType] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                      {ACTION_TYPE_LABELS[ev.actionType] ?? ev.actionType}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {ev.incNumber && (
+                          <code className="text-[10px] text-violet-400 font-mono shrink-0">{ev.incNumber}</code>
+                        )}
+                        <p className="text-xs text-gray-300 truncate">{ev.description.slice(0, 120)}</p>
+                      </div>
+                      <p className="text-[10px] text-gray-600 mt-0.5">{timeSince(ev.createdAt)}</p>
+                    </div>
                   </div>
                 ))}
               </div>

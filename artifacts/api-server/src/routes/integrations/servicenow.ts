@@ -321,6 +321,37 @@ router.post("/integrations/servicenow/check", requireCustomer, async (req, res) 
   }
 });
 
+// ─── GET /api/integrations/servicenow/webhook-events ─────────────────────────
+// Returns the last 20 soc_activity_log entries from ServiceNow for this customer.
+router.get("/integrations/servicenow/webhook-events", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT sal.id,
+              sal.action_type AS "actionType",
+              sal.description,
+              sal.created_at AS "createdAt",
+              sni.sn_number AS "incNumber"
+       FROM soc_activity_log sal
+       JOIN soc_cases sc ON sc.id = sal.case_id
+       LEFT JOIN servicenow_incidents sni
+         ON sni.soc_case_id = sal.case_id
+        AND sni.customer_id = $1
+       WHERE sal.actor_name = 'ServiceNow'
+         AND sc.customer_id = $1
+       ORDER BY sal.created_at DESC
+       LIMIT 20`,
+      [customerId],
+    );
+    res.json({ events: rows });
+  } catch (err) {
+    req.log.error({ err }, "GET /api/integrations/servicenow/webhook-events error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // ─── POST /api/integrations/servicenow/webhook-secret ─────────────────────────
 // Generates (or rotates) the HMAC webhook secret. Returns plaintext ONCE.
 router.post("/integrations/servicenow/webhook-secret", requireCustomer, async (req, res) => {

@@ -91,6 +91,7 @@ const NAV_SECTIONS = [
       { icon: Activity,        label: "Observability",         href: "/panel/observability" },
       { icon: Globe,           label: "DNS İzleme",            href: "/panel/dns-izleme" },
       { icon: ShieldAlert,     label: "CT Log İzleme",         href: "/panel/ct-izleme" },
+      { icon: Building2,       label: "Microsoft 365",         href: "/panel/ms365" },
     ],
   },
   {

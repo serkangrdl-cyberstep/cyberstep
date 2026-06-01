@@ -22,6 +22,7 @@ import codeSecretsAdminRouter from "./code-secrets";
 import observabilityAdminRouter from "./observability";
 import dnsMonitorAdminRouter from "./dns-monitor";
 import ctMonitorAdminRouter from "./ct-monitor";
+import ms365AdminRouter from "./ms365";
 
 const router = Router();
 router.use(authRouter);
@@ -47,5 +48,6 @@ router.use(codeSecretsAdminRouter);
 router.use(observabilityAdminRouter);
 router.use(dnsMonitorAdminRouter);
 router.use(ctMonitorAdminRouter);
+router.use(ms365AdminRouter);
 
 export default router;

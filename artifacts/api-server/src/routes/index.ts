@@ -46,6 +46,7 @@ import codeSecretsRouter from "./code-secrets/index";
 import observabilityRouter from "./observability/index";
 import dnsMonitorRouter from "./dns-monitor/index";
 import ctMonitorRouter from "./ct-monitor/index";
+import ms365Router from "./ms365/index";
 
 const router: IRouter = Router();
 
@@ -96,5 +97,6 @@ router.use(codeSecretsRouter);
 router.use(observabilityRouter);
 router.use(dnsMonitorRouter);
 router.use(ctMonitorRouter);
+router.use(ms365Router);
 
 export default router;

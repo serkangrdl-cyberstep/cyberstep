@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2 } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,10 +161,256 @@ function AddIntegrationCard({ provider, onAdd }: { provider: "datadog" | "azure_
   );
 }
 
+interface Ms365Integration {
+  id: number;
+  azureTenantId: string;
+  status: string;
+  lastSyncAt: string | null;
+  syncError: string | null;
+  createdAt: string;
+}
+
+interface Ms365SigninLog {
+  id: number;
+  userPrincipalName: string | null;
+  ipAddress: string | null;
+  location: { city?: string; countryOrRegion?: string } | null;
+  riskLevel: string | null;
+  eventTime: string | null;
+  correlatedSocCaseId: number | null;
+}
+
+const MS365_STATUS_COLORS: Record<string, string> = {
+  active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  error: "bg-red-500/20 text-red-400 border-red-500/30",
+  disconnected: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+};
+
+const RISK_COLORS: Record<string, string> = {
+  high: "bg-red-500/20 text-red-400 border-red-500/30",
+  medium: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  low: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+};
+
+function Ms365Section() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery<{ integrations: Ms365Integration[]; recentSignInCount: number }>({
+    queryKey: ["ms365-status"],
+    queryFn: () => fetch("/api/portal/ms365/status", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 30000,
+  });
+
+  const { data: logsData } = useQuery<{ logs: Ms365SigninLog[] }>({
+    queryKey: ["ms365-signin-logs"],
+    queryFn: () => fetch("/api/portal/ms365/signin-logs", { credentials: "include" }).then(r => r.json()),
+    enabled: (data?.integrations?.length ?? 0) > 0,
+    refetchInterval: 60000,
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/portal/ms365/${id}`, { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => {
+      toast({ title: "Microsoft 365 baglanitisi kesildi" });
+      qc.invalidateQueries({ queryKey: ["ms365-status"] });
+      qc.invalidateQueries({ queryKey: ["ms365-signin-logs"] });
+    },
+    onError: () => toast({ title: "Hata", variant: "destructive" }),
+  });
+
+  function timeSince(iso: string | null) {
+    if (!iso) return "Hic";
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 60) return `${m} dk once`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} saat once`;
+    return `${Math.floor(h / 24)} gun once`;
+  }
+
+  const integrations = data?.integrations ?? [];
+  const logs = logsData?.logs ?? [];
+  const connected = integrations.length > 0;
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-400" />
+            Microsoft 365 / Azure AD
+          </CardTitle>
+          {!connected && (
+            <Button
+              size="sm"
+              onClick={() => { window.location.href = "/api/ms365/auth"; }}
+              className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+            >
+              <Building2 className="h-3.5 w-3.5 mr-1" />
+              Microsoft 365&apos;i Bagla
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-gray-500" /></div>
+        ) : !connected ? (
+          <div className="text-center py-8 border border-dashed border-gray-800 rounded-lg space-y-3">
+            <Building2 className="h-10 w-10 text-gray-600 mx-auto" />
+            <p className="text-gray-400 text-sm font-medium">Microsoft 365 bagli degil</p>
+            <p className="text-gray-600 text-xs max-w-sm mx-auto">
+              Azure AD giris loglarini, M365 Defender e-posta tehdit uyarilarini ve
+              cross-korelasyonu etkinlestirmek icin baglanin.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => { window.location.href = "/api/ms365/auth"; }}
+              className="bg-blue-600 hover:bg-blue-700 text-white border-0 mt-2"
+            >
+              <Building2 className="h-3.5 w-3.5 mr-1" />
+              Microsoft 365&apos;i Bagla
+            </Button>
+          </div>
+        ) : (
+          <>
+            {integrations.map(integ => (
+              <div key={integ.id} className="border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-white">Azure AD Tenant</p>
+                      <Badge className={`text-[10px] border ${MS365_STATUS_COLORS[integ.status] ?? MS365_STATUS_COLORS["disconnected"]}`}>
+                        {integ.status === "active" ? "Aktif" : integ.status === "error" ? "Hata" : "Bagli Degil"}
+                      </Badge>
+                    </div>
+                    <code className="text-[11px] text-emerald-400 mt-0.5 block">{integ.azureTenantId}</code>
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Son sync: {timeSince(integ.lastSyncAt)}
+                      {data?.recentSignInCount ? ` · 24s giris: ${data.recentSignInCount}` : ""}
+                    </p>
+                    {integ.syncError && (
+                      <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {integ.syncError}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => disconnectMutation.mutate(integ.id)}
+                    disabled={disconnectMutation.isPending}
+                    className="text-red-400 hover:text-red-300 h-7 shrink-0"
+                    title="Baglantıyı kes"
+                  >
+                    <Unplug className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                {integ.status === "error" && (
+                  <div className="border border-red-500/20 bg-red-500/5 rounded p-3">
+                    <p className="text-xs text-red-400 font-medium mb-1">Yeniden Baglanma Gerekiyor</p>
+                    <p className="text-[11px] text-red-400/80 mb-2">
+                      Token yenileme basarisiz oldu. Microsoft 365 hesabinizi yeniden yetkilendirin.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => { window.location.href = "/api/ms365/auth"; }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-0 h-7 text-xs"
+                    >
+                      Yeniden Baglan
+                    </Button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { label: "Kapsam", value: "AuditLog + SecurityEvents" },
+                    { label: "Tarama", value: "Her 15 dakika" },
+                    { label: "24s Giris", value: String(data?.recentSignInCount ?? 0) },
+                  ].map(item => (
+                    <div key={item.label} className="bg-gray-950/50 rounded p-2">
+                      <p className="text-[11px] text-gray-500">{item.label}</p>
+                      <p className="text-xs text-gray-300 font-medium mt-0.5">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Son riskli girisler */}
+            {logs.length > 0 && (
+              <div className="border border-gray-800 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                  <Shield className="h-3.5 w-3.5 text-red-400" />
+                  Son Riskli Girisler
+                </p>
+                {logs.slice(0, 5).map(log => (
+                  <div key={log.id} className="flex items-center gap-2">
+                    <Badge className={`text-[10px] shrink-0 border ${RISK_COLORS[log.riskLevel ?? "low"] ?? RISK_COLORS["low"]}`}>
+                      {(log.riskLevel ?? "?").toUpperCase()}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-300 truncate">{log.userPrincipalName ?? "Bilinmiyor"}</p>
+                      <p className="text-[10px] text-gray-600">
+                        {log.ipAddress ?? "-"} · {log.location?.countryOrRegion ?? "-"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] text-gray-600">{timeSince(log.eventTime)}</span>
+                      {log.correlatedSocCaseId && (
+                        <CheckCircle className="h-3 w-3 text-emerald-400" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border border-gray-800 rounded p-3 bg-gray-950/50 text-xs text-gray-400 space-y-1">
+              <p className="font-medium text-gray-300">Neler izleniyor:</p>
+              <p>· Azure AD riskli giris gunlukleri (impossible travel, parola spreyi, bilmedigim konum)</p>
+              <p>· M365 Defender e-posta karantina uyarilari</p>
+              <p>· Fortinet Fabric olaylariyla IP cross-korelasyonu — koordineli saldir tespiti</p>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function EntegrasyonlarimPage() {
   useRequireCustomer();
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ms365_success")) {
+      toast({ title: "Microsoft 365 baglantisi kuruldu", description: "Azure AD giris loglari artik izleniyor." });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("ms365_error")) {
+      const errMap: Record<string, string> = {
+        oauth_denied: "Yetkilendirme reddedildi.",
+        invalid_state: "Gecersiz oturum durumu. Lutfen tekrar deneyin.",
+        token_exchange: "Token alinamadi. Lutfen tekrar deneyin.",
+        server: "Sunucu hatasi olustu.",
+      };
+      toast({
+        title: "Microsoft 365 baglantisi basarisiz",
+        description: errMap[params.get("ms365_error") ?? ""] ?? "Bilinmeyen hata.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [toast]);
 
   const { data: intData, isLoading } = useQuery<{ integrations: Integration[] }>({
     queryKey: ["obs-integrations"],
@@ -232,11 +478,14 @@ export default function EntegrasyonlarimPage() {
     <div className="min-h-screen bg-gray-950 text-white p-4 sm:p-8">
       <div className="max-w-3xl mx-auto space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Observability Entegrasyonlar</h1>
+          <h1 className="text-2xl font-bold text-white">Entegrasyonlarim</h1>
           <p className="text-gray-400 text-sm mt-1">
-            Datadog ve Azure Monitor alertlarini CyberStep SOC'una yonlendirin.
+            Guvenlk araclari ve bulut servislerini CyberStep SOC'una yonlendirin.
           </p>
         </div>
+
+        {/* ─── Microsoft 365 / Azure AD ─────────────────────── */}
+        <Ms365Section />
 
         {/* ─── Datadog ─────────────────────────────────────── */}
         <Card className="bg-gray-900 border-gray-800">

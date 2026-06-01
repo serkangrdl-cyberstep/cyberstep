@@ -72,3 +72,4 @@ export * from "./fortinet";
 export * from "./soc";
 export * from "./observability";
 export * from "./ct-events";
+export * from "./ms365";

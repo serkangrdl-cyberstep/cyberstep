@@ -12,6 +12,7 @@ import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
 import { startCertstreamClient } from "./services/certstream-client";
 import { ensureCtTable } from "./routes/ct-monitor/index";
+import { ensureMs365Tables } from "./routes/ms365/index";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
@@ -1401,6 +1402,7 @@ async function startup() {
   await ensureDomainScanPurchasesTable();
   await ensureDnsTables();
   await ensureCtTable();
+  await ensureMs365Tables();
   await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
 }
@@ -1678,6 +1680,17 @@ startup()
     startSOCCrons();
     startDnsCrons();
     startCertstreamClient();
+
+    // ─── Microsoft 365 Graph API poller — her 15 dakikada ────────────────────
+    cron.schedule("*/15 * * * *", async () => {
+      try {
+        const { pollAllMs365Integrations } = await import("./services/ms365Graph");
+        await pollAllMs365Integrations();
+      } catch (err) {
+        logger.error({ err }, "MS365 poll cron failed");
+      }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("MS365 Graph API poller scheduled (every 15 min)");
 
     // ─── Onboarding email serisi — Her gün 10:30 (D+3 ve D+7) ───────────────
     cron.schedule("30 10 * * *", async () => {

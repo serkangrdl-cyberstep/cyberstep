@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable } from "@workspace/db";
+import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable, serviceCatalogTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
@@ -167,6 +167,21 @@ router.get("/public/prices", async (_req, res: Response) => {
   } catch (err) {
     logger.error({ err }, "Failed to fetch service prices");
     res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// GET /api/public/service-catalog — aktif kurumsal servisler (no auth)
+router.get("/public/service-catalog", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .select()
+      .from(serviceCatalogTable)
+      .where(eq(serviceCatalogTable.isActive, true))
+      .orderBy(serviceCatalogTable.sortOrder);
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch public service catalog");
+    res.json([]);
   }
 });
 

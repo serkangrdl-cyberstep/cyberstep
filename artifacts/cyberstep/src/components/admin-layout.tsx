@@ -40,6 +40,7 @@ const NAV_SECTIONS = [
       { icon: DollarSign,      label: "Ödemeler",              href: "/panel/odemeler" },
       { icon: CreditCard,      label: "Fiyatlandırma",         href: "/panel/fiyatlar" },
       { icon: Tag,             label: "Servis Fiyatları",      href: "/panel/servis-fiyatlari" },
+      { icon: Package,         label: "Servis Kataloğu",       href: "/panel/servis-katalogu" },
       { icon: Receipt,         label: "Fatura Yönetimi",       href: "/panel/faturalar" },
       { icon: TrendingUp,      label: "Gelir / MRR",           href: "/panel/gelir" },
       { icon: Calculator,      label: "Muhasebe Entegrasyonu", href: "/panel/muhasebe" },

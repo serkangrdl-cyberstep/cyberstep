@@ -1,12 +1,103 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck, Eye, FileText, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck, Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useQuery } from "@tanstack/react-query";
 
 interface DbPlan { id: number; slug: string; name: string; price: string; currency: string; isActive: boolean; }
+
+interface ServiceCatalogItem {
+  id: number;
+  slug: string;
+  label: string;
+  shortDescription: string;
+  features: string[];
+  monthlyPriceTl: string;
+  category: string;
+  icon: string;
+  isActive: boolean;
+}
+
+const SERVICE_ICONS: Record<string, React.ElementType> = {
+  Network, Globe, FileText, Building2, ScrollText, Activity, Server, Shield,
+};
+
+const ENTERPRISE_SERVICES_DATA = [
+  {
+    slug: "fortinet-fabric",
+    icon: Network,
+    category: "soc",
+    label: "Fortinet Security Fabric",
+    desc: "FortiGate, FortiAnalyzer ve FortiSIEM entegrasyonuyla ağınızdaki tehditleri gerçek zamanlı izleyin ve otomatik bloklama yapın.",
+    features: ["Gerçek zamanlı olay korelasyonu", "Otomatik tehdit bloklama", "SOC analist triage desteği"],
+    price: "4.990",
+  },
+  {
+    slug: "dns-izleme",
+    icon: Globe,
+    category: "monitoring",
+    label: "DNS İzleme",
+    desc: "Alan adlarınızdaki değişiklikleri 5 dakikada bir denetleyin; yetkisiz subdomain, NS veya MX değişikliklerinde anında uyarı alın.",
+    features: ["5 dakikada bir otomatik tarama", "Subdomain, NS, MX takibi", "E-posta ve WhatsApp uyarısı"],
+    price: "990",
+  },
+  {
+    slug: "ct-log-izleme",
+    icon: ScrollText,
+    category: "monitoring",
+    label: "CT Log İzleme",
+    desc: "Alan adınız için dünyada verilen tüm SSL sertifikalarını izleyin; sahte sertifika tespitinde anında bildirim alın.",
+    features: ["crt.sh entegrasyonu", "Sahte sertifika tespiti", "Anlık uyarı sistemi"],
+    price: "490",
+  },
+  {
+    slug: "microsoft-365",
+    icon: Building2,
+    category: "monitoring",
+    label: "Microsoft 365 Entegrasyonu",
+    desc: "Azure AD riskli giriş olaylarını, şüpheli kullanıcı aktivitelerini ve lisans değişikliklerini otomatik olarak izleyin.",
+    features: ["Azure AD OAuth bağlantısı", "Riskli giriş korelasyonu", "Kullanıcı risk skoru izleme"],
+    price: "1.490",
+  },
+  {
+    slug: "kvkk-bildirim",
+    icon: FileText,
+    category: "compliance",
+    label: "KVKK Bildirim Sistemi",
+    desc: "Veri ihlali olaylarını KVKK'nın gerektirdiği 72 saat içinde Kurul'a bildirmek için hazır süreç ve dokümantasyon.",
+    features: ["72 saatlik bildirim sürecini otomatize edin", "Hazır bildirim şablonları", "Olay kaydı ve delil zinciri"],
+    price: "1.990",
+  },
+  {
+    slug: "servicenow",
+    icon: Activity,
+    category: "itsm",
+    label: "ServiceNow Entegrasyonu",
+    desc: "SOC vakalarını ServiceNow incident'larıyla çift yönlü senkronize edin. HMAC-SHA256 imzalı webhook ile güvenli entegrasyon.",
+    features: ["Çift yönlü vaka senkronizasyonu", "HMAC-SHA256 güvenli webhook", "SLA ihlali uyarısı"],
+    price: "2.490",
+  },
+  {
+    slug: "soc-operasyon",
+    icon: Shield,
+    category: "soc",
+    label: "SOC Operasyon Merkezi",
+    desc: "7/24 güvenlik operasyonları; triage, playbook yönetimi, eskalasyon ve olay müdahale desteği.",
+    features: ["7/24 triage ve eskalasyon", "Hazır playbook kütüphanesi", "Aylık SOC raporu"],
+    price: "9.990",
+  },
+  {
+    slug: "observability",
+    icon: Server,
+    category: "monitoring",
+    label: "Observability & SIEM",
+    desc: "Log kaynaklarınızı merkezi bir noktada toplayın; anomali tespiti ve öngörülü uyarılarla güvenlik görünürlüğünüzü artırın.",
+    features: ["Çoklu log kaynağı bağlantısı", "AI destekli anomali tespiti", "Gerçek zamanlı dashboard"],
+    price: "2.990",
+  },
+];
 
 function fmtTL(price: string | undefined): string {
   const n = parseFloat(price ?? "0");
@@ -114,6 +205,12 @@ export default function Pricing() {
     });
     return () => { el?.remove(); };
   }, []);
+
+  const { data: serviceCatalog = [] } = useQuery<ServiceCatalogItem[]>({
+    queryKey: ["public-service-catalog"],
+    queryFn: () => fetch("/api/public/service-catalog").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data: dbPlansRaw } = useQuery<DbPlan[]>({
     queryKey: ["public-pricing"],
@@ -394,6 +491,59 @@ export default function Pricing() {
               </Link>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Kurumsal Güvenlik Servisleri */}
+      <section id="kurumsal-servisler" className="pb-16 bg-background">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-10">
+            <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-3">Kurumsal</Badge>
+            <h2 className="text-2xl font-bold mb-2">Kurumsal Güvenlik Servisleri</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+              Fortinet, Microsoft 365, DNS ve KVKK gibi entegrasyonları aylık abonelikle aktive edin. Her servis ayrı satın alınabilir.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {ENTERPRISE_SERVICES_DATA.map((svc) => {
+              const dbSvc = (serviceCatalog as ServiceCatalogItem[]).find(s => s.slug === svc.slug);
+              const price = dbSvc ? new Intl.NumberFormat("tr-TR").format(Number(dbSvc.monthlyPriceTl)) : svc.price;
+              const Icon = svc.icon;
+              return (
+                <div key={svc.slug} className="rounded-xl border bg-card p-5 flex flex-col gap-3 hover:border-primary/40 transition-colors">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm mb-1">{dbSvc?.label ?? svc.label}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{dbSvc?.shortDescription ?? svc.desc}</p>
+                  </div>
+                  <ul className="space-y-1 flex-1">
+                    {svc.features.map(f => (
+                      <li key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />{f}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pt-2 border-t">
+                    <p className="text-base font-bold text-primary mb-2">{price} TL <span className="text-xs font-normal text-muted-foreground">/ ay + KDV</span></p>
+                    <div className="flex gap-1.5">
+                      <Link href={`/satin-al/${svc.slug}`} className="flex-1 text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        Satın Al
+                      </Link>
+                      <Link href={`/iletisim?servis=${svc.slug}`} className="flex-1 text-center text-xs border border-border py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
+                        Demo
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            Her servis için ayrıntılı bilgi almak isterseniz{" "}
+            <Link href="/iletisim" className="text-primary hover:underline">bizimle iletişime geçin</Link>.
+          </p>
         </div>
       </section>
 

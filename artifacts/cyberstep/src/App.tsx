@@ -94,6 +94,8 @@ import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
 
 import VerifyPage from "./pages/verify";
+import ServislerPage from "./pages/servisler";
+import AdminServisKatalogu from "./pages/admin-panel/servis-katalogu";
 import DomainScan from "./pages/domain-scan";
 import SizintiIzleyici from "./pages/sizinti-izleyici";
 import RoiHesaplayici from "./pages/roi-hesaplayici";
@@ -317,6 +319,7 @@ function Router() {
       <Route path="/panel/ms365" component={AdminMs365} />
       <Route path="/panel/kvkk" component={AdminKvkk} />
       <Route path="/panel/servicenow" component={AdminServiceNow} />
+      <Route path="/panel/servis-katalogu" component={AdminServisKatalogu} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}
@@ -406,6 +409,7 @@ function Router() {
             <Route path="/araclar" component={TumAraclar} />
             <Route path="/rakip-karsilastirma" component={RakipKarsilastirma} />
             <Route path="/sektor-raporu" component={SektorRaporu} />
+            <Route path="/servisler/:slug" component={ServislerPage} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

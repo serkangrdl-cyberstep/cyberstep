@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { checkAndSaveDnsChanges, type DnsChange, type DnsSnapshot, formatDnsValue } from "./dnsResolver";
+import { createCaseWithNumber } from "./soc/soc-cases";
 import { sendMail } from "./email";
 
 const TZ = { timezone: "Europe/Istanbul" } as const;
@@ -15,29 +16,29 @@ interface WatchedDomainRow {
   [key: string]: unknown;
 }
 
-async function createSocCase(customerId: number, domain: string, change: DnsChange): Promise<number | null> {
+async function createDnsSocCase(customerId: number, domain: string, change: DnsChange): Promise<number | null> {
   try {
-    const title = `DNS Değişikliği: ${domain} — ${change.recordType} kaydı`;
-    const description = `${change.recordType} kaydında değişiklik tespit edildi.\n\nEski: ${formatDnsValue(change.recordType, change.oldValues)}\nYeni: ${formatDnsValue(change.recordType, change.newValues)}`;
-
-    const result = await db.execute<{ id: number }>(sql`
-      INSERT INTO soc_cases (customer_id, title, description, severity, status, source, category, auto_closed)
-      VALUES (
-        ${customerId}, ${title}, ${description}, ${change.severity},
-        'open', 'dns-monitor', 'dns-change', false
-      )
-      RETURNING id
-    `);
-    const rows = (result as unknown as { rows: { id: number }[] }).rows;
-    return rows?.[0]?.id ?? null;
-  } catch {
+    const socCase = await createCaseWithNumber({
+      customerId,
+      title: `DNS Değişikliği: ${domain} — ${change.recordType} kaydı`,
+      description: `${change.recordType} kaydında değişiklik tespit edildi.\n\nEski değer: ${formatDnsValue(change.recordType, change.oldValues)}\nYeni değer: ${formatDnsValue(change.recordType, change.newValues)}`,
+      severity: change.severity,
+      category: "dns-change",
+      attackNarrative: change.severity === "critical"
+        ? `${change.recordType} DNS kaydındaki değişiklik, domain üzerindeki tam kontrolü etkiler. NS değişikliği yetkisiz domain transferine, MX değişikliği e-posta trafiğinin yönlendirilmesine işaret edebilir. Derhal doğrulayın.`
+        : `${change.recordType} DNS kaydı değiştirildi. Yetkili bir güncelleme olmadıysa altyapıya yetkisiz erişimi gösterebilir.`,
+      triggerEventIds: [],
+    });
+    return socCase?.id ?? null;
+  } catch (err) {
+    logger.warn({ err, customerId, domain }, "DNS SOC case creation failed");
     return null;
   }
 }
 
 async function sendDnsChangeAlert(to: string, domain: string, changes: DnsChange[], _snapshot: DnsSnapshot): Promise<void> {
   const SEV_LABEL: Record<string, string> = {
-    critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Dusuk",
+    critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük",
   };
 
   const rows = changes.map(c => `
@@ -58,7 +59,7 @@ async function sendDnsChangeAlert(to: string, domain: string, changes: DnsChange
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
   <div style="max-width:640px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
     <div style="background:#0f172a;padding:24px 32px">
-      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+      <span style="font-size:22px;font-weight:700;color:#10b981">CyberStep.io</span>
     </div>
     <div style="padding:32px">
       <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px">
@@ -77,6 +78,7 @@ async function sendDnsChangeAlert(to: string, domain: string, changes: DnsChange
         <tbody>${rows}</tbody>
       </table>
       <p style="font-size:13px;color:#64748b;margin:0 0 8px">NS veya MX degisiklikleri yetkisiz transfer veya mail yonlendirmesine isaret edebilir. Lutfen derhal kontrol edin.</p>
+      <p style="font-size:13px;color:#64748b;margin:0">SOC vaka detaylariniz icin hesabim paneline giris yapin.</p>
     </div>
   </div>
 </body></html>`,
@@ -101,14 +103,14 @@ export function startDnsCrons(): void {
           customerId: row.customer_id,
           domain: row.domain,
           watchedDomainId: row.id,
-          customerEmail: row.customer_email ?? "",
           onChanges: async (changes, snapshot) => {
             if (row.customer_email) {
               await sendDnsChangeAlert(row.customer_email, row.domain, changes, snapshot);
             }
           },
-          onSocCase: createSocCase,
+          onSocCase: createDnsSocCase,
         });
+        // Prevent thundering-herd against DNS resolvers
         await new Promise(r => setTimeout(r, 500));
       }
     } catch (err) {

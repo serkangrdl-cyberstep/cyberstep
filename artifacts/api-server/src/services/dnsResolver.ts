@@ -28,6 +28,15 @@ const RECORD_SEVERITY: Record<DnsRecordType, "critical" | "high" | "medium" | "l
   TXT: "medium",
 };
 
+// Safely parse a JSONB value that may be already-deserialized (object) or a JSON string.
+function parseJsonb<T>(val: unknown, fallback: T): T {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "string") {
+    try { return JSON.parse(val) as T; } catch { return fallback; }
+  }
+  return val as T;
+}
+
 export async function resolveDnsSnapshot(domain: string): Promise<DnsSnapshot> {
   const snap: DnsSnapshot = { A: [], MX: [], NS: [], TXT: [], CNAME: [] };
 
@@ -76,30 +85,72 @@ export function formatDnsValue(type: DnsRecordType, values: unknown): string {
   return (values as string[]).join(", ");
 }
 
+interface SnapshotRow {
+  a_records: unknown;
+  mx_records: unknown;
+  ns_records: unknown;
+  txt_records: unknown;
+  cname_records: unknown;
+  [key: string]: unknown;
+}
+
 export async function checkAndSaveDnsChanges(params: {
   customerId: number;
   domain: string;
   watchedDomainId: number;
-  customerEmail: string;
   onChanges: (changes: DnsChange[], snapshot: DnsSnapshot) => Promise<void>;
   onSocCase: (customerId: number, domain: string, change: DnsChange) => Promise<number | null>;
 }): Promise<void> {
   const { customerId, domain, watchedDomainId, onChanges, onSocCase } = params;
 
   try {
+    // 1. Resolve current DNS
     const curr = await resolveDnsSnapshot(domain);
 
-    const prevRows = await db.execute<{
-      a_records: string; mx_records: string; ns_records: string;
-      txt_records: string; cname_records: string;
-    }>(sql`
+    // 2. Fetch the most recent snapshot for comparison
+    const prevResult = await db.execute<SnapshotRow>(sql`
       SELECT a_records, mx_records, ns_records, txt_records, cname_records
       FROM dns_snapshots
       WHERE customer_id = ${customerId} AND domain = ${domain}
       ORDER BY checked_at DESC
       LIMIT 1
     `);
+    const prevRow = (prevResult as unknown as { rows: SnapshotRow[] }).rows?.[0];
 
+    // 3. First time we're seeing this domain — insert baseline snapshot and return
+    if (!prevRow) {
+      await db.execute(sql`
+        INSERT INTO dns_snapshots (customer_id, domain, a_records, mx_records, ns_records, txt_records, cname_records)
+        VALUES (
+          ${customerId}, ${domain},
+          ${JSON.stringify(curr.A)}::jsonb, ${JSON.stringify(curr.MX)}::jsonb,
+          ${JSON.stringify(curr.NS)}::jsonb, ${JSON.stringify(curr.TXT)}::jsonb,
+          ${JSON.stringify(curr.CNAME)}::jsonb
+        )
+      `);
+      await db.execute(sql`UPDATE dns_watched_domains SET last_checked_at = NOW() WHERE id = ${watchedDomainId}`);
+      logger.info({ customerId, domain }, "DNS baseline snapshot created");
+      return;
+    }
+
+    // 4. Deserialize JSONB safely (pg driver may return already-parsed objects or strings)
+    const prev: DnsSnapshot = {
+      A: parseJsonb<string[]>(prevRow.a_records, []),
+      MX: parseJsonb<Array<{ priority: number; exchange: string }>>(prevRow.mx_records, []),
+      NS: parseJsonb<string[]>(prevRow.ns_records, []),
+      TXT: parseJsonb<string[][]>(prevRow.txt_records, []),
+      CNAME: parseJsonb<string[]>(prevRow.cname_records, []),
+    };
+
+    const changes = diffSnapshots(prev, curr);
+
+    // 5. No changes — only touch last_checked_at, do not insert a new snapshot row
+    if (changes.length === 0) {
+      await db.execute(sql`UPDATE dns_watched_domains SET last_checked_at = NOW() WHERE id = ${watchedDomainId}`);
+      return;
+    }
+
+    // 6. Changes detected — insert new snapshot and record each change
     await db.execute(sql`
       INSERT INTO dns_snapshots (customer_id, domain, a_records, mx_records, ns_records, txt_records, cname_records)
       VALUES (
@@ -109,24 +160,7 @@ export async function checkAndSaveDnsChanges(params: {
         ${JSON.stringify(curr.CNAME)}::jsonb
       )
     `);
-
-    await db.execute(sql`
-      UPDATE dns_watched_domains SET last_checked_at = NOW() WHERE id = ${watchedDomainId}
-    `);
-
-    const prevRow = (prevRows as unknown as { rows: { a_records: string; mx_records: string; ns_records: string; txt_records: string; cname_records: string }[] }).rows?.[0];
-    if (!prevRow) return;
-
-    const prev: DnsSnapshot = {
-      A: JSON.parse(prevRow.a_records || "[]"),
-      MX: JSON.parse(prevRow.mx_records || "[]"),
-      NS: JSON.parse(prevRow.ns_records || "[]"),
-      TXT: JSON.parse(prevRow.txt_records || "[]"),
-      CNAME: JSON.parse(prevRow.cname_records || "[]"),
-    };
-
-    const changes = diffSnapshots(prev, curr);
-    if (changes.length === 0) return;
+    await db.execute(sql`UPDATE dns_watched_domains SET last_checked_at = NOW() WHERE id = ${watchedDomainId}`);
 
     for (const change of changes) {
       const socCaseId = await onSocCase(customerId, domain, change).catch(() => null);
@@ -141,7 +175,7 @@ export async function checkAndSaveDnsChanges(params: {
     }
 
     await onChanges(changes, curr).catch(err =>
-      logger.warn({ err, domain }, "DNS change alert email failed")
+      logger.warn({ err, domain }, "DNS change alert callback failed")
     );
 
     logger.info({ customerId, domain, changeCount: changes.length }, "DNS changes detected and recorded");

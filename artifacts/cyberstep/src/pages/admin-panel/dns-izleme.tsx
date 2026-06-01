@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Globe, Shield, AlertTriangle, Activity } from "lucide-react";
+import { Globe, Shield, AlertTriangle, Activity, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-layout";
@@ -21,6 +21,7 @@ interface DnsChangeEvent {
   new_values: unknown;
   severity: string;
   soc_case_id: number | null;
+  soc_case_number: string | null;
   detected_at: string;
 }
 
@@ -33,6 +34,7 @@ interface WatchedDomain {
   is_active: boolean;
   created_at: string;
   last_checked_at: string | null;
+  change_count: number;
 }
 
 const SEV_COLORS: Record<string, string> = {
@@ -43,7 +45,7 @@ const SEV_COLORS: Record<string, string> = {
 };
 
 const SEV_LABELS: Record<string, string> = {
-  critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düsük",
+  critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük",
 };
 
 function formatValue(type: string, values: unknown): string {
@@ -88,7 +90,7 @@ export default function AdminDnsIzleme() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">DNS Değişiklik İzleyici</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Müşterilere ait domain DNS kayıtlarındaki gerçek zamanlı değişiklikler
+            Müşterilere ait domain DNS kayıtlarındaki değişiklikler — önem sırasına göre
           </p>
         </div>
 
@@ -129,12 +131,15 @@ export default function AdminDnsIzleme() {
           </Card>
         </div>
 
-        {/* Değişiklik Geçmişi */}
+        {/* Değişiklik Geçmişi — önem öncelikli */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              Son DNS Değişiklikleri
+              DNS Değişiklikleri
+              <span className="text-xs text-muted-foreground font-normal ml-1">
+                — kritik/yüksek öncelikli sıralama
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -147,18 +152,23 @@ export default function AdminDnsIzleme() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Müsteri</th>
+                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Önem</th>
+                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Müşteri</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Domain</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Kayıt</th>
-                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Önem</th>
-                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Eski Değer</th>
-                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Yeni Değer</th>
+                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Eski → Yeni</th>
+                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">SOC Vaka</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Zaman</th>
                     </tr>
                   </thead>
                   <tbody>
                     {changes.map(c => (
                       <tr key={c.id} className="border-b hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <Badge className={`text-xs border ${SEV_COLORS[c.severity] ?? ""}`}>
+                            {SEV_LABELS[c.severity] ?? c.severity}
+                          </Badge>
+                        </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-xs">{c.company_name ?? "—"}</p>
                           <p className="text-xs text-muted-foreground">{c.customer_email}</p>
@@ -167,16 +177,22 @@ export default function AdminDnsIzleme() {
                         <td className="px-4 py-3">
                           <span className="font-bold text-xs bg-muted px-2 py-0.5 rounded">{c.record_type}</span>
                         </td>
-                        <td className="px-4 py-3">
-                          <Badge className={`text-xs border ${SEV_COLORS[c.severity] ?? ""}`}>
-                            {SEV_LABELS[c.severity] ?? c.severity}
-                          </Badge>
+                        <td className="px-4 py-3 text-xs max-w-[220px]">
+                          <p className="font-mono text-muted-foreground truncate">{formatValue(c.record_type, c.old_values)}</p>
+                          <p className="font-mono text-emerald-400 truncate">{formatValue(c.record_type, c.new_values)}</p>
                         </td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[160px] truncate">
-                          {formatValue(c.record_type, c.old_values)}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-emerald-400 max-w-[160px] truncate">
-                          {formatValue(c.record_type, c.new_values)}
+                        <td className="px-4 py-3 text-xs">
+                          {c.soc_case_id ? (
+                            <a
+                              href={`/panel/soc?case=${c.soc_case_id}`}
+                              className="flex items-center gap-1 text-primary hover:underline font-mono"
+                            >
+                              {c.soc_case_number ?? `#${c.soc_case_id}`}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                           {fmtDate(c.detected_at)}
@@ -206,9 +222,10 @@ export default function AdminDnsIzleme() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Müsteri</th>
+                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Müşteri</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Domain</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Durum</th>
+                      <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Değişiklik</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Son Kontrol</th>
                       <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Eklenme</th>
                     </tr>
@@ -225,6 +242,13 @@ export default function AdminDnsIzleme() {
                           <Badge className={d.is_active ? "bg-green-500/20 text-green-400 border-green-500/30 border" : "bg-gray-500/20 text-gray-400 border"}>
                             {d.is_active ? "Aktif" : "Pasif"}
                           </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-medium">
+                          {d.change_count > 0 ? (
+                            <span className="text-orange-400">{d.change_count} değişiklik</span>
+                          ) : (
+                            <span className="text-muted-foreground">Yok</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(d.last_checked_at)}</td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(d.created_at)}</td>

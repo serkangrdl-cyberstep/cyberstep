@@ -1725,6 +1725,25 @@ export default function DomainScanPage() {
   });
   const dnsChanges = result ? dnsChangesRaw.filter(c => c.domain === result.domain) : [];
 
+  // ── CT Log sertifika olayları (sadece izlenen domain varsa) ───────────────
+  type CtEventRow = {
+    id: number; domain: string; cert_domain: string; issuer: string | null;
+    sans: string[]; not_before: string | null; not_after: string | null;
+    cert_fingerprint: string | null; detected_at: string; is_suspicious: boolean;
+  };
+  const { data: ctEventsRaw = [] } = useQuery<CtEventRow[]>({
+    queryKey: ["portal-ct-events-scan", result?.domain],
+    queryFn: (): Promise<CtEventRow[]> => {
+      const params = new URLSearchParams({ limit: "20" });
+      if (result?.domain) params.set("domain", result.domain);
+      return fetch(`/api/portal/ct-monitor/events?${params}`, { credentials: "include" })
+        .then(r => r.ok ? (r.json() as Promise<{ events: CtEventRow[] }>).then(d => d.events ?? []) : []);
+    },
+    enabled: !!sessionCustomer && !!dnsWatchedEntry,
+    staleTime: 60_000,
+  });
+  const ctEvents = result ? ctEventsRaw.filter((e: CtEventRow) => e.domain === result.domain) : [];
+
   const addDnsMutation = useMutation({
     mutationFn: (domain: string) =>
       fetch("/api/portal/dns-monitor/domains", {
@@ -2459,6 +2478,86 @@ export default function DomainScanPage() {
             </div>
           )}
           {/* ── END DNS İzleme Paneli ─────────────────────────────────────── */}
+
+          {/* ── CT Log Sertifika Olayları ─────────────────────────────────── */}
+          {sessionCustomer && dnsWatchedEntry && (
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm mb-6">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-50">
+                  <Lock className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Sertifika Olayları</p>
+                  <p className="text-xs text-muted-foreground">
+                    Certstream CT Log akışından gerçek zamanlı SSL sertifika izleme
+                  </p>
+                </div>
+                {ctEvents.some(e => e.is_suspicious) && (
+                  <Badge className="bg-red-100 text-red-700 border border-red-200 text-xs">
+                    {ctEvents.filter(e => e.is_suspicious).length} Şüpheli
+                  </Badge>
+                )}
+              </div>
+              <div className="px-5 py-4">
+                {ctEvents.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Henüz sertifika olayı tespit edilmedi. CT Log akışı gerçek zamanlı izleniyor.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {ctEvents.slice(0, 5).map(ev => (
+                      <div
+                        key={ev.id}
+                        className={`rounded-lg border p-3 ${ev.is_suspicious ? "bg-red-50 border-red-200" : "bg-slate-50 border-slate-200"}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="shrink-0 mt-0.5">
+                            {ev.is_suspicious
+                              ? <AlertTriangle className="h-4 w-4 text-red-500" />
+                              : <CheckCircle2 className="h-4 w-4 text-slate-400" />
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className="font-mono text-xs font-semibold truncate">{ev.cert_domain}</span>
+                              {ev.is_suspicious && (
+                                <Badge className="text-xs px-1.5 py-0 bg-red-100 text-red-700 border border-red-200 shrink-0">
+                                  Phishing Riski
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                                {new Date(ev.detected_at).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                              </span>
+                            </div>
+                            {ev.issuer && (
+                              <p className="text-xs text-muted-foreground">CA: {ev.issuer}</p>
+                            )}
+                            {ev.not_after && (
+                              <p className="text-xs text-muted-foreground">
+                                Geçerlilik: {new Date(ev.not_after).toLocaleDateString("tr-TR")}
+                              </p>
+                            )}
+                            {Array.isArray(ev.sans) && ev.sans.length > 1 && (
+                              <p className="text-xs text-muted-foreground font-mono truncate">
+                                SANs: {ev.sans.slice(0, 3).join(", ")}
+                                {ev.sans.length > 3 ? ` +${ev.sans.length - 3}` : ""}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {ctEvents.length > 5 && (
+                      <p className="text-xs text-muted-foreground text-center pt-1">
+                        Toplam {ctEvents.length} sertifika olayı
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* ── END CT Log Sertifika Olayları ─────────────────────────────── */}
 
           {/* Değerlendirme Upsell Köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">

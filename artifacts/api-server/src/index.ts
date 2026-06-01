@@ -10,6 +10,8 @@ import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { startFabricCrons } from "./services/fabric-cron";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
+import { startCertstreamClient } from "./services/certstream-client";
+import { ensureCtTable } from "./routes/ct-monitor/index";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
@@ -1398,6 +1400,7 @@ async function startup() {
   await ensureReferralCodeColumn();
   await ensureDomainScanPurchasesTable();
   await ensureDnsTables();
+  await ensureCtTable();
   await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
 }
@@ -1674,6 +1677,7 @@ startup()
     startFabricCrons();
     startSOCCrons();
     startDnsCrons();
+    startCertstreamClient();
 
     // ─── Onboarding email serisi — Her gün 10:30 (D+3 ve D+7) ───────────────
     cron.schedule("30 10 * * *", async () => {

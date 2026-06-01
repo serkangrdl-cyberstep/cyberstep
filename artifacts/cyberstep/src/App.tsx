@@ -149,6 +149,7 @@ import AdminRemediation from "./pages/admin-panel/remediation";
 import AdminCodeSecrets from "./pages/admin-panel/code-secrets";
 import AdminObservability from "./pages/admin-panel/observability";
 import AdminDnsIzleme from "./pages/admin-panel/dns-izleme";
+import AdminCtIzleme from "./pages/admin-panel/ct-izleme";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
 import SocDashboard from "./pages/hesabim/soc";
 import HesabimDestek from "./pages/hesabim/destek";
@@ -309,6 +310,7 @@ function Router() {
       <Route path="/panel/kod-guvenligi" component={AdminCodeSecrets} />
       <Route path="/panel/observability" component={AdminObservability} />
       <Route path="/panel/dns-izleme" component={AdminDnsIzleme} />
+      <Route path="/panel/ct-izleme" component={AdminCtIzleme} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

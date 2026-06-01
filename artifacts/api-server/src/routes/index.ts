@@ -45,6 +45,7 @@ import cloudCspmRouter from "./cloud-cspm/index";
 import codeSecretsRouter from "./code-secrets/index";
 import observabilityRouter from "./observability/index";
 import dnsMonitorRouter from "./dns-monitor/index";
+import ctMonitorRouter from "./ct-monitor/index";
 
 const router: IRouter = Router();
 
@@ -94,5 +95,6 @@ router.use(cloudCspmRouter);
 router.use(codeSecretsRouter);
 router.use(observabilityRouter);
 router.use(dnsMonitorRouter);
+router.use(ctMonitorRouter);
 
 export default router;

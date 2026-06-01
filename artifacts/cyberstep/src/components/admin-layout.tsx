@@ -90,6 +90,7 @@ const NAV_SECTIONS = [
       { icon: ShieldAlert,     label: "SOC Operasyon",         href: "/panel/soc" },
       { icon: Activity,        label: "Observability",         href: "/panel/observability" },
       { icon: Globe,           label: "DNS İzleme",            href: "/panel/dns-izleme" },
+      { icon: ShieldAlert,     label: "CT Log İzleme",         href: "/panel/ct-izleme" },
     ],
   },
   {

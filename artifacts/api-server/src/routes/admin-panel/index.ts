@@ -21,6 +21,7 @@ import cloudCspmAdminRouter from "./cloud-cspm";
 import codeSecretsAdminRouter from "./code-secrets";
 import observabilityAdminRouter from "./observability";
 import dnsMonitorAdminRouter from "./dns-monitor";
+import ctMonitorAdminRouter from "./ct-monitor";
 
 const router = Router();
 router.use(authRouter);
@@ -45,5 +46,6 @@ router.use(cloudCspmAdminRouter);
 router.use(codeSecretsAdminRouter);
 router.use(observabilityAdminRouter);
 router.use(dnsMonitorAdminRouter);
+router.use(ctMonitorAdminRouter);
 
 export default router;

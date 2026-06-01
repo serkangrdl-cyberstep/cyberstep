@@ -1684,6 +1684,71 @@ export default function DomainScanPage() {
   });
   const hasFullAccess = ["full", "pro"].includes(sessionCustomer?.subscriptionPlan ?? "");
 
+  // ── DNS İzleme hooks (sadece oturum açık müşteriler) ──────────────────────
+  const {
+    data: dnsWatchedDomains = [],
+    refetch: refetchDnsWatched,
+  } = useQuery<{ id: number; domain: string; is_active: boolean; last_checked_at: string | null }[]>({
+    queryKey: ["portal-dns-domains-scan"],
+    queryFn: () =>
+      fetch("/api/portal/dns-monitor/domains", { credentials: "include" })
+        .then(r => r.ok ? r.json() as Promise<{ id: number; domain: string; is_active: boolean; last_checked_at: string | null }[]> : []),
+    enabled: !!sessionCustomer,
+    staleTime: 30_000,
+  });
+
+  const dnsWatchedEntry = result
+    ? dnsWatchedDomains.find(d => d.domain === result.domain) ?? null
+    : null;
+
+  const { data: dnsSnapshot } = useQuery<{
+    a_records: unknown; mx_records: unknown; ns_records: unknown;
+    txt_records: unknown; cname_records: unknown; checked_at: string;
+  } | null>({
+    queryKey: ["portal-dns-snapshot-scan", result?.domain],
+    queryFn: () =>
+      result?.domain
+        ? fetch(`/api/portal/dns-monitor/snapshot/${encodeURIComponent(result.domain)}`, { credentials: "include" })
+            .then(r => r.ok ? r.json() : null)
+        : Promise.resolve(null),
+    enabled: !!sessionCustomer && !!dnsWatchedEntry,
+    staleTime: 60_000,
+  });
+
+  const { data: dnsChangesRaw = [] } = useQuery<{ id: number; domain: string; record_type: string; old_values: unknown; new_values: unknown; severity: string; detected_at: string }[]>({
+    queryKey: ["portal-dns-changes-scan"],
+    queryFn: () =>
+      fetch("/api/portal/dns-monitor/changes", { credentials: "include" })
+        .then(r => r.ok ? r.json() : []),
+    enabled: !!sessionCustomer && !!dnsWatchedEntry,
+    staleTime: 30_000,
+  });
+  const dnsChanges = result ? dnsChangesRaw.filter(c => c.domain === result.domain) : [];
+
+  const addDnsMutation = useMutation({
+    mutationFn: (domain: string) =>
+      fetch("/api/portal/dns-monitor/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ domain }),
+      }).then(async r => {
+        if (!r.ok) {
+          const b = await r.json() as { error?: string };
+          throw new Error(b.error ?? "Hata");
+        }
+        return r.json();
+      }),
+    onSuccess: () => { void refetchDnsWatched(); },
+  });
+
+  const removeDnsMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/portal/dns-monitor/domains/${id}`, { method: "DELETE", credentials: "include" }),
+    onSuccess: () => { void refetchDnsWatched(); },
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Auto-trigger attack scenarios when scan completes, poll for teaser data
   useEffect(() => {
     if (!result?.id) { setAttackTeaserStatus("idle"); setAttackTeaser(null); return; }
@@ -2247,6 +2312,153 @@ export default function DomainScanPage() {
           )}
           {/* ── END DETAYLI RAPOR / LOCKED GATE ─────────────────────────── */}
 
+          {/* ── DNS İzleme Paneli ────────────────────────────────────────── */}
+          {sessionCustomer ? (
+            <div className="rounded-2xl border border-blue-200 dark:border-blue-800/40 overflow-hidden mb-6">
+              <div className="bg-blue-50/60 dark:bg-blue-900/20 px-5 py-3 border-b border-blue-200 dark:border-blue-800/40 flex items-center gap-2">
+                <Globe className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-semibold">DNS Değişiklik İzleme</span>
+                {dnsWatchedEntry && (
+                  <Badge variant="outline" className="text-xs ml-1 border-green-500/40 text-green-600 bg-green-50 dark:bg-green-900/30">Aktif</Badge>
+                )}
+                <div className="ml-auto">
+                  {dnsWatchedEntry ? (
+                    <button
+                      onClick={() => removeDnsMutation.mutate(dnsWatchedEntry.id)}
+                      disabled={removeDnsMutation.isPending}
+                      className="text-xs text-red-500 hover:text-red-600 font-medium"
+                    >
+                      {removeDnsMutation.isPending ? "Kaldırılıyor..." : "İzlemeyi Durdur"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => result && addDnsMutation.mutate(result.domain)}
+                      disabled={addDnsMutation.isPending}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
+                    >
+                      {addDnsMutation.isPending ? (
+                        <><Loader2 className="h-3 w-3 animate-spin" />Ekleniyor...</>
+                      ) : (
+                        <>+ İzlemeye Ekle</>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!dnsWatchedEntry ? (
+                <div className="px-5 py-4">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>{result?.domain}</strong> için A, MX, NS, TXT ve CNAME kayıtlarını her 5 dakikada izleyin.
+                    Yetkisiz değişikliklerde anında SOC vakası açılır ve e-posta uyarısı gönderilir.
+                  </p>
+                  {addDnsMutation.isError && (
+                    <p className="text-xs text-red-500 mt-2">{(addDnsMutation.error as Error).message}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {/* Güncel Snapshot */}
+                  <div className="px-5 py-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                      Güncel DNS Kayıtları
+                      {dnsSnapshot && (
+                        <span className="ml-2 font-normal normal-case">
+                          — {new Date(dnsSnapshot.checked_at).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      )}
+                    </p>
+                    {dnsSnapshot ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                        {(["A","MX","NS","TXT","CNAME"] as const).map(type => {
+                          const val = dnsSnapshot[`${type.toLowerCase()}_records` as keyof typeof dnsSnapshot] as unknown;
+                          const isEmpty = !val || (Array.isArray(val) && val.length === 0);
+                          return (
+                            <div key={type} className="rounded-lg border bg-muted/30 p-2.5">
+                              <p className="font-bold text-xs font-mono mb-1">{type}</p>
+                              <p className={`text-xs font-mono truncate ${isEmpty ? "text-muted-foreground" : "text-foreground"}`}>
+                                {isEmpty ? "(boş)" : (
+                                  type === "MX"
+                                    ? (val as Array<{ priority: number; exchange: string }>).map(r => r.exchange).join(", ")
+                                    : type === "TXT"
+                                    ? (val as string[][]).map(r => r.join("")).join(" ")
+                                    : (val as string[]).join(", ")
+                                )}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">İlk snapshot bekleniyor (sonraki 5 dk içinde)...</p>
+                    )}
+                  </div>
+
+                  {/* Değişiklik Geçmişi */}
+                  <div className="px-5 py-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                      DNS Değişiklik Geçmişi
+                      {dnsChanges.length > 0 && (
+                        <span className="ml-2 font-normal normal-case text-orange-600">{dnsChanges.length} değişiklik</span>
+                      )}
+                    </p>
+                    {dnsChanges.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Henüz değişiklik tespit edilmedi. DNS kayıtları stabil.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {dnsChanges.slice(0, 5).map(c => {
+                          const sevColor = c.severity === "critical" ? "bg-red-50 border-red-200" : c.severity === "high" ? "bg-orange-50 border-orange-200" : "bg-yellow-50 border-yellow-200";
+                          const sevLabel = c.severity === "critical" ? "Kritik" : c.severity === "high" ? "Yüksek" : c.severity === "medium" ? "Orta" : "Düşük";
+                          return (
+                            <div key={c.id} className={`rounded-lg border p-3 ${sevColor}`}>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="font-bold text-xs bg-white/80 px-1.5 py-0.5 rounded border font-mono">{c.record_type}</span>
+                                <Badge variant="outline" className="text-xs px-1.5 py-0 border">
+                                  {sevLabel}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground ml-auto">
+                                  {new Date(c.detected_at).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5 text-xs font-mono">
+                                <div className="bg-red-50 text-red-700 px-2 py-1 rounded truncate">
+                                  {Array.isArray(c.old_values) && c.old_values.length === 0 ? "(boş)" : JSON.stringify(c.old_values).slice(0, 60)}
+                                </div>
+                                <div className="bg-green-50 text-green-700 px-2 py-1 rounded truncate">
+                                  {Array.isArray(c.new_values) && c.new_values.length === 0 ? "(boş)" : JSON.stringify(c.new_values).slice(0, 60)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {dnsChanges.length > 5 && (
+                          <a href="/hesabim/dns-izleme" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            Tüm değişiklikleri gör ({dnsChanges.length}) <ArrowRight className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : result && (
+            <div className="rounded-2xl border border-blue-200/60 bg-blue-50/30 dark:bg-blue-950/10 dark:border-blue-800/30 p-5 mb-6">
+              <div className="flex items-center gap-3">
+                <Globe className="h-5 w-5 text-blue-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">DNS Değişikliklerini İzleyin</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Üye olun — A, MX, NS, TXT kayıtlarındaki her değişiklikte anında uyarı alın.
+                  </p>
+                </div>
+                <a href="/kayit" className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline">
+                  Üye Ol <ArrowRight className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          )}
+          {/* ── END DNS İzleme Paneli ─────────────────────────────────────── */}
 
           {/* Değerlendirme Upsell Köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">

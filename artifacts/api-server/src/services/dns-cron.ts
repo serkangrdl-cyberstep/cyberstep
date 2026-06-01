@@ -85,16 +85,26 @@ async function sendDnsChangeAlert(to: string, domain: string, changes: DnsChange
   });
 }
 
+// Guard against concurrent runs — if a previous cycle is still in flight, skip.
+let dnsRunInProgress = false;
+
 export function startDnsCrons(): void {
   cron.schedule("*/5 * * * *", async () => {
+    if (dnsRunInProgress) {
+      logger.warn("DNS monitor cron: previous run still in progress, skipping");
+      return;
+    }
+    dnsRunInProgress = true;
     try {
+      // No LIMIT — all active watched domains must be covered within each 5-minute cycle.
+      // The 500 ms sleep between domains provides natural throttling; at 500 ms/domain,
+      // ~600 domains fit comfortably within 5 minutes.
       const result = await db.execute<WatchedDomainRow>(sql`
         SELECT d.id, d.customer_id, d.domain, c.email AS customer_email
         FROM dns_watched_domains d
         JOIN customers c ON c.id = d.customer_id
         WHERE d.is_active = true
         ORDER BY COALESCE(d.last_checked_at, '1970-01-01') ASC
-        LIMIT 50
       `);
       const rows = (result as unknown as { rows: WatchedDomainRow[] }).rows ?? [];
 
@@ -110,11 +120,13 @@ export function startDnsCrons(): void {
           },
           onSocCase: createDnsSocCase,
         });
-        // Prevent thundering-herd against DNS resolvers
+        // Throttle DNS resolver requests to avoid thundering-herd
         await new Promise(r => setTimeout(r, 500));
       }
     } catch (err) {
       logger.error({ err }, "DNS monitor cron failed");
+    } finally {
+      dnsRunInProgress = false;
     }
   }, TZ);
 

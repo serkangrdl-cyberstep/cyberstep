@@ -1,27 +1,60 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   Shield, CheckCircle, Clock, XCircle, Package, ExternalLink,
-  ArrowRight, AlertCircle, RefreshCw, ShoppingCart, Loader2
+  ArrowRight, AlertCircle, ShoppingCart, Loader2, ChevronDown, ChevronUp,
+  Settings, Server, Globe, X, Check, Lock,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
 
-interface CustomerServiceSub {
+interface OnboardingStep {
+  key: string;
+  label: string;
+  side: "customer" | "admin";
+  status: "pending" | "done" | "skipped";
+}
+
+interface ServiceSubscription {
   id: number;
   serviceSlug: string;
   serviceLabel: string;
   status: string;
   billingCycle: string;
-  amountPaid: string;
+  amountPaid: string | null;
   startedAt: string;
   expiresAt: string | null;
   contactName: string;
   companyName: string;
   email: string;
+}
+
+interface CatalogItem {
+  slug: string;
+  label: string;
+  shortDescription: string;
+  icon: string;
+  category: string;
+  monthlyPriceTl: string;
+  priceTl: string | null;
+  serviceType: string | null;
+  isActive: boolean;
+  isSelfService: boolean | null;
+}
+
+interface MyServiceItem {
+  subscription: ServiceSubscription;
+  catalog: CatalogItem | null;
+  config: Record<string, unknown>;
+  onboardingSteps: OnboardingStep[];
+  onboardingProgress: number;
 }
 
 interface CatalogService {
@@ -39,57 +72,372 @@ interface CatalogService {
   isActive: boolean;
 }
 
-interface CustomerIntegration {
-  provider: string;
-  displayName: string;
-  isActive: boolean;
-  lastEventAt: string | null;
-  eventCount: number;
-}
-
-const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof CheckCircle }> = {
-  active: { label: "Aktif", variant: "default", icon: CheckCircle },
-  pending: { label: "Beklemede", variant: "secondary", icon: Clock },
-  expired: { label: "Süresi Doldu", variant: "outline", icon: XCircle },
-  cancelled: { label: "İptal Edildi", variant: "destructive", icon: XCircle },
-  suspended: { label: "Askıya Alındı", variant: "destructive", icon: AlertCircle },
+const STATUS_MAP: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
+  active: { label: "Aktif", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", icon: CheckCircle },
+  pending: { label: "Beklemede", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", icon: Clock },
+  expired: { label: "Suresi Doldu", color: "bg-gray-500/20 text-gray-400 border-gray-500/30", icon: XCircle },
+  cancelled: { label: "Iptal", color: "bg-red-500/20 text-red-400 border-red-500/30", icon: XCircle },
+  suspended: { label: "Askida", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: AlertCircle },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  assessment: "Değerlendirme",
+  assessment: "Degerlendirme",
   ai_service: "AI Servis",
-  monitoring: "İzleme",
+  monitoring: "Izleme",
   soc: "SOC",
-  consulting: "Danışmanlık",
+  consulting: "Danismanlik",
   bundle: "Paket",
 };
 
-const INTEGRATION_LINKS: Record<string, string> = {
-  fortinet: "/hesabim/fortinet-entegrasyonu",
-  datadog: "/hesabim/entegrasyonlarim",
-  azure: "/hesabim/entegrasyonlarim",
-  slack: "/hesabim/entegrasyonlarim",
-  telegram: "/hesabim/entegrasyonlarim",
-};
+// ──────────────────────────────────────────────────────────────────────────────
+// Service config forms
+// ──────────────────────────────────────────────────────────────────────────────
 
-const AVAILABLE_INTEGRATIONS = [
-  { key: "fortinet", label: "FortiGate / Fortinet", path: "/hesabim/fortinet-entegrasyonu" },
-  { key: "datadog", label: "Datadog", path: "/hesabim/entegrasyonlarim" },
-  { key: "azure", label: "Azure Monitor", path: "/hesabim/entegrasyonlarim" },
-  { key: "slack", label: "Slack", path: "/hesabim/entegrasyonlarim" },
-  { key: "telegram", label: "Telegram", path: "/hesabim/entegrasyonlarim" },
-];
+function FortinetConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">FortiManager URL ve API credentials giriniz. Gelismis ayarlar icin sayfanin altindaki linki kullanin.</p>
+      <div>
+        <Label className="text-slate-300 text-xs">FortiManager URL</Label>
+        <Input value={config["url"] ?? ""} onChange={e => onChange({ ...config, url: e.target.value })}
+          placeholder="https://fortimanager.sirket.com" className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm" />
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">API Kullanici Adi</Label>
+        <Input value={config["username"] ?? ""} onChange={e => onChange({ ...config, username: e.target.value })}
+          placeholder="api-user" className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm" />
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">API Sifre / Token</Label>
+        <Input type="password" value={config["password"] ?? ""} onChange={e => onChange({ ...config, password: e.target.value })}
+          placeholder="••••••••" className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm" />
+      </div>
+      <Button size="sm" variant="ghost" className="text-xs text-sky-400 hover:text-sky-300 gap-1 px-0"
+        onClick={() => window.location.href = "/hesabim/fortinet-entegrasyonu"}>
+        <ExternalLink className="w-3 h-3" /> Gelismis Fortinet ayarlari
+      </Button>
+    </div>
+  );
+}
+
+function DomainListField({ label, domains, onAdd, onRemove, icon }: {
+  label: string; domains: string[]; onAdd: (d: string) => void; onRemove: (d: string) => void;
+  icon?: React.ReactNode;
+}) {
+  const [val, setVal] = useState("");
+  function add() {
+    const d = val.trim().toLowerCase();
+    if (!d || domains.includes(d)) return;
+    onAdd(d);
+    setVal("");
+  }
+  return (
+    <div>
+      <Label className="text-slate-300 text-xs">{label}</Label>
+      <div className="flex gap-2 mt-1">
+        <Input value={val} onChange={e => setVal(e.target.value)} placeholder="ornek.com"
+          className="bg-slate-800 border-slate-700 text-white font-mono text-sm"
+          onKeyDown={e => e.key === "Enter" && add()} />
+        <Button size="sm" variant="outline" className="border-slate-700 shrink-0" onClick={add}>Ekle</Button>
+      </div>
+      {domains.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {domains.map(d => (
+            <span key={d} className="flex items-center gap-1 bg-slate-700 text-slate-200 text-xs px-2 py-1 rounded">
+              {icon ?? <Globe className="w-3 h-3 text-sky-400" />} {d}
+              <button onClick={() => onRemove(d)} className="ml-0.5 text-slate-400 hover:text-red-400"><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DnsMonitorConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  const domains: string[] = config["domains"] ? JSON.parse(config["domains"]) : [];
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">Izlenecek domain adlarini ekleyin. DNS kayit degisiklikleri aninda bildirilir.</p>
+      <DomainListField label="Izlenecek Domainler" domains={domains}
+        onAdd={d => onChange({ ...config, domains: JSON.stringify([...domains, d]) })}
+        onRemove={d => onChange({ ...config, domains: JSON.stringify(domains.filter(x => x !== d)) })} />
+      <div>
+        <Label className="text-slate-300 text-xs">Bildirim E-postasi</Label>
+        <Input value={config["notificationEmail"] ?? ""} onChange={e => onChange({ ...config, notificationEmail: e.target.value })}
+          placeholder="guvenlik@sirket.com" type="email" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function CtLogConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  const domains: string[] = config["domains"] ? JSON.parse(config["domains"]) : [];
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">Yetkisiz SSL sertifikasi cikartilmasina karsi izlenecek domain whitelist tanimlayin.</p>
+      <DomainListField label="Domain Whitelist" domains={domains}
+        icon={<Shield className="w-3 h-3 text-emerald-400" />}
+        onAdd={d => onChange({ ...config, domains: JSON.stringify([...domains, d]) })}
+        onRemove={d => onChange({ ...config, domains: JSON.stringify(domains.filter(x => x !== d)) })} />
+      <div>
+        <Label className="text-slate-300 text-xs">Uyari E-postasi</Label>
+        <Input value={config["alertEmail"] ?? ""} onChange={e => onChange({ ...config, alertEmail: e.target.value })}
+          placeholder="guvenlik@sirket.com" type="email" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function Ms365ConfigForm() {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">Microsoft 365 hesabinizi OAuth ile baglayin. Azure AD giris logu ve Defender tehdit uyarilari izlenir.</p>
+      <div className="border border-blue-500/20 bg-blue-500/5 rounded-lg p-4 text-center space-y-3">
+        <p className="text-sm text-slate-300">Microsoft 365 baglantisi kurmak icin asagidaki butonu kullanin.</p>
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+          onClick={() => { window.location.href = "/api/ms365/auth"; }}>
+          Microsoft 365 ile Baglan
+        </Button>
+      </div>
+      <Button size="sm" variant="ghost" className="text-xs text-sky-400 hover:text-sky-300 gap-1 w-full justify-start px-0"
+        onClick={() => window.location.href = "/hesabim/entegrasyonlarim"}>
+        <ExternalLink className="w-3 h-3" /> Entegrasyon detaylarina git
+      </Button>
+    </div>
+  );
+}
+
+function KvkkConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">KVKK kapsaminda bildirim sorumlusunun iletisim bilgilerini girin.</p>
+      <div>
+        <Label className="text-slate-300 text-xs">Sorumlu Ad Soyad</Label>
+        <Input value={config["contactName"] ?? ""} onChange={e => onChange({ ...config, contactName: e.target.value })}
+          placeholder="Ayse Kaya" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">Sorumlu E-posta</Label>
+        <Input value={config["contactEmail"] ?? ""} onChange={e => onChange({ ...config, contactEmail: e.target.value })}
+          placeholder="kvkk@sirket.com" type="email" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">Sorumlu Telefon</Label>
+        <Input value={config["contactPhone"] ?? ""} onChange={e => onChange({ ...config, contactPhone: e.target.value })}
+          placeholder="+90 555 000 00 00" type="tel" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function ServiceNowConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">ServiceNow instance URL giriniz. SOC vakalari otomatik ticket'a donusturulur.</p>
+      <div>
+        <Label className="text-slate-300 text-xs">Instance URL</Label>
+        <Input value={config["instanceUrl"] ?? ""} onChange={e => onChange({ ...config, instanceUrl: e.target.value })}
+          placeholder="https://sirket.service-now.com" className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm" />
+      </div>
+      <Button size="sm" variant="ghost" className="text-xs text-sky-400 hover:text-sky-300 gap-1 w-full justify-start px-0"
+        onClick={() => window.location.href = "/hesabim/entegrasyonlarim"}>
+        <ExternalLink className="w-3 h-3" /> Gelismis ServiceNow ayarlari
+      </Button>
+    </div>
+  );
+}
+
+function SocConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">SOC ekibinin kritik vakalarda ulasabilecegi eskalasyon tercihlerinizi ayarlayin.</p>
+      <div>
+        <Label className="text-slate-300 text-xs">Eskalasyon Telefonu</Label>
+        <Input value={config["escalationPhone"] ?? ""} onChange={e => onChange({ ...config, escalationPhone: e.target.value })}
+          placeholder="+90 555 000 00 00" type="tel" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">Mesai Saati Tercihi</Label>
+        <div className="flex gap-2 mt-1">
+          {[{ value: "09-18", label: "09:00-18:00" }, { value: "08-20", label: "08:00-20:00" }, { value: "7x24", label: "7/24" }].map(opt => (
+            <button key={opt.value} onClick={() => onChange({ ...config, officeHours: opt.value })}
+              className={`flex-1 py-2 rounded text-xs font-medium border transition-colors ${
+                config["officeHours"] === opt.value ? "bg-sky-600 border-sky-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"}`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">Eskalasyon E-postasi</Label>
+        <Input value={config["escalationEmail"] ?? ""} onChange={e => onChange({ ...config, escalationEmail: e.target.value })}
+          placeholder="ciso@sirket.com" type="email" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function ObservabilityConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  const sources: string[] = config["logSources"] ? JSON.parse(config["logSources"]) : [];
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">Log kaynaklarini ve API endpoint bilgilerinizi tanimlayin.</p>
+      <DomainListField label="Log Kaynaklari" domains={sources} icon={<Server className="w-3 h-3 text-indigo-400" />}
+        onAdd={s => onChange({ ...config, logSources: JSON.stringify([...sources, s]) })}
+        onRemove={s => onChange({ ...config, logSources: JSON.stringify(sources.filter(x => x !== s)) })} />
+      <div>
+        <Label className="text-slate-300 text-xs">API Endpoint (opsiyonel)</Label>
+        <Input value={config["apiEndpoint"] ?? ""} onChange={e => onChange({ ...config, apiEndpoint: e.target.value })}
+          placeholder="https://api.sirket.com/logs" className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function DefaultConfigForm({ config, onChange }: { config: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">Bu servis icin iletisim bilgilerinizi girin.</p>
+      <div>
+        <Label className="text-slate-300 text-xs">Iletisim E-postasi</Label>
+        <Input value={config["contactEmail"] ?? ""} onChange={e => onChange({ ...config, contactEmail: e.target.value })}
+          placeholder="guvenlik@sirket.com" type="email" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+      <div>
+        <Label className="text-slate-300 text-xs">Notlar (opsiyonel)</Label>
+        <Input value={config["notes"] ?? ""} onChange={e => onChange({ ...config, notes: e.target.value })}
+          placeholder="Ek bilgi..." className="mt-1 bg-slate-800 border-slate-700 text-white text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function getConfigForm(slug: string, config: Record<string, string>, onChange: (v: Record<string, string>) => void) {
+  if (slug.includes("fortinet") || slug.includes("fabric")) return <FortinetConfigForm config={config} onChange={onChange} />;
+  if (slug.includes("dns")) return <DnsMonitorConfigForm config={config} onChange={onChange} />;
+  if (slug.includes("ct-log") || slug.includes("ct_log") || slug.includes("sertifika")) return <CtLogConfigForm config={config} onChange={onChange} />;
+  if (slug.includes("ms365") || slug.includes("microsoft") || slug.includes("azure")) return <Ms365ConfigForm />;
+  if (slug.includes("kvkk")) return <KvkkConfigForm config={config} onChange={onChange} />;
+  if (slug.includes("servicenow") || slug.includes("service-now")) return <ServiceNowConfigForm config={config} onChange={onChange} />;
+  if (slug.includes("soc")) return <SocConfigForm config={config} onChange={onChange} />;
+  if (slug.includes("observ") || slug.includes("log")) return <ObservabilityConfigForm config={config} onChange={onChange} />;
+  return <DefaultConfigForm config={config} onChange={onChange} />;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Service Config Modal
+// ──────────────────────────────────────────────────────────────────────────────
+
+function ServiceConfigModal({ item, onClose }: { item: MyServiceItem; onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const slug = item.subscription.serviceSlug;
+  const [localConfig, setLocalConfig] = useState<Record<string, string>>(
+    (item.config as Record<string, string>) ?? {}
+  );
+  const [showChecklist, setShowChecklist] = useState(true);
+  const isMsConfig = slug.includes("ms365") || slug.includes("microsoft") || slug.includes("azure");
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/customer/service-config/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ config: localConfig }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Kaydedildi", description: "Yapilandirma bilgileri guncellendi." });
+      qc.invalidateQueries({ queryKey: ["my-services"] });
+      onClose();
+    },
+    onError: (err: Error) => toast({ title: "Hata", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+          <div>
+            <h2 className="text-white font-semibold text-lg">{item.subscription.serviceLabel}</h2>
+            <p className="text-slate-400 text-sm mt-0.5">Servis yapilandirmasi</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {getConfigForm(slug, localConfig, setLocalConfig)}
+
+          {!isMsConfig && (
+            <Button className="w-full bg-sky-600 hover:bg-sky-500 text-white" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Kaydediliyor...</> : "Kaydet"}
+            </Button>
+          )}
+
+          {/* Onboarding checklist */}
+          <div className="border border-slate-800 rounded-lg overflow-hidden">
+            <button className="w-full flex items-center justify-between p-3 text-left text-sm text-slate-400 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
+              onClick={() => setShowChecklist(v => !v)}>
+              <span className="font-medium flex items-center gap-2">
+                Onboarding Adimlari
+                <span className="text-[10px] bg-slate-800 text-slate-500 border border-slate-700 rounded px-1.5 py-0.5">
+                  {item.onboardingSteps.filter(s => s.status === "done").length}/{item.onboardingSteps.length}
+                </span>
+              </span>
+              {showChecklist ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {showChecklist && (
+              <div className="border-t border-slate-800 p-3 space-y-2.5">
+                {item.onboardingSteps.map(step => (
+                  <div key={step.key} className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0">
+                      {step.status === "done" ? (
+                        <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-emerald-400" />
+                        </div>
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-slate-600 bg-slate-800/50" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs ${step.status === "done" ? "text-emerald-400 line-through" : "text-slate-300"}`}>
+                        {step.label}
+                      </p>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        {step.side === "admin" ? "CyberStep ekibi tarafindan yapilir" : "Sizin yapmaniz gerekiyor"}
+                      </p>
+                    </div>
+                    {step.side === "admin" && step.status === "pending" && (
+                      <Badge className="text-[10px] bg-slate-800 text-slate-500 border-slate-700 shrink-0">Beklemede</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Main Page
+// ──────────────────────────────────────────────────────────────────────────────
 
 export default function ServislerimPage() {
   const { data: customer, isLoading: authLoading } = useRequireCustomer();
   const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const qc = useQueryClient();
+  const [selectedItem, setSelectedItem] = useState<MyServiceItem | null>(null);
 
-  const { data: subscriptions = [], isLoading: subsLoading } = useQuery<CustomerServiceSub[]>({
-    queryKey: ["my-subscriptions"],
+  const { data: myServices = [], isLoading: servicesLoading } = useQuery<MyServiceItem[]>({
+    queryKey: ["my-services"],
     queryFn: async () => {
-      const res = await fetch("/api/customer/service-subscriptions");
+      const res = await fetch("/api/customer/my-services", { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -105,30 +453,6 @@ export default function ServislerimPage() {
     },
   });
 
-  const { data: integrations = [], isLoading: intLoading } = useQuery<CustomerIntegration[]>({
-    queryKey: ["my-integrations"],
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/list");
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!customer,
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async (subId: number) => {
-      const res = await fetch(`/api/customer/service-subscriptions/${subId}/cancel`, { method: "POST" });
-      if (!res.ok) throw new Error("İptal başarısız");
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-subscriptions"] });
-      toast({ title: "Servis iptal edildi" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Hata", description: err.message, variant: "destructive" });
-    },
-  });
-
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -137,59 +461,52 @@ export default function ServislerimPage() {
     );
   }
 
-  const activeSubs = subscriptions.filter(s => s.status === "active");
-  const inactiveSubs = subscriptions.filter(s => s.status !== "active");
+  const ownedSlugs = new Set(myServices.map(m => m.subscription.serviceSlug));
+  const activeSubs = myServices.filter(m => m.subscription.status === "active");
+  const inactiveSubs = myServices.filter(m => m.subscription.status !== "active");
 
-  const ownedSlugs = new Set(subscriptions.map(s => s.serviceSlug));
-  const availableServices = catalog.filter(
-    s => s.isActive && s.isSelfService && !ownedSlugs.has(s.slug) && Number(s.priceTl ?? s.monthlyPriceTl) > 0
-  ).slice(0, 6);
-
-  const connectedKeys = new Set(integrations.map(i => i.provider?.toLowerCase()));
+  const availableServices = catalog
+    .filter(s => s.isActive && !ownedSlugs.has(s.slug) && Number(s.priceTl ?? s.monthlyPriceTl) > 0)
+    .slice(0, 6);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      {selectedItem && <ServiceConfigModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Başlık */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Package className="w-6 h-6 text-sky-400" />
-            Servislerim
+            <Package className="w-6 h-6 text-sky-400" /> Servislerim
           </h1>
-          <p className="text-slate-400 mt-1">Aktif servislerinizi, entegrasyonlarınızı ve kullanılabilir servisleri yönetin.</p>
+          <p className="text-slate-400 mt-1">Aktif servislerinizi ve onboarding ilerlemesini yonetin.</p>
         </div>
 
         {/* Aktif Servisler */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-400" />
-            Aktif Servislerim
+            <CheckCircle className="w-5 h-5 text-emerald-400" /> Aktif Servislerim
           </h2>
 
-          {subsLoading ? (
-            <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
-              <Loader2 className="w-4 h-4 animate-spin" /> Yükleniyor...
-            </div>
+          {servicesLoading ? (
+            <div className="flex items-center gap-2 text-slate-400 text-sm py-4"><Loader2 className="w-4 h-4 animate-spin" /> Yukleniyor...</div>
           ) : activeSubs.length === 0 ? (
             <Card className="bg-slate-900 border-slate-800">
               <CardContent className="py-8 text-center">
                 <Shield className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400">Henüz aktif bir servisiniz yok.</p>
-                <Button
-                  variant="outline"
-                  className="mt-4 border-sky-500/30 text-sky-400 hover:bg-sky-500/10"
-                  onClick={() => navigate("/fiyatlandirma")}
-                >
-                  Servislere Göz At
+                <p className="text-slate-400">Henuz aktif bir servisiniz yok.</p>
+                <Button variant="outline" className="mt-4 border-sky-500/30 text-sky-400 hover:bg-sky-500/10" onClick={() => navigate("/fiyatlandirma")}>
+                  Servislere Goz At
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {activeSubs.map(sub => {
+              {activeSubs.map(item => {
+                const sub = item.subscription;
                 const statusInfo = STATUS_MAP[sub.status] ?? STATUS_MAP["active"];
                 const StatusIcon = statusInfo.icon;
                 const expiresDate = sub.expiresAt ? new Date(sub.expiresAt) : null;
+                const pendingCustomerSteps = item.onboardingSteps.filter(s => s.side === "customer" && s.status === "pending");
 
                 return (
                   <Card key={sub.id} className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors">
@@ -198,45 +515,54 @@ export default function ServislerimPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-white">{sub.serviceLabel}</span>
-                            <Badge variant={statusInfo.variant} className="text-xs gap-1">
-                              <StatusIcon className="w-3 h-3" />
-                              {statusInfo.label}
+                            <Badge className={`text-[10px] border gap-1 ${statusInfo.color}`}>
+                              <StatusIcon className="w-3 h-3" /> {statusInfo.label}
                             </Badge>
-                            <Badge variant="outline" className="text-xs text-slate-400">
-                              {sub.billingCycle === "annual" ? "Yıllık" : "Aylık"}
+                            <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">
+                              {sub.billingCycle === "annual" ? "Yillik" : "Aylik"}
                             </Badge>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                             <span>Baslangic: {new Date(sub.startedAt).toLocaleDateString("tr-TR")}</span>
-                            {expiresDate && (
-                              <span>Bitis: {expiresDate.toLocaleDateString("tr-TR")}</span>
+                            {expiresDate && <span>Bitis: {expiresDate.toLocaleDateString("tr-TR")}</span>}
+                            {sub.amountPaid && (
+                              <span className="font-medium text-slate-300">{Number(sub.amountPaid).toLocaleString("tr-TR")} TL</span>
                             )}
-                            <span className="font-medium text-slate-300">
-                              {Number(sub.amountPaid).toLocaleString("tr-TR")} TL
-                            </span>
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] text-slate-500">Onboarding ilerlemesi</span>
+                              <span className={`text-[11px] font-medium ${item.onboardingProgress === 100 ? "text-emerald-400" : "text-slate-400"}`}>
+                                {item.onboardingProgress}%
+                              </span>
+                            </div>
+                            <Progress value={item.onboardingProgress} className="h-1.5 bg-slate-800" />
+                            {pendingCustomerSteps.length > 0 && (
+                              <p className="text-[10px] text-yellow-400 mt-1">
+                                {pendingCustomerSteps.length} yapilandirma adimi bekliyor
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <Button size="sm" variant="outline" className="border-sky-600/40 text-sky-400 hover:bg-sky-500/10 gap-1.5 text-xs"
+                            onClick={() => setSelectedItem(item)}>
+                            <Settings className="w-3.5 h-3.5" /> Yapilandir
+                          </Button>
                           {sub.serviceSlug.includes("soc") && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-sky-400 hover:text-sky-300 text-xs gap-1"
-                              onClick={() => navigate("/hesabim/soc")}
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              SOC
+                            <Button size="sm" variant="ghost" className="text-slate-400 hover:text-sky-400 gap-1 text-xs h-7"
+                              onClick={() => navigate("/hesabim/soc")}>
+                              <ExternalLink className="w-3 h-3" /> SOC Panosu
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-rose-400 hover:text-rose-300 text-xs"
-                            onClick={() => cancelMutation.mutate(sub.id)}
-                            disabled={cancelMutation.isPending}
-                          >
-                            <XCircle className="w-3 h-3" />
-                          </Button>
+                          {sub.serviceSlug.includes("noc") && (
+                            <Button size="sm" variant="ghost" className="text-slate-400 hover:text-sky-400 gap-1 text-xs h-7"
+                              onClick={() => navigate("/hesabim/noc")}>
+                              <ExternalLink className="w-3 h-3" /> NOC Panosu
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -247,98 +573,36 @@ export default function ServislerimPage() {
           )}
         </section>
 
-        {/* Entegrasyonlarım */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-indigo-400" />
-            Entegrasyonlarım
-          </h2>
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="py-4">
-              <div className="divide-y divide-slate-800">
-                {AVAILABLE_INTEGRATIONS.map(integ => {
-                  const connected = connectedKeys.has(integ.key);
-                  const live = integrations.find(i => i.provider?.toLowerCase() === integ.key);
-
-                  return (
-                    <div key={integ.key} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-slate-600"}`} />
-                        <div>
-                          <span className="text-sm font-medium text-slate-200">{integ.label}</span>
-                          {connected && live?.lastEventAt && (
-                            <p className="text-xs text-slate-500">
-                              Son event: {new Date(live.lastEventAt).toLocaleString("tr-TR")}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {connected ? (
-                          <Badge variant="outline" className="text-green-400 border-green-800 text-xs">Bagla</Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-slate-700 hover:border-sky-600 hover:text-sky-400 gap-1"
-                            onClick={() => navigate(integ.path)}
-                          >
-                            <ArrowRight className="w-3 h-3" />
-                            Kur
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Kullanılabilir Servisler */}
-        {availableServices.length > 0 && (
+        {/* Kullanilabilir Servisler */}
+        {!catalogLoading && availableServices.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-amber-400" />
-              Kullanilabilir Servisler
+              <ShoppingCart className="w-5 h-5 text-amber-400" /> Kullanilabilir Servisler
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {availableServices.map(svc => {
                 const price = svc.priceTl ? Number(svc.priceTl) : Number(svc.monthlyPriceTl);
-                const isAnnual = svc.serviceType === "annual";
                 const catLabel = CATEGORY_LABELS[svc.category] ?? svc.category;
-
                 return (
-                  <Card
-                    key={svc.id}
-                    className="bg-slate-900 border-slate-800 hover:border-sky-800/50 transition-all group cursor-pointer"
-                    onClick={() => navigate(`/satin-al/${svc.slug}`)}
-                  >
+                  <Card key={svc.id} className="bg-slate-900 border-slate-800 hover:border-sky-800/50 transition-all cursor-pointer"
+                    onClick={() => navigate(`/satin-al/${svc.slug}`)}>
                     <CardContent className="py-4">
                       <div className="flex items-start justify-between mb-2">
-                        <Badge variant="outline" className="text-xs text-slate-400 border-slate-700">{catLabel}</Badge>
+                        <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">{catLabel}</Badge>
+                        <Lock className="w-3.5 h-3.5 text-slate-600" />
                       </div>
                       <h3 className="font-semibold text-white text-sm mb-1 leading-snug">{svc.label}</h3>
                       <p className="text-xs text-slate-400 mb-3 line-clamp-2">{svc.shortDescription}</p>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="font-bold text-sky-400 text-sm">
-                            {price.toLocaleString("tr-TR")} TL
-                          </span>
+                          <span className="font-bold text-sky-400 text-sm">{price.toLocaleString("tr-TR")} TL</span>
                           <span className="text-xs text-slate-500 ml-1">
-                            {svc.serviceType === "one_time" ? "tek seferlik" :
-                             svc.serviceType === "usage" ? "/kullanim" :
-                             isAnnual ? "/yil" : "/ay"}
+                            {svc.serviceType === "one_time" ? "tek sefer" : svc.serviceType === "annual" ? "/yil" : "/ay"}
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          className="text-xs bg-sky-600 hover:bg-sky-500 gap-1"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/satin-al/${svc.slug}`); }}
-                        >
-                          Satin Al
-                          <ArrowRight className="w-3 h-3" />
+                        <Button size="sm" className="text-xs bg-sky-600 hover:bg-sky-500 gap-1"
+                          onClick={e => { e.stopPropagation(); navigate(`/satin-al/${svc.slug}`); }}>
+                          Satin Al <ArrowRight className="w-3 h-3" />
                         </Button>
                       </div>
                     </CardContent>
@@ -347,23 +611,20 @@ export default function ServislerimPage() {
               })}
             </div>
             <div className="mt-3 text-center">
-              <Button
-                variant="ghost"
-                className="text-slate-400 hover:text-sky-400 text-sm"
-                onClick={() => navigate("/fiyatlandirma")}
-              >
+              <Button variant="ghost" className="text-slate-400 hover:text-sky-400 text-sm" onClick={() => navigate("/fiyatlandirma")}>
                 Tum servisleri gor <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
           </section>
         )}
 
-        {/* Geçmiş Servisler */}
+        {/* Gecmis Servisler */}
         {inactiveSubs.length > 0 && (
           <section>
             <h2 className="text-lg font-semibold text-slate-500 mb-4">Gecmis Servisler</h2>
             <div className="space-y-2">
-              {inactiveSubs.map(sub => {
+              {inactiveSubs.map(item => {
+                const sub = item.subscription;
                 const statusInfo = STATUS_MAP[sub.status] ?? STATUS_MAP["expired"];
                 const StatusIcon = statusInfo.icon;
                 return (
@@ -372,18 +633,13 @@ export default function ServislerimPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-slate-400">{sub.serviceLabel}</span>
-                          <Badge variant={statusInfo.variant} className="text-xs gap-1">
-                            <StatusIcon className="w-3 h-3" />
-                            {statusInfo.label}
+                          <Badge className={`text-[10px] border gap-1 ${statusInfo.color}`}>
+                            <StatusIcon className="w-3 h-3" /> {statusInfo.label}
                           </Badge>
                         </div>
                         {sub.status === "expired" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-slate-700"
-                            onClick={() => navigate(`/satin-al/${sub.serviceSlug}`)}
-                          >
+                          <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400"
+                            onClick={() => navigate(`/satin-al/${sub.serviceSlug}`)}>
                             Yenile
                           </Button>
                         )}

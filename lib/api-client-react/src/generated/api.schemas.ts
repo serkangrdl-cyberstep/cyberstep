@@ -406,6 +406,48 @@ export interface ServiceSubscription {
   createdAt: string;
 }
 
+export type MyServiceOnboardingStepSide = typeof MyServiceOnboardingStepSide[keyof typeof MyServiceOnboardingStepSide];
+
+
+export const MyServiceOnboardingStepSide = {
+  customer: 'customer',
+  admin: 'admin',
+} as const;
+
+export type MyServiceOnboardingStepStatus = typeof MyServiceOnboardingStepStatus[keyof typeof MyServiceOnboardingStepStatus];
+
+
+export const MyServiceOnboardingStepStatus = {
+  pending: 'pending',
+  done: 'done',
+  skipped: 'skipped',
+} as const;
+
+export interface MyServiceOnboardingStep {
+  key: string;
+  label: string;
+  side: MyServiceOnboardingStepSide;
+  status: MyServiceOnboardingStepStatus;
+}
+
+export type MyServiceItemCatalog = { [key: string]: unknown } | null;
+
+export type MyServiceItemConfig = { [key: string]: unknown };
+
+export interface MyServiceItem {
+  subscription: ServiceSubscription;
+  catalog?: MyServiceItemCatalog;
+  config: MyServiceItemConfig;
+  onboardingSteps: MyServiceOnboardingStep[];
+  onboardingProgress: number;
+}
+
+export type ServiceConfigInputConfig = { [key: string]: unknown };
+
+export interface ServiceConfigInput {
+  config: ServiceConfigInputConfig;
+}
+
 export interface ServiceCatalogUpdate {
   label?: string;
   shortDescription?: string;
@@ -424,6 +466,10 @@ export type ServicePaymentCallback200 = {
   idempotent?: boolean | null;
   /** @nullable */
   reason?: string | null;
+};
+
+export type SaveServiceConfig200 = {
+  ok: boolean;
 };
 
 export type GetServiceSubscriptionsParams = {

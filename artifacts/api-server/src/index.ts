@@ -13,6 +13,7 @@ import { startDnsCrons } from "./services/dns-cron";
 import { startCertstreamClient } from "./services/certstream-client";
 import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
+import { ensureCustomerServiceConfigsTable } from "./routes/customer/index";
 import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
 import { ensureServiceNowTables, syncServiceNowIncidents, checkServiceNowConnections } from "./services/serviceNowClient";
 import { ensureWebhookTables, retryFailedWebhooks } from "./services/webhookDispatcher";
@@ -1416,6 +1417,7 @@ async function startup() {
   await ensureDnsTables();
   await ensureCtTable();
   await ensureMs365Tables();
+  await ensureCustomerServiceConfigsTable();
   await ensureKvkkTables();
   await ensureServiceNowTables();
   await ensureWebhookTables();

@@ -1,13 +1,63 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
 import { useQuery } from "@tanstack/react-query";
+
+interface MyServiceItem {
+  subscription: { serviceSlug: string; serviceLabel: string; status: string };
+  onboardingSteps: { side: string; status: string }[];
+  onboardingProgress: number;
+}
+
+function ActiveServicesWidget() {
+  const { data: myServices = [] } = useQuery<MyServiceItem[]>({
+    queryKey: ["my-services"],
+    queryFn: async () => {
+      const res = await fetch("/api/customer/my-services", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const active = myServices.filter(m => m.subscription.status === "active");
+  const pendingSteps = active.flatMap(m => m.onboardingSteps.filter(s => s.side === "customer" && s.status === "pending"));
+
+  if (active.length === 0) return null;
+
+  return (
+    <Card className="bg-slate-900 border-slate-700">
+      <CardContent className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-white font-semibold flex items-center gap-2">
+            <Package className="h-5 w-5 text-sky-400" /> Aktif Servislerim
+          </h3>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span className="text-slate-400 text-sm">{active.length} aktif servis</span>
+            {pendingSteps.length > 0 && (
+              <Badge className="text-[10px] bg-yellow-500/15 text-yellow-400 border-yellow-500/30 gap-1">
+                <Settings className="w-2.5 h-2.5" />
+                {pendingSteps.length} adim bekliyor
+              </Badge>
+            )}
+          </div>
+        </div>
+        <Link href="/hesabim/servislerim">
+          <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800 shrink-0 gap-2">
+            <Package className="h-4 w-4" />
+            Servisleri Yonet <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CustomerAccount() {
   const { toast } = useToast();
@@ -201,6 +251,9 @@ export default function CustomerAccount() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Aktif Servisler Widget */}
+        <ActiveServicesWidget />
 
         {/* My Reports */}
         <Card className="bg-slate-900 border-slate-700">

@@ -9,6 +9,7 @@ import {
   exchangeMs365Code,
   getMs365RedirectUri,
 } from "../../services/ms365Graph";
+import { markOnboardingStepDone } from "../customer/index";
 
 // ─── HMAC-signed OAuth state (avoids SameSite=Strict session cookie issue) ───
 
@@ -192,6 +193,14 @@ router.get("/ms365/callback", async (req, res) => {
     }
 
     req.log.info({ customerId, tenantId: tokens.tenantId }, "MS365 OAuth complete");
+
+    // Mark the ms365 onboarding "oauth-connect" step done for the customer portal
+    setImmediate(() => {
+      markOnboardingStepDone(customerId, "microsoft-365", "oauth-connect").catch((err) => {
+        logger.warn({ err, customerId }, "ms365/callback: could not mark oauth-connect step");
+      });
+    });
+
     res.redirect("/hesabim/entegrasyonlarim?ms365_success=1");
   } catch (err) {
     req.log.error({ err }, "GET /api/ms365/callback error");

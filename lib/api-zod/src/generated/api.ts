@@ -49,6 +49,58 @@ export const ServicePaymentCallbackResponse = zod.object({
 
 
 /**
+ * @summary Oturumdaki müşterinin servis abonelikleri + onboarding durumu
+ */
+export const GetMyServicesResponseItem = zod.object({
+  "subscription": zod.object({
+  "id": zod.number(),
+  "customerId": zod.number().nullish(),
+  "serviceSlug": zod.string(),
+  "serviceLabel": zod.string(),
+  "status": zod.string(),
+  "billingCycle": zod.string(),
+  "contactName": zod.string(),
+  "companyName": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "amountPaid": zod.string().nullish(),
+  "currency": zod.string(),
+  "paymentRef": zod.string().nullish(),
+  "iyzicoConversationId": zod.string().nullish(),
+  "startedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}),
+  "catalog": zod.record(zod.string(), zod.unknown()).nullish(),
+  "config": zod.record(zod.string(), zod.unknown()),
+  "onboardingSteps": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "side": zod.enum(['customer', 'admin']),
+  "status": zod.enum(['pending', 'done', 'skipped'])
+})),
+  "onboardingProgress": zod.number()
+})
+export const GetMyServicesResponse = zod.array(GetMyServicesResponseItem)
+
+
+/**
+ * @summary Servis yapılandırma bilgilerini kaydet
+ */
+export const SaveServiceConfigParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const SaveServiceConfigBody = zod.object({
+  "config": zod.record(zod.string(), zod.unknown())
+})
+
+export const SaveServiceConfigResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
  * @summary Müşteriye ait servis aboneliklerini getir
  */
 export const GetServiceSubscriptionsQueryParams = zod.object({

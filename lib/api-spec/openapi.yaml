@@ -82,6 +82,57 @@ paths:
                 required:
                   - ok
 
+  /customer/my-services:
+    get:
+      operationId: getMyServices
+      tags: [payments]
+      summary: Oturumdaki müşterinin servis abonelikleri + onboarding durumu
+      responses:
+        "200":
+          description: Servis listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyServiceItem"
+        "401":
+          description: Oturum gerekli
+
+  /customer/service-config/{slug}:
+    post:
+      operationId: saveServiceConfig
+      tags: [payments]
+      summary: Servis yapılandırma bilgilerini kaydet
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceConfigInput"
+      responses:
+        "200":
+          description: Kayıt başarılı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+        "400":
+          description: Geçersiz istek
+        "401":
+          description: Oturum gerekli
+
   /payments/service-subscriptions:
     get:
       operationId: getServiceSubscriptions
@@ -1271,6 +1322,58 @@ components:
         - currency
         - startedAt
         - createdAt
+
+    MyServiceOnboardingStep:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        side:
+          type: string
+          enum: [customer, admin]
+        status:
+          type: string
+          enum: [pending, done, skipped]
+      required:
+        - key
+        - label
+        - side
+        - status
+
+    MyServiceItem:
+      type: object
+      properties:
+        subscription:
+          $ref: "#/components/schemas/ServiceSubscription"
+        catalog:
+          nullable: true
+          type: object
+          additionalProperties: true
+        config:
+          type: object
+          additionalProperties: true
+        onboardingSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyServiceOnboardingStep"
+        onboardingProgress:
+          type: integer
+      required:
+        - subscription
+        - config
+        - onboardingSteps
+        - onboardingProgress
+
+    ServiceConfigInput:
+      type: object
+      properties:
+        config:
+          type: object
+          additionalProperties: true
+      required:
+        - config
 
     ServiceCatalogUpdate:
       type: object

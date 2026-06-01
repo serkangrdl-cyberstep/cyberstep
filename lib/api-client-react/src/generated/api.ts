@@ -36,13 +36,16 @@ import type {
   GetServiceSubscriptionsParams,
   HealthStatus,
   IyzicoCallbackPayload,
+  MyServiceItem,
   Report,
   ReportPending,
+  SaveServiceConfig200,
   ServiceCatalogInput,
   ServiceCatalogItem,
   ServiceCatalogUpdate,
   ServiceCheckoutInput,
   ServiceCheckoutResult,
+  ServiceConfigInput,
   ServicePaymentCallback200,
   ServiceSubscription,
   StatsSummary
@@ -200,6 +203,155 @@ export const useServicePaymentCallback = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getServicePaymentCallbackMutationOptions(options));
+    }
+
+export const getGetMyServicesUrl = () => {
+
+
+
+
+  return `/api/customer/my-services`
+}
+
+/**
+ * @summary Oturumdaki müşterinin servis abonelikleri + onboarding durumu
+ */
+export const getMyServices = async ( options?: RequestInit): Promise<MyServiceItem[]> => {
+
+  return customFetch<MyServiceItem[]>(getGetMyServicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyServicesQueryKey = () => {
+    return [
+    `/api/customer/my-services`
+    ] as const;
+    }
+
+
+export const getGetMyServicesQueryOptions = <TData = Awaited<ReturnType<typeof getMyServices>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyServicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyServices>>> = ({ signal }) => getMyServices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyServices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyServicesQueryResult = NonNullable<Awaited<ReturnType<typeof getMyServices>>>
+export type GetMyServicesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Oturumdaki müşterinin servis abonelikleri + onboarding durumu
+ */
+
+export function useGetMyServices<TData = Awaited<ReturnType<typeof getMyServices>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyServicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSaveServiceConfigUrl = (slug: string,) => {
+
+
+
+
+  return `/api/customer/service-config/${slug}`
+}
+
+/**
+ * @summary Servis yapılandırma bilgilerini kaydet
+ */
+export const saveServiceConfig = async (slug: string,
+    serviceConfigInput: ServiceConfigInput, options?: RequestInit): Promise<SaveServiceConfig200> => {
+
+  return customFetch<SaveServiceConfig200>(getSaveServiceConfigUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      serviceConfigInput,)
+  }
+);}
+
+
+
+
+export const getSaveServiceConfigMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveServiceConfig>>, TError,{slug: string;data: BodyType<ServiceConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveServiceConfig>>, TError,{slug: string;data: BodyType<ServiceConfigInput>}, TContext> => {
+
+const mutationKey = ['saveServiceConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveServiceConfig>>, {slug: string;data: BodyType<ServiceConfigInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  saveServiceConfig(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveServiceConfigMutationResult = NonNullable<Awaited<ReturnType<typeof saveServiceConfig>>>
+    export type SaveServiceConfigMutationBody = BodyType<ServiceConfigInput>
+    export type SaveServiceConfigMutationError = ErrorType<void>
+
+    /**
+ * @summary Servis yapılandırma bilgilerini kaydet
+ */
+export const useSaveServiceConfig = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveServiceConfig>>, TError,{slug: string;data: BodyType<ServiceConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveServiceConfig>>,
+        TError,
+        {slug: string;data: BodyType<ServiceConfigInput>},
+        TContext
+      > => {
+      return useMutation(getSaveServiceConfigMutationOptions(options));
     }
 
 export const getGetServiceSubscriptionsUrl = (params?: GetServiceSubscriptionsParams,) => {

@@ -803,6 +803,123 @@ export async function ensureServiceNowTables(): Promise<void> {
   await pool.query(`ALTER TABLE servicenow_incidents ADD COLUMN IF NOT EXISTS sn_journal_cursor TEXT`);
   // Webhook secret for HMAC-SHA256 signature verification
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_secret_enc TEXT`);
+  // Connection health check alert timestamp (rate-limit to 1 alert/day per customer)
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS conn_check_alerted_at TIMESTAMPTZ`);
   logger.info("ServiceNow tables ready");
+}
+
+// ─── Proactive Connection Health Check ────────────────────────────────────────
+
+/**
+ * Test all active ServiceNow configs and notify the customer by email
+ * if the connection is broken. Alerts are rate-limited to once per day per
+ * customer. Successful re-connections clear the alert timestamp.
+ * Intended to be called from a daily cron (09:00 Istanbul).
+ */
+export async function checkServiceNowConnections(): Promise<void> {
+  try {
+    const { rows } = await pool.query<{
+      id: number;
+      customer_id: number;
+      instance_url: string;
+      username: string;
+      api_token_enc: string;
+      assignment_group: string | null;
+      category: string | null;
+      conn_check_alerted_at: string | null;
+      customer_email: string | null;
+      customer_name: string | null;
+    }>(`
+      SELECT
+        snc.id,
+        snc.customer_id,
+        snc.instance_url,
+        snc.username,
+        snc.api_token_enc,
+        snc.assignment_group,
+        snc.category,
+        snc.conn_check_alerted_at,
+        c.email  AS customer_email,
+        c.full_name AS customer_name
+      FROM servicenow_configs snc
+      JOIN customers c ON c.id = snc.customer_id
+      WHERE snc.active = true
+    `);
+
+    logger.info({ count: rows.length }, "ServiceNow connection health check starting");
+
+    for (const row of rows) {
+      try {
+        const password = decryptSecret(row.api_token_enc);
+        if (!password) {
+          logger.warn({ configId: row.id }, "ServiceNow config: cannot decrypt token, skipping health check");
+          continue;
+        }
+
+        const result = await testServiceNowConnection({
+          instanceUrl: row.instance_url,
+          username: row.username,
+          password,
+          assignmentGroup: row.assignment_group,
+          category: row.category,
+        });
+
+        if (result.ok) {
+          // Connection healthy — clear any existing error + alert timestamp
+          await pool.query(
+            `UPDATE servicenow_configs
+             SET last_sync_error = NULL, conn_check_alerted_at = NULL, last_sync_at = NOW(), updated_at = NOW()
+             WHERE id = $1`,
+            [row.id],
+          );
+          logger.info({ configId: row.id, customerId: row.customer_id }, "ServiceNow connection healthy");
+        } else {
+          // Connection broken — persist error
+          await pool.query(
+            `UPDATE servicenow_configs
+             SET last_sync_error = $1, updated_at = NOW()
+             WHERE id = $2`,
+            [result.message.slice(0, 500), row.id],
+          );
+
+          // Only alert if no alert sent in the past 24 hours
+          const alreadyAlerted = row.conn_check_alerted_at
+            ? (Date.now() - new Date(row.conn_check_alerted_at).getTime()) < 24 * 60 * 60 * 1000
+            : false;
+
+          if (!alreadyAlerted && row.customer_email) {
+            const { sendServiceNowConnectionAlertEmail } = await import("./email");
+            await sendServiceNowConnectionAlertEmail({
+              to: row.customer_email,
+              customerName: row.customer_name ?? row.customer_email,
+              instanceUrl: row.instance_url,
+              errorMessage: result.message,
+            });
+
+            await pool.query(
+              `UPDATE servicenow_configs SET conn_check_alerted_at = NOW() WHERE id = $1`,
+              [row.id],
+            );
+
+            logger.warn(
+              { configId: row.id, customerId: row.customer_id, error: result.message },
+              "ServiceNow connection broken — customer alerted",
+            );
+          } else {
+            logger.warn(
+              { configId: row.id, customerId: row.customer_id, alreadyAlerted },
+              "ServiceNow connection broken — alert suppressed (already sent today)",
+            );
+          }
+        }
+      } catch (err) {
+        logger.error({ err, configId: row.id }, "ServiceNow health check failed for config");
+      }
+    }
+
+    logger.info("ServiceNow connection health check complete");
+  } catch (err) {
+    logger.error({ err }, "checkServiceNowConnections: fatal error");
+  }
 }
 

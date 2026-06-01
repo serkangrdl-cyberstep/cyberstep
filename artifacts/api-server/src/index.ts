@@ -14,7 +14,7 @@ import { startCertstreamClient } from "./services/certstream-client";
 import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
 import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
-import { ensureServiceNowTables, syncServiceNowIncidents } from "./services/serviceNowClient";
+import { ensureServiceNowTables, syncServiceNowIncidents, checkServiceNowConnections } from "./services/serviceNowClient";
 import { ensureWebhookTables, retryFailedWebhooks } from "./services/webhookDispatcher";
 import { ensureTelegramTables } from "./services/telegramNotifier";
 import { ensureNetgsmTables } from "./services/netgsmNotifier";
@@ -1843,6 +1843,13 @@ startup()
       try { await syncServiceNowIncidents(); } catch (err) { logger.error({ err }, "ServiceNow sync cron failed"); }
     });
     logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
+
+    // ─── ServiceNow bağlantı sağlık kontrolü — Her gün 09:00 ─────────────────
+    cron.schedule("0 9 * * *", async () => {
+      logger.info("Running ServiceNow connection health check cron");
+      try { await checkServiceNowConnections(); } catch (err) { logger.error({ err }, "ServiceNow connection health check cron failed"); }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("ServiceNow connection health check cron scheduled (09:00 Istanbul)");
 
     cron.schedule("*/10 * * * *", async () => {
       try { await retryFailedWebhooks(); } catch (err) { logger.error({ err }, "Webhook retry cron failed"); }

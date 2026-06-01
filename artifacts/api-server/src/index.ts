@@ -1852,12 +1852,12 @@ startup()
     });
     logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
 
-    // ─── ServiceNow bağlantı sağlık kontrolü — Her gün 09:00 ─────────────────
-    cron.schedule("0 9 * * *", async () => {
+    // ─── ServiceNow bağlantı sağlık kontrolü — Her saat ──────────────────────
+    cron.schedule("0 * * * *", async () => {
       logger.info("Running ServiceNow connection health check cron");
       try { await checkServiceNowConnections(); } catch (err) { logger.error({ err }, "ServiceNow connection health check cron failed"); }
-    }, { timezone: "Europe/Istanbul" });
-    logger.info("ServiceNow connection health check cron scheduled (09:00 Istanbul)");
+    });
+    logger.info("ServiceNow connection health check cron scheduled (every hour)");
 
     cron.schedule("*/10 * * * *", async () => {
       try { await retryFailedWebhooks(); } catch (err) { logger.error({ err }, "Webhook retry cron failed"); }

@@ -151,9 +151,7 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
     try {
       const token = generateRenewalToken();
       const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-      await db.update(customerServiceSubscriptionsTable)
-        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder30dSentAt: new Date() })
-        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+      // Send email FIRST — flag is only written on success (write-after-send)
       await sendSubscriptionExpiryReminder({
         email: sub.email,
         contactName: sub.contactName,
@@ -163,9 +161,20 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
         daysLeft: 30,
         renewalToken: token,
       });
-      logger.info({ subId: sub.id, email: sub.email }, "Subscription 30d reminder sent");
+      // Atomic conditional update: only mark sent if not already flagged (idempotency)
+      const result30d = await db.update(customerServiceSubscriptionsTable)
+        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder30dSentAt: new Date() })
+        .where(and(
+          eq(customerServiceSubscriptionsTable.id, sub.id),
+          isNull(customerServiceSubscriptionsTable.reminder30dSentAt),
+        ));
+      if ((result30d.rowCount ?? 0) === 0) {
+        logger.warn({ subId: sub.id }, "30d reminder: row already marked, duplicate prevented");
+      } else {
+        logger.info({ subId: sub.id, email: sub.email }, "Subscription 30d reminder sent");
+      }
     } catch (err) {
-      logger.error({ err, subId: sub.id }, "Failed to send 30d reminder");
+      logger.error({ err, subId: sub.id }, "Failed to send 30d reminder — will retry on next cron run");
     }
   }
 
@@ -174,9 +183,7 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
     try {
       const token = generateRenewalToken();
       const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-      await db.update(customerServiceSubscriptionsTable)
-        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder7dSentAt: new Date() })
-        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+      // Send email FIRST — flag is only written on success (write-after-send)
       await sendSubscriptionExpiryReminder({
         email: sub.email,
         contactName: sub.contactName,
@@ -186,9 +193,20 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
         daysLeft: 7,
         renewalToken: token,
       });
-      logger.info({ subId: sub.id, email: sub.email }, "Subscription 7d reminder sent");
+      // Atomic conditional update: only mark sent if not already flagged (idempotency)
+      const result7d = await db.update(customerServiceSubscriptionsTable)
+        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder7dSentAt: new Date() })
+        .where(and(
+          eq(customerServiceSubscriptionsTable.id, sub.id),
+          isNull(customerServiceSubscriptionsTable.reminder7dSentAt),
+        ));
+      if ((result7d.rowCount ?? 0) === 0) {
+        logger.warn({ subId: sub.id }, "7d reminder: row already marked, duplicate prevented");
+      } else {
+        logger.info({ subId: sub.id, email: sub.email }, "Subscription 7d reminder sent");
+      }
     } catch (err) {
-      logger.error({ err, subId: sub.id }, "Failed to send 7d reminder");
+      logger.error({ err, subId: sub.id }, "Failed to send 7d reminder — will retry on next cron run");
     }
   }
 
@@ -197,9 +215,7 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
     try {
       const token = generateRenewalToken();
       const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-      await db.update(customerServiceSubscriptionsTable)
-        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder1dSentAt: new Date() })
-        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+      // Send email FIRST — flag is only written on success (write-after-send)
       await sendSubscriptionExpiryReminder({
         email: sub.email,
         contactName: sub.contactName,
@@ -209,9 +225,20 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
         daysLeft: 1,
         renewalToken: token,
       });
-      logger.info({ subId: sub.id, email: sub.email }, "Subscription 1d reminder sent");
+      // Atomic conditional update: only mark sent if not already flagged (idempotency)
+      const result1d = await db.update(customerServiceSubscriptionsTable)
+        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder1dSentAt: new Date() })
+        .where(and(
+          eq(customerServiceSubscriptionsTable.id, sub.id),
+          isNull(customerServiceSubscriptionsTable.reminder1dSentAt),
+        ));
+      if ((result1d.rowCount ?? 0) === 0) {
+        logger.warn({ subId: sub.id }, "1d reminder: row already marked, duplicate prevented");
+      } else {
+        logger.info({ subId: sub.id, email: sub.email }, "Subscription 1d reminder sent");
+      }
     } catch (err) {
-      logger.error({ err, subId: sub.id }, "Failed to send 1d reminder");
+      logger.error({ err, subId: sub.id }, "Failed to send 1d reminder — will retry on next cron run");
     }
   }
 }

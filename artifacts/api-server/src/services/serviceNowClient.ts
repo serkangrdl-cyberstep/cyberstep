@@ -758,6 +758,17 @@ export async function processServiceNowWebhook(
             { results, socCaseId: _notifyIncident.soc_case_id, snNumber: _notifyIncident.sn_number },
             "ServiceNow webhook: müşteri bildirimi gönderildi",
           );
+          const successes = results.filter((r) => r.ok);
+          const failures = results.filter((r) => !r.ok);
+          const channelSummary = successes.map((r) => r.channel).join(", ") || "yok";
+          const description = successes.length > 0
+            ? `Bildirim e-postası gönderildi (kanal: ${channelSummary})`
+            : `Bildirim gönderilemedi: ${failures.map((r) => r.message).join("; ")}`;
+          return pool.query(
+            `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+             VALUES ($1, 'system', 'CyberStep SOC', 'notification', $2, NOW())`,
+            [_notifyIncident.soc_case_id, description],
+          );
         }).catch((err: unknown) => {
           logger.error(
             { err, socCaseId: _notifyIncident.soc_case_id },

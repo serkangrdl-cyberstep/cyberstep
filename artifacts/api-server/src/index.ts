@@ -1918,19 +1918,19 @@ startup()
     });
     logger.info("crt.sh discovery cron scheduled (Monday 03:00)");
 
-    // ─── Lead Discovery: Shodan — Her Salı 03:00 ─────────────────────────────
-    cron.schedule("0 3 * * 2", async () => {
+    // ─── Lead Discovery: Shodan — Her gece 03:00 ─────────────────────────────
+    cron.schedule("0 3 * * *", async () => {
       if (!process.env["SHODAN_API_KEY"]) return;
       if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return; }
       const done = cronStart("shodan");
       try {
         const limit = await cronGetLimit("shodan", 100);
-        const queryIdx = getISOWeek(new Date()) % SHODAN_FREE_QUERIES.length;
+        const queryIdx = new Date().getDay() % SHODAN_FREE_QUERIES.length;
         await scanShodanFree(queryIdx, limit);
         done(true);
       } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Shodan discovery cron failed"); }
     });
-    logger.info("Shodan discovery cron scheduled (Tuesday 03:00)");
+    logger.info("Shodan discovery cron scheduled (daily 03:00)");
 
     // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
     cron.schedule("0 4 * * *", async () => {

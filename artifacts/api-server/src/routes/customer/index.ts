@@ -33,6 +33,10 @@ export async function ensureCustomerServiceConfigsTable(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS customer_service_configs_uq
       ON customer_service_configs (customer_id, service_slug)
   `);
+  await pool.query(`
+    ALTER TABLE customer_service_configs
+      ADD COLUMN IF NOT EXISTS migration_status VARCHAR(32)
+  `);
   logger.info("customer_service_configs table ensured");
 
   // Migrate any existing rows that have plaintext secret fields.
@@ -52,42 +56,85 @@ async function migratePlaintextConfigSecrets(): Promise<void> {
     return;
   }
 
-  const rows = await pool.query<{ id: number; config: Record<string, unknown> }>(
-    "SELECT id, config FROM customer_service_configs"
+  const rows = await pool.query<{ id: number; config: Record<string, unknown>; migration_status: string | null }>(
+    "SELECT id, config, migration_status FROM customer_service_configs"
   );
 
   let migrated = 0;
+  let errors = 0;
   for (const row of rows.rows) {
     const cfg = row.config ?? {};
-    const needsMigration = Object.entries(cfg).some(
-      ([k, v]) =>
-        isSecretField(k) &&
-        typeof v === "string" &&
-        v.length > 0 &&
-        !v.startsWith("__enc__:")
+
+    // Classify secret fields into plaintext vs already-encrypted
+    const secretEntries = Object.entries(cfg).filter(
+      ([k, v]) => isSecretField(k) && typeof v === "string" && (v as string).length > 0
     );
 
-    if (!needsMigration) continue;
+    const plaintextSecrets = secretEntries.filter(([, v]) => !(v as string).startsWith("__enc__:"));
+    const encryptedSecrets = secretEntries.filter(([, v]) => (v as string).startsWith("__enc__:"));
 
-    let encryptedCfg: Record<string, unknown>;
-    try {
-      encryptedCfg = encryptConfigSecrets(cfg);
-    } catch (err) {
-      logger.error({ err, rowId: row.id }, "customer_service_configs migration: failed to encrypt row — skipping");
+    if (plaintextSecrets.length > 0) {
+      // Row has plaintext secrets — encrypt them
+      let encryptedCfg: Record<string, unknown>;
+      try {
+        encryptedCfg = encryptConfigSecrets(cfg);
+      } catch (err) {
+        logger.error({ err, rowId: row.id }, "customer_service_configs migration: failed to encrypt row — marking decrypt_error");
+        await pool.query(
+          "UPDATE customer_service_configs SET migration_status = 'decrypt_error' WHERE id = $1",
+          [row.id]
+        );
+        errors++;
+        continue;
+      }
+
+      await pool.query(
+        "UPDATE customer_service_configs SET config = $1, migration_status = 'plaintext_migrated', updated_at = NOW() WHERE id = $2",
+        [JSON.stringify(encryptedCfg), row.id]
+      );
+      migrated++;
       continue;
     }
 
-    await pool.query(
-      "UPDATE customer_service_configs SET config = $1, updated_at = NOW() WHERE id = $2",
-      [JSON.stringify(encryptedCfg), row.id]
-    );
-    migrated++;
+    if (encryptedSecrets.length > 0) {
+      // Row has only pre-encrypted secrets — verify each one can be decrypted with the current key
+      const decryptFailed = encryptedSecrets.some(([k, v]) => {
+        const result = decryptSecret((v as string).slice(8));
+        if (result === null) {
+          logger.warn({ rowId: row.id, field: k }, "customer_service_configs: existing encrypted field cannot be decrypted — ENCRYPTION_KEY mismatch or corrupt data");
+          return true;
+        }
+        return false;
+      });
+
+      const newStatus = decryptFailed ? "decrypt_error" : "ok";
+      if (row.migration_status !== newStatus) {
+        await pool.query(
+          "UPDATE customer_service_configs SET migration_status = $1 WHERE id = $2",
+          [newStatus, row.id]
+        );
+      }
+      if (decryptFailed) errors++;
+      continue;
+    }
+
+    // No secret fields at all — mark ok if not already set
+    if (!row.migration_status) {
+      await pool.query(
+        "UPDATE customer_service_configs SET migration_status = 'ok' WHERE id = $1",
+        [row.id]
+      );
+    }
   }
 
+  if (errors > 0) {
+    logger.warn({ errors }, "customer_service_configs: some rows have decrypt failures — marked as decrypt_error");
+  }
   if (migrated > 0) {
     logger.info({ migrated }, "customer_service_configs: migrated plaintext secrets to encrypted form");
-  } else {
-    logger.info("customer_service_configs: no plaintext secrets found — migration not needed");
+  }
+  if (errors === 0 && migrated === 0) {
+    logger.info("customer_service_configs: all rows verified — no migration or decryption issues");
   }
 }
 
@@ -535,7 +582,7 @@ router.get("/admin/customer-service-subscriptions", requireAdmin, async (_req: R
   const customerIds = [...new Set(subscriptions.map(s => s.customerId).filter((id): id is number => id !== null))];
   const slugs = [...new Set(subscriptions.map(s => s.serviceSlug))];
 
-  const [customers, onboardingRows] = await Promise.all([
+  const [customers, onboardingRows, configRows] = await Promise.all([
     customerIds.length > 0
       ? db.select({ id: customersTable.id, email: customersTable.email, companyName: customersTable.companyName })
           .from(customersTable).where(inArray(customersTable.id, customerIds))
@@ -544,9 +591,24 @@ router.get("/admin/customer-service-subscriptions", requireAdmin, async (_req: R
       ? db.select().from(customerServiceOnboardingTable)
           .where(inArray(customerServiceOnboardingTable.serviceSlug, slugs))
       : Promise.resolve([]),
+    customerIds.length > 0
+      ? db.select({
+          customerId: customerServiceConfigsTable.customerId,
+          serviceSlug: customerServiceConfigsTable.serviceSlug,
+          migrationStatus: customerServiceConfigsTable.migrationStatus,
+        }).from(customerServiceConfigsTable)
+          .where(inArray(customerServiceConfigsTable.customerId, customerIds))
+      : Promise.resolve([]),
   ]);
 
   const customerMap = Object.fromEntries(customers.map(c => [c.id, c]));
+
+  // configStatusMap[customerId][serviceSlug] = migrationStatus
+  const configStatusMap: Record<number, Record<string, string | null>> = {};
+  for (const cfg of configRows) {
+    if (!configStatusMap[cfg.customerId]) configStatusMap[cfg.customerId] = {};
+    configStatusMap[cfg.customerId][cfg.serviceSlug] = cfg.migrationStatus ?? null;
+  }
 
   // onboardingMap[customerId][serviceSlug][stepKey] = { status, completedBy, completedAt }
   const onboardingMap: Record<number, Record<string, Record<string, { status: string; completedBy: string | null; completedAt: Date | null }>>> = {};
@@ -578,6 +640,7 @@ router.get("/admin/customer-service-subscriptions", requireAdmin, async (_req: R
       customer: customerMap[customerId] ?? { id: customerId, email: sub.email, companyName: sub.companyName, contactName: sub.contactName },
       steps: enrichedSteps,
       progress,
+      configMigrationStatus: configStatusMap[customerId]?.[sub.serviceSlug] ?? null,
     };
   });
 

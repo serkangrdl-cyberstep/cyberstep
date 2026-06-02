@@ -6,6 +6,7 @@ export const customerServiceConfigsTable = pgTable("customer_service_configs", {
   customerId: integer("customer_id").notNull().references(() => customersTable.id),
   serviceSlug: varchar("service_slug", { length: 100 }).notNull(),
   config: jsonb("config").notNull().default({}),
+  migrationStatus: varchar("migration_status", { length: 32 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (t) => [
@@ -13,3 +14,4 @@ export const customerServiceConfigsTable = pgTable("customer_service_configs", {
 ]);
 
 export type CustomerServiceConfig = typeof customerServiceConfigsTable.$inferSelect;
+export type MigrationStatus = "ok" | "plaintext_migrated" | "decrypt_error";

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Package, ChevronDown, ChevronUp, Check, Clock,
-  Loader2, Users, Eye, EyeOff, Settings, X,
+  Loader2, Users, Eye, EyeOff, Settings, X, ShieldAlert,
 } from "lucide-react";
 import { AdminLayout } from "../../components/admin-layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +48,7 @@ interface CustomerServiceRow {
   };
   steps: EnrichedStep[];
   progress: number;
+  configMigrationStatus: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -295,6 +296,7 @@ function SubscriptionCard({ row }: { row: CustomerServiceRow }) {
   const displayName = cust.companyName || cust.email || sub.email;
   const statusColor = STATUS_COLORS[sub.status] ?? STATUS_COLORS["pending"];
   const customerId = sub.customerId ?? cust.id;
+  const hasDecryptError = row.configMigrationStatus === "decrypt_error";
 
   return (
     <>
@@ -308,7 +310,7 @@ function SubscriptionCard({ row }: { row: CustomerServiceRow }) {
         />
       )}
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className={`bg-slate-900 ${hasDecryptError ? "border-red-700/60" : "border-slate-800"}`}>
         <CardContent className="py-0">
           <div className="py-4 flex items-center gap-4">
             <button className="flex-1 flex items-center gap-4 text-left min-w-0" onClick={() => setExpanded(!expanded)}>
@@ -320,6 +322,12 @@ function SubscriptionCard({ row }: { row: CustomerServiceRow }) {
                   <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400">
                     {sub.serviceLabel}
                   </Badge>
+                  {hasDecryptError && (
+                    <Badge className="text-[10px] border bg-red-500/15 text-red-400 border-red-600/50 flex items-center gap-1">
+                      <ShieldAlert className="w-3 h-3" />
+                      Sifre cozme hatasi
+                    </Badge>
+                  )}
                 </div>
                 <div className="mt-2 flex items-center gap-3">
                   <Progress value={row.progress} className="h-1.5 bg-slate-800 flex-1 max-w-[180px]" />

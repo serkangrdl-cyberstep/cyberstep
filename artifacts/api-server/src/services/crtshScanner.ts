@@ -83,6 +83,43 @@ function extractDomainsFromCert(cert: { common_name?: string; name_value?: strin
   return Array.from(domains);
 }
 
+/**
+ * crt.sh'e HTTP GET atar; 503/429/502 durumunda üstel geri çekilme ile yeniden dener.
+ * Diğer HTTP hatalarında veya maxAttempts dolduğunda exception fırlatır.
+ */
+async function fetchCrtsh(query: string, timeout: number): Promise<unknown[]> {
+  const maxAttempts = 4;
+  const baseDelay = 3_000; // 3s, 6s, 12s
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await axios.get(`${CRTSH_BASE}/`, {
+        params: { q: query, output: "json" },
+        timeout,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; CyberStep-SecurityResearch/1.0)",
+          "Accept": "application/json",
+        },
+      });
+      return (response.data ?? []) as unknown[];
+    } catch (err: unknown) {
+      const status = axios.isAxiosError(err) ? err.response?.status : null;
+      const isRetryable = !status || status === 503 || status === 502 || status === 429;
+
+      if (!isRetryable || attempt === maxAttempts) {
+        const detail = status ? `HTTP ${status}` : String(err);
+        throw new Error(`crt.sh erişilemiyor (${detail}). Lütfen birkaç dakika sonra tekrar deneyin.`);
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      logger.warn({ query, attempt, status, delay }, `crt.sh ${status ?? "ağ hatası"} — ${delay}ms sonra yeniden deneniyor`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  // unreachable
+  throw new Error("crt.sh: maksimum deneme sayısına ulaşıldı");
+}
+
 export interface CRTSHScanResult {
   runId: number;
   certsScanned: number;
@@ -106,13 +143,13 @@ export async function scanCRTSH(
 
   try {
     logger.info({ query }, "crt.sh scan starting");
-    const response = await axios.get(`${CRTSH_BASE}/`, {
-      params: { q: query, output: "json" },
-      timeout: 45_000,
-      headers: { "User-Agent": "CyberStep-SecurityResearch/1.0" },
-    });
+    const certs = await fetchCrtsh(query, 60_000) as Array<{
+      common_name?: string;
+      name_value?: string;
+      entry_timestamp?: string;
+      issuer_name?: string;
+    }>;
 
-    const certs: Array<{ common_name?: string; name_value?: string; entry_timestamp?: string; issuer_name?: string }> = response.data ?? [];
     const cutoff = new Date(Date.now() - daysBack * 86_400_000);
     const qualifiedDomains = new Map<string, { triggerSubdomain: string; subdomainType: string; score: number; certIssuer: string }>();
 

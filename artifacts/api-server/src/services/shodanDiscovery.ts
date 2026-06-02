@@ -1,7 +1,10 @@
 /**
- * Shodan Free tier lead discovery.
- * Free API key: account.shodan.io → Register → API Key (2 min)
- * Rate: 100 results/search, unlimited searches.
+ * Shodan lead discovery.
+ *
+ * NOT: /shodan/host/search endpoint'i ÜCRETLI plan gerektirir (ücretsiz API key 401 döner).
+ * Hesap planını kontrol et: https://account.shodan.io
+ *
+ * Ücretsiz plan için tek çalışan endpoint: /shodan/host/{ip}  (domain-scan/index.ts'de kullanılıyor)
  */
 import axios from "axios";
 import { db } from "@workspace/db";
@@ -67,23 +70,69 @@ export interface ShodanScanResult {
   addedToLeads: number;
 }
 
+/**
+ * Shodan plan seviyesini kontrol eder.
+ * Free plan → "oss" veya "dev" planId döner.
+ * Paid plan → "edu", "small-business", "corporate" vb.
+ */
+async function checkShodanPlan(apiKey: string): Promise<{ plan: string; queryCredits: number }> {
+  const resp = await axios.get("https://api.shodan.io/api-info", {
+    params: { key: apiKey },
+    timeout: 10_000,
+  });
+  const data = resp.data as { plan?: string; query_credits?: number };
+  return { plan: data.plan ?? "unknown", queryCredits: data.query_credits ?? 0 };
+}
+
 export async function scanShodanFree(queryIndex: number = 0, maxResults: number = 100): Promise<ShodanScanResult> {
   const apiKey = process.env["SHODAN_API_KEY"];
   if (!apiKey) {
-    throw new Error("SHODAN_API_KEY bulunamadı. account.shodan.io → Register → API Key → Replit Secrets'e ekle.");
+    throw new Error("SHODAN_API_KEY bulunamadı. account.shodan.io → API Key → Replit Secrets'e ekle.");
   }
 
   const qConfig = SHODAN_FREE_QUERIES[queryIndex];
   if (!qConfig) throw new Error(`Shodan query ${queryIndex} bulunamadı`);
 
+  // ── Plan kontrolü: ücretsiz hesaplar search endpoint'ini kullanamaz ──────────
+  let planInfo: { plan: string; queryCredits: number };
+  try {
+    planInfo = await checkShodanPlan(apiKey);
+  } catch (planErr: unknown) {
+    const status = axios.isAxiosError(planErr) ? planErr.response?.status : null;
+    if (status === 401) {
+      throw new Error(
+        "Shodan API key geçersiz veya süresi dolmuş (401). " +
+        "account.shodan.io adresinden API key'i kontrol edin ve Replit Secrets'teki SHODAN_API_KEY değerini güncelleyin."
+      );
+    }
+    throw new Error(`Shodan plan bilgisi alınamadı: ${String(planErr)}`);
+  }
+
+  const freeOnlyPlans = new Set(["oss", "dev", "free"]);
+  if (freeOnlyPlans.has(planInfo.plan.toLowerCase())) {
+    throw new Error(
+      `Shodan ücretsiz plan ("${planInfo.plan}") domain keşfi için yetersiz. ` +
+      "Shodan Search API ücretli hesap gerektirir. " +
+      "account.shodan.io → Upgrade Plan ile yükseltin veya " +
+      "Discovery Pipeline'da Shodan adımını devre dışı bırakın."
+    );
+  }
+
+  if (planInfo.queryCredits <= 0) {
+    throw new Error(
+      `Shodan sorgu kredisi tükenmiş (plan: ${planInfo.plan}, krediler: ${planInfo.queryCredits}). ` +
+      "account.shodan.io → Usage üzerinden kredi durumunu kontrol edin."
+    );
+  }
+
   const [run] = await db.insert(discoveryRunsTable).values({
     source: "shodan_free",
-    runParams: { queryIndex, query: qConfig.q, label: qConfig.label },
+    runParams: { queryIndex, query: qConfig.q, label: qConfig.label, plan: planInfo.plan },
     status: "running",
   }).returning();
 
   try {
-    logger.info({ queryIndex, label: qConfig.label }, "Shodan scan starting");
+    logger.info({ queryIndex, label: qConfig.label, plan: planInfo.plan }, "Shodan scan starting");
     const response = await axios.get("https://api.shodan.io/shodan/host/search", {
       params: { key: apiKey, query: qConfig.q },
       timeout: 20_000,
@@ -137,9 +186,20 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
 
     logger.info({ runId: run.id, added }, "Shodan scan done");
     return { runId: run.id, label: qConfig.label, totalOnShodan: (response.data.total as number) ?? 0, processed: matches.length, addedToLeads: added };
-  } catch (err) {
-    await db.update(discoveryRunsTable).set({ status: "failed", errorMessage: String(err) })
+  } catch (err: unknown) {
+    const status = axios.isAxiosError(err) ? err.response?.status : null;
+    let errorMessage = String(err);
+
+    if (status === 401) {
+      errorMessage = "Shodan 401: API key bu endpoint için yetkisiz. Ücretli plan gerekiyor.";
+    } else if (status === 402) {
+      errorMessage = "Shodan 402: Sorgu kredisi yetersiz.";
+    } else if (status === 429) {
+      errorMessage = "Shodan 429: Rate limit aşıldı. Birkaç dakika sonra tekrar deneyin.";
+    }
+
+    await db.update(discoveryRunsTable).set({ status: "failed", errorMessage })
       .where(eq(discoveryRunsTable.id, run.id));
-    throw err;
+    throw new Error(errorMessage);
   }
 }

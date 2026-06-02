@@ -1,9 +1,9 @@
 import { logger } from "../lib/logger";
 
 function getBaseUrl(): string {
-  // Production URL when real API keys are configured, sandbox otherwise
   const apiKey = process.env["IYZICO_API_KEY"] ?? "";
-  return apiKey && apiKey !== "sandbox" ? "https://api.iyzipay.com" : "https://sandbox-api.iyzipay.com";
+  // Sandbox keys start with "sandbox-"; empty key or literal "sandbox" also stays on sandbox
+  return apiKey && !apiKey.startsWith("sandbox") ? "https://api.iyzipay.com" : "https://sandbox-api.iyzipay.com";
 }
 
 export function isIyzicoConfigured(): boolean {

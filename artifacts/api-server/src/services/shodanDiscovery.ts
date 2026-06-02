@@ -110,19 +110,20 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
 
   const freeOnlyPlans = new Set(["oss", "dev", "free"]);
   if (freeOnlyPlans.has(planInfo.plan.toLowerCase())) {
-    throw new Error(
-      `Shodan ücretsiz plan ("${planInfo.plan}") domain keşfi için yetersiz. ` +
-      "Shodan Search API ücretli hesap gerektirir. " +
-      "account.shodan.io → Upgrade Plan ile yükseltin veya " +
-      "Discovery Pipeline'da Shodan adımını devre dışı bırakın."
+    logger.warn(
+      { plan: planInfo.plan },
+      "Shodan ücretsiz plan — Search API kullanılamıyor, tarama atlanıyor. " +
+      "account.shodan.io → Upgrade Plan ile ücretli plana geçin.",
     );
+    return { runId: 0, label: qConfig.label, totalOnShodan: 0, processed: 0, addedToLeads: 0 };
   }
 
   if (planInfo.queryCredits <= 0) {
-    throw new Error(
-      `Shodan sorgu kredisi tükenmiş (plan: ${planInfo.plan}, krediler: ${planInfo.queryCredits}). ` +
-      "account.shodan.io → Usage üzerinden kredi durumunu kontrol edin."
+    logger.warn(
+      { plan: planInfo.plan, queryCredits: planInfo.queryCredits },
+      "Shodan sorgu kredisi tükenmiş — tarama atlanıyor. account.shodan.io → Usage üzerinden kontrol edin.",
     );
+    return { runId: 0, label: qConfig.label, totalOnShodan: 0, processed: 0, addedToLeads: 0 };
   }
 
   const [run] = await db.insert(discoveryRunsTable).values({

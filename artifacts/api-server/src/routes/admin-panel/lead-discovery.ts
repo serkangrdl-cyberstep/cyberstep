@@ -68,7 +68,7 @@ router.get("/admin-panel/lead-discovery/runs", requireAdmin, async (req: Request
 
 // ─── POST /api/admin-panel/lead-discovery/crtsh ──────────────────────────────
 router.post("/admin-panel/lead-discovery/crtsh", requireAdmin, async (req: Request, res: Response) => {
-  const { query = "%.com.tr", daysBack = 30, minCorporateScore = 60, limit = 300 } =
+  const { query = "%.com.tr", daysBack = 30, minCorporateScore = 10, limit = 300 } =
     req.body as { query?: string; daysBack?: number; minCorporateScore?: number; limit?: number };
 
   res.json({ message: "crt.sh taraması başlatıldı", query });

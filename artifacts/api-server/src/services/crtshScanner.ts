@@ -131,7 +131,7 @@ export async function scanCRTSH(
   query: string = "%.com.tr",
   options: { daysBack?: number; minCorporateScore?: number; limit?: number } = {},
 ): Promise<CRTSHScanResult> {
-  const { daysBack = 30, minCorporateScore = 60, limit = 300 } = options;
+  const { daysBack = 30, minCorporateScore = 10, limit = 300 } = options;
 
   await loadScoringRules();
 

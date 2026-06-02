@@ -226,7 +226,7 @@ export default function AdminLeadDiscovery() {
   // ─── crt.sh form state ───────────────────────────────────────────────────
   const [crtshTlds, setCrtshTlds] = useState<string[]>([".com.tr", ".net.tr"]);
   const [daysBack, setDaysBack] = useState(30);
-  const [minScore, setMinScore] = useState(60);
+  const [minScore, setMinScore] = useState(10);
   const [domainLimit, setDomainLimit] = useState(300);
 
   // ─── Shodan form state ───────────────────────────────────────────────────

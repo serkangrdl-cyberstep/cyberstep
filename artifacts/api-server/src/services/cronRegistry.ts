@@ -275,7 +275,11 @@ export async function cronGetStats(): Promise<Array<{
         ROUND(AVG(duration_ms) FILTER (WHERE status IN ('ok','error')))::int AS avg_duration_ms,
         MAX(started_at) AS last_run_at,
         (ARRAY_AGG(status ORDER BY started_at DESC))[1] AS last_status,
-        (ARRAY_AGG(error_message ORDER BY started_at DESC) FILTER (WHERE error_message IS NOT NULL))[1] AS last_error,
+        CASE
+          WHEN (ARRAY_AGG(status ORDER BY started_at DESC))[1] IN ('ok', 'skipped')
+          THEN NULL
+          ELSE (ARRAY_AGG(error_message ORDER BY started_at DESC) FILTER (WHERE error_message IS NOT NULL))[1]
+        END AS last_error,
         (ARRAY_AGG(processed_count ORDER BY started_at DESC) FILTER (WHERE processed_count IS NOT NULL))[1] AS last_count
       FROM cron_job_runs
       GROUP BY job_name

@@ -1920,9 +1920,9 @@ startup()
     cron.schedule("0 3 * * 1", wrapCron("crtsh", "0 3 * * 1", async () => {
       if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("crtsh", 300);
-      await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 70, limit });
+      await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 10, limit });
       await new Promise((r) => setTimeout(r, 5000));
-      await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 70, limit: Math.floor(limit / 3) });
+      await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit / 3) });
       return limit;
     }));
     logger.info("crt.sh discovery cron scheduled (Monday 03:00)");

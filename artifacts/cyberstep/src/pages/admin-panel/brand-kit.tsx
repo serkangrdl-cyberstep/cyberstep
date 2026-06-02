@@ -221,17 +221,16 @@ export default function BrandKit() {
           {/* SVG asset linkleri */}
           <div className="mt-4 flex flex-wrap gap-3">
             {[
-              { label: "logo-wordmark.svg",       href: "/logo-wordmark.svg" },
+              { label: "logo-wordmark.svg",        href: "/logo-wordmark.svg" },
               { label: "logo-wordmark-light.svg",  href: "/logo-wordmark-light.svg" },
-              { label: "logo-mono.svg",            href: "/logo-mono.svg" },
-              { label: "logo-badge-512.svg",       href: "/logo-badge-512.svg" },
-              { label: "favicon.svg",              href: "/favicon.svg" },
+              { label: "logo-mono.svg",             href: "/logo-mono.svg",            note: "koyu bg için beyaz, açık bg için siyah" },
+              { label: "logo-badge-512.svg",        href: "/logo-badge-512.svg" },
+              { label: "favicon.svg",               href: "/favicon.svg" },
             ].map(({ label, href }) => (
               <a
                 key={label}
                 href={href}
-                target="_blank"
-                rel="noopener noreferrer"
+                download={label}
                 className="inline-flex items-center gap-1.5 text-xs text-[#00C8FF] border border-[#0F2040] rounded px-3 py-1.5 hover:bg-[#0F2040] transition-colors font-mono"
               >
                 ↓ {label}

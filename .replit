@@ -42,7 +42,7 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-SMTP_USER = "info@cyberstep.io"
+SMTP_USER = "info@cyberstep.com"
 ISR_IMAP_HOST = "imap.mail.yahoo.com"
 ISR_IMAP_USER = "serkangrdl@yahoo.com"
 ISR_SMTP_USER = "serkangrdl@yahoo.com"

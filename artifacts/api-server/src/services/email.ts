@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
 import { generateReportPDF } from "./pdf";
 
-const ADMIN_EMAIL = "serkangrdl@gmail.com";
+const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
 
 function getTransport() {
   const user = process.env["SMTP_USER"];

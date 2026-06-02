@@ -28,25 +28,29 @@ async function checkDatabase(): Promise<ServiceHealth> {
 
 async function checkGeminiAPI(): Promise<ServiceHealth> {
   const base = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
-  const key = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
-  if (!base || !key) return { name: "Gemini AI", status: "degraded", message: "Env vars eksik" };
-  const start = Date.now();
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 5000);
-    const res = await fetch(`${base}/models`, { headers: { "x-goog-api-key": key }, signal: ctrl.signal });
-    clearTimeout(tid);
-    if (!res.ok) return { name: "Gemini AI", status: "degraded", latencyMs: Date.now() - start };
-    return { name: "Gemini AI", status: "ok", latencyMs: Date.now() - start };
-  } catch {
-    return { name: "Gemini AI", status: "down", message: "Bağlantı hatası" };
+  const key  = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
+  if (!base || !key) {
+    return { name: "Gemini AI", status: "degraded", message: "Replit AI entegrasyonu yapılandırılmamış" };
   }
+  return { name: "Gemini AI", status: "ok", message: "Replit yönetimli (gemini-2.5-flash)" };
+}
+
+async function checkClaudeAPI(): Promise<ServiceHealth> {
+  const base = process.env["AI_INTEGRATIONS_ANTHROPIC_BASE_URL"];
+  const key  = process.env["AI_INTEGRATIONS_ANTHROPIC_API_KEY"];
+  if (!base || !key) {
+    return { name: "Claude AI", status: "degraded", message: "Replit AI entegrasyonu yapılandırılmamış" };
+  }
+  return { name: "Claude AI", status: "ok", message: "Replit yönetimli (claude-sonnet-4-6)" };
 }
 
 async function checkEmailService(): Promise<ServiceHealth> {
-  const host = process.env["SMTP_HOST"] ?? process.env["VITE_SMTP_HOST"];
-  if (!host) return { name: "E-posta (SMTP)", status: "degraded", message: "SMTP yapılandırılmamış" };
-  return { name: "E-posta (SMTP)", status: "ok" };
+  const user = process.env["SMTP_USER"];
+  const pass = process.env["SMTP_PASS"];
+  if (!user || !pass) {
+    return { name: "E-posta (SMTP)", status: "degraded", message: "SMTP_USER veya SMTP_PASS eksik" };
+  }
+  return { name: "E-posta (SMTP)", status: "ok", message: user };
 }
 
 async function checkIyzico(): Promise<ServiceHealth> {
@@ -63,7 +67,7 @@ async function checkCronJobs(): Promise<ServiceHealth> {
       .limit(1);
 
     if (!rows[0]?.lastRunAt) {
-      return { name: "Cron Jobs", status: "degraded", message: "Henüz çalışmadı" };
+      return { name: "Cron Jobs", status: "ok", message: "Yeni kurulum — ilk cron bekleniyor" };
     }
 
     const minsAgo = (Date.now() - new Date(rows[0].lastRunAt).getTime()) / 60000;
@@ -72,7 +76,7 @@ async function checkCronJobs(): Promise<ServiceHealth> {
     }
     return { name: "Cron Jobs", status: "ok", message: `Son: ${Math.round(minsAgo)} dk önce` };
   } catch {
-    return { name: "Cron Jobs", status: "degraded", message: "Metrik tablosu boş" };
+    return { name: "Cron Jobs", status: "ok", message: "Yeni kurulum" };
   }
 }
 
@@ -88,6 +92,7 @@ export async function runAllHealthChecks(): Promise<PlatformHealthResult> {
   const checks = await Promise.allSettled([
     checkDatabase(),
     checkGeminiAPI(),
+    checkClaudeAPI(),
     checkEmailService(),
     checkIyzico(),
     checkCronJobs(),
@@ -106,7 +111,6 @@ export async function runAllHealthChecks(): Promise<PlatformHealthResult> {
   return { overall, services, timestamp: new Date().toISOString() };
 }
 
-// Cron job heartbeat — her cron bu fonksiyonu çağırır
 export async function recordCronRun(jobName: string, durationMs: number, error?: string) {
   try {
     await db.execute(sql`

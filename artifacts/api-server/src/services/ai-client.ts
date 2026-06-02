@@ -18,28 +18,71 @@ import { GoogleGenAI } from "@google/genai";
 import { ai as replitAi } from "@workspace/integrations-gemini-ai";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db } from "@workspace/db";
-import { tenantsTable } from "@workspace/db";
+import { tenantsTable, aiUsageLogTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+
+// ─── Pricing per 1M tokens (USD) ─────────────────────────────────────────────
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  "gemini-2.5-flash":  { input: 0.075,  output: 0.300  },
+  "gemini-2.0-flash":  { input: 0.075,  output: 0.300  },
+  "claude-sonnet-4-6": { input: 3.00,   output: 15.00  },
+  "claude-sonnet-4-5": { input: 3.00,   output: 15.00  },
+  "gpt-4o":            { input: 2.50,   output: 10.00  },
+};
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+async function logAiUsage(opts: {
+  model: string;
+  prompt: string;
+  response: string;
+  customerId?: number | null;
+  useCase?: string;
+}) {
+  try {
+    const { model, prompt, response, customerId, useCase } = opts;
+    const pricing = MODEL_PRICING[model] ?? { input: 0.075, output: 0.300 };
+    const inputTokens  = estimateTokens(prompt);
+    const outputTokens = estimateTokens(response);
+    const costUsd = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+    await db.insert(aiUsageLogTable).values({
+      customerId:   customerId ?? null,
+      model,
+      useCase:      useCase ?? "general",
+      tier:         0,
+      inputTokens,
+      outputTokens,
+      costUsd,
+      cached:       false,
+    });
+  } catch {
+    // non-critical — never throw
+  }
+}
 
 export type AiGenerateFn = (prompt: string) => Promise<string>;
 
 const PAID_PLANS = new Set(["starter", "pro"]);
 
 // ─── Replit-managed Gemini 2.5 Flash (ücretsiz plan) ─────────────────────────
-function makeReplitGemini(model = "gemini-2.5-flash"): AiGenerateFn {
+function makeReplitGemini(model = "gemini-2.5-flash", useCase?: string): AiGenerateFn {
   return async (prompt: string) => {
     const result = await replitAi.models.generateContent({
       model,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { temperature: 0.15 },
     });
-    return result.text?.trim() ?? "";
+    const text = result.text?.trim() ?? "";
+    void logAiUsage({ model, prompt, response: text, useCase });
+    return text;
   };
 }
 
 // ─── Replit-managed Claude Sonnet (ücretli plan, API key gerekmez) ────────────
-function makeReplitClaude(model = "claude-sonnet-4-6"): AiGenerateFn {
+function makeReplitClaude(model = "claude-sonnet-4-6", useCase?: string): AiGenerateFn {
   return async (prompt: string) => {
     const message = await anthropic.messages.create({
       model,
@@ -47,7 +90,9 @@ function makeReplitClaude(model = "claude-sonnet-4-6"): AiGenerateFn {
       messages: [{ role: "user", content: prompt }],
     });
     const block = message.content[0];
-    return block?.type === "text" ? block.text.trim() : "";
+    const text = block?.type === "text" ? block.text.trim() : "";
+    void logAiUsage({ model, prompt, response: text, useCase });
+    return text;
   };
 }
 

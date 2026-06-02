@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Globe, Phone, Mail, MapPin, FileText, Cookie, Scale, Shield, ToggleLeft, ToggleRight, CheckCircle, XCircle, Zap } from "lucide-react";
+import { Save, Globe, Phone, Mail, MapPin, FileText, Cookie, Scale, Shield, ToggleLeft, ToggleRight, CheckCircle, XCircle, Zap, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,13 +72,14 @@ export default function AdminSettings() {
           <TabsList className="bg-slate-800 border-slate-700 mb-6 flex-wrap h-auto gap-1 p-1">
             {[
               { value: "services", label: "Servisler" },
-              { value: "about",   label: "Hakkımızda" },
-              { value: "contact", label: "İletişim" },
-              { value: "kvkk",    label: "KVKK" },
-              { value: "terms",   label: "Kullanım Koşulları" },
-              { value: "privacy", label: "Gizlilik" },
-              { value: "cookie",  label: "Çerez" },
-              { value: "footer",  label: "Footer" },
+              { value: "email",    label: "E-posta" },
+              { value: "about",    label: "Hakkımızda" },
+              { value: "contact",  label: "İletişim" },
+              { value: "kvkk",     label: "KVKK" },
+              { value: "terms",    label: "Kullanım Koşulları" },
+              { value: "privacy",  label: "Gizlilik" },
+              { value: "cookie",   label: "Çerez" },
+              { value: "footer",   label: "Footer" },
             ].map(t => (
               <TabsTrigger key={t.value} value={t.value}
                 className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400 text-xs">
@@ -168,6 +169,74 @@ export default function AdminSettings() {
                       })}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="email">
+            <div className="space-y-6">
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Send className="h-5 w-5 text-emerald-400" /> E-posta Gönderen Adresleri
+                  </CardTitle>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Platforma ait her bildirim türü için ayrı gönderen adresi tanımlayın.
+                    Boş bırakılan alanlar varsayılan adresi (<span className="font-mono text-slate-300">info@cyberstep.com</span>) kullanır.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[
+                    { key: "email.from.default",       label: "Varsayılan Gönderen",          placeholder: "info@cyberstep.com",        desc: "Tüm e-postalar için temel gönderen adres" },
+                    { key: "email.from.notifications",  label: "Admin Bildirimleri",            placeholder: "info@cyberstep.com",        desc: "Yeni değerlendirme, uyarı ve sistem bildirimleri" },
+                    { key: "email.from.reports",        label: "Müşteri Raporları",             placeholder: "raporlar@cyberstep.com",    desc: "Risk analizi raporu ve değerlendirme sonuçları" },
+                    { key: "email.from.soc",            label: "SOC Uyarıları",                 placeholder: "soc@cyberstep.com",         desc: "SOC triage, SLA aşımı ve kritik uyarılar" },
+                    { key: "email.from.invoices",       label: "Fatura & Abonelik",             placeholder: "fatura@cyberstep.com",      desc: "Ödeme onayı, fatura ve abonelik bildirimleri" },
+                    { key: "email.from.renewal",        label: "Yenileme Hatırlatıcıları",      placeholder: "yenileme@cyberstep.com",    desc: "Sertifika ve abonelik yenileme hatırlatmaları" },
+                    { key: "email.from.boardreport",    label: "Yönetim Raporu",                placeholder: "yonetim@cyberstep.com",     desc: "Aylık yönetim kurulu raporu gönderimi" },
+                    { key: "email.from.onboarding",     label: "Onboarding E-postaları",        placeholder: "hosgeldiniz@cyberstep.com", desc: "Yeni müşteri karşılama ve kurulum adımları" },
+                  ].map(({ key, label, placeholder, desc }) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label className="text-slate-300 flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5 text-slate-500" /> {label}
+                      </Label>
+                      <Input
+                        type="email"
+                        value={form[key] ?? ""}
+                        onChange={e => set(key, e.target.value)}
+                        placeholder={placeholder}
+                        className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      />
+                      <p className="text-slate-500 text-xs">{desc}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-emerald-400" /> SMTP Yapılandırması
+                  </CardTitle>
+                  <p className="text-slate-400 text-sm mt-1">
+                    SMTP kimlik bilgileri güvenli ortam değişkenlerinde saklanır. Aşağıdaki değerler salt okunurdur.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { label: "SMTP Sunucusu", value: "smtp.gmail.com:587 (STARTTLS)" },
+                      { label: "SMTP_USER", value: "Ortam değişkeninde tanımlı" },
+                      { label: "SMTP_PASS", value: "Secret olarak saklanıyor" },
+                      { label: "ADMIN_EMAIL", value: "Ortam değişkeninden okunur (varsayılan: info@cyberstep.com)" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg border border-slate-700">
+                        <span className="text-slate-400 text-sm">{label}</span>
+                        <span className="text-slate-300 text-sm font-mono">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </div>

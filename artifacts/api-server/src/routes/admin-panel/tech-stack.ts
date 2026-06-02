@@ -90,6 +90,37 @@ router.get("/tech-stack/:domain", requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin-panel/tech-stack/by-vendor
+router.get("/tech-stack/by-vendor", requireAdmin, async (req, res) => {
+  try {
+    const vendor = String(req.query["vendor"] || "");
+    const category = String(req.query["category"] || "");
+
+    const conditions = [eq(customerTechStackTable.isActive, true)];
+    if (vendor) conditions.push(eq(customerTechStackTable.vendor, vendor));
+    if (category) conditions.push(eq(customerTechStackTable.category, category));
+
+    const rows = await db
+      .selectDistinct({ domain: customerTechStackTable.domain })
+      .from(customerTechStackTable)
+      .where(and(...conditions))
+      .orderBy(customerTechStackTable.domain);
+
+    const topVendors = await db
+      .select({ vendor: customerTechStackTable.vendor, category: customerTechStackTable.category, cnt: count() })
+      .from(customerTechStackTable)
+      .where(eq(customerTechStackTable.isActive, true))
+      .groupBy(customerTechStackTable.vendor, customerTechStackTable.category)
+      .orderBy(desc(count()))
+      .limit(30);
+
+    res.json({ domains: rows.map((r) => r.domain), count: rows.length, topVendors });
+  } catch (e) {
+    req.log.error({ err: e }, "Tech stack by-vendor hatası");
+    res.status(500).json({ error: "Vendor listesi alınamadı" });
+  }
+});
+
 // POST /api/admin-panel/tech-stack/fingerprint
 router.post("/tech-stack/fingerprint", requireAdmin, async (req, res) => {
   try {

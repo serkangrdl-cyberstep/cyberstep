@@ -12,6 +12,7 @@ import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
+import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
 import { startCertstreamClient } from "./services/certstream-client";
@@ -1938,6 +1939,14 @@ startup()
       } catch (err) { logger.warn({ err }, "Certstream queue cron failed"); }
     });
     logger.info("Certstream queue processor cron scheduled (hourly)");
+
+    // ─── Abonelik bitiş hatırlatmaları — her gün 10:00 İstanbul ──────────────
+    cron.schedule("0 10 * * *", async () => {
+      try {
+        await checkSubscriptionExpiryReminders();
+      } catch (err) { logger.warn({ err }, "Subscription expiry reminder cron failed"); }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Subscription expiry reminder cron scheduled (daily 10:00 Istanbul)");
 
     const server = app.listen(port, (err) => {
       if (err) {

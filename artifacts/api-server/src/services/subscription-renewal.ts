@@ -1,8 +1,8 @@
 import cron from "node-cron";
 import { db } from "@workspace/db";
-import { customerServicesTable, serviceCatalogTable, customersTable } from "@workspace/db";
-import { eq, and, lte, gte } from "drizzle-orm";
-import { sendMail } from "./email";
+import { customerServicesTable, serviceCatalogTable, customersTable, customerServiceSubscriptionsTable } from "@workspace/db";
+import { eq, and, lte, gte, isNull, between } from "drizzle-orm";
+import { sendMail, sendSubscriptionExpiryReminder } from "./email";
 import { logger } from "../lib/logger";
 
 const MAX_RENEWAL_ATTEMPTS = 3;
@@ -96,6 +96,76 @@ export async function processSubscriptionRenewals() {
       void newExpiry;
     } catch (err) {
       logger.error({ err, csId: cs.id }, "Renewal processing error");
+    }
+  }
+}
+
+export async function checkSubscriptionExpiryReminders(): Promise<void> {
+  const now = new Date();
+
+  // Window for 7-day reminder: expires_at between now+6d and now+8d
+  const window7dFrom = new Date(now.getTime() + 6 * 24 * 3600 * 1000);
+  const window7dTo   = new Date(now.getTime() + 8 * 24 * 3600 * 1000);
+
+  // Window for 1-day reminder: expires_at between now+12h and now+36h
+  const window1dFrom = new Date(now.getTime() + 12 * 3600 * 1000);
+  const window1dTo   = new Date(now.getTime() + 36 * 3600 * 1000);
+
+  const due7d = await db.select().from(customerServiceSubscriptionsTable).where(
+    and(
+      eq(customerServiceSubscriptionsTable.status, "active"),
+      isNull(customerServiceSubscriptionsTable.reminder7dSentAt),
+      between(customerServiceSubscriptionsTable.expiresAt, window7dFrom, window7dTo),
+    ),
+  );
+
+  const due1d = await db.select().from(customerServiceSubscriptionsTable).where(
+    and(
+      eq(customerServiceSubscriptionsTable.status, "active"),
+      isNull(customerServiceSubscriptionsTable.reminder1dSentAt),
+      between(customerServiceSubscriptionsTable.expiresAt, window1dFrom, window1dTo),
+    ),
+  );
+
+  logger.info({ count7d: due7d.length, count1d: due1d.length }, "Subscription expiry reminders: candidates found");
+
+  for (const sub of due7d) {
+    if (!sub.expiresAt) continue;
+    try {
+      await sendSubscriptionExpiryReminder({
+        email: sub.email,
+        contactName: sub.contactName,
+        companyName: sub.companyName,
+        serviceLabel: sub.serviceLabel,
+        expiresAt: sub.expiresAt,
+        daysLeft: 7,
+      });
+      await db.update(customerServiceSubscriptionsTable)
+        .set({ reminder7dSentAt: new Date() })
+        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+      logger.info({ subId: sub.id, email: sub.email }, "Subscription 7d reminder sent");
+    } catch (err) {
+      logger.error({ err, subId: sub.id }, "Failed to send 7d reminder");
+    }
+  }
+
+  for (const sub of due1d) {
+    if (!sub.expiresAt) continue;
+    try {
+      await sendSubscriptionExpiryReminder({
+        email: sub.email,
+        contactName: sub.contactName,
+        companyName: sub.companyName,
+        serviceLabel: sub.serviceLabel,
+        expiresAt: sub.expiresAt,
+        daysLeft: 1,
+      });
+      await db.update(customerServiceSubscriptionsTable)
+        .set({ reminder1dSentAt: new Date() })
+        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+      logger.info({ subId: sub.id, email: sub.email }, "Subscription 1d reminder sent");
+    } catch (err) {
+      logger.error({ err, subId: sub.id }, "Failed to send 1d reminder");
     }
   }
 }

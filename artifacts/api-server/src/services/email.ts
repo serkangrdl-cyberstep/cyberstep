@@ -1495,3 +1495,63 @@ export async function sendSubscriptionCancellationEmail(params: {
     html,
   });
 }
+
+export async function sendSubscriptionExpiryReminder(params: {
+  email: string;
+  contactName: string;
+  companyName: string;
+  serviceLabel: string;
+  expiresAt: Date;
+  daysLeft: number;
+}) {
+  const base = getBaseUrl();
+  const expiryStr = params.expiresAt.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const urgency = params.daysLeft <= 1 ? "Son 1 gün" : `${params.daysLeft} gün kaldı`;
+  const urgencyColor = params.daysLeft <= 1 ? "#dc2626" : "#d97706";
+  const urgencyBg = params.daysLeft <= 1 ? "#fef2f2" : "#fffbeb";
+  const urgencyBorder = params.daysLeft <= 1 ? "#fca5a5" : "#fcd34d";
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;background:#f4f7fb;padding:32px">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <h2 style="color:#0f172a;margin-top:0">Abonelik Sona Erme Hatırlatması</h2>
+  <p>Sayın <strong>${params.contactName}</strong>,</p>
+  <p><strong>${params.serviceLabel}</strong> aboneliğinizin sona erme tarihi yaklaşıyor.</p>
+
+  <div style="background:${urgencyBg};border:1px solid ${urgencyBorder};border-radius:8px;padding:16px 20px;margin:24px 0;text-align:center">
+    <div style="font-size:22px;font-weight:700;color:${urgencyColor}">${urgency}</div>
+    <div style="color:#64748b;font-size:14px;margin-top:4px">Bitiş tarihi: ${expiryStr}</div>
+  </div>
+
+  <table style="width:100%;border-collapse:collapse;margin:0 0 24px">
+    <tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 0;color:#64748b">Şirket</td>
+      <td style="padding:8px 0;text-align:right;font-weight:600">${params.companyName || "—"}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 0;color:#64748b">Servis</td>
+      <td style="padding:8px 0;text-align:right;font-weight:600">${params.serviceLabel}</td>
+    </tr>
+  </table>
+
+  <p style="color:#475569;font-size:14px">Aboneliğinizin kesintisiz devam etmesi için lütfen zamanında yenileyin.</p>
+
+  <a href="${base}/hesabim/servislerim"
+     style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
+    Aboneliği Yenile
+  </a>
+
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0 16px">
+  <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu</p>
+</div>
+</body>
+</html>`;
+
+  await sendMail({
+    to: params.email,
+    subject: `Abonelik Hatırlatması: ${params.serviceLabel} — ${urgency}`,
+    html,
+  });
+}

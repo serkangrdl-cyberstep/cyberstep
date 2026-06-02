@@ -8,7 +8,7 @@ import { requireAdmin } from "./middleware";
 const router = Router();
 
 // GET /api/admin-panel/tech-stack/stats
-router.get("/tech-stack/stats", requireAdmin, async (req, res) => {
+router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
   try {
     const totalDomains = await db.select({ count: count() }).from(customerTechStackTable).then((r) => r[0]?.count || 0);
 
@@ -43,7 +43,7 @@ router.get("/tech-stack/stats", requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin-panel/tech-stack/segments
-router.get("/tech-stack/segments", requireAdmin, async (req, res) => {
+router.get("/admin-panel/tech-stack/segments", requireAdmin, async (req, res) => {
   try {
     const fortinetM365 = await db
       .selectDistinct({ domain: customerTechStackTable.domain })
@@ -71,27 +71,8 @@ router.get("/tech-stack/segments", requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/admin-panel/tech-stack/:domain
-router.get("/tech-stack/:domain", requireAdmin, async (req, res) => {
-  try {
-    const domain = String(req.params["domain"]);
-    const stack = await db
-      .select()
-      .from(customerTechStackTable)
-      .where(and(eq(customerTechStackTable.domain, domain), eq(customerTechStackTable.isActive, true)))
-      .orderBy(desc(customerTechStackTable.confidence));
-
-    const [maturity] = await db.select().from(customerSecurityMaturityTable).where(eq(customerSecurityMaturityTable.domain, domain));
-
-    res.json({ domain, stack, maturity: maturity || null });
-  } catch (e) {
-    req.log.error({ err: e }, "Tech stack domain hatası");
-    res.status(500).json({ error: "Domain bilgisi alınamadı" });
-  }
-});
-
 // GET /api/admin-panel/tech-stack/by-vendor
-router.get("/tech-stack/by-vendor", requireAdmin, async (req, res) => {
+router.get("/admin-panel/tech-stack/by-vendor", requireAdmin, async (req, res) => {
   try {
     const vendor = String(req.query["vendor"] || "");
     const category = String(req.query["category"] || "");
@@ -121,8 +102,27 @@ router.get("/tech-stack/by-vendor", requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin-panel/tech-stack/:domain
+router.get("/admin-panel/tech-stack/:domain", requireAdmin, async (req, res) => {
+  try {
+    const domain = String(req.params["domain"]);
+    const stack = await db
+      .select()
+      .from(customerTechStackTable)
+      .where(and(eq(customerTechStackTable.domain, domain), eq(customerTechStackTable.isActive, true)))
+      .orderBy(desc(customerTechStackTable.confidence));
+
+    const [maturity] = await db.select().from(customerSecurityMaturityTable).where(eq(customerSecurityMaturityTable.domain, domain));
+
+    res.json({ domain, stack, maturity: maturity || null });
+  } catch (e) {
+    req.log.error({ err: e }, "Tech stack domain hatası");
+    res.status(500).json({ error: "Domain bilgisi alınamadı" });
+  }
+});
+
 // POST /api/admin-panel/tech-stack/fingerprint
-router.post("/tech-stack/fingerprint", requireAdmin, async (req, res) => {
+router.post("/admin-panel/tech-stack/fingerprint", requireAdmin, async (req, res) => {
   try {
     const { domain } = req.body as { domain: string };
     if (!domain) { res.status(400).json({ error: "Domain gerekli" }); return; }

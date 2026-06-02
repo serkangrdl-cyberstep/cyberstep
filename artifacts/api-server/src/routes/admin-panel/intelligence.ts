@@ -9,7 +9,7 @@ import { requireAdmin } from "./middleware";
 const router = Router();
 
 // GET /api/admin-panel/intelligence/markets
-router.get("/intelligence/markets", requireAdmin, async (req, res) => {
+router.get("/admin-panel/intelligence/markets", requireAdmin, async (req, res) => {
   try {
     const markets = await db.select().from(marketConfigsTable).orderBy(marketConfigsTable.countryCode);
     const reports = await db
@@ -30,7 +30,7 @@ router.get("/intelligence/markets", requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin-panel/intelligence/reports
-router.get("/intelligence/reports", requireAdmin, async (req, res) => {
+router.get("/admin-panel/intelligence/reports", requireAdmin, async (req, res) => {
   try {
     const { countryCode } = req.query as { countryCode?: string };
     const query = db.select().from(intelligenceReportsTable).orderBy(desc(intelligenceReportsTable.reportYear), desc(intelligenceReportsTable.reportMonth));
@@ -44,7 +44,7 @@ router.get("/intelligence/reports", requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin-panel/intelligence/reports/:id
-router.get("/intelligence/reports/:id", requireAdmin, async (req, res) => {
+router.get("/admin-panel/intelligence/reports/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(String(req.params["id"]));
     const [report] = await db.select().from(intelligenceReportsTable).where(eq(intelligenceReportsTable.id, id));
@@ -61,7 +61,7 @@ router.get("/intelligence/reports/:id", requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin-panel/intelligence/generate
-router.post("/intelligence/generate", requireAdmin, async (req, res) => {
+router.post("/admin-panel/intelligence/generate", requireAdmin, async (req, res) => {
   try {
     const now = new Date();
     const { countryCode = "TR", year = now.getFullYear(), month = now.getMonth() + 1 } = req.body as { countryCode?: string; year?: number; month?: number };
@@ -74,7 +74,7 @@ router.post("/intelligence/generate", requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin-panel/intelligence/reports/:id
-router.put("/intelligence/reports/:id", requireAdmin, async (req, res) => {
+router.put("/admin-panel/intelligence/reports/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(String(req.params["id"]));
     const { executiveSummary, linkedinPostShort, pressRelease, recommendations } = req.body as { executiveSummary?: string; linkedinPostShort?: string; pressRelease?: string; recommendations?: string };
@@ -87,7 +87,7 @@ router.put("/intelligence/reports/:id", requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin-panel/intelligence/reports/:id/publish
-router.post("/intelligence/reports/:id/publish", requireAdmin, async (req, res) => {
+router.post("/admin-panel/intelligence/reports/:id/publish", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(String(req.params["id"]));
     await db.update(intelligenceReportsTable).set({ status: "published", publishedAt: new Date(), updatedAt: new Date() }).where(eq(intelligenceReportsTable.id, id));
@@ -99,7 +99,7 @@ router.post("/intelligence/reports/:id/publish", requireAdmin, async (req, res) 
 });
 
 // GET /api/admin-panel/intelligence/reports/:id/leads
-router.get("/intelligence/reports/:id/leads", requireAdmin, async (req, res) => {
+router.get("/admin-panel/intelligence/reports/:id/leads", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(String(req.params["id"]));
     const leads = await db.select().from(reportLeadsTable).where(eq(reportLeadsTable.reportId, id)).orderBy(desc(reportLeadsTable.downloadedAt));

@@ -33,6 +33,61 @@ export async function ensureCustomerServiceConfigsTable(): Promise<void> {
       ON customer_service_configs (customer_id, service_slug)
   `);
   logger.info("customer_service_configs table ensured");
+
+  // Migrate any existing rows that have plaintext secret fields.
+  // Safe to run on every startup — already-encrypted values (prefixed "__enc__:")
+  // are skipped, so this is fully idempotent.
+  await migratePlaintextConfigSecrets();
+}
+
+/**
+ * Reads every customer_service_configs row and re-writes any secret fields that
+ * are still in plaintext (i.e. not yet prefixed with "__enc__:").
+ * Skips the entire migration if ENCRYPTION_KEY is not configured.
+ */
+async function migratePlaintextConfigSecrets(): Promise<void> {
+  if (!encryptionAvailable()) {
+    logger.warn("ENCRYPTION_KEY not set — skipping customer_service_configs plaintext migration");
+    return;
+  }
+
+  const rows = await pool.query<{ id: number; config: Record<string, unknown> }>(
+    "SELECT id, config FROM customer_service_configs"
+  );
+
+  let migrated = 0;
+  for (const row of rows.rows) {
+    const cfg = row.config ?? {};
+    const needsMigration = Object.entries(cfg).some(
+      ([k, v]) =>
+        isSecretField(k) &&
+        typeof v === "string" &&
+        v.length > 0 &&
+        !v.startsWith("__enc__:")
+    );
+
+    if (!needsMigration) continue;
+
+    let encryptedCfg: Record<string, unknown>;
+    try {
+      encryptedCfg = encryptConfigSecrets(cfg);
+    } catch (err) {
+      logger.error({ err, rowId: row.id }, "customer_service_configs migration: failed to encrypt row — skipping");
+      continue;
+    }
+
+    await pool.query(
+      "UPDATE customer_service_configs SET config = $1, updated_at = NOW() WHERE id = $2",
+      [JSON.stringify(encryptedCfg), row.id]
+    );
+    migrated++;
+  }
+
+  if (migrated > 0) {
+    logger.info({ migrated }, "customer_service_configs: migrated plaintext secrets to encrypted form");
+  } else {
+    logger.info("customer_service_configs: no plaintext secrets found — migration not needed");
+  }
 }
 
 // ─── Secret field helpers ─────────────────────────────────────────────────────

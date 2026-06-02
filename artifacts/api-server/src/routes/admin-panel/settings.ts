@@ -187,6 +187,58 @@ router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: 
   res.json(services);
 });
 
+// POST /api/admin-panel/settings/apikeys/test-shodan — plan ve kredi bilgisi döner
+router.post("/admin-panel/settings/apikeys/test-shodan", requireAdmin, async (_req: Request, res: Response) => {
+  const apiKey = process.env["SHODAN_API_KEY"];
+  if (!apiKey) {
+    res.status(400).json({ ok: false, error: "SHODAN_API_KEY bulunamadı. Replit Secrets'e ekleyin." });
+    return;
+  }
+  try {
+    const https = await import("https");
+    const result = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const req2 = https.get(
+        `https://api.shodan.io/api-info?key=${encodeURIComponent(apiKey)}`,
+        { timeout: 10000, headers: { "User-Agent": "CyberStep.io/1.0" } },
+        (resp) => {
+          let body = "";
+          resp.on("data", (c: Buffer) => { body += c.toString(); });
+          resp.on("end", () => {
+            try { resolve(JSON.parse(body) as Record<string, unknown>); }
+            catch { reject(new Error(`Parse hatası: ${body.slice(0, 200)}`)); }
+          });
+        },
+      );
+      req2.on("error", reject);
+      req2.on("timeout", () => { req2.destroy(); reject(new Error("Shodan API zaman aşımı (10sn)")); });
+    });
+    const plan = String(result["plan"] ?? "bilinmiyor");
+    const queryCredits = Number(result["query_credits"] ?? 0);
+    const scanCredits  = Number(result["scan_credits"]  ?? 0);
+    const freePlans    = new Set(["oss", "dev", "free"]);
+    const searchOk     = !freePlans.has(plan.toLowerCase());
+    res.json({
+      ok: true,
+      plan,
+      queryCredits,
+      scanCredits,
+      searchApiOk: searchOk,
+      message: searchOk
+        ? `Geçerli anahtar. Plan: ${plan}, Sorgu kredisi: ${queryCredits}`
+        : `Geçerli anahtar AMA ücretsiz plan ("${plan}"). Lead Discovery Shodan taraması çalışmaz — Member plan ($49/ay) gerekir. Domain taramaları çalışır.`,
+    });
+  } catch (err: unknown) {
+    const msg = String(err);
+    const is401 = msg.includes("401") || msg.toLowerCase().includes("unauthorized");
+    res.status(400).json({
+      ok: false,
+      error: is401
+        ? "API anahtarı geçersiz (401). account.shodan.io adresinden doğru anahtarı kopyalayın."
+        : `Shodan bağlantı hatası: ${msg}`,
+    });
+  }
+});
+
 // GET /api/admin-panel/settings/public (no auth — for footer/about pages)
 router.get("/public/settings", async (_req: Request, res: Response) => {
   const rows = await db.select().from(siteSettingsTable);

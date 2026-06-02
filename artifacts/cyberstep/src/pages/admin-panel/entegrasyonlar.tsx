@@ -594,6 +594,8 @@ export default function AdminEntegrasyonlar() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+  const [shodanTest, setShodanTest] = useState<{ ok: boolean; message?: string; error?: string; plan?: string; queryCredits?: number; searchApiOk?: boolean } | null>(null);
+  const [shodanTesting, setShodanTesting] = useState(false);
 
   const { data: apiKeys = {} } = useQuery<Record<string, boolean>>({
     queryKey: ["admin-apikeys"],
@@ -778,6 +780,38 @@ export default function AdminEntegrasyonlar() {
                   <p className="text-xs text-slate-600">
                     Ortam değişken adı: <code className="text-slate-500">{integration.envKey}</code>
                   </p>
+                  {integration.id === "shodan" && (
+                    <div className="mt-2 space-y-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          setShodanTesting(true);
+                          setShodanTest(null);
+                          try {
+                            const r = await fetch("/api/admin-panel/settings/apikeys/test-shodan", {
+                              method: "POST", credentials: "include",
+                            });
+                            const data = await r.json() as typeof shodanTest;
+                            setShodanTest(data);
+                          } catch {
+                            setShodanTest({ ok: false, error: "Bağlantı hatası" });
+                          } finally {
+                            setShodanTesting(false);
+                          }
+                        }}
+                        disabled={shodanTesting}
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs"
+                      >
+                        {shodanTesting ? "Test ediliyor..." : "Shodan Anahtarını Test Et"}
+                      </Button>
+                      {shodanTest && (
+                        <div className={`rounded p-2.5 text-xs ${shodanTest.ok ? (shodanTest.searchApiOk ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300" : "bg-amber-500/10 border border-amber-500/30 text-amber-300") : "bg-red-500/10 border border-red-500/30 text-red-300"}`}>
+                          {shodanTest.ok ? shodanTest.message : shodanTest.error}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

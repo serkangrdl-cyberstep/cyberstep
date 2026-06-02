@@ -50,7 +50,18 @@ export default function SatinAl() {
   usePageMeta({ title: "Servis Satın Al | CyberStep.io", noIndex: true });
 
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
-  const [customerForm, setCustomerForm] = useState({ contactName: "", companyName: "", email: "", phone: "" });
+
+  const prefill = (() => {
+    const q = new URLSearchParams(window.location.search);
+    return {
+      contactName: q.get("contactName") ?? "",
+      companyName: q.get("companyName") ?? "",
+      email: q.get("email") ?? "",
+      phone: "",
+    };
+  })();
+
+  const [customerForm, setCustomerForm] = useState(prefill);
   const [cardForm, setCardForm] = useState({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

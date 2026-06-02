@@ -639,7 +639,13 @@ export default function ServislerimPage() {
                         </div>
                         {sub.status === "expired" && (
                           <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400"
-                            onClick={() => navigate(`/satin-al/${sub.serviceSlug}`)}>
+                            onClick={() => {
+                              const q = new URLSearchParams();
+                              if (sub.contactName) q.set("contactName", sub.contactName);
+                              if (sub.companyName) q.set("companyName", sub.companyName);
+                              if (sub.email) q.set("email", sub.email);
+                              navigate(`/satin-al/${sub.serviceSlug}?${q.toString()}`);
+                            }}>
                             Yenile
                           </Button>
                         )}

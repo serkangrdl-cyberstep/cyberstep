@@ -53,6 +53,7 @@ export default function Payment() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [kvkkAccepted, setKvkkAccepted] = useState(false);
 
   const { data: plans = [] } = useQuery<PricingPlan[]>({
     queryKey: ["pricing-plans"],
@@ -83,6 +84,7 @@ export default function Payment() {
     if (!form.expireMonth || !form.expireYear) { setError("Son kullanma tarihini seçin."); return; }
     if (form.cvc.length < 3) { setError("Geçerli bir CVC girin."); return; }
     if (form.cardHolderName.trim().split(" ").length < 2) { setError("Kart üzerindeki ad soyad giriniz."); return; }
+    if (!kvkkAccepted) { setError("Devam etmek için KVKK metnini ve Kullanım Koşulları'nı onaylamanız gerekir."); return; }
 
     setLoading(true);
     try {
@@ -285,6 +287,23 @@ export default function Payment() {
                   </div>
                 </div>
 
+                {/* KVKK onayı */}
+                <div className="border-t border-border pt-4">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={kvkkAccepted}
+                      onChange={e => setKvkkAccepted(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded accent-emerald-600 shrink-0"
+                    />
+                    <span className="text-xs text-muted-foreground leading-relaxed">
+                      <a href="/kvkk" target="_blank" className="text-emerald-600 hover:underline font-medium">Kişisel Verilerin Korunması (KVKK)</a> kapsamında kişisel verilerimin işlenmesini ve{" "}
+                      <a href="/kullanim-kosullari" target="_blank" className="text-emerald-600 hover:underline font-medium">Kullanım Koşulları</a>'nı okudum, kabul ediyorum.
+                      <span className="text-destructive ml-1">*</span>
+                    </span>
+                  </label>
+                </div>
+
                 {error && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -298,16 +317,14 @@ export default function Payment() {
                   disabled={loading}
                 >
                   {loading ? (
-                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Odeme Isleniyor...</>
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Ödeme İşleniyor...</>
                   ) : (
                     <><Lock className="mr-2 h-5 w-5" /> ₺{totalPrice.toLocaleString("tr-TR")} Güvenli Öde</>
-
                   )}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Odemeyi tamamlayarak <a href="/kullanim-kosullari" className="underline hover:text-foreground">Kullanim Kosullari</a>'ni kabul etmis olursunuz.
-                  Faturaniz e-posta adresinize iletilecektir.
+                  Faturanız e-posta adresinize iletilecektir.
                 </p>
               </form>
             </CardContent>

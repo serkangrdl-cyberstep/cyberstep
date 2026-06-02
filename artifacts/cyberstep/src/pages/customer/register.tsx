@@ -19,6 +19,7 @@ export default function CustomerRegister() {
   const qc = useQueryClient();
   const [showPw, setShowPw] = useState(false);
   const [refValidation, setRefValidation] = useState<{ valid: boolean; reward?: string; error?: string } | null>(null);
+  const [kvkkAccepted, setKvkkAccepted] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -73,6 +74,10 @@ export default function CustomerRegister() {
     e.preventDefault();
     if (form.password.length < 8) {
       toast({ title: "Hata", description: "Şifre en az 8 karakter olmalıdır", variant: "destructive" });
+      return;
+    }
+    if (!kvkkAccepted) {
+      toast({ title: "Hata", description: "Devam etmek için KVKK metnini onaylamanız gerekir.", variant: "destructive" });
       return;
     }
     registerMutation.mutate(form);
@@ -189,6 +194,24 @@ export default function CustomerRegister() {
                     {refValidation.valid ? `Gecerli kod — ${refValidation.reward ?? "1 ay ucretsiz!"}` : refValidation.error ?? "Gecersiz kod"}
                   </div>
                 )}
+              </div>
+
+              {/* KVKK onayı */}
+              <div className="border-t border-slate-700 pt-4">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={kvkkAccepted}
+                    onChange={e => setKvkkAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-800 accent-emerald-500 shrink-0"
+                  />
+                  <span className="text-xs text-slate-400 leading-relaxed">
+                    <a href="/kvkk" target="_blank" className="text-emerald-400 hover:underline font-medium">Kişisel Verilerin Korunması (KVKK)</a> kapsamında kişisel verilerimin işlenmesini
+                    ve{" "}
+                    <a href="/kullanim-kosullari" target="_blank" className="text-emerald-400 hover:underline font-medium">Kullanım Koşulları</a>'nı okudum, kabul ediyorum.
+                    <span className="text-red-400 ml-1">*</span>
+                  </span>
+                </label>
               </div>
 
               <Button

@@ -384,6 +384,7 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
           const webhookToken = typeof cfg["webhookToken"] === "string" && cfg["webhookToken"].length > 10 ? cfg["webhookToken"] : null;
           const snmpToken = typeof cfg["snmpToken"] === "string" && cfg["snmpToken"].length > 10 ? cfg["snmpToken"] : null;
           const analystName = typeof cfg["assignedAnalyst"] === "string" && cfg["assignedAnalyst"] ? cfg["assignedAnalyst"] : null;
+          const dashboardSlug = typeof cfg["dashboardSlug"] === "string" && cfg["dashboardSlug"] ? cfg["dashboardSlug"] : null;
 
           const generatedUrlsHtml = (() => {
             const rows: string[] = [];
@@ -399,6 +400,10 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
             // T19: ServiceNow webhook URL with token in email
             if ((serviceSlug === "servicenow" || serviceSlug === "servicenow-entegrasyon") && webhookToken) {
               rows.push(`<tr><td ${tdLabel}>ServiceNow Webhook URL</td><td ${tdVal}>https://cyberstep.io/api/integrations/servicenow/webhook/${webhookToken}</td></tr>`);
+            }
+            // T20: Observability dashboard URL in completion email
+            if (serviceSlug === "observability" && dashboardSlug) {
+              rows.push(`<tr><td ${tdLabel}>Dashboard URL</td><td ${tdVal}>https://cyberstep.io/dashboard/${dashboardSlug}</td></tr>`);
             }
             if (rows.length === 0) return "";
             return `

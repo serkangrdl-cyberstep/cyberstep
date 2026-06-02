@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter, Mail, Clock, Pencil, Save, X } from "lucide-react";
+import { Network, CheckCircle, AlertTriangle, Loader2, ExternalLink, XCircle, TicketCheck, Webhook, Filter, Mail, Clock, Pencil, Save, X, History, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,13 @@ interface SnIncident {
   companyName: string | null;
 }
 
+interface ConnCheckEntry {
+  id: number;
+  checkedAt: string;
+  ok: boolean;
+  errorMessage: string | null;
+}
+
 const SN_STATES: Record<number, string> = {
   1: "Yeni", 2: "Devam Ediyor", 3: "Beklemede", 6: "Çözüldü", 7: "Kapatıldı",
 };
@@ -76,6 +83,88 @@ function timeSince(iso: string | null) {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h} saat önce`;
   return `${Math.floor(h / 24)} gün önce`;
+}
+
+function ConnCheckHistory({ configId }: { configId: number }) {
+  const [open, setOpen] = useState(false);
+
+  const { data, isLoading } = useQuery<{ log: ConnCheckEntry[] }>({
+    queryKey: ["admin-sn-conn-log", configId],
+    queryFn: () =>
+      fetch(`/api/admin-panel/servicenow/configs/${configId}/conn-check-log`, { credentials: "include" }).then(r => r.json()),
+    enabled: open,
+    staleTime: 60000,
+  });
+
+  const log = data?.log ?? [];
+  const okCount = log.filter(e => e.ok).length;
+  const errCount = log.filter(e => !e.ok).length;
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 border border-slate-700/50 transition-colors"
+      >
+        <History className="h-3 w-3" />
+        Bağlantı Geçmişi (7 gün)
+        {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded-md border border-slate-700/40 bg-slate-900/60 p-3">
+          {isLoading ? (
+            <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+              <Loader2 className="h-3 w-3 animate-spin" /> Yükleniyor...
+            </div>
+          ) : log.length === 0 ? (
+            <p className="text-slate-600 text-xs">Son 7 günde kontrol kaydı yok.</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-[11px] text-slate-400">
+                  {log.length} kontrol
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                  <CheckCircle className="h-3 w-3" /> {okCount} OK
+                </span>
+                {errCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-red-400">
+                    <XCircle className="h-3 w-3" /> {errCount} hata
+                  </span>
+                )}
+              </div>
+
+              {/* Dot timeline — newest first */}
+              <div className="flex flex-wrap gap-1 mb-3">
+                {log.map(entry => (
+                  <div
+                    key={entry.id}
+                    title={`${new Date(entry.checkedAt).toLocaleString("tr-TR")}${entry.errorMessage ? `\n${entry.errorMessage}` : ""}`}
+                    className={`w-3 h-3 rounded-sm cursor-default transition-opacity hover:opacity-75 ${entry.ok ? "bg-emerald-500" : "bg-red-500"}`}
+                  />
+                ))}
+              </div>
+
+              {/* Recent error details */}
+              {errCount > 0 && (
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {log.filter(e => !e.ok).slice(0, 5).map(entry => (
+                    <div key={entry.id} className="flex items-start gap-2 text-[11px]">
+                      <span className="text-slate-500 whitespace-nowrap shrink-0">
+                        {new Date(entry.checkedAt).toLocaleString("tr-TR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="text-red-400 break-all">{entry.errorMessage ?? "Bilinmeyen hata"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ConnStatusBadge({ cfg }: { cfg: SnConfig }) {
@@ -261,6 +350,8 @@ function ConfigCard({ cfg, onRefresh }: { cfg: SnConfig; onRefresh: () => void }
               <span className="text-slate-600">Webhook olayı yok</span>
             )}
           </div>
+
+          <ConnCheckHistory configId={cfg.id} />
         </div>
         <div className="text-right shrink-0">
           <p className="text-2xl font-bold text-white">{cfg.incidentCount}</p>

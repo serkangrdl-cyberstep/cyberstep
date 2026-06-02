@@ -49,6 +49,15 @@ export const servicenowWebhookErrorsTable = pgTable("servicenow_webhook_errors",
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const servicenowConnCheckLogTable = pgTable("servicenow_conn_check_log", {
+  id: serial("id").primaryKey(),
+  configId: integer("config_id").notNull().references(() => servicenowConfigsTable.id, { onDelete: "cascade" }),
+  checkedAt: timestamp("checked_at").defaultNow().notNull(),
+  ok: boolean("ok").notNull(),
+  errorMessage: text("error_message"),
+});
+
 export type ServicenowConfig = typeof servicenowConfigsTable.$inferSelect;
 export type ServicenowIncident = typeof servicenowIncidentsTable.$inferSelect;
 export type ServicenowWebhookError = typeof servicenowWebhookErrorsTable.$inferSelect;
+export type ServicenowConnCheckLog = typeof servicenowConnCheckLogTable.$inferSelect;

@@ -142,6 +142,32 @@ router.get("/admin-panel/servicenow/incidents", requireAdmin, async (_req, res) 
   }
 });
 
+// GET /api/admin-panel/servicenow/configs/:id/conn-check-log
+router.get("/admin-panel/servicenow/configs/:id/conn-check-log", requireAdmin, async (req, res) => {
+  try {
+    const configId = parseInt(String(req.params["id"] ?? ""), 10);
+    if (isNaN(configId)) {
+      res.status(400).json({ error: "Geçersiz config ID" });
+      return;
+    }
+    const { rows } = await pool.query<{
+      id: number; checkedAt: string; ok: boolean; errorMessage: string | null;
+    }>(
+      `SELECT id, checked_at AS "checkedAt", ok, error_message AS "errorMessage"
+       FROM servicenow_conn_check_log
+       WHERE config_id = $1
+         AND checked_at >= NOW() - INTERVAL '7 days'
+       ORDER BY checked_at DESC
+       LIMIT 200`,
+      [configId],
+    );
+    res.json({ log: rows });
+  } catch (err) {
+    logger.error({ err }, "GET /api/admin-panel/servicenow/configs/:id/conn-check-log error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // PATCH /api/admin-panel/servicenow/configs/:id/retry-window
 router.patch("/admin-panel/servicenow/configs/:id/retry-window", requireAdmin, async (req, res) => {
   try {

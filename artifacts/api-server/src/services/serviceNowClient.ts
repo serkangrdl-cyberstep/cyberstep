@@ -997,6 +997,17 @@ export async function ensureServiceNowTables(): Promise<void> {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS sn_webhook_errors_customer_idx ON servicenow_webhook_errors (customer_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS sn_webhook_errors_created_idx ON servicenow_webhook_errors (created_at DESC)`);
+  // Connection health check log — time-series of ok/error results per config
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS servicenow_conn_check_log (
+      id           SERIAL PRIMARY KEY,
+      config_id    INTEGER NOT NULL REFERENCES servicenow_configs(id) ON DELETE CASCADE,
+      checked_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ok           BOOLEAN NOT NULL,
+      error_message TEXT
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS sn_conn_check_log_config_idx ON servicenow_conn_check_log (config_id, checked_at DESC)`);
   logger.info("ServiceNow tables ready");
 }
 
@@ -1253,6 +1264,13 @@ export async function checkServiceNowConnections(): Promise<void> {
           assignmentGroup: row.assignment_group,
           category: row.category,
         });
+
+        // Log the check result to the time-series table
+        await pool.query(
+          `INSERT INTO servicenow_conn_check_log (config_id, checked_at, ok, error_message)
+           VALUES ($1, NOW(), $2, $3)`,
+          [row.id, result.ok, result.ok ? null : result.message.slice(0, 500)],
+        );
 
         if (result.ok) {
           // Was there a prior error? If so, this is a re-connection — retry pending cases.

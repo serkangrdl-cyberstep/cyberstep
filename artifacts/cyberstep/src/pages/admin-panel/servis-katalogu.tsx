@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Edit2, Check, X, ToggleLeft, ToggleRight } from "lucide-react";
+import { Edit2, Check, X, ToggleLeft, ToggleRight, Plus } from "lucide-react";
 
 interface ServiceCatalogItem {
   id: number;
@@ -121,9 +124,22 @@ function EditableRow({ item, onSave }: { item: ServiceCatalogItem; onSave: (slug
   );
 }
 
+interface NewServiceForm {
+  slug: string;
+  label: string;
+  shortDescription: string;
+  monthlyPriceTl: string;
+  setupFeeTl: string;
+  category: string;
+}
+
+const EMPTY_NEW: NewServiceForm = { slug: "", label: "", shortDescription: "", monthlyPriceTl: "0", setupFeeTl: "0", category: "monitoring" };
+
 export default function ServisKatalogu() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [showAdd, setShowAdd] = useState(false);
+  const [newSvc, setNewSvc] = useState<NewServiceForm>(EMPTY_NEW);
 
   const { data: services = [], isLoading } = useQuery<ServiceCatalogItem[]>({
     queryKey: ["admin-service-catalog"],
@@ -143,6 +159,32 @@ export default function ServisKatalogu() {
       toast({ title: "Güncellendi" });
     },
     onError: () => toast({ title: "Hata", description: "Güncelleme yapılamadı", variant: "destructive" }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: NewServiceForm) =>
+      fetch("/api/admin-panel/service-catalog", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: data.slug,
+          label: data.label,
+          shortDescription: data.shortDescription,
+          monthlyPriceTl: data.monthlyPriceTl,
+          setupFeeTl: data.setupFeeTl,
+          category: data.category,
+          sortOrder: 99,
+          isActive: true,
+        }),
+      }).then(r => { if (!r.ok) throw new Error("Eklenemedi"); return r.json(); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-service-catalog"] });
+      setShowAdd(false);
+      setNewSvc(EMPTY_NEW);
+      toast({ title: "Servis eklendi" });
+    },
+    onError: () => toast({ title: "Hata", description: "Servis eklenemedi", variant: "destructive" }),
   });
 
   const handleSave = async (slug: string, data: Partial<ServiceCatalogItem>) => {
@@ -173,9 +215,14 @@ export default function ServisKatalogu() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
             <h2 className="font-semibold text-white">Servis Listesi</h2>
-            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
-              {active} aktif
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
+                {active} aktif
+              </Badge>
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => setShowAdd(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Yeni Servis Ekle
+              </Button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -209,6 +256,60 @@ export default function ServisKatalogu() {
           Servis adı, açıklama ve fiyatı satır üzerindeki kalem simgesine tıklayarak düzenleyebilirsiniz. Aktif/pasif durumunu toggle butonuyla değiştirebilirsiniz.
         </p>
       </div>
+
+      <Dialog open={showAdd} onOpenChange={v => !v && setShowAdd(false)}>
+        <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Yeni Servis Ekle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-slate-300">Slug</Label>
+                <Input className="bg-slate-800 border-slate-700 text-white mt-1 font-mono text-sm" maxLength={80} value={newSvc.slug} onChange={e => setNewSvc(p => ({ ...p, slug: e.target.value }))} placeholder="dns-izleme" />
+              </div>
+              <div>
+                <Label className="text-slate-300">Kategori</Label>
+                <Select value={newSvc.category} onValueChange={v => setNewSvc(p => ({ ...p, category: v }))}>
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monitoring">İzleme</SelectItem>
+                    <SelectItem value="assessment">Değerlendirme</SelectItem>
+                    <SelectItem value="response">Müdahale</SelectItem>
+                    <SelectItem value="compliance">Uyumluluk</SelectItem>
+                    <SelectItem value="training">Eğitim</SelectItem>
+                    <SelectItem value="other">Diğer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-slate-300">Servis Adı</Label>
+              <Input className="bg-slate-800 border-slate-700 text-white mt-1" maxLength={120} value={newSvc.label} onChange={e => setNewSvc(p => ({ ...p, label: e.target.value }))} placeholder="DNS İzleme" />
+            </div>
+            <div>
+              <Label className="text-slate-300">Kısa Açıklama</Label>
+              <Textarea className="bg-slate-800 border-slate-700 text-white mt-1 text-sm" rows={2} maxLength={400} value={newSvc.shortDescription} onChange={e => setNewSvc(p => ({ ...p, shortDescription: e.target.value }))} placeholder="Alan adı kayıt değişikliklerini anlık izle..." />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-slate-300">Aylık Fiyat (TL)</Label>
+                <Input type="number" className="bg-slate-800 border-slate-700 text-white mt-1" value={newSvc.monthlyPriceTl} onChange={e => setNewSvc(p => ({ ...p, monthlyPriceTl: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-slate-300">Kurulum Ücreti (TL)</Label>
+                <Input type="number" className="bg-slate-800 border-slate-700 text-white mt-1" value={newSvc.setupFeeTl} onChange={e => setNewSvc(p => ({ ...p, setupFeeTl: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" className="border-slate-700" onClick={() => { setShowAdd(false); setNewSvc(EMPTY_NEW); }}>Vazgec</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => createMutation.mutate(newSvc)} disabled={createMutation.isPending || !newSvc.slug || !newSvc.label}>
+                {createMutation.isPending ? "Ekleniyor..." : "Ekle"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

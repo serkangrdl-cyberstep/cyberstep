@@ -280,8 +280,8 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                   {scan.dkimPass ? <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" /> : <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-white">DKIM</div>
-                    {scan.dkimSelectors.length > 0
-                      ? <div className="flex flex-wrap gap-1 mt-1">{scan.dkimSelectors.map(s => <span key={s} className="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-0.5 rounded font-mono">{s}</span>)}</div>
+                    {(scan.dkimSelectors ?? []).length > 0
+                      ? <div className="flex flex-wrap gap-1 mt-1">{(scan.dkimSelectors ?? []).map(s => <span key={s} className="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-0.5 rounded font-mono">{s}</span>)}</div>
                       : <p className="text-xs text-red-400 mt-0.5">Bilinen DKIM selektörleri bulunamadı</p>
                     }
                   </div>
@@ -290,8 +290,8 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                   {scan.mxPass ? <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" /> : <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-white">MX Kayıtları</div>
-                    {scan.mxRecords.length > 0
-                      ? <div className="flex flex-col gap-0.5 mt-1">{scan.mxRecords.map(m => <span key={m.exchange} className="text-xs text-slate-400 font-mono">{m.priority} {m.exchange}</span>)}</div>
+                    {(scan.mxRecords ?? []).length > 0
+                      ? <div className="flex flex-col gap-0.5 mt-1">{(scan.mxRecords ?? []).map(m => <span key={m.exchange} className="text-xs text-slate-400 font-mono">{m.priority} {m.exchange}</span>)}</div>
                       : <p className="text-xs text-red-400 mt-0.5">MX kaydı bulunamadı</p>
                     }
                   </div>
@@ -334,9 +334,9 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                 </h3>
                 <div className="p-3 rounded-lg bg-slate-800 border border-red-500/30">
                   <p className="text-sm text-red-300 font-medium">Bu domain Google tarafından tehlikeli olarak işaretlenmiş</p>
-                  {scan.safeBrowsingThreats.length > 0 && (
+                  {(scan.safeBrowsingThreats ?? []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {scan.safeBrowsingThreats.map(t => (
+                      {(scan.safeBrowsingThreats ?? []).map(t => (
                         <span key={t} className="bg-red-500/10 text-red-400 text-xs px-2 py-0.5 rounded border border-red-500/20">{t}</span>
                       ))}
                     </div>
@@ -353,7 +353,7 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                   Veri İhlalleri ({scan.hibpBreachCount})
                 </h3>
                 <div className="space-y-2">
-                  {scan.hibpBreaches.map(b => (
+                  {(scan.hibpBreaches ?? []).map(b => (
                     <div key={b.name} className="p-3 rounded-lg bg-slate-800 border border-red-500/20">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-red-300">{b.name}</span>
@@ -379,7 +379,7 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                   Kara Liste ({scan.blacklistCount} liste)
                 </h3>
                 <div className="space-y-1">
-                  {scan.blacklistResults.filter(r => r.listed).map(r => (
+                  {(scan.blacklistResults ?? []).filter(r => r.listed).map(r => (
                     <div key={r.list} className="flex items-center gap-2 p-2 rounded bg-slate-800">
                       <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
                       <span className="text-xs text-red-300 font-mono">{r.list}</span>
@@ -390,13 +390,13 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
             )}
 
             {/* Shadow IT */}
-            {scan.shadowItServices.length > 0 && (
+            {(scan.shadowItServices ?? []).length > 0 && (
               <div>
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                  Gölge BT Servisleri ({scan.shadowItServices.length})
+                  Gölge BT Servisleri ({(scan.shadowItServices ?? []).length})
                 </h3>
                 <div className="space-y-2">
-                  {scan.shadowItServices.map(s => (
+                  {(scan.shadowItServices ?? []).map(s => (
                     <div key={s.name} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800">
                       <RiskBadge risk={s.risk} />
                       <div className="min-w-0 flex-1">

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { z } from "zod/v4";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { eq, desc } from "drizzle-orm";
@@ -11,7 +12,7 @@ const router = Router();
 
 // ─── JOB APPLICATIONS ────────────────────────────────────────────────────────
 
-router.get("/api/admin/job-applications", requireAdmin, async (_req, res: Response) => {
+router.get("/admin/job-applications", requireAdmin, async (_req, res: Response) => {
   try {
     const rows = await db.select().from(jobApplicationsTable).orderBy(desc(jobApplicationsTable.createdAt));
     res.json(rows);
@@ -21,7 +22,7 @@ router.get("/api/admin/job-applications", requireAdmin, async (_req, res: Respon
   }
 });
 
-router.patch("/api/admin/job-applications/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/admin/job-applications/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { status } = req.body as { status: string };
   const allowed = ["new", "reviewed", "contacted", "rejected"];
@@ -35,7 +36,7 @@ router.patch("/api/admin/job-applications/:id", requireAdmin, async (req: Reques
   }
 });
 
-router.get("/api/admin/job-applications/:id/cv", requireAdmin, async (req: Request, res: Response) => {
+router.get("/admin/job-applications/:id/cv", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   try {
     const [app] = await db.select({ cvFileName: jobApplicationsTable.cvFileName, cvFileData: jobApplicationsTable.cvFileData }).from(jobApplicationsTable).where(eq(jobApplicationsTable.id, id));
@@ -55,7 +56,7 @@ router.get("/api/admin/job-applications/:id/cv", requireAdmin, async (req: Reque
 
 // ─── SERVICE PRICES ───────────────────────────────────────────────────────────
 
-router.get("/api/admin/service-prices", requireAdmin, async (_req, res: Response) => {
+router.get("/admin/service-prices", requireAdmin, async (_req, res: Response) => {
   try {
     const rows = await db.select().from(servicePricesTable).orderBy(servicePricesTable.slug);
     res.json(rows);
@@ -65,10 +66,17 @@ router.get("/api/admin/service-prices", requireAdmin, async (_req, res: Response
   }
 });
 
-router.put("/api/admin/service-prices/:slug", requireAdmin, async (req: Request, res: Response) => {
+const servicePriceSchema = z.object({
+  label: z.string().min(1).max(120),
+  amount_tl: z.string().min(1).max(20).regex(/^\d+(\.\d+)?$/, "Geçerli bir sayı girin"),
+  unit: z.enum(["yıl", "ay", "tek seferlik", "tarama", "cihaz", "kullanıcı"]),
+});
+
+router.put("/admin/service-prices/:slug", requireAdmin, async (req: Request, res: Response) => {
   const slug = String(req.params["slug"] ?? "");
-  const { label, amount_tl, unit } = req.body as { label: string; amount_tl: string; unit: string };
-  if (!label || !amount_tl || !unit) { res.status(400).json({ error: "label, amount_tl, unit zorunlu" }); return; }
+  const parsed = servicePriceSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: z.prettifyError(parsed.error) }); return; }
+  const { label, amount_tl, unit } = parsed.data;
   try {
     await db.update(servicePricesTable).set({ label, amountTl: amount_tl, unit, updatedAt: new Date() }).where(eq(servicePricesTable.slug, slug));
     logger.info({ slug, amount_tl }, "Service price updated");
@@ -86,7 +94,7 @@ async function queryRows(query: ReturnType<typeof sql>): Promise<Record<string, 
   return (result as unknown as { rows?: Record<string, unknown>[] }).rows ?? [];
 }
 
-router.post("/api/admin/trigger/assessment/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/assessment/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT email, company_name FROM customers WHERE id = ${customerId}`);
@@ -100,7 +108,7 @@ router.post("/api/admin/trigger/assessment/:customerId", requireAdmin, async (re
   }
 });
 
-router.post("/api/admin/trigger/phishing/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/phishing/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM phishing_sim_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -112,7 +120,7 @@ router.post("/api/admin/trigger/phishing/:customerId", requireAdmin, async (req:
   }
 });
 
-router.post("/api/admin/trigger/pentest-lite/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/pentest-lite/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM pentest_lite_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -123,7 +131,7 @@ router.post("/api/admin/trigger/pentest-lite/:customerId", requireAdmin, async (
   }
 });
 
-router.post("/api/admin/trigger/ai-assessment/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/ai-assessment/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM ai_assessments WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -134,7 +142,7 @@ router.post("/api/admin/trigger/ai-assessment/:customerId", requireAdmin, async 
   }
 });
 
-router.post("/api/admin/trigger/deepfake/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/deepfake/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM deepfake_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -145,7 +153,7 @@ router.post("/api/admin/trigger/deepfake/:customerId", requireAdmin, async (req:
   }
 });
 
-router.post("/api/admin/trigger/red-team/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/red-team/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM red_team_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -156,7 +164,7 @@ router.post("/api/admin/trigger/red-team/:customerId", requireAdmin, async (req:
   }
 });
 
-router.post("/api/admin/trigger/eu-ai-act/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/eu-ai-act/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM eu_ai_act_assessments WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -167,7 +175,7 @@ router.post("/api/admin/trigger/eu-ai-act/:customerId", requireAdmin, async (req
   }
 });
 
-router.post("/api/admin/trigger/domain-scan/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/domain-scan/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT domain FROM customers WHERE id = ${customerId}`);
@@ -179,7 +187,7 @@ router.post("/api/admin/trigger/domain-scan/:customerId", requireAdmin, async (r
   }
 });
 
-router.post("/api/admin/trigger/board-report/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/board-report/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, status FROM board_reports WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -191,7 +199,7 @@ router.post("/api/admin/trigger/board-report/:customerId", requireAdmin, async (
   }
 });
 
-router.post("/api/admin/trigger/nps/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/nps/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT id, score FROM nps_responses WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
@@ -204,7 +212,7 @@ router.post("/api/admin/trigger/nps/:customerId", requireAdmin, async (req: Requ
   }
 });
 
-router.post("/api/admin/trigger/health-score/:customerId", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/trigger/health-score/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
     const rows = await queryRows(sql`SELECT health_score, health_tier FROM customer_health_scores WHERE customer_id = ${customerId} ORDER BY calculated_at DESC LIMIT 1`);

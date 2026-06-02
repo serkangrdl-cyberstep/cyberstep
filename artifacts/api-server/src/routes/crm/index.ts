@@ -285,12 +285,12 @@ router.get("/api/crm/revenue/stats", requireAdmin, async (_req, res: Response) =
 
 // ─── ACCOUNTING SETTINGS ──────────────────────────────────────────────────────
 
-router.get("/api/crm/accounting", requireAdmin, async (_req, res: Response) => {
+router.get("/crm/accounting", requireAdmin, async (_req, res: Response) => {
   const rows = await db.execute(sql`SELECT id,provider,webhook_url,auto_sync_on_create,auto_sync_on_paid,auto_sync_on_cancel,bank_name,bank_iban,bank_account_name,last_sync_at,error_count FROM accounting_settings WHERE id=1`);
   res.json((rows as { rows: unknown[] }).rows[0] ?? {});
 });
 
-router.put("/api/crm/accounting", requireAdmin, async (req: Request, res: Response) => {
+router.put("/crm/accounting", requireAdmin, async (req: Request, res: Response) => {
   const { provider, webhookUrl, webhookSecret, bankName, bankIban, bankAccountName, autoSyncOnCreate, autoSyncOnPaid, autoSyncOnCancel } = req.body as Record<string, unknown>;
   await db.execute(sql`
     UPDATE accounting_settings SET
@@ -305,7 +305,7 @@ router.put("/api/crm/accounting", requireAdmin, async (req: Request, res: Respon
   res.json({ ok: true });
 });
 
-router.post("/api/crm/accounting/test", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/accounting/test", requireAdmin, async (req: Request, res: Response) => {
   const { webhookUrl, webhookSecret } = req.body as Record<string, string>;
   if (!webhookUrl) return void res.status(400).json({ error: "Webhook URL gerekli" });
   try {
@@ -458,5 +458,42 @@ function npsEmailHtml(name: string, token: string, base: string): string {
 </div>
 <hr style="border:none;border-top:1px solid #E8EDF5;"><p style="color:#A0AEC0;font-size:11px;">CyberStep.io</p></div>`;
 }
+
+// ─── BANK ACCOUNTS ────────────────────────────────────────────────────────────
+
+router.get("/bank-accounts", requireAdmin, async (_req, res: Response) => {
+  try {
+    const result = await db.execute(sql`SELECT id, currency, bank_name, iban, account_name, is_default, created_at FROM bank_accounts ORDER BY is_default DESC, id ASC`);
+    res.json((result as { rows: unknown[] }).rows);
+  } catch (err) { logger.error({ err }, "bank_accounts get"); res.status(500).json({ error: "Sunucu hatası" }); }
+});
+
+router.post("/bank-accounts", requireAdmin, async (req: Request, res: Response) => {
+  const { currency, bank_name, iban, account_name, is_default } = req.body as Record<string, unknown>;
+  if (!currency || !bank_name || !iban || !account_name) { res.status(400).json({ error: "currency, bank_name, iban, account_name zorunlu" }); return; }
+  try {
+    if (is_default) await db.execute(sql`UPDATE bank_accounts SET is_default=false`);
+    const result = await db.execute(sql`INSERT INTO bank_accounts (currency, bank_name, iban, account_name, is_default) VALUES (${String(currency)}, ${String(bank_name)}, ${String(iban)}, ${String(account_name)}, ${is_default ? true : false}) RETURNING *`);
+    res.json((result as { rows: unknown[] }).rows[0]);
+  } catch (err) { logger.error({ err }, "bank_accounts post"); res.status(500).json({ error: "Sunucu hatası" }); }
+});
+
+router.put("/bank-accounts/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { currency, bank_name, iban, account_name, is_default } = req.body as Record<string, unknown>;
+  try {
+    if (is_default) await db.execute(sql`UPDATE bank_accounts SET is_default=false WHERE id != ${id}`);
+    await db.execute(sql`UPDATE bank_accounts SET currency=${String(currency ?? "TRY")}, bank_name=${String(bank_name ?? "")}, iban=${String(iban ?? "")}, account_name=${String(account_name ?? "")}, is_default=${is_default ? true : false}, updated_at=now() WHERE id=${id}`);
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "bank_accounts put"); res.status(500).json({ error: "Sunucu hatası" }); }
+});
+
+router.delete("/bank-accounts/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  try {
+    await db.execute(sql`DELETE FROM bank_accounts WHERE id=${id}`);
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "bank_accounts delete"); res.status(500).json({ error: "Sunucu hatası" }); }
+});
 
 export default router;

@@ -203,6 +203,7 @@ export default function AdminSettings() {
                       </Label>
                       <Input
                         type="email"
+                        maxLength={100}
                         value={form[key] ?? ""}
                         onChange={e => set(key, e.target.value)}
                         placeholder={placeholder}
@@ -248,7 +249,7 @@ export default function AdminSettings() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-slate-300">Başlık</Label>
-                  <Input value={form["about.title"] ?? ""} onChange={e => set("about.title", e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
+                  <Input maxLength={120} value={form["about.title"] ?? ""} onChange={e => set("about.title", e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-300">İçerik</Label>
@@ -269,7 +270,7 @@ export default function AdminSettings() {
                 ].map(({ key, label, icon: Icon }) => (
                   <div key={key} className="space-y-2">
                     <Label className="text-slate-300 flex items-center gap-2"><Icon className="h-4 w-4" /> {label}</Label>
-                    <Input value={form[key] ?? ""} onChange={e => set(key, e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
+                    <Input maxLength={key === "contact.email" ? 100 : key === "contact.phone" ? 30 : 200} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
                   </div>
                 ))}
               </CardContent>
@@ -343,7 +344,7 @@ export default function AdminSettings() {
                 ].map(({ key, label }) => (
                   <div key={key} className="space-y-2">
                     <Label className="text-slate-300">{label}</Label>
-                    <Input value={form[key] ?? ""} onChange={e => set(key, e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
+                    <Input maxLength={key === "footer.company" ? 80 : 120} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
                   </div>
                 ))}
               </CardContent>

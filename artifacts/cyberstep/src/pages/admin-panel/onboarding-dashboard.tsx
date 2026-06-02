@@ -29,6 +29,7 @@ const SERVICE_LABELS: Record<string, string> = {
   "servicenow":       "ServiceNow",
   "soc-operasyon":    "SOC Operasyon",
   "observability":    "Observability",
+  "__no-service__":   "Servis Atanmamış",
 };
 
 function fmtDate(d: string | null) { return d ? new Date(d).toLocaleDateString("tr-TR") : "-"; }

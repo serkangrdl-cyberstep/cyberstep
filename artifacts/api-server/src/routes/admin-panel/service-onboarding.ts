@@ -567,9 +567,31 @@ router.get("/admin-panel/onboarding", requireAdmin, async (_req: Request, res: R
       addRow(s.customerId, s.email, s.fullName, s.companyName, s.serviceSlug);
     }
     for (const s of subscriptions) {
-      // Look up customer name for subscriptions that lack a join
       const custRow = rows.find(r => r.customerId === s.customerId);
       addRow(s.customerId, s.email, custRow?.name ?? null, null, s.serviceSlug);
+    }
+
+    // 5) Include all customers not yet in the list (e.g. those with no services)
+    const seenCustomerIds = new Set(rows.map(r => r.customerId));
+    const allCustomers = await db.select({
+      id: customersTable.id,
+      email: customersTable.email,
+      fullName: customersTable.fullName,
+      companyName: customersTable.companyName,
+    }).from(customersTable);
+    for (const c of allCustomers) {
+      if (c.id && !seenCustomerIds.has(c.id)) {
+        rows.push({
+          customerId: c.id,
+          email: c.email,
+          name: c.companyName ?? c.fullName ?? c.email,
+          serviceSlug: "__no-service__",
+          doneCount: 0,
+          totalSteps: 0,
+          lastActivity: null,
+          allDone: false,
+        });
+      }
     }
 
     res.json(rows);

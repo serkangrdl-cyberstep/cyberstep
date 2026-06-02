@@ -78,7 +78,7 @@ export default function AdminServisFiyatlari() {
                   <td className="px-4 py-3">
                     {editing === p.slug ? (
                       <input className="bg-slate-700 border border-slate-600 text-white text-sm rounded px-2 py-1 w-48"
-                        value={editVals.label} onChange={e => setEditVals(v => ({ ...v, label: e.target.value }))} />
+                        maxLength={120} value={editVals.label} onChange={e => setEditVals(v => ({ ...v, label: e.target.value }))} />
                     ) : (
                       <span className="text-white text-sm font-medium">{p.label}</span>
                     )}
@@ -87,7 +87,7 @@ export default function AdminServisFiyatlari() {
                   <td className="px-4 py-3">
                     {editing === p.slug ? (
                       <input type="number" className="bg-slate-700 border border-slate-600 text-white text-sm rounded px-2 py-1 w-28"
-                        value={editVals.amount_tl} onChange={e => setEditVals(v => ({ ...v, amount_tl: e.target.value }))} />
+                        maxLength={20} value={editVals.amount_tl} onChange={e => setEditVals(v => ({ ...v, amount_tl: e.target.value }))} />
                     ) : (
                       <span className="text-emerald-400 text-sm font-semibold">{fmtPrice(p)}</span>
                     )}

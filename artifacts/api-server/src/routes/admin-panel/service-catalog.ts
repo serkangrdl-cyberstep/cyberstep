@@ -5,6 +5,35 @@ import { serviceCatalogTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
+import { z } from "zod/v4";
+
+const postServiceCatalogSchema = z.object({
+  slug: z.string().min(1).max(80).regex(/^[a-z0-9-]+$/, "Slug yalnızca küçük harf, rakam ve tire içerebilir"),
+  label: z.string().min(1).max(120),
+  shortDescription: z.string().max(400).optional().default(""),
+  longDescription: z.string().max(5000).optional().default(""),
+  features: z.array(z.string().max(200)).optional().default([]),
+  howItWorks: z.array(z.object({ step: z.string(), desc: z.string() })).optional().default([]),
+  faq: z.array(z.object({ q: z.string(), a: z.string() })).optional().default([]),
+  monthlyPriceTl: z.string().min(1).max(20),
+  setupFeeTl: z.string().max(20).optional().default("0"),
+  category: z.string().max(50).optional().default("monitoring"),
+  icon: z.string().max(50).optional().default("Shield"),
+  isActive: z.boolean().optional().default(true),
+  sortOrder: z.number().int().min(0).max(9999).optional().default(99),
+});
+
+const putServiceCatalogSchema = z.object({
+  label: z.string().min(1).max(120).optional(),
+  shortDescription: z.string().max(400).optional(),
+  longDescription: z.string().max(5000).optional(),
+  features: z.array(z.string().max(200)).optional(),
+  monthlyPriceTl: z.string().max(20).optional(),
+  setupFeeTl: z.string().max(20).optional(),
+  category: z.string().max(50).optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+});
 
 const router = Router();
 
@@ -44,29 +73,12 @@ router.get("/admin-panel/service-catalog/:slug", requireAdmin, async (req: Reque
 
 // POST /api/admin-panel/service-catalog — yeni servis ekle
 router.post("/admin-panel/service-catalog", requireAdmin, async (req: Request, res: Response) => {
-  const {
-    slug, label, shortDescription, longDescription, features, howItWorks, faq,
-    monthlyPriceTl, setupFeeTl, category, icon, isActive, sortOrder,
-  } = req.body as {
-    slug: string;
-    label: string;
-    shortDescription?: string;
-    longDescription?: string;
-    features?: string[];
-    howItWorks?: { step: string; desc: string }[];
-    faq?: { q: string; a: string }[];
-    monthlyPriceTl: string;
-    setupFeeTl?: string;
-    category?: string;
-    icon?: string;
-    isActive?: boolean;
-    sortOrder?: number;
-  };
-
-  if (!slug || !label || !monthlyPriceTl) {
-    res.status(400).json({ error: "slug, label ve monthlyPriceTl zorunludur" });
+  const parsed = postServiceCatalogSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: z.prettifyError(parsed.error) });
     return;
   }
+  const { slug, label, shortDescription, longDescription, features, howItWorks, faq, monthlyPriceTl, setupFeeTl, category, icon, isActive, sortOrder } = parsed.data;
 
   try {
     const [created] = await db
@@ -97,15 +109,12 @@ router.post("/admin-panel/service-catalog", requireAdmin, async (req: Request, r
 // PUT /api/admin-panel/service-catalog/:slug
 router.put("/admin-panel/service-catalog/:slug", requireAdmin, async (req: Request, res: Response) => {
   const slug = req.params["slug"] as string;
-  const { label, shortDescription, longDescription, monthlyPriceTl, setupFeeTl, isActive, sortOrder } = req.body as {
-    label?: string;
-    shortDescription?: string;
-    longDescription?: string;
-    monthlyPriceTl?: string;
-    setupFeeTl?: string;
-    isActive?: boolean;
-    sortOrder?: number;
-  };
+  const parsed = putServiceCatalogSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: z.prettifyError(parsed.error) });
+    return;
+  }
+  const { label, shortDescription, longDescription, monthlyPriceTl, setupFeeTl, isActive, sortOrder } = parsed.data;
 
   try {
     const updateData: Partial<typeof serviceCatalogTable.$inferInsert> = {

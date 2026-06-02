@@ -52,6 +52,12 @@ router.put("/admin-panel/settings", requireAdmin, async (req: Request, res: Resp
     await db.insert(siteSettingsTable)
       .values({ key, value, updatedAt: new Date() })
       .onConflictDoUpdate({ target: siteSettingsTable.key, set: { value, updatedAt: new Date() } });
+    if (key.startsWith("apikey.") && value) {
+      const envKey = key.slice("apikey.".length);
+      if (CONFIGURABLE_API_KEYS.has(envKey)) {
+        process.env[envKey] = value;
+      }
+    }
   }
   logger.info({ keys: Object.keys(updates) }, "Site settings updated");
   res.json({ success: true });

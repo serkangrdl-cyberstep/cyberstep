@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -456,6 +456,10 @@ export default function ServislerimPage() {
   const [renewSub, setRenewSub] = useState<MyServiceItem["subscription"] | null>(null);
   const [renewMode, setRenewMode] = useState<"stored" | "new">("stored");
   const [renewCard, setRenewCard] = useState<RenewalCard>({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
+  const [pendingRenewId, setPendingRenewId] = useState<number | null>(() => {
+    const param = new URLSearchParams(window.location.search).get("renew");
+    return param ? parseInt(param, 10) : null;
+  });
 
   const cancelMutation = useMutation({
     mutationFn: async (subId: number) => {
@@ -518,6 +522,17 @@ export default function ServislerimPage() {
     },
     enabled: !!customer,
   });
+
+  // Auto-open renewal dialog when navigated from /yenile?token=...
+  useEffect(() => {
+    if (!pendingRenewId || servicesLoading || myServices.length === 0) return;
+    const item = myServices.find(m => m.subscription.id === pendingRenewId);
+    if (item) {
+      setRenewSub(item.subscription);
+      setRenewMode(item.subscription.iyzicoCardUserKey && item.subscription.iyzicoCardToken ? "stored" : "new");
+      setPendingRenewId(null);
+    }
+  }, [pendingRenewId, myServices, servicesLoading]);
 
   const { data: catalog = [], isLoading: catalogLoading } = useQuery<CatalogService[]>({
     queryKey: ["service-catalog-public"],

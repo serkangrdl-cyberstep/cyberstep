@@ -1,10 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable, serviceCatalogTable } from "@workspace/db";
+import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable, serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { logger } from "../../lib/logger";
+import { createPayment, createPaymentWithStoredCard } from "../../services/iyzico";
+import { sendMail } from "../../services/email";
 
 const router = Router();
 
@@ -211,6 +213,236 @@ router.post("/public/job-application", jobAppLimiter, async (req: Request, res: 
     res.status(201).json({ ok: true });
   } catch (err) {
     logger.error({ err }, "Failed to save job application");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+const KDV_RATE = 0.20;
+const ANNUAL_DISCOUNT = 0.15;
+
+function calcRenewalPrices(monthlyTl: number, billingCycle: "monthly" | "annual") {
+  const base = billingCycle === "annual"
+    ? +(monthlyTl * 12 * (1 - ANNUAL_DISCOUNT)).toFixed(2)
+    : +monthlyTl.toFixed(2);
+  const kdv = +(base * KDV_RATE).toFixed(2);
+  const total = +(base + kdv).toFixed(2);
+  return { base, kdv, total };
+}
+
+function validateTokenParam(token: unknown): token is string {
+  return typeof token === "string" && token.length === 64 && /^[0-9a-f]+$/.test(token);
+}
+
+// GET /api/public/renewal-token/:token
+// Validates a renewal token and returns subscription info (no auth required)
+router.get("/public/renewal-token/:token", async (req: Request, res: Response) => {
+  const rawToken = req.params["token"];
+  if (!rawToken || typeof rawToken !== "string" || rawToken.length !== 64 || !/^[0-9a-f]+$/.test(rawToken)) {
+    res.status(400).json({ error: "Geçersiz token" });
+    return;
+  }
+  try {
+    const now = new Date();
+    const [sub] = await db
+      .select({
+        id: customerServiceSubscriptionsTable.id,
+        serviceSlug: customerServiceSubscriptionsTable.serviceSlug,
+        serviceLabel: customerServiceSubscriptionsTable.serviceLabel,
+        status: customerServiceSubscriptionsTable.status,
+        expiresAt: customerServiceSubscriptionsTable.expiresAt,
+        iyzicoCardUserKey: customerServiceSubscriptionsTable.iyzicoCardUserKey,
+        iyzicoCardToken: customerServiceSubscriptionsTable.iyzicoCardToken,
+        renewalTokenExpiresAt: customerServiceSubscriptionsTable.renewalTokenExpiresAt,
+      })
+      .from(customerServiceSubscriptionsTable)
+      .where(
+        eq(customerServiceSubscriptionsTable.renewalToken, rawToken),
+      )
+      .limit(1);
+
+    if (!sub) {
+      res.status(404).json({ error: "Token bulunamadı" });
+      return;
+    }
+
+    if (!sub.renewalTokenExpiresAt || sub.renewalTokenExpiresAt < now) {
+      res.status(410).json({ error: "Token süresi dolmuş" });
+      return;
+    }
+
+    res.json({
+      subscriptionId: sub.id,
+      serviceSlug: sub.serviceSlug,
+      serviceLabel: sub.serviceLabel,
+      status: sub.status,
+      expiresAt: sub.expiresAt,
+      hasStoredCard: !!(sub.iyzicoCardUserKey && sub.iyzicoCardToken),
+    });
+  } catch (err) {
+    logger.error({ err }, "renewal-token lookup error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/public/renewal-token/:token/renew
+// Processes renewal authorized by a valid renewal token — no session/login required
+router.post("/public/renewal-token/:token/renew", async (req: Request, res: Response) => {
+  const rawToken = req.params["token"];
+  if (!validateTokenParam(rawToken)) {
+    res.status(400).json({ error: "Geçersiz token" });
+    return;
+  }
+
+  const { cardHolderName, cardNumber, expireMonth, expireYear, cvc, ip } = req.body as {
+    cardHolderName?: string;
+    cardNumber?: string;
+    expireMonth?: string;
+    expireYear?: string;
+    cvc?: string;
+    ip?: string;
+  };
+
+  try {
+    const now = new Date();
+
+    const [sub] = await db
+      .select()
+      .from(customerServiceSubscriptionsTable)
+      .where(eq(customerServiceSubscriptionsTable.renewalToken, rawToken))
+      .limit(1);
+
+    if (!sub) {
+      res.status(404).json({ error: "Token bulunamadı" });
+      return;
+    }
+
+    if (!sub.renewalTokenExpiresAt || sub.renewalTokenExpiresAt < now) {
+      res.status(410).json({ error: "Token süresi dolmuş. Lütfen hesabınıza giriş yaparak yenileme yapın." });
+      return;
+    }
+
+    const useStoredCard = !!(sub.iyzicoCardUserKey && sub.iyzicoCardToken && !cardNumber);
+    const useNewCard = !!(cardNumber && cardHolderName && expireMonth && expireYear && cvc);
+
+    if (!useStoredCard && !useNewCard) {
+      res.status(400).json({
+        error: "Kart bilgileri gerekli",
+        hasStoredCard: !!(sub.iyzicoCardUserKey && sub.iyzicoCardToken),
+      });
+      return;
+    }
+
+    const [catalogRow] = await db
+      .select({ monthlyPriceTl: serviceCatalogTable.monthlyPriceTl })
+      .from(serviceCatalogTable)
+      .where(eq(serviceCatalogTable.slug, sub.serviceSlug));
+
+    const monthlyTl = Number(catalogRow?.monthlyPriceTl ?? 0) || Number(sub.amountPaid ?? 0) / 1.2;
+    const billingCycle = (sub.billingCycle ?? "monthly") as "monthly" | "annual";
+    const { base, kdv, total } = calcRenewalPrices(monthlyTl, billingCycle);
+    const conversationId = `renew-token-${sub.id}-${Date.now()}`;
+
+    const nameParts = sub.contactName.trim().split(" ");
+    const firstName = nameParts[0] ?? sub.contactName;
+    const lastName = nameParts.slice(1).join(" ") || "-";
+
+    const buyerInfo = {
+      id: sub.email,
+      name: firstName,
+      surname: lastName,
+      email: sub.email,
+      identityNumber: "11111111111",
+      registrationAddress: "Türkiye",
+      city: "İstanbul",
+      country: "Turkey",
+      ip: ip ?? "127.0.0.1",
+    };
+    const addrInfo = { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName: sub.contactName };
+    const basketItems = [{ id: sub.serviceSlug, name: sub.serviceLabel, category1: "Siber Güvenlik Hizmetleri", itemType: "VIRTUAL", price: String(base) }];
+
+    let paymentResult: { success: boolean; paymentId?: string; errorMessage?: string; cardUserKey?: string; cardToken?: string };
+
+    if (useStoredCard) {
+      paymentResult = await createPaymentWithStoredCard({
+        price: String(base), paidPrice: String(total), currency: "TRY", installment: 1,
+        paymentCard: { cardUserKey: sub.iyzicoCardUserKey!, cardToken: sub.iyzicoCardToken! },
+        buyer: buyerInfo, shippingAddress: addrInfo, billingAddress: addrInfo, basketItems, conversationId,
+      });
+    } else {
+      paymentResult = await createPayment({
+        price: String(base), paidPrice: String(total), currency: "TRY", installment: 1,
+        paymentCard: {
+          cardHolderName: cardHolderName!,
+          cardNumber: cardNumber!.replace(/\s/g, ""),
+          expireYear: expireYear!,
+          expireMonth: expireMonth!,
+          cvc: cvc!,
+          registerCard: 1,
+          cardUserKey: sub.iyzicoCardUserKey ?? undefined,
+        },
+        buyer: buyerInfo, shippingAddress: addrInfo, billingAddress: addrInfo, basketItems, conversationId,
+      });
+    }
+
+    if (!paymentResult.success) {
+      logger.warn({ error: paymentResult.errorMessage, subId: sub.id }, "Token-based renewal payment failed");
+      res.status(402).json({ success: false, error: paymentResult.errorMessage ?? "Ödeme başarısız" });
+      return;
+    }
+
+    const baseDate = sub.expiresAt && sub.expiresAt > now ? sub.expiresAt : now;
+    const newExpiresAt = billingCycle === "annual"
+      ? new Date(baseDate.getFullYear() + 1, baseDate.getMonth(), baseDate.getDate())
+      : new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, baseDate.getDate());
+
+    await db.update(customerServiceSubscriptionsTable)
+      .set({
+        status: "active",
+        cancelledAt: null,
+        expiresAt: newExpiresAt,
+        amountPaid: String(total),
+        paymentRef: paymentResult.paymentId ?? sub.paymentRef,
+        iyzicoConversationId: conversationId,
+        reminder30dSentAt: null,
+        reminder7dSentAt: null,
+        reminder1dSentAt: null,
+        renewalToken: null,
+        renewalTokenExpiresAt: null,
+        ...(paymentResult.cardUserKey ? { iyzicoCardUserKey: paymentResult.cardUserKey } : {}),
+        ...(paymentResult.cardToken ? { iyzicoCardToken: paymentResult.cardToken } : {}),
+      })
+      .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+
+    logger.info({ subId: sub.id, email: sub.email, newExpiresAt, useStoredCard }, "Subscription renewed via token");
+
+    setImmediate(() => {
+      const cycleLabel = billingCycle === "annual" ? "Yıllık" : "Aylık";
+      const receiptHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;background:#f4f7fb;padding:32px">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <h2 style="color:#0ea5e9;margin-top:0">Abonelik Yenilendi</h2>
+  <p>Sayın <strong>${sub.contactName}</strong>,</p>
+  <p><strong>${sub.serviceLabel}</strong> aboneliğiniz başarıyla yenilendi.</p>
+  <table style="width:100%;border-collapse:collapse;margin:24px 0">
+    <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b">Servis</td><td style="padding:8px 0;text-align:right;font-weight:600">${sub.serviceLabel}</td></tr>
+    <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b">Dönem</td><td style="padding:8px 0;text-align:right">${cycleLabel}</td></tr>
+    <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b">Tutar (KDV hariç)</td><td style="padding:8px 0;text-align:right">${base.toLocaleString("tr-TR")} TL</td></tr>
+    <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b">KDV (%20)</td><td style="padding:8px 0;text-align:right">${kdv.toLocaleString("tr-TR")} TL</td></tr>
+    <tr><td style="padding:8px 0;font-weight:700">Toplam</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#0ea5e9">₺${total.toLocaleString("tr-TR")}</td></tr>
+  </table>
+  <p style="color:#64748b;font-size:14px">Yeni bitiş tarihi: <strong>${newExpiresAt.toLocaleDateString("tr-TR")}</strong></p>
+  ${paymentResult.paymentId ? `<p style="color:#94a3b8;font-size:12px">Ödeme Ref: ${paymentResult.paymentId}</p>` : ""}
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+  <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu</p>
+</div></body></html>`;
+      sendMail({ to: sub.email, subject: `Abonelik Yenileme Onayı: ${sub.serviceLabel}`, html: receiptHtml })
+        .catch(err => logger.warn({ err, subId: sub.id }, "Token renewal receipt email failed"));
+    });
+
+    res.json({ success: true, newExpiresAt, serviceLabel: sub.serviceLabel });
+  } catch (err) {
+    logger.error({ err }, "Token-based renewal error");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

@@ -1,9 +1,14 @@
 import cron from "node-cron";
+import crypto from "crypto";
 import { db } from "@workspace/db";
 import { customerServicesTable, serviceCatalogTable, customersTable, customerServiceSubscriptionsTable } from "@workspace/db";
 import { eq, and, lte, gte, isNull, between } from "drizzle-orm";
 import { sendMail, sendSubscriptionExpiryReminder } from "./email";
 import { logger } from "../lib/logger";
+
+function generateRenewalToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
 
 const MAX_RENEWAL_ATTEMPTS = 3;
 
@@ -144,6 +149,11 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
   for (const sub of due30d) {
     if (!sub.expiresAt) continue;
     try {
+      const token = generateRenewalToken();
+      const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+      await db.update(customerServiceSubscriptionsTable)
+        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder30dSentAt: new Date() })
+        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
       await sendSubscriptionExpiryReminder({
         email: sub.email,
         contactName: sub.contactName,
@@ -151,10 +161,8 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
         serviceLabel: sub.serviceLabel,
         expiresAt: sub.expiresAt,
         daysLeft: 30,
+        renewalToken: token,
       });
-      await db.update(customerServiceSubscriptionsTable)
-        .set({ reminder30dSentAt: new Date() })
-        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
       logger.info({ subId: sub.id, email: sub.email }, "Subscription 30d reminder sent");
     } catch (err) {
       logger.error({ err, subId: sub.id }, "Failed to send 30d reminder");
@@ -164,6 +172,11 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
   for (const sub of due7d) {
     if (!sub.expiresAt) continue;
     try {
+      const token = generateRenewalToken();
+      const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+      await db.update(customerServiceSubscriptionsTable)
+        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder7dSentAt: new Date() })
+        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
       await sendSubscriptionExpiryReminder({
         email: sub.email,
         contactName: sub.contactName,
@@ -171,10 +184,8 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
         serviceLabel: sub.serviceLabel,
         expiresAt: sub.expiresAt,
         daysLeft: 7,
+        renewalToken: token,
       });
-      await db.update(customerServiceSubscriptionsTable)
-        .set({ reminder7dSentAt: new Date() })
-        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
       logger.info({ subId: sub.id, email: sub.email }, "Subscription 7d reminder sent");
     } catch (err) {
       logger.error({ err, subId: sub.id }, "Failed to send 7d reminder");
@@ -184,6 +195,11 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
   for (const sub of due1d) {
     if (!sub.expiresAt) continue;
     try {
+      const token = generateRenewalToken();
+      const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+      await db.update(customerServiceSubscriptionsTable)
+        .set({ renewalToken: token, renewalTokenExpiresAt: tokenExpiresAt, reminder1dSentAt: new Date() })
+        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
       await sendSubscriptionExpiryReminder({
         email: sub.email,
         contactName: sub.contactName,
@@ -191,10 +207,8 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
         serviceLabel: sub.serviceLabel,
         expiresAt: sub.expiresAt,
         daysLeft: 1,
+        renewalToken: token,
       });
-      await db.update(customerServiceSubscriptionsTable)
-        .set({ reminder1dSentAt: new Date() })
-        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
       logger.info({ subId: sub.id, email: sub.email }, "Subscription 1d reminder sent");
     } catch (err) {
       logger.error({ err, subId: sub.id }, "Failed to send 1d reminder");

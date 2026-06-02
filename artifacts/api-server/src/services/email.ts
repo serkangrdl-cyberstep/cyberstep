@@ -1503,6 +1503,7 @@ export async function sendSubscriptionExpiryReminder(params: {
   serviceLabel: string;
   expiresAt: Date;
   daysLeft: number;
+  renewalToken?: string;
 }) {
   const base = getBaseUrl();
   const expiryStr = params.expiresAt.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
@@ -1510,6 +1511,10 @@ export async function sendSubscriptionExpiryReminder(params: {
   const urgencyColor = params.daysLeft <= 1 ? "#dc2626" : "#d97706";
   const urgencyBg = params.daysLeft <= 1 ? "#fef2f2" : "#fffbeb";
   const urgencyBorder = params.daysLeft <= 1 ? "#fca5a5" : "#fcd34d";
+
+  const renewUrl = params.renewalToken
+    ? `${base}/yenile?token=${params.renewalToken}`
+    : `${base}/hesabim/servislerim`;
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -1535,12 +1540,14 @@ export async function sendSubscriptionExpiryReminder(params: {
     </tr>
   </table>
 
-  <p style="color:#475569;font-size:14px">Aboneliğinizin kesintisiz devam etmesi için lütfen zamanında yenileyin.</p>
+  <p style="color:#475569;font-size:14px">Aboneliğinizin kesintisiz devam etmesi için lütfen aşağıdaki butona tıklayın.</p>
 
-  <a href="${base}/hesabim/servislerim"
+  <a href="${renewUrl}"
      style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
-    Aboneliği Yenile
+    Aboneliği Hemen Yenile
   </a>
+
+  ${params.renewalToken ? `<p style="color:#94a3b8;font-size:12px;margin-top:12px">Bu link 7 gün geçerlidir. Giriş yapmadan doğrudan yenileme ekranına yönlendirilirsiniz.</p>` : ""}
 
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0 16px">
   <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>

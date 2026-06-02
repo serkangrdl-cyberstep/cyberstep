@@ -19,7 +19,7 @@ router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
       .groupBy(customerTechStackTable.category, customerTechStackTable.vendor)
       .orderBy(desc(count()));
 
-    const cloudflareCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.vendor, "cloudflare"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
+    const wafCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.category, "waf"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
     const microsoftCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.vendor, "microsoft"), eq(customerTechStackTable.category, "mail"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
     const fortinetCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.vendor, "fortinet"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
     const criticalPortCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.category, "open_port"), eq(customerTechStackTable.securityRisk, "critical"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
@@ -30,7 +30,7 @@ router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
     res.json({
       uniqueDomains,
       totalEntries: Number(totalDomains),
-      cloudflareWaf: Number(cloudflareCount),
+      wafDetected: Number(wafCount),
       microsoft365: Number(microsoftCount),
       fortinet: Number(fortinetCount),
       criticalOpenPorts: Number(criticalPortCount),

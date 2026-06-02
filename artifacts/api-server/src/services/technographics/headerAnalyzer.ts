@@ -52,18 +52,35 @@ export async function analyzeHeaders(domain: string): Promise<TechStack[]> {
       }
     }
 
-    const wafCDNSignatures: Array<{ check: () => boolean; category: string; vendor: string; product: string; confidence: number }> = [
-      { check: () => !!(h["cf-ray"] || h["cf-cache-status"] || cookies.includes("__cfduid") || cookies.includes("cf_clearance")), category: "cdn", vendor: "cloudflare", product: "Cloudflare CDN", confidence: 95 },
-      { check: () => !!(h["x-akamai-transformed"] || h["akamai-grn"] || cookies.includes("ak_bmsc")), category: "cdn", vendor: "akamai", product: "Akamai", confidence: 90 },
-      { check: () => !!(h["x-amz-cf-id"] || h["x-amz-cf-pop"]), category: "cdn", vendor: "aws", product: "Amazon CloudFront", confidence: 90 },
-      { check: () => !!(h["x-sucuri-id"] || h["x-sucuri-cache"]), category: "waf", vendor: "sucuri", product: "Sucuri WAF", confidence: 90 },
-      { check: () => !!(h["x-iinfo"] || cookies.includes("incap_ses")), category: "waf", vendor: "imperva", product: "Imperva Incapsula", confidence: 88 },
-      { check: () => !!(h["x-wa-info"] || cookies.includes("bigipserver")), category: "waf", vendor: "f5", product: "F5 BIG-IP", confidence: 85 },
+    // ─── CDN TESPİTİ ───────────────────────────────────────
+    const cdnSignatures: Array<{ check: () => boolean; vendor: string; product: string; confidence: number }> = [
+      { check: () => !!(h["cf-ray"] || h["cf-cache-status"] || cookies.includes("__cfduid") || cookies.includes("cf_clearance")), vendor: "cloudflare", product: "Cloudflare CDN", confidence: 95 },
+      { check: () => !!(h["x-akamai-transformed"] || h["akamai-grn"] || cookies.includes("ak_bmsc")), vendor: "akamai", product: "Akamai CDN", confidence: 90 },
+      { check: () => !!(h["x-amz-cf-id"] || h["x-amz-cf-pop"]), vendor: "aws", product: "Amazon CloudFront", confidence: 90 },
+      { check: () => !!(h["x-fastly-id"] || h["x-served-by"]?.includes("cache")), vendor: "fastly", product: "Fastly CDN", confidence: 85 },
     ];
-
-    for (const sig of wafCDNSignatures) {
+    for (const sig of cdnSignatures) {
       if (sig.check()) {
-        found.push({ category: sig.category, vendor: sig.vendor, product: sig.product, confidence: sig.confidence, detectedVia: "header", evidence: { headers: Object.keys(h) }, salesSignal: sig.category === "waf" ? "waf_detected" : undefined });
+        found.push({ category: "cdn", vendor: sig.vendor, product: sig.product, confidence: sig.confidence, detectedVia: "header", evidence: { headers: Object.keys(h) } });
+        // Cloudflare ve Akamai WAF da sunar — her ikisini de kaydet
+        if (sig.vendor === "cloudflare") {
+          found.push({ category: "waf", vendor: "cloudflare", product: "Cloudflare WAF", confidence: 90, detectedVia: "header", evidence: { headers: Object.keys(h) }, salesSignal: "waf_detected" });
+        }
+      }
+    }
+
+    // ─── BAĞIMSIZ WAF TESPİTİ ──────────────────────────────
+    const wafSignatures: Array<{ check: () => boolean; vendor: string; product: string; confidence: number }> = [
+      { check: () => !!(h["x-sucuri-id"] || h["x-sucuri-cache"]),                            vendor: "sucuri",   product: "Sucuri WAF",        confidence: 92 },
+      { check: () => !!(h["x-iinfo"] || cookies.includes("incap_ses")),                       vendor: "imperva",  product: "Imperva Incapsula", confidence: 90 },
+      { check: () => !!(h["x-wa-info"] || cookies.includes("bigipserver")),                   vendor: "f5",       product: "F5 BIG-IP",         confidence: 88 },
+      { check: () => !!(h["x-protected-by"]?.includes("aws") || h["x-amzn-waf-action"]),     vendor: "aws",      product: "AWS WAF",            confidence: 88 },
+      { check: () => !!(h["x-guard"] || cookies.includes("wordfence")),                       vendor: "wordfence", product: "Wordfence WAF",     confidence: 82 },
+      { check: () => !!(h["x-powered-cms"] === "barracuda" || h["x-barracuda-connect"]),      vendor: "barracuda", product: "Barracuda WAF",     confidence: 85 },
+    ];
+    for (const sig of wafSignatures) {
+      if (sig.check()) {
+        found.push({ category: "waf", vendor: sig.vendor, product: sig.product, confidence: sig.confidence, detectedVia: "header", evidence: { headers: Object.keys(h) }, salesSignal: "waf_detected" });
       }
     }
 

@@ -14,7 +14,7 @@ import {
 interface TechStats {
   uniqueDomains: number;
   totalEntries: number;
-  cloudflareWaf: number;
+  wafDetected: number;
   microsoft365: number;
   fortinet: number;
   criticalOpenPorts: number;
@@ -69,6 +69,8 @@ const CATEGORY_ICONS: Record<string, string> = {
   ecommerce: "🛒", webserver: "🖥️", hosting: "🏠", ssl_ca: "🔐",
   analytics: "📊", crm: "👥", support: "💬", payment: "💳",
   firewall: "🔥", open_port: "⚠️", missing_header: "❌", dns_provider: "🌐",
+  language: "⚙️", framework: "🏗️", tls_version: "🔑", mail_marketing: "📨",
+  monitoring: "👁️", tag_manager: "🏷️", company_name_from_cert: "🏢",
 };
 
 export default function TechIntelligencePage() {
@@ -118,7 +120,7 @@ export default function TechIntelligencePage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             { icon: Globe, label: "Analiz edilen domain", value: stats?.uniqueDomains ?? "—", color: "text-cyan-400" },
-            { icon: Shield, label: "Cloudflare WAF", value: stats?.cloudflareWaf ?? "—", color: "text-cyan-400" },
+            { icon: Shield, label: "WAF Tespit", value: stats?.wafDetected ?? "—", color: "text-cyan-400" },
             { icon: Mail, label: "Microsoft 365", value: stats?.microsoft365 ?? "—", color: "text-blue-400" },
             { icon: Cpu, label: "FortiGate tespit", value: stats?.fortinet ?? "—", color: "text-orange-400" },
             { icon: AlertTriangle, label: "Kritik port açık", value: stats?.criticalOpenPorts ?? "—", color: "text-red-400" },

@@ -1974,6 +1974,45 @@ startup()
     });
     logger.info("CVE feed check cron scheduled (every 2 hours)");
 
+    // Her Cuma 08:00 Istanbul — haftalık bülten üret
+    cron.schedule("0 8 * * 5", async () => {
+      try {
+        const { collectWeeklyData } = await import("./services/bulletin/weeklyDataCollector");
+        const { generateBulletinContent } = await import("./services/bulletin/bulletinWriter");
+        const { weeklyBulletinsTable } = await import("@workspace/db");
+        const { eq } = await import("drizzle-orm");
+        const { getISOWeek } = await import("./services/discoveryPipeline");
+        const now = new Date();
+        const weekNumber = getISOWeek(now);
+        const year = now.getFullYear();
+        const slug = `tr-${year}-w${weekNumber}`;
+        const existing = await db.select({ id: weeklyBulletinsTable.id })
+          .from(weeklyBulletinsTable).where(eq(weeklyBulletinsTable.weekSlug, slug)).limit(1);
+        if (existing[0]) { logger.info({ weekNumber }, "Haftalik bulten zaten mevcut"); return; }
+        const weekEnd = now;
+        const weekStart = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+        const data = await collectWeeklyData(weekStart, weekEnd);
+        const content = await generateBulletinContent(data, weekNumber, year);
+        await db.insert(weeklyBulletinsTable).values({
+          countryCode: "TR", weekNumber, year, weekSlug: slug,
+          dateRangeStart: weekStart.toISOString().slice(0, 10),
+          dateRangeEnd: weekEnd.toISOString().slice(0, 10),
+          totalScansThisWeek: data.totalScans,
+          newCriticalCves: data.newCriticalCVEs.length,
+          topFindingType: data.topFindingType,
+          notableSector: data.topSector ?? undefined,
+          headline: content.headline, introText: content.introText,
+          threatRadar: content.threatRadar, turkeyData: content.turkeyData,
+          regulationSection: content.regulationSection, weeklyTip: content.weeklyTip,
+          toolResource: content.toolResource, emailSubject: content.emailSubject,
+          emailPreview: content.emailPreview, emailHtml: content.emailHtml,
+          linkedinMiniPost: content.linkedinMiniPost, status: "review",
+        });
+        logger.info({ weekNumber, year }, "Haftalık bülten cron tamamlandı");
+      } catch (err) { logger.error({ err }, "Haftalık bülten cron hatası"); }
+    }, { timezone: "Europe/Istanbul" });
+    logger.info("Haftalık bülten cron kayıtlandı (Cuma 08:00 Istanbul)");
+
     const server = app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

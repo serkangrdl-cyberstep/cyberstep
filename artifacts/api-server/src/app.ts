@@ -8,6 +8,8 @@ import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
 import adminPanelRouter from "./routes/admin-panel/index";
 import cvePublicRouter from "./routes/cve-public";
+import bulletinPublicRouter from "./routes/bulletin-public";
+import bulletinAdminRouter from "./routes/admin-panel/bulletin";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -312,6 +314,8 @@ app.use(sessionMiddleware);
 app.use("/api", router);
 app.use("/api", adminPanelRouter);
 app.use("/api", cvePublicRouter);
+app.use("/api", bulletinPublicRouter);
+app.use("/api", bulletinAdminRouter);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {

@@ -3,7 +3,7 @@ import { customersTable } from "./customers";
 
 export const customerServiceConfigsTable = pgTable("customer_service_configs", {
   id: serial("id").primaryKey(),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
+  customerId: integer("customer_id").notNull().references(() => customersTable.id, { onDelete: "cascade" }),
   serviceSlug: varchar("service_slug", { length: 100 }).notNull(),
   config: jsonb("config").notNull().default({}),
   migrationStatus: varchar("migration_status", { length: 32 }),

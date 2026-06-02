@@ -163,6 +163,31 @@ router.delete("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request
   res.json({ ok: true });
 });
 
+// ─── Scheduled / upcoming re-scans ────────────────────────────────────────────
+router.get("/admin-panel/domain-scans/scheduled", requireAdmin, async (_req: Request, res: Response) => {
+  const now = new Date();
+  const day25 = new Date(now.getTime() - 25 * 24 * 3600 * 1000);
+  const day30 = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+
+  const rows = await db.execute<{
+    id: number; domain: string; email: string | null;
+    overall_score: number; created_at: Date; notified_at: Date | null;
+  }>(sql`
+    SELECT DISTINCT ON (domain) id, domain, email, overall_score, created_at, notified_at
+    FROM domain_scans
+    WHERE email IS NOT NULL
+    ORDER BY domain, created_at DESC
+  `);
+
+  const all = (rows.rows ?? []) as Array<{ id: number; domain: string; email: string | null; overall_score: number; created_at: Date; notified_at: Date | null }>;
+
+  const overdue = all.filter(r => r.notified_at === null && new Date(r.created_at) <= day30);
+  const upcoming = all.filter(r => r.notified_at === null && new Date(r.created_at) > day30 && new Date(r.created_at) <= day25);
+  const completed = all.filter(r => r.notified_at !== null);
+
+  res.json({ overdue, upcoming, completed: completed.slice(0, 20) });
+});
+
 // ─── Manual scan trigger ──────────────────────────────────────────────────────
 router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request, res: Response) => {
   const rawDomain: unknown = req.body?.domain;
@@ -171,7 +196,7 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
     return;
   }
 
-  const { sanitizeDomain, checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, checkHIBP, checkBlacklists, checkShadowIT, calcScore, checkGoogleSafeBrowsing, checkSSLLabs } =
+  const { sanitizeDomain, checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, checkHIBP, checkBlacklists, checkShadowIT, calcScore, checkGoogleSafeBrowsing, checkSSLLabs, checkShodan, detectFinalDomain } =
     await import("../domain-scan/index");
 
   const domain = sanitizeDomain(rawDomain);
@@ -183,7 +208,7 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
   logger.info({ domain }, "Admin triggered domain scan");
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, safeBrowsing, sslLabs] = await Promise.all([
+    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, safeBrowsing, sslLabs, shodan] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -194,6 +219,7 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
       checkShadowIT(domain),
       checkGoogleSafeBrowsing(domain),
       checkSSLLabs(domain),
+      checkShodan(domain),
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
@@ -213,9 +239,26 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
       safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
       safeBrowsingThreats: safeBrowsing?.threats ?? [],
       sslLabsGrade: sslLabs.grade,
+      shodanOpenPorts: shodan?.openPorts ?? null,
+      shodanVulnCount: shodan?.vulnCount ?? 0,
+      shodanCountry: shodan?.country ?? null,
+      shodanIsp: shodan?.isp ?? null,
     }).returning();
 
-    logger.info({ domain, overallScore, scanId: scan?.id }, "Admin domain scan complete");
+    // Fire-and-forget: detect redirect domain
+    if (scan) {
+      setImmediate(async () => {
+        try {
+          const finalDomain = await detectFinalDomain(domain);
+          if (finalDomain && finalDomain !== domain && finalDomain !== `www.${domain}`) {
+            await db.execute(sql`UPDATE domain_scans SET redirected_to = ${finalDomain} WHERE id = ${scan.id}`);
+            logger.info({ domain, finalDomain, scanId: scan.id }, "Redirect hedefi tespit edildi");
+          }
+        } catch (e) { logger.warn({ e }, "Redirect detection failed"); }
+      });
+    }
+
+    logger.info({ domain, overallScore, scanId: scan?.id, hasShodan: !!shodan }, "Admin domain scan complete");
     res.json(scan);
   } catch (err) {
     logger.error({ err, domain }, "Admin domain scan failed");

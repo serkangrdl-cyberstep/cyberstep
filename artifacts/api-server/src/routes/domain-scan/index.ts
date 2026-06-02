@@ -5,7 +5,7 @@ import http from "http";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { domainScansTable, scanLeadsTable, customersTable } from "@workspace/db";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
 
@@ -520,7 +520,33 @@ async function checkNvdCve(services: Array<{ name: string; risk: string }>): Pro
 // ─── Shodan internet exposure check ──────────────────────────────────────────
 interface ShodanPort { port: number; protocol: string; service: string; product: string; version: string; }
 
-async function checkShodan(domain: string): Promise<{
+export async function detectFinalDomain(domain: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    let lastRedirectHost: string | null = null;
+    const makeReq = (url: string, hops = 0) => {
+      if (hops > 5) { resolve(lastRedirectHost); return; }
+      const isHttps = url.startsWith("https");
+      const mod = isHttps ? https : http;
+      const req = mod.request(url, { method: "HEAD", timeout: 5000, headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberStep.io Scanner)" } }, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode ?? 0) && res.headers.location) {
+          const loc = res.headers.location;
+          const next = loc.startsWith("http") ? loc : `https://${domain}${loc}`;
+          try { lastRedirectHost = new URL(next).hostname; } catch { /**/ }
+          res.destroy();
+          makeReq(next, hops + 1);
+          return;
+        }
+        resolve(lastRedirectHost);
+      });
+      req.on("error", () => resolve(lastRedirectHost));
+      req.on("timeout", () => { req.destroy(); resolve(lastRedirectHost); });
+      req.end();
+    };
+    makeReq(`https://${domain}`);
+  });
+}
+
+export async function checkShodan(domain: string): Promise<{
   openPorts: ShodanPort[];
   vulnCount: number;
   country: string | null;
@@ -1230,6 +1256,17 @@ router.post("/domain-scan", async (req, res) => {
         })
         .execute()
         .catch((err: unknown) => logger.warn({ err }, "Scan lead save failed"));
+
+      // Fire-and-forget: redirect domain detection
+      setImmediate(async () => {
+        try {
+          const finalDomain = await detectFinalDomain(scan.domain);
+          if (finalDomain && finalDomain !== scan.domain && finalDomain !== `www.${scan.domain}`) {
+            await db.execute(sql`UPDATE domain_scans SET redirected_to = ${finalDomain} WHERE id = ${scan.id}`);
+            logger.info({ domain: scan.domain, finalDomain, scanId: scan.id }, "Redirect hedefi tespit edildi ve kaydedildi");
+          }
+        } catch (e) { logger.warn({ e }, "Redirect detection failed"); }
+      });
     }
 
     res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss });

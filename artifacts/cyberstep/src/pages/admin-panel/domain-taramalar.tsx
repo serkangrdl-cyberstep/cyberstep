@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Globe, CheckCircle2, XCircle, Download, Search, AlertTriangle,
   BarChart3, Shield, Loader2, ChevronLeft, ChevronRight,
-  Play, Trash2, FileDown, Eye, FileCheck,
+  Play, Trash2, FileDown, Eye, FileCheck, Clock, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -437,6 +437,16 @@ export default function AdminDomainTaramalar() {
     queryFn: () => fetch("/api/admin-panel/domain-scans/stats", { credentials: "include" }).then(r => r.json()),
   });
 
+  interface ScheduledScanRow {
+    id: number; domain: string; email: string | null;
+    overall_score: number; created_at: string; notified_at: string | null;
+  }
+  const { data: scheduled } = useQuery<{ overdue: ScheduledScanRow[]; upcoming: ScheduledScanRow[]; completed: ScheduledScanRow[] }>({
+    queryKey: ["admin-domain-scheduled"],
+    queryFn: () => fetch("/api/admin-panel/domain-scans/scheduled", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
   const { data: list, isLoading } = useQuery<ScanList>({
     queryKey: ["admin-domain-scans", q, page],
     queryFn: () => fetch(`/api/admin-panel/domain-scans?q=${encodeURIComponent(q)}&page=${page}`, { credentials: "include" }).then(r => r.json()),
@@ -599,6 +609,83 @@ export default function AdminDomainTaramalar() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Scheduled / Upcoming Re-Scans */}
+        {scheduled && (scheduled.overdue.length > 0 || scheduled.upcoming.length > 0 || scheduled.completed.length > 0) && (
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-sky-400" />
+                Otomatik Yeniden Taramalar
+                <span className="text-xs font-normal text-slate-400 ml-1">(30 günde bir, e-posta kayıtlı domainler)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-red-900/30 border border-red-700/40 rounded-lg p-3">
+                  <p className="text-2xl font-bold text-red-400">{scheduled.overdue.length}</p>
+                  <p className="text-xs text-red-300 mt-0.5">Vadesi Geçmiş</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">30+ gün önce tarandı</p>
+                </div>
+                <div className="bg-amber-900/30 border border-amber-700/40 rounded-lg p-3">
+                  <p className="text-2xl font-bold text-amber-400">{scheduled.upcoming.length}</p>
+                  <p className="text-xs text-amber-300 mt-0.5">Yaklaşıyor</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">25-30 gün önce tarandı</p>
+                </div>
+                <div className="bg-emerald-900/30 border border-emerald-700/40 rounded-lg p-3">
+                  <p className="text-2xl font-bold text-emerald-400">{scheduled.completed.length}</p>
+                  <p className="text-xs text-emerald-300 mt-0.5">Tamamlanan</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Yeniden tarandı</p>
+                </div>
+              </div>
+
+              {scheduled.overdue.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Vadesi Geçmiş — Cron Bu Gece Tarayacak
+                  </p>
+                  <div className="space-y-1">
+                    {scheduled.overdue.map(r => (
+                      <div key={r.id} className="flex items-center justify-between bg-slate-900 rounded px-3 py-2 text-sm">
+                        <span className="text-white font-medium">{r.domain}</span>
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <span>{r.email}</span>
+                          <span className={scoreColor(r.overall_score)}>Skor: {r.overall_score}</span>
+                          <span>{new Date(r.created_at).toLocaleDateString("tr-TR")}</span>
+                          <Button size="sm" variant="ghost"
+                            className="h-6 text-xs text-sky-400 hover:text-sky-300 hover:bg-sky-900/20 px-2 py-0"
+                            onClick={() => { setScanDomain(r.domain); setScanEmail(r.email ?? ""); setShowScanForm(true); }}>
+                            Şimdi Tara
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {scheduled.upcoming.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Yakında Yeniden Taranacak (5 gün içinde)
+                  </p>
+                  <div className="space-y-1">
+                    {scheduled.upcoming.map(r => (
+                      <div key={r.id} className="flex items-center justify-between bg-slate-900 rounded px-3 py-2 text-sm">
+                        <span className="text-white font-medium">{r.domain}</span>
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <span>{r.email}</span>
+                          <span className={scoreColor(r.overall_score)}>Skor: {r.overall_score}</span>
+                          <span>{new Date(r.created_at).toLocaleDateString("tr-TR")}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">

@@ -1433,6 +1433,7 @@ async function startup() {
   await ensureNetgsmTables();
   await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
   await loadApiKeysFromDb();
 }
 

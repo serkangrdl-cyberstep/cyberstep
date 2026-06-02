@@ -58,6 +58,7 @@ import slackRouter from "./integrations/slack";
 import platformHealthRouter from "./platform-health/index";
 import nocRouter from "./noc/index";
 import customerRouter from "./customer/index";
+import adminPanelRouter from "./admin-panel/index";
 
 const router: IRouter = Router();
 
@@ -120,5 +121,6 @@ router.use(slackRouter);
 router.use(platformHealthRouter);
 router.use(nocRouter);
 router.use(customerRouter);
+router.use(adminPanelRouter);
 
 export default router;

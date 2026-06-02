@@ -157,8 +157,8 @@ const SERVICE_ONBOARDING_STEPS: Record<
   { key: string; label: string; side: "customer" | "admin" }[]
 > = {
   "fortinet-fabric": [
-    { key: "configure", label: "FortiManager URL ve credentials girildi", side: "customer" },
-    { key: "test-connection", label: "Bağlantı başarıyla test edildi", side: "customer" },
+    { key: "customer-confirm", label: "CyberStep ekibi FortiManager'ı sizin adınıza yapılandıracak — bilgilendirme alındı", side: "customer" },
+    { key: "admin-configure", label: "FortiManager yapılandırması tamamlandı", side: "admin" },
     { key: "admin-verify", label: "CyberStep ekibi bağlantıyı doğruladı", side: "admin" },
     { key: "admin-activate", label: "Fabric izleme aktifleştirildi", side: "admin" },
   ],
@@ -777,13 +777,24 @@ router.get("/customer/kurulum-durumu", requireCustomer, async (req: Request, res
     "observability": "/hesabim/servislerim",
   };
 
+  const onboardingCompletedAt: Record<string, Record<string, string | null>> = {};
+  for (const row of onboardingRows) {
+    if (!onboardingCompletedAt[row.serviceSlug]) onboardingCompletedAt[row.serviceSlug] = {};
+    onboardingCompletedAt[row.serviceSlug][row.stepKey] = row.completedAt ? row.completedAt.toISOString() : null;
+  }
+
   const result = subscriptions.map(sub => {
     const raw = configRows.find(c => c.serviceSlug === sub.serviceSlug)?.config as Record<string, unknown> ?? {};
     const steps = getStepsForSlug(sub.serviceSlug);
     const stepStatuses = onboardingMap[sub.serviceSlug] ?? {};
+    const completedAts = onboardingCompletedAt[sub.serviceSlug] ?? {};
     const enrichedSteps = steps.map(s => ({ ...s, status: stepStatuses[s.key] ?? "pending" }));
     const doneCustomer = enrichedSteps.filter(s => s.side === "customer" && s.status === "done").length;
     const totalCustomer = enrichedSteps.filter(s => s.side === "customer").length;
+    const allStepsDone = enrichedSteps.length > 0 && enrichedSteps.every(s => s.status === "done" || s.status === "skipped");
+    const activatedAt = allStepsDone
+      ? Object.values(completedAts).filter(Boolean).sort().at(-1) ?? null
+      : null;
 
     return {
       subscription: sub,
@@ -791,6 +802,8 @@ router.get("/customer/kurulum-durumu", requireCustomer, async (req: Request, res
       onboardingSteps: enrichedSteps,
       doneCustomerSteps: doneCustomer,
       totalCustomerSteps: totalCustomer,
+      allDone: allStepsDone,
+      activatedAt,
       generatedUrls: getGeneratedUrls(sub.serviceSlug, raw),
       pageLink: SERVICE_PAGE_LINKS[sub.serviceSlug] ?? "/hesabim/servislerim",
     };

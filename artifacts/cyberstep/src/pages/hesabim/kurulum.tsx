@@ -21,6 +21,8 @@ interface ServiceEntry {
   onboardingSteps: Step[];
   doneCustomerSteps: number;
   totalCustomerSteps: number;
+  allDone: boolean;
+  activatedAt: string | null;
   generatedUrls: Array<{ label: string; url: string }>;
   pageLink: string;
 }
@@ -73,27 +75,35 @@ function ServiceCard({ entry }: { entry: ServiceEntry }) {
   const done = entry.doneCustomerSteps;
   const total = entry.totalCustomerSteps;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const allDone = done === total && total > 0;
+  const customerAllDone = done === total && total > 0;
+  const fullyActive = entry.allDone;
 
   return (
-    <Card className={`border transition-colors ${allDone ? "border-emerald-200 dark:border-emerald-800/40" : "border-slate-200 dark:border-slate-700"}`}>
+    <Card className={`border transition-colors ${fullyActive ? "border-emerald-300 dark:border-emerald-700/60" : customerAllDone ? "border-emerald-200 dark:border-emerald-800/40" : "border-slate-200 dark:border-slate-700"}`}>
       <button className="w-full text-left" onClick={() => setOpen(p => !p)}>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${allDone ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-slate-100 dark:bg-slate-800"}`}>
-              <Icon className={`h-5 w-5 ${allDone ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-400"}`} />
+            <div className={`p-2 rounded-lg ${fullyActive ? "bg-emerald-100 dark:bg-emerald-900/40" : customerAllDone ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-slate-100 dark:bg-slate-800"}`}>
+              <Icon className={`h-5 w-5 ${fullyActive || customerAllDone ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-400"}`} />
             </div>
             <div className="flex-1 min-w-0">
               <CardTitle className="text-base text-slate-900 dark:text-white">{label}</CardTitle>
-              {total > 0 && (
+              {total > 0 && !fullyActive && (
                 <div className="flex items-center gap-2 mt-1.5">
                   <Progress value={pct} className="h-1.5 flex-1 max-w-[120px]" />
                   <span className="text-xs text-slate-500">{done}/{total} adım</span>
                 </div>
               )}
+              {fullyActive && entry.activatedAt && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                  {new Date(entry.activatedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })} tarihinde aktive edildi
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {allDone ? (
+              {fullyActive ? (
+                <Badge className="bg-emerald-500 text-white border-0 text-xs font-semibold">Aktif</Badge>
+              ) : customerAllDone ? (
                 <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Tamamlandı</Badge>
               ) : pct > 0 ? (
                 <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Devam Ediyor</Badge>
@@ -135,9 +145,9 @@ function ServiceCard({ entry }: { entry: ServiceEntry }) {
                   </span>
                 </div>
               ))}
-              <Button size="sm" variant="outline" className="mt-2 h-8 text-xs"
+              <Button size="sm" variant={fullyActive ? "default" : "outline"} className={`mt-2 h-8 text-xs ${fullyActive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
                 onClick={() => navigate(entry.pageLink)}>
-                Ayar Sayfasına Git <ArrowRight className="h-3 w-3 ml-1" />
+                {fullyActive ? "Servise Git" : "Ayar Sayfasına Git"} <ArrowRight className="h-3 w-3 ml-1" />
               </Button>
             </div>
           )}

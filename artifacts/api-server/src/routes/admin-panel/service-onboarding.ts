@@ -8,6 +8,7 @@ import {
   customersTable,
   customerServiceSubscriptionsTable,
   adminUsersTable,
+  customerServiceConfigsTable,
 } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
@@ -246,14 +247,53 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
       const allDone = allStepKeys.every(k => doneSet.has(k));
 
       if (allDone) {
-        const [customer] = await db.select({
-          email: customersTable.email,
-          fullName: customersTable.fullName,
-          companyName: customersTable.companyName,
-        }).from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+        const [[customer], configRow] = await Promise.all([
+          db.select({
+            email: customersTable.email,
+            fullName: customersTable.fullName,
+            companyName: customersTable.companyName,
+          }).from(customersTable).where(eq(customersTable.id, customerId)).limit(1),
+          db.select({ config: customerServiceConfigsTable.config })
+            .from(customerServiceConfigsTable)
+            .where(and(
+              eq(customerServiceConfigsTable.customerId, customerId),
+              eq(customerServiceConfigsTable.serviceSlug, serviceSlug),
+            )).limit(1).then(r => r[0] ?? null),
+        ]);
 
         if (customer) {
           const displayName = serviceSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+          const cfg = (configRow?.config ?? {}) as Record<string, unknown>;
+          const webhookToken = typeof cfg["webhookToken"] === "string" && cfg["webhookToken"].length > 10 ? cfg["webhookToken"] : null;
+          const snmpToken = typeof cfg["snmpToken"] === "string" && cfg["snmpToken"].length > 10 ? cfg["snmpToken"] : null;
+          const analystName = typeof cfg["assignedAnalyst"] === "string" && cfg["assignedAnalyst"] ? cfg["assignedAnalyst"] : null;
+
+          const generatedUrlsHtml = (() => {
+            const rows: string[] = [];
+            if (serviceSlug === "fortinet-fabric" && webhookToken) {
+              rows.push(`<tr><td style="color:#64748b;padding:4px 0;font-size:13px;">Syslog Endpoint</td><td style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;word-break:break-all;">https://cyberstep.io/api/fabric/ingest/${webhookToken}</td></tr>`);
+            }
+            if (serviceSlug === "noc" && snmpToken) {
+              rows.push(`<tr><td style="color:#64748b;padding:4px 0;font-size:13px;">SNMP Trap Host</td><td style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;">snmptrap.cyberstep.io:1162</td></tr>`);
+              rows.push(`<tr><td style="color:#64748b;padding:4px 0;font-size:13px;">Community / Token</td><td style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;word-break:break-all;">${snmpToken}</td></tr>`);
+            }
+            if (rows.length === 0) return "";
+            return `
+              <div style="margin:0 0 24px;">
+                <p style="color:#0f172a;font-weight:600;margin:0 0 8px;font-size:14px;">Bağlantı Bilgileriniz</p>
+                <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;">
+                  <tbody style="padding:12px;">
+                    ${rows.join("")}
+                  </tbody>
+                </table>
+                <p style="color:#64748b;font-size:12px;margin:6px 0 0;">Bu bilgilere istediğiniz zaman <a href="https://cyberstep.io/hesabim/kurulum" style="color:#10b981;">Kurulum Merkezinden</a> de ulaşabilirsiniz.</p>
+              </div>`;
+          })();
+
+          const analystHtml = analystName
+            ? `<p style="color:#334155;line-height:1.6;margin:0 0 16px;">Sorumlu analistiniz: <strong>${analystName}</strong></p>`
+            : "";
+
           setImmediate(async () => {
             try {
               await sendMail({
@@ -276,11 +316,13 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
       <div style="background:#ecfdf5;border-left:4px solid #10b981;padding:16px 20px;border-radius:6px;margin-bottom:24px;">
         <p style="margin:0;color:#065f46;font-weight:600;">Servis aktif ve kullanıma hazır.</p>
       </div>
+      ${analystHtml}
+      ${generatedUrlsHtml}
       <p style="color:#334155;line-height:1.6;margin:0 0 24px;">
-        Sorularınız veya ihtiyaçlarınız için destek ekibimize istediğiniz zaman ulaşabilirsiniz.
+        Tüm kurulum adımlarınızı ve servis durumunuzu <strong>Kurulum Merkezi</strong>'nden takip edebilirsiniz.
       </p>
-      <a href="https://cyberstep.io/hesabim" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
-        Hesabıma Git
+      <a href="https://cyberstep.io/hesabim/kurulum" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+        Kurulum Merkezine Git
       </a>
     </div>
     <div style="background:#f1f5f9;padding:16px 32px;font-size:12px;color:#94a3b8;text-align:center;">

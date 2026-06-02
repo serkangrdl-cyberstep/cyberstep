@@ -22,6 +22,7 @@ interface FieldDef {
   key: string; label: string; type: FieldType;
   placeholder?: string; options?: string[];
   description?: string; autoGenerate?: boolean;
+  showIf?: { key: string; value: string };
 }
 
 const SERVICE_FIELDS: Record<string, FieldDef[]> = {
@@ -45,6 +46,10 @@ const SERVICE_FIELDS: Record<string, FieldDef[]> = {
   "noc": [
     { key: "snmpToken", label: "SNMP Trap Token", type: "readonly", autoGenerate: true, description: "Müşterinin SNMP trap endpoint'inde kullanılan token." },
     { key: "snmpVersion", label: "SNMP Sürümü", type: "select", options: ["v2c", "v3"] },
+    { key: "snmpAuthProtocol", label: "Auth Protocol (v3)", type: "select", options: ["MD5", "SHA"], showIf: { key: "snmpVersion", value: "v3" } },
+    { key: "snmpAuthPassword", label: "Auth Password (v3)", type: "password", showIf: { key: "snmpVersion", value: "v3" } },
+    { key: "snmpPrivProtocol", label: "Priv Protocol (v3)", type: "select", options: ["DES", "AES"], showIf: { key: "snmpVersion", value: "v3" } },
+    { key: "snmpPrivPassword", label: "Priv Password (v3)", type: "password", showIf: { key: "snmpVersion", value: "v3" } },
     { key: "alertEmail", label: "Uyarı E-posta", type: "text" },
     { key: "netflowEnabled", label: "NetFlow Aktif", type: "boolean" },
     { key: "baselineDays", label: "Baseline Süresi (gün)", type: "text", placeholder: "14" },
@@ -211,7 +216,7 @@ function ServiceCard({ service, customerId, onSaved }: {
           {fields.length > 0 && (
             <div className="pt-2 space-y-4">
               <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Teknik Yapılandırma</p>
-              {fields.map(f => (
+              {fields.filter(f => !f.showIf || cfg[f.showIf.key] === f.showIf.value).map(f => (
                 <div key={f.key} className="space-y-1.5">
                   <Label className="text-slate-300 text-xs">{f.label}</Label>
                   {f.description && <p className="text-[10px] text-slate-500">{f.description}</p>}

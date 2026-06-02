@@ -65,6 +65,7 @@ const NAV_SECTIONS = [
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
       { icon: ListTodo,        label: "Lead Kuyruğu",          href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
+      { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },
     ],
   },
   {

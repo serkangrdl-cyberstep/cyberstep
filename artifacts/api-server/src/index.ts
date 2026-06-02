@@ -8,6 +8,9 @@ import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
 import { sendReminderEmail, sendDomainRescanEmail, sendWeeklyDeltaEmail, sendMail } from "./services/email";
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { startFabricCrons } from "./services/fabric-cron";
+import { scanCRTSH } from "./services/crtshScanner";
+import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
+import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
 import { startCertstreamClient } from "./services/certstream-client";
@@ -1897,6 +1900,34 @@ startup()
       try { await checkAndCompleteBaselines(); } catch (err) { logger.warn({ err }, "NOC baseline cron failed"); }
     });
     logger.info("NOC baseline check cron scheduled (every hour)");
+
+    // ─── Lead Discovery: crt.sh — Her Pazartesi 03:00 ────────────────────────
+    cron.schedule("0 3 * * 1", async () => {
+      try {
+        await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 70, limit: 300 });
+        await new Promise((r) => setTimeout(r, 5000));
+        await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 70, limit: 100 });
+      } catch (err) { logger.warn({ err }, "crt.sh discovery cron failed"); }
+    });
+    logger.info("crt.sh discovery cron scheduled (Monday 03:00)");
+
+    // ─── Lead Discovery: Shodan — Her Salı 03:00 ─────────────────────────────
+    cron.schedule("0 3 * * 2", async () => {
+      if (!process.env["SHODAN_API_KEY"]) return;
+      try {
+        const queryIdx = getISOWeek(new Date()) % SHODAN_FREE_QUERIES.length;
+        await scanShodanFree(queryIdx, 100);
+      } catch (err) { logger.warn({ err }, "Shodan discovery cron failed"); }
+    });
+    logger.info("Shodan discovery cron scheduled (Tuesday 03:00)");
+
+    // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
+    cron.schedule("0 4 * * *", async () => {
+      try {
+        await qualifyPendingCandidates(20);
+      } catch (err) { logger.warn({ err }, "Lead qualification cron failed"); }
+    });
+    logger.info("Lead qualification cron scheduled (daily 04:00)");
 
     const server = app.listen(port, (err) => {
       if (err) {

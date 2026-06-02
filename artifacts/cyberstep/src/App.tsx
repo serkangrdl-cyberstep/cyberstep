@@ -172,6 +172,7 @@ import ServislerimPage from "./pages/hesabim/servislerim";
 import NpsPage from "./pages/nps";
 import StatusPage from "./pages/status";
 import AdminStatusPage from "./pages/admin-panel/status";
+import AdminLeadDiscovery from "./pages/admin-panel/lead-discovery";
 import SslKontrol from "./pages/araclar/ssl-kontrol";
 import DomainGuvenlikTaramasi from "./pages/araclar/domain-guvenlik-taramasi";
 import KvkkCezaHesaplayici from "./pages/araclar/kvkk-ceza-hesaplayici";
@@ -318,6 +319,7 @@ function Router() {
       <Route path="/panel/kariyer" component={AdminKariyer} />
       <Route path="/panel/servis-fiyatlari" component={AdminServisFiyatlari} />
       <Route path="/panel/manuel-tetikle" component={AdminManuelTetikle} />
+      <Route path="/panel/lead-discovery" component={AdminLeadDiscovery} />
       <Route path="/panel/status" component={AdminStatusPage} />
       <Route path="/panel/rozetler" component={AdminRozetler} />
       <Route path="/panel/fortinet" component={AdminFortinet} />

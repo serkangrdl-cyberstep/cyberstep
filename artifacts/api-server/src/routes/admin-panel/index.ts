@@ -27,6 +27,7 @@ import kvkkAdminRouter from "./kvkk";
 import serviceNowAdminRouter from "./servicenow";
 import serviceCatalogAdminRouter from "./service-catalog";
 import serviceOnboardingRouter from "./service-onboarding";
+import leadDiscoveryRouter from "./lead-discovery";
 
 const router = Router();
 router.use(authRouter);
@@ -57,5 +58,6 @@ router.use(kvkkAdminRouter);
 router.use(serviceNowAdminRouter);
 router.use(serviceCatalogAdminRouter);
 router.use(serviceOnboardingRouter);
+router.use(leadDiscoveryRouter);
 
 export default router;

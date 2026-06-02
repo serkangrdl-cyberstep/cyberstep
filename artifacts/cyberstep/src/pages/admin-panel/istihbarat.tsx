@@ -109,7 +109,7 @@ export default function IstihbaratPage() {
   const now = new Date();
 
   return (
-    <AdminLayout title="Sektör İstihbarat Raporu" description="Aylık Türkiye & bölge siber güvenlik endeksi">
+    <AdminLayout title="Intelligence Reports" description="Monthly Turkey & region cybersecurity index">
       <div className="space-y-6">
 
         {/* Pazar Durumu */}

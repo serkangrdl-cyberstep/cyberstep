@@ -175,7 +175,7 @@ import StatusPage from "./pages/status";
 import AdminStatusPage from "./pages/admin-panel/status";
 import AdminLeadDiscovery from "./pages/admin-panel/lead-discovery";
 import AdminTechIntelligence from "./pages/admin-panel/tech-intelligence";
-import AdminIstihbarat from "./pages/admin-panel/istihbarat";
+import AdminIntelligence from "./pages/admin-panel/istihbarat";
 import SslKontrol from "./pages/araclar/ssl-kontrol";
 import DomainGuvenlikTaramasi from "./pages/araclar/domain-guvenlik-taramasi";
 import KvkkCezaHesaplayici from "./pages/araclar/kvkk-ceza-hesaplayici";
@@ -324,7 +324,7 @@ function Router() {
       <Route path="/panel/manuel-tetikle" component={AdminManuelTetikle} />
       <Route path="/panel/lead-discovery" component={AdminLeadDiscovery} />
       <Route path="/panel/tech-intelligence" component={AdminTechIntelligence} />
-      <Route path="/panel/istihbarat" component={AdminIstihbarat} />
+      <Route path="/panel/intelligence" component={AdminIntelligence} />
       <Route path="/panel/status" component={AdminStatusPage} />
       <Route path="/panel/rozetler" component={AdminRozetler} />
       <Route path="/panel/fortinet" component={AdminFortinet} />

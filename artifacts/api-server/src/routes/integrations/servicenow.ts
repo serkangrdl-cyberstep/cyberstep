@@ -384,6 +384,90 @@ router.get("/integrations/servicenow/webhook-events", requireCustomer, async (re
   }
 });
 
+// ─── GET /api/integrations/servicenow/webhook-events/export ──────────────────
+// Returns all webhook events as a CSV download (no row limit; optional date range via ?from=&to=).
+router.get("/integrations/servicenow/webhook-events/export", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  const { from, to } = req.query as { from?: string; to?: string };
+  const fromDate = from ? new Date(from) : null;
+  const toDate   = to   ? new Date(to)   : null;
+
+  if ((from && isNaN(fromDate!.getTime())) || (to && isNaN(toDate!.getTime()))) {
+    res.status(400).json({ error: "Geçersiz tarih formatı. ISO 8601 kullanın (ör. 2024-01-01T00:00:00Z)" });
+    return;
+  }
+
+  try {
+    const dateFilter = (alias: string) => {
+      const parts: string[] = [];
+      if (fromDate) parts.push(`${alias} >= '${fromDate.toISOString()}'`);
+      if (toDate)   parts.push(`${alias} <= '${toDate.toISOString()}'`);
+      return parts.length ? `AND ${parts.join(" AND ")}` : "";
+    };
+
+    const { rows: successRows } = await pool.query(
+      `SELECT sal.created_at AS "createdAt",
+              COALESCE(sni.sn_number, '') AS "incNumber",
+              sal.action_type AS "actionType",
+              sal.description
+       FROM soc_activity_log sal
+       JOIN soc_cases sc ON sc.id = sal.case_id
+       LEFT JOIN servicenow_incidents sni
+         ON sni.soc_case_id = sal.case_id
+        AND sni.customer_id = $1
+       WHERE sal.actor_name = 'ServiceNow'
+         AND sc.customer_id = $1
+         ${dateFilter("sal.created_at")}
+       ORDER BY sal.created_at DESC`,
+      [customerId],
+    );
+
+    const { rows: errorRows } = await pool.query(
+      `SELECT created_at AS "createdAt",
+              COALESCE(sn_sys_id, '') AS "incNumber",
+              'webhook_error' AS "actionType",
+              COALESCE(error_reason, raw_body_preview, '') AS description
+       FROM servicenow_webhook_errors
+       WHERE customer_id = $1
+         ${dateFilter("created_at")}
+       ORDER BY created_at DESC`,
+      [customerId],
+    );
+
+    const ACTION_TYPE_TR: Record<string, string> = {
+      status_change: "Durum Degisikligi",
+      note: "Yorum / Not",
+      assignment: "Atama Degisikligi",
+      webhook_error: "Hata",
+    };
+
+    const rows = [...successRows, ...errorRows]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const csvEscape = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+    const header = ["Tarih", "INC Numarasi", "Degisiklik Tipi", "Ozet"].map(csvEscape).join(",");
+    const lines = rows.map(r => [
+      csvEscape(new Date(r.createdAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })),
+      csvEscape(r.incNumber),
+      csvEscape(ACTION_TYPE_TR[r.actionType] ?? r.actionType),
+      csvEscape(r.description),
+    ].join(","));
+
+    const csv = [header, ...lines].join("\r\n");
+
+    const filename = `servicenow-webhook-olaylari-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send("\uFEFF" + csv); // BOM for Excel Turkish charset compatibility
+  } catch (err) {
+    req.log.error({ err }, "GET /api/integrations/servicenow/webhook-events/export error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // ─── POST /api/integrations/servicenow/webhook-errors/:id/retry ───────────────
 // Retries a failed webhook by force-syncing the incident from ServiceNow.
 router.post("/integrations/servicenow/webhook-errors/:id/retry", requireCustomer, async (req, res) => {

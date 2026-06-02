@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp, MessageSquare, Bell, BellOff } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp, MessageSquare, Bell, BellOff, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -444,6 +444,7 @@ function ServiceNowSection() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [copiedBR, setCopiedBR] = useState(false);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
 
   const { data, isLoading } = useQuery<{ config: SnConfig | null }>({
     queryKey: ["sn-config"],
@@ -575,6 +576,27 @@ function ServiceNowSection() {
       toast({ title: "Test başarısız", variant: "destructive" });
     } finally {
       setChecking(false);
+    }
+  }
+
+  async function downloadCsv() {
+    setDownloadingCsv(true);
+    try {
+      const r = await fetch("/api/integrations/servicenow/webhook-events/export", { credentials: "include" });
+      if (!r.ok) throw new Error("Sunucu hatası");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `servicenow-webhook-olaylari-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "İndirme başarısız", description: "CSV oluşturulamadı.", variant: "destructive" });
+    } finally {
+      setDownloadingCsv(false);
     }
   }
 
@@ -772,11 +794,28 @@ function ServiceNowSection() {
                     <Webhook className="h-3.5 w-3.5 text-violet-400" />
                     Son Webhook Olaylari
                   </p>
-                  {webhookEvents.some(e => e.status === "error") && (
-                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] border">
-                      {webhookEvents.filter(e => e.status === "error").length} Hata
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {webhookEvents.some(e => e.status === "error") && (
+                      <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] border">
+                        {webhookEvents.filter(e => e.status === "error").length} Hata
+                      </Badge>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-gray-700 text-gray-400 hover:text-white h-6 text-[10px] px-2 gap-1"
+                      onClick={downloadCsv}
+                      disabled={downloadingCsv}
+                      title="Tüm olay geçmişini CSV olarak indir"
+                    >
+                      {downloadingCsv ? (
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      ) : (
+                        <Download className="h-2.5 w-2.5" />
+                      )}
+                      CSV İndir
+                    </Button>
+                  </div>
                 </div>
                 {webhookEvents.map(ev => (
                   <div

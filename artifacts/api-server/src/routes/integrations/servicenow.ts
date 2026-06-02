@@ -835,6 +835,44 @@ router.post("/integrations/servicenow/pending-cases/:id/retry", requireCustomer,
   }
 });
 
+// ─── POST /api/integrations/servicenow/webhook/:token ────────────────────────
+// T19: Token-based webhook endpoint for ServiceNow Business Rules.
+// Validates token against customer_service_configs, then processes payload.
+router.post(
+  "/integrations/servicenow/webhook/:token",
+  express.raw({ type: "*/*", limit: "64kb" }),
+  async (req, res) => {
+    const { token } = req.params as { token: string };
+    if (!token || token.length < 20) {
+      res.status(401).json({ error: "Geçersiz token" });
+      return;
+    }
+    try {
+      const { rows } = await pool.query<{ customer_id: number }>(
+        `SELECT customer_id FROM customer_service_configs
+         WHERE (service_slug = 'servicenow' OR service_slug = 'servicenow-entegrasyon')
+           AND config->>'webhookToken' = $1
+         LIMIT 1`,
+        [token],
+      );
+      if (!rows.length) {
+        logger.warn({ tokenPrefix: token.slice(0, 8) }, "ServiceNow webhook/:token: unknown token");
+        res.status(401).json({ error: "Geçersiz token" });
+        return;
+      }
+      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+      if (rawBody.length === 0) { res.status(400).json({ error: "Boş gövde" }); return; }
+      const signatureHeader = req.headers["x-sn-signature"] as string | undefined;
+      const result = await processServiceNowWebhook(rawBody, signatureHeader);
+      res.status(result.status).json({ ok: result.ok, message: result.message });
+      logger.info({ customerId: rows[0]!.customer_id }, "ServiceNow webhook received via token");
+    } catch (err) {
+      logger.error({ err }, "POST /api/integrations/servicenow/webhook/:token error");
+      res.status(500).json({ ok: false, message: "Sunucu hatası" });
+    }
+  },
+);
+
 // ─── POST /api/integrations/servicenow/webhook ────────────────────────────────
 // Public endpoint — called by ServiceNow Business Rule / Outbound REST Message.
 // No session auth; authentication is via HMAC-SHA256 (X-SN-Signature header).

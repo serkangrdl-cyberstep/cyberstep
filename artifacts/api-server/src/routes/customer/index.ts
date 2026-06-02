@@ -279,10 +279,12 @@ function getAutoCompletableSteps(slug: string, config: Record<string, unknown>):
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// T18: completedBy optional — defaults to "customer", can be "system" for automated steps
 export async function markOnboardingStepDone(
   customerId: number,
   serviceSlug: string,
-  stepKey: string
+  stepKey: string,
+  completedBy: string = "customer"
 ): Promise<void> {
   await db
     .insert(customerServiceOnboardingTable)
@@ -291,7 +293,7 @@ export async function markOnboardingStepDone(
       serviceSlug,
       stepKey,
       status: "done",
-      completedBy: "customer",
+      completedBy,
       completedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -302,7 +304,7 @@ export async function markOnboardingStepDone(
       ],
       set: {
         status: "done",
-        completedBy: "customer",
+        completedBy,
         completedAt: new Date(),
         updatedAt: new Date(),
       },

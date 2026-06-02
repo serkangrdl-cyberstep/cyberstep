@@ -194,11 +194,28 @@ router.get("/ms365/callback", async (req, res) => {
 
     req.log.info({ customerId, tenantId: tokens.tenantId }, "MS365 OAuth complete");
 
-    // Mark the ms365 onboarding "oauth-connect" step done for the customer portal
+    // T18: Mark the ms365 onboarding step done — use canonical key, completed_by=system
     setImmediate(() => {
-      markOnboardingStepDone(customerId, "microsoft-365", "oauth-connect").catch((err) => {
-        logger.warn({ err, customerId }, "ms365/callback: could not mark oauth-connect step");
+      markOnboardingStepDone(customerId, "ms365", "azure_oauth_completed", "system").catch((err) => {
+        logger.warn({ err, customerId }, "ms365/callback: could not mark azure_oauth_completed step");
       });
+    });
+
+    // T18: Notify admin of MS365 OAuth completion
+    setImmediate(async () => {
+      try {
+        const { sendMail } = await import("../../services/email");
+        const SOC_ADMIN = process.env["SOC_ADMIN_EMAIL"] ?? process.env["SMTP_USER"];
+        if (SOC_ADMIN) {
+          await sendMail({
+            to: SOC_ADMIN,
+            subject: `MS365 OAuth Tamamlandı — Müşteri #${customerId}`,
+            html: `<p>Müşteri #${customerId} Microsoft 365 OAuth bağlantısını tamamladı. Azure AD senkronizasyonu başlatılabilir.</p>`,
+          });
+        }
+      } catch (err) {
+        logger.warn({ err, customerId }, "ms365/callback: admin notification failed");
+      }
     });
 
     res.redirect("/hesabim/entegrasyonlarim?ms365_success=1");

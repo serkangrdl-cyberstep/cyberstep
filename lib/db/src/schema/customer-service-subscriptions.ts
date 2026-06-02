@@ -1,10 +1,11 @@
-import { pgTable, serial, text, numeric, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, timestamp, integer, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { customersTable } from "./customers";
 
 export const customerServiceSubscriptionsTable = pgTable("customer_service_subscriptions", {
   id: serial("id").primaryKey(),
-  customerId: integer("customer_id"),
+  customerId: integer("customer_id").references(() => customersTable.id, { onDelete: "cascade" }),
   serviceSlug: text("service_slug").notNull(),
   serviceLabel: text("service_label").notNull(),
   status: text("status").notNull().default("active"),
@@ -28,7 +29,9 @@ export const customerServiceSubscriptionsTable = pgTable("customer_service_subsc
   renewalToken: text("renewal_token"),
   renewalTokenExpiresAt: timestamp("renewal_token_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  uniqueIndex("css_customer_service_uq").on(t.customerId, t.serviceSlug),
+]);
 
 export type CustomerServiceSubscription = typeof customerServiceSubscriptionsTable.$inferSelect;
 export const insertCustomerServiceSubscriptionSchema = createInsertSchema(customerServiceSubscriptionsTable).omit({ id: true, createdAt: true });

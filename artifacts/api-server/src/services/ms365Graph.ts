@@ -247,30 +247,47 @@ async function getValidAccessToken(row: Ms365IntegrationRow): Promise<string | n
   return decryptSecret(row.access_token_enc);
 }
 
+// T26: helper — creates a fetch with AbortController timeout (default 20s)
+function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs = 20_000): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 export async function fetchRiskySignIns(accessToken: string): Promise<SignInRaw[]> {
-  const res = await fetch(
-    `https://graph.microsoft.com/v1.0/auditLogs/signIns?$filter=riskLevelDuringSignIn ne 'none' and riskLevelDuringSignIn ne 'unknownFutureValue'&$top=50&$orderby=createdDateTime desc`,
-    { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
-  );
-  if (!res.ok) {
-    logger.warn({ status: res.status }, "fetchRiskySignIns: Graph API error");
+  try {
+    const res = await fetchWithTimeout(
+      `https://graph.microsoft.com/v1.0/auditLogs/signIns?$filter=riskLevelDuringSignIn ne 'none' and riskLevelDuringSignIn ne 'unknownFutureValue'&$top=50&$orderby=createdDateTime desc`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
+    );
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "fetchRiskySignIns: Graph API error");
+      return [];
+    }
+    const data = await res.json() as { value?: SignInRaw[] };
+    return data.value ?? [];
+  } catch (err) {
+    logger.warn({ err }, "fetchRiskySignIns: request failed or timed out");
     return [];
   }
-  const data = await res.json() as { value?: SignInRaw[] };
-  return data.value ?? [];
 }
 
 export async function fetchEmailThreats(accessToken: string): Promise<SecurityAlertRaw[]> {
-  const res = await fetch(
-    `https://graph.microsoft.com/v1.0/security/alerts?$filter=category eq 'Email'&$top=50&$orderby=createdDateTime desc`,
-    { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
-  );
-  if (!res.ok) {
-    logger.warn({ status: res.status }, "fetchEmailThreats: Graph API error");
+  try {
+    const res = await fetchWithTimeout(
+      `https://graph.microsoft.com/v1.0/security/alerts?$filter=category eq 'Email'&$top=50&$orderby=createdDateTime desc`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
+    );
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "fetchEmailThreats: Graph API error");
+      return [];
+    }
+    const data = await res.json() as { value?: SecurityAlertRaw[] };
+    return data.value ?? [];
+  } catch (err) {
+    logger.warn({ err }, "fetchEmailThreats: request failed or timed out");
     return [];
   }
-  const data = await res.json() as { value?: SecurityAlertRaw[] };
-  return data.value ?? [];
 }
 
 // ─── Impossible travel detection ─────────────────────────────────────────────

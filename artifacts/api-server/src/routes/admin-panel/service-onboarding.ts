@@ -17,6 +17,17 @@ import { sendMail } from "../../services/email";
 
 const router = Router();
 
+// ─── HTML escape helper (T7 — prevents XSS in email templates) ───────────────
+function escapeHtml(s: unknown): string {
+  if (typeof s !== "string") return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── Service onboarding step definitions ─────────────────────────────────────
 export const SERVICE_ONBOARDING_STEPS: Record<string, Array<{ key: string; label: string; description: string }>> = {
   "fortinet-fabric": [
@@ -200,6 +211,26 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
   const stepDef = stepDefs.find(s => s.key === stepKey);
   if (!stepDef) { res.status(400).json({ error: "Bilinmeyen step key" }); return; }
 
+  // T11: Step dependency enforcement — a step cannot be marked done before its predecessor
+  if (status === "done" || status === "skipped") {
+    const stepIndex = stepDefs.findIndex(s => s.key === stepKey);
+    if (stepIndex > 0) {
+      const prevStep = stepDefs[stepIndex - 1]!;
+      const [prevRecord] = await db
+        .select({ status: customerServiceOnboardingTable.status })
+        .from(customerServiceOnboardingTable)
+        .where(and(
+          eq(customerServiceOnboardingTable.customerId, customerId),
+          eq(customerServiceOnboardingTable.serviceSlug, serviceSlug),
+          eq(customerServiceOnboardingTable.stepKey, prevStep.key),
+        )).limit(1);
+      if (!prevRecord || (prevRecord.status !== "done" && prevRecord.status !== "skipped")) {
+        res.status(400).json({ error: `"${prevStep.label}" adımı henüz tamamlanmadı` });
+        return;
+      }
+    }
+  }
+
   try {
     // Resolve admin email safely from session
     const adminEmail = await getAdminEmail(req);
@@ -247,6 +278,15 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
       const allDone = allStepKeys.every(k => doneSet.has(k));
 
       if (allDone) {
+        // T12: Auto-activate subscription status when all onboarding steps complete
+        await db.update(customerServiceSubscriptionsTable)
+          .set({ status: "active" })
+          .where(and(
+            eq(customerServiceSubscriptionsTable.customerId, customerId),
+            eq(customerServiceSubscriptionsTable.serviceSlug, serviceSlug),
+            eq(customerServiceSubscriptionsTable.status, "pending"),
+          ));
+
         const [[customer], configRow] = await Promise.all([
           db.select({
             email: customersTable.email,
@@ -270,12 +310,18 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
 
           const generatedUrlsHtml = (() => {
             const rows: string[] = [];
+            const tdLabel = `style="color:#64748b;padding:4px 0;font-size:13px;"`;
+            const tdVal = `style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;word-break:break-all;"`;
             if (serviceSlug === "fortinet-fabric" && webhookToken) {
-              rows.push(`<tr><td style="color:#64748b;padding:4px 0;font-size:13px;">Syslog Endpoint</td><td style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;word-break:break-all;">https://cyberstep.io/api/fabric/ingest/${webhookToken}</td></tr>`);
+              rows.push(`<tr><td ${tdLabel}>Syslog Endpoint</td><td ${tdVal}>https://cyberstep.io/api/fabric/ingest/${webhookToken}</td></tr>`);
             }
             if (serviceSlug === "noc" && snmpToken) {
-              rows.push(`<tr><td style="color:#64748b;padding:4px 0;font-size:13px;">SNMP Trap Host</td><td style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;">snmptrap.cyberstep.io:1162</td></tr>`);
-              rows.push(`<tr><td style="color:#64748b;padding:4px 0;font-size:13px;">Community / Token</td><td style="font-family:monospace;font-size:12px;color:#0f172a;padding:4px 0;word-break:break-all;">${snmpToken}</td></tr>`);
+              rows.push(`<tr><td ${tdLabel}>SNMP Trap Host</td><td ${tdVal}>snmptrap.cyberstep.io:1162</td></tr>`);
+              rows.push(`<tr><td ${tdLabel}>Community / Token</td><td ${tdVal}>${snmpToken}</td></tr>`);
+            }
+            // T19: ServiceNow webhook URL with token in email
+            if ((serviceSlug === "servicenow" || serviceSlug === "servicenow-entegrasyon") && webhookToken) {
+              rows.push(`<tr><td ${tdLabel}>ServiceNow Webhook URL</td><td ${tdVal}>https://cyberstep.io/api/integrations/servicenow/webhook/${webhookToken}</td></tr>`);
             }
             if (rows.length === 0) return "";
             return `
@@ -290,15 +336,18 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
               </div>`;
           })();
 
+          // T7: HTML-escape user-controlled values before interpolating into email HTML
+          const safeName = escapeHtml(customer.fullName ?? customer.companyName ?? "Değerli Müşterimiz");
+          const safeDisplayName = escapeHtml(displayName);
           const analystHtml = analystName
-            ? `<p style="color:#334155;line-height:1.6;margin:0 0 16px;">Sorumlu analistiniz: <strong>${analystName}</strong></p>`
+            ? `<p style="color:#334155;line-height:1.6;margin:0 0 16px;">Sorumlu analistiniz: <strong>${escapeHtml(analystName)}</strong></p>`
             : "";
 
           setImmediate(async () => {
             try {
               await sendMail({
                 to: customer.email,
-                subject: `${displayName} Servisine Hazırız!`,
+                subject: `${safeDisplayName} Servisine Hazırız!`,
                 html: `
 <!DOCTYPE html>
 <html lang="tr">
@@ -309,9 +358,9 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
       <span style="color:#10b981;font-size:20px;font-weight:700;">CyberStep</span>
     </div>
     <div style="padding:32px;">
-      <h2 style="color:#0f172a;margin:0 0 16px;">Merhaba ${customer.fullName ?? customer.companyName ?? "Değerli Müşterimiz"},</h2>
+      <h2 style="color:#0f172a;margin:0 0 16px;">Merhaba ${safeName},</h2>
       <p style="color:#334155;line-height:1.6;margin:0 0 20px;">
-        <strong>${displayName}</strong> servisinin tüm onboarding adımları tamamlandı. Artık servis tam kapasiteyle çalışmaya hazır!
+        <strong>${safeDisplayName}</strong> servisinin tüm onboarding adımları tamamlandı. Artık servis tam kapasiteyle çalışmaya hazır!
       </p>
       <div style="background:#ecfdf5;border-left:4px solid #10b981;padding:16px 20px;border-radius:6px;margin-bottom:24px;">
         <p style="margin:0;color:#065f46;font-weight:600;">Servis aktif ve kullanıma hazır.</p>
@@ -333,6 +382,7 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
 </html>`,
               });
               logger.info({ customerId, serviceSlug }, "Onboarding completion email sent");
+
             } catch (emailErr) {
               logger.warn({ emailErr }, "Failed to send onboarding completion email");
             }

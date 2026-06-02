@@ -111,6 +111,17 @@ export async function checkSLABreaches(): Promise<number> {
         sendNetgsmAlert(c.customerId, "soc.sla.breached", slaPayload)
       ).catch((err) => logger.warn({ err, caseId: c.id }, "NetGSM SLA breach failed"));
     });
+    // T16b: Direct customer email notification for SLA breach
+    setImmediate(() => {
+      sendSOCNotification(c.customerId, c.id, {
+        title: `[SLA İhlali] ${c.title}`,
+        severity: c.severity,
+        narrative: `Vakamız için belirlenen ${c.slaTier ?? "standart"} SLA süresi aşıldı. SOC ekibimiz vakayla acilen ilgilenmektedir.`,
+        recommendedAction: "SOC analistimiz en kısa sürede sizinle iletişime geçecektir.",
+        caseNumber: c.caseNumber,
+        suspectIps: c.affectedAssets ?? [],
+      }, ["email"]).catch((err) => logger.warn({ err, caseId: c.id }, "SLA breach customer email failed"));
+    });
     // Breaching the SLA escalates at least one level beyond current.
     await escalateCase(c.id, Math.max(c.escalationLevel + 1, 3), "SLA süresi aşıldı — otomatik eskalasyon");
     breached++;

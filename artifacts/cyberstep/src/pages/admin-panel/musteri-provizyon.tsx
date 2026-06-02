@@ -74,6 +74,8 @@ const SERVICE_FIELDS: Record<string, FieldDef[]> = {
     { key: "dataCategories", label: "Veri Kategorileri", type: "textarea", placeholder: "Kimlik, İletişim, Finansal..." },
   ],
   "servicenow": [
+    { key: "webhookToken", label: "Webhook Token", type: "readonly", autoGenerate: true, description: "ServiceNow Business Rule'unuzda kullanacağınız token. Değiştirmeyin." },
+    { key: "webhookUrl", label: "ServiceNow Webhook URL", type: "url-display", description: "Bu URL'i ServiceNow Outbound REST Message hedefi olarak girin." },
     { key: "instanceUrl", label: "Instance URL", type: "text", placeholder: "https://dev12345.service-now.com" },
     { key: "username", label: "Kullanıcı Adı", type: "text" },
     { key: "apiToken", label: "API Token", type: "password" },
@@ -82,7 +84,8 @@ const SERVICE_FIELDS: Record<string, FieldDef[]> = {
   "observability": [
     { key: "logSources", label: "Log Kaynakları", type: "textarea", placeholder: "nginx, postgresql, kubernetes..." },
     { key: "alertEmail", label: "Uyarı E-posta", type: "text" },
-    { key: "dashboardUrl", label: "Dashboard URL", type: "text" },
+    { key: "dashboardSlug", label: "Dashboard Slug", type: "readonly", autoGenerate: true, description: "Otomatik oluşturulur. Değiştirilemez." },
+    { key: "dashboardUrl", label: "Dashboard URL", type: "url-display", description: "Müşteriye özel observability dashboard'u (salt okunur)." },
   ],
 };
 
@@ -238,7 +241,12 @@ function ServiceCard({ service, customerId, onSaved }: {
                     <Input value={cfg[f.key] ?? ""}
                       onChange={e => setCfg(p => ({ ...p, [f.key]: e.target.value }))}
                       placeholder={f.placeholder}
+                      maxLength={500}
                       className="bg-slate-900 border-slate-600 text-white text-sm" />
+                  )}
+
+                  {f.type === "url-display" && cfg[f.key] && (
+                    <GeneratedUrl label={f.description ?? f.label} url={cfg[f.key]} />
                   )}
 
                   {f.type === "password" && (
@@ -247,6 +255,7 @@ function ServiceCard({ service, customerId, onSaved }: {
                         value={cfg[f.key] ?? ""}
                         onChange={e => setCfg(p => ({ ...p, [f.key]: e.target.value }))}
                         placeholder="••••••••"
+                        maxLength={500}
                         className="bg-slate-900 border-slate-600 text-white text-sm flex-1" />
                       <button onClick={() => setShowPwd(p => ({ ...p, [f.key]: !p[f.key] }))}
                         className="text-slate-500 hover:text-white px-2">
@@ -260,6 +269,7 @@ function ServiceCard({ service, customerId, onSaved }: {
                       onChange={e => setCfg(p => ({ ...p, [f.key]: e.target.value }))}
                       placeholder={f.placeholder}
                       rows={3}
+                      maxLength={2000}
                       className="bg-slate-900 border-slate-600 text-white text-sm" />
                   )}
 

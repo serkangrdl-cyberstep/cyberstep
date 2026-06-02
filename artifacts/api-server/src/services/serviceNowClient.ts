@@ -1306,12 +1306,21 @@ export async function checkServiceNowConnections(): Promise<void> {
             [result.message.slice(0, 500), row.id],
           );
 
-          // Only alert if no alert sent in the past 24 hours
+          // T16a: Only alert after 3 consecutive failures AND no alert in past 24 hours
+          const { rows: recentChecks } = await pool.query<{ ok: boolean }>(
+            `SELECT ok FROM servicenow_conn_check_log
+             WHERE config_id = $1
+             ORDER BY checked_at DESC
+             LIMIT 3`,
+            [row.id],
+          );
+          const threeConsecutiveFails = recentChecks.length >= 3 && recentChecks.every(r => !r.ok);
+
           const alreadyAlerted = row.conn_check_alerted_at
             ? (Date.now() - new Date(row.conn_check_alerted_at).getTime()) < 24 * 60 * 60 * 1000
             : false;
 
-          if (!alreadyAlerted && row.customer_email) {
+          if (threeConsecutiveFails && !alreadyAlerted && row.customer_email) {
             const { sendServiceNowConnectionAlertEmail } = await import("./email");
             await sendServiceNowConnectionAlertEmail({
               to: row.customer_email,
@@ -1327,12 +1336,12 @@ export async function checkServiceNowConnections(): Promise<void> {
 
             logger.warn(
               { configId: row.id, customerId: row.customer_id, error: result.message },
-              "ServiceNow connection broken — customer alerted",
+              "ServiceNow connection broken (3× consecutive) — customer alerted",
             );
           } else {
             logger.warn(
-              { configId: row.id, customerId: row.customer_id, alreadyAlerted },
-              "ServiceNow connection broken — alert suppressed (already sent today)",
+              { configId: row.id, customerId: row.customer_id, consecutiveFails: recentChecks.length, alreadyAlerted },
+              "ServiceNow connection broken — alert suppressed",
             );
           }
         }

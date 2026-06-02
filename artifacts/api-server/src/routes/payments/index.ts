@@ -2,8 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
-import { createPayment, checkPayment } from "../../services/iyzico";
-import { sendMail } from "../../services/email";
+import { createPayment, createPaymentWithStoredCard, checkPayment } from "../../services/iyzico";
+import { sendMail, sendSubscriptionCancellationEmail } from "../../services/email";
 import { requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 
@@ -132,7 +132,14 @@ router.post("/payments/service-checkout", async (req: Request, res: Response) =>
     paidPrice: String(total),
     currency: "TRY",
     installment: 1,
-    paymentCard: { cardHolderName, cardNumber: cardNumber.replace(/\s/g, ""), expireYear, expireMonth, cvc },
+    paymentCard: {
+      cardHolderName,
+      cardNumber: cardNumber.replace(/\s/g, ""),
+      expireYear,
+      expireMonth,
+      cvc,
+      registerCard: 1,
+    },
     buyer: {
       id: email,
       name: firstName,
@@ -186,6 +193,8 @@ router.post("/payments/service-checkout", async (req: Request, res: Response) =>
     iyzicoConversationId: conversationId,
     startedAt: now,
     expiresAt,
+    iyzicoCardUserKey: result.cardUserKey ?? null,
+    iyzicoCardToken: result.cardToken ?? null,
   }).returning();
 
   logger.info({ subscriptionId: subscription?.id, serviceSlug, email }, "Service subscription created");
@@ -316,12 +325,217 @@ router.post("/customer/service-subscriptions/:id/cancel", async (req: Request, r
     return;
   }
 
+  const now = new Date();
   await db.update(customerServiceSubscriptionsTable)
-    .set({ status: "cancelled" })
+    .set({ status: "cancelled", cancelledAt: now })
     .where(eq(customerServiceSubscriptionsTable.id, id));
 
   logger.info({ subId: id, customerId, email }, "Subscription cancelled by customer");
+
+  setImmediate(() => {
+    sendSubscriptionCancellationEmail({
+      email: sub.email,
+      contactName: sub.contactName,
+      companyName: sub.companyName,
+      serviceLabel: sub.serviceLabel,
+      billingCycle: sub.billingCycle,
+      cancelledAt: now,
+      expiresAt: sub.expiresAt ?? null,
+    }).catch(err => logger.warn({ err, subId: id }, "Cancellation email failed"));
+  });
+
   res.json({ success: true });
+});
+
+// POST /api/payments/service-subscriptions/:id/cancel — admin-only: cancel any subscription
+router.post("/payments/service-subscriptions/:id/cancel", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (!id || Number.isNaN(id)) {
+    res.status(400).json({ error: "Geçersiz abonelik ID" });
+    return;
+  }
+
+  const [sub] = await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.id, id));
+  if (!sub) {
+    res.status(404).json({ error: "Abonelik bulunamadı" });
+    return;
+  }
+
+  if (sub.status === "cancelled") {
+    res.status(409).json({ error: "Abonelik zaten iptal edilmiş" });
+    return;
+  }
+
+  const now = new Date();
+  await db.update(customerServiceSubscriptionsTable)
+    .set({ status: "cancelled", cancelledAt: now })
+    .where(eq(customerServiceSubscriptionsTable.id, id));
+
+  logger.info({ subId: id, email: sub.email, serviceSlug: sub.serviceSlug }, "Subscription cancelled by admin");
+
+  setImmediate(() => {
+    sendSubscriptionCancellationEmail({
+      email: sub.email,
+      contactName: sub.contactName,
+      companyName: sub.companyName,
+      serviceLabel: sub.serviceLabel,
+      billingCycle: sub.billingCycle,
+      cancelledAt: now,
+      expiresAt: sub.expiresAt ?? null,
+    }).catch(err => logger.warn({ err, subId: id }, "Admin cancellation email failed"));
+  });
+
+  res.json({ success: true, cancelledAt: now });
+});
+
+// POST /api/payments/service-subscriptions/:id/renew — admin-only: renew a subscription
+// Two modes:
+//   1. Stored card: body is empty (or { mode: "stored" }) — uses iyzico_card_user_key + iyzico_card_token
+//   2. New card:    body contains { cardHolderName, cardNumber, expireMonth, expireYear, cvc, ip? }
+router.post("/payments/service-subscriptions/:id/renew", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (!id || Number.isNaN(id)) {
+    res.status(400).json({ error: "Geçersiz abonelik ID" });
+    return;
+  }
+
+  const [sub] = await db.select().from(customerServiceSubscriptionsTable).where(eq(customerServiceSubscriptionsTable.id, id));
+  if (!sub) {
+    res.status(404).json({ error: "Abonelik bulunamadı" });
+    return;
+  }
+
+  const { cardHolderName, cardNumber, expireMonth, expireYear, cvc, ip } = req.body as {
+    cardHolderName?: string;
+    cardNumber?: string;
+    expireMonth?: string;
+    expireYear?: string;
+    cvc?: string;
+    ip?: string;
+  };
+
+  const useStoredCard = !!(sub.iyzicoCardUserKey && sub.iyzicoCardToken && !cardNumber);
+  const useNewCard = !!(cardNumber && cardHolderName && expireMonth && expireYear && cvc);
+
+  if (!useStoredCard && !useNewCard) {
+    res.status(400).json({
+      error: "Kart bilgileri gerekli",
+      hasStoredCard: !!(sub.iyzicoCardUserKey && sub.iyzicoCardToken),
+    });
+    return;
+  }
+
+  const service = { slug: sub.serviceSlug, label: sub.serviceLabel };
+  const monthlyTl = await db.select({ monthlyPriceTl: serviceCatalogTable.monthlyPriceTl })
+    .from(serviceCatalogTable)
+    .where(eq(serviceCatalogTable.slug, sub.serviceSlug))
+    .then(rows => Number(rows[0]?.monthlyPriceTl ?? 0));
+
+  const billingCycle = sub.billingCycle as "monthly" | "annual";
+  const { base, kdv, total } = calcPrices(monthlyTl || Number(sub.amountPaid) / 1.2, billingCycle);
+  const conversationId = `renew-${id}-${Date.now()}`;
+
+  const nameParts = sub.contactName.trim().split(" ");
+  const firstName = nameParts[0] ?? sub.contactName;
+  const lastName = nameParts.slice(1).join(" ") || "-";
+
+  const buyerInfo = {
+    id: sub.email,
+    name: firstName,
+    surname: lastName,
+    email: sub.email,
+    identityNumber: "11111111111",
+    registrationAddress: "Türkiye",
+    city: "İstanbul",
+    country: "Turkey",
+    ip: ip ?? "127.0.0.1",
+  };
+  const addrInfo = { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName: sub.contactName };
+  const basketItems = [{ id: service.slug, name: service.label, category1: "Siber Güvenlik Hizmetleri", itemType: "VIRTUAL", price: String(base) }];
+
+  let paymentResult: { success: boolean; paymentId?: string; errorMessage?: string; cardUserKey?: string; cardToken?: string };
+
+  if (useStoredCard) {
+    const storedResult = await createPaymentWithStoredCard({
+      price: String(base),
+      paidPrice: String(total),
+      currency: "TRY",
+      installment: 1,
+      paymentCard: { cardUserKey: sub.iyzicoCardUserKey!, cardToken: sub.iyzicoCardToken! },
+      buyer: buyerInfo,
+      shippingAddress: addrInfo,
+      billingAddress: addrInfo,
+      basketItems,
+      conversationId,
+    });
+    paymentResult = storedResult;
+  } else {
+    const newCardResult = await createPayment({
+      price: String(base),
+      paidPrice: String(total),
+      currency: "TRY",
+      installment: 1,
+      paymentCard: {
+        cardHolderName: cardHolderName!,
+        cardNumber: cardNumber!.replace(/\s/g, ""),
+        expireYear: expireYear!,
+        expireMonth: expireMonth!,
+        cvc: cvc!,
+        registerCard: 1,
+        cardUserKey: sub.iyzicoCardUserKey ?? undefined,
+      },
+      buyer: buyerInfo,
+      shippingAddress: addrInfo,
+      billingAddress: addrInfo,
+      basketItems,
+      conversationId,
+    });
+    paymentResult = newCardResult;
+  }
+
+  if (!paymentResult.success) {
+    logger.warn({ error: paymentResult.errorMessage, subId: id }, "Renewal payment failed");
+    res.status(402).json({ success: false, error: paymentResult.errorMessage ?? "Ödeme başarısız" });
+    return;
+  }
+
+  const now = new Date();
+  const baseDate = sub.expiresAt && sub.expiresAt > now ? sub.expiresAt : now;
+  const newExpiresAt = billingCycle === "annual"
+    ? new Date(baseDate.getFullYear() + 1, baseDate.getMonth(), baseDate.getDate())
+    : new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, baseDate.getDate());
+
+  await db.update(customerServiceSubscriptionsTable)
+    .set({
+      status: "active",
+      cancelledAt: null,
+      expiresAt: newExpiresAt,
+      amountPaid: String(total),
+      paymentRef: paymentResult.paymentId ?? sub.paymentRef,
+      iyzicoConversationId: conversationId,
+      ...(paymentResult.cardUserKey ? { iyzicoCardUserKey: paymentResult.cardUserKey } : {}),
+      ...(paymentResult.cardToken ? { iyzicoCardToken: paymentResult.cardToken } : {}),
+    })
+    .where(eq(customerServiceSubscriptionsTable.id, id));
+
+  logger.info({ subId: id, email: sub.email, newExpiresAt, useStoredCard }, "Subscription renewed");
+
+  setImmediate(() => {
+    sendReceiptEmail({
+      email: sub.email,
+      contactName: sub.contactName,
+      companyName: sub.companyName,
+      serviceLabel: sub.serviceLabel,
+      billingCycle: sub.billingCycle,
+      amountPaid: base,
+      kdv,
+      total,
+      expiresAt: newExpiresAt,
+      paymentRef: paymentResult.paymentId,
+    }).catch(err => logger.warn({ err, subId: id }, "Renewal receipt email failed"));
+  });
+
+  res.json({ success: true, newExpiresAt, subscriptionId: id });
 });
 
 // GET /api/payments/service-subscriptions — admin-only: query subscriptions by email or customerId

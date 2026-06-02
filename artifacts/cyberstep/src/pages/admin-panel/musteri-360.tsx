@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag } from "lucide-react";
+import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag, Ban } from "lucide-react";
 
 interface ServiceSubscription {
   id: number;
@@ -27,6 +27,9 @@ interface ServiceSubscription {
   paymentRef: string | null;
   startedAt: string;
   expiresAt: string | null;
+  cancelledAt: string | null;
+  iyzicoCardUserKey: string | null;
+  iyzicoCardToken: string | null;
   createdAt: string;
 }
 
@@ -73,6 +76,9 @@ export default function Musteri360() {
     queryFn: () => fetch(`/api/payments/service-subscriptions?email=${encodeURIComponent(customer!.email)}`, { credentials: "include" }).then(r => r.json()),
     enabled: !!customer?.email,
   });
+  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
+  const [renewSubId, setRenewSubId] = useState<number | null>(null);
+  const [renewCard, setRenewCard] = useState({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
 
   const save = useMutation({
     mutationFn: () => fetch(`/api/crm/customers/${id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(edits) }).then(r => r.json()),
@@ -101,6 +107,23 @@ export default function Musteri360() {
   const sendNps = useMutation({
     mutationFn: () => fetch("/api/crm/nps/send", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: Number(id) }) }).then(r => r.json()),
     onSuccess: () => toast({ title: "NPS anketi gönderildi" }),
+  });
+  const cancelSubscription = useMutation({
+    mutationFn: (subId: number) => fetch(`/api/payments/service-subscriptions/${subId}/cancel`, { method: "POST", credentials: "include" }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "İptal başarısız"); return d; }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/payments/service-subscriptions", customer?.email] }); setCancelConfirmId(null); toast({ title: "Abonelik iptal edildi", description: "İptal onay e-postası müşteriye gönderildi." }); },
+    onError: (err: Error) => { toast({ title: "Hata", description: err.message, variant: "destructive" }); },
+  });
+  const renewSubscription = useMutation({
+    mutationFn: ({ subId, body }: { subId: number; body: Record<string, string> }) =>
+      fetch(`/api/payments/service-subscriptions/${subId}/renew`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "Yenileme başarısız"); return d; }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/payments/service-subscriptions", customer?.email] });
+      setRenewSubId(null);
+      setRenewCard({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
+      toast({ title: "Abonelik yenilendi", description: "Yenileme makbuzu müşteriye e-posta ile gönderildi." });
+    },
+    onError: (err: Error) => { toast({ title: "Ödeme Hatası", description: err.message, variant: "destructive" }); },
   });
 
   if (isLoading) return <AdminLayout title="Müşteri 360"><div className="text-slate-400 text-center py-20">Yükleniyor...</div></AdminLayout>;
@@ -341,6 +364,7 @@ export default function Musteri360() {
                     const statusLabels: Record<string, string> = {
                       active: "Aktif", cancelled: "İptal", trial: "Deneme", expired: "Süresi Doldu"
                     };
+                    const isConfirming = cancelConfirmId === sub.id;
                     return (
                       <div key={sub.id} className="p-4 flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -356,17 +380,71 @@ export default function Musteri360() {
                                 Bitiş: {fmtDate(sub.expiresAt)}
                               </span>
                             )}
+                            {sub.cancelledAt && (
+                              <span className="text-xs text-red-400">İptal: {fmtDate(sub.cancelledAt)}</span>
+                            )}
                           </div>
                           {sub.paymentRef && (
                             <p className="text-slate-600 text-xs mt-0.5 font-mono">Ref: {sub.paymentRef}</p>
                           )}
                         </div>
-                        <div className="text-right shrink-0">
+                        <div className="text-right shrink-0 flex flex-col items-end gap-2">
                           {sub.amountPaid && (
                             <p className="text-cyan-400 font-semibold text-sm">₺{Number(sub.amountPaid).toLocaleString("tr-TR")}</p>
                           )}
                           {isActive && !isExpired ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400 ml-auto mt-1" />
+                            isConfirming ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-red-400">Emin misiniz?</span>
+                                <Button size="sm" variant="destructive" className="h-6 text-xs px-2" disabled={cancelSubscription.isPending} onClick={() => cancelSubscription.mutate(sub.id)}>
+                                  {cancelSubscription.isPending ? "..." : "Evet, İptal Et"}
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-6 text-xs px-2 border-slate-700 text-slate-300" onClick={() => setCancelConfirmId(null)}>Vazgeç</Button>
+                              </div>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-6 text-xs px-2 border-red-500/40 text-red-400 hover:bg-red-500/10" onClick={() => setCancelConfirmId(sub.id)}>
+                                <Ban className="h-3 w-3 mr-1" />İptal Et
+                              </Button>
+                            )
+                          ) : (sub.status === "cancelled" || isExpired) ? (
+                            renewSubId === sub.id ? (
+                              <div className="mt-2 p-3 bg-slate-800 rounded-lg border border-slate-700 text-left w-64">
+                                <p className="text-xs text-slate-400 font-semibold mb-2">Yenileme Ödemesi</p>
+                                {sub.iyzicoCardUserKey && sub.iyzicoCardToken ? (
+                                  <div className="space-y-2">
+                                    <p className="text-xs text-emerald-400">Kayıtlı kart ile hızlı yenileme yapılabilir.</p>
+                                    <div className="flex gap-1.5">
+                                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs flex-1" disabled={renewSubscription.isPending} onClick={() => renewSubscription.mutate({ subId: sub.id, body: {} })}>
+                                        {renewSubscription.isPending ? "..." : "Kayıtlı Kartla Yenile"}
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-7 text-xs border-slate-600 text-slate-400" onClick={() => setRenewSubId(null)}>X</Button>
+                                    </div>
+                                    <p className="text-xs text-slate-500">veya yeni kart bilgisi girin:</p>
+                                  </div>
+                                ) : null}
+                                <div className="space-y-1.5 mt-1">
+                                  <Input placeholder="Kart üzerindeki isim" className="bg-slate-900 border-slate-600 h-7 text-xs text-white" value={renewCard.cardHolderName} onChange={e => setRenewCard(p => ({ ...p, cardHolderName: e.target.value }))} />
+                                  <Input placeholder="Kart numarası" className="bg-slate-900 border-slate-600 h-7 text-xs text-white" value={renewCard.cardNumber} onChange={e => setRenewCard(p => ({ ...p, cardNumber: e.target.value }))} />
+                                  <div className="flex gap-1">
+                                    <Input placeholder="AA" className="bg-slate-900 border-slate-600 h-7 text-xs text-white w-14" value={renewCard.expireMonth} onChange={e => setRenewCard(p => ({ ...p, expireMonth: e.target.value }))} />
+                                    <Input placeholder="YYYY" className="bg-slate-900 border-slate-600 h-7 text-xs text-white w-20" value={renewCard.expireYear} onChange={e => setRenewCard(p => ({ ...p, expireYear: e.target.value }))} />
+                                    <Input placeholder="CVV" className="bg-slate-900 border-slate-600 h-7 text-xs text-white w-16" value={renewCard.cvc} onChange={e => setRenewCard(p => ({ ...p, cvc: e.target.value }))} />
+                                  </div>
+                                  <div className="flex gap-1.5">
+                                    <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700 h-7 text-xs flex-1"
+                                      disabled={renewSubscription.isPending || !renewCard.cardNumber || !renewCard.cardHolderName || !renewCard.expireMonth || !renewCard.expireYear || !renewCard.cvc}
+                                      onClick={() => renewSubscription.mutate({ subId: sub.id, body: renewCard })}>
+                                      {renewSubscription.isPending ? "..." : "Yeni Kartla Yenile"}
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs border-slate-600 text-slate-400" onClick={() => setRenewSubId(null)}>X</Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-6 text-xs px-2 border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10" onClick={() => { setRenewSubId(sub.id); setCancelConfirmId(null); }}>
+                                Yenile
+                              </Button>
+                            )
                           ) : null}
                         </div>
                       </div>

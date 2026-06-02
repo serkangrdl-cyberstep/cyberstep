@@ -19,6 +19,9 @@ export const customerServiceSubscriptionsTable = pgTable("customer_service_subsc
   iyzicoConversationId: text("iyzico_conversation_id"),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  iyzicoCardUserKey: text("iyzico_card_user_key"),
+  iyzicoCardToken: text("iyzico_card_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

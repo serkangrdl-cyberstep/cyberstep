@@ -37,6 +37,8 @@ export interface IyzicoPaymentRequest {
     expireYear: string;
     expireMonth: string;
     cvc: string;
+    registerCard?: number;
+    cardUserKey?: string;
   };
   buyer: {
     id: string;
@@ -71,7 +73,87 @@ export interface IyzicoPaymentRequest {
   conversationId: string;
 }
 
-export async function createPayment(req: IyzicoPaymentRequest): Promise<{ success: boolean; paymentId?: string; errorMessage?: string; conversationId: string }> {
+export interface IyzicoStoredCardRequest {
+  price: string;
+  paidPrice: string;
+  currency: string;
+  installment: number;
+  paymentCard: {
+    cardUserKey: string;
+    cardToken: string;
+  };
+  buyer: {
+    id: string;
+    name: string;
+    surname: string;
+    email: string;
+    identityNumber: string;
+    registrationAddress: string;
+    city: string;
+    country: string;
+    ip: string;
+  };
+  shippingAddress: { address: string; city: string; country: string; contactName: string };
+  billingAddress: { address: string; city: string; country: string; contactName: string };
+  basketItems: Array<{ id: string; name: string; category1: string; itemType: string; price: string }>;
+  conversationId: string;
+}
+
+export async function createPayment(req: IyzicoPaymentRequest): Promise<{
+  success: boolean;
+  paymentId?: string;
+  errorMessage?: string;
+  conversationId: string;
+  cardUserKey?: string;
+  cardToken?: string;
+}> {
+  const { apiKey, secretKey } = getCredentials();
+  if (!apiKey || !secretKey) {
+    return { success: false, errorMessage: "İyzico API anahtarları yapılandırılmamış", conversationId: req.conversationId };
+  }
+
+  const randomStr = randomBytes(8).toString("hex");
+  const body = JSON.stringify({ ...req, locale: "tr" });
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/payment/auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": generateAuthString(apiKey, secretKey, randomStr, body),
+        "x-iyzi-rnd": randomStr,
+        "x-iyzi-client-version": "iyzipay-node-2.0.50",
+      },
+      body,
+    });
+
+    const data = await response.json() as {
+      status: string;
+      paymentId?: string;
+      errorMessage?: string;
+      conversationId: string;
+      cardUserKey?: string;
+      cardDetails?: { cardUserKey?: string; cardToken?: string } | null;
+    };
+
+    if (data.status === "success") {
+      const cardUserKey = data.cardUserKey ?? data.cardDetails?.cardUserKey;
+      const cardToken = data.cardDetails?.cardToken;
+      return { success: true, paymentId: data.paymentId, conversationId: data.conversationId, cardUserKey, cardToken };
+    }
+    return { success: false, errorMessage: data.errorMessage ?? "Ödeme başarısız", conversationId: data.conversationId };
+  } catch (err) {
+    logger.error({ err }, "Iyzico payment error");
+    return { success: false, errorMessage: "Ödeme servisi ile bağlantı kurulamadı", conversationId: req.conversationId };
+  }
+}
+
+export async function createPaymentWithStoredCard(req: IyzicoStoredCardRequest): Promise<{
+  success: boolean;
+  paymentId?: string;
+  errorMessage?: string;
+  conversationId: string;
+}> {
   const { apiKey, secretKey } = getCredentials();
   if (!apiKey || !secretKey) {
     return { success: false, errorMessage: "İyzico API anahtarları yapılandırılmamış", conversationId: req.conversationId };
@@ -97,9 +179,9 @@ export async function createPayment(req: IyzicoPaymentRequest): Promise<{ succes
     if (data.status === "success") {
       return { success: true, paymentId: data.paymentId, conversationId: data.conversationId };
     }
-    return { success: false, errorMessage: data.errorMessage ?? "Ödeme başarısız", conversationId: data.conversationId };
+    return { success: false, errorMessage: data.errorMessage ?? "Ödeme başarısız (kayıtlı kart)", conversationId: data.conversationId };
   } catch (err) {
-    logger.error({ err }, "Iyzico payment error");
+    logger.error({ err }, "Iyzico stored-card payment error");
     return { success: false, errorMessage: "Ödeme servisi ile bağlantı kurulamadı", conversationId: req.conversationId };
   }
 }

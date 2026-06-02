@@ -1433,3 +1433,65 @@ export async function sendServiceNowConnectionAlertEmail(params: {
   });
   logger.info({ to: params.to }, "ServiceNow connection alert email sent");
 }
+
+export async function sendSubscriptionCancellationEmail(params: {
+  email: string;
+  contactName: string;
+  companyName: string;
+  serviceLabel: string;
+  billingCycle: string;
+  cancelledAt: Date;
+  expiresAt: Date | null;
+}): Promise<void> {
+  const cycleLabel = params.billingCycle === "annual" ? "Yıllık" : "Aylık";
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;background:#f4f7fb;padding:32px">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <h2 style="color:#dc2626;margin-top:0">Abonelik İptal Onayı</h2>
+  <p>Sayın <strong>${params.contactName}</strong>,</p>
+  <p><strong>${params.serviceLabel}</strong> aboneliğiniz başarıyla iptal edildi.</p>
+  <table style="width:100%;border-collapse:collapse;margin:24px 0">
+    <tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 0;color:#64748b">Şirket</td>
+      <td style="padding:8px 0;text-align:right;font-weight:600">${params.companyName || "-"}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 0;color:#64748b">Servis</td>
+      <td style="padding:8px 0;text-align:right;font-weight:600">${params.serviceLabel}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 0;color:#64748b">Fatura Dönemi</td>
+      <td style="padding:8px 0;text-align:right">${cycleLabel}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 0;color:#64748b">İptal Tarihi</td>
+      <td style="padding:8px 0;text-align:right">${params.cancelledAt.toLocaleDateString("tr-TR")}</td>
+    </tr>
+    ${params.expiresAt ? `
+    <tr>
+      <td style="padding:8px 0;color:#64748b">Erişim Bitiş Tarihi</td>
+      <td style="padding:8px 0;text-align:right">${params.expiresAt.toLocaleDateString("tr-TR")}</td>
+    </tr>` : ""}
+  </table>
+  ${params.expiresAt && params.expiresAt > params.cancelledAt ? `
+  <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px">
+    <p style="margin:0;font-size:13px;color:#1e40af">
+      Aboneliğiniz iptal edildi ancak <strong>${params.expiresAt.toLocaleDateString("tr-TR")}</strong> tarihine kadar hizmetlerinize erişiminiz devam eder.
+    </p>
+  </div>` : ""}
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+  <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu</p>
+</div>
+</body>
+</html>`;
+
+  await sendMail({
+    to: params.email,
+    subject: `Abonelik İptal Onayı: ${params.serviceLabel}`,
+    html,
+  });
+}

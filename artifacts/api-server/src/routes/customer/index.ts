@@ -12,6 +12,7 @@ import { requireCustomer, requireAdmin, getCustomerId } from "../../middleware/a
 import { customersTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import { encryptSecret, decryptSecret, encryptionAvailable } from "../../services/fabric-crypto";
+import { sendServiceConfigCustomerEmail, sendServiceConfigAdminEmail } from "../../services/email";
 
 const router = Router();
 
@@ -457,6 +458,68 @@ router.post(
 
     logger.info({ customerId, slug, stepsMarked: stepKeys }, "customer/service-config: config saved");
     res.json({ ok: true });
+
+    // Fire-and-forget: send notification emails to customer and admin
+    setImmediate(async () => {
+      try {
+        const [customer] = await db
+          .select({ email: customersTable.email, fullName: customersTable.fullName, companyName: customersTable.companyName })
+          .from(customersTable)
+          .where(eq(customersTable.id, customerId))
+          .limit(1);
+
+        const [service] = await db
+          .select({ label: serviceCatalogTable.label })
+          .from(serviceCatalogTable)
+          .where(eq(serviceCatalogTable.slug, slug))
+          .limit(1);
+
+        if (!customer) return;
+
+        const serviceLabel = service?.label ?? slug;
+        const companyName = customer.companyName ?? customer.fullName;
+
+        // Build human-readable field list for customer email (non-empty fields)
+        const filledFields = Object.entries(config)
+          .filter(([, v]) => v !== null && v !== undefined && v !== "" && v !== "****")
+          .map(([k]) => k);
+
+        // Build masked fields list for admin email
+        const maskedFields = Object.entries(config)
+          .filter(([, v]) => v !== null && v !== undefined && v !== "" && v !== "****")
+          .map(([k, v]) => ({
+            key: k,
+            masked: isSecretField(k)
+              ? "****"
+              : String(v).length > 60
+              ? String(v).slice(0, 57) + "..."
+              : String(v),
+          }));
+
+        const adminEmail = process.env["SOC_ADMIN_EMAIL"] ?? "serkangrdl@gmail.com";
+
+        await Promise.allSettled([
+          sendServiceConfigCustomerEmail({
+            customerEmail: customer.email,
+            fullName: customer.fullName,
+            companyName,
+            serviceLabel,
+            filledFields,
+          }),
+          sendServiceConfigAdminEmail({
+            adminEmail,
+            customerEmail: customer.email,
+            fullName: customer.fullName,
+            companyName,
+            serviceLabel,
+            serviceSlug: slug,
+            maskedFields,
+          }),
+        ]);
+      } catch (err) {
+        logger.error({ err, customerId, slug }, "service-config: notification emails failed");
+      }
+    });
   }
 );
 

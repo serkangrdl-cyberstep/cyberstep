@@ -1555,3 +1555,152 @@ export async function sendSubscriptionExpiryReminder(params: {
     html,
   });
 }
+
+export async function sendServiceConfigCustomerEmail(params: {
+  customerEmail: string;
+  fullName: string;
+  companyName: string;
+  serviceLabel: string;
+  filledFields: string[];
+}): Promise<void> {
+  const base = getBaseUrl();
+
+  const fieldRows = params.filledFields
+    .map(
+      (f) =>
+        `<tr><td style="padding:6px 10px;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9">${f}</td>
+         <td style="padding:6px 10px;text-align:right"><span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">Alindi</span></td></tr>`
+    )
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px">
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+    </div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Yapılandırmanız Alındı</h2>
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6">
+        Sayın <strong>${params.fullName}</strong>, <strong>${params.serviceLabel}</strong> servisi için
+        yapılandırma bilgileriniz başarıyla kaydedildi. Ekibimiz aktivasyon için hazırlıklara başlayacak.
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:24px">
+        <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#0f172a">Iletilen Alanlar</p>
+        <table style="width:100%;border-collapse:collapse">
+          ${fieldRows}
+        </table>
+      </div>
+
+      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#1d4ed8">Sonraki Adımlar</p>
+        <ul style="margin:0;padding-left:18px;font-size:13px;color:#1e40af;line-height:1.8">
+          <li>Uzman ekibimiz yapılandırmanızı inceleyecek</li>
+          <li>Aktivasyon tamamlandığında size bildirim gönderilecek</li>
+          <li>Kurulum sürecinde ek bilgi gerekirse sizi arayacağız</li>
+        </ul>
+      </div>
+
+      <a href="${base}/hesabim/servislerim"
+         style="display:block;background:#10b981;color:#fff;text-align:center;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:16px">
+        Servislerimi Görüntüle
+      </a>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6">
+        Sorularınız için <a href="mailto:${process.env["SMTP_USER"]}" style="color:#10b981">${process.env["SMTP_USER"]}</a> adresine yazabilirsiniz.
+      </p>
+    </div>
+    <div style="background:#f8fafc;padding:14px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">CyberStep.io — ${params.companyName}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    await sendMail({
+      to: params.customerEmail,
+      subject: `Yapılandırma Alındı: ${params.serviceLabel}`,
+      html,
+    });
+    logger.info({ customerEmail: params.customerEmail, serviceLabel: params.serviceLabel }, "Service config customer confirmation email sent");
+  } catch (err) {
+    logger.error({ err, customerEmail: params.customerEmail }, "Failed to send service config customer email");
+  }
+}
+
+export async function sendServiceConfigAdminEmail(params: {
+  adminEmail: string;
+  customerEmail: string;
+  fullName: string;
+  companyName: string;
+  serviceLabel: string;
+  serviceSlug: string;
+  maskedFields: Array<{ key: string; masked: string }>;
+}): Promise<void> {
+  const base = getBaseUrl();
+
+  const fieldRows = params.maskedFields
+    .map(
+      (f) =>
+        `<tr>
+          <td style="padding:7px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;width:180px;font-weight:600">${f.key}</td>
+          <td style="padding:7px 10px;font-size:12px;color:#334155;border-bottom:1px solid #f1f5f9;font-family:monospace">${f.masked}</td>
+         </tr>`
+    )
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:640px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span>
+      <span style="background:#1e293b;color:#94a3b8;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">Admin Bildirimi</span>
+    </div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 4px;font-size:18px;color:#0f172a">Yeni Servis Yapılandırması</h2>
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px">Bir müşteri servis yapılandırmasını kaydetti. Aktivasyon için hazırlık gerekiyor.</p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:18px;margin-bottom:20px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:130px">Müşteri</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">${params.fullName}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Şirket</td><td style="padding:6px 0;color:#0f172a;font-size:13px">${params.companyName}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">E-posta</td><td style="padding:6px 0;color:#0f172a;font-size:13px">${params.customerEmail}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Servis</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">${params.serviceLabel}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-size:13px">Slug</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-family:monospace">${params.serviceSlug}</td></tr>
+        </table>
+      </div>
+
+      <h3 style="margin:0 0 10px;font-size:14px;color:#0f172a;border-bottom:2px solid #10b981;padding-bottom:6px">Iletilen Yapılandırma Alanları (Gizli Degerler Maskeli)</h3>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        ${fieldRows}
+      </table>
+
+      <a href="${base}/panel/musteri-servisleri"
+         style="display:block;background:#10b981;color:#fff;text-align:center;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
+        Admin Panelinde Görüntüle
+      </a>
+    </div>
+    <div style="background:#f8fafc;padding:14px 32px;border-top:1px solid #e2e8f0">
+      <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">CyberStep.io — Servis Aktivasyon Bildirimi</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    await sendMail({
+      to: params.adminEmail,
+      subject: `[CyberStep] Yeni Yapılandırma: ${params.serviceLabel} — ${params.companyName}`,
+      html,
+    });
+    logger.info({ adminEmail: params.adminEmail, serviceSlug: params.serviceSlug, customerEmail: params.customerEmail }, "Service config admin notification email sent");
+  } catch (err) {
+    logger.error({ err, serviceSlug: params.serviceSlug }, "Failed to send service config admin notification email");
+  }
+}

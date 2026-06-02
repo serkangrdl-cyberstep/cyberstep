@@ -108,11 +108,12 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
     throw new Error(`Shodan plan bilgisi alınamadı: ${String(planErr)}`);
   }
 
-  const freeOnlyPlans = new Set(["oss", "dev", "free"]);
-  if (freeOnlyPlans.has(planInfo.plan.toLowerCase())) {
+  // "oss" = Shodan ücretsiz/açık kaynak planı (Search API yok)
+  // "dev" = Shodan Developer ücretli planı (Search API var) — buraya dahil ETMEYİN
+  if (planInfo.plan.toLowerCase() === "oss") {
     logger.warn(
       { plan: planInfo.plan },
-      "Shodan ücretsiz plan — Search API kullanılamıyor, tarama atlanıyor. " +
+      "Shodan OSS (ücretsiz) plan — Search API kullanılamıyor, tarama atlanıyor. " +
       "account.shodan.io → Upgrade Plan ile ücretli plana geçin.",
     );
     return { runId: 0, label: qConfig.label, totalOnShodan: 0, processed: 0, addedToLeads: 0 };

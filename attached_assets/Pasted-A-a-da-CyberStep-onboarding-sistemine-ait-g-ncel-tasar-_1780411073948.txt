@@ -1,0 +1,125 @@
+Aşağıda CyberStep onboarding sistemine ait güncel tasarım belgesi ve 
+tespit edilen sorunların listesi yer almaktadır. Lütfen her maddeyi 
+sırayla ele alarak gerekli düzeltme ve eklemeleri yap.
+
+---
+
+### DÜZELTME LİSTESİ
+
+**1. Fortinet Fabric — kim girer çelişkisini çöz**
+Müşteri sayfasındaki "FortiManager URL & credentials gir" adımını kaldır. 
+Bu bilgiler yalnızca admin panelinden girilir. Müşteri adımını şu şekilde 
+güncelle: "FortiManager bağlantısını doğrula ve test et (CyberStep sizin 
+adınıza yapılandıracak, siz onaylayacaksınız)."
+
+**2. NOC için onboarding checklist ekle**
+Aşağıdaki adımları NOC servisine ekle:
+- SNMP Trap Bağlantısı Test Edildi (admin, side: "admin")
+- İzlenecek Cihaz Listesi Onaylandı (admin, side: "admin")
+- Baseline Dönemi Başlatıldı — {baseline_period} günlük referans başladı 
+  (admin, side: "admin")
+- NetFlow Veri Akışı Doğrulandı — aktifse (admin, side: "admin")
+- Uyarı E-postası Test Bildirimi Gönderildi (admin, side: "admin")
+
+**3. SNMP v3 koşullu alan ekle**
+NOC provizyon formuna şu koşullu alanları ekle: SNMP Sürümü = v3 
+seçildiğinde görünür hale gelsin:
+- Auth Protocol (MD5 / SHA seçimi)
+- Auth Password (şifreli alan)
+- Priv Protocol (DES / AES seçimi)  
+- Priv Password (şifreli alan)
+
+**4. Self-servis satın alma akışını belgele ve uygula**
+customer_service_subscriptions üzerinden satın alma tamamlandığında:
+a) Otomatik provizyon başlatılıyorsa: hangi alanlar varsayılan değerle 
+   dolu gelecek, hangileri admin doldurmalı — bunu belirt
+b) Admin müdahalesi gerekiyorsa: admin'e görev bildirimi gönder ve 
+   /panel/musteriler/:id/provizyon sayfasını "bekleyen" olarak işaretle
+c) Müşteriye "Satın alma alındı, ekibimiz yapılandırmayı başlatacak" 
+   e-postası gönder
+
+**5. Onboarding tamamlanma e-postasını uygula**
+Tüm customer_service onboarding adımları done = true olduğunda:
+- Müşteriye şu bilgileri içeren e-posta gönder:
+  - Aktif olan servis adı
+  - Üretilen URL/token bilgileri (varsa)
+  - /hesabim/kurulum linki
+  - Sorumlu analist adı (SOC varsa)
+- E-postanın gönderildiğini onboarding log'una kaydet
+
+**6. Onboarding tamamlanma tetikleyicisini netleştir**
+Şu kuralı uygula: Bir servise ait tüm admin ve müşteri adımları 
+done = true olduğunda:
+a) customer_services.status = 'active' olarak güncelle
+b) activated_at timestamp'ini kaydet
+c) Müşteri /hesabim/kurulum sayfasında "Aktif" rozetini göster
+d) Dashboard/servis sayfasına yönlendiren butonu aktif hale getir
+
+**7. SOC eskalasyon bilgisi için tek kaynak belirle**
+Eskalasyon kişilerini yalnızca admin panelinden (JSON textarea) girilsin. 
+Müşteri adımındaki "Eskalasyon tercihlerini ayarla" adımını şu şekilde 
+değiştir: "Eskalasyon kişilerinizi CyberStep ekibiyle paylaşın 
+(e-posta/telefon yeterli)" — müşteri sisteme giriş yapmadan da 
+paylaşabilmeli. Bu bilgi admin tarafından sisteme işlenir.
+
+**8. MS365 OAuth sonrası otomatik checklist güncellemesi**
+OAuth callback başarılı olduğunda:
+a) "Azure AD OAuth Tamamlandı" admin checklist adımını otomatik olarak 
+   done = true yap ve completed_at = now(), completed_by = "system" yaz
+b) Admin'e bildirim gönder: "Müşteri X, M365 OAuth bağlantısını tamamladı"
+c) Başarısız olursa: müşteri sayfasında hata mesajı göster ve 
+   tekrar dene butonu sun
+
+**9. Observability Dashboard URL'ini otomatik üret**
+"Dashboard URL" alanını admin girişinden çıkar. Bunun yerine:
+a) Observability servisi aktive edildiğinde sistem otomatik 
+   /dashboard/{customer_slug} URL'i üretsin
+b) Bu URL provizyon ekranında "Otomatik üretildi" etiketi ile 
+   read-only gösterilsin
+c) Müşteri /hesabim/kurulum sayfasında kopyala butonu ile sunulsun
+
+**10. ServiceNow webhook URL üretimi ve paylaşımını ekle**
+a) ServiceNow servisi kaydedildiğinde sistem otomatik olarak 
+   https://app.cyberstep.io/webhook/servicenow/{customer_token} 
+   formatında webhook URL üretsin
+b) Bu URL admin provizyon ekranında kopyala butonu ile gösterilsin
+c) Admin onboarding checklist'teki "Webhook URL Yapılandırıldı" adımına 
+   bu URL'i ekle: admin, URL'i ServiceNow'a girer ve adımı tamamlar
+d) Müşteri adımlarına ekle: "ServiceNow'da Outbound REST Message 
+   webhook kaydını doğrula"
+
+**11. Token/URL e-posta ile de ilet**
+Syslog endpoint URL, SNMP trap URL, webhook URL gibi üretilen değerleri:
+a) Üretildiği anda admin'e e-posta ile gönder
+b) Onboarding tamamlanma e-postasına müşteri için de ekle
+c) /hesabim/kurulum sayfasındaki kopyala butonunun yanına 
+   "E-posta ile gönder" butonu ekle
+
+**12. Adım bağımlılığı (dependency) tanımla**
+Aşağıdaki checklist adımları için önceki adım tamamlanmadan 
+sonraki adım tamamlanamaz kuralı uygula:
+- Fortinet: "API Erişim Testi" → "İlk Cihaz Bağlantısı" → "Alert Eşikleri"
+- ServiceNow: "Webhook URL Yapılandırıldı" → "İlk Test Olayı Gönderildi"
+- DNS: "Alan Adları Listesi Girildi" → "İlk Tarama Tamamlandı"
+UI'da kilitli adımlar soluk (disabled) gösterilsin, tooltip ile 
+"Önceki adımı tamamlayın" açıklaması çıksın.
+
+**13. Bağlantı hatası / rollback durumu**
+Her "Test Et" veya "Bağlantıyı Doğrula" adımı için:
+a) Başarısız sonuçta adım failed = true olarak işaretlensin
+b) Admin panelinde kırmızı uyarı + hata mesajı gösterilsin  
+c) Müşteri sayfasında "Yapılandırma devam ediyor, sorun yaşanıyor" 
+   sarı banner çıksın
+d) Otomatik retry: 3 deneme → başarısız → admin'e uyarı e-postası
+
+**14. Audit trail tablo yapısı**
+onboarding_logs tablosuna şu alanların kaydedildiğini doğrula / ekle:
+- id, customer_service_id, step_key (string), 
+  completed_at (timestamp), completed_by (user_id veya "system"), 
+  failed_at (timestamp nullable), failure_reason (text nullable),
+  retry_count (int default 0)
+
+---
+
+Yukarıdaki düzeltmeleri uyguladıktan sonra her madde için kısa 
+bir "Tamamlandı: [ne yapıldı]" özeti yaz.

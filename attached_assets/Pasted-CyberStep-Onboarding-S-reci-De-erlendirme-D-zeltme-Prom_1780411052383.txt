@@ -1,0 +1,36 @@
+CyberStep Onboarding Süreci — Değerlendirme & Düzeltme Promptu
+1. Tespit Edilen Eksikler ve Çelişkiler
+🔴 Kritik Sorunlar
+A) Fortinet Fabric — Kim giriyor çelişkisi
+Admin panelinde FortiManager URL + credentials admin tarafından girilirken, müşteri sayfasında aynı bilgiler müşteri adımı olarak listelenmiş. İki taraf da giriyor görünüyor — bu çakışma onboarding'i kilitler.
+B) NOC için onboarding checklist yok
+Belgede açıkça "NOC için ayrı checklist tanımlı değil" yazıyor. Ancak SNMP trap, NetFlow, baseline süresi gibi kritik teknik adımlar içeren bir servis için checklist olmaması ciddi bir boşluk.
+C) SNMP v3 için güvenlik parametreleri eksik
+NOC konfigürasyonunda v2c/v3 seçimi var ama v3 seçildiğinde gerekli olan Auth Protocol, Auth Password, Priv Protocol, Priv Password alanları tanımlanmamış.
+D) Self-servis satın alma sonrası akış tanımsız
+customer_service_subscriptions tablosundan bahsediliyor ama self-servis satın alma sonrasında admin müdahalesi gerekiyor mu, provizyon otomatik mi başlıyor — hiç belirtilmemiş.
+E) E-posta bildirimi henüz "Started" durumunda
+"Servis yapılandırması tamamlandığında müşteriye e-posta gönder" görevi hâlâ açık. Bu olmadan müşteri aktivasyondan haberdar olamaz.
+🟡 Orta Öncelikli Eksikler
+F) Onboarding tamamlanma tetikleyicisi belirsiz
+"Tüm adımlar done → Servis tam operasyonel" yazıyor ama bu geçişi kim/ne tetikliyor? Otomatik mi, admin manuel mi onaylıyor?
+G) SOC eskalasyon bilgileri çift giriliyor
+Admin panelinde JSON textarea ile eskalasyon kişileri girilirken, müşteri adımlarında da "Eskalasyon tercihlerini ayarla" adımı var. Hangisi otoriter kaynak?
+H) MS365 OAuth callback sonrası durum güncellemesi
+Müşteri OAuth ile bağlandıktan sonra "Azure AD OAuth Tamamlandı" admin checklist adımı otomatik mi işaretleniyor, yoksa admin manuel mi onaylamalı?
+I) Observability — Dashboard URL kimin ürettiği belirsiz
+Admin panelinde "Dashboard URL" metin alanı var — admin mı manuel giriyor yoksa sistem otomatik mi üretiyor? İkisi arasında fark önemli (hata riski).
+J) ServiceNow Webhook URL akışı eksik
+Admin checklist'te "Webhook URL Yapılandırıldı" adımı var ama CyberStep'in webhook URL'i nerede üretiliyor ve nasıl kopyalanıp ServiceNow'a giriliyor gösterilmiyor. Müşteri adımlarında da yok.
+K) Token/URL paylaşım kanalı tek nokta
+Üretilen Syslog endpoint + SNMP trap URL'leri yalnızca /hesabim/kurulum'da gösteriliyor. E-posta ile de iletilmeli, yoksa müşteri bu URL'e ulaşmak için login gerektirir.
+🟢 İyileştirme Önerileri
+L) Adım sıralaması / bağımlılık yok
+Bazı checklist adımları sıralı bağımlı (örn. "API Erişim Testi" tamamlanmadan "İlk Cihaz Bağlantısı" yapılamaz) ama bu zorunluluk tanımlanmamış.
+M) Onboarding başarısız senaryosu / rollback yok
+Bağlantı testi başarısız olursa ne olur? Hata durumu, retry mekanizması veya admin'e uyarı hiç belirtilmemiş.
+N) Audit trail detayı yetersiz
+Her adım için tarih/analist kaydedildiği söyleniyor ama hangi alan adlarıyla, hangi tabloda tutulduğu belirtilmemiş.
+2. Geliştirici için Düzeltme Promptu
+Code
+Bu prompt'u geliştirici veya Claude'a verebilirsin. Öncelik sırasına göre ilk uygulanması gerekenler 1, 3, 5, 6 — bunlar olmadan onboarding akışı tutarsız çalışır.

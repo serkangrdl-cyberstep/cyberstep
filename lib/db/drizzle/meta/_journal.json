@@ -22,6 +22,13 @@
       "when": 1780401000000,
       "tag": "0002_subscription_reminder30d",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780500000000,
+      "tag": "0003_tech_stack_intelligence",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ import {
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
-  ChevronDown,
+  ChevronDown, Cpu, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -57,6 +57,13 @@ const NAV_SECTIONS = [
       { icon: Share2,          label: "Referral Programı",     href: "/panel/referrallar" },
       { icon: BadgeCheck,      label: "Rozet Avantajları",     href: "/panel/rozet-avantajlari" },
       { icon: Trophy,          label: "Rozet Yönetimi",        href: "/panel/rozetler" },
+    ],
+  },
+  {
+    title: "İstihbarat & Teknografi",
+    items: [
+      { icon: Cpu,             label: "Tech Intelligence",     href: "/panel/tech-intelligence" },
+      { icon: BarChart3,       label: "Sektör İstihbaratı",    href: "/panel/istihbarat" },
     ],
   },
   {

@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Link } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,7 +39,7 @@ function Sidebar() {
             ? location === "/" || location === ""
             : location.startsWith(item.href);
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -49,7 +49,7 @@ function Sidebar() {
               }`}
             >
               {item.label}
-            </a>
+            </Link>
           );
         })}
       </nav>

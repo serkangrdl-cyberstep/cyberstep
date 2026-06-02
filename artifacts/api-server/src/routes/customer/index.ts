@@ -647,4 +647,96 @@ router.post("/admin/customer-service-subscriptions/onboarding", requireAdmin, as
   res.json({ ok: true });
 });
 
+// ─── GET /api/customer/kurulum-durumu ────────────────────────────────────────
+// Customer-facing setup status: active services + onboarding steps + safe generated URLs
+router.get("/customer/kurulum-durumu", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req) as number;
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+  const subscriptions = await db.select().from(customerServiceSubscriptionsTable)
+    .where(and(eq(customerServiceSubscriptionsTable.customerId, customerId), eq(customerServiceSubscriptionsTable.status, "active")));
+
+  const slugs = subscriptions.map(s => s.serviceSlug);
+
+  type ConfigRow = typeof customerServiceConfigsTable.$inferSelect;
+  type OnboardingRow = typeof customerServiceOnboardingTable.$inferSelect;
+  type CatalogRow = typeof serviceCatalogTable.$inferSelect;
+
+  const [catalogItems, onboardingRows, configRows] = await Promise.all([
+    slugs.length > 0 ? db.select().from(serviceCatalogTable).where(inArray(serviceCatalogTable.slug, slugs)) : Promise.resolve([] as CatalogRow[]),
+    slugs.length > 0 ? db.select().from(customerServiceOnboardingTable).where(and(eq(customerServiceOnboardingTable.customerId, customerId), inArray(customerServiceOnboardingTable.serviceSlug, slugs))) : Promise.resolve([] as OnboardingRow[]),
+    slugs.length > 0 ? db.select().from(customerServiceConfigsTable).where(and(eq(customerServiceConfigsTable.customerId, customerId), inArray(customerServiceConfigsTable.serviceSlug, slugs))) : Promise.resolve([] as ConfigRow[]),
+  ]);
+
+  const catalogMap = Object.fromEntries(catalogItems.map(c => [c.slug, c]));
+  const onboardingMap: Record<string, Record<string, string>> = {};
+  for (const row of onboardingRows) {
+    if (!onboardingMap[row.serviceSlug]) onboardingMap[row.serviceSlug] = {};
+    onboardingMap[row.serviceSlug][row.stepKey] = row.status;
+  }
+
+  // Only expose non-secret generated tokens to customer
+  function getGeneratedUrls(slug: string, config: Record<string, unknown>): Array<{ label: string; url: string }> {
+    const token = typeof config["webhookToken"] === "string" && config["webhookToken"].length > 10 ? config["webhookToken"] : null;
+    const snmpToken = typeof config["snmpToken"] === "string" && config["snmpToken"].length > 10 ? config["snmpToken"] : null;
+    if (slug === "fortinet-fabric" && token) {
+      return [
+        { label: "Syslog-over-HTTPS Endpoint", url: `${baseUrl}/api/fabric/ingest/${token}` },
+        { label: "Webhook Endpoint", url: `${baseUrl}/api/fabric/webhook/${token}` },
+      ];
+    }
+    if (slug === "noc" && snmpToken) {
+      return [
+        { label: "SNMP Trap Host", url: "snmptrap.cyberstep.io" },
+        { label: "Community String / Token", url: snmpToken },
+      ];
+    }
+    return [];
+  }
+
+  // Page links for customer-side steps
+  const SERVICE_PAGE_LINKS: Record<string, string> = {
+    "fortinet-fabric": "/hesabim/fortinet-entegrasyonu",
+    "soc-operasyon": "/hesabim/soc",
+    "noc": "/hesabim/noc-kurulum",
+    "ms365": "/hesabim/entegrasyonlarim",
+    "microsoft-365": "/hesabim/entegrasyonlarim",
+    "dns-izleme": "/hesabim/dns-izleme",
+    "ct-log-izleme": "/hesabim/servislerim",
+    "kvkk-bildirim": "/hesabim/servislerim",
+    "servicenow": "/hesabim/soc",
+    "servicenow-entegrasyon": "/hesabim/soc",
+    "observability": "/hesabim/servislerim",
+  };
+
+  const result = subscriptions.map(sub => {
+    const raw = configRows.find(c => c.serviceSlug === sub.serviceSlug)?.config as Record<string, unknown> ?? {};
+    const steps = getStepsForSlug(sub.serviceSlug);
+    const stepStatuses = onboardingMap[sub.serviceSlug] ?? {};
+    const enrichedSteps = steps.map(s => ({ ...s, status: stepStatuses[s.key] ?? "pending" }));
+    const doneCustomer = enrichedSteps.filter(s => s.side === "customer" && s.status === "done").length;
+    const totalCustomer = enrichedSteps.filter(s => s.side === "customer").length;
+
+    return {
+      subscription: sub,
+      catalog: catalogMap[sub.serviceSlug] ?? null,
+      onboardingSteps: enrichedSteps,
+      doneCustomerSteps: doneCustomer,
+      totalCustomerSteps: totalCustomer,
+      generatedUrls: getGeneratedUrls(sub.serviceSlug, raw),
+      pageLink: SERVICE_PAGE_LINKS[sub.serviceSlug] ?? "/hesabim/servislerim",
+    };
+  });
+
+  const totalCustomer = result.reduce((a, r) => a + r.totalCustomerSteps, 0);
+  const doneCustomer = result.reduce((a, r) => a + r.doneCustomerSteps, 0);
+
+  res.json({
+    services: result,
+    totalCustomerSteps: totalCustomer,
+    doneCustomerSteps: doneCustomer,
+    overallProgress: totalCustomer > 0 ? Math.round((doneCustomer / totalCustomer) * 100) : 0,
+  });
+});
+
 export default router;

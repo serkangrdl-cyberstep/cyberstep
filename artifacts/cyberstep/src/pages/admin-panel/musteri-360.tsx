@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag, Ban } from "lucide-react";
+import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag, Ban, Settings2 } from "lucide-react";
 
 interface ServiceSubscription {
   id: number;
@@ -59,6 +59,7 @@ function fmtMoney(n: string | number) { return Number(n).toLocaleString("tr-TR",
 
 export default function Musteri360() {
   const { id } = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [editMode, setEditMode] = useState(false);
@@ -165,6 +166,7 @@ export default function Musteri360() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="border-slate-700 text-slate-300 h-8" onClick={() => sendNps.mutate()}><Send className="h-3 w-3 mr-1" />NPS</Button>
+          <Button size="sm" variant="outline" className="border-sky-500/40 text-sky-300 h-8" onClick={() => navigate(`/panel/musteriler/${id}/provizyon`)}><Settings2 className="h-3 w-3 mr-1" />Provizyon</Button>
           {customer.cust_status === "paused" ? (
             <Button size="sm" variant="outline" className="border-emerald-500/40 text-emerald-300 h-8" onClick={() => resume.mutate()}><Play className="h-3 w-3 mr-1" />Devam Et</Button>
           ) : customer.cust_status === "active" ? (

@@ -171,6 +171,8 @@ import DnsIzleme from "./pages/hesabim/dns-izleme";
 import SocDashboard from "./pages/hesabim/soc";
 import NocDashboard from "./pages/hesabim/noc";
 import NocKurulum from "./pages/hesabim/noc-kurulum";
+import KurulumMerkezi from "./pages/hesabim/kurulum";
+import MusteriProvizyon from "./pages/admin-panel/musteri-provizyon";
 import HesabimDestek from "./pages/hesabim/destek";
 import Bulgularim from "./pages/hesabim/bulgularim";
 import CloudGuvenlik from "./pages/hesabim/cloud-guvenlik";
@@ -264,6 +266,7 @@ function Router() {
       <Route path="/hesabim/soc" component={SocDashboard} />
       <Route path="/hesabim/noc" component={NocDashboard} />
       <Route path="/hesabim/noc-kurulum" component={NocKurulum} />
+      <Route path="/hesabim/kurulum" component={KurulumMerkezi} />
       <Route path="/hesabim/destek" component={HesabimDestek} />
       <Route path="/hesabim/bulgularim" component={Bulgularim} />
       <Route path="/hesabim/cloud-guvenlik" component={CloudGuvenlik} />
@@ -345,6 +348,7 @@ function Router() {
       <Route path="/panel/onboarding" component={OnboardingDashboard} />
       <Route path="/panel/musteri-servisleri" component={MusteriServisleri} />
       <Route path="/panel/musteriler/:id/onboarding" component={OnboardingWizard} />
+      <Route path="/panel/musteriler/:id/provizyon" component={MusteriProvizyon} />
       <Route path="/panel/ai-costs" component={AdminAiCosts} />
       <Route path="/panel/remediation" component={AdminRemediation} />
       <Route path="/panel/kod-guvenligi" component={AdminCodeSecrets} />

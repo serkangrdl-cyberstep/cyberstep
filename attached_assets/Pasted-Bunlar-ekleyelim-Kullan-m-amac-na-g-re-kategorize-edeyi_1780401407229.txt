@@ -1,0 +1,118 @@
+Bunları ekleyelim. Kullanım amacına göre kategorize edeyim — CyberStep'in CVE sistemi, haftalık bülten ve aylık rapor için hepsi farklı kaynak gerektirir.
+KATEGORİ 1 — CVE / ZAFIYET
+Zorunlu, sistem otomasyonu için: NVD (NIST) — Yeni CVE'ler
+https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz(RSS değil JSON feed — CVE sistemine direkt entegre et)
+CISA KEV — Aktif istismar edilenler
+https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json(En kritik kaynak — aktif saldırılarda kullanılan CVE'ler)
+GitHub Security Advisories
+https://github.com/advisories.atom(Açık kaynak yazılım açıkları — WordPress, plugin'ler için önemli)
+Exploit-DB
+https://www.exploit-db.com/rss.xml(Kamuya açık exploit'ler — bypass riski hesabı için)
+Packet Storm Security
+(Teknik güvenlik araştırmaları) KATEGORİ 2 — GLOBAL SİBER GÜVENLİK HABERLERI
+Haftalık bülten ve breaking için: The Hacker News — En hızlı, en yaygın
+https://packetstormsecurity.com/feeds/news/https://feeds.feedburner.com/TheHackersNews
+Bleeping Computer — Teknik ve doğru
+https://www.bleepingcomputer.com/feed/
+Krebs on Security — Derin analiz
+https://krebsonsecurity.com/feed/
+Dark Reading
+https://www.darkreading.com/rss.xml
+SecurityWeek
+https://feeds.feedburner.com/securityweek
+SANS Internet Storm Center — Günlük tehdit özeti
+https://isc.sans.edu/rssfeed_full.xml(Her gün güvenlik özeti — bülten için mükemmel kaynak)
+Threatpost
+https://threatpost.com/feed/
+Recorded Future Blog
+https://www.recordedfuture.com/feed/
+Sophos News
+https://news.sophos.com/en-us/feed/
+WeLiveSecurity (ESET)
+https://www.welivesecurity.com/feed/
+
+KATEGORİ 3 — VENDOR THREAT INTELLIGENCE
+Fortinet müşterileri için özellikle değerli:
+
+FortiGuard Labs Threat Intelligence
+https://www.fortiguard.com/rss/ir.xml
+Fortinet PSIRT (Güvenlik açıkları)
+https://www.fortiguard.com/rss/psirt.xml(Fortinet ürünlerindeki CVE'ler — direkt entegrasyon)
+Unit 42 (Palo Alto)
+https://unit42.paloaltonetworks.com/feed/
+Microsoft Security Blog
+https://www.microsoft.com/en-us/security/blog/feed/
+CrowdStrike Blog
+https://www.crowdstrike.com/blog/feed/
+Cisco Talos Intelligence
+https://blog.talosintelligence.com/feeds/posts/default
+Mandiant (Google)
+https://www.mandiant.com/resources/blog/rss.xml
+
+KATEGORİ 4 — TÜRKİYE ODAKLI
+Aylık endeks ve yerel içerik için:
+BTK Duyuruları
+https://www.btk.gov.tr/haberler/rss
+USOM Uyarıları
+https://www.usom.gov.tr/rss(Kritik — Türkiye'ye yönelik aktif tehditler buradan duyuruluyor)
+Resmi Gazete (Mevzuat takibi)
+https://www.resmigazete.gov.tr/default.aspx?rssfeed=1(7545, KVKK değişiklikleri burada çıkıyor)
+Siber Vatan
+https://sibervatan.com/feed/
+BThaber
+https://bthaber.com/feed/
+Webrazzi (Startup + yatırım haberleri)
+https://webrazzi.com/feed/
+ShiftDelete
+https://shiftdelete.net/feed
+
+KATEGORİ 5 — MEVZUAT / REGÜLASYON
+GRC alıcısı ve uyum raporu için:
+KVKK Kararları
+https://www.kvkk.gov.tr/Icerik/6170/Karar-Ozeti-Listesi(RSS yok ama scraping ile takip edilebilir)
+EUR-Lex (AB — NIS2, AI Act)
+https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32022L2555(NIS2 direktifi — Türk şirketlerinin AB ihracatı etkisi)
+ENISA News
+https://www.enisa.europa.eu/news/rss(Avrupa siber güvenlik haberleri)
+NIST Cybersecurity
+https://www.nist.gov/news-events/cybersecurity/rss.xml
+
+KATEGORİ 6 — SEKTÖREL
+Sektör bazlı bülten için:
+FS-ISAC (Finans)
+https://www.fsisac.com/rss.xml(Bankacılık ve finans sektörü tehditleri)
+Health-ISAC (Sağlık)
+https://h-isac.org/feed/
+ICS-CERT (Endüstriyel, üretim)
+https://us-cert.cisa.gov/ics/alerts/rss.xml(SCADA, PLC saldırıları — üretim sektörü müşterileri)
+
+KATEGORİ 7 — DARK WEB / LEAK İZLEME
+Lead generation ve sızıntı tespiti için:
+
+Have I Been Pwned (Yeni sızıntılar)
+https://haveibeenpwned.com/api/v3/latestbreach(API — yeni data breach duyuruldu mu)
+DataBreaches.net
+https://www.databreaches.net/feed/
+Breach Forums haberleri
+(Direkt RSS yok — scraping veya üçüncü taraf servis)
+
+SİSTEME NASIL ENTEGRE EDİLMELİ
+Öncelik 1 — CVE otomasyonu (anlık):
+  NVD JSON feed → her 2 saatte kontrol
+  CISA KEV → her 2 saatte kontrol
+  FortiGuard PSIRT → her 2 saatte kontrol
+Öncelik 2 — Bülten içeriği (günlük):
+  SANS ISC → sabah 07:00
+  Bleeping Computer → sabah 07:00
+  BTK/USOM → sabah 07:00
+  The Hacker News → sabah 07:00
+Öncelik 3 — Aylık rapor (haftalık batch):
+  Resmi Gazete → Pazartesi
+  KVKK kararları → Pazartesi
+  Tüm vendor blog'ları → Pazartesi
+Filtre mantığı:
+  Türkiye keyword'ü → yüksek öncelik
+  Fortinet/FortiGate → yüksek öncelik
+  KVKK/7545/BTK → yüksek öncelik
+  CVSS 9.0+ → anlık işlem
+  Diğerleri → günlük batch

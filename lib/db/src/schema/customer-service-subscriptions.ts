@@ -1,4 +1,5 @@
-import { pgTable, serial, text, numeric, timestamp, integer, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, timestamp, integer, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
@@ -31,6 +32,7 @@ export const customerServiceSubscriptionsTable = pgTable("customer_service_subsc
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   uniqueIndex("css_customer_service_uq").on(t.customerId, t.serviceSlug),
+  check("css_status_chk", sql`${t.status} IN ('active', 'pending', 'cancelled', 'expired', 'trial', 'suspended')`),
 ]);
 
 export type CustomerServiceSubscription = typeof customerServiceSubscriptionsTable.$inferSelect;

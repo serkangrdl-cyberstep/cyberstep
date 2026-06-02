@@ -46,7 +46,7 @@ export const SERVICE_ONBOARDING_STEPS: Record<string, Array<{ key: string; label
     { key: "first_ct_scan", label: "İlk CT Log Taraması Yapıldı", description: "İlk sertifika şeffaflık log taraması tamamlandı ve sonuçlar incelendi." },
   ],
   "ms365": [
-    { key: "azure_oauth_completed", label: "Azure AD OAuth Tamamlandı", description: "Müşterinin Microsoft 365 tenant'ı OAuth2 ile bağlandı ve izinler verildi." },
+    { key: "azure_ad_oauth_completed", label: "Azure AD OAuth Tamamlandı", description: "Müşterinin Microsoft 365 tenant'ı OAuth2 ile bağlandı ve izinler verildi." },
     { key: "first_user_list_fetched", label: "İlk Kullanıcı Listesi Çekildi", description: "Azure AD'den kullanıcı listesi başarıyla alındı ve senkronizasyon doğrulandı." },
     { key: "risk_alert_threshold_set", label: "Risk Uyarısı Eşiği Ayarlandı", description: "Riskli giriş ve anomali uyarıları için eşik değerleri müşteriyle belirlendi." },
   ],
@@ -190,7 +190,7 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
   const { serviceSlug, stepKey, status, notes, subscriptionId } = req.body as {
     serviceSlug: string;
     stepKey: string;
-    status: "pending" | "in_progress" | "done" | "skipped";
+    status: "pending" | "in_progress" | "done" | "skipped" | "failed";
     notes?: string;
     subscriptionId?: number;
   };
@@ -200,7 +200,7 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
     return;
   }
 
-  const validStatuses = ["pending", "in_progress", "done", "skipped"];
+  const validStatuses = ["pending", "in_progress", "done", "skipped", "failed"];
   if (!validStatuses.includes(status)) {
     res.status(400).json({ error: "Geçersiz durum" });
     return;
@@ -237,6 +237,21 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
 
     const completedAt = (status === "done" || status === "skipped") ? new Date() : null;
     const completedBy = (status === "done" || status === "skipped") ? adminEmail : null;
+    const failedAt   = status === "failed" ? new Date() : null;
+
+    // T16a: Read current retryCount before upsert so we can detect 3rd failure
+    let newRetryCount = 0;
+    if (status === "failed") {
+      const [existing] = await db
+        .select({ retryCount: customerServiceOnboardingTable.retryCount })
+        .from(customerServiceOnboardingTable)
+        .where(and(
+          eq(customerServiceOnboardingTable.customerId, customerId),
+          eq(customerServiceOnboardingTable.serviceSlug, serviceSlug),
+          eq(customerServiceOnboardingTable.stepKey, stepKey),
+        )).limit(1);
+      newRetryCount = (existing?.retryCount ?? 0) + 1;
+    }
 
     await db.insert(customerServiceOnboardingTable)
       .values({
@@ -247,6 +262,9 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
         status,
         completedBy,
         completedAt: completedAt ?? undefined,
+        failedAt: failedAt ?? undefined,
+        failureReason: status === "failed" ? (notes ?? null) : null,
+        retryCount: newRetryCount,
         notes: notes ?? null,
         updatedAt: new Date(),
       })
@@ -260,10 +278,69 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
           status,
           completedBy: completedBy ?? undefined,
           completedAt: completedAt ?? undefined,
+          failedAt: failedAt ?? undefined,
+          failureReason: status === "failed" ? (notes ?? null) : undefined,
+          retryCount: newRetryCount > 0 ? newRetryCount : undefined,
           notes: notes !== undefined ? notes : undefined,
           updatedAt: new Date(),
         },
       });
+
+    // T16a: 3rd consecutive failure on this step → alert admin
+    if (status === "failed" && newRetryCount >= 3) {
+      const [failedCustomer] = await db.select({
+        email: customersTable.email,
+        fullName: customersTable.fullName,
+        companyName: customersTable.companyName,
+      }).from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+
+      const adminEmail2 = process.env["SOC_ADMIN_EMAIL"] ?? process.env["SMTP_USER"] ?? "";
+      if (failedCustomer && adminEmail2) {
+        const safeSlug = escapeHtml(serviceSlug);
+        const safeStep = escapeHtml(stepDef.label);
+        const safeCompany = escapeHtml(failedCustomer.companyName ?? failedCustomer.fullName ?? `#${customerId}`);
+        const safeReason = escapeHtml(notes ?? "Sebep belirtilmedi");
+
+        setImmediate(async () => {
+          try {
+            await sendMail({
+              to: adminEmail2,
+              subject: `[Bağlantı Hatası] ${newRetryCount}× — ${safeSlug} / ${safeStep} — ${safeCompany}`,
+              html: `
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;background:#f8fafc;padding:40px 0;margin:0;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    <div style="background:#7f1d1d;padding:24px 32px;">
+      <span style="color:#fca5a5;font-size:18px;font-weight:700;">Bağlantı Hatası Alarmı</span>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="color:#1e293b;margin:0 0 16px;">
+        <strong>${safeCompany}</strong> müşterisinin <strong>${safeSlug}</strong> servisi,
+        <strong>${safeStep}</strong> adımında <strong>${newRetryCount} kez</strong> başarısız oldu.
+      </p>
+      <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:14px 18px;border-radius:6px;margin-bottom:20px;">
+        <p style="margin:0;color:#7f1d1d;font-size:13px;">Son hata: ${safeReason}</p>
+      </div>
+      <a href="https://cyberstep.io/panel/musteriler/${customerId}/provizyon"
+         style="display:inline-block;background:#0f172a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px;">
+        Müşteri Provizyon Sayfası
+      </a>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:11px;color:#94a3b8;text-align:center;">
+      CyberStep.io — SOC Bildirim Sistemi
+    </div>
+  </div>
+</body>
+</html>`,
+            });
+            logger.warn({ customerId, serviceSlug, stepKey, retryCount: newRetryCount }, "Connection failure alert email sent");
+          } catch (emailErr) {
+            logger.warn({ emailErr }, "Failed to send connection failure alert email");
+          }
+        });
+      }
+    }
 
     // Check if all steps for this service are now done/skipped → send email
     if (status === "done" || status === "skipped") {

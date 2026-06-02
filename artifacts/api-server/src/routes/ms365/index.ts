@@ -196,8 +196,8 @@ router.get("/ms365/callback", async (req, res) => {
 
     // T18: Mark the ms365 onboarding step done — use canonical key, completed_by=system
     setImmediate(() => {
-      markOnboardingStepDone(customerId, "ms365", "azure_oauth_completed", "system").catch((err) => {
-        logger.warn({ err, customerId }, "ms365/callback: could not mark azure_oauth_completed step");
+      markOnboardingStepDone(customerId, "ms365", "azure_ad_oauth_completed", "system").catch((err) => {
+        logger.warn({ err, customerId }, "ms365/callback: could not mark azure_ad_oauth_completed step");
       });
     });
 

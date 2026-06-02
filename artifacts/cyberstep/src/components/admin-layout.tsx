@@ -9,7 +9,7 @@ import {
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
-  ChevronDown, Cpu, BarChart3,
+  ChevronDown, Cpu, BarChart3, Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -122,6 +122,7 @@ const NAV_SECTIONS = [
       { icon: CheckSquare,     label: "Görev Motoru",          href: "/panel/gorevler" },
       { icon: Play,            label: "Manuel Tetikleme",      href: "/panel/manuel-tetikle" },
       { icon: DollarSign,      label: "AI Maliyet",            href: "/panel/ai-costs" },
+      { icon: Palette,         label: "Marka Kılavuzu",        href: "/panel/marka-kilavuzu" },
     ],
   },
 ];

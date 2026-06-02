@@ -115,6 +115,7 @@ const NAV_SECTIONS = [
       { icon: Activity,        label: "Platform Sağlığı",      href: "/panel/platform-saglik" },
       { icon: Plug,            label: "Entegrasyonlar",        href: "/panel/entegrasyonlar" },
       { icon: Settings,        label: "Site Ayarları",         href: "/panel/ayarlar" },
+      { icon: Play,            label: "Cron Ayarları",         href: "/panel/cron-ayarlari" },
       { icon: Shield,          label: "2FA Güvenlik",          href: "/panel/totp" },
       { icon: CheckSquare,     label: "Görev Motoru",          href: "/panel/gorevler" },
       { icon: Play,            label: "Manuel Tetikleme",      href: "/panel/manuel-tetikle" },

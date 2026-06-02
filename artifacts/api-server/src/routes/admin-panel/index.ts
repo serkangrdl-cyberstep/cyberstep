@@ -30,6 +30,7 @@ import serviceOnboardingRouter from "./service-onboarding";
 import leadDiscoveryRouter from "./lead-discovery";
 import techStackRouter from "./tech-stack";
 import intelligenceRouter from "./intelligence";
+import cronRouter from "./cron";
 
 const router = Router();
 router.use(authRouter);
@@ -63,5 +64,6 @@ router.use(serviceOnboardingRouter);
 router.use(leadDiscoveryRouter);
 router.use(techStackRouter);
 router.use(intelligenceRouter);
+router.use(cronRouter);
 
 export default router;

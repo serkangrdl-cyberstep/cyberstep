@@ -12,6 +12,7 @@ import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
+import { cronStart, cronIsEnabled, cronGetLimit } from "./services/cronRegistry";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
@@ -1905,38 +1906,54 @@ startup()
 
     // ─── Lead Discovery: crt.sh — Her Pazartesi 03:00 ────────────────────────
     cron.schedule("0 3 * * 1", async () => {
+      if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return; }
+      const done = cronStart("crtsh");
       try {
-        await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 70, limit: 300 });
+        const limit = await cronGetLimit("crtsh", 300);
+        await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 70, limit });
         await new Promise((r) => setTimeout(r, 5000));
-        await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 70, limit: 100 });
-      } catch (err) { logger.warn({ err }, "crt.sh discovery cron failed"); }
+        await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 70, limit: Math.floor(limit / 3) });
+        done(true);
+      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "crt.sh discovery cron failed"); }
     });
     logger.info("crt.sh discovery cron scheduled (Monday 03:00)");
 
     // ─── Lead Discovery: Shodan — Her Salı 03:00 ─────────────────────────────
     cron.schedule("0 3 * * 2", async () => {
       if (!process.env["SHODAN_API_KEY"]) return;
+      if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return; }
+      const done = cronStart("shodan");
       try {
+        const limit = await cronGetLimit("shodan", 100);
         const queryIdx = getISOWeek(new Date()) % SHODAN_FREE_QUERIES.length;
-        await scanShodanFree(queryIdx, 100);
-      } catch (err) { logger.warn({ err }, "Shodan discovery cron failed"); }
+        await scanShodanFree(queryIdx, limit);
+        done(true);
+      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Shodan discovery cron failed"); }
     });
     logger.info("Shodan discovery cron scheduled (Tuesday 03:00)");
 
     // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
     cron.schedule("0 4 * * *", async () => {
+      if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return; }
+      const done = cronStart("lead_qual");
       try {
-        await qualifyPendingCandidates(20);
-      } catch (err) { logger.warn({ err }, "Lead qualification cron failed"); }
+        const limit = await cronGetLimit("lead_qual", 20);
+        await qualifyPendingCandidates(limit);
+        done(true);
+      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Lead qualification cron failed"); }
     });
     logger.info("Lead qualification cron scheduled (daily 04:00)");
 
     // ─── Certstream queue işleyici — her saat ─────────────────────────────────
     cron.schedule("0 * * * *", async () => {
+      if (!await cronIsEnabled("certstream_proc")) { logger.info("Certstream cron devre dışı, atlanıyor"); return; }
+      const done = cronStart("certstream_proc");
       try {
-        const result = await processCertstreamQueue(100);
+        const limit = await cronGetLimit("certstream_proc", 100);
+        const result = await processCertstreamQueue(limit);
         if (result.added > 0) logger.info(result, "Certstream queue: yeni leadler eklendi");
-      } catch (err) { logger.warn({ err }, "Certstream queue cron failed"); }
+        done(true);
+      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Certstream queue cron failed"); }
     });
     logger.info("Certstream queue processor cron scheduled (hourly)");
 

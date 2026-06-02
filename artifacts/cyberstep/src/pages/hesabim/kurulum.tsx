@@ -110,10 +110,10 @@ function ServiceCard({ entry }: { entry: ServiceEntry }) {
         <CardContent className="pt-0 border-t border-slate-100 dark:border-slate-800 space-y-5">
 
           {/* Generated URLs */}
-          {entry.generatedUrls.length > 0 && (
+          {(entry.generatedUrls ?? []).length > 0 && (
             <div className="pt-4 space-y-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sisteminize Ekleyeceginiz Bilgiler</p>
-              {entry.generatedUrls.map(u => (
+              {(entry.generatedUrls ?? []).map(u => (
                 <CopyField key={u.label} label={u.label} value={u.url} />
               ))}
             </div>

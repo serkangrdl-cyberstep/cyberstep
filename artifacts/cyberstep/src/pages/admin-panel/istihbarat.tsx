@@ -176,8 +176,12 @@ export default function IstihbaratPage() {
           <CardContent>
             {reportsQ.isLoading ? (
               <div className="text-slate-400 text-sm">Yükleniyor...</div>
+            ) : marketsQ.isError ? (
+              <div className="text-red-400 text-sm text-center py-8">Pazar verileri yüklenemedi. Sayfayı yenileyin.</div>
             ) : reports.length === 0 ? (
-              <div className="text-slate-500 text-sm text-center py-8">Henüz rapor yok. Yukarıdan bir rapor üretin.</div>
+              <div className="text-slate-500 text-sm text-center py-8">
+                Henüz rapor yok.{markets.length > 0 ? " Yukarıdaki pazar kartından rapor üretin." : " Sayfa yenilenirse pazar kartları görünür."}
+              </div>
             ) : (
               <div className="space-y-2">
                 {reports.map((r) => {

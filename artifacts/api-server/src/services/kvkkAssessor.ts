@@ -125,8 +125,8 @@ export async function triggerKvkkAssessment(
   if (!KVKK_TRIGGER_SEVERITIES.has(caseInfo.severity)) return;
 
   // Müşteri bilgisi al
-  const { rows: custRows } = await pool.query<{ contact_email: string | null; company_name: string | null; sector: string | null }>(
-    `SELECT contact_email, company_name, sector FROM customers WHERE id = $1 LIMIT 1`,
+  const { rows: custRows } = await pool.query<{ email: string | null; company_name: string | null; sector: string | null }>(
+    `SELECT email, company_name, sector FROM customers WHERE id = $1 LIMIT 1`,
     [customerId]
   );
   const customer = custRows[0];
@@ -175,13 +175,13 @@ export async function triggerKvkkAssessment(
       logger.info({ customerId, socCaseId, notifId: notif?.id }, "KVKK bildirim gerekli — taslak oluşturuldu");
 
       // Müşteriye e-posta bildirimi
-      if (customer?.contact_email) {
+      if (customer?.email) {
         const baseUrl = process.env["REPLIT_DOMAINS"]
           ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
           : "http://localhost:80";
 
         await sendMail({
-          to: customer.contact_email,
+          to: customer.email,
           subject: `KVKK Bildirimi Gerekli — Vaka ${caseInfo.caseNumber} | 72 Saat Süreniz Var`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:8px;">
@@ -228,10 +228,10 @@ export async function checkKvkkDeadlines(): Promise<void> {
     // 24 saat kalan ve henüz uyarı gönderilmemiş bildirimleri bul
     const { rows } = await pool.query<{
       id: number; customer_id: number; soc_case_id: number;
-      deadline_72h: string; contact_email: string | null; company_name: string | null;
+      deadline_72h: string; email: string | null; company_name: string | null;
     }>(
       `SELECT kn.id, kn.customer_id, kn.soc_case_id, kn.deadline_72h,
-              c.contact_email, c.company_name
+              c.email, c.company_name
        FROM kvkk_notifications kn
        JOIN customers c ON c.id = kn.customer_id
        WHERE kn.status NOT IN ('closed')
@@ -244,13 +244,13 @@ export async function checkKvkkDeadlines(): Promise<void> {
       const deadline = new Date(row.deadline_72h);
       const hoursLeft = Math.max(0, Math.round((deadline.getTime() - Date.now()) / (60 * 60 * 1000)));
 
-      if (row.contact_email) {
+      if (row.email) {
         const baseUrl = process.env["REPLIT_DOMAINS"]
           ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
           : "http://localhost:80";
 
         await sendMail({
-          to: row.contact_email,
+          to: row.email,
           subject: `KVKK Bildirimi — ${hoursLeft} Saat Kaldı! Hemen Harekete Geçin`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:8px;">

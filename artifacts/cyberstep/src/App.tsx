@@ -69,6 +69,8 @@ import TenantSettingsPage from "./pages/admin-panel/tenant-settings";
 import AdminDashboard from "./pages/admin-panel/index";
 import AdminSettings from "./pages/admin-panel/settings";
 import AdminCronAyarlari from "./pages/admin-panel/cron-ayarlari";
+import AdminCVE from "./pages/admin-panel/cve";
+import CVEDetailPage from "./pages/cve-detail";
 import AdminPricing from "./pages/admin-panel/pricing";
 import AdminAssessments from "./pages/admin-panel/assessments";
 import AdminPayments from "./pages/admin-panel/payments";
@@ -286,6 +288,8 @@ function Router() {
       <Route path="/panel/entegrasyonlar" component={AdminEntegrasyonlar} />
       <Route path="/panel/ayarlar" component={AdminSettings} />
       <Route path="/panel/cron-ayarlari" component={AdminCronAyarlari} />
+      <Route path="/panel/cve" component={AdminCVE} />
+      <Route path="/cve/:cveId" component={CVEDetailPage} />
       <Route path="/panel/fiyatlar" component={AdminPricing} />
       <Route path="/panel/degerlendirmeler/:id/rapor" component={AdminAssessmentReport} />
       <Route path="/panel/degerlendirmeler" component={AdminAssessments} />

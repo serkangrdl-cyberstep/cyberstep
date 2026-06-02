@@ -13,6 +13,7 @@ import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery"
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
 import { cronStart, cronIsEnabled, cronGetLimit } from "./services/cronRegistry";
+import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
@@ -1964,6 +1965,14 @@ startup()
       } catch (err) { logger.warn({ err }, "Subscription expiry reminder cron failed"); }
     }, { timezone: "Europe/Istanbul" });
     logger.info("Subscription expiry reminder cron scheduled (daily 10:00 Istanbul)");
+
+    // ─── CVE feed check — her 2 saatte bir ───────────────────────────────────
+    cron.schedule("0 */2 * * *", async () => {
+      try {
+        await runCVEFeedCheck();
+      } catch (err) { logger.warn({ err }, "CVE feed check cron failed"); }
+    });
+    logger.info("CVE feed check cron scheduled (every 2 hours)");
 
     const server = app.listen(port, (err) => {
       if (err) {

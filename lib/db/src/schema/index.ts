@@ -89,3 +89,4 @@ export * from "./lead-discovery";
 export * from "./certstream-lead";
 export * from "./tech-stack";
 export * from "./intelligence";
+export * from "./cve";

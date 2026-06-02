@@ -99,6 +99,7 @@ const NAV_SECTIONS = [
     title: "Güvenlik Operasyonları",
     items: [
       { icon: Network,         label: "Fortinet Fabric",       href: "/panel/fortinet" },
+      { icon: ShieldAlert,     label: "CVE Izleme",            href: "/panel/cve" },
       { icon: ShieldAlert,     label: "SOC Operasyon",         href: "/panel/soc" },
       { icon: Network,         label: "NOC Operasyon",         href: "/panel/noc" },
       { icon: Activity,        label: "Observability",         href: "/panel/observability" },

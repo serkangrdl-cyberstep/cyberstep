@@ -7,6 +7,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
 import adminPanelRouter from "./routes/admin-panel/index";
+import cvePublicRouter from "./routes/cve-public";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -310,6 +311,7 @@ app.use(sessionMiddleware);
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api", router);
 app.use("/api", adminPanelRouter);
+app.use("/api", cvePublicRouter);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {

@@ -102,6 +102,61 @@ router.get("/admin-panel/tech-stack/by-vendor", requireAdmin, async (req, res) =
   }
 });
 
+// GET /api/admin-panel/tech-stack/recent — tüm taranan domainler (maturity özeti ile)
+router.get("/admin-panel/tech-stack/recent", requireAdmin, async (req, res) => {
+  try {
+    const rows = await db
+      .selectDistinct({
+        domain: customerTechStackTable.domain,
+        lastVerifiedAt: customerTechStackTable.lastVerifiedAt,
+      })
+      .from(customerTechStackTable)
+      .where(eq(customerTechStackTable.isActive, true))
+      .orderBy(desc(customerTechStackTable.lastVerifiedAt))
+      .limit(200);
+
+    if (rows.length === 0) { res.json([]); return; }
+
+    const domains = rows.map(r => r.domain);
+
+    const [stackCounts, maturities] = await Promise.all([
+      db.select({
+        domain: customerTechStackTable.domain,
+        cnt: count(),
+      })
+        .from(customerTechStackTable)
+        .where(and(eq(customerTechStackTable.isActive, true), sql`domain = ANY(${sql.raw(`ARRAY[${domains.map(d => `'${d.replace(/'/g, "''")}'`).join(",")}]`)}`))
+        .groupBy(customerTechStackTable.domain),
+      db.select({
+        domain: customerSecurityMaturityTable.domain,
+        maturityScore: customerSecurityMaturityTable.maturityScore,
+        maturityLevel: customerSecurityMaturityTable.maturityLevel,
+        companySegment: customerSecurityMaturityTable.companySegment,
+        updatedAt: customerSecurityMaturityTable.updatedAt,
+      })
+        .from(customerSecurityMaturityTable)
+        .where(sql`domain = ANY(${sql.raw(`ARRAY[${domains.map(d => `'${d.replace(/'/g, "''")}'`).join(",")}]`)})`),
+    ]);
+
+    const countMap = new Map(stackCounts.map(r => [r.domain, Number(r.cnt)]));
+    const matMap = new Map(maturities.map(m => [m.domain, m]));
+
+    const result = rows.map(r => ({
+      domain: r.domain,
+      stackCount: countMap.get(r.domain) ?? 0,
+      maturityScore: matMap.get(r.domain)?.maturityScore ?? null,
+      maturityLevel: matMap.get(r.domain)?.maturityLevel ?? null,
+      companySegment: matMap.get(r.domain)?.companySegment ?? null,
+      updatedAt: matMap.get(r.domain)?.updatedAt ?? r.lastVerifiedAt,
+    }));
+
+    res.json(result);
+  } catch (e) {
+    req.log.error({ err: e }, "Tech stack recent hatası");
+    res.status(500).json({ error: "Geçmiş alınamadı" });
+  }
+});
+
 // GET /api/admin-panel/tech-stack/:domain
 router.get("/admin-panel/tech-stack/:domain", requireAdmin, async (req, res) => {
   try {

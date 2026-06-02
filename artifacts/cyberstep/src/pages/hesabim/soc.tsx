@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, Loader2, ShieldAlert, Ban, Radio, FileDown, Lock, Activity,
   ScrollText, AlertTriangle, Clock, CheckCircle, Network, ExternalLink,
-  WifiOff, RefreshCw,
+  WifiOff, RefreshCw, Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +130,22 @@ export default function SocDashboard() {
     queryFn: () => fetch("/api/integrations/servicenow/outage-summary", { credentials: "include" }).then(r => r.json()),
     enabled: !!customer && enabled,
     refetchInterval: 120000,
+  });
+
+  interface PendingCase {
+    id: number;
+    caseNumber: string;
+    title: string;
+    severity: string;
+    category: string;
+    status: string;
+    createdAt: string;
+  }
+  const { data: pendingCasesData, refetch: refetchPending } = useQuery<{ hasConfig: boolean; cases: PendingCase[] }>({
+    queryKey: ["soc-sn-pending-cases"],
+    queryFn: () => fetch("/api/integrations/servicenow/pending-cases", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer && enabled && !!outageSummary?.hasConfig,
+    refetchInterval: 60000,
   });
 
   useEffect(() => {
@@ -271,6 +287,17 @@ export default function SocDashboard() {
             </Card>
 
             <KvkkSection customerId={customer.id} />
+
+            {pendingCasesData?.hasConfig && (pendingCasesData?.cases?.length ?? 0) > 0 && (
+              <PendingCasesSection
+                cases={pendingCasesData.cases}
+                onRetried={() => {
+                  void refetchPending();
+                  qc.invalidateQueries({ queryKey: ["soc-sn-incidents"] });
+                  qc.invalidateQueries({ queryKey: ["soc-sn-outage-summary"] });
+                }}
+              />
+            )}
 
             {outageSummary?.hasConfig && (
               <ServiceNowOutageSection summary={outageSummary} />
@@ -465,6 +492,132 @@ function StatCard({ icon, label, value, accent }: { icon: React.ReactNode; label
       <CardContent className="pt-5 pb-4">
         <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">{icon}{label}</div>
         <p className={`text-2xl font-bold ${accent ?? "text-white"}`}>{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface PendingCaseRow {
+  id: number;
+  caseNumber: string;
+  title: string;
+  severity: string;
+  category: string;
+  status: string;
+  createdAt: string;
+}
+
+function PendingCasesSection({ cases, onRetried }: { cases: PendingCaseRow[]; onRetried: () => void }) {
+  const { toast } = useToast();
+  const [retrying, setRetrying] = useState<Set<number>>(new Set());
+  const [retryingAll, setRetryingAll] = useState(false);
+
+  async function retryCase(id: number) {
+    setRetrying(prev => new Set(prev).add(id));
+    try {
+      const res = await fetch(`/api/integrations/servicenow/pending-cases/${id}/retry`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await res.json()) as { ok: boolean; message: string };
+      if (data.ok) {
+        toast({ title: "Aktarıldı", description: data.message });
+        onRetried();
+      } else {
+        toast({ title: "Aktarılamadı", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Hata", description: "Bağlantı hatası oluştu.", variant: "destructive" });
+    } finally {
+      setRetrying(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }
+
+  async function retryAll() {
+    setRetryingAll(true);
+    let succeeded = 0;
+    let failed = 0;
+    for (const c of cases) {
+      try {
+        const res = await fetch(`/api/integrations/servicenow/pending-cases/${c.id}/retry`, {
+          method: "POST",
+          credentials: "include",
+        });
+        const data = (await res.json()) as { ok: boolean };
+        if (data.ok) succeeded++; else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    setRetryingAll(false);
+    toast({
+      title: `Toplu aktarım tamamlandı`,
+      description: `${succeeded} başarılı, ${failed} başarısız`,
+      variant: failed > 0 ? "destructive" : "default",
+    });
+    onRetried();
+  }
+
+  return (
+    <Card className="bg-slate-900 border-orange-500/40">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-white text-lg flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-400" />
+            ServiceNow'a Aktarılamayan Vakalar
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-orange-500/40 text-orange-300 text-xs">
+              {cases.length} aktarılmamış
+            </Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 text-xs h-7"
+              disabled={retryingAll}
+              onClick={() => void retryAll()}
+            >
+              {retryingAll
+                ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Aktarılıyor...</>
+                : <><RefreshCw className="h-3 w-3 mr-1" /> Tümünü Yeniden Gönder</>}
+            </Button>
+          </div>
+        </div>
+        <p className="text-slate-400 text-sm mt-1">
+          Bu vakalar ServiceNow'a henüz iletilmedi. Bağlantı sorunu varsa düzelttikten sonra yeniden gönderebilirsiniz.
+        </p>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y divide-slate-800">
+          {cases.map((c) => {
+            const sev = SEV[c.severity];
+            const isRetrying = retrying.has(c.id);
+            return (
+              <div key={c.id} className="p-4 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className={sev?.cls ?? ""}>{sev?.label ?? c.severity}</Badge>
+                    <Badge variant="outline" className="border-slate-600 text-slate-400 text-xs">{STATUS[c.status] ?? c.status}</Badge>
+                    <span className="font-mono text-xs text-slate-500">{c.caseNumber}</span>
+                  </div>
+                  <p className="text-white text-sm font-medium truncate">{c.title}</p>
+                  <p className="text-xs text-slate-500">{fmtDate(c.createdAt)}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-violet-500/40 text-violet-300 hover:bg-violet-500/10 text-xs h-7 shrink-0"
+                  disabled={isRetrying || retryingAll}
+                  onClick={() => void retryCase(c.id)}
+                >
+                  {isRetrying
+                    ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Gönderiliyor</>
+                    : <><Send className="h-3 w-3 mr-1" /> Yeniden Gönder</>}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

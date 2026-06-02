@@ -11,6 +11,7 @@ import {
   generateAndStoreWebhookSecret,
   processServiceNowWebhook,
   retryWebhookError,
+  openServiceNowIncident,
 } from "../../services/serviceNowClient";
 
 const router = Router();
@@ -722,6 +723,115 @@ router.get("/integrations/servicenow/outage-summary", requireCustomer, async (re
   } catch (err) {
     req.log.error({ err }, "GET /api/integrations/servicenow/outage-summary error");
     res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ─── GET /api/integrations/servicenow/pending-cases ──────────────────────────
+// Returns active SOC cases that have no ServiceNow incident record yet.
+router.get("/integrations/servicenow/pending-cases", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  try {
+    const { rows: cfgRows } = await pool.query<{ id: number }>(
+      `SELECT id FROM servicenow_configs WHERE customer_id = $1 AND active = true LIMIT 1`,
+      [customerId],
+    );
+    if (!cfgRows.length) {
+      res.json({ hasConfig: false, cases: [] });
+      return;
+    }
+
+    const { rows } = await pool.query<{
+      id: number; caseNumber: string; title: string;
+      severity: string; category: string; status: string; createdAt: string;
+    }>(
+      `SELECT sc.id,
+              sc.case_number AS "caseNumber",
+              sc.title,
+              sc.severity,
+              sc.category,
+              sc.status,
+              sc.created_at AS "createdAt"
+       FROM soc_cases sc
+       WHERE sc.customer_id = $1
+         AND sc.status NOT IN ('closed', 'false_positive')
+         AND NOT EXISTS (
+           SELECT 1 FROM servicenow_incidents sni WHERE sni.soc_case_id = sc.id
+         )
+       ORDER BY sc.created_at DESC
+       LIMIT 50`,
+      [customerId],
+    );
+
+    res.json({ hasConfig: true, cases: rows });
+  } catch (err) {
+    req.log.error({ err }, "GET /api/integrations/servicenow/pending-cases error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ─── POST /api/integrations/servicenow/pending-cases/:id/retry ───────────────
+// Retries pushing a single active SOC case to ServiceNow.
+router.post("/integrations/servicenow/pending-cases/:id/retry", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  const caseId = Number(req.params["id"]);
+  if (!caseId) { res.status(400).json({ error: "Geçersiz vaka ID" }); return; }
+
+  try {
+    const { rows } = await pool.query<{
+      id: number; case_number: string; title: string;
+      description: string | null; severity: string; category: string; status: string;
+    }>(
+      `SELECT id, case_number, title, description, severity, category, status
+       FROM soc_cases
+       WHERE id = $1 AND customer_id = $2
+       LIMIT 1`,
+      [caseId, customerId],
+    );
+    const sc = rows[0];
+    if (!sc) { res.status(404).json({ error: "Vaka bulunamadı" }); return; }
+
+    if (sc.status === "closed" || sc.status === "false_positive") {
+      res.status(400).json({ error: "Kapalı veya yanlış alarm vakalar aktarılamaz" });
+      return;
+    }
+
+    // Idempotency: already has an incident?
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM servicenow_incidents WHERE soc_case_id = $1 LIMIT 1`,
+      [caseId],
+    );
+    if (existing.length > 0) {
+      res.json({ ok: true, message: "Bu vaka zaten ServiceNow'da kayıtlı" });
+      return;
+    }
+
+    await openServiceNowIncident(customerId, caseId, {
+      caseId: sc.id,
+      caseNumber: sc.case_number,
+      title: sc.title,
+      description: sc.description ?? "",
+      severity: sc.severity,
+      category: sc.category,
+    });
+
+    const { rows: check } = await pool.query(
+      `SELECT id FROM servicenow_incidents WHERE soc_case_id = $1 LIMIT 1`,
+      [caseId],
+    );
+
+    if (check.length > 0) {
+      req.log.info({ customerId, caseId }, "ServiceNow pending case retry başarılı");
+      res.json({ ok: true, message: "Vaka başarıyla ServiceNow'a aktarıldı" });
+    } else {
+      res.status(500).json({ ok: false, message: "Vaka aktarılamadı. ServiceNow bağlantısını kontrol edin." });
+    }
+  } catch (err) {
+    req.log.error({ err, caseId }, "POST /api/integrations/servicenow/pending-cases/:id/retry error");
+    res.status(500).json({ ok: false, message: "Sunucu hatası" });
   }
 });
 

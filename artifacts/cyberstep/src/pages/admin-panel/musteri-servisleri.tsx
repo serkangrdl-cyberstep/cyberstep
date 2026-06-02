@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Package, ChevronDown, ChevronUp, Check, Clock,
-  Loader2, RotateCcw, Users,
+  Loader2, Users, Eye, EyeOff, Settings, X,
 } from "lucide-react";
 import { AdminLayout } from "../../components/admin-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+
+const SECRET_FIELD_PATTERNS = ["password", "token", "key", "secret", "credential"];
+function isSecretField(name: string): boolean {
+  const lower = name.toLowerCase();
+  return SECRET_FIELD_PATTERNS.some((p) => lower.includes(p));
+}
 
 interface EnrichedStep {
   key: string;
@@ -50,6 +56,148 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-slate-500/20 text-slate-400 border-slate-700",
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
 };
+
+// ─── Config Modal ─────────────────────────────────────────────────────────────
+
+interface ConfigModalProps {
+  customerId: number;
+  serviceSlug: string;
+  serviceLabel: string;
+  companyName: string;
+  onClose: () => void;
+}
+
+function ConfigModal({ customerId, serviceSlug, serviceLabel, companyName, onClose }: ConfigModalProps) {
+  const { toast } = useToast();
+  const [revealedFields, setRevealedFields] = useState<Set<string>>(new Set());
+  const [decryptedConfig, setDecryptedConfig] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function loadConfig() {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/customer-service-config/${customerId}/${serviceSlug}/decrypt`,
+        { method: "POST", credentials: "include" }
+      );
+      if (res.status === 404) {
+        toast({ title: "Yapılandırma bulunamadı", description: "Bu müşteri için kayıtlı yapılandırma yok.", variant: "destructive" });
+        onClose();
+        return;
+      }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error ?? "Sunucu hatası");
+      }
+      const data = await res.json() as { config: Record<string, unknown> };
+      setDecryptedConfig(data.config);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      toast({ title: "Hata", description: msg, variant: "destructive" });
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Auto-load on mount
+  useEffect(() => { void loadConfig(); }, []);
+
+  function toggleReveal(key: string) {
+    setRevealedFields(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  const entries = decryptedConfig ? Object.entries(decryptedConfig) : [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div>
+            <h2 className="text-white font-semibold flex items-center gap-2">
+              <Settings className="w-4 h-4 text-sky-400" />
+              Servis Yapılandırması
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {companyName} &bull; {serviceLabel}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Yapılandırma yükleniyor...</span>
+            </div>
+          ) : entries.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-8">Kayıtlı yapılandırma alanı yok.</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
+                Bu veriler sunucuda denetim kaydına yazılmıştır. Gizli alanları yalnızca gerektiğinde görüntüleyin.
+              </p>
+              {entries.map(([key, value]) => {
+                const secret = isSecretField(key);
+                const revealed = revealedFields.has(key);
+                const displayVal = secret && !revealed ? "••••••••••••" : String(value ?? "");
+                return (
+                  <div key={key} className="bg-slate-800 rounded-lg px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-500 font-mono mb-1 flex items-center gap-1.5">
+                          {key}
+                          {secret && (
+                            <Badge variant="outline" className="text-[10px] border-amber-700 text-amber-400 py-0 px-1">
+                              gizli
+                            </Badge>
+                          )}
+                        </p>
+                        <p className={`text-sm font-mono break-all ${secret && !revealed ? "text-slate-600 tracking-widest" : "text-slate-200"}`}>
+                          {displayVal}
+                        </p>
+                      </div>
+                      {secret && (
+                        <button
+                          onClick={() => toggleReveal(key)}
+                          className="shrink-0 text-slate-500 hover:text-sky-400 transition-colors"
+                          title={revealed ? "Gizle" : "Göster"}
+                        >
+                          {revealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
+          <Button size="sm" variant="outline" className="border-slate-700 text-slate-400 hover:bg-slate-800" onClick={onClose}>
+            Kapat
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step Row ─────────────────────────────────────────────────────────────────
 
 function StepRow({
   step, customerId, serviceSlug, onToggle, isPending,
@@ -98,9 +246,12 @@ function StepRow({
   );
 }
 
+// ─── Subscription Card ────────────────────────────────────────────────────────
+
 function SubscriptionCard({ row }: { row: CustomerServiceRow }) {
   const [expanded, setExpanded] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -146,53 +297,80 @@ function SubscriptionCard({ row }: { row: CustomerServiceRow }) {
   const customerId = sub.customerId ?? cust.id;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
-      <CardContent className="py-0">
-        <button className="w-full py-4 flex items-center gap-4 text-left" onClick={() => setExpanded(!expanded)}>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-white text-sm">{displayName}</span>
-              <span className="text-xs text-slate-500">{cust.email || sub.email}</span>
-              <Badge className={`text-[10px] border ${statusColor}`}>{sub.status}</Badge>
-              <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400">
-                {sub.serviceLabel}
-              </Badge>
-            </div>
-            <div className="mt-2 flex items-center gap-3">
-              <Progress value={row.progress} className="h-1.5 bg-slate-800 flex-1 max-w-[180px]" />
-              <span className={`text-xs font-medium ${row.progress === 100 ? "text-emerald-400" : "text-slate-400"}`}>
-                {row.progress}%
-              </span>
-              <span className="text-xs text-slate-600">
-                {row.steps.filter(s => s.status === "done").length}/{row.steps.length} adim
-              </span>
-            </div>
-          </div>
-          {expanded ? <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />}
-        </button>
+    <>
+      {showConfigModal && (
+        <ConfigModal
+          customerId={customerId}
+          serviceSlug={sub.serviceSlug}
+          serviceLabel={sub.serviceLabel}
+          companyName={displayName}
+          onClose={() => setShowConfigModal(false)}
+        />
+      )}
 
-        {expanded && (
-          <div className="border-t border-slate-800 pb-3 pt-2 px-1">
-            <p className="text-xs text-slate-500 mb-2">
-              Abone ID: {sub.id} &bull; Baslangic: {sub.billingCycle === "annual" ? "Yillik" : "Aylik"}
-              {sub.expiresAt && ` · Bitis: ${new Date(sub.expiresAt).toLocaleDateString("tr-TR")}`}
-            </p>
-            {row.steps.map(step => (
-              <StepRow
-                key={step.key}
-                step={step}
-                customerId={customerId}
-                serviceSlug={sub.serviceSlug}
-                onToggle={handleToggle}
-                isPending={pendingKey === step.key && toggleMutation.isPending}
-              />
-            ))}
+      <Card className="bg-slate-900 border-slate-800">
+        <CardContent className="py-0">
+          <div className="py-4 flex items-center gap-4">
+            <button className="flex-1 flex items-center gap-4 text-left min-w-0" onClick={() => setExpanded(!expanded)}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-white text-sm">{displayName}</span>
+                  <span className="text-xs text-slate-500">{cust.email || sub.email}</span>
+                  <Badge className={`text-[10px] border ${statusColor}`}>{sub.status}</Badge>
+                  <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400">
+                    {sub.serviceLabel}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex items-center gap-3">
+                  <Progress value={row.progress} className="h-1.5 bg-slate-800 flex-1 max-w-[180px]" />
+                  <span className={`text-xs font-medium ${row.progress === 100 ? "text-emerald-400" : "text-slate-400"}`}>
+                    {row.progress}%
+                  </span>
+                  <span className="text-xs text-slate-600">
+                    {row.steps.filter(s => s.status === "done").length}/{row.steps.length} adim
+                  </span>
+                </div>
+              </div>
+              {expanded ? <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />}
+            </button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-slate-700 text-slate-400 hover:border-sky-600 hover:text-sky-400 hover:bg-sky-500/10 gap-1.5 text-xs"
+              onClick={() => setShowConfigModal(true)}
+              title="Servis yapılandırmasını görüntüle"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Yapılandırma
+            </Button>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {expanded && (
+            <div className="border-t border-slate-800 pb-3 pt-2 px-1">
+              <p className="text-xs text-slate-500 mb-2">
+                Abone ID: {sub.id} &bull; Baslangic: {sub.billingCycle === "annual" ? "Yillik" : "Aylik"}
+                {sub.expiresAt && ` · Bitis: ${new Date(sub.expiresAt).toLocaleDateString("tr-TR")}`}
+              </p>
+              {row.steps.map(step => (
+                <StepRow
+                  key={step.key}
+                  step={step}
+                  customerId={customerId}
+                  serviceSlug={sub.serviceSlug}
+                  onToggle={handleToggle}
+                  isPending={pendingKey === step.key && toggleMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MusteriServisleriPage() {
   const [search, setSearch] = useState("");

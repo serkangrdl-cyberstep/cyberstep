@@ -647,6 +647,74 @@ router.post("/admin/customer-service-subscriptions/onboarding", requireAdmin, as
   res.json({ ok: true });
 });
 
+// ─── Admin: decrypt service config for a specific customer ───────────────────
+// POST /api/admin/customer-service-config/:customerId/:slug/decrypt
+// Only accessible to admins. Decrypts all secret fields and returns plain config.
+// Every call is written to the server audit log.
+router.post(
+  "/admin/customer-service-config/:customerId/:slug/decrypt",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    const rawCustomerId = (req.params as { customerId: string; slug: string }).customerId;
+    const { slug } = req.params as { customerId: string; slug: string };
+    const customerId = parseInt(rawCustomerId, 10);
+
+    if (isNaN(customerId)) {
+      res.status(400).json({ error: "Geçersiz customerId" });
+      return;
+    }
+
+    const [row] = await db
+      .select({ config: customerServiceConfigsTable.config })
+      .from(customerServiceConfigsTable)
+      .where(
+        and(
+          eq(customerServiceConfigsTable.customerId, customerId),
+          eq(customerServiceConfigsTable.serviceSlug, slug)
+        )
+      )
+      .limit(1);
+
+    if (!row) {
+      res.status(404).json({ error: "Bu müşteri için yapılandırma bulunamadı" });
+      return;
+    }
+
+    const rawConfig = (row.config ?? {}) as Record<string, unknown>;
+
+    // Decrypt all secret fields
+    const decrypted: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawConfig)) {
+      if (isSecretField(k) && typeof v === "string" && v.length > 0) {
+        if (v.startsWith("__enc__:")) {
+          const plain = decryptSecret(v.slice(8));
+          decrypted[k] = plain ?? "[şifre çözülemedi]";
+        } else {
+          decrypted[k] = v; // legacy plaintext — return as-is
+        }
+      } else {
+        decrypted[k] = v;
+      }
+    }
+
+    // Audit trail — always log who accessed what
+    const actorAdminId = (req.session as unknown as Record<string, unknown>)["adminId"] ?? null;
+    logger.info(
+      {
+        audit: "admin-decrypt-service-config",
+        adminId: actorAdminId,
+        targetCustomerId: customerId,
+        serviceSlug: slug,
+        ip: req.ip,
+        at: new Date().toISOString(),
+      },
+      "AUDIT: admin decrypted service config"
+    );
+
+    res.json({ config: decrypted });
+  }
+);
+
 // ─── GET /api/customer/kurulum-durumu ────────────────────────────────────────
 // Customer-facing setup status: active services + onboarding steps + safe generated URLs
 router.get("/customer/kurulum-durumu", requireCustomer, async (req: Request, res: Response) => {

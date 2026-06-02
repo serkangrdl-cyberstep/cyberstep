@@ -8,7 +8,8 @@ import {
   customerServiceConfigsTable,
 } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
-import { requireCustomer, getCustomerId } from "../../middleware/auth";
+import { requireCustomer, requireAdmin, getCustomerId } from "../../middleware/auth";
+import { customersTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import { encryptSecret, decryptSecret, encryptionAvailable } from "../../services/fabric-crypto";
 
@@ -403,5 +404,129 @@ router.post(
     res.json({ ok: true });
   }
 );
+
+// ─── Admin: list all service subscriptions + onboarding progress ─────────────
+
+router.get("/admin/customer-service-subscriptions", requireAdmin, async (_req: Request, res: Response) => {
+  const subscriptions = await db.select().from(customerServiceSubscriptionsTable);
+  if (subscriptions.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const customerIds = [...new Set(subscriptions.map(s => s.customerId).filter((id): id is number => id !== null))];
+  const slugs = [...new Set(subscriptions.map(s => s.serviceSlug))];
+
+  const [customers, onboardingRows] = await Promise.all([
+    customerIds.length > 0
+      ? db.select({ id: customersTable.id, email: customersTable.email, companyName: customersTable.companyName, contactName: customersTable.contactName })
+          .from(customersTable).where(inArray(customersTable.id, customerIds))
+      : Promise.resolve([]),
+    slugs.length > 0
+      ? db.select().from(customerServiceOnboardingTable)
+          .where(inArray(customerServiceOnboardingTable.serviceSlug, slugs))
+      : Promise.resolve([]),
+  ]);
+
+  const customerMap = Object.fromEntries(customers.map(c => [c.id, c]));
+
+  // onboardingMap[customerId][serviceSlug][stepKey] = { status, completedBy, completedAt }
+  const onboardingMap: Record<number, Record<string, Record<string, { status: string; completedBy: string | null; completedAt: Date | null }>>> = {};
+  for (const row of onboardingRows) {
+    if (!onboardingMap[row.customerId]) onboardingMap[row.customerId] = {};
+    if (!onboardingMap[row.customerId][row.serviceSlug]) onboardingMap[row.customerId][row.serviceSlug] = {};
+    onboardingMap[row.customerId][row.serviceSlug][row.stepKey] = {
+      status: row.status,
+      completedBy: row.completedBy ?? null,
+      completedAt: row.completedAt ?? null,
+    };
+  }
+
+  const result = subscriptions.map(sub => {
+    const customerId = sub.customerId ?? 0;
+    const steps = getStepsForSlug(sub.serviceSlug);
+    const subOnboarding = onboardingMap[customerId]?.[sub.serviceSlug] ?? {};
+    const enrichedSteps = steps.map(step => ({
+      ...step,
+      status: subOnboarding[step.key]?.status ?? "pending",
+      completedBy: subOnboarding[step.key]?.completedBy ?? null,
+      completedAt: subOnboarding[step.key]?.completedAt ?? null,
+    }));
+    const completed = enrichedSteps.filter(s => s.status === "done").length;
+    const progress = steps.length > 0 ? Math.round((completed / steps.length) * 100) : 0;
+
+    return {
+      subscription: sub,
+      customer: customerMap[customerId] ?? { id: customerId, email: sub.email, companyName: sub.companyName, contactName: sub.contactName },
+      steps: enrichedSteps,
+      progress,
+    };
+  });
+
+  res.json(result);
+});
+
+// POST /api/admin/customer-service-subscriptions/onboarding — mark a step done or pending as admin
+router.post("/admin/customer-service-subscriptions/onboarding", requireAdmin, async (req: Request, res: Response) => {
+  const { customerId, serviceSlug, stepKey, action } = req.body as {
+    customerId?: number;
+    serviceSlug?: string;
+    stepKey?: string;
+    action?: "done" | "pending";
+  };
+
+  if (!customerId || !serviceSlug || !stepKey || !action) {
+    res.status(400).json({ error: "customerId, serviceSlug, stepKey, action gerekli" });
+    return;
+  }
+  if (action !== "done" && action !== "pending") {
+    res.status(400).json({ error: "action 'done' veya 'pending' olmalı" });
+    return;
+  }
+
+  if (action === "done") {
+    await db
+      .insert(customerServiceOnboardingTable)
+      .values({
+        customerId,
+        serviceSlug,
+        stepKey,
+        status: "done",
+        completedBy: "admin",
+        completedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [
+          customerServiceOnboardingTable.customerId,
+          customerServiceOnboardingTable.serviceSlug,
+          customerServiceOnboardingTable.stepKey,
+        ],
+        set: { status: "done", completedBy: "admin", completedAt: new Date(), updatedAt: new Date() },
+      });
+    logger.info({ customerId, serviceSlug, stepKey }, "admin: onboarding step marked done");
+  } else {
+    await db
+      .insert(customerServiceOnboardingTable)
+      .values({
+        customerId,
+        serviceSlug,
+        stepKey,
+        status: "pending",
+        completedBy: null,
+        completedAt: null,
+      })
+      .onConflictDoUpdate({
+        target: [
+          customerServiceOnboardingTable.customerId,
+          customerServiceOnboardingTable.serviceSlug,
+          customerServiceOnboardingTable.stepKey,
+        ],
+        set: { status: "pending", completedBy: null, completedAt: null, updatedAt: new Date() },
+      });
+    logger.info({ customerId, serviceSlug, stepKey }, "admin: onboarding step marked pending");
+  }
+
+  res.json({ ok: true });
+});
 
 export default router;

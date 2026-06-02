@@ -101,8 +101,8 @@ export const TRANSLATIONS = {
     },
     faq3q: { tr: "Sonuçlarımı ne zaman alırım?", en: "When will I receive my results?" },
     faq3a: {
-      tr: "Siber Sağlık Skorunuz ve acil müdahale gerektiren alanlar testi bitirdiğiniz anda ekranınıza gelir. Uzman ekibimiz analizi inceleyerek 'önce şunu kapat' formatındaki öncelik planınızı 24-48 saat içinde iletir.",
-      en: "Your Cyber Health Score and areas requiring urgent attention appear on screen the moment you finish. Our expert team reviews the analysis and delivers your 'close this first' priority plan within 24-48 hours.",
+      tr: "Siber Sağlık Skorunuz ve acil müdahale gerektiren alanlar testi bitirdiğiniz anda ekranınıza gelir. Uzman ekibimiz analizi inceleyerek 'önce şunu kapat' formatındaki öncelik planınızı 24 saat içinde iletir.",
+      en: "Your Cyber Health Score and areas requiring urgent attention appear on screen the moment you finish. Our expert team reviews the analysis and delivers your 'close this first' priority plan within 24 hours.",
     },
     faq4q: { tr: "KVKK kapsamında mıyım, karne bunu gösterir mi?", en: "Am I subject to KVKK, and does the report show this?" },
     faq4a: {
@@ -111,8 +111,8 @@ export const TRANSLATIONS = {
     },
     faq5q: { tr: "Mini ve Tam Değerlendirme arasındaki fark nedir?", en: "What is the difference between Mini and Full Assessment?" },
     faq5a: {
-      tr: "Mini Karne (20 soru, ücretsiz) genel risk profilinizi ve en kritik açıklarınızı ortaya koyar — nereden başlamanız gerektiğini gösterir. Tam Karne (55 soru) KVKK uyum analizi, sektör karşılaştırması ve birebir uzman danışmanlık görüşmesi içerir.",
-      en: "Mini Report (20 questions, free) reveals your general risk profile and most critical gaps — it shows where to start. Full Report (55 questions) includes KVKK compliance analysis, sector comparison, and one-on-one expert consulting.",
+      tr: "Mini Karne ({mini} soru, ücretsiz) genel risk profilinizi ve en kritik açıklarınızı ortaya koyar — nereden başlamanız gerektiğini gösterir. Tam Karne ({full} soru) KVKK uyum analizi, sektör karşılaştırması ve birebir uzman danışmanlık görüşmesi içerir.",
+      en: "Mini Report ({mini} questions, free) reveals your general risk profile and most critical gaps — it shows where to start. Full Report ({full} questions) includes KVKK compliance analysis, sector comparison, and one-on-one expert consulting.",
     },
 
     // Pricing plans
@@ -139,7 +139,7 @@ export const TRANSLATIONS = {
     fullFeature4: { tr: "Sektör karşılaştırması", en: "Sector comparison" },
     fullFeature5: { tr: "Birebir uzman danışmanlık görüşmesi", en: "One-on-one expert consulting session" },
     fullFeature6: { tr: "Öncelik sıralı aksiyon yol haritası", en: "Priority-ranked action roadmap" },
-    fullCta: { tr: "Bildirim Al", en: "Get Notified" },
+    fullCta: { tr: "Satın Al", en: "Purchase" },
     comingSoon: { tr: "Yakında", en: "Coming Soon" },
     free: { tr: "Ücretsiz", en: "Free" },
 

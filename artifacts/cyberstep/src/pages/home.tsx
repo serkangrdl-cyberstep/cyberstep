@@ -193,8 +193,8 @@ export default function Home() {
       {
         q: lang === "en" ? "When will I receive my results?" : "Sonuçları ne zaman alacağım?",
         a: lang === "en"
-          ? "Your risk score and red alarm count are shown instantly after completing the test. Our expert team delivers the detailed report within 24-48 hours."
-          : "Test tamamlandıktan sonra risk skorunuz anında gösterilir. Uzman ekibimiz detaylı raporu 24-48 saat içinde iletir.",
+          ? "Your risk score and red alarm count are shown instantly after completing the test. Our expert team delivers the detailed report within 24 hours."
+          : "Test tamamlandıktan sonra risk skorunuz anında gösterilir. Uzman ekibimiz detaylı raporu 24 saat içinde iletir.",
       },
       {
         q: lang === "en" ? "Why can't I see the full report immediately?" : "Raporun tamamını neden hemen göremiyorum?",
@@ -290,6 +290,14 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: questionCounts } = useQuery<{ mini: number; full: number }>({
+    queryKey: ["question-counts"],
+    queryFn: () => fetch("/api/assessments/question-counts").then(r => r.json()),
+    staleTime: 60 * 60 * 1000,
+  });
+  const miniCount = questionCounts?.mini ?? 20;
+  const fullCount = questionCounts?.full ?? 60;
+
   const STATS = [
     { value: "500+", label: t(T.home.statsAnalyzed, lang) },
     { value: "20dk", label: t(T.home.statsTime, lang) },
@@ -329,7 +337,12 @@ export default function Home() {
     { q: t(T.home.faq2q, lang), a: t(T.home.faq2a, lang) },
     { q: t(T.home.faq3q, lang), a: t(T.home.faq3a, lang) },
     { q: t(T.home.faq4q, lang), a: t(T.home.faq4a, lang) },
-    { q: t(T.home.faq5q, lang), a: t(T.home.faq5a, lang) },
+    {
+      q: t(T.home.faq5q, lang),
+      a: t(T.home.faq5a, lang)
+        .replace("{mini}", String(miniCount))
+        .replace("{full}", String(fullCount)),
+    },
   ];
 
   const TESTIMONIALS = [

@@ -172,6 +172,11 @@ router.get("/assessments/stats/summary", requireAdmin, async (req, res) => {
   });
 });
 
+// GET /api/assessments/question-counts — public, must come before /:id
+router.get("/assessments/question-counts", (_req, res) => {
+  res.json({ mini: MINI_QUESTIONS.length, full: FULL_QUESTIONS.length });
+});
+
 // GET /api/assessments/:id
 router.get("/assessments/:id", requireAssessmentOwner, async (req, res) => {
   const id = Number(req.params.id);

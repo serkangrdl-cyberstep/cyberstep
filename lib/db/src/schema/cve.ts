@@ -1,6 +1,6 @@
 import {
   pgTable, serial, varchar, text, integer, boolean,
-  timestamp, jsonb, unique, index, decimal,
+  timestamp, jsonb, unique, index, numeric,
 } from "drizzle-orm/pg-core";
 import { customersTable } from "./customers";
 import { leadCandidatesTable } from "./lead-discovery";
@@ -8,7 +8,7 @@ import { leadCandidatesTable } from "./lead-discovery";
 export const cveTrackerTable = pgTable("cve_tracker", {
   id: serial("id").primaryKey(),
   cveId: varchar("cve_id", { length: 30 }).unique().notNull(),
-  cvssScore: decimal("cvss_score", { precision: 3, scale: 1 }),
+  cvssScore: numeric("cvss_score", { precision: 3, scale: 1 }),
   cvssVector: varchar("cvss_vector", { length: 100 }),
   severity: varchar("severity", { length: 20 }),
   title: varchar("title", { length: 500 }),

@@ -23,6 +23,7 @@
 - [Notification integrations](notification-integrations.md) — Generic Webhook + Telegram Bot + NetGSM SMS; fire-and-forget setImmediate pattern; SOC hooks: case.opened, closed, critical, sla.breached
 - [MS365 Azure AD Integration](ms365-integration.md) — OAuth2 multi-tenant + Graph API poller + SOC correlation; needs MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET env vars; session cast pattern: `req.session as { ms365_oauth_state?: string }`
 - [DNS Monitor & Onboarding Emails](dns-onboarding.md) — dns_watched_domains/snapshots/change_events tables; 5-min cron in dns-cron.ts; D+3/D+7 onboarding cron at 10:30 Istanbul; customers table gets onboarding_d3/d7_sent_at columns
+- [CVE Turkey Impact System](cve-turkey-impact.md) — CISA KEV + NVD feeds → tech_stack match → Claude TR content → email notify; schema uses numeric not decimal; req.params must use String() not ! for eq() compat
 - [Technographic Fingerprint Engine](technographic-fingerprint.md) — customer_tech_stack + customer_security_maturity tables; 5 analyzers (header/dns/html/ssl/shodan); maturityCalculator; /panel/tech-intelligence admin page
 - [Intelligence Report Engine](intelligence-report-engine.md) — market_configs (TR+AZ seeded) + intelligence_reports + 4 detail tables; Claude monthly report writer; /panel/istihbarat admin page; axios header cast pattern
 - [Certstream Lead Addon](certstream-lead-addon.md) — real-time TR lead capture via existing WebSocket; certstreamLeadFilter hook in certstream-client.ts; hourly queue→lead_candidates cron; Certstream tab in /panel/lead-discovery

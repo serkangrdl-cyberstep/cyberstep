@@ -513,6 +513,8 @@ router.post("/payments/service-subscriptions/:id/renew", requireAdmin, async (re
       amountPaid: String(total),
       paymentRef: paymentResult.paymentId ?? sub.paymentRef,
       iyzicoConversationId: conversationId,
+      reminder7dSentAt: null,
+      reminder1dSentAt: null,
       ...(paymentResult.cardUserKey ? { iyzicoCardUserKey: paymentResult.cardUserKey } : {}),
       ...(paymentResult.cardToken ? { iyzicoCardToken: paymentResult.cardToken } : {}),
     })

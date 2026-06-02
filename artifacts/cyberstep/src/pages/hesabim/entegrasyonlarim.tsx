@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp, MessageSquare } from "lucide-react";
+import { Activity, Trash2, Copy, CheckCircle, AlertTriangle, Plus, ExternalLink, Loader2, Building2, Shield, Clock, Unplug, Network, TicketCheck, Webhook, RefreshCw, Send, Smartphone, X, ChevronDown, BookOpen, ChevronUp, MessageSquare, Bell, BellOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
 
@@ -399,6 +400,8 @@ interface SnConfig {
   lastSyncError: string | null;
   lastWebhookAt: string | null;
   webhookEventCount: number;
+  webhookNotifyAll: boolean;
+  webhookNotifyClosedOnly: boolean;
 }
 
 interface SnIncident {
@@ -479,6 +482,23 @@ function ServiceNowSection() {
       toast({ title: "Yeni webhook secret oluşturuldu", description: "Bu değeri hemen ServiceNow'a kopyalayın." });
     },
     onError: () => toast({ title: "Hata", description: "Secret oluşturulamadı", variant: "destructive" }),
+  });
+
+  const notifyPrefsMutation = useMutation({
+    mutationFn: async (prefs: { webhookNotifyAll?: boolean; webhookNotifyClosedOnly?: boolean }) => {
+      const r = await fetch("/api/integrations/servicenow/notification-prefs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(prefs),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json() as Promise<{ ok: boolean }>;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sn-config"] });
+    },
+    onError: () => toast({ title: "Hata", description: "Bildirim tercihi kaydedilemedi", variant: "destructive" }),
   });
 
   const saveMutation = useMutation({
@@ -853,7 +873,52 @@ function ServiceNowSection() {
                 </Button>
               </div>
 
-              {/* ── Kurulum Rehberi ──────────────────────────────────────── */}
+              {/* ── Bildirim Tercihleri ─────────────────────────────────── */}
+              <div className="border border-gray-800 rounded-lg p-3 space-y-3 bg-gray-950/40">
+                <p className="text-xs font-medium text-gray-300 flex items-center gap-2">
+                  {cfg.webhookNotifyAll ? (
+                    <Bell className="h-3.5 w-3.5 text-violet-400" />
+                  ) : (
+                    <BellOff className="h-3.5 w-3.5 text-gray-500" />
+                  )}
+                  Webhook Bildirim Tercihleri
+                </p>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-300">ServiceNow webhook bildirimleri</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Durum değişikliklerinde e-posta bildirimi al
+                    </p>
+                  </div>
+                  <Switch
+                    checked={cfg.webhookNotifyAll}
+                    disabled={notifyPrefsMutation.isPending}
+                    onCheckedChange={(checked) => {
+                      notifyPrefsMutation.mutate({ webhookNotifyAll: checked });
+                    }}
+                  />
+                </div>
+
+                {cfg.webhookNotifyAll && (
+                  <div className="flex items-center justify-between gap-3 pl-3 border-l border-gray-800">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-300">Yalnizca kapanma olaylari</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Sadece incident kapandiginda bildirim gonder
+                      </p>
+                    </div>
+                    <Switch
+                      checked={cfg.webhookNotifyClosedOnly}
+                      disabled={notifyPrefsMutation.isPending}
+                      onCheckedChange={(checked) => {
+                        notifyPrefsMutation.mutate({ webhookNotifyClosedOnly: checked });
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
               {showGuide && (
                 <div className="border border-gray-700/50 rounded-lg p-4 space-y-5 bg-gray-950/60 text-xs">
                   <p className="text-sm font-medium text-white">ServiceNow Kurulum Rehberi</p>

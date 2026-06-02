@@ -26,6 +26,8 @@ router.get("/integrations/servicenow", requireCustomer, async (req, res) => {
               active, last_sync_at AS "lastSyncAt", last_sync_error AS "lastSyncError",
               last_webhook_at AS "lastWebhookAt",
               webhook_event_count AS "webhookEventCount",
+              webhook_notify_all AS "webhookNotifyAll",
+              webhook_notify_closed_only AS "webhookNotifyClosedOnly",
               created_at AS "createdAt"
        FROM servicenow_configs
        WHERE customer_id = $1
@@ -348,6 +350,43 @@ router.get("/integrations/servicenow/webhook-events", requireCustomer, async (re
     res.json({ events: rows });
   } catch (err) {
     req.log.error({ err }, "GET /api/integrations/servicenow/webhook-events error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ─── PATCH /api/integrations/servicenow/notification-prefs ───────────────────
+// Lets the customer update their webhook notification preferences.
+router.patch("/integrations/servicenow/notification-prefs", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  const { webhookNotifyAll, webhookNotifyClosedOnly } = req.body as {
+    webhookNotifyAll?: boolean; webhookNotifyClosedOnly?: boolean;
+  };
+
+  if (typeof webhookNotifyAll !== "boolean" && typeof webhookNotifyClosedOnly !== "boolean") {
+    res.status(400).json({ error: "webhookNotifyAll veya webhookNotifyClosedOnly gerekli" });
+    return;
+  }
+
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE servicenow_configs
+       SET webhook_notify_all = COALESCE($1, webhook_notify_all),
+           webhook_notify_closed_only = COALESCE($2, webhook_notify_closed_only),
+           updated_at = NOW()
+       WHERE customer_id = $3`,
+      [
+        typeof webhookNotifyAll === "boolean" ? webhookNotifyAll : null,
+        typeof webhookNotifyClosedOnly === "boolean" ? webhookNotifyClosedOnly : null,
+        customerId,
+      ],
+    );
+    if (!rowCount) { res.status(404).json({ error: "ServiceNow entegrasyonu bulunamadı" }); return; }
+    req.log.info({ customerId, webhookNotifyAll, webhookNotifyClosedOnly }, "ServiceNow bildirim tercihleri güncellendi");
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "PATCH /api/integrations/servicenow/notification-prefs error");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

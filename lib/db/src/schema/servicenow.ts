@@ -17,6 +17,8 @@ export const servicenowConfigsTable = pgTable("servicenow_configs", {
   connCheckAlertedAt: timestamp("conn_check_alerted_at"),
   lastWebhookAt: timestamp("last_webhook_at"),
   webhookEventCount: integer("webhook_event_count").notNull().default(0),
+  webhookNotifyAll: boolean("webhook_notify_all").notNull().default(true),
+  webhookNotifyClosedOnly: boolean("webhook_notify_closed_only").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

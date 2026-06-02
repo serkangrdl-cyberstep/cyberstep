@@ -635,10 +635,12 @@ export async function processServiceNowWebhook(
     id: number; soc_case_id: number; customer_id: number; config_id: number;
     sn_sys_id: string; sn_number: string; sn_state: number;
     sn_journal_cursor: string | null; webhook_secret_enc: string | null;
+    webhook_notify_all: boolean; webhook_notify_closed_only: boolean;
   }>(
     `SELECT sni.id, sni.soc_case_id, sni.customer_id, sni.config_id,
             sni.sn_sys_id, sni.sn_number, sni.sn_state, sni.sn_journal_cursor,
-            snc.webhook_secret_enc
+            snc.webhook_secret_enc,
+            snc.webhook_notify_all, snc.webhook_notify_closed_only
      FROM servicenow_incidents sni
      JOIN servicenow_configs snc ON snc.id = sni.config_id
      WHERE sni.sn_sys_id = $1
@@ -715,45 +717,60 @@ export async function processServiceNowWebhook(
     stateChanged = true;
 
     // Fire-and-forget: müşteriyi webhook durum değişikliğinden haberdar et
+    // — bildirim tercihlerine göre filtre uygula
     const _notifyIncident = { ...incident };
     const _notifyNewState = newState;
     const _notifyResolved = newState >= RESOLVE_STATE;
-    setImmediate(() => {
-      pool.query<{ case_number: string; severity: string }>(
-        `SELECT case_number, severity FROM soc_cases WHERE id = $1 LIMIT 1`,
-        [_notifyIncident.soc_case_id],
-      ).then(({ rows }) => {
-        const socCase = rows[0];
-        const caseNumber = socCase?.case_number ?? String(_notifyIncident.soc_case_id);
-        const severity = (["critical", "high", "medium", "low"].includes(socCase?.severity ?? "")
-          ? socCase!.severity
-          : "medium") as "critical" | "high" | "medium" | "low";
+    const _webhookNotifyAll = incident.webhook_notify_all;
+    const _webhookNotifyClosedOnly = incident.webhook_notify_closed_only;
 
-        const title = _notifyResolved
-          ? `ServiceNow'da ${_notifyIncident.sn_number} kapandı — SOC vakanız da güncellendi`
-          : `ServiceNow'da ${_notifyIncident.sn_number} durumu değişti (state: ${_notifyNewState})`;
+    // Müşteri bildirimleri kapatmışsa (webhookNotifyAll=false) gönderme
+    // Sadece kapanma olaylarını iste (webhookNotifyClosedOnly=true) ve bu kapatma değilse gönderme
+    const shouldNotify = _webhookNotifyAll && (!_webhookNotifyClosedOnly || _notifyResolved);
 
-        const narrative = _notifyResolved
-          ? `ServiceNow incident ${_notifyIncident.sn_number} çözüme kavuşturuldu veya kapatıldı. SOC vakanız (${caseNumber}) otomatik olarak güncellendi.`
-          : `ServiceNow incident ${_notifyIncident.sn_number} için durum değişikliği algılandı. SOC vakanız (${caseNumber}) buna göre senkronize edildi.`;
+    if (shouldNotify) {
+      setImmediate(() => {
+        pool.query<{ case_number: string; severity: string }>(
+          `SELECT case_number, severity FROM soc_cases WHERE id = $1 LIMIT 1`,
+          [_notifyIncident.soc_case_id],
+        ).then(({ rows }) => {
+          const socCase = rows[0];
+          const caseNumber = socCase?.case_number ?? String(_notifyIncident.soc_case_id);
+          const severity = (["critical", "high", "medium", "low"].includes(socCase?.severity ?? "")
+            ? socCase!.severity
+            : "medium") as "critical" | "high" | "medium" | "low";
 
-        return sendSOCNotification(
-          _notifyIncident.customer_id,
-          _notifyIncident.soc_case_id,
-          { title, severity, narrative, caseNumber },
-        );
-      }).then((results) => {
-        logger.info(
-          { results, socCaseId: _notifyIncident.soc_case_id, snNumber: _notifyIncident.sn_number },
-          "ServiceNow webhook: müşteri bildirimi gönderildi",
-        );
-      }).catch((err: unknown) => {
-        logger.error(
-          { err, socCaseId: _notifyIncident.soc_case_id },
-          "ServiceNow webhook: müşteri bildirimi gönderilemedi",
-        );
+          const title = _notifyResolved
+            ? `ServiceNow'da ${_notifyIncident.sn_number} kapandı — SOC vakanız da güncellendi`
+            : `ServiceNow'da ${_notifyIncident.sn_number} durumu değişti (state: ${_notifyNewState})`;
+
+          const narrative = _notifyResolved
+            ? `ServiceNow incident ${_notifyIncident.sn_number} çözüme kavuşturuldu veya kapatıldı. SOC vakanız (${caseNumber}) otomatik olarak güncellendi.`
+            : `ServiceNow incident ${_notifyIncident.sn_number} için durum değişikliği algılandı. SOC vakanız (${caseNumber}) buna göre senkronize edildi.`;
+
+          return sendSOCNotification(
+            _notifyIncident.customer_id,
+            _notifyIncident.soc_case_id,
+            { title, severity, narrative, caseNumber },
+          );
+        }).then((results) => {
+          logger.info(
+            { results, socCaseId: _notifyIncident.soc_case_id, snNumber: _notifyIncident.sn_number },
+            "ServiceNow webhook: müşteri bildirimi gönderildi",
+          );
+        }).catch((err: unknown) => {
+          logger.error(
+            { err, socCaseId: _notifyIncident.soc_case_id },
+            "ServiceNow webhook: müşteri bildirimi gönderilemedi",
+          );
+        });
       });
-    });
+    } else {
+      logger.info(
+        { socCaseId: _notifyIncident.soc_case_id, snNumber: _notifyIncident.sn_number, webhookNotifyAll: _webhookNotifyAll, webhookNotifyClosedOnly: _webhookNotifyClosedOnly, isResolved: _notifyResolved },
+        "ServiceNow webhook: bildirim müşteri tercihi nedeniyle atlandı",
+      );
+    }
   }
 
   // 6. Ingest work_notes
@@ -864,6 +881,9 @@ export async function ensureServiceNowTables(): Promise<void> {
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_event_count INTEGER NOT NULL DEFAULT 0`);
   // Configurable retry window for pending SOC cases after connection restore (default 48h)
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS retry_window_hours INTEGER NOT NULL DEFAULT 48`);
+  // Customer notification preferences for webhook state-change emails
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_notify_all BOOLEAN NOT NULL DEFAULT true`);
+  await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_notify_closed_only BOOLEAN NOT NULL DEFAULT false`);
   logger.info("ServiceNow tables ready");
 }
 

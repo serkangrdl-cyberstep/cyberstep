@@ -27,6 +27,7 @@ async function apiFetch(path: string, opts?: RequestInit) {
 export default function Dashboard() {
   const qc = useQueryClient();
   const [collectMsg, setCollectMsg] = useState("");
+  const [enrichMsg, setEnrichMsg] = useState("");
   const [generateMsg, setGenerateMsg] = useState("");
 
   const { data: stats, isLoading } = useQuery<Stats>({
@@ -41,6 +42,14 @@ export default function Dashboard() {
       setCollectMsg("Haber toplama başlatıldı — birkaç dakika içinde tamamlanacak.");
       qc.invalidateQueries({ queryKey: ["digest-stats"] });
       setTimeout(() => setCollectMsg(""), 5000);
+    },
+  });
+
+  const enrichMut = useMutation({
+    mutationFn: () => apiFetch("/api/digest/enrich", { method: "POST" }),
+    onSuccess: () => {
+      setEnrichMsg("AI zenginleştirme başlatıldı — özet ve CVE çıkarma işleniyor...");
+      setTimeout(() => setEnrichMsg(""), 8000);
     },
   });
 
@@ -94,7 +103,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card border border-card-border rounded-lg p-6">
           <h2 className="font-semibold text-foreground mb-1">Haber Topla</h2>
           <p className="text-sm text-muted-foreground mb-4">
@@ -109,6 +118,22 @@ export default function Dashboard() {
             {collectMut.isPending ? "Calistirilıyor..." : "Simdi Topla"}
           </button>
           {collectMsg && <p className="text-sm text-green-600 mt-2">{collectMsg}</p>}
+        </div>
+
+        <div className="bg-card border border-card-border rounded-lg p-6">
+          <h2 className="font-semibold text-foreground mb-1">AI Zenginlestir</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Toplanmis haberleri Claude AI ile isler: Turkce ozet uretir, CVE ID'lerini cikarir
+            ve bulten icin skorlar. Otomatik 06:30'da calisir.
+          </p>
+          <button
+            onClick={() => enrichMut.mutate()}
+            disabled={enrichMut.isPending}
+            className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium disabled:opacity-50 hover:opacity-90 transition-opacity"
+          >
+            {enrichMut.isPending ? "Isleniyor..." : "Simdi Zenginlestir"}
+          </button>
+          {enrichMsg && <p className="text-sm text-purple-600 mt-2">{enrichMsg}</p>}
         </div>
 
         <div className="bg-card border border-card-border rounded-lg p-6">
@@ -133,7 +158,11 @@ export default function Dashboard() {
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-3">
             <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            <span className="text-muted-foreground">Her gun 06:00 (Istanbul) — RSS haber toplama</span>
+            <span className="text-muted-foreground">Her gun 06:00 (Istanbul) — RSS haber toplama (36 kaynak)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+            <span className="text-muted-foreground">Her gun 06:30 (Istanbul) — Claude AI zenginlestirme (ozet + CVE)</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />

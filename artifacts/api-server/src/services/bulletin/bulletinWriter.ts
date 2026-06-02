@@ -103,6 +103,8 @@ ${sections.map(s => `
   ${s.cta ? `<a href="${s.cta.url}" style="color:${s.color};font-size:14px;font-weight:600;text-decoration:none">${s.cta.text} →</a>` : ""}
 </div>`).join("")}
 
+${buildNewsSection(data.topNews)}
+
 <div style="background:#060D1A;border-radius:0 0 12px 12px;padding:24px 32px;text-align:center;border-top:1px solid #111F35">
   <div style="font-size:16px;color:#A8B8D0;margin-bottom:16px">Şirketinizin risk skorunu öğrenin</div>
   <a href="${base}" style="display:inline-block;background:#00C8FF;color:#060D1A;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Ücretsiz Domain Tarama →</a>
@@ -114,6 +116,26 @@ ${sections.map(s => `
 </div>
 
 </div></body></html>`;
+}
+
+function buildNewsSection(topNews: WeeklyData["topNews"]): string {
+  if (!topNews || topNews.length === 0) return "";
+  const items = topNews.slice(0, 5).map((n) => {
+    const label = n.cveIds.length > 0 ? `[${n.cveIds[0]}] ` : "";
+    const src = n.sourceName ? ` <span style="color:#5A6A80;font-size:12px">— ${n.sourceName}</span>` : "";
+    const summary = n.aiSummary ?? n.title;
+    return `<li style="margin-bottom:10px">
+      <a href="${n.url}" style="color:#00C8FF;font-size:14px;font-weight:600;text-decoration:none" target="_blank">${label}${n.title}</a>${src}
+      <div style="color:#A8B8D0;font-size:13px;margin-top:3px;line-height:1.5">${summary}</div>
+    </li>`;
+  }).join("");
+  return `<div style="background:#060D1A;margin-bottom:2px;padding:24px 32px">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+    <span style="font-size:20px;margin-right:10px">📰</span>
+    <span style="font-size:13px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:2px">Bu Haftanın Öne Çıkanları</span>
+  </div>
+  <ul style="margin:0;padding-left:0;list-style:none">${items}</ul>
+</div>`;
 }
 
 export async function generateBulletinContent(

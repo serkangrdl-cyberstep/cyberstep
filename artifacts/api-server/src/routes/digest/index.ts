@@ -234,6 +234,13 @@ router.post("/collect", async (req, res) => {
   res.json({ message: "Haber toplama başlatıldı" });
 });
 
+router.post("/enrich", async (req, res) => {
+  import("../../services/news/newsEnricher")
+    .then(({ enrichNewsItems }) => enrichNewsItems())
+    .catch((err) => logger.error({ err }, "Manual enrichment failed"));
+  res.json({ message: "AI zenginleştirme başlatıldı (özet + CVE çıkarma)" });
+});
+
 router.post("/generate", async (req, res) => {
   const { weekYear, weekNumber } = req.body as {
     weekYear?: number;

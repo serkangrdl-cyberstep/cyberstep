@@ -30,6 +30,7 @@ import { initSOCWebSocket } from "./services/soc/soc-ws";
 import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
+import { ensureNewsItemColumns, enrichNewsItems } from "./services/news/newsEnricher";
 import { calculateAllHealthScores } from "./routes/health/index";
 import { runCollectionReminderCron } from "./services/invoice";
 import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
@@ -1430,6 +1431,7 @@ async function startup() {
   await ensureWebhookTables();
   await ensureTelegramTables();
   await ensureNetgsmTables();
+  await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
   await loadApiKeysFromDb();
 }
@@ -1561,7 +1563,7 @@ function startInflationReminderCron() {
 }
 
 // ─── Digest Cron ─────────────────────────────────────────────────────────────
-// Haber topla: her gün 06:00; Digest oluştur: her Cuma 07:00 İstanbul
+// 06:00 RSS topla → 06:30 Claude zenginleştir → Cuma 07:00 digest üret (İstanbul)
 function startDigestCron() {
   cron.schedule("0 3 * * *", async () => {
     logger.info("Digest: RSS haber toplama başlıyor");
@@ -1569,6 +1571,15 @@ function startDigestCron() {
       await collectRSSFeeds();
     } catch (err) {
       logger.error({ err }, "Digest: RSS haber toplama başarısız");
+    }
+  }, { timezone: "Europe/Istanbul" });
+
+  cron.schedule("30 3 * * *", async () => {
+    logger.info("Digest: Haber zenginleştirme (AI özet + CVE çıkarma) başlıyor");
+    try {
+      await enrichNewsItems();
+    } catch (err) {
+      logger.error({ err }, "Digest: Haber zenginleştirme başarısız");
     }
   }, { timezone: "Europe/Istanbul" });
 
@@ -1582,7 +1593,7 @@ function startDigestCron() {
     }
   }, { timezone: "Europe/Istanbul" });
 
-  logger.info("Digest cron scheduled (daily 06:00 collect, Friday 07:00 generate Istanbul)");
+  logger.info("Digest cron scheduled (06:00 collect → 06:30 enrich → Fri 07:00 generate Istanbul)");
 }
 
 // ─── Blog Autopilot Cron ──────────────────────────────────────────────────────

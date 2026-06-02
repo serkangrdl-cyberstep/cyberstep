@@ -1,6 +1,9 @@
 import { db, domainScansTable, cveTrackerTable, leadCandidatesTable } from "@workspace/db";
 import { and, gte, lte, like, desc, sql, count, avg, isNotNull, eq, lt } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { getTopNewsItems, type TopNewsItem } from "../news/newsEnricher";
+
+export type { TopNewsItem };
 
 export interface WeeklyData {
   totalScans: number;
@@ -21,6 +24,7 @@ export interface WeeklyData {
   avgRiskScore: number;
   weekStart: Date;
   weekEnd: Date;
+  topNews: TopNewsItem[];
 }
 
 async function getAvgScore(from: Date, to: Date): Promise<number> {
@@ -116,16 +120,18 @@ export async function collectWeeklyData(weekStart: Date, weekEnd: Date): Promise
   // Weekly risk change
   const prevWeekStart = new Date(weekStart.getTime() - 7 * 24 * 3600 * 1000);
   const prevWeekEnd = new Date(weekEnd.getTime() - 7 * 24 * 3600 * 1000);
-  const [thisAvg, prevAvg] = await Promise.all([
+  const [thisAvgVal, prevAvgVal, topNews] = await Promise.all([
     getAvgScore(weekStart, weekEnd),
     getAvgScore(prevWeekStart, prevWeekEnd),
+    getTopNewsItems(weekStart, weekEnd, 5),
   ]);
 
   logger.info({
     totalScans: scanCount?.count,
     newCVEs: newCriticalCVEs.length,
     topFinding: topFindingType,
-    avgScore: thisAvg,
+    avgScore: thisAvgVal,
+    topNewsCount: topNews.length,
   }, "Haftalık bülten verisi toplandı");
 
   return {
@@ -136,9 +142,10 @@ export async function collectWeeklyData(weekStart: Date, weekEnd: Date): Promise
     topFindingCount,
     topSector: sectorScores[0]?.sector ?? null,
     topSectorAvgScore: sectorScores[0]?.avgScore ? Number(sectorScores[0].avgScore) : null,
-    weeklyRiskChange: thisAvg - prevAvg,
-    avgRiskScore: thisAvg,
+    weeklyRiskChange: thisAvgVal - prevAvgVal,
+    avgRiskScore: thisAvgVal,
     weekStart,
     weekEnd,
+    topNews,
   };
 }

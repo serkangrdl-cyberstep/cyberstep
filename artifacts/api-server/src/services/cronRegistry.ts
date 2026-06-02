@@ -1,12 +1,29 @@
 import { db, siteSettingsTable } from "@workspace/db";
+import { pool } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { logger } from "../lib/logger";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CronState {
   lastRunAt: string | null;
   lastRunStatus: "ok" | "error" | "running" | "never";
   lastRunDurationMs: number | null;
   lastError: string | null;
+  lastProcessedCount: number | null;
   isRunning: boolean;
+}
+
+export interface CronRun {
+  id: number;
+  job_name: string;
+  schedule_expr: string | null;
+  started_at: string;
+  ended_at: string | null;
+  status: "running" | "ok" | "error" | "skipped";
+  processed_count: number | null;
+  error_message: string | null;
+  duration_ms: number | null;
 }
 
 const DEFAULT_STATE: CronState = {
@@ -14,15 +31,178 @@ const DEFAULT_STATE: CronState = {
   lastRunStatus: "never",
   lastRunDurationMs: null,
   lastError: null,
+  lastProcessedCount: null,
   isRunning: false,
 };
 
+// In-memory state + map of wrapped cron functions for manual trigger
 const registry = new Map<string, { state: CronState; startedAt: number }>();
+const cronFns = new Map<string, () => Promise<void>>();
+
+// ─── Next run calculator (handles common cron patterns) ───────────────────────
+
+export function nextCronDate(expr: string): Date | null {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return null;
+  const [rawMin, rawHour, , , rawDow] = parts;
+  const now = new Date();
+  const tz = "Europe/Istanbul";
+
+  // Iterate minute-by-minute for up to 1 week (10080 min)
+  const candidate = new Date(now);
+  candidate.setSeconds(0, 0);
+  candidate.setMinutes(candidate.getMinutes() + 1);
+
+  const matchField = (field: string, value: number): boolean => {
+    if (field === "*") return true;
+    if (field.startsWith("*/")) {
+      const step = parseInt(field.slice(2), 10);
+      return step > 0 && value % step === 0;
+    }
+    return parseInt(field, 10) === value;
+  };
+
+  for (let i = 0; i < 10080; i++) {
+    const m = candidate.getMinutes();
+    const h = candidate.getHours();
+    const d = candidate.getDay(); // 0=Sunday
+
+    if (matchField(rawMin!, m) && matchField(rawHour!, h) && matchField(rawDow!, d)) {
+      return new Date(candidate);
+    }
+    candidate.setMinutes(candidate.getMinutes() + 1);
+  }
+  return null;
+}
+
+// ─── Core: wrapCron ───────────────────────────────────────────────────────────
+// Returns a zero-arg async fn suitable for cron.schedule().
+// Handles: overlap prevention, DB persistence, failure alerting, count tracking.
+
+export function wrapCron(
+  name: string,
+  scheduleExpr: string,
+  fn: () => Promise<number | void>,
+): () => Promise<void> {
+  const wrapped = async (): Promise<void> => {
+    const current = registry.get(name);
+    if (current?.state.isRunning) {
+      logger.warn({ name }, `Cron ${name}: overlapping run — skipped`);
+      // Persist skipped run (non-blocking)
+      pool.query(
+        "INSERT INTO cron_job_runs(job_name,schedule_expr,started_at,ended_at,status,duration_ms) VALUES($1,$2,NOW(),NOW(),'skipped',0)",
+        [name, scheduleExpr],
+      ).catch(() => {});
+      return;
+    }
+
+    // Mark running in memory
+    registry.set(name, {
+      state: {
+        ...DEFAULT_STATE,
+        lastRunAt: new Date().toISOString(),
+        lastRunStatus: "running",
+        isRunning: true,
+      },
+      startedAt: Date.now(),
+    });
+
+    // Insert DB record
+    let runId: number | null = null;
+    try {
+      const { rows } = await pool.query<{ id: number }>(
+        "INSERT INTO cron_job_runs(job_name,schedule_expr,started_at,status) VALUES($1,$2,NOW(),'running') RETURNING id",
+        [name, scheduleExpr],
+      );
+      runId = rows[0]?.id ?? null;
+    } catch (dbErr) {
+      logger.warn({ dbErr, name }, "Cron registry: failed to insert run record");
+    }
+
+    const startedAt = Date.now();
+    logger.info({ name, scheduleExpr }, `Cron ${name} started`);
+
+    try {
+      const result = await fn();
+      const count = typeof result === "number" ? result : null;
+      const duration = Date.now() - startedAt;
+
+      const entry = registry.get(name);
+      if (entry) {
+        entry.state.isRunning = false;
+        entry.state.lastRunStatus = "ok";
+        entry.state.lastRunDurationMs = duration;
+        entry.state.lastError = null;
+        entry.state.lastProcessedCount = count;
+      }
+
+      if (runId !== null) {
+        pool.query(
+          "UPDATE cron_job_runs SET ended_at=NOW(),status='ok',processed_count=$1,duration_ms=$2 WHERE id=$3",
+          [count, duration, runId],
+        ).catch(() => {});
+      }
+
+      logger.info({ name, count, duration }, `Cron ${name} completed OK`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const duration = Date.now() - startedAt;
+
+      const entry = registry.get(name);
+      if (entry) {
+        entry.state.isRunning = false;
+        entry.state.lastRunStatus = "error";
+        entry.state.lastRunDurationMs = duration;
+        entry.state.lastError = msg.slice(0, 500);
+        entry.state.lastProcessedCount = null;
+      }
+
+      if (runId !== null) {
+        pool.query(
+          "UPDATE cron_job_runs SET ended_at=NOW(),status='error',error_message=$1,duration_ms=$2 WHERE id=$3",
+          [msg.slice(0, 500), duration, runId],
+        ).catch(() => {});
+      }
+
+      logger.error({ err, name }, `Cron ${name} FAILED`);
+
+      // Fire-and-forget admin alert
+      setImmediate(async () => {
+        try {
+          const { sendMail } = await import("./email");
+          const to = process.env["SOC_ADMIN_EMAIL"] ?? process.env["SMTP_USER"];
+          if (!to) return;
+          await sendMail({
+            to,
+            subject: `[CyberStep] Cron Hatasi: ${name}`,
+            html: `
+              <p>Cron job <strong>${name}</strong> başarısız oldu.</p>
+              <p><strong>Zamanlama:</strong> ${scheduleExpr}</p>
+              <p><strong>Hata:</strong> ${msg.slice(0, 500)}</p>
+              <p><strong>Zaman:</strong> ${new Date().toISOString()}</p>
+              <p><a href="https://cyberstep.io/panel/cron-ayarlari">Cron paneline git</a></p>
+            `,
+          });
+        } catch { /* alert failure must not propagate */ }
+      });
+    }
+  };
+
+  cronFns.set(name, wrapped);
+  return wrapped;
+}
+
+// ─── Legacy cronStart (kept for backward compat with manual trigger) ──────────
 
 export function cronStart(name: string): (ok: boolean, err?: string) => void {
   const startedAt = Date.now();
   registry.set(name, {
-    state: { lastRunAt: new Date().toISOString(), lastRunStatus: "running", lastRunDurationMs: null, lastError: null, isRunning: true },
+    state: {
+      ...DEFAULT_STATE,
+      lastRunAt: new Date().toISOString(),
+      lastRunStatus: "running",
+      isRunning: true,
+    },
     startedAt,
   });
   return (ok: boolean, err?: string) => {
@@ -35,6 +215,14 @@ export function cronStart(name: string): (ok: boolean, err?: string) => void {
   };
 }
 
+// ─── Manual trigger helper: run the registered wrapCron fn ───────────────────
+
+export function getCronFn(name: string): (() => Promise<void>) | undefined {
+  return cronFns.get(name);
+}
+
+// ─── Read helpers ─────────────────────────────────────────────────────────────
+
 export function cronGetState(name: string): CronState {
   return registry.get(name)?.state ?? { ...DEFAULT_STATE };
 }
@@ -46,6 +234,60 @@ export function cronGetAll(): Record<string, CronState> {
   }
   return result;
 }
+
+export async function cronGetHistory(name?: string, limit = 30): Promise<CronRun[]> {
+  try {
+    if (name) {
+      const { rows } = await pool.query<CronRun>(
+        "SELECT * FROM cron_job_runs WHERE job_name=$1 ORDER BY started_at DESC LIMIT $2",
+        [name, limit],
+      );
+      return rows;
+    }
+    const { rows } = await pool.query<CronRun>(
+      "SELECT * FROM cron_job_runs ORDER BY started_at DESC LIMIT $1",
+      [limit],
+    );
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+export async function cronGetStats(): Promise<Array<{
+  job_name: string;
+  total_runs: number;
+  ok_runs: number;
+  error_runs: number;
+  avg_duration_ms: number | null;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  last_count: number | null;
+}>> {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        job_name,
+        COUNT(*) FILTER (WHERE status != 'skipped') AS total_runs,
+        COUNT(*) FILTER (WHERE status = 'ok') AS ok_runs,
+        COUNT(*) FILTER (WHERE status = 'error') AS error_runs,
+        ROUND(AVG(duration_ms) FILTER (WHERE status IN ('ok','error')))::int AS avg_duration_ms,
+        MAX(started_at) AS last_run_at,
+        (ARRAY_AGG(status ORDER BY started_at DESC))[1] AS last_status,
+        (ARRAY_AGG(error_message ORDER BY started_at DESC) FILTER (WHERE error_message IS NOT NULL))[1] AS last_error,
+        (ARRAY_AGG(processed_count ORDER BY started_at DESC) FILTER (WHERE processed_count IS NOT NULL))[1] AS last_count
+      FROM cron_job_runs
+      GROUP BY job_name
+      ORDER BY last_run_at DESC NULLS LAST
+    `);
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+// ─── Settings helpers ─────────────────────────────────────────────────────────
 
 export async function cronIsEnabled(name: string, defaultVal = true): Promise<boolean> {
   try {

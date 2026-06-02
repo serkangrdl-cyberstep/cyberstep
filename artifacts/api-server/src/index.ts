@@ -12,7 +12,7 @@ import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
-import { cronStart, cronIsEnabled, cronGetLimit } from "./services/cronRegistry";
+import { cronStart, cronIsEnabled, cronGetLimit, wrapCron } from "./services/cronRegistry";
 import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
@@ -1785,21 +1785,20 @@ startup()
     logger.info("Onboarding email cron scheduled (10:30 Istanbul, D+3 & D+7)");
 
     // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
-    cron.schedule("0 2 * * *", async () => {
-      try {
-        const { analyzeAttackPaths, getLatestScan, getActiveCustomers } = await import("./services/attackPathAnalyzer");
-        const customers = await getActiveCustomers();
-        for (const c of customers) {
-          const scan = await getLatestScan(c.id);
-          if (scan) {
-            await analyzeAttackPaths(c.id, scan.id);
-            await new Promise(r => setTimeout(r, 3000));
-          }
+    cron.schedule("0 2 * * *", wrapCron("attack_path_analysis", "0 2 * * *", async () => {
+      const { analyzeAttackPaths, getLatestScan, getActiveCustomers } = await import("./services/attackPathAnalyzer");
+      const customers = await getActiveCustomers();
+      let analyzed = 0;
+      for (const c of customers) {
+        const scan = await getLatestScan(c.id);
+        if (scan) {
+          await analyzeAttackPaths(c.id, scan.id);
+          await new Promise(r => setTimeout(r, 3000));
+          analyzed++;
         }
-      } catch (err) {
-        logger.error({ err }, "Attack path cron failed");
       }
-    }, { timezone: "Europe/Istanbul" });
+      return analyzed;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Attack path analysis cron scheduled (02:00 Istanbul)");
 
     // ─── CASM: Remediation doğrulama kuyruğu — Her saat ─────────────────────
@@ -1874,10 +1873,10 @@ startup()
     logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
 
     // ─── ServiceNow bağlantı sağlık kontrolü — Her saat ──────────────────────
-    cron.schedule("0 * * * *", async () => {
-      logger.info("Running ServiceNow connection health check cron");
-      try { await checkServiceNowConnections(); } catch (err) { logger.error({ err }, "ServiceNow connection health check cron failed"); }
-    });
+    cron.schedule("0 * * * *", wrapCron("servicenow_health", "0 * * * *", async () => {
+      await checkServiceNowConnections();
+      return 0;
+    }));
     logger.info("ServiceNow connection health check cron scheduled (every hour)");
 
     cron.schedule("*/10 * * * *", async () => {
@@ -1918,64 +1917,51 @@ startup()
     logger.info("NOC baseline check cron scheduled (every hour)");
 
     // ─── Lead Discovery: crt.sh — Her Pazartesi 03:00 ────────────────────────
-    cron.schedule("0 3 * * 1", async () => {
-      if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return; }
-      const done = cronStart("crtsh");
-      try {
-        const limit = await cronGetLimit("crtsh", 300);
-        await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 70, limit });
-        await new Promise((r) => setTimeout(r, 5000));
-        await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 70, limit: Math.floor(limit / 3) });
-        done(true);
-      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "crt.sh discovery cron failed"); }
-    });
+    cron.schedule("0 3 * * 1", wrapCron("crtsh", "0 3 * * 1", async () => {
+      if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("crtsh", 300);
+      await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 70, limit });
+      await new Promise((r) => setTimeout(r, 5000));
+      await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 70, limit: Math.floor(limit / 3) });
+      return limit;
+    }));
     logger.info("crt.sh discovery cron scheduled (Monday 03:00)");
 
     // ─── Lead Discovery: Shodan — Her gece 03:00 ─────────────────────────────
-    cron.schedule("0 3 * * *", async () => {
-      if (!process.env["SHODAN_API_KEY"]) return;
-      if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return; }
-      const done = cronStart("shodan");
-      try {
-        const limit = await cronGetLimit("shodan", 100);
-        const queryIdx = new Date().getDay() % SHODAN_FREE_QUERIES.length;
-        await scanShodanFree(queryIdx, limit);
-        done(true);
-      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Shodan discovery cron failed"); }
-    });
+    cron.schedule("0 3 * * *", wrapCron("shodan", "0 3 * * *", async () => {
+      if (!process.env["SHODAN_API_KEY"]) return 0;
+      if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("shodan", 100);
+      const queryIdx = new Date().getDay() % SHODAN_FREE_QUERIES.length;
+      await scanShodanFree(queryIdx, limit);
+      return limit;
+    }));
     logger.info("Shodan discovery cron scheduled (daily 03:00)");
 
     // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
-    cron.schedule("0 4 * * *", async () => {
-      if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return; }
-      const done = cronStart("lead_qual");
-      try {
-        const limit = await cronGetLimit("lead_qual", 20);
-        await qualifyPendingCandidates(limit);
-        done(true);
-      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Lead qualification cron failed"); }
-    });
+    cron.schedule("0 4 * * *", wrapCron("lead_qual", "0 4 * * *", async () => {
+      if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("lead_qual", 20);
+      await qualifyPendingCandidates(limit);
+      return limit;
+    }));
     logger.info("Lead qualification cron scheduled (daily 04:00)");
 
     // ─── Certstream queue işleyici — her saat ─────────────────────────────────
-    cron.schedule("0 * * * *", async () => {
-      if (!await cronIsEnabled("certstream_proc")) { logger.info("Certstream cron devre dışı, atlanıyor"); return; }
-      const done = cronStart("certstream_proc");
-      try {
-        const limit = await cronGetLimit("certstream_proc", 100);
-        const result = await processCertstreamQueue(limit);
-        if (result.added > 0) logger.info(result, "Certstream queue: yeni leadler eklendi");
-        done(true);
-      } catch (err) { done(false, err instanceof Error ? err.message : String(err)); logger.warn({ err }, "Certstream queue cron failed"); }
-    });
+    cron.schedule("0 * * * *", wrapCron("certstream_proc", "0 * * * *", async () => {
+      if (!await cronIsEnabled("certstream_proc")) { logger.info("Certstream cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("certstream_proc", 100);
+      const result = await processCertstreamQueue(limit);
+      if (result.added > 0) logger.info(result, "Certstream queue: yeni leadler eklendi");
+      return result.added ?? 0;
+    }));
     logger.info("Certstream queue processor cron scheduled (hourly)");
 
     // ─── Abonelik bitiş hatırlatmaları — her gün 10:00 İstanbul ──────────────
-    cron.schedule("0 10 * * *", async () => {
-      try {
-        await checkSubscriptionExpiryReminders();
-      } catch (err) { logger.warn({ err }, "Subscription expiry reminder cron failed"); }
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 10 * * *", wrapCron("subscription_reminders", "0 10 * * *", async () => {
+      await checkSubscriptionExpiryReminders();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Subscription expiry reminder cron scheduled (daily 10:00 Istanbul)");
 
     // ─── CVE feed check — her 2 saatte bir ───────────────────────────────────

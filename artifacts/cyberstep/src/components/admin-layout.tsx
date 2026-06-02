@@ -33,6 +33,7 @@ const NAV_SECTIONS = [
       { icon: Heart,           label: "Müşteri Sağlığı",       href: "/panel/saglik" },
       { icon: Star,            label: "NPS Takibi",            href: "/panel/nps" },
       { icon: CheckSquare,     label: "Onboarding",            href: "/panel/onboarding" },
+      { icon: Package,         label: "Musteri Servisleri",    href: "/panel/musteri-servisleri" },
     ],
   },
   {

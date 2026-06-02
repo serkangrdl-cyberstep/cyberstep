@@ -419,7 +419,7 @@ router.get("/admin/customer-service-subscriptions", requireAdmin, async (_req: R
 
   const [customers, onboardingRows] = await Promise.all([
     customerIds.length > 0
-      ? db.select({ id: customersTable.id, email: customersTable.email, companyName: customersTable.companyName, contactName: customersTable.contactName })
+      ? db.select({ id: customersTable.id, email: customersTable.email, companyName: customersTable.companyName })
           .from(customersTable).where(inArray(customersTable.id, customerIds))
       : Promise.resolve([]),
     slugs.length > 0

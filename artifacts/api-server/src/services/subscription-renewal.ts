@@ -103,6 +103,10 @@ export async function processSubscriptionRenewals() {
 export async function checkSubscriptionExpiryReminders(): Promise<void> {
   const now = new Date();
 
+  // Window for 30-day reminder: expires_at between now+27d and now+33d
+  const window30dFrom = new Date(now.getTime() + 27 * 24 * 3600 * 1000);
+  const window30dTo   = new Date(now.getTime() + 33 * 24 * 3600 * 1000);
+
   // Window for 7-day reminder: expires_at between now+6d and now+8d
   const window7dFrom = new Date(now.getTime() + 6 * 24 * 3600 * 1000);
   const window7dTo   = new Date(now.getTime() + 8 * 24 * 3600 * 1000);
@@ -111,23 +115,51 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
   const window1dFrom = new Date(now.getTime() + 12 * 3600 * 1000);
   const window1dTo   = new Date(now.getTime() + 36 * 3600 * 1000);
 
-  const due7d = await db.select().from(customerServiceSubscriptionsTable).where(
-    and(
-      eq(customerServiceSubscriptionsTable.status, "active"),
-      isNull(customerServiceSubscriptionsTable.reminder7dSentAt),
-      between(customerServiceSubscriptionsTable.expiresAt, window7dFrom, window7dTo),
+  const [due30d, due7d, due1d] = await Promise.all([
+    db.select().from(customerServiceSubscriptionsTable).where(
+      and(
+        eq(customerServiceSubscriptionsTable.status, "active"),
+        isNull(customerServiceSubscriptionsTable.reminder30dSentAt),
+        between(customerServiceSubscriptionsTable.expiresAt, window30dFrom, window30dTo),
+      ),
     ),
-  );
-
-  const due1d = await db.select().from(customerServiceSubscriptionsTable).where(
-    and(
-      eq(customerServiceSubscriptionsTable.status, "active"),
-      isNull(customerServiceSubscriptionsTable.reminder1dSentAt),
-      between(customerServiceSubscriptionsTable.expiresAt, window1dFrom, window1dTo),
+    db.select().from(customerServiceSubscriptionsTable).where(
+      and(
+        eq(customerServiceSubscriptionsTable.status, "active"),
+        isNull(customerServiceSubscriptionsTable.reminder7dSentAt),
+        between(customerServiceSubscriptionsTable.expiresAt, window7dFrom, window7dTo),
+      ),
     ),
-  );
+    db.select().from(customerServiceSubscriptionsTable).where(
+      and(
+        eq(customerServiceSubscriptionsTable.status, "active"),
+        isNull(customerServiceSubscriptionsTable.reminder1dSentAt),
+        between(customerServiceSubscriptionsTable.expiresAt, window1dFrom, window1dTo),
+      ),
+    ),
+  ]);
 
-  logger.info({ count7d: due7d.length, count1d: due1d.length }, "Subscription expiry reminders: candidates found");
+  logger.info({ count30d: due30d.length, count7d: due7d.length, count1d: due1d.length }, "Subscription expiry reminders: candidates found");
+
+  for (const sub of due30d) {
+    if (!sub.expiresAt) continue;
+    try {
+      await sendSubscriptionExpiryReminder({
+        email: sub.email,
+        contactName: sub.contactName,
+        companyName: sub.companyName,
+        serviceLabel: sub.serviceLabel,
+        expiresAt: sub.expiresAt,
+        daysLeft: 30,
+      });
+      await db.update(customerServiceSubscriptionsTable)
+        .set({ reminder30dSentAt: new Date() })
+        .where(eq(customerServiceSubscriptionsTable.id, sub.id));
+      logger.info({ subId: sub.id, email: sub.email }, "Subscription 30d reminder sent");
+    } catch (err) {
+      logger.error({ err, subId: sub.id }, "Failed to send 30d reminder");
+    }
+  }
 
   for (const sub of due7d) {
     if (!sub.expiresAt) continue;

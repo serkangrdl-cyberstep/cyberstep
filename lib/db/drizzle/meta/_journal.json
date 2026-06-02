@@ -15,6 +15,13 @@
       "when": 1780400000000,
       "tag": "0001_subscription_reminder_cols",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780401000000,
+      "tag": "0002_subscription_reminder30d",
+      "breakpoints": true
     }
   ]
 }

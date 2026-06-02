@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import {
   Shield, CheckCircle, Clock, XCircle, Package, ExternalLink,
   ArrowRight, AlertCircle, ShoppingCart, Loader2, ChevronDown, ChevronUp,
-  Settings, Server, Globe, X, Check, Lock,
+  Settings, Server, Globe, X, Check, Lock, CreditCard, RefreshCw, Ban,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
 
@@ -34,6 +36,9 @@ interface ServiceSubscription {
   contactName: string;
   companyName: string;
   email: string;
+  iyzicoCardUserKey?: string | null;
+  iyzicoCardToken?: string | null;
+  paymentRef?: string | null;
 }
 
 interface CatalogItem {
@@ -429,10 +434,80 @@ function ServiceConfigModal({ item, onClose }: { item: MyServiceItem; onClose: (
 // Main Page
 // ──────────────────────────────────────────────────────────────────────────────
 
+interface RenewalCard {
+  cardHolderName: string;
+  cardNumber: string;
+  expireMonth: string;
+  expireYear: string;
+  cvc: string;
+}
+
 export default function ServislerimPage() {
   const { data: customer, isLoading: authLoading } = useRequireCustomer();
   const [, navigate] = useLocation();
   const [selectedItem, setSelectedItem] = useState<MyServiceItem | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Cancel state (#90)
+  const [cancelSubId, setCancelSubId] = useState<number | null>(null);
+
+  // Renewal state (#91)
+  const [renewSub, setRenewSub] = useState<MyServiceItem["subscription"] | null>(null);
+  const [renewMode, setRenewMode] = useState<"stored" | "new">("stored");
+  const [renewCard, setRenewCard] = useState<RenewalCard>({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (subId: number) => {
+      const res = await fetch(`/api/customer/service-subscriptions/${subId}/cancel`, {
+        method: "POST", credentials: "include",
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error((d as { error?: string }).error ?? "Iptal basarisiz"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Abonelik iptal edildi", description: "Iptal onay e-postasi gonderildi." });
+      setCancelSubId(null);
+      queryClient.invalidateQueries({ queryKey: ["my-services"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Iptal basarisiz", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const renewMutation = useMutation({
+    mutationFn: async ({ subId, body }: { subId: number; body: Record<string, string> }) => {
+      const res = await fetch(`/api/customer/service-subscriptions/${subId}/renew`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error((d as { error?: string }).error ?? "Yenileme basarisiz"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Abonelik yenilendi", description: "Odeme basarili, aboneliginiz uzatildi." });
+      setRenewSub(null);
+      setRenewCard({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
+      queryClient.invalidateQueries({ queryKey: ["my-services"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Odeme basarisiz", description: err.message, variant: "destructive" });
+    },
+  });
+
+  function handleRenewSubmit() {
+    if (!renewSub) return;
+    const body: Record<string, string> = {};
+    if (renewMode === "new") {
+      if (!renewCard.cardHolderName || !renewCard.cardNumber || !renewCard.expireMonth || !renewCard.expireYear || !renewCard.cvc) {
+        toast({ title: "Eksik bilgi", description: "Tum kart alanlarini doldurun.", variant: "destructive" });
+        return;
+      }
+      Object.assign(body, renewCard);
+    }
+    renewMutation.mutate({ subId: renewSub.id, body });
+  }
 
   const { data: myServices = [], isLoading: servicesLoading } = useQuery<MyServiceItem[]>({
     queryKey: ["my-services"],
@@ -472,6 +547,120 @@ export default function ServislerimPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {selectedItem && <ServiceConfigModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+
+      {/* Cancel Confirmation (#90) */}
+      <AlertDialog open={cancelSubId !== null} onOpenChange={open => { if (!open) setCancelSubId(null); }}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Aboneligi iptal et?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Bu islemi geri alamazsiniz. Mevcut donem sonuna kadar erisim devam eder.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700">Vazgec</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-500 text-white"
+              onClick={() => cancelSubId && cancelMutation.mutate(cancelSubId)}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Iptal Et"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Renewal Modal (#91) */}
+      <Dialog open={renewSub !== null} onOpenChange={open => { if (!open) setRenewSub(null); }}>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-sky-400" /> Abonelik Yenile
+            </DialogTitle>
+          </DialogHeader>
+
+          {renewSub && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm">
+                <p className="font-medium text-white">{renewSub.serviceLabel}</p>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  {renewSub.billingCycle === "annual" ? "Yillik" : "Aylik"} &bull; {renewSub.amountPaid ? `${Number(renewSub.amountPaid).toLocaleString("tr-TR")} TL` : ""}
+                </p>
+              </div>
+
+              {/* Mode tabs */}
+              {renewSub.iyzicoCardUserKey && renewSub.iyzicoCardToken ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setRenewMode("stored")}
+                    className={`flex-1 py-2 rounded text-sm font-medium border transition-colors ${renewMode === "stored" ? "bg-sky-600/20 border-sky-500/50 text-sky-400" : "border-slate-700 text-slate-400 hover:border-slate-600"}`}
+                  >
+                    <CreditCard className="w-3.5 h-3.5 inline mr-1.5" />Kayitli Kart
+                  </button>
+                  <button
+                    onClick={() => setRenewMode("new")}
+                    className={`flex-1 py-2 rounded text-sm font-medium border transition-colors ${renewMode === "new" ? "bg-sky-600/20 border-sky-500/50 text-sky-400" : "border-slate-700 text-slate-400 hover:border-slate-600"}`}
+                  >
+                    Yeni Kart
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">Kart bilgilerini girin:</p>
+              )}
+
+              {(renewMode === "new" || !renewSub.iyzicoCardUserKey) && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-slate-300 text-xs">Kart Sahibi Adi</Label>
+                    <Input value={renewCard.cardHolderName} onChange={e => setRenewCard(c => ({ ...c, cardHolderName: e.target.value }))}
+                      placeholder="AHMET YILMAZ" className="mt-1 bg-slate-800 border-slate-700 text-white text-sm uppercase" />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300 text-xs">Kart Numarasi</Label>
+                    <Input value={renewCard.cardNumber} onChange={e => setRenewCard(c => ({ ...c, cardNumber: e.target.value }))}
+                      placeholder="1234 5678 9012 3456" maxLength={19} className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm" />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <Label className="text-slate-300 text-xs">Son Kullanma (AA/YY)</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input value={renewCard.expireMonth} onChange={e => setRenewCard(c => ({ ...c, expireMonth: e.target.value }))}
+                          placeholder="MM" maxLength={2} className="bg-slate-800 border-slate-700 text-white font-mono text-sm w-16 text-center" />
+                        <Input value={renewCard.expireYear} onChange={e => setRenewCard(c => ({ ...c, expireYear: e.target.value }))}
+                          placeholder="YY" maxLength={2} className="bg-slate-800 border-slate-700 text-white font-mono text-sm w-16 text-center" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-slate-300 text-xs">CVV</Label>
+                      <Input value={renewCard.cvc} onChange={e => setRenewCard(c => ({ ...c, cvc: e.target.value }))}
+                        placeholder="123" maxLength={4} className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-sm w-20 text-center" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {renewMode === "stored" && renewSub.iyzicoCardUserKey && (
+                <div className="flex items-center gap-2 text-sm text-slate-300 bg-slate-800 rounded px-3 py-2">
+                  <CreditCard className="w-4 h-4 text-sky-400" />
+                  <span>Odeme daha once kullanilan kart ile gerceklestirilecek.</span>
+                </div>
+              )}
+
+              {renewMutation.isError && (
+                <p className="text-xs text-red-400">{(renewMutation.error as Error).message}</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" className="text-slate-400" onClick={() => setRenewSub(null)}>Vazgec</Button>
+            <Button onClick={handleRenewSubmit} disabled={renewMutation.isPending} className="bg-sky-600 hover:bg-sky-500 gap-2">
+              {renewMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Yenile ve Ode
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-8">
@@ -563,6 +752,11 @@ export default function ServislerimPage() {
                               <ExternalLink className="w-3 h-3" /> NOC Panosu
                             </Button>
                           )}
+                          <Button size="sm" variant="ghost"
+                            className="text-red-400/70 hover:text-red-400 hover:bg-red-500/10 gap-1 text-xs h-7"
+                            onClick={() => setCancelSubId(sub.id)}>
+                            <Ban className="w-3 h-3" /> Iptal Et
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -638,15 +832,13 @@ export default function ServislerimPage() {
                           </Badge>
                         </div>
                         {sub.status === "expired" && (
-                          <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400"
+                          <Button size="sm" variant="outline" className="text-xs border-sky-600/40 text-sky-400 hover:bg-sky-500/10 gap-1.5"
                             onClick={() => {
-                              const q = new URLSearchParams();
-                              if (sub.contactName) q.set("contactName", sub.contactName);
-                              if (sub.companyName) q.set("companyName", sub.companyName);
-                              if (sub.email) q.set("email", sub.email);
-                              navigate(`/satin-al/${sub.serviceSlug}?${q.toString()}`);
+                              setRenewSub(sub);
+                              setRenewMode(sub.iyzicoCardUserKey && sub.iyzicoCardToken ? "stored" : "new");
+                              setRenewCard({ cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" });
                             }}>
-                            Yenile
+                            <RefreshCw className="w-3 h-3" /> Yenile
                           </Button>
                         )}
                       </div>

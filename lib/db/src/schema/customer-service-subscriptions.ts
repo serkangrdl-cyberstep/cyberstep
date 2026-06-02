@@ -22,6 +22,7 @@ export const customerServiceSubscriptionsTable = pgTable("customer_service_subsc
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   iyzicoCardUserKey: text("iyzico_card_user_key"),
   iyzicoCardToken: text("iyzico_card_token"),
+  reminder30dSentAt: timestamp("reminder30d_sent_at", { withTimezone: true }),
   reminder7dSentAt: timestamp("reminder7d_sent_at", { withTimezone: true }),
   reminder1dSentAt: timestamp("reminder1d_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

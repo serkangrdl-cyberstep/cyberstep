@@ -11,6 +11,7 @@ import { startFabricCrons } from "./services/fabric-cron";
 import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
+import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
 import { startCertstreamClient } from "./services/certstream-client";
@@ -1928,6 +1929,15 @@ startup()
       } catch (err) { logger.warn({ err }, "Lead qualification cron failed"); }
     });
     logger.info("Lead qualification cron scheduled (daily 04:00)");
+
+    // ─── Certstream queue işleyici — her saat ─────────────────────────────────
+    cron.schedule("0 * * * *", async () => {
+      try {
+        const result = await processCertstreamQueue(100);
+        if (result.added > 0) logger.info(result, "Certstream queue: yeni leadler eklendi");
+      } catch (err) { logger.warn({ err }, "Certstream queue cron failed"); }
+    });
+    logger.info("Certstream queue processor cron scheduled (hourly)");
 
     const server = app.listen(port, (err) => {
       if (err) {

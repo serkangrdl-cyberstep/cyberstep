@@ -19,7 +19,7 @@ const EXCLUDED_DOMAINS = new Set([
 // In-memory cache of scoring rules (populated on first scan)
 let SCORING_CACHE: Record<string, { corporate_score: number; subdomain_type: string }> = {};
 
-async function loadScoringRules(): Promise<void> {
+export async function loadScoringRules(): Promise<void> {
   const rows = await db.select().from(subdomainScoringRulesTable).where(eq(subdomainScoringRulesTable.isActive, true));
   SCORING_CACHE = {};
   for (const r of rows) {
@@ -27,7 +27,7 @@ async function loadScoringRules(): Promise<void> {
   }
 }
 
-function extractRootDomain(hostname: string): string {
+export function extractRootDomain(hostname: string): string {
   const parts = hostname.split(".");
   if (parts[parts.length - 1] === "tr" && parts.length >= 3) {
     return parts.slice(-3).join(".");
@@ -35,18 +35,18 @@ function extractRootDomain(hostname: string): string {
   return parts.slice(-2).join(".");
 }
 
-function isTurkishDomain(d: string): boolean {
+export function isTurkishDomain(d: string): boolean {
   return d.endsWith(".tr");
 }
 
-function isExcluded(domain: string): boolean {
+export function isExcluded(domain: string): boolean {
   for (const ex of EXCLUDED_DOMAINS) {
     if (domain.includes(ex)) return true;
   }
   return false;
 }
 
-function analyzeSubdomain(domain: string): {
+export function analyzeSubdomain(domain: string): {
   rootDomain: string;
   corporateScore: number;
   subdomainType: string;

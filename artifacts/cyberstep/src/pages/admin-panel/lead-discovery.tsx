@@ -96,6 +96,129 @@ function runStatusBadge(status: string) {
   return <Badge variant="secondary">{status}</Badge>;
 }
 
+interface CertstreamStatusData {
+  id: number;
+  status: string;
+  startedAt: string | null;
+  lastCertAt: string | null;
+  totalReceived: number;
+  totalTrFound: number;
+  totalQualified: number;
+  queuePending: number;
+  last24hReceived: number;
+  totalQueued: number;
+}
+
+function CertstreamWidget() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: cs, isLoading } = useQuery<CertstreamStatusData>({
+    queryKey: ["certstream-status"],
+    queryFn: () => fetch(`${BASE}/lead-discovery/certstream/status`).then((r) => r.json()),
+    refetchInterval: 10_000,
+  });
+
+  const processQueue = useMutation({
+    mutationFn: () =>
+      fetch(`${BASE}/lead-discovery/certstream/process`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: () => {
+      toast({ description: "Queue işleme başlatıldı." });
+      qc.invalidateQueries({ queryKey: ["certstream-status"] });
+      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
+    },
+  });
+
+  const secondsAgo = cs?.lastCertAt
+    ? Math.round((Date.now() - new Date(cs.lastCertAt).getTime()) / 1000)
+    : null;
+
+  const isActive = cs?.status === "running";
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Certstream Gercek Zamanli Lead Akisi</CardTitle>
+            <CardDescription>
+              7/24 SSL sertifika akisi. Her yeni Turk kurumsal SSL → otomatik lead adayi.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isActive ? "bg-green-500 animate-pulse" : "bg-gray-300"}`} />
+            <span className={`text-sm font-medium ${isActive ? "text-green-700" : "text-gray-500"}`}>
+              {isActive ? "Aktif" : "Durdu"}
+            </span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Yukleniyor...</div>
+        ) : (
+          <>
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                {
+                  label: "Son sertifika",
+                  value: secondsAgo != null
+                    ? secondsAgo < 60 ? `${secondsAgo}s once` : `${Math.round(secondsAgo / 60)}dk once`
+                    : "—",
+                },
+                { label: "Son 24s alınan", value: (cs?.last24hReceived ?? 0).toLocaleString("tr-TR") },
+                { label: "Queue'da bekleyen", value: (cs?.queuePending ?? 0).toLocaleString("tr-TR") },
+                { label: "Toplam alınan cert", value: (cs?.totalReceived ?? 0).toLocaleString("tr-TR") },
+                { label: "TR domain bulundu", value: (cs?.totalTrFound ?? 0).toLocaleString("tr-TR") },
+                { label: "Lead'e eklenen (toplam)", value: (cs?.totalQualified ?? 0).toLocaleString("tr-TR") },
+              ].map((s) => (
+                <div key={s.label} className="bg-muted/40 rounded-md px-3 py-2.5">
+                  <div className="text-lg font-bold">{s.value}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Info box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800 space-y-1">
+              <div className="font-medium">Nasil calisir?</div>
+              <ul className="text-xs space-y-0.5 list-disc list-inside text-blue-700">
+                <li>certstream.calidog.io'dan dunya genelindeki SSL sertifika loglarini izler</li>
+                <li>Turk domain (.tr) veya TR orglu sertifikalari tespit eder</li>
+                <li>Subdomain analizi: erp/login/portal gibi kurumsal kalip ≥ 60 skor</li>
+                <li>certstream_queue tablosuna buffer'lar (50 cert veya 30 saniyede bir toplu insert)</li>
+                <li>Her saat cron ile queue → lead_candidates tablosuna tasir</li>
+                <li>Var olan domain bulunursa cert_org ile sirket adini tamamlar</li>
+              </ul>
+            </div>
+
+            {/* Action */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => processQueue.mutate()}
+                disabled={processQueue.isPending || (cs?.queuePending ?? 0) === 0}
+                variant="outline"
+              >
+                {processQueue.isPending ? "Isleniyor..." : `Queue Isimdi Isle (${cs?.queuePending ?? 0} bekleyen)`}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Otomatik: her saat isler. Manuel tetikleme de mumkun.
+              </span>
+            </div>
+
+            {/* Certstream already running note */}
+            <p className="text-xs text-muted-foreground border-t pt-3">
+              Certstream baglantisi sunucu baslarken otomatik aktif olur (CT Monitor ozelligi ile paylasilir).
+              Ayri bir baslatma/durdurma gerekmez.
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminLeadDiscovery() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -287,12 +410,18 @@ export default function AdminLeadDiscovery() {
 
       <Tabs defaultValue="crtsh">
         <TabsList className="mb-4">
+          <TabsTrigger value="certstream">Certstream</TabsTrigger>
           <TabsTrigger value="crtsh">crt.sh</TabsTrigger>
           <TabsTrigger value="shodan">Shodan</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="results">Sonuclar</TabsTrigger>
           <TabsTrigger value="history">Gecmis</TabsTrigger>
         </TabsList>
+
+        {/* ── CERTSTREAM TAB ───────────────────────────────────────────── */}
+        <TabsContent value="certstream">
+          <CertstreamWidget />
+        </TabsContent>
 
         {/* ── crt.sh TAB ────────────────────────────────────────────────── */}
         <TabsContent value="crtsh">

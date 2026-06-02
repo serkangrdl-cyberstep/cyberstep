@@ -10,6 +10,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { createCaseWithNumber } from "./soc/soc-cases";
+import { handleCertForLeadDiscovery } from "./certstreamLeadFilter";
 
 const CERTSTREAM_URL = "wss://certstream.calidog.io";
 const DOMAIN_CACHE_TTL_MS = 60_000; // 1 minute
@@ -73,6 +74,9 @@ function matchesDomain(san: string, watchedDomain: string): boolean {
 async function processCertificate(cert: CertstreamMessage["data"]["leaf_cert"]): Promise<void> {
   const sans: string[] = Array.isArray(cert.all_domains) ? cert.all_domains : [];
   if (sans.length === 0) return;
+
+  // Lead discovery — runs for every cert, regardless of watched domains
+  handleCertForLeadDiscovery(cert).catch(() => {});
 
   const watched = await fetchWatchedDomains();
   if (watched.length === 0) return;

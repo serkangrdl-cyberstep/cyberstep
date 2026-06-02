@@ -605,6 +605,40 @@ interface SnWebhookPayload {
   assigned_to?: string;
 }
 
+// ─── Webhook Error Logging ────────────────────────────────────────────────────
+
+async function logWebhookError(opts: {
+  configId?: number;
+  customerId?: number;
+  snSysId?: string;
+  errorReason: string;
+  errorDetail?: string;
+  rawBodyPreview?: string;
+  signaturePresent: boolean;
+}): Promise<number | null> {
+  try {
+    const { rows } = await pool.query<{ id: number }>(
+      `INSERT INTO servicenow_webhook_errors
+         (config_id, customer_id, sn_sys_id, error_reason, error_detail, raw_body_preview, signature_present, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       RETURNING id`,
+      [
+        opts.configId ?? null,
+        opts.customerId ?? null,
+        opts.snSysId ?? null,
+        opts.errorReason,
+        opts.errorDetail?.slice(0, 500) ?? null,
+        opts.rawBodyPreview?.slice(0, 300) ?? null,
+        opts.signaturePresent,
+      ],
+    );
+    return rows[0]?.id ?? null;
+  } catch (err) {
+    logger.warn({ err }, "ServiceNow: webhook error log yazılamadı");
+    return null;
+  }
+}
+
 /**
  * Main webhook handler — looks up the incident by sys_id (only), verifies HMAC
  * (mandatory — fails closed when secret not configured), then applies state,
@@ -615,11 +649,20 @@ export async function processServiceNowWebhook(
   rawBody: Buffer,
   signatureHeader: string | undefined,
 ): Promise<{ ok: boolean; status: number; message: string }> {
+  const rawBodyPreview = rawBody.toString("utf8").slice(0, 300);
+  const signaturePresent = !!signatureHeader;
+
   // 1. Parse payload
   let payload: SnWebhookPayload;
   try {
     payload = JSON.parse(rawBody.toString("utf8")) as SnWebhookPayload;
   } catch {
+    await logWebhookError({
+      errorReason: "JSON parse hatası",
+      errorDetail: "Gövde geçerli JSON formatında değil",
+      rawBodyPreview,
+      signaturePresent,
+    });
     return { ok: false, status: 400, message: "Geçersiz JSON gövdesi" };
   }
 
@@ -627,6 +670,12 @@ export async function processServiceNowWebhook(
   // not guessable like a sequential incident number.
   const snSysId = typeof payload.sys_id === "string" ? payload.sys_id.trim() : "";
   if (!snSysId) {
+    await logWebhookError({
+      errorReason: "sys_id eksik",
+      errorDetail: "Payload'da sys_id alanı bulunamadı veya boş",
+      rawBodyPreview,
+      signaturePresent,
+    });
     return { ok: false, status: 400, message: "sys_id alanı zorunludur" };
   }
 
@@ -662,19 +711,55 @@ export async function processServiceNowWebhook(
   // Customers must generate a secret before ServiceNow can push updates.
   if (!incident.webhook_secret_enc) {
     logger.warn({ configId: incident.config_id }, "ServiceNow webhook: secret yapılandırılmamış — 401 döndürülüyor");
+    await logWebhookError({
+      configId: incident.config_id,
+      customerId: incident.customer_id,
+      snSysId,
+      errorReason: "Webhook secret yapılandırılmamış",
+      errorDetail: "Müşteri portalından önce webhook secret oluşturun (HMAC doğrulaması zorunludur)",
+      rawBodyPreview,
+      signaturePresent,
+    });
     return { ok: false, status: 401, message: "Webhook secret yapılandırılmamış. Müşteri portalından önce secret oluşturun." };
   }
   if (!signatureHeader) {
     logger.warn({ configId: incident.config_id }, "ServiceNow webhook: X-SN-Signature başlığı eksik");
+    await logWebhookError({
+      configId: incident.config_id,
+      customerId: incident.customer_id,
+      snSysId,
+      errorReason: "İmza başlığı eksik",
+      errorDetail: "X-SN-Signature HTTP başlığı gönderilmedi. ServiceNow Outbound REST Message yapılandırmasını kontrol edin.",
+      rawBodyPreview,
+      signaturePresent: false,
+    });
     return { ok: false, status: 401, message: "X-SN-Signature başlığı zorunludur" };
   }
   const secret = decryptSecret(incident.webhook_secret_enc);
   if (!secret) {
     logger.error({ configId: incident.config_id }, "ServiceNow webhook: secret çözülemedi");
+    await logWebhookError({
+      configId: incident.config_id,
+      customerId: incident.customer_id,
+      snSysId,
+      errorReason: "Sunucu hatası: secret çözülemedi",
+      errorDetail: "ENCRYPTION_KEY değişkeninde sorun olabilir",
+      rawBodyPreview,
+      signaturePresent,
+    });
     return { ok: false, status: 500, message: "Sunucu hatası" };
   }
   if (!verifyWebhookHmac(secret, rawBody, signatureHeader)) {
     logger.warn({ configId: incident.config_id }, "ServiceNow webhook: HMAC doğrulaması başarısız");
+    await logWebhookError({
+      configId: incident.config_id,
+      customerId: incident.customer_id,
+      snSysId,
+      errorReason: "HMAC imza doğrulaması başarısız",
+      errorDetail: "Gönderilen X-SN-Signature değeri beklenen ile uyuşmuyor. ServiceNow'daki webhook secret değerini kontrol edin.",
+      rawBodyPreview,
+      signaturePresent: true,
+    });
     return { ok: false, status: 401, message: "İmza doğrulaması başarısız" };
   }
 
@@ -895,7 +980,105 @@ export async function ensureServiceNowTables(): Promise<void> {
   // Customer notification preferences for webhook state-change emails
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_notify_all BOOLEAN NOT NULL DEFAULT true`);
   await pool.query(`ALTER TABLE servicenow_configs ADD COLUMN IF NOT EXISTS webhook_notify_closed_only BOOLEAN NOT NULL DEFAULT false`);
+  // Webhook error log — rejected webhook attempts (HMAC, parse, missing fields)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS servicenow_webhook_errors (
+      id                SERIAL PRIMARY KEY,
+      config_id         INTEGER,
+      customer_id       INTEGER,
+      sn_sys_id         TEXT,
+      error_reason      TEXT NOT NULL,
+      error_detail      TEXT,
+      raw_body_preview  TEXT,
+      signature_present BOOLEAN DEFAULT false,
+      retried_at        TIMESTAMPTZ,
+      created_at        TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS sn_webhook_errors_customer_idx ON servicenow_webhook_errors (customer_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS sn_webhook_errors_created_idx ON servicenow_webhook_errors (created_at DESC)`);
   logger.info("ServiceNow tables ready");
+}
+
+// ─── Retry a failed webhook by force-syncing the incident ─────────────────────
+
+/**
+ * Retries a failed webhook error entry.
+ * If the error has a sn_sys_id and we can find the config for the customer,
+ * we force-pull the current state from ServiceNow and apply it.
+ * Returns { ok, message }.
+ */
+export async function retryWebhookError(
+  errorId: number,
+  customerId: number,
+): Promise<{ ok: boolean; message: string }> {
+  const { rows: errRows } = await pool.query<{
+    id: number; sn_sys_id: string | null; config_id: number | null; customer_id: number | null;
+  }>(
+    `SELECT id, sn_sys_id, config_id, customer_id
+     FROM servicenow_webhook_errors
+     WHERE id = $1`,
+    [errorId],
+  );
+  const errRow = errRows[0];
+  if (!errRow) return { ok: false, message: "Hata kaydı bulunamadı" };
+  if (errRow.customer_id !== null && errRow.customer_id !== customerId) {
+    return { ok: false, message: "Yetkisiz" };
+  }
+
+  if (!errRow.sn_sys_id) {
+    return { ok: false, message: "Bu hata kaydında sys_id yok — ServiceNow'da payload'ı kontrol edin ve tekrar gönderin" };
+  }
+
+  // Find the incident in our DB
+  const { rows: incRows } = await pool.query<{
+    id: number; soc_case_id: number; sn_sys_id: string; sn_number: string; config_id: number;
+  }>(
+    `SELECT id, soc_case_id, sn_sys_id, sn_number, config_id
+     FROM servicenow_incidents
+     WHERE sn_sys_id = $1 AND customer_id = $2
+     LIMIT 1`,
+    [errRow.sn_sys_id, customerId],
+  );
+  const inc = incRows[0];
+  if (!inc) {
+    return { ok: false, message: "sys_id ile eşleşen incident bulunamadı — ServiceNow'dan tekrar göndermeniz gerekebilir" };
+  }
+
+  const cfg = await loadConfig(customerId);
+  if (!cfg) return { ok: false, message: "ServiceNow yapılandırması bulunamadı" };
+
+  try {
+    await assertSafeUrlAsync(cfg.instanceUrl);
+    const snData = await getSnIncident(cfg, inc.sn_sys_id);
+    if (!snData) return { ok: false, message: "ServiceNow incident bilgisi alınamadı" };
+
+    await pool.query(
+      `UPDATE servicenow_incidents SET sn_state = $1, last_synced_at = NOW(), sync_error = NULL WHERE id = $2`,
+      [snData.state, inc.id],
+    );
+    if (snData.state >= RESOLVE_STATE) {
+      await pool.query(
+        `UPDATE soc_cases SET status = 'closed', updated_at = NOW() WHERE id = $1 AND status NOT IN ('closed', 'false_positive')`,
+        [inc.soc_case_id],
+      );
+    }
+    await pool.query(
+      `INSERT INTO soc_activity_log (case_id, actor_type, actor_name, action_type, description, created_at)
+       VALUES ($1, 'ai', 'ServiceNow', 'note', $2, NOW())`,
+      [inc.soc_case_id, `Manuel yeniden deneme: ${inc.sn_number} durumu ServiceNow'dan çekildi (state: ${snData.state})`],
+    );
+    // Mark the error as retried
+    await pool.query(
+      `UPDATE servicenow_webhook_errors SET retried_at = NOW() WHERE id = $1`,
+      [errorId],
+    );
+    logger.info({ errorId, customerId, snNumber: inc.sn_number, newState: snData.state }, "ServiceNow webhook error retried");
+    return { ok: true, message: `${inc.sn_number} başarıyla senkronize edildi (state: ${snData.state})` };
+  } catch (err) {
+    logger.error({ err, errorId, customerId }, "ServiceNow webhook retry başarısız");
+    return { ok: false, message: `Yeniden deneme başarısız: ${String(err).slice(0, 200)}` };
+  }
 }
 
 // ─── Retry pending SOC cases after connection restore ─────────────────────────

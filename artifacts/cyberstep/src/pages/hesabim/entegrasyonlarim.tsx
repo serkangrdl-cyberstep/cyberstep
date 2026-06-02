@@ -421,6 +421,10 @@ interface SnWebhookEvent {
   description: string;
   createdAt: string;
   incNumber: string | null;
+  status: "ok" | "error";
+  errorReason: string | null;
+  errorDetail: string | null;
+  retriedAt: string | null;
 }
 
 const SN_STATES: Record<number, string> = {
@@ -463,8 +467,8 @@ function ServiceNowSection() {
   const { data: webhookEventsData } = useQuery<{ events: SnWebhookEvent[] }>({
     queryKey: ["sn-webhook-events"],
     queryFn: () => fetch("/api/integrations/servicenow/webhook-events", { credentials: "include" }).then(r => r.json()),
-    enabled: !!data?.config?.active && (data?.config?.webhookEventCount ?? 0) > 0,
-    refetchInterval: 60000,
+    enabled: !!data?.config?.active,
+    refetchInterval: 30000,
   });
 
   const generateSecretMutation = useMutation({
@@ -584,16 +588,36 @@ function ServiceNowSection() {
     return `${Math.floor(h / 24)} gün önce`;
   }
 
+  const retryMutation = useMutation({
+    mutationFn: async (errorId: number) => {
+      const r = await fetch(`/api/integrations/servicenow/webhook-errors/${errorId}/retry`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const d = await r.json() as { ok: boolean; message: string };
+      if (!d.ok) throw new Error(d.message);
+      return d;
+    },
+    onSuccess: (d) => {
+      toast({ title: "Yeniden deneme basarili", description: d.message });
+      qc.invalidateQueries({ queryKey: ["sn-webhook-events"] });
+      qc.invalidateQueries({ queryKey: ["sn-incidents"] });
+    },
+    onError: (err) => toast({ title: "Yeniden deneme basarisiz", description: String(err).replace("Error: ", ""), variant: "destructive" }),
+  });
+
   const ACTION_TYPE_LABELS: Record<string, string> = {
     status_change: "Durum Degisikligi",
     note: "Yorum / Not",
     assignment: "Atama Degisikligi",
+    webhook_error: "Hata",
   };
 
   const ACTION_TYPE_COLORS: Record<string, string> = {
     status_change: "bg-violet-500/20 text-violet-400 border-violet-500/30",
     note: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     assignment: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    webhook_error: "bg-red-500/20 text-red-400 border-red-500/30",
   };
 
   const cfg = data?.config;
@@ -743,24 +767,74 @@ function ServiceNowSection() {
 
             {webhookEvents.length > 0 && (
               <div className="border border-gray-800 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
-                  <Webhook className="h-3.5 w-3.5 text-violet-400" />
-                  Son Webhook Olaylari
-                </p>
-                {webhookEvents.map(ev => (
-                  <div key={ev.id} className="flex items-start gap-2">
-                    <Badge className={`text-[10px] shrink-0 border mt-0.5 ${ACTION_TYPE_COLORS[ev.actionType] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
-                      {ACTION_TYPE_LABELS[ev.actionType] ?? ev.actionType}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+                    <Webhook className="h-3.5 w-3.5 text-violet-400" />
+                    Son Webhook Olaylari
+                  </p>
+                  {webhookEvents.some(e => e.status === "error") && (
+                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] border">
+                      {webhookEvents.filter(e => e.status === "error").length} Hata
                     </Badge>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {ev.incNumber && (
-                          <code className="text-[10px] text-violet-400 font-mono shrink-0">{ev.incNumber}</code>
-                        )}
-                        <p className="text-xs text-gray-300 truncate">{ev.description.slice(0, 120)}</p>
+                  )}
+                </div>
+                {webhookEvents.map(ev => (
+                  <div
+                    key={`${ev.status}-${ev.id}`}
+                    className={`rounded-lg p-2.5 space-y-1.5 ${ev.status === "error" ? "bg-red-950/20 border border-red-500/20" : "border border-transparent"}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Badge className={`text-[10px] shrink-0 border mt-0.5 ${ACTION_TYPE_COLORS[ev.actionType] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                        {ACTION_TYPE_LABELS[ev.actionType] ?? ev.actionType}
+                      </Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {ev.incNumber && (
+                            <code className={`text-[10px] font-mono shrink-0 ${ev.status === "error" ? "text-red-400" : "text-violet-400"}`}>{ev.incNumber}</code>
+                          )}
+                          {ev.status === "ok" && (
+                            <p className="text-xs text-gray-300 truncate">{ev.description.slice(0, 120)}</p>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5" />
+                          {timeSince(ev.createdAt)}
+                          {ev.status === "error" && ev.retriedAt && (
+                            <span className="text-emerald-500 ml-1 flex items-center gap-0.5">
+                              <CheckCircle className="h-2.5 w-2.5" />
+                              Yeniden denendi
+                            </span>
+                          )}
+                        </p>
                       </div>
-                      <p className="text-[10px] text-gray-600 mt-0.5">{timeSince(ev.createdAt)}</p>
+                      {ev.status === "error" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-500/30 text-red-400 hover:text-red-300 h-6 text-[10px] px-2 shrink-0"
+                          onClick={() => retryMutation.mutate(ev.id)}
+                          disabled={retryMutation.isPending || !!ev.retriedAt}
+                          title={ev.retriedAt ? "Zaten yeniden denendi" : "Yeniden dene"}
+                        >
+                          {retryMutation.isPending ? (
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-2.5 w-2.5" />
+                          )}
+                        </Button>
+                      )}
                     </div>
+                    {ev.status === "error" && (
+                      <div className="pl-0 space-y-0.5">
+                        <p className="text-[11px] text-red-400 font-medium flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          {ev.errorReason}
+                        </p>
+                        {ev.errorDetail && (
+                          <p className="text-[10px] text-red-400/70 leading-relaxed">{ev.errorDetail}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -36,5 +36,19 @@ export const servicenowIncidentsTable = pgTable("servicenow_incidents", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const servicenowWebhookErrorsTable = pgTable("servicenow_webhook_errors", {
+  id: serial("id").primaryKey(),
+  configId: integer("config_id"),
+  customerId: integer("customer_id"),
+  snSysId: text("sn_sys_id"),
+  errorReason: text("error_reason").notNull(),
+  errorDetail: text("error_detail"),
+  rawBodyPreview: text("raw_body_preview"),
+  signaturePresent: boolean("signature_present").default(false),
+  retriedAt: timestamp("retried_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export type ServicenowConfig = typeof servicenowConfigsTable.$inferSelect;
 export type ServicenowIncident = typeof servicenowIncidentsTable.$inferSelect;
+export type ServicenowWebhookError = typeof servicenowWebhookErrorsTable.$inferSelect;

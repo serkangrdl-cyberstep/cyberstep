@@ -10,6 +10,7 @@ import {
   validateServiceNowUrl,
   generateAndStoreWebhookSecret,
   processServiceNowWebhook,
+  retryWebhookError,
 } from "../../services/serviceNowClient";
 
 const router = Router();
@@ -324,18 +325,23 @@ router.post("/integrations/servicenow/check", requireCustomer, async (req, res) 
 });
 
 // ─── GET /api/integrations/servicenow/webhook-events ─────────────────────────
-// Returns the last 20 soc_activity_log entries from ServiceNow for this customer.
+// Returns the last 30 webhook events (successful + failed) for this customer.
 router.get("/integrations/servicenow/webhook-events", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
 
   try {
-    const { rows } = await pool.query(
+    // Successful events from soc_activity_log
+    const { rows: successRows } = await pool.query(
       `SELECT sal.id,
               sal.action_type AS "actionType",
               sal.description,
               sal.created_at AS "createdAt",
-              sni.sn_number AS "incNumber"
+              sni.sn_number AS "incNumber",
+              'ok' AS status,
+              NULL AS "errorReason",
+              NULL AS "errorDetail",
+              NULL AS "retriedAt"
        FROM soc_activity_log sal
        JOIN soc_cases sc ON sc.id = sal.case_id
        LEFT JOIN servicenow_incidents sni
@@ -347,10 +353,56 @@ router.get("/integrations/servicenow/webhook-events", requireCustomer, async (re
        LIMIT 20`,
       [customerId],
     );
-    res.json({ events: rows });
+
+    // Failed webhook attempts
+    const { rows: errorRows } = await pool.query(
+      `SELECT id,
+              'webhook_error' AS "actionType",
+              COALESCE(raw_body_preview, '') AS description,
+              created_at AS "createdAt",
+              sn_sys_id AS "incNumber",
+              'error' AS status,
+              error_reason AS "errorReason",
+              error_detail AS "errorDetail",
+              retried_at AS "retriedAt"
+       FROM servicenow_webhook_errors
+       WHERE customer_id = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [customerId],
+    );
+
+    // Merge and sort by createdAt desc, take top 30
+    const allEvents = [...successRows, ...errorRows]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 30);
+
+    res.json({ events: allEvents });
   } catch (err) {
     req.log.error({ err }, "GET /api/integrations/servicenow/webhook-events error");
     res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ─── POST /api/integrations/servicenow/webhook-errors/:id/retry ───────────────
+// Retries a failed webhook by force-syncing the incident from ServiceNow.
+router.post("/integrations/servicenow/webhook-errors/:id/retry", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  const errorId = Number(req.params["id"]);
+  if (!errorId) { res.status(400).json({ error: "Geçersiz hata ID" }); return; }
+
+  try {
+    const result = await retryWebhookError(errorId, customerId);
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err, errorId }, "POST /api/integrations/servicenow/webhook-errors/:id/retry error");
+    res.status(500).json({ ok: false, message: "Sunucu hatası" });
   }
 });
 

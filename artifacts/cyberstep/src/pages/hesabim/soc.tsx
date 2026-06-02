@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, Loader2, ShieldAlert, Ban, Radio, FileDown, Lock, Activity,
   ScrollText, AlertTriangle, Clock, CheckCircle, Network, ExternalLink,
+  WifiOff, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,27 @@ interface BlockAction {
   reason: string | null;
   status: string;
   createdAt: string;
+}
+
+interface OutageWindow {
+  outageStart: string;
+  outageEnd: string | null;
+  durationMinutes: number | null;
+  totalCasesDuringOutage: number;
+  transferredCases: number;
+  stillMissingCases: number;
+  lastError: string | null;
+  recovered: boolean;
+}
+
+interface OutageSummary {
+  hasConfig: boolean;
+  active: boolean;
+  lastSyncAt: string | null;
+  lastSyncError: string | null;
+  connCheckAlertedAt: string | null;
+  outages: OutageWindow[];
+  pendingSyncErrors: number;
 }
 
 const SEV: Record<string, { label: string; cls: string }> = {
@@ -102,6 +124,13 @@ export default function SocDashboard() {
     snMap.set(inc.socCaseId, { snNumber: inc.snNumber, snState: inc.snState, instanceUrl: inc.instanceUrl });
   }
   const SN_STATE_LABEL: Record<number, string> = { 1: "Yeni", 2: "Devam", 3: "Beklemede", 6: "Çözüldü", 7: "Kapatıldı" };
+
+  const { data: outageSummary } = useQuery<OutageSummary>({
+    queryKey: ["soc-sn-outage-summary"],
+    queryFn: () => fetch("/api/integrations/servicenow/outage-summary", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer && enabled,
+    refetchInterval: 120000,
+  });
 
   useEffect(() => {
     if (!enabled) return;
@@ -242,6 +271,10 @@ export default function SocDashboard() {
             </Card>
 
             <KvkkSection customerId={customer.id} />
+
+            {outageSummary?.hasConfig && (
+              <ServiceNowOutageSection summary={outageSummary} />
+            )}
 
             <Card className="bg-slate-900 border-slate-800">
               <CardHeader><CardTitle className="text-white text-lg">Engellenen IP Adresleri</CardTitle></CardHeader>
@@ -432,6 +465,151 @@ function StatCard({ icon, label, value, accent }: { icon: React.ReactNode; label
       <CardContent className="pt-5 pb-4">
         <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">{icon}{label}</div>
         <p className={`text-2xl font-bold ${accent ?? "text-white"}`}>{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function fmtDuration(minutes: number | null): string {
+  if (minutes === null) return "-";
+  if (minutes < 60) return `${minutes} dk`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h} sa ${m} dk` : `${h} sa`;
+}
+
+function ServiceNowOutageSection({ summary }: { summary: OutageSummary }) {
+  // An ongoing outage = most recent outage window is not recovered,
+  // confirmed by a current lastSyncError on the config.
+  const latestOutage = summary.outages[0];
+  const isCurrentlyDown = !!summary.lastSyncError && latestOutage !== undefined && !latestOutage.recovered;
+
+  // Fallback: if conn-check log is sparse/absent, derive last-alerted time from
+  // connCheckAlertedAt (set by the automated check cron when a failure was detected).
+  const lastAlertTs = summary.connCheckAlertedAt;
+
+  return (
+    <Card className={`bg-slate-900 ${isCurrentlyDown ? "border-red-500/40" : "border-slate-800"}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-white text-lg flex items-center gap-2">
+            <Network className="h-5 w-5 text-violet-400" />
+            ServiceNow Bağlantı Geçmişi
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {summary.pendingSyncErrors > 0 && (
+              <Badge variant="outline" className="border-orange-500/40 text-orange-300 text-xs">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {summary.pendingSyncErrors} bekleyen iletim hatası
+              </Badge>
+            )}
+            {isCurrentlyDown ? (
+              <Badge variant="outline" className="border-red-500/40 text-red-300 text-xs">
+                <WifiOff className="h-3 w-3 mr-1" /> Bağlantı Kesik
+              </Badge>
+            ) : summary.lastSyncAt ? (
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-300 text-xs">
+                <CheckCircle className="h-3 w-3 mr-1" /> Bağlı
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+        <div className="space-y-0.5 mt-1">
+          {summary.lastSyncAt && (
+            <p className="text-slate-400 text-xs">Son başarılı senkronizasyon: {fmtDate(summary.lastSyncAt)}</p>
+          )}
+          {lastAlertTs && !summary.lastSyncAt && (
+            <p className="text-slate-400 text-xs flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 text-orange-400" />
+              Son uyarı zamanı: {fmtDate(lastAlertTs)}
+            </p>
+          )}
+          {lastAlertTs && isCurrentlyDown && (
+            <p className="text-orange-400 text-xs flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Kesinti uyarısı gönderildi: {fmtDate(lastAlertTs)}
+            </p>
+          )}
+          {summary.lastSyncError && (
+            <p className="text-red-400 text-xs truncate">Hata: {summary.lastSyncError}</p>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {summary.outages.length === 0 ? (
+          <div className="py-4 text-center space-y-1">
+            <p className="text-slate-400 text-sm">Kayıtlı bağlantı kesintisi yok.</p>
+            {lastAlertTs && (
+              <p className="text-slate-500 text-xs">
+                Önceki uyarı: {fmtDate(lastAlertTs)}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {summary.outages.map((outage, idx) => {
+              const ongoing = outage.outageEnd === null;
+              return (
+                <div
+                  key={idx}
+                  className={`rounded-lg border p-4 space-y-3 ${ongoing ? "border-red-500/40 bg-red-500/5" : "border-slate-700 bg-slate-800/40"}`}
+                >
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {ongoing ? (
+                          <Badge variant="outline" className="border-red-500/40 text-red-300 text-xs">
+                            <WifiOff className="h-3 w-3 mr-1" /> Devam Ediyor
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-emerald-500/40 text-emerald-300 text-xs">
+                            <RefreshCw className="h-3 w-3 mr-1" /> Kurtarıldı
+                          </Badge>
+                        )}
+                        <span className="text-slate-400 text-xs flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {fmtDate(outage.outageStart)}
+                          {outage.outageEnd && <> &rarr; {fmtDate(outage.outageEnd)}</>}
+                        </span>
+                        <span className="text-slate-500 text-xs">({fmtDuration(outage.durationMinutes)})</span>
+                      </div>
+                      {outage.lastError && (
+                        <p className="text-slate-400 text-xs line-clamp-1 truncate">{outage.lastError}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-lg font-bold leading-none ${outage.stillMissingCases > 0 ? "text-orange-400" : "text-slate-400"}`}>
+                        {outage.stillMissingCases}
+                      </p>
+                      <p className="text-slate-500 text-xs">kaçırılan vaka</p>
+                    </div>
+                  </div>
+
+                  {outage.totalCasesDuringOutage > 0 && (
+                    <div className="flex items-center gap-4 pt-1 border-t border-slate-700/60">
+                      <div className="text-xs text-slate-400">
+                        <span className="font-medium text-white">{outage.totalCasesDuringOutage}</span> vaka kesinti sırasında oluştu
+                      </div>
+                      {outage.transferredCases > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-emerald-400">
+                          <CheckCircle className="h-3 w-3" />
+                          {outage.transferredCases} aktarıldı
+                        </div>
+                      )}
+                      {outage.stillMissingCases > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-orange-400">
+                          <AlertTriangle className="h-3 w-3" />
+                          {outage.stillMissingCases} aktarılmadı
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

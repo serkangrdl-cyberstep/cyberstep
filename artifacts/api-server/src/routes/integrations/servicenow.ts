@@ -547,6 +547,184 @@ router.post("/integrations/servicenow/webhook-secret", requireCustomer, async (r
   }
 });
 
+// ─── GET /api/integrations/servicenow/outage-summary ─────────────────────────
+// Returns connection outage windows and cases affected during each outage.
+router.get("/integrations/servicenow/outage-summary", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req);
+  if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
+
+  try {
+    // Get config metadata
+    const { rows: cfgRows } = await pool.query<{
+      id: number;
+      lastSyncAt: string | null;
+      lastSyncError: string | null;
+      connCheckAlertedAt: string | null;
+      active: boolean;
+    }>(
+      `SELECT id,
+              last_sync_at AS "lastSyncAt",
+              last_sync_error AS "lastSyncError",
+              conn_check_alerted_at AS "connCheckAlertedAt",
+              active
+       FROM servicenow_configs
+       WHERE customer_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [customerId],
+    );
+
+    const cfg = cfgRows[0];
+    if (!cfg) {
+      res.json({ hasConfig: false, outages: [], pendingSyncErrors: 0 });
+      return;
+    }
+
+    // Fetch the most recent 200 conn-check entries (DESC), then reverse in memory
+    // so we walk them in chronological order for unambiguous block detection:
+    //   - chronRows[i] = first failure in a block  → outageStart
+    //   - chronRows[j] = first ok after that block → recoveredAt (outageEnd)
+    // Using DESC LIMIT ensures we always have the latest checks even when the log
+    // has grown beyond 200 rows.
+    const { rows: descRows } = await pool.query<{
+      checkedAt: string;
+      ok: boolean;
+      errorMessage: string | null;
+    }>(
+      `SELECT checked_at AS "checkedAt", ok, error_message AS "errorMessage"
+       FROM servicenow_conn_check_log
+       WHERE config_id = $1
+       ORDER BY checked_at DESC
+       LIMIT 200`,
+      [cfg.id],
+    );
+    // Reverse to chronological order for the walk below
+    const checkRows = [...descRows].reverse();
+
+    // Identify outage windows: a contiguous run of ok=false rows.
+    // Walk oldest→newest; collect ALL windows found in this slice.
+    const rawOutages: Array<{
+      outageStart: string;
+      recoveredAt: string | null; // timestamp of first ok after outage, null if ongoing
+      lastError: string | null;
+    }> = [];
+
+    let i = 0;
+    while (i < checkRows.length) {
+      const row = checkRows[i]!;
+      if (row.ok) { i++; continue; }
+
+      // checkRows[i] = first failure in this outage block
+      const outageStart = row.checkedAt;
+      let lastError: string | null = row.errorMessage;
+      let j = i + 1;
+
+      // Walk forward (newer entries) through consecutive failures
+      while (j < checkRows.length && !checkRows[j]!.ok) {
+        if (checkRows[j]!.errorMessage) lastError = checkRows[j]!.errorMessage;
+        j++;
+      }
+
+      // checkRows[j] is the first ok entry after recovery, or past-the-end (ongoing)
+      const recoveredAt = j < checkRows.length ? checkRows[j]!.checkedAt : null;
+
+      rawOutages.push({ outageStart, recoveredAt, lastError });
+      i = j + 1; // skip over the recovery row and continue
+    }
+
+    // Keep the 5 most recent outages (rawOutages is oldest-first; slice from end)
+    const recentRawOutages = rawOutages.slice(-5).reverse(); // now most-recent-first
+
+    // Build final outages (most-recent-first) with per-window case counts.
+    const outages: Array<{
+      outageStart: string;
+      outageEnd: string | null;
+      durationMinutes: number | null;
+      totalCasesDuringOutage: number; // cases created while connection was down
+      transferredCases: number;       // of those, eventually pushed to ServiceNow
+      stillMissingCases: number;      // still not in ServiceNow (missed / delayed)
+      lastError: string | null;
+      recovered: boolean;
+    }> = [];
+
+    for (const raw of recentRawOutages) {
+      const { outageStart, recoveredAt, lastError } = raw;
+      // outageEnd for display = recovery timestamp; null means still ongoing
+      const outageEnd = recoveredAt;
+      const startMs = new Date(outageStart).getTime();
+      const endMs   = recoveredAt ? new Date(recoveredAt).getTime() : Date.now();
+      const durationMinutes = Math.round((endMs - startMs) / 60000);
+
+      // $3 bounds the case-creation window strictly to the outage period.
+      // The incident-existence check allows an extra 1-hour grace so that
+      // bulk-pushed incidents that arrived just after recovery are still counted.
+      const outageEndTs     = recoveredAt ?? new Date().toISOString();
+      const incidentGraceTs = recoveredAt
+        ? new Date(new Date(recoveredAt).getTime() + 60 * 60 * 1000).toISOString()
+        : new Date().toISOString();
+
+      // Total SOC cases created during the outage window (strictly bounded)
+      const { rows: totalRows } = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(DISTINCT sc.id)::text AS cnt
+         FROM soc_cases sc
+         WHERE sc.customer_id = $1
+           AND sc.created_at >= $2::timestamptz
+           AND sc.created_at <= $3::timestamptz`,
+        [customerId, outageStart, outageEndTs],
+      );
+      const totalDuringOutage = parseInt(totalRows[0]?.cnt ?? "0", 10);
+
+      // Cases that were eventually transferred (incident created within grace window)
+      const { rows: xferRows } = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(DISTINCT sc.id)::text AS cnt
+         FROM soc_cases sc
+         JOIN servicenow_incidents sni
+           ON sni.soc_case_id = sc.id
+          AND sni.customer_id = $1
+          AND sni.created_at <= $4::timestamptz
+         WHERE sc.customer_id = $1
+           AND sc.created_at >= $2::timestamptz
+           AND sc.created_at <= $3::timestamptz`,
+        [customerId, outageStart, outageEndTs, incidentGraceTs],
+      );
+      const transferredCases  = parseInt(xferRows[0]?.cnt ?? "0", 10);
+      const stillMissingCases = Math.max(0, totalDuringOutage - transferredCases);
+
+      outages.push({
+        outageStart,
+        outageEnd,
+        durationMinutes,
+        totalCasesDuringOutage: totalDuringOutage,
+        transferredCases,
+        stillMissingCases,
+        lastError,
+        recovered: recoveredAt !== null,
+      });
+    }
+
+    // Count incidents with persistent sync errors
+    const { rows: errRows } = await pool.query<{ cnt: string }>(
+      `SELECT COUNT(*)::text AS cnt
+       FROM servicenow_incidents
+       WHERE customer_id = $1 AND sync_error IS NOT NULL`,
+      [customerId],
+    );
+
+    res.json({
+      hasConfig: true,
+      active: cfg.active,
+      lastSyncAt: cfg.lastSyncAt,
+      lastSyncError: cfg.lastSyncError,
+      connCheckAlertedAt: cfg.connCheckAlertedAt,
+      outages,
+      pendingSyncErrors: parseInt(errRows[0]?.cnt ?? "0", 10),
+    });
+  } catch (err) {
+    req.log.error({ err }, "GET /api/integrations/servicenow/outage-summary error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // ─── POST /api/integrations/servicenow/webhook ────────────────────────────────
 // Public endpoint — called by ServiceNow Business Rule / Outbound REST Message.
 // No session auth; authentication is via HMAC-SHA256 (X-SN-Signature header).

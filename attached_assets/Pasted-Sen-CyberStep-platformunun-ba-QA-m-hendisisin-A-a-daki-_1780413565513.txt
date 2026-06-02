@@ -1,0 +1,211 @@
+Sen CyberStep platformunun baş QA mühendisisin. Aşağıdaki 
+kontrol ve test listesini eksiksiz uygula. Her madde için 
+sonucu "✅ Geçti", "❌ Başarısız: [açıklama]" veya 
+"⚠️ Uyarı: [açıklama]" olarak raporla.
+
+Başlamadan önce: Tüm environment variable'ların mevcut 
+olduğunu doğrula. Eksik varsa listele ve dur.
+
+---
+
+## BÖLÜM 1 — VERİTABANI & ŞİFRELEME
+
+1. customer_services tablosunda şifreli saklanması gereken 
+   alanları listele (password, token, api_key içeren kolonlar).
+   Her biri için: DB'den raw SELECT çek — değer encrypted 
+   blob mu yoksa plain text mi?
+
+2. AES-256-GCM round-trip testi yap:
+   - "TestPassword123!" değerini encrypt et
+   - Hemen decrypt et
+   - Orijinal değerle eşleşiyor mu?
+   - Encryption key env variable'dan mı geliyor, 
+     hardcoded mi?
+
+3. onboarding_logs tablosunu kontrol et. Şu kolonlar var mı?
+   id, customer_service_id, step_key, completed_at, 
+   completed_by, failed_at, failure_reason, retry_count
+   Eksik kolon varsa migration yaz.
+
+4. customer_services.status alanı için geçerli değerleri 
+   listele. 'active', 'pending', 'inactive' dışında bir 
+   değer var mı?
+
+---
+
+## BÖLÜM 2 — GÜVENLİK
+
+5. Tüm /panel/* route'larını listele. Her biri için:
+   - Authentication middleware var mı?
+   - Admin role kontrolü var mı?
+   - Müşteri session'ıyla erişilebiliyor mu? Test et.
+
+6. /hesabim/* route'larını listele. Her biri için:
+   - Oturum kontrolü var mı?
+   - Bir müşteri başka müşterinin customer_id'sini 
+     URL parametresi olarak yazarsa ne dönüyor?
+     (IDOR testi — 403 veya boş dönmeli, veri dönmemeli)
+
+7. Tüm form input alanlarını tara. Şu karakterleri 
+   sanitize ediyor mu?
+   - SQL: ' " ; -- DROP
+   - XSS: <script> <img onerror= javascript:
+   Her alan için sonucu raporla.
+
+8. JWT/session token expire süresi nedir?
+   Süresi dolmuş token ile korumalı endpoint'e istek 
+   atıldığında 401 dönüyor mu?
+
+9. Rate limiting var mı? /api/* endpoint'leri için 
+   dakikada kaç istek limiti tanımlı?
+
+---
+
+## BÖLÜM 3 — ONBOARDİNG MEKANİZMASI
+
+10. Token otomatik üretimi test et:
+    - Fortinet servisi için provizyon kaydet
+    - webhook_token alanı UUID formatında üretildi mi?
+    - Aynı müşteriye ikinci kez kaydet — token değişiyor mu 
+      yoksa sabit mi kalıyor? (sabit kalmalı)
+
+11. Onboarding checklist adım bağımlılıklarını kontrol et:
+    Fortinet için sıralama: 
+    "api_access_test" → "first_device" → "alert_thresholds"
+    İlk adım tamamlanmadan ikinci adım 
+    done=true yapılabiliyor mu? API ile test et.
+
+12. Status otomatik güncelleme testi:
+    Bir müşterinin tüm onboarding adımlarını 
+    programatik olarak done=true yap.
+    customer_services.status otomatik 'active' 
+    oldu mu?
+    activated_at timestamp set edildi mi?
+
+13. Progress bar hesaplaması doğru mu?
+    3 adımdan 2'si tamamlanmışsa %66 gösteriyor mu?
+    Formül: doneCustomerSteps / totalCustomerSteps * 100
+
+---
+
+## BÖLÜM 4 — E-POSTA SİSTEMİ
+
+14. E-posta gönderim servisini kontrol et:
+    - Hangi servis kullanılıyor? (SendGrid/SMTP/Resend)
+    - API key env variable'dan mı geliyor?
+    - Test e-postası gönder: internal test adresine
+    - Gönderildi mi? Hata varsa logla.
+
+15. Onboarding tamamlanma e-postası template'ini bul.
+    Şu değişkenler template'de var mı?
+    - Servis adı
+    - Üretilen URL/token (servis bazlı koşullu)
+    - /hesabim/kurulum linki
+    - Analist adı (SOC servisi için)
+    Eksik varsa template'i güncelle.
+
+16. E-posta tetikleyicileri kontrol et. 
+    Şu event'lerde e-posta gönderen kod var mı?
+    - Self-servis satın alma tamamlandı
+    - Onboarding tüm adımlar done
+    - Bağlantı testi 3 kez başarısız
+    - SLA 4 saat aşıldı
+    Her biri için ilgili kod satırını göster.
+
+---
+
+## BÖLÜM 5 — SERVİS ÖZEL KONTROLLER
+
+17. NOC servisi — SNMP v3 koşullu alan kontrolü:
+    Provizyon formunda snmp_version = 'v3' 
+    seçildiğinde frontend'de şu alanlar görünüyor mu?
+    auth_protocol, auth_password, priv_protocol, 
+    priv_password
+    Backend bu alanları kabul ediyor ve şifreli 
+    saklıyor mu?
+
+18. Microsoft 365 OAuth callback endpoint'i bul.
+    Başarılı callback sonrası:
+    - "azure_ad_oauth_completed" adımı otomatik 
+      done=true yapılıyor mu?
+    - completed_by = 'system' olarak kaydediliyor mu?
+    - Admin'e bildirim gönderiliyor mu?
+
+19. ServiceNow webhook URL üretimi:
+    ServiceNow servisi kaydedildiğinde 
+    https://app.cyberstep.io/webhook/servicenow/{token}
+    formatında URL üretiliyor mu?
+    Bu URL provizyon ekranında gösteriliyor mu?
+
+20. Observability dashboard URL üretimi:
+    Servis aktive edildiğinde /dashboard/{customer_slug}
+    formatında URL otomatik üretiliyor mu?
+    Admin bu alanı manuel değiştirebiliyor mu? 
+    (değiştirememelidir — read-only olmalı)
+
+---
+
+## BÖLÜM 6 — EDGE CASE'LER
+
+21. Aynı müşteriye aynı servisi iki kez aktive etmeye çalış.
+    Unique constraint var mı? Hata mesajı anlaşılır mı?
+
+22. Onboarding yarım kalmış (kısmen tamamlanmış) bir 
+    müşteriyi sil. Orphan kayıt kalıyor mu?
+    onboarding_logs temizlendi mi?
+
+23. Provizyon formunu zorunlu alanlar boş bırakılarak 
+    kaydetmeye çalış. 
+    Frontend validasyonu var mı?
+    Backend de validasyon var mı? (sadece frontend'e 
+    güvenilmemeli)
+
+24. Çok uzun input testi:
+    URL alanına 2000 karakter gir.
+    Textarea'ya 10.000 karakter gir.
+    DB'de max length constraint var mı?
+    UI taşıyor mu?
+
+---
+
+## BÖLÜM 7 — PERFORMANS & HATA YÖNETİMİ
+
+25. /hesabim/kurulum sayfası kaç SQL sorgusu çekiyor?
+    N+1 query problemi var mı?
+    10 aktif servisi olan bir müşteri için 
+    toplam query sayısını logla.
+
+26. Tüm harici API çağrılarında (FortiManager, 
+    ServiceNow, M365) timeout tanımlı mı?
+    Timeout süresi nedir?
+    Timeout olduğunda kullanıcıya ne gösteriliyor?
+
+27. Global error handler var mı?
+    500 hatası fırlatan bir endpoint'e istek at.
+    Kullanıcıya stack trace gözüküyor mu?
+    (gözükmemeli — sadece generic hata mesajı)
+
+28. Environment: production build'de console.log 
+    ve debug output'lar temizlendi mi?
+    Hassas veri (şifre, token) hiçbir log'a 
+    yazılıyor mu? Logları tara.
+
+---
+
+## RAPOR FORMATI
+
+Tüm testler bittikten sonra şu formatta özet ver:
+
+GENEL SKOR: X/28 test geçti
+
+KRİTİK HATALAR (hemen düzeltilmeli):
+- [liste]
+
+UYARILAR (satış öncesi bakılmalı):
+- [liste]
+
+GEÇEN TESTLER:
+- [liste]
+
+TAVSİYE EDİLEN SONRAKI ADIMLAR:
+- [öncelik sırasıyla]

@@ -606,7 +606,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* vCISO upsell card */}
+      {/* CISO Asistan upsell card */}
       <section className="pb-12 bg-background">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -615,19 +615,45 @@ export default function Pricing() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-lg font-bold text-foreground">Sanal CISO Hizmeti</h3>
-                <span className="text-xs font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full">Kurumsal</span>
+                <h3 className="text-lg font-bold text-foreground">CISO Asistan Paketi</h3>
+                <span className="text-xs font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full">Otomasyon</span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                CISO'nuz yoksa, kiralamak zorunda da degilsiniz. Sertifikalı partner CISO'lardan aylık yönetim kurulu raporu,
-                güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek — aylık <strong className="text-foreground">8.000 TL + KDV</strong>'den.
+                CISO'nuzun rutin raporlama yükünü üstleniyoruz. Aylık yönetim kurulu raporu, haftalık tehdit özeti,
+                7545 ve KVKK uyum skoru, 7 güvenlik politikası şablonu — <strong className="text-foreground">2.500 TL/ay + KDV</strong>.
               </p>
             </div>
             <Link
               href="/sanal-ciso"
               className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
             >
-              Detaylar ve Teklif <ChevronRight className="ml-1.5 h-4 w-4" />
+              Paketi İncele <ChevronRight className="ml-1.5 h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* vCISO Yakında 2027 card */}
+      <section className="pb-16 bg-background">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/20 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <UserCheck className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-semibold text-foreground/70">Sanal CISO Hizmeti</h3>
+                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full tracking-wide">Yakında</span>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Sertifikalı partner CISO'lardan aylık görüşme, güvenlik stratejisi ve olay müdahalesi koordinasyonu. 2027 yol haritasında.
+              </p>
+            </div>
+            <Link
+              href="/roadmap"
+              className="inline-flex items-center justify-center rounded-xl text-sm font-medium h-10 px-5 border border-muted-foreground/30 text-muted-foreground hover:bg-muted/50 transition-colors shrink-0"
+            >
+              Erken Erişim Listesi <ChevronRight className="ml-1 h-3.5 w-3.5" />
             </Link>
           </div>
         </div>

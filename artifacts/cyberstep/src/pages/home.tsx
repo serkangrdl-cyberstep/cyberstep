@@ -1234,10 +1234,10 @@ export default function Home() {
               {
                 href: "/sanal-ciso",
                 icon: "🛡️",
-                title: "Sanal CISO",
-                what: "Sertifikalı partner CISO'lardan aylık yönetim kurulu raporu, güvenlik stratejisi, olay müdahalesi koordinasyonu ve düzenleyici destek.",
-                why: "CISO pozisyonu yıllık 2-4 milyon TL maaşla geliyor. Şirketlerin %99'unun tam zamanlı CISO'ya ihtiyacı yok — ama CISO düzeyinde stratejiye ihtiyacı var.",
-                price: "8.000 TL/ay + KDV",
+                title: "CISO Asistan Paketi",
+                what: "CISO'nuzun rutin işlerini otomatikleştirir: aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545+KVKK uyum skoru, 7 politika şablonu.",
+                why: "Board raporu hazırlamak, uyum takibi yapmak CISO'nun zamanının büyük kısmını alıyor. Bu paketi otomatikleştirin, CISO strateji odaklanabilsin.",
+                price: "2.500 TL/ay + KDV",
               },
             ].map((tool) => (
               <a
@@ -1309,25 +1309,25 @@ export default function Home() {
         </section>
       )}
 
-      {/* vCISO callout */}
+      {/* CISO Asistan callout */}
       <section className="py-16 bg-background border-t">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="rounded-2xl border-2 border-primary/25 bg-primary/5 p-8 md:p-10">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
               <div className="flex-1">
                 <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
-                  Sanal CISO · vCISO as a Service
+                  CISO Asistan Paketi
                 </span>
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  Sirketinizin CISO'su olsun —<br className="hidden sm:block" /> kadro maliyeti olmadan
+                  CISO'nuz strateji düşünsün,<br className="hidden sm:block" /> rutin raporlamayı biz yapalım
                 </h2>
                 <p className="text-muted-foreground text-sm leading-relaxed max-w-xl">
-                  Şirketlerin yüzde 99'unun CISO'su yok. Tam zamanlı CISO yıllık 2–4 milyon TL maaşla geliyor.
-                  CyberStep Sanal CISO'su aylık yönetim kurulu sunumu, yıllık güvenlik stratejisi,
-                  olay müdahalesi ve düzenleyici destek sunar — sertifikalı partner uzmanlardan.
+                  Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu.
+                  CISO'su olan şirketlerde raporlama yükünü kaldırır;
+                  CISO'su olmayanlara minimum 7545 uyumu sağlar.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["Aylık YK Raporu", "Güvenlik Stratejisi", "Olay Müdahalesi", "KVKK / BDDK Desteği"].map(tag => (
+                  {["Aylık YK Raporu", "Haftalık Tehdit Özeti", "7545 + KVKK Skoru", "7 Politika Şablonu"].map(tag => (
                     <span key={tag} className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full border border-primary/20">
                       {tag}
                     </span>
@@ -1336,21 +1336,21 @@ export default function Home() {
               </div>
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="text-center mb-1">
-                  <p className="text-xs text-muted-foreground">Baslangic fiyati</p>
-                  <p className="text-3xl font-black text-primary">8.000 TL<span className="text-sm font-normal text-muted-foreground">/ay + KDV</span></p>
+                  <p className="text-xs text-muted-foreground">Aylık abonelik</p>
+                  <p className="text-3xl font-black text-primary">2.500 TL<span className="text-sm font-normal text-muted-foreground">/ay + KDV</span></p>
                 </div>
                 <Link
                   href="/sanal-ciso"
                   className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  Detaylar ve Teklif
+                  Paketi İncele
                   <ChevronRight className="ml-1.5 h-4 w-4" />
                 </Link>
                 <Link
                   href="/sanal-ciso#basvuru"
                   className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 border-2 border-primary text-primary hover:bg-primary/10 transition-colors"
                 >
-                  Hemen Teklif Al
+                  Hemen Başla
                 </Link>
               </div>
             </div>

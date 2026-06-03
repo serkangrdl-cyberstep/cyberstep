@@ -25,7 +25,7 @@ const AI_GUVENLIK_ITEMS = [
   { href: "/sahte-dokuman", label: "AI Sahte Doküman Tespiti", icon: FileText, available: true },
   { href: "/eu-ai-act", label: "EU AI Act Uyum Skoru", icon: Cpu, available: true },
   { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Bot, available: true },
-  { href: "/sanal-ciso", label: "Sanal CISO", icon: ShieldCheck, available: true },
+  { href: "/sanal-ciso", label: "CISO Asistan", icon: ShieldCheck, available: true },
 ];
 
 const ARACLAR_ITEMS = [

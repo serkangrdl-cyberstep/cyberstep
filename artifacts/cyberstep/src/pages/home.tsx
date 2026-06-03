@@ -445,8 +445,7 @@ export default function Home() {
       {/* Beta Banner */}
       <div className="bg-primary/10 border-b border-primary/20 text-primary py-2.5 px-4 text-sm text-center">
         <span className="inline-flex items-center gap-2">
-          <span className="font-semibold bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded">YENİ</span>
-          Platform sürekli gelişiyor. Yeni özellikler her hafta ekleniyor.
+          Siber tehditler durmuyor. Biz de durmuyoruz.
         </span>
       </div>
       {/* Hero */}

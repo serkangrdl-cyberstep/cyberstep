@@ -1436,7 +1436,81 @@ async function startup() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
   await ensureSocialMediaTables();
   await ensureAdminPermissions();
+  await ensureIocTables();
   await loadApiKeysFromDb();
+}
+
+async function ensureIocTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ioc_entries (
+      id SERIAL PRIMARY KEY,
+      value VARCHAR(500) NOT NULL,
+      ioc_type VARCHAR(20) NOT NULL,
+      sources TEXT[] DEFAULT '{}',
+      confidence_score INTEGER DEFAULT 0,
+      confidence_level VARCHAR(20),
+      first_seen_at TIMESTAMP DEFAULT NOW(),
+      last_seen_at TIMESTAMP DEFAULT NOW(),
+      expires_at TIMESTAMP,
+      is_active BOOLEAN DEFAULT TRUE,
+      malware_family VARCHAR(100),
+      threat_type VARCHAR(100),
+      tags TEXT[],
+      UNIQUE(value, ioc_type)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS customer_ip_whitelist (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      ip_cidr VARCHAR(50) NOT NULL,
+      label VARCHAR(150),
+      reason VARCHAR(50),
+      added_by VARCHAR(100),
+      is_active BOOLEAN DEFAULT TRUE,
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(customer_id, ip_cidr)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ioc_action_log (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      ioc_value VARCHAR(500) NOT NULL,
+      ioc_type VARCHAR(20),
+      ioc_id INTEGER,
+      action VARCHAR(30) NOT NULL,
+      confidence_score INTEGER,
+      sources TEXT[],
+      skip_reason VARCHAR(100),
+      performed_by VARCHAR(50) DEFAULT 'auto',
+      fortinet_response JSONB,
+      reverted_at TIMESTAMP,
+      revert_reason VARCHAR(100),
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key VARCHAR(100) PRIMARY KEY,
+      value TEXT NOT NULL,
+      description VARCHAR(255),
+      updated_by VARCHAR(100),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  // Seed default settings
+  await db.execute(sql`
+    INSERT INTO system_settings (key, value, description) VALUES
+      ('auto_block_enabled',             'false', 'FortiGate otomatik blok — varsayilan kapali'),
+      ('min_confidence_for_block',       '80',    'Otomatik blok icin minimum confidence skoru'),
+      ('min_sources_for_block',          '2',     'Blok icin minimum kaynak sayisi'),
+      ('ioc_report_confidence_threshold','40',    'Musteriye raporlama icin minimum skor'),
+      ('kill_switch_active',             'false', 'Acil durdurma — tum otomatik aksiyonlari durdurur')
+    ON CONFLICT (key) DO NOTHING
+  `);
 }
 
 async function ensureAdminPermissions() {

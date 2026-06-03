@@ -169,7 +169,10 @@ import AdminCtIzleme from "./pages/admin-panel/ct-izleme";
 import AdminMs365 from "./pages/admin-panel/ms365";
 import AdminKvkk from "./pages/admin-panel/kvkk";
 import AdminServiceNow from "./pages/admin-panel/servicenow";
+import AdminIocKontroller from "./pages/admin-panel/ioc-kontroller";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
+import HesabimWhitelist from "./pages/hesabim/whitelist";
+import HesabimIocLog from "./pages/hesabim/ioc-log";
 import SocDashboard from "./pages/hesabim/soc";
 import NocDashboard from "./pages/hesabim/noc";
 import NocKurulum from "./pages/hesabim/noc-kurulum";
@@ -275,6 +278,8 @@ function Router() {
       <Route path="/hesabim/cloud-guvenlik" component={CloudGuvenlik} />
       <Route path="/hesabim/entegrasyonlarim" component={EntegrasyonlarimPage} />
       <Route path="/hesabim/dns-izleme" component={DnsIzleme} />
+      <Route path="/hesabim/whitelist" component={HesabimWhitelist} />
+      <Route path="/hesabim/ioc-log" component={HesabimIocLog} />
       <Route path="/hesabim/servislerim" component={ServislerimPage} />
       <Route path="/yenile" component={YenilePage} />
       <Route path="/pentest-lite" component={PentestLite} />
@@ -364,6 +369,7 @@ function Router() {
       <Route path="/panel/ms365" component={AdminMs365} />
       <Route path="/panel/kvkk" component={AdminKvkk} />
       <Route path="/panel/servicenow" component={AdminServiceNow} />
+      <Route path="/panel/ioc-kontroller" component={AdminIocKontroller} />
       <Route path="/panel/servis-katalogu" component={AdminServisKatalogu} />
       <Route path="/panel" component={AdminDashboard} />
 

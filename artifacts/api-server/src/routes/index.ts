@@ -58,6 +58,7 @@ import slackRouter from "./integrations/slack";
 import platformHealthRouter from "./platform-health/index";
 import nocRouter from "./noc/index";
 import customerRouter from "./customer/index";
+import iocPortalRouter from "./customer/ioc-portal";
 import adminPanelRouter from "./admin-panel/index";
 import socialMediaRouter from "./social-media/index";
 
@@ -122,6 +123,7 @@ router.use(slackRouter);
 router.use(platformHealthRouter);
 router.use(nocRouter);
 router.use(customerRouter);
+router.use(iocPortalRouter);
 router.use(adminPanelRouter);
 router.use(socialMediaRouter);
 

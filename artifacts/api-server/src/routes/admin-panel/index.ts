@@ -34,6 +34,7 @@ import cronRouter from "./cron";
 import cveAdminRouter from "./cve-admin";
 import musteriProvizyonRouter from "./musteri-provizyon";
 import adminsRouter from "./admins";
+import iocControlsRouter from "./ioc-controls";
 
 const router = Router();
 router.use(authRouter);
@@ -71,5 +72,6 @@ router.use(cronRouter);
 router.use(cveAdminRouter);
 router.use(musteriProvizyonRouter);
 router.use(adminsRouter);
+router.use(iocControlsRouter);
 
 export default router;

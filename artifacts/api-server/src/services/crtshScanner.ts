@@ -9,6 +9,21 @@ import { eq, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 const CRTSH_BASE = "https://crt.sh";
+
+// Serialise concurrent crt.sh requests so we never send more than one at a time.
+// Multiple simultaneous requests trigger 429 rate-limiting from crt.sh.
+let _crtshRunning = false;
+const _crtshQueue: Array<() => void> = [];
+function _acquireCrtsh(): Promise<void> {
+  if (!_crtshRunning) { _crtshRunning = true; return Promise.resolve(); }
+  return new Promise(resolve => _crtshQueue.push(resolve));
+}
+function _releaseCrtsh(): void {
+  const next = _crtshQueue.shift();
+  if (next) next();
+  else _crtshRunning = false;
+}
+
 const EXCLUDED_DOMAINS = new Set([
   "cloudflare.com", "amazonaws.com", "azure.com",
   "google.com", "microsoft.com", "github.io",
@@ -104,10 +119,12 @@ async function fetchCrtsh(query: string, timeout: number): Promise<unknown[]> {
       return (response.data ?? []) as unknown[];
     } catch (err: unknown) {
       const status = axios.isAxiosError(err) ? err.response?.status : null;
+      // 404 = no matching certs for this query — not an error, just empty
+      if (status === 404) return [];
       const isRetryable = !status || status === 503 || status === 502 || status === 429;
 
       if (!isRetryable || attempt === maxAttempts) {
-        const detail = status ? `HTTP ${status}` : String(err);
+        const detail = status ? `HTTP ${status}` : (axios.isAxiosError(err) ? `AxiosError: ${err.message}` : String(err));
         throw new Error(`crt.sh erişilemiyor (${detail}). Lütfen birkaç dakika sonra tekrar deneyin.`);
       }
 
@@ -133,6 +150,19 @@ export async function scanCRTSH(
 ): Promise<CRTSHScanResult> {
   const { daysBack = 30, minCorporateScore = 10, limit = 300 } = options;
 
+  // Serialize: wait for any ongoing crt.sh scan to finish before starting
+  await _acquireCrtsh();
+  try {
+    return await _scanCRTSHInner(query, { daysBack, minCorporateScore, limit });
+  } finally {
+    _releaseCrtsh();
+  }
+}
+
+async function _scanCRTSHInner(
+  query: string,
+  { daysBack, minCorporateScore, limit }: { daysBack: number; minCorporateScore: number; limit: number },
+): Promise<CRTSHScanResult> {
   await loadScoringRules();
 
   const [run] = await db.insert(discoveryRunsTable).values({

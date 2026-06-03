@@ -243,7 +243,7 @@ function SectorPageContent({ data }: { data: SectorData }) {
               <div className="flex-1">
                 <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">CyberStep Tam Değerlendirme</p>
                 <p className="text-4xl font-bold text-primary">5.990 TL</p>
-                <p className="text-sm text-muted-foreground mt-1">Tek seferlik — 7 günlük memnuniyet garantisi</p>
+                <p className="text-sm text-muted-foreground mt-1">Tek seferlik ödeme</p>
               </div>
             </div>
           </div>

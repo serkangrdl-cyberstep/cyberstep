@@ -176,7 +176,6 @@ export default function ServislerPage() {
                     Demo İste
                   </Link>
                 </div>
-                <p className="text-xs text-muted-foreground mt-4 text-center">7 gün memnuniyet garantisi</p>
               </div>
             </div>
           </div>

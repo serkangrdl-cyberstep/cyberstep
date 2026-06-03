@@ -258,7 +258,7 @@ export default function Pricing() {
               <div className="flex-1 rounded-lg bg-white dark:bg-slate-900 border p-4 shadow-sm">
                 <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Tam Değerlendirme</p>
                 <p className="text-3xl font-bold text-primary">{fullPriceLabel}</p>
-                <p className="text-xs text-muted-foreground mt-1">tek seferlik — 7 günlük memnuniyet garantisi</p>
+                <p className="text-xs text-muted-foreground mt-1">tek seferlik ödeme</p>
               </div>
             </div>
           </div>

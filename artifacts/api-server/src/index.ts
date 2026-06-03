@@ -32,6 +32,7 @@ import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collect
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
 import { ensureNewsItemColumns, enrichNewsItems } from "./services/news/newsEnricher";
 import { calculateAllHealthScores } from "./routes/health/index";
+import { collectDailySummary } from "./services/dailyDashboard";
 import { runCollectionReminderCron } from "./services/invoice";
 import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
 import { startRenewalCron } from "./services/subscription-renewal";
@@ -1988,6 +1989,13 @@ startup()
       }
     }, { timezone: "Europe/Istanbul" });
     logger.info("Onboarding email cron scheduled (10:30 Istanbul, D+3 & D+7)");
+
+    // ─── Günlük Yönetici Özeti — Her sabah 08:00 ─────────────────────────────
+    cron.schedule("0 8 * * *", wrapCron("daily_summary", "0 8 * * *", async () => {
+      await collectDailySummary(new Date());
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Daily summary cron scheduled (08:00 Istanbul)");
 
     // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
     cron.schedule("0 2 * * *", wrapCron("attack_path_analysis", "0 2 * * *", async () => {

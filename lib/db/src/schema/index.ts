@@ -93,3 +93,4 @@ export * from "./cve";
 export * from "./bulletin";
 export * from "./social-media";
 export * from "./ioc";
+export * from "./daily-dashboard";

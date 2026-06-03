@@ -84,6 +84,7 @@ import AdminPartnerlar from "./pages/admin-panel/partnerlar";
 import AdminWhitelabel from "./pages/admin-panel/whitelabel";
 import AdminBlog from "./pages/admin-panel/blog";
 import AdminBrandKit from "./pages/admin-panel/brand-kit";
+import AdminDailyDashboard from "./pages/admin-panel/daily-dashboard";
 import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
 import AdminYoneticiler from "./pages/admin-panel/yoneticiler";
 import AdminSpecialMessages from "./pages/admin-panel/special-messages";
@@ -351,6 +352,7 @@ function Router() {
       <Route path="/panel/lead-discovery" component={AdminLeadDiscovery} />
       <Route path="/panel/tech-intelligence" component={AdminTechIntelligence} />
       <Route path="/panel/intelligence" component={AdminIntelligence} />
+      <Route path="/panel/gunluk-ozet" component={AdminDailyDashboard} />
       <Route path="/panel/status" component={AdminStatusPage} />
       <Route path="/panel/rozetler" component={AdminRozetler} />
       <Route path="/panel/fortinet" component={AdminFortinet} />

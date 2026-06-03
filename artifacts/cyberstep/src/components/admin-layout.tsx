@@ -9,7 +9,7 @@ import {
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
-  ChevronDown, Cpu, BarChart3, Palette,
+  ChevronDown, Cpu, BarChart3, Palette, Sunrise,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -24,6 +24,7 @@ const NAV_SECTIONS = [
     dept: "genel",
     items: [
       { icon: LayoutDashboard, label: "Genel Bakış",          href: "/panel" },
+      { icon: Sunrise,         label: "Günlük Özet",           href: "/panel/gunluk-ozet" },
       { icon: Activity,        label: "Sistem Durumu",         href: "/panel/status" },
     ],
   },

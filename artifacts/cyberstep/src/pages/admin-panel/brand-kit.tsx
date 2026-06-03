@@ -176,16 +176,13 @@ export default function BrandKit() {
         <section>
           <SectionHeader label="Logo Varyantları" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <LogoCard title="Koyu Arka Plan" bg="#060D1A">
+            <LogoCard title="Wordmark — Koyu Arka Plan" bg="#060D1A">
               <CyberStepWordmark size="lg" dark />
             </LogoCard>
-            <LogoCard title="Orta Ton" bg="#0A1628">
-              <CyberStepWordmark size="lg" dark />
-            </LogoCard>
-            <LogoCard title="Açık Arka Plan" bg="#F0F4F8">
+            <LogoCard title="Wordmark — Açık Arka Plan" bg="#F0F4F8">
               <CyberStepWordmark size="lg" dark={false} />
             </LogoCard>
-            <LogoCard title="İkon — Boyutlar" bg="#060D1A">
+            <LogoCard title="İkon — Tek Başına" bg="#060D1A">
               <div className="flex items-end gap-4">
                 {[64, 48, 32, 24, 16].map(s => (
                   <div key={s} className="flex flex-col items-center gap-1.5">
@@ -221,19 +218,20 @@ export default function BrandKit() {
           {/* SVG asset linkleri */}
           <div className="mt-4 flex flex-wrap gap-3">
             {[
-              { label: "logo-wordmark.svg",        href: "/logo-wordmark.svg" },
-              { label: "logo-wordmark-light.svg",  href: "/logo-wordmark-light.svg" },
-              { label: "logo-mono.svg",             href: "/logo-mono.svg",            note: "koyu bg için beyaz, açık bg için siyah" },
-              { label: "logo-badge-512.svg",        href: "/logo-badge-512.svg" },
-              { label: "favicon.svg",               href: "/favicon.svg" },
-            ].map(({ label, href }) => (
+              { label: "Wordmark (Koyu)",  file: "logo-wordmark.svg",       desc: "Koyu arka plan için" },
+              { label: "Wordmark (Açık)",  file: "logo-wordmark-light.svg", desc: "Açık arka plan için" },
+              { label: "İkon",             file: "logo-icon.svg",            desc: "Tek başına kalkan ikonu" },
+              { label: "Badge 512px",      file: "logo-badge-512.svg",       desc: "App store / favicon büyük boy" },
+              { label: "Favicon",          file: "favicon.svg",              desc: "Tarayıcı sekmesi" },
+            ].map(({ label, file, desc }) => (
               <a
-                key={label}
-                href={href}
-                download={label}
-                className="inline-flex items-center gap-1.5 text-xs text-[#00C8FF] border border-[#0F2040] rounded px-3 py-1.5 hover:bg-[#0F2040] transition-colors font-mono"
+                key={file}
+                href={`/${file}`}
+                download={file}
+                className="inline-flex flex-col gap-0.5 text-[#00C8FF] border border-[#0F2040] rounded-lg px-3 py-2 hover:bg-[#0F2040] transition-colors"
               >
-                ↓ {label}
+                <span className="text-xs font-semibold">↓ {label}</span>
+                <span className="text-[10px] text-[#7B8FAF] font-mono">{desc}</span>
               </a>
             ))}
           </div>

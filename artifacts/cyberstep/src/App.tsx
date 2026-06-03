@@ -85,6 +85,7 @@ import AdminWhitelabel from "./pages/admin-panel/whitelabel";
 import AdminBlog from "./pages/admin-panel/blog";
 import AdminBrandKit from "./pages/admin-panel/brand-kit";
 import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
+import AdminYoneticiler from "./pages/admin-panel/yoneticiler";
 import AdminSpecialMessages from "./pages/admin-panel/special-messages";
 import AdminMusteriler from "./pages/admin-panel/musteriler";
 import AdminDomainTaramalar from "./pages/admin-panel/domain-taramalar";
@@ -315,6 +316,7 @@ function Router() {
       <Route path="/panel/marka-kilavuzu" component={AdminBrandKit} />
       <Route path="/panel/ozel-gunler" component={AdminSpecialMessages} />
       <Route path="/panel/sosyal-medya" component={AdminSosyalMedya} />
+      <Route path="/panel/yoneticiler" component={AdminYoneticiler} />
       <Route path="/panel/musteriler" component={AdminMusteriler} />
       <Route path="/panel/domain-taramalar" component={AdminDomainTaramalar} />
       <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />

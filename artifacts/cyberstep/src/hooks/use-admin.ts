@@ -5,8 +5,11 @@ import { useEffect } from "react";
 export interface AdminUser {
   id: number;
   email: string;
+  name: string | null;
   totpEnabled: boolean;
   lastLoginAt: string | null;
+  departments: string[];
+  isSuperadmin: boolean;
 }
 
 async function fetchMe(): Promise<AdminUser> {

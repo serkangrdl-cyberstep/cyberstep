@@ -16,9 +16,12 @@ import { useRequireAdmin } from "@/hooks/use-admin";
 import { AdminErrorBoundary } from "@/components/admin-error-boundary";
 
 
+// dept: hangi admin departmanlarının bu bölümü görebileceği.
+// Superadmin her zaman tüm bölümleri görür.
 const NAV_SECTIONS = [
   {
     title: "Genel",
+    dept: "genel",
     items: [
       { icon: LayoutDashboard, label: "Genel Bakış",          href: "/panel" },
       { icon: Activity,        label: "Sistem Durumu",         href: "/panel/status" },
@@ -26,6 +29,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "Müşteriler & Değerlendirme",
+    dept: "musteriler",
     items: [
       { icon: FileText,        label: "Değerlendirmeler",      href: "/panel/degerlendirmeler" },
       { icon: UserSquare2,     label: "Müşteriler",            href: "/panel/musteriler" },
@@ -38,6 +42,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "Satış & Gelir",
+    dept: "satis",
     items: [
       { icon: DollarSign,      label: "Ödemeler",              href: "/panel/odemeler" },
       { icon: CreditCard,      label: "Paket Planları",         href: "/panel/fiyatlar" },
@@ -50,6 +55,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "Pazarlama & Büyüme",
+    dept: "pazarlama",
     items: [
       { icon: BookOpen,        label: "Blog",                  href: "/panel/blog" },
       { icon: Share2,          label: "Sosyal Medya",          href: "/panel/sosyal-medya" },
@@ -61,6 +67,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "İstihbarat & Teknografi",
+    dept: "istihbarat",
     items: [
       { icon: Cpu,             label: "Tech Intelligence",     href: "/panel/tech-intelligence" },
       { icon: BarChart3,       label: "Intelligence Reports",   href: "/panel/intelligence" },
@@ -68,6 +75,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "Enterprise & Lead",
+    dept: "enterprise",
     items: [
       { icon: Telescope,       label: "Enterprise: Adaylar",     href: "/panel/enterprise/prospects" },
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
@@ -78,6 +86,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "İş Ortakları & Danışmanlık",
+    dept: "ortaklar",
     items: [
       { icon: Building2,       label: "İş Ortakları",          href: "/panel/is-ortaklari" },
       { icon: Package,         label: "İş Paketleri",          href: "/panel/is-paketleri" },
@@ -88,6 +97,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "İçerik & İletişim",
+    dept: "icerik",
     items: [
       { icon: Bell,            label: "Bildirim Merkezi",      href: "/panel/bildirimler" },
       { icon: Mail,            label: "E-posta Şablonları",    href: "/panel/email-sablonlari" },
@@ -97,6 +107,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "Güvenlik Operasyonları",
+    dept: "guvop",
     items: [
       { icon: Network,         label: "Fortinet Fabric",       href: "/panel/fortinet" },
       { icon: ShieldAlert,     label: "CVE Izleme",            href: "/panel/cve" },
@@ -113,6 +124,7 @@ const NAV_SECTIONS = [
   },
   {
     title: "Sistem & Ayarlar",
+    dept: "sistem",
     items: [
       { icon: Activity,        label: "Platform Sağlığı",      href: "/panel/platform-saglik" },
       { icon: Plug,            label: "Entegrasyonlar",        href: "/panel/entegrasyonlar" },
@@ -123,6 +135,7 @@ const NAV_SECTIONS = [
       { icon: Play,            label: "Manuel Tetikleme",      href: "/panel/manuel-tetikle" },
       { icon: DollarSign,      label: "AI Maliyet",            href: "/panel/ai-costs" },
       { icon: Palette,         label: "Marka Kılavuzu",        href: "/panel/marka-kilavuzu" },
+      { icon: Users,           label: "Yönetici Yönetimi",     href: "/panel/yoneticiler" },
     ],
   },
 ];
@@ -138,6 +151,13 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
   const qc = useQueryClient();
   const { data: admin } = useRequireAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Departman filtrelemesi: superadmin her şeyi görür, diğerleri yalnızca kendi departmanlarını
+  const visibleSections = NAV_SECTIONS.filter(s => {
+    if (!admin) return true; // henüz yüklenmedi, hepsini göster (flicker önleme)
+    if (admin.isSuperadmin) return true;
+    return admin.departments.includes(s.dept);
+  });
 
   // Aktif sayfanın bulunduğu grup açık, diğerleri kapalı başlar
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
@@ -183,7 +203,7 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
         <div className="text-slate-500 text-xs mt-1 truncate">{admin?.email}</div>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV_SECTIONS.map((section) => {
+        {visibleSections.map((section) => {
           const isCollapsed = collapsedSections.has(section.title);
           const hasActiveItem = section.items.some(
             item => location === item.href || (item.href !== "/panel" && location.startsWith(item.href))

@@ -1435,7 +1435,19 @@ async function startup() {
   await ensureOnboardingEmailColumns();
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
   await ensureSocialMediaTables();
+  await ensureAdminPermissions();
   await loadApiKeysFromDb();
+}
+
+async function ensureAdminPermissions() {
+  await db.execute(sql`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS departments TEXT[] NOT NULL DEFAULT '{}'`);
+  await db.execute(sql`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN NOT NULL DEFAULT FALSE`);
+  // Mevcut ilk yöneticiyi superadmin yap (tek admin varsa)
+  await db.execute(sql`
+    UPDATE admin_users SET is_superadmin = TRUE
+    WHERE id = (SELECT MIN(id) FROM admin_users)
+      AND NOT EXISTS (SELECT 1 FROM admin_users WHERE is_superadmin = TRUE)
+  `);
 }
 
 async function ensureSocialMediaTables() {

@@ -1,4 +1,5 @@
 import { pgTable, serial, text, timestamp, boolean, jsonb, integer, numeric } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,6 +12,8 @@ export const adminUsersTable = pgTable("admin_users", {
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at"),
+  departments: text("departments").array().notNull().default(sql`'{}'::text[]`),
+  isSuperadmin: boolean("is_superadmin").notNull().default(false),
 });
 
 export const siteSettingsTable = pgTable("site_settings", {

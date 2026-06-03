@@ -67,8 +67,11 @@ router.get("/admin-panel/auth/me", async (req: Request, res: Response) => {
   const [user] = await db.select({
     id: adminUsersTable.id,
     email: adminUsersTable.email,
+    name: adminUsersTable.name,
     totpEnabled: adminUsersTable.totpEnabled,
     lastLoginAt: adminUsersTable.lastLoginAt,
+    departments: adminUsersTable.departments,
+    isSuperadmin: adminUsersTable.isSuperadmin,
   }).from(adminUsersTable).where(eq(adminUsersTable.id, adminId));
 
   if (!user) { res.status(401).json({ error: "Kullanıcı bulunamadı" }); return; }

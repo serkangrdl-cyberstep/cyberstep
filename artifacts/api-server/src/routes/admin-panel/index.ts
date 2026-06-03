@@ -33,6 +33,7 @@ import intelligenceRouter from "./intelligence";
 import cronRouter from "./cron";
 import cveAdminRouter from "./cve-admin";
 import musteriProvizyonRouter from "./musteri-provizyon";
+import adminsRouter from "./admins";
 
 const router = Router();
 router.use(authRouter);
@@ -69,5 +70,6 @@ router.use(intelligenceRouter);
 router.use(cronRouter);
 router.use(cveAdminRouter);
 router.use(musteriProvizyonRouter);
+router.use(adminsRouter);
 
 export default router;

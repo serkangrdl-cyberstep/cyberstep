@@ -18,3 +18,9 @@ id = "sTiLlLIENOap89NvIJ7L-"
 uri = "file://SISTEM_AUDIT_RAPORU.md"
 type = "text"
 title = "CyberStep.io — Sistem Audit Raporu"
+
+[[outputs]]
+id = "wj_SOg_n4RDkNmOVTP9Fx"
+uri = "file://docs/entegrasyon-raporu.md"
+type = "text"
+title = "CyberStep.io — Entegrasyon Kataloğu Raporu"

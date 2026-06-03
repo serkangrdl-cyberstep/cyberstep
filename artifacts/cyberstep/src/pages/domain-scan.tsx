@@ -105,22 +105,22 @@ function ShodanCard({ openPorts, vulnCount, country, isp }: {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="font-semibold text-sm">Shodan Internet Maruziyeti</span>
+            <span className="font-semibold text-sm">İnternet Maruziyeti Analizi</span>
             <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
               <Sparkles className="h-2.5 w-2.5 mr-1" />Katman 1
             </Badge>
             {notConfigured ? (
               <Badge variant="outline" className="text-xs px-2 py-0 border bg-slate-100 text-slate-500 border-slate-200">
-                API anahtari gerekli
+                Veri yok
               </Badge>
             ) : (
               <>
                 <Badge variant="outline" className={`text-xs px-2 py-0 border ${openPorts.length === 0 ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
-                  {openPorts.length === 0 ? "Acik port yok" : `${openPorts.length} acik port`}
+                  {openPorts.length === 0 ? "Açık port yok" : `${openPorts.length} açık port tespit edildi`}
                 </Badge>
                 {vulnCount > 0 && (
                   <Badge variant="outline" className="text-xs px-2 py-0 border bg-red-100 text-red-700 border-red-200">
-                    {vulnCount} guvenlik acigi
+                    {vulnCount} güvenlik açığı
                   </Badge>
                 )}
               </>
@@ -128,37 +128,23 @@ function ShodanCard({ openPorts, vulnCount, country, isp }: {
           </div>
           {notConfigured ? (
             <p className="text-xs text-muted-foreground">
-              Shodan API anahtari yapilandirildiginda sunucularinizda internet uzerinden eriselebilen port ve servisleri gorebilirsiniz.
+              İnternet maruziyeti analizi yapılandırıldığında sunucularınızda dışarıdan erişilebilen port ve servisleri görüntüleyebilirsiniz.
             </p>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
                 {openPorts.length === 0
-                  ? "Shodan veritabaninda bu IP icin acik port kaydi bulunamadi."
-                  : `Internete acik ${openPorts.length} port tespit edildi.${vulnCount > 0 ? ` ${vulnCount} bilinen guvenlik acigi mevcut.` : ""}`}
+                  ? "Bu IP için internete açık port kaydı bulunamadı."
+                  : `İnternete açık ${openPorts.length} port tespit edildi.${vulnCount > 0 ? ` ${vulnCount} bilinen güvenlik açığı mevcut.` : ""}`}
                 {country ? ` Sunucu konumu: ${country}.` : ""}
-                {isp ? ` Saglayici: ${isp}.` : ""}
+                {isp ? ` Sağlayıcı: ${isp}.` : ""}
               </p>
               {openPorts.length > 0 && (
-                <button onClick={() => setOpen(!open)} className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline">
-                  <Info className="h-3 w-3" /> {open ? "Kapat" : "Acik portlari listele"}
-                </button>
-              )}
-              {open && openPorts.length > 0 && (
-                <div className="mt-2 border-t pt-2 space-y-1">
-                  {openPorts.map((p) => {
-                    const highRisk = [21, 22, 23, 25, 135, 139, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 27017].includes(p.port);
-                    const webPort = [80, 443, 8080, 8443].includes(p.port);
-                    return (
-                      <div key={`${p.port}-${p.protocol}`} className="flex items-center gap-2 text-xs">
-                        <span className={`font-mono px-1.5 py-0.5 rounded ${highRisk ? "bg-red-100 text-red-700" : webPort ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                          {p.port}/{p.protocol}
-                        </span>
-                        {p.product && <span className="text-muted-foreground">{p.product}</span>}
-                        {p.version && <span className="text-muted-foreground text-xs">v{p.version}</span>}
-                      </div>
-                    );
-                  })}
+                <div className="mt-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 flex items-start gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-orange-700">
+                    {openPorts.length} açık port tespit edildi. Bu portların hangi servislere ait olduğu, risk seviyesi ve kapatma önerileri ücretli raporda yer almaktadır.
+                  </p>
                 </div>
               )}
             </>
@@ -246,13 +232,13 @@ function AbuseIPDBCard({ score, totalReports, countryCode, isp }: {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="font-semibold text-sm">AbuseIPDB IP Kutuye Kullanim Gecmisi</span>
+            <span className="font-semibold text-sm">IP Kötüye Kullanım Geçmişi</span>
             <Badge variant="outline" className="text-xs px-2 py-0 border bg-violet-100 text-violet-700 border-violet-200">
               <Sparkles className="h-2.5 w-2.5 mr-1" />Katman 1
             </Badge>
             {notConfigured ? (
               <Badge variant="outline" className="text-xs px-2 py-0 border bg-slate-100 text-slate-500 border-slate-200">
-                API anahtari gerekli
+                Veri yok
               </Badge>
             ) : (
               <>
@@ -269,10 +255,10 @@ function AbuseIPDBCard({ score, totalReports, countryCode, isp }: {
           </div>
           <p className="text-xs text-muted-foreground">
             {notConfigured
-              ? "AbuseIPDB API anahtari yapilandirildiginda alan adinin barindirildi IP'nin kuresel kotuye kullanim raporlama gecmisini goruntuleyebilirsiniz."
+              ? "IP kötüye kullanım istihbaratı yapılandırıldığında alan adının barındırıldığı IP'nin küresel kötüye kullanım geçmişini görüntüleyebilirsiniz."
               : totalReports === 0
-              ? `Bu IP icin son 90 gunde kotuye kullanim raporu bulunamadi.${countryCode ? ` Konum: ${countryCode}` : ""}${isp ? `, ${isp}` : ""}.`
-              : `Bu IP son 90 gunde ${totalReports} kez kotuye kullanim icin raporlandi. Guven skoru: %${score}.${countryCode ? ` Konum: ${countryCode}` : ""}${isp ? `, ${isp}` : ""}.`}
+              ? `Bu IP için son 90 günde kötüye kullanım raporu bulunamadı.${countryCode ? ` Konum: ${countryCode}` : ""}${isp ? `, ${isp}` : ""}.`
+              : `Bu IP son 90 günde ${totalReports} kez kötüye kullanım için raporlandı. Güven skoru: %${score}.${countryCode ? ` Konum: ${countryCode}` : ""}${isp ? `, ${isp}` : ""}.`}
           </p>
         </div>
         <div className="shrink-0">
@@ -2151,7 +2137,7 @@ export default function DomainScanPage() {
                     {result.abuseIpdbScore !== null && (
                       <div className="flex items-start gap-2">
                         {result.abuseIpdbScore < 25 ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}
-                        <span><span className="font-medium">AbuseIPDB: </span>Güven skoru %{result.abuseIpdbScore}{result.abuseIpdbTotalReports > 0 ? ` — ${result.abuseIpdbTotalReports} rapor` : ""}</span>
+                        <span><span className="font-medium">IP Kötüye Kullanım: </span>Güven skoru %{result.abuseIpdbScore}{result.abuseIpdbTotalReports > 0 ? ` — ${result.abuseIpdbTotalReports} rapor` : ""}</span>
                       </div>
                     )}
                   </div>
@@ -2269,7 +2255,7 @@ export default function DomainScanPage() {
                   {
                     icon: DatabaseZap,
                     title: "Risk İstihbaratı (10 kaynak)",
-                    items: ["Have I Been Pwned sızıntıları", "Kara liste kontrolü", "Shodan açık port taraması", "VirusTotal itibar", "AbuseIPDB · URLhaus · USOM · CVE"],
+                    items: ["Have I Been Pwned sızıntıları", "Kara liste kontrolü", "Açık port taraması", "VirusTotal itibar", "IP İstihbaratı · URLhaus · USOM · CVE"],
                     color: "text-red-500",
                   },
                   {

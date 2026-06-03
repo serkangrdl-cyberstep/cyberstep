@@ -403,7 +403,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       if (data.abuseIpdbScore !== null) {
         const aOk = data.abuseIpdbScore < 25;
         intelRow(
-          "AbuseIPDB IP Kotuye Kullanim Gecmisi",
+          "IP Kotuye Kullanim Gecmisi",
           `Guven skoru: %${data.abuseIpdbScore} — son 90 gunde ${data.abuseIpdbTotalReports} rapor${data.abuseIpdbCountry ? `. Konum: ${data.abuseIpdbCountry}` : ""}${data.abuseIpdbIsp ? `, ${data.abuseIpdbIsp}` : ""}`,
           aOk
         );
@@ -413,10 +413,10 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         const sOk = data.shodanOpenPorts.length === 0 && data.shodanVulnCount === 0;
         const portStr = data.shodanOpenPorts.length === 0
           ? "Acik port tespit edilmedi"
-          : `${data.shodanOpenPorts.length} acik port: ${data.shodanOpenPorts.slice(0, 5).map(p => `${p.port}/${p.protocol}${p.product ? ` (${p.product})` : ""}`).join(", ")}${data.shodanOpenPorts.length > 5 ? "..." : ""}`;
+          : `${data.shodanOpenPorts.length} acik port tespit edildi${data.shodanCountry ? ` (${data.shodanCountry})` : ""}${data.shodanIsp ? ` — ${data.shodanIsp}` : ""}. Port detaylari tam raporda yer almaktadir.`;
         intelRow(
-          "Shodan Internet Maruziyeti",
-          `${portStr}${data.shodanVulnCount > 0 ? ` — ${data.shodanVulnCount} CVE acigi` : ""}${data.shodanCountry ? `. Konum: ${data.shodanCountry}` : ""}${data.shodanIsp ? `, ${data.shodanIsp}` : ""}`,
+          "Internet Maruziyeti Analizi",
+          `${portStr}${data.shodanVulnCount > 0 ? ` ${data.shodanVulnCount} bilinen guvenlik acigi mevcut.` : ""}`,
           sOk
         );
       }

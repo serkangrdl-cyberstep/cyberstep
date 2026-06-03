@@ -1246,6 +1246,51 @@ router.post("/domain-scan", async (req, res) => {
         logger.warn({ err, scanId: scan.id }, "Auto attack scenario trigger failed")
       );
 
+      // Fire-and-forget: scan completion email
+      if (email) {
+        setImmediate(async () => {
+          try {
+            const { sendMail } = await import("../../services/email");
+            const baseUrl = process.env["REPLIT_DOMAINS"]
+              ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+              : "http://localhost:80";
+            const grade = overallScore >= 90 ? "A" : overallScore >= 70 ? "B" : overallScore >= 50 ? "C" : overallScore >= 30 ? "D" : "F";
+            const gradeColor = overallScore >= 70 ? "#16a34a" : overallScore >= 50 ? "#d97706" : "#dc2626";
+            const resultUrl = `${baseUrl}/domain-tarama?domain=${encodeURIComponent(domain)}&scanId=${scan.id}`;
+            const portNote = scan.shodanOpenPorts && (scan.shodanOpenPorts as unknown[]).length > 0
+              ? `<li style="color:#ea580c;"><strong>${(scan.shodanOpenPorts as unknown[]).length} açık port</strong> tespit edildi — detaylar raporda</li>`
+              : "";
+            const blacklistNote = scan.blacklisted
+              ? `<li style="color:#dc2626;"><strong>Kara liste uyarısı</strong> — ${scan.blacklistCount} listede kayıtlı</li>`
+              : "";
+            await sendMail({
+              to: email,
+              subject: `CyberStep: ${domain} güvenlik taraması tamamlandı — Skor ${overallScore}/100`,
+              html: `
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:8px;">
+                  <h2 style="color:#60a5fa;margin-top:0;">Alan Adı Güvenlik Taraması Tamamlandı</h2>
+                  <p style="color:#94a3b8;margin-bottom:20px;"><strong style="color:#e2e8f0;">${domain}</strong> için güvenlik taraması tamamlandı.</p>
+                  <div style="background:#1e293b;border-radius:8px;padding:20px;margin-bottom:20px;text-align:center;">
+                    <div style="display:inline-block;background:${gradeColor};color:#fff;font-size:36px;font-weight:900;width:64px;height:64px;line-height:64px;border-radius:12px;">${grade}</div>
+                    <p style="font-size:28px;font-weight:900;color:#fff;margin:12px 0 4px;">${overallScore}<span style="font-size:14px;font-weight:400;color:#94a3b8;">/100</span></p>
+                    <p style="color:#94a3b8;font-size:13px;margin:0;">Genel Güvenlik Skoru</p>
+                  </div>
+                  ${portNote || blacklistNote ? `<ul style="background:#1e293b;border-radius:8px;padding:16px 16px 16px 32px;margin-bottom:20px;">${portNote}${blacklistNote}</ul>` : ""}
+                  <a href="${resultUrl}" style="display:block;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:20px;">
+                    Tam Raporu Gör
+                  </a>
+                  <p style="font-size:12px;color:#475569;text-align:center;">CyberStep.io · Türkiye'nin KOBİ Siber Güvenlik Platformu</p>
+                </div>
+              `,
+            });
+            await db.execute(sql`UPDATE domain_scans SET notified_at = NOW() WHERE id = ${scan.id}`);
+            logger.info({ scanId: scan.id, email }, "Scan completion email sent");
+          } catch (err) {
+            logger.warn({ err }, "Scan completion email failed");
+          }
+        });
+      }
+
       // Save to scan_leads for drip email campaign
       db.insert(scanLeadsTable)
         .values({

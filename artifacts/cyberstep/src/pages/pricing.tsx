@@ -24,6 +24,8 @@ const SERVICE_ICONS: Record<string, React.ElementType> = {
   Network, Globe, FileText, Building2, ScrollText, Activity, Server, Shield,
 };
 
+const ENTERPRISE_SLUGS = ["fortinet-fabric","dns-izleme","ct-log-izleme","microsoft-365","kvkk-bildirim","servicenow","soc-operasyon","observability"];
+
 const ENTERPRISE_SERVICES_DATA = [
   {
     slug: "fortinet-fabric",
@@ -506,10 +508,11 @@ export default function Pricing() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {/* Render from DB catalog; fallback to static icons only */}
-            {((serviceCatalog as ServiceCatalogItem[]).length > 0
-              ? (serviceCatalog as ServiceCatalogItem[])
-              : ENTERPRISE_SERVICES_DATA.map(s => ({ slug: s.slug, label: s.label, shortDescription: s.desc, features: s.features, monthlyPriceTl: s.price.replace(".", ""), icon: s.slug, isActive: true } as unknown as ServiceCatalogItem))
-            ).map((svc) => {
+            {((): ServiceCatalogItem[] => {
+              const fromDb = (serviceCatalog as ServiceCatalogItem[]).filter(s => ENTERPRISE_SLUGS.includes(s.slug));
+              if (fromDb.length > 0) return fromDb;
+              return ENTERPRISE_SERVICES_DATA.map(s => ({ slug: s.slug, label: s.label, shortDescription: s.desc, features: s.features, monthlyPriceTl: s.price.replace(".", ""), icon: s.slug, isActive: true } as unknown as ServiceCatalogItem));
+            })().map((svc) => {
               const Icon = SERVICE_ICONS[svc.icon] ?? SERVICE_ICONS[ENTERPRISE_SERVICES_DATA.find(s => s.slug === svc.slug)?.slug ?? ""] ?? Shield;
               const price = new Intl.NumberFormat("tr-TR").format(Number(svc.monthlyPriceTl));
               const features: string[] = Array.isArray(svc.features) ? svc.features.slice(0, 3) : (ENTERPRISE_SERVICES_DATA.find(s => s.slug === svc.slug)?.features ?? []);

@@ -376,7 +376,7 @@ export default function AdminPricing() {
                 <tbody>
                   {[
                     { category: "Değerlendirme", rows: [
-                      { label: "Soru sayısı",                  mini: "20",  full: "55",     prem: "55",     sub: "Mini/Tam" },
+                      { label: "Soru sayısı",                  mini: "20",  full: "60",     prem: "60",     sub: "Mini/Tam" },
                       { label: "Güvenlik alanı",               mini: "5",   full: "10",     prem: "10",     sub: "—" },
                       { label: "AI raporu",                    mini: "Gemini", full: "Claude", prem: "Claude", sub: "Claude" },
                       { label: "PDF rapor indirme",            mini: false, full: true,     prem: true,     sub: true },

@@ -285,7 +285,7 @@ export default function CustomerAccount() {
             "Shadow IT servis tespiti",
           ];
           const fullOnlyFeatures = [
-            "55 soruluk kapsamlı değerlendirme",
+            "60 soruluk kapsamlı değerlendirme",
             "HTTP güvenlik başlıkları analizi",
             "URLhaus & USOM zararlı alan taraması",
             "crt.sh Alt Alan Şeffaflığı (subdomain tespiti)",

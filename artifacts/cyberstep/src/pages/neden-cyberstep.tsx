@@ -287,7 +287,7 @@ export default function NedenCyberStep() {
                 icon: Shield,
                 num: "02",
                 title: "Yapay Zeka Risk Değerlendirmesi",
-                desc: "20 soruluk Mini (ücretsiz) veya 55 soruluk Tam Değerlendirme. Gemini AI ile kişiselleştirilmiş risk raporu, sektör karşılaştırması ve öncelikli aksiyon planı.",
+                desc: "20 soruluk Mini (ücretsiz) veya 60 soruluk Tam Değerlendirme. Gemini AI ile kişiselleştirilmiş risk raporu, sektör karşılaştırması ve öncelikli aksiyon planı.",
                 href: "/assessment/start",
                 tag: "Ücretsiz Mini",
               },

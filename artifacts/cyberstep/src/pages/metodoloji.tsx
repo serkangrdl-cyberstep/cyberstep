@@ -234,7 +234,7 @@ export default function Metodoloji() {
           </div>
           <p className="text-muted-foreground text-sm mb-8">
             Domain tarama ve Mini Değerlendirme sonuçları ayrı ayrı 0–100 aralığına normalize edilir.
-            Kombine raporda her ikisi de gösterilir; Tam Değerlendirme (55 soru) sektörel benchmark ile karşılaştırılır.
+            Kombine raporda her ikisi de gösterilir; Tam Değerlendirme (60 soru) sektörel benchmark ile karşılaştırılır.
           </p>
           <div className="space-y-3">
             {GRADES.map(g => (

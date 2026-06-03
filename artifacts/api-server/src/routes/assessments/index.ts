@@ -493,7 +493,7 @@ JSON şablonu:
 }`;
 
   // Full assessment: extended prompt with maturityLevel + findings + 8-week plan
-  const fullPrompt = assessment.assessmentType === "full" ? `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; 55 soruluk kapsamlı Siber Güvenlik Olgunluk Analizi yazmak.
+  const fullPrompt = assessment.assessmentType === "full" ? `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; 60 soruluk kapsamlı Siber Güvenlik Olgunluk Analizi yazmak.
 
 ÖNEMLİ BAĞLAM: Bu analiz ücretli tam değerlendirme raporu. Daha kapsamlı, daha analitik ve daha fazla sektöre özgü öngörü içermeli.
 

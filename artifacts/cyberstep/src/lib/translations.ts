@@ -130,10 +130,10 @@ export const TRANSLATIONS = {
 
     fullName: { tr: "Siber Sağlık Karnesi — Tam", en: "Cyber Health Report — Full" },
     fullDesc: {
-      tr: "55 soruluk kapsamlı analiz, KVKK uyum değerlendirmesi ve 'önce şunu kapat' formatında öncelikli aksiyon planı.",
-      en: "55-question comprehensive analysis, KVKK compliance assessment, and a prioritized action plan in 'close this first' format.",
+      tr: "60 soruluk kapsamlı analiz, KVKK uyum değerlendirmesi ve 'önce şunu kapat' formatında öncelikli aksiyon planı.",
+      en: "60-question comprehensive analysis, KVKK compliance assessment, and a prioritized action plan in 'close this first' format.",
     },
-    fullFeature1: { tr: "55 soruluk derinlemesine analiz", en: "55-question in-depth analysis" },
+    fullFeature1: { tr: "60 soruluk derinlemesine analiz", en: "60-question in-depth analysis" },
     fullFeature2: { tr: "10 risk alanı — KVKK dahil", en: "10 risk areas — including KVKK" },
     fullFeature3: { tr: "PDF karne indirme", en: "PDF report download" },
     fullFeature4: { tr: "Sektör karşılaştırması", en: "Sector comparison" },
@@ -219,7 +219,7 @@ export const TRANSLATIONS = {
     miniTitle: { tr: "Mini Değerlendirme", en: "Mini Assessment" },
     miniDesc: { tr: "20 soru · Ücretsiz · ~3 dakika", en: "20 questions · Free · ~3 minutes" },
     fullTitle: { tr: "Tam Değerlendirme", en: "Full Assessment" },
-    fullDesc: { tr: "55 soru · Yakında", en: "55 questions · Coming soon" },
+    fullDesc: { tr: "60 soru · Yakında", en: "60 questions · Coming soon" },
     startBtn: { tr: "Değerlendirmeyi Başlat", en: "Start Assessment" },
     loading: { tr: "Hazırlanıyor...", en: "Preparing..." },
   },

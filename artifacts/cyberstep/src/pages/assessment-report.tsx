@@ -635,7 +635,7 @@ function AssessmentReportCore({ id }: { id: number }) {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
-                      "55 soruluk derinlemesine analiz (şu an: 20 soru)",
+                      "60 soruluk derinlemesine analiz (şu an: 20 soru)",
                       "10 güvenlik alanı kırılımı (şu an: 5 alan)",
                       "Sektörünüzdeki gerçek şirket verileriyle kıyaslama",
                       "PDF sertifika + 1 saat uzman danışmanlığı",
@@ -1119,7 +1119,7 @@ function AssessmentReportCore({ id }: { id: number }) {
               </div>
               <div>
                 <h3 className="font-bold text-base">Tam Değerlendirme ile görün</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">55 soruluk derinlemesine analiz — 8 bölüm kilitli</p>
+                <p className="text-sm text-muted-foreground mt-0.5">60 soruluk derinlemesine analiz — 8 bölüm kilitli</p>
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-2.5 mb-5">

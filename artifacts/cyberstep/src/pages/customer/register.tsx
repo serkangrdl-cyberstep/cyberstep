@@ -100,7 +100,7 @@ export default function CustomerRegister() {
           <Lock className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="text-emerald-300 font-medium">Tam Değerlendirme Erişimi</p>
-            <p className="text-emerald-400/80 text-xs mt-1">55 soruluk derinlemesine analiz, PDF rapor ve uzman danışmanlık hizmetine erişin.</p>
+            <p className="text-emerald-400/80 text-xs mt-1">60 soruluk derinlemesine analiz, PDF rapor ve uzman danışmanlık hizmetine erişin.</p>
           </div>
         </div>
 

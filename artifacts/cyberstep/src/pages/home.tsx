@@ -205,8 +205,8 @@ export default function Home() {
       {
         q: lang === "en" ? "What is the difference between Mini and Full Assessment?" : "Mini ve Tam Değerlendirme arasındaki fark nedir?",
         a: lang === "en"
-          ? "Mini Assessment reveals your general risk profile with 20 questions. Full Assessment includes 55 questions, sector comparison, and one-on-one expert consulting."
-          : "Mini Değerlendirme 20 soru ile genel risk profilinizi ortaya koyar. Tam Değerlendirme 55 soru, sektör karşılaştırması ve birebir uzman danışmanlığı içerir.",
+          ? "Mini Assessment reveals your general risk profile with 20 questions. Full Assessment includes 60 questions, sector comparison, and one-on-one expert consulting."
+          : "Mini Değerlendirme 20 soru ile genel risk profilinizi ortaya koyar. Tam Değerlendirme 60 soru, sektör karşılaştırması ve birebir uzman danışmanlığı içerir.",
       },
     ];
     el.textContent = JSON.stringify({

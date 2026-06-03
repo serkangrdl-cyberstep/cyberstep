@@ -59,7 +59,7 @@ export default function AdminSettings() {
     { key: "service.hibp",           label: "Veri Sızıntısı Kontrolü",  desc: "HIBP (Have I Been Pwned) ile e-posta sızıntısı tarar" },
     { key: "service.dnsbl",          label: "Kara Liste Kontrolü",      desc: "Alan adının spam/kara listelerinde olup olmadığını kontrol eder" },
     { key: "service.customer_portal",label: "Müşteri Portalı",          desc: "Müşterilerin /giris ve /raporlarim sayfalarına erişimini açar" },
-    { key: "service.full_assessment",label: "Tam Değerlendirme (55 soru)",desc: "Ücretli 55 soruluk tam değerlendirme modülünü etkinleştirir" },
+    { key: "service.full_assessment",label: "Tam Değerlendirme (60 soru)",desc: "Ücretli 60 soruluk tam değerlendirme modülünü etkinleştirir" },
   ];
 
   const togVal = (key: string) => (form[key] ?? "1") === "1";

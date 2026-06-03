@@ -115,7 +115,7 @@ export default function FullAssessmentStart() {
         <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
         <h2 className="text-2xl font-bold mb-2">Full Plan Gerekli</h2>
         <p className="text-muted-foreground mb-6">
-          55 soruluk Kapsamlı Analiz yalnızca Full Plan abonelerine açıktır.
+          60 soruluk Kapsamlı Analiz yalnızca Full Plan abonelerine açıktır.
         </p>
         <Button onClick={() => setLocation("/fiyatlar")} className="w-full">Planları Gör</Button>
         <Button variant="outline" onClick={() => setLocation("/assessment/start")} className="w-full mt-3">
@@ -131,7 +131,7 @@ export default function FullAssessmentStart() {
         <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">Tam Değerlendirme</Badge>
         <h1 className="text-3xl font-bold tracking-tight mb-3">Firma Bilgilerinizi Girin</h1>
         <p className="text-muted-foreground max-w-lg mx-auto">
-          55 soruluk kapsamlı değerlendirmeye başlamadan önce şirketinizle ilgili temel bilgileri doldurun.
+          60 soruluk kapsamlı değerlendirmeye başlamadan önce şirketinizle ilgili temel bilgileri doldurun.
         </p>
       </div>
 

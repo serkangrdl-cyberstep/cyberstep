@@ -118,7 +118,7 @@ type CompRow =
 
 const COMPARISON_ROWS: CompRow[] = [
   { header: true, label: "Değerlendirme" },
-  { label: "Soru sayısı", mini: "20", full: "55" },
+  { label: "Soru sayısı", mini: "20", full: "60" },
   { label: "Güvenlik alanı", mini: "5", full: "10" },
   { label: "Anlık risk skoru ve kırmızı alarm", mini: true, full: true },
   { label: "Yapay zeka raporu", mini: "Temel", full: "Detaylı" },
@@ -196,7 +196,7 @@ export default function Pricing() {
           "name": "Tam Değerlendirme",
           "price": "5990",
           "priceCurrency": "TRY",
-          "description": "55 soruluk kapsamlı güvenlik değerlendirmesi, sektör karşılaştırması ve uzman danışmanlık",
+          "description": "60 soruluk kapsamlı güvenlik değerlendirmesi, sektör karşılaştırması ve uzman danışmanlık",
           "url": "https://cyberstep.io/fiyatlar",
         },
       ],

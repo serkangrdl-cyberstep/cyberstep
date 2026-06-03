@@ -94,3 +94,7 @@ export * from "./bulletin";
 export * from "./social-media";
 export * from "./ioc";
 export * from "./daily-dashboard";
+export * from "./subscription-changes";
+export * from "./upsell";
+export * from "./market-watch";
+export * from "./platform-monitoring";

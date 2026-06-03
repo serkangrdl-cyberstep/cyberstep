@@ -33,6 +33,11 @@ import { generateWeeklyDigest } from "./routes/digest/claude-processor";
 import { ensureNewsItemColumns, enrichNewsItems } from "./services/news/newsEnricher";
 import { calculateAllHealthScores } from "./routes/health/index";
 import { collectDailySummary } from "./services/dailyDashboard";
+import { runDunningCron } from "./services/dunningManager";
+import { runUpsellEngine } from "./services/upsellEngine";
+import { runMarketWatcher, sendWeeklyMarketSummary } from "./services/marketWatcher";
+import { checkPlatformCosts } from "./services/platformMonitor";
+import { runDay1EmailCron } from "./services/onboardingEmailSeries";
 import { runCollectionReminderCron } from "./services/invoice";
 import { runAutoTagCron, runTaskReminderCron, runNpsCron } from "./routes/crm/index";
 import { startRenewalCron } from "./services/subscription-renewal";
@@ -1996,6 +2001,99 @@ startup()
       return 1;
     }), { timezone: "Europe/Istanbul" });
     logger.info("Daily summary cron scheduled (08:00 Istanbul)");
+
+    // ─── Dunning (başarısız ödeme takibi) — Her gün 10:15 ────────────────────
+    cron.schedule("15 10 * * *", wrapCron("dunning_check", "15 10 * * *", async () => {
+      return runDunningCron();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Dunning cron scheduled (10:15 Istanbul)");
+
+    // ─── Upsell engine — Her gece 23:00 ──────────────────────────────────────
+    cron.schedule("0 23 * * *", wrapCron("upsell_engine", "0 23 * * *", async () => {
+      return runUpsellEngine();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Upsell engine cron scheduled (23:00 Istanbul)");
+
+    // ─── Pazar izleme — Her 4 saatte bir ────────────────────────────────────
+    cron.schedule("0 */4 * * *", wrapCron("market_watcher", "0 */4 * * *", async () => {
+      return runMarketWatcher();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Market watcher cron scheduled (every 4h)");
+
+    // ─── Haftalık pazar özeti — Her Cuma 09:00 ───────────────────────────────
+    cron.schedule("0 9 * * 5", wrapCron("market_weekly_summary", "0 9 * * 5", async () => {
+      await sendWeeklyMarketSummary();
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Market weekly summary cron scheduled (Friday 09:00 Istanbul)");
+
+    // ─── Platform maliyet kontrolü — Her gece 23:30 ───────────────────────────
+    cron.schedule("30 23 * * *", wrapCron("platform_cost_check", "30 23 * * *", async () => {
+      await checkPlatformCosts();
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Platform cost check cron scheduled (23:30 Istanbul)");
+
+    // ─── Onboarding D+1 emaili — Her gün 10:00 ───────────────────────────────
+    cron.schedule("0 10 * * *", wrapCron("onboarding_day1_email", "0 10 * * *", async () => {
+      return runDay1EmailCron();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Onboarding D+1 email cron scheduled (10:00 Istanbul)");
+
+    // ─── KVKK veri saklama politikası — Her ayın 1'i 03:00 ───────────────────
+    cron.schedule("0 3 1 * *", wrapCron("kvkk_data_retention", "0 3 1 * *", async () => {
+      if (process.env["DATA_RETENTION_ENABLED"] !== "true") return 0;
+      const { db: dbInst } = await import("@workspace/db");
+      const { dataRetentionPolicyTable } = await import("@workspace/db");
+      const { sql: sqlHelper } = await import("drizzle-orm");
+      const policies = await dbInst.select().from(dataRetentionPolicyTable);
+      let cleaned = 0;
+      for (const policy of policies) {
+        try {
+          const cutoff = new Date(Date.now() - policy.retentionDays * 86_400_000);
+          if (policy.action === "delete") {
+            await dbInst.execute(
+              sqlHelper`DELETE FROM ${sqlHelper.identifier(policy.tableName)} WHERE created_at < ${cutoff}`
+            );
+          }
+          await dbInst.update(dataRetentionPolicyTable)
+            .set({ lastCleanedAt: new Date() })
+            .where((await import("drizzle-orm")).eq(dataRetentionPolicyTable.tableName, policy.tableName));
+          cleaned++;
+        } catch (err) {
+          logger.warn({ err, table: policy.tableName }, "KVKK retention: table cleanup failed");
+        }
+      }
+      logger.info({ cleaned }, "KVKK data retention applied");
+      return cleaned;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("KVKK data retention cron scheduled (1st of month 03:00 Istanbul)");
+
+    // ─── KVKK zamanlanmış hesap silimi — Her gün 04:00 ───────────────────────
+    cron.schedule("0 4 * * *", wrapCron("kvkk_scheduled_deletion", "0 4 * * *", async () => {
+      if (process.env["DATA_RETENTION_ENABLED"] !== "true") return 0;
+      const { db: dbInst } = await import("@workspace/db");
+      const { customersTable: ct } = await import("@workspace/db");
+      const { lte: lteOp, isNotNull: isNotNullOp, and: andOp } = await import("drizzle-orm");
+      const due = await dbInst.select().from(ct).where(
+        andOp(isNotNullOp(ct.scheduledDeletionAt), lteOp(ct.scheduledDeletionAt, new Date()))
+      );
+      for (const c of due) {
+        await dbInst.update(ct).set({
+          email: `deleted-${c.id}@removed.invalid`,
+          fullName: "Silindi",
+          companyName: null,
+          passwordHash: "",
+          archivedAt: new Date(),
+          subscriptionStatus: "inactive",
+          deletionRequestedAt: null,
+          scheduledDeletionAt: null,
+        }).where((await import("drizzle-orm")).eq(ct.id, c.id));
+        logger.info({ customerId: c.id }, "KVKK: customer data anonymized");
+      }
+      return due.length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("KVKK scheduled deletion cron scheduled (04:00 Istanbul)");
 
     // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
     cron.schedule("0 2 * * *", wrapCron("attack_path_analysis", "0 2 * * *", async () => {

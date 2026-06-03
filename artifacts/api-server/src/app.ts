@@ -11,6 +11,9 @@ import cvePublicRouter from "./routes/cve-public";
 import bulletinPublicRouter from "./routes/bulletin-public";
 import bulletinAdminRouter from "./routes/admin-panel/bulletin";
 import dailyDashboardRouter from "./routes/admin-panel/daily-dashboard";
+import portalSubscriptionRouter from "./routes/portal/subscription";
+import portalAccountRouter from "./routes/portal/account";
+import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -318,6 +321,9 @@ app.use("/api", cvePublicRouter);
 app.use("/api", bulletinPublicRouter);
 app.use("/api", bulletinAdminRouter);
 app.use("/api", dailyDashboardRouter);
+app.use("/api", portalSubscriptionRouter);
+app.use("/api", portalAccountRouter);
+app.use("/api", monitoringUptimeRouter);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {

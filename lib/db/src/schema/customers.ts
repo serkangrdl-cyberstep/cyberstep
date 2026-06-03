@@ -21,6 +21,9 @@ export const customersTable = pgTable("customers", {
   socTier: text("soc_tier").$type<"none" | "lite" | "standart" | "pro">().notNull().default("none"),
   socEnabled: boolean("soc_enabled").notNull().default(false),
   githubOrg: varchar("github_org", { length: 255 }),
+  deletionRequestedAt: timestamp("deletion_requested_at"),
+  scheduledDeletionAt: timestamp("scheduled_deletion_at"),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

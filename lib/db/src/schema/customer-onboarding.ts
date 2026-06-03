@@ -25,6 +25,10 @@ export const customerOnboardingTable = pgTable("customer_onboarding", {
   nudge1SentAt: timestamp("nudge_1_sent_at"),
   nudge2SentAt: timestamp("nudge_2_sent_at"),
   nudge3SentAt: timestamp("nudge_3_sent_at"),
+  welcomeEmailSentAt: timestamp("welcome_email_sent_at"),
+  day1EmailSentAt: timestamp("day1_email_sent_at"),
+  day3EmailSentAt: timestamp("day3_email_sent_at"),
+  day7EmailSentAt: timestamp("day7_email_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

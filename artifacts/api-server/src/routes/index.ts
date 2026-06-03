@@ -61,6 +61,7 @@ import customerRouter from "./customer/index";
 import iocPortalRouter from "./customer/ioc-portal";
 import adminPanelRouter from "./admin-panel/index";
 import socialMediaRouter from "./social-media/index";
+import cisoRouter from "./ciso/index";
 
 const router: IRouter = Router();
 
@@ -126,5 +127,6 @@ router.use(customerRouter);
 router.use(iocPortalRouter);
 router.use(adminPanelRouter);
 router.use(socialMediaRouter);
+router.use(cisoRouter);
 
 export default router;

@@ -128,7 +128,7 @@ export default function CisoAsistan() {
               CISO Asistan Paketi
             </Badge>
             <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight">
-              CISO'nuz strateji dusünsün,<br />rutin raporlamayı biz yapalım
+              CISO'nuz strateji düşünsün,<br />rutin raporlamayı biz yapalım
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
               Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu.
@@ -174,7 +174,7 @@ export default function CisoAsistan() {
               <div className="mt-5 pt-4 border-t border-red-200/50 dark:border-red-800/30">
                 <p className="text-xs text-muted-foreground">
                   Tam zamanlı vCISO hizmetimiz 2027 yol haritasında.{" "}
-                  <Link href="/roadmap" className="text-primary hover:underline">Erken erişim listesine katılın</Link>.
+                  <Link href="/vciso-erken-erisim" className="text-primary hover:underline">Erken erişim listesine katılın</Link>.
                 </p>
               </div>
             </div>
@@ -351,9 +351,9 @@ export default function CisoAsistan() {
             </p>
           </form>
           <div className="mt-6 text-center">
-            <a href="mailto:ciso@cyberstep.io" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a href="mailto:info@cyberstep.io" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <Mail className="h-4 w-4 text-primary" />
-              ciso@cyberstep.io
+              info@cyberstep.io
             </a>
           </div>
         </div>

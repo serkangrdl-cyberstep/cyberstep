@@ -2329,6 +2329,74 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Haftalık DB yedek cron kayıtlandı (Pazar 04:00 Istanbul)");
 
+    // ─── CISO Asistan: Aylık Board Raporu — Her ayın 25'i 09:00 Istanbul ────
+    cron.schedule("0 9 25 * *", wrapCron("ciso_board_report", "0 9 25 * *", async () => {
+      const { db: cisoDb } = await import("@workspace/db");
+      const { cisoAssistantSubscriptionsTable: cisoSubsTable } = await import("@workspace/db");
+      const { eq: eqFn } = await import("drizzle-orm");
+      const { generateBoardReport } = await import("./services/ciso/boardReportGenerator");
+      const subs = await cisoDb.select().from(cisoSubsTable).where(eqFn(cisoSubsTable.isActive, true));
+      logger.info({ count: subs.length }, "CISO board raporu cron başladı");
+      for (const sub of subs) {
+        try { await generateBoardReport(sub.customerId!); await new Promise(r => setTimeout(r, 5000)); }
+        catch (err) { logger.error({ err, customerId: sub.customerId }, "Board raporu hatası"); }
+      }
+      return subs.length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("CISO board raporu cron kayıtlandı (ayın 25'i 09:00 Istanbul)");
+
+    // ─── CISO Asistan: Haftalık Tehdit Özeti — Her Cuma 09:00 Istanbul ───────
+    cron.schedule("0 9 * * 5", wrapCron("ciso_weekly_threat", "0 9 * * 5", async () => {
+      const { db: cisoDb } = await import("@workspace/db");
+      const { cisoAssistantSubscriptionsTable: cisoSubsTable, customersTable: custTable, domainScansTable: scanTable, weeklyBulletinsTable } = await import("@workspace/db");
+      const { eq: eqFn, desc: descFn } = await import("drizzle-orm");
+      const { sendMail: sendMailFn } = await import("./services/email");
+      const { anthropic: anthropicClient } = await import("@workspace/integrations-anthropic-ai");
+      const subs = await cisoDb.select().from(cisoSubsTable).where(eqFn(cisoSubsTable.isActive, true));
+      const [latestBulletin] = await cisoDb.select().from(weeklyBulletinsTable).where(eqFn(weeklyBulletinsTable.status, "published")).orderBy(descFn(weeklyBulletinsTable.id)).limit(1);
+      logger.info({ count: subs.length, hasBulletin: !!latestBulletin }, "CISO haftalık tehdit cron başladı");
+      for (const sub of subs) {
+        if (!sub.customerId) continue;
+        try {
+          const [customer] = await cisoDb.select().from(custTable).where(eqFn(custTable.id, sub.customerId)).limit(1);
+          if (!customer) continue;
+          const [scan] = await cisoDb.select().from(scanTable).where(eqFn(scanTable.email, customer.email)).orderBy(descFn(scanTable.id)).limit(1);
+          const scoreText = scan ? `Güvenlik skoru: ${scan.overallScore}/100` : "";
+          const msg = await anthropicClient.messages.create({
+            model: "claude-haiku-4-5", max_tokens: 200,
+            system: "Türk KOBİ için kişiselleştirilmiş siber güvenlik haftalık özeti yaz. Kısa, akıcı Türkçe.",
+            messages: [{ role: "user", content: `${customer.companyName ?? customer.email} için haftalık tehdit özeti. ${scoreText}. Bu hafta yapılması gereken 1 şeyi belirt.` }],
+          });
+          const block = msg.content[0];
+          const intro = block?.type === "text" ? block.text.trim() : "";
+          await sendMailFn({
+            to: customer.email,
+            subject: `Haftalık Siber Tehdit Özeti — ${new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`,
+            html: `<p>Merhaba ${customer.companyName ?? ""},</p><p>${intro}</p>${latestBulletin?.emailHtml ? `<hr style="margin:16px 0">${latestBulletin.emailHtml}` : ""}<br><small style="color:#888">CyberStep CISO Asistan — <a href="mailto:info@cyberstep.io">info@cyberstep.io</a></small>`,
+          });
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (err) { logger.error({ err, customerId: sub.customerId }, "Haftalık tehdit özeti hatası"); }
+      }
+      return subs.length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("CISO haftalık tehdit cron kayıtlandı (Cuma 09:00 Istanbul)");
+
+    // ─── CISO Asistan: Aylık Uyum Skoru — Her ayın 1'i 08:00 Istanbul ────────
+    cron.schedule("0 8 1 * *", wrapCron("ciso_compliance_monthly", "0 8 1 * *", async () => {
+      const { db: cisoDb } = await import("@workspace/db");
+      const { cisoAssistantSubscriptionsTable: cisoSubsTable } = await import("@workspace/db");
+      const { eq: eqFn } = await import("drizzle-orm");
+      const { calculateComplianceScore } = await import("./services/ciso/complianceCalculator");
+      const subs = await cisoDb.select().from(cisoSubsTable).where(eqFn(cisoSubsTable.isActive, true));
+      for (const sub of subs) {
+        if (!sub.customerId) continue;
+        try { await calculateComplianceScore(sub.customerId); await new Promise(r => setTimeout(r, 1000)); }
+        catch (err) { logger.error({ err, customerId: sub.customerId }, "Uyum skoru güncelleme hatası"); }
+      }
+      return subs.length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("CISO uyum skoru cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
+
     const server = app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

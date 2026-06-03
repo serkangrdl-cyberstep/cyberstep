@@ -98,3 +98,4 @@ export * from "./subscription-changes";
 export * from "./upsell";
 export * from "./market-watch";
 export * from "./platform-monitoring";
+export * from "./ciso-assistant";

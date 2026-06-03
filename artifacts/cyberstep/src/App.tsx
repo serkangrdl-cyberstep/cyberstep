@@ -9,6 +9,8 @@ import DoraBddkUyum from "./pages/dora-bddk-uyum";
 import SektorPage from "./pages/sektor";
 import ExtensionDownload from "./pages/extension-download";
 import SanalCiso from "./pages/sanal-ciso";
+import VcisoErkenErisim from "./pages/vciso-erken-erisim";
+import CisoAsistanPortal from "./pages/hesabim/ciso-asistan";
 import ErpEntegrasyonu from "./pages/erp-entegrasyonu";
 import SigortaPazaryeri from "./pages/sigorta-pazaryeri";
 import TehditIstihbarati from "./pages/tehdit-istihbarati";
@@ -282,6 +284,7 @@ function Router() {
       <Route path="/hesabim/whitelist" component={HesabimWhitelist} />
       <Route path="/hesabim/ioc-log" component={HesabimIocLog} />
       <Route path="/hesabim/servislerim" component={ServislerimPage} />
+      <Route path="/hesabim/ciso-asistan" component={CisoAsistanPortal} />
       <Route path="/yenile" component={YenilePage} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
@@ -438,6 +441,7 @@ function Router() {
             <Route path="/sektor/:slug" component={SektorPage} />
             <Route path="/tarayici-eklentisi" component={ExtensionDownload} />
             <Route path="/sanal-ciso" component={SanalCiso} />
+            <Route path="/vciso-erken-erisim" component={VcisoErkenErisim} />
             <Route path="/erp-entegrasyonu" component={ErpEntegrasyonu} />
             <Route path="/sigorta-pazaryeri" component={SigortaPazaryeri} />
             <Route path="/tehdit-istihbarati" component={TehditIstihbarati} />

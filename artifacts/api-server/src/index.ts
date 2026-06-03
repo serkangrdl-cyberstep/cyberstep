@@ -1434,7 +1434,102 @@ async function startup() {
   await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
+  await ensureSocialMediaTables();
   await loadApiKeysFromDb();
+}
+
+async function ensureSocialMediaTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS social_media_accounts (
+      id SERIAL PRIMARY KEY,
+      platform VARCHAR(20) UNIQUE NOT NULL,
+      account_name VARCHAR(100),
+      account_id VARCHAR(100),
+      access_token TEXT,
+      token_expires_at TIMESTAMP,
+      is_active BOOLEAN DEFAULT true,
+      last_posted_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS special_days (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      name_en VARCHAR(255),
+      day INTEGER,
+      month INTEGER,
+      is_lunar BOOLEAN DEFAULT false,
+      category VARCHAR(30),
+      tone VARCHAR(20),
+      cybersecurity_angle TEXT,
+      is_active BOOLEAN DEFAULT true
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS content_calendar (
+      id SERIAL PRIMARY KEY,
+      week_start DATE NOT NULL,
+      generated_at TIMESTAMP,
+      status VARCHAR(20) DEFAULT 'pending',
+      total_posts INTEGER DEFAULT 0,
+      approved_posts INTEGER DEFAULT 0,
+      published_posts INTEGER DEFAULT 0,
+      generation_cost_usd DECIMAL(8,6) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS social_media_posts (
+      id SERIAL PRIMARY KEY,
+      calendar_id INTEGER REFERENCES content_calendar(id),
+      platform VARCHAR(20) NOT NULL,
+      post_type VARCHAR(30) DEFAULT 'standard',
+      scheduled_date DATE,
+      scheduled_time TIME DEFAULT '09:30',
+      caption TEXT,
+      hashtags TEXT[],
+      alt_text VARCHAR(500),
+      slides JSONB,
+      thread_tweets JSONB,
+      image_svg TEXT,
+      image_png_path VARCHAR(500),
+      image_dimensions VARCHAR(20),
+      status VARCHAR(20) DEFAULT 'draft',
+      revision_request TEXT,
+      revision_count INTEGER DEFAULT 0,
+      approved_by VARCHAR(100),
+      approved_at TIMESTAMP,
+      published_at TIMESTAMP,
+      platform_post_id VARCHAR(255),
+      platform_post_url VARCHAR(500),
+      likes INTEGER DEFAULT 0,
+      comments INTEGER DEFAULT 0,
+      shares INTEGER DEFAULT 0,
+      impressions INTEGER DEFAULT 0,
+      clicks INTEGER DEFAULT 0,
+      fetched_at TIMESTAMP,
+      special_day_id INTEGER REFERENCES special_days(id),
+      data_source VARCHAR(100),
+      generation_prompt TEXT,
+      generation_cost_usd DECIMAL(8,6) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  // Özel günleri seed et (ilk çalıştırmada)
+  await db.execute(sql`
+    INSERT INTO special_days (name, day, month, category, tone, cybersecurity_angle) VALUES
+      ('Cumhuriyet Bayramı', 29, 10, 'national', 'celebratory', 'Dijital Türkiye de güvende olmalı. 7545 Kanunu bu yolda önemli bir adım.'),
+      ('Atatürk''u Anma Günü', 10, 11, 'national', 'solemn', 'Ulu Önder''in mirası güçlü bir Türkiye. Dijital çağda bu güç siber güvenlikten geçiyor.'),
+      ('Ulusal Egemenlik Günü', 23, 4, 'national', 'celebratory', 'Dijital egemenlik de ulusal egemenliğin parçası.'),
+      ('Gençlik Bayramı', 19, 5, 'national', 'celebratory', 'Gençlerimizin dijital geleceği güvende olsun.'),
+      ('Zafer Bayramı', 30, 8, 'national', 'celebratory', 'Siber uzayda da zafer kazanacağız.'),
+      ('Yılbaşı', 1, 1, 'global', 'celebratory', 'Yeni yılda siber güvenlik önceliğiniz olsun. Ücretsiz tarama hediyemiz.'),
+      ('Veri Gizliliği Günü', 28, 1, 'cybersecurity', 'awareness', 'Verilerinizin değerini biliyor musunuz?'),
+      ('Dünya Yedekleme Günü', 31, 3, 'cybersecurity', 'awareness', 'Verilerinizi yedeklediniz mi? Fidye yazılımına hazırlık.')
+    ON CONFLICT DO NOTHING
+  `);
 }
 
 async function ensureDnsTables() {
@@ -1613,6 +1708,29 @@ function startBlogAutopilotCron() {
   logger.info("Blog autopilot cron scheduled (Mon & Thu 09:00 Istanbul)");
 }
 
+// ─── Cron: Sosyal Medya — Pazar 20:00 İstanbul haftalık içerik üret ────────────
+function startSocialMediaWeeklyCron() {
+  cron.schedule("0 17 * * 0", async () => {
+    try {
+      logger.info("Sosyal medya haftalık içerik üretimi başlıyor (Pazar 20:00)");
+      const { generateWeeklyContent } = await import("./routes/social-media/contentGenerator");
+      const { db: _db } = await import("@workspace/db");
+      const { contentCalendarTable } = await import("@workspace/db");
+      const nextMonday = new Date();
+      nextMonday.setDate(nextMonday.getDate() + 1);
+      nextMonday.setHours(0, 0, 0, 0);
+      const [calendar] = await _db.insert(contentCalendarTable).values({
+        weekStart: nextMonday.toISOString().split("T")[0],
+      }).returning();
+      await generateWeeklyContent(nextMonday, calendar.id);
+      logger.info({ calendarId: calendar.id }, "Sosyal medya haftalık içerik tamamlandı");
+    } catch (err) {
+      logger.error({ err }, "Sosyal medya haftalık içerik cron hatası");
+    }
+  }, { timezone: "Europe/Istanbul" });
+  logger.info("Sosyal medya haftalık içerik cron zamanlandı (Pazar 20:00 İstanbul)");
+}
+
 // ─── Cron: AI Araç Politika İzleme (her Pazar 02:00 İstanbul) ─────────────────
 function startAiToolMonitorCron() {
   cron.schedule("0 2 * * 0", async () => {
@@ -1680,6 +1798,7 @@ startup()
     startIsrImapCron();
     startInflationReminderCron();
     startBlogAutopilotCron();
+    startSocialMediaWeeklyCron();
     startDigestCron();
     startAiToolMonitorCron();
     startQuarterlyPolicyUpdateCron();

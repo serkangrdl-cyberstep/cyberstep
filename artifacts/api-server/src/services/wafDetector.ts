@@ -5,7 +5,7 @@
 import axios from "axios";
 import type { AxiosResponse } from "axios";
 
-export type WafProvider = "cloudflare" | "f5" | "akamai" | "imperva" | "sucuri" | "aws_waf";
+export type WafProvider = "cloudflare" | "f5" | "akamai" | "imperva" | "sucuri" | "aws_waf" | "fortinet";
 
 const WAF_SIGNATURES: Record<WafProvider, { headers: string[]; cookies: string[]; body: string[] }> = {
   cloudflare: { headers: ["cf-ray", "cf-cache-status"], cookies: ["__cfduid", "cf_clearance", "__cf_bm"], body: ["cloudflare", "cf_bm"] },
@@ -14,6 +14,7 @@ const WAF_SIGNATURES: Record<WafProvider, { headers: string[]; cookies: string[]
   imperva:    { headers: ["x-iinfo", "x-cdn"], cookies: ["incap_ses", "visid_incap"], body: ["incapsula incident", "_sec_cpt"] },
   sucuri:     { headers: ["x-sucuri-id", "x-sucuri-cache"], cookies: [], body: ["sucuri website firewall", "sucuri-gui"] },
   aws_waf:    { headers: ["x-amzn-requestid", "x-amz-cf-id"], cookies: ["aws-waf-token"], body: ["aws waf"] },
+  fortinet:   { headers: ["x-fortigate", "x-fortiweb", "x-fw-header"], cookies: ["FORTIWAFSID", "FSCSRF", "fgCSRFToken"], body: ["fortiweb", "fortigate", "application blocked", "fortinet", "fortigate-challenge"] },
 };
 
 // WAF sağlayıcılarının genellikle eklediği güvenlik başlıkları
@@ -22,6 +23,7 @@ const WAF_ADDS: Record<string, string[]> = {
   sucuri:     ["x-content-type-options", "x-frame-options"],
   akamai:     ["strict-transport-security"],
   imperva:    ["x-content-type-options"],
+  fortinet:   ["x-content-type-options", "x-xss-protection"],
 };
 
 export const WAF_DISPLAY_NAMES: Record<string, string> = {
@@ -31,6 +33,7 @@ export const WAF_DISPLAY_NAMES: Record<string, string> = {
   imperva:    "Imperva",
   sucuri:     "Sucuri",
   aws_waf:    "AWS WAF",
+  fortinet:   "Fortinet FortiWeb",
 };
 
 export interface WafResult {

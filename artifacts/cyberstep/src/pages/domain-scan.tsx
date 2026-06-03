@@ -1962,28 +1962,58 @@ export default function DomainScanPage() {
           )}
 
           {/* ── WAF BANNER ─────────────────────────────────────────── */}
-          {result.wafDetected && (
-            result.wafBypassPossible ? (
-              <div className="mb-4 rounded-xl border-2 border-red-400/60 bg-red-50 dark:bg-red-950/30 dark:border-red-500/40 overflow-hidden">
-                <div className="flex items-start gap-3 px-4 py-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-sm text-red-800 dark:text-red-300">
-                      {result.wafProvider ? `${result.wafProvider === "cloudflare" ? "Cloudflare" : result.wafProvider === "f5" ? "F5 BIG-IP" : result.wafProvider === "akamai" ? "Akamai" : result.wafProvider === "imperva" ? "Imperva" : result.wafProvider === "sucuri" ? "Sucuri" : result.wafProvider === "aws_waf" ? "AWS WAF" : result.wafProvider} WAF Tespit Edildi` : "WAF Tespit Edildi"} — Bypass Riski
-                    </p>
-                    <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
-                      Kaynak sunucuya direkt IP erişimi mümkün — WAF bypass riski yüksek. Tüm bulgular tam riskiyle geçerlidir.
-                    </p>
+          {result.wafDetected && (() => {
+            const WAF_LABELS: Record<string, string> = {
+              cloudflare: "Cloudflare", f5: "F5 BIG-IP", akamai: "Akamai",
+              imperva: "Imperva", sucuri: "Sucuri", aws_waf: "AWS WAF",
+              fortinet: "Fortinet FortiWeb",
+            };
+            const displayName = result.wafProvider ? (WAF_LABELS[result.wafProvider] ?? result.wafProvider) : "WAF";
+            const isFortinet = result.wafProvider === "fortinet";
+
+            if (result.wafBypassPossible) {
+              return (
+                <div className="mb-4 rounded-xl border-2 border-red-400/60 bg-red-50 dark:bg-red-950/30 dark:border-red-500/40 overflow-hidden">
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-sm text-red-800 dark:text-red-300">
+                        {displayName} WAF Tespit Edildi — Bypass Riski
+                      </p>
+                      <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
+                        Kaynak sunucuya direkt IP erişimi mümkün — WAF bypass riski yüksek. Tüm bulgular tam riskiyle geçerlidir.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
+              );
+            }
+
+            if (isFortinet) {
+              return (
+                <div className="mb-4 rounded-xl border border-orange-300/70 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-500/40 overflow-hidden">
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <ShieldAlert className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-sm text-orange-800 dark:text-orange-300">
+                        Fortinet FortiWeb WAF Aktif — Dikkat: Bypass Riski Değerlendirilmeli
+                      </p>
+                      <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
+                        FortiWeb genellikle yönetim arayüzleri üzerinden bypass edilebilir. CVE azaltımı kısmen uygulandı; SSL, e-posta ve sızıntı bulguları WAF'tan bağımsız tam riskle geçerlidir.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
               <div className="mb-4 rounded-xl border border-blue-300/60 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500/40 overflow-hidden">
                 <div className="flex items-start gap-3 px-4 py-3">
                   <ShieldCheck className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-bold text-sm text-blue-800 dark:text-blue-300">
-                      {result.wafProvider ? `${result.wafProvider === "cloudflare" ? "Cloudflare" : result.wafProvider === "f5" ? "F5 BIG-IP" : result.wafProvider === "akamai" ? "Akamai" : result.wafProvider === "imperva" ? "Imperva" : result.wafProvider === "sucuri" ? "Sucuri" : result.wafProvider === "aws_waf" ? "AWS WAF" : result.wafProvider} WAF Aktif` : "WAF Aktif"} — CVE Riskleri Kısmen Azaltılmış
+                      {displayName} WAF Aktif — CVE Riskleri Kısmen Azaltılmış
                     </p>
                     <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-0.5">
                       SSL süresi, e-posta güvenliği ve sızıntı bulguları WAF'tan bağımsızdır — bunlar tam riskiyle geçerlidir.
@@ -1991,8 +2021,8 @@ export default function DomainScanPage() {
                   </div>
                 </div>
               </div>
-            )
-          )}
+            );
+          })()}
 
           {/* Overall score */}
           <Card className={`shadow-sm mb-6 border ${scoreInfo.bg}`}>

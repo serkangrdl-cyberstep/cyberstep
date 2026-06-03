@@ -91,3 +91,4 @@ export * from "./tech-stack";
 export * from "./intelligence";
 export * from "./cve";
 export * from "./bulletin";
+export * from "./social-media";

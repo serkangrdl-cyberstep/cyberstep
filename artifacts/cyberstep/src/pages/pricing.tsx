@@ -531,14 +531,9 @@ export default function Pricing() {
                   </ul>
                   <div className="pt-2 border-t">
                     <p className="text-base font-bold text-primary mb-2">{price} TL <span className="text-xs font-normal text-muted-foreground">/ ay + KDV</span></p>
-                    <div className="flex gap-1.5">
-                      <Link href={`/servisler/${svc.slug}`} className="flex-1 text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
-                        İncele
-                      </Link>
-                      <Link href={`/iletisim?servis=${svc.slug}`} className="flex-1 text-center text-xs border border-border py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
-                        Demo
-                      </Link>
-                    </div>
+                    <Link href={`/servisler/${svc.slug}`} className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                      İncele
+                    </Link>
                   </div>
                 </div>
               );

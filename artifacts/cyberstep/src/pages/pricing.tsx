@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck, Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck, Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server, Search, Crosshair } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -541,6 +541,63 @@ export default function Pricing() {
                 </div>
               );
             })}
+            {/* Yakında: Dark Web İzleme */}
+            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-5 flex flex-col gap-3 relative overflow-hidden">
+              <div className="absolute top-3 right-3">
+                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full tracking-wide">Yakında</span>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <Search className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm mb-1 text-foreground/70">Dark Web İzleme</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Kimlik bilgisi sızıntıları ve dark web forum takibi
+                </p>
+              </div>
+              <ul className="space-y-1 flex-1">
+                {["Credential leak tespiti","Dark web forum izleme","Anlık e-posta uyarısı"].map((f, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                    <CheckCircle2 className="h-3 w-3 text-muted-foreground/40 shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-2 border-t border-dashed border-muted-foreground/20">
+                <p className="text-xs text-muted-foreground mb-2">2026 Q4 yol haritasında</p>
+                <Link href="/roadmap" className="block w-full text-center text-xs border border-muted-foreground/30 text-muted-foreground py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
+                  Erken Erişim Listesi
+                </Link>
+              </div>
+            </div>
+
+            {/* Yakında: APT Grup İzleme */}
+            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-5 flex flex-col gap-3 relative overflow-hidden">
+              <div className="absolute top-3 right-3">
+                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full tracking-wide">Yakında</span>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <Crosshair className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm mb-1 text-foreground/70">APT Grup İzleme</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Türkiye'yi hedefleyen tehdit aktörü profilleri ve TTPs analizi
+                </p>
+              </div>
+              <ul className="space-y-1 flex-1">
+                {["Türkiye odaklı APT profilleri","MITRE ATT&CK TTP haritası","Sektörel hedefleme uyarısı"].map((f, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                    <CheckCircle2 className="h-3 w-3 text-muted-foreground/40 shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-2 border-t border-dashed border-muted-foreground/20">
+                <p className="text-xs text-muted-foreground mb-2">2026 Q4 yol haritasında</p>
+                <Link href="/roadmap" className="block w-full text-center text-xs border border-muted-foreground/30 text-muted-foreground py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
+                  Erken Erişim Listesi
+                </Link>
+              </div>
+            </div>
           </div>
           <p className="text-center text-xs text-muted-foreground">
             Her servis için ayrıntılı bilgi almak isterseniz{" "}

@@ -36,6 +36,13 @@
       "when": 1748822400000,
       "tag": "0004_renewal_token_cols",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780471595750,
+      "tag": "0005_schema_sync",
+      "breakpoints": true
     }
   ]
 }

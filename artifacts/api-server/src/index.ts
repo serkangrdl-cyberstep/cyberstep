@@ -2322,6 +2322,13 @@ startup()
     }, { timezone: "Europe/Istanbul" });
     logger.info("Haftalık bülten cron kayıtlandı (Cuma 08:00 Istanbul)");
 
+    // ─── Haftalık DB Yedeği — Her Pazar 04:00 Istanbul ──────────────────────
+    cron.schedule("0 4 * * 0", wrapCron("weekly_db_backup", "0 4 * * 0", async () => {
+      const { runDbBackup } = await import("./services/dbBackup");
+      return await runDbBackup();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Haftalık DB yedek cron kayıtlandı (Pazar 04:00 Istanbul)");
+
     const server = app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

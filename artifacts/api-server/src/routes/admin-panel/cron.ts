@@ -270,9 +270,9 @@ router.post("/admin-panel/cron/trigger/:name", requireAdmin, async (req: Request
     // Fallback: inline execution with wrapCron
     const fn = wrapCron(name, def.defaultSchedule, async () => {
       if (name === "crtsh") {
-        await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 10, limit });
+        await scanCRTSH("%.com.tr", { daysBack: 90, minCorporateScore: 10, limit });
         await new Promise((r) => setTimeout(r, 3000));
-        await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit / 3) });
+        await scanCRTSH("%.net.tr", { daysBack: 90, minCorporateScore: 10, limit: Math.floor(limit / 3) });
       } else if (name === "shodan") {
         if (!process.env["SHODAN_API_KEY"]) return 0;
         const queryIdx = getISOWeek(new Date()) % SHODAN_FREE_QUERIES.length;

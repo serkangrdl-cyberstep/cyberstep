@@ -71,11 +71,16 @@ interface ScanResult {
   usomListed: boolean;
   ctSubdomains: string[];
   ctSubdomainCount: number;
-  cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
+  cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number; adjustedCvssScore?: number; wafMitigated?: boolean; wafMitigationNote?: string }>;
   shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
   shodanVulnCount: number;
   shodanCountry: string | null;
   shodanIsp: string | null;
+  wafDetected?: boolean;
+  wafProvider?: string | null;
+  wafBypassPossible?: boolean | null;
+  originIp?: string | null;
+  wafConfidence?: number | null;
   virusTotalReputation: number | null;
   virusTotalMalicious: number;
   virusTotalSuspicious: number;
@@ -935,9 +940,10 @@ function CertTransparencyCard({ subdomains, count }: { subdomains: string[]; cou
   );
 }
 
-function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }> }) {
+function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number; adjustedCvssScore?: number; wafMitigated?: boolean; wafMitigationNote?: string }> }) {
   const [open, setOpen] = useState(false);
   if (cveSummary.length === 0) return null;
+  const mitigatedCount = cveSummary.filter(c => c.wafMitigated).length;
   return (
     <div className="rounded-xl border p-4 bg-red-50/50 border-red-200">
       <div className="flex items-start gap-3">
@@ -950,6 +956,11 @@ function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: s
             <Badge variant="outline" className="text-xs px-2 py-0 bg-red-100 text-red-700 border-red-200">
               {cveSummary.length} kritik CVE
             </Badge>
+            {mitigatedCount > 0 && (
+              <Badge variant="outline" className="text-xs px-2 py-0 bg-blue-100 text-blue-700 border-blue-200">
+                {mitigatedCount} WAF azaltıldı
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Kullanılan 3. parti servislerinizde NIST NVD veritabanında kayıtlı kritik güvenlik açıkları bulundu.
@@ -964,17 +975,24 @@ function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: s
           {open && (
             <div className="mt-2 border-t pt-2 space-y-2">
               {cveSummary.map((cve) => (
-                <div key={cve.cveId} className="text-xs bg-red-100/70 rounded-lg p-2 border border-red-200">
+                <div key={cve.cveId} className={`text-xs rounded-lg p-2 border ${cve.wafMitigated ? "bg-blue-50/70 border-blue-200" : "bg-red-100/70 border-red-200"}`}>
                   <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
-                    <span className="font-mono font-bold text-red-700">{cve.cveId}</span>
+                    <span className={`font-mono font-bold ${cve.wafMitigated ? "text-blue-700" : "text-red-700"}`}>{cve.cveId}</span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-muted-foreground">{cve.service}</span>
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-red-300 text-red-700">
-                        CVSS {cve.cvssScore}
+                      <Badge variant="outline" className={`text-xs px-1.5 py-0 ${cve.wafMitigated ? "border-blue-300 text-blue-700" : "border-red-300 text-red-700"}`}>
+                        CVSS {cve.adjustedCvssScore !== undefined ? (
+                          <><span className="line-through opacity-60 mr-1">{cve.cvssScore}</span>{cve.adjustedCvssScore}</>
+                        ) : cve.cvssScore}
                       </Badge>
                     </div>
                   </div>
                   <p className="text-muted-foreground leading-snug">{cve.description}</p>
+                  {cve.wafMitigationNote && (
+                    <p className={`mt-1 leading-snug ${cve.wafMitigated ? "text-blue-600/80" : "text-slate-500"}`}>
+                      {cve.wafMitigationNote}
+                    </p>
+                  )}
                 </div>
               ))}
               <p className="text-xs text-muted-foreground pt-1">
@@ -1941,6 +1959,39 @@ export default function DomainScanPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ── WAF BANNER ─────────────────────────────────────────── */}
+          {result.wafDetected && (
+            result.wafBypassPossible ? (
+              <div className="mb-4 rounded-xl border-2 border-red-400/60 bg-red-50 dark:bg-red-950/30 dark:border-red-500/40 overflow-hidden">
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-sm text-red-800 dark:text-red-300">
+                      {result.wafProvider ? `${result.wafProvider === "cloudflare" ? "Cloudflare" : result.wafProvider === "f5" ? "F5 BIG-IP" : result.wafProvider === "akamai" ? "Akamai" : result.wafProvider === "imperva" ? "Imperva" : result.wafProvider === "sucuri" ? "Sucuri" : result.wafProvider === "aws_waf" ? "AWS WAF" : result.wafProvider} WAF Tespit Edildi` : "WAF Tespit Edildi"} — Bypass Riski
+                    </p>
+                    <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
+                      Kaynak sunucuya direkt IP erişimi mümkün — WAF bypass riski yüksek. Tüm bulgular tam riskiyle geçerlidir.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4 rounded-xl border border-blue-300/60 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500/40 overflow-hidden">
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <ShieldCheck className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-sm text-blue-800 dark:text-blue-300">
+                      {result.wafProvider ? `${result.wafProvider === "cloudflare" ? "Cloudflare" : result.wafProvider === "f5" ? "F5 BIG-IP" : result.wafProvider === "akamai" ? "Akamai" : result.wafProvider === "imperva" ? "Imperva" : result.wafProvider === "sucuri" ? "Sucuri" : result.wafProvider === "aws_waf" ? "AWS WAF" : result.wafProvider} WAF Aktif` : "WAF Aktif"} — CVE Riskleri Kısmen Azaltılmış
+                    </p>
+                    <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-0.5">
+                      SSL süresi, e-posta güvenliği ve sızıntı bulguları WAF'tan bağımsızdır — bunlar tam riskiyle geçerlidir.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
           {/* Overall score */}

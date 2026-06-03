@@ -1185,14 +1185,34 @@ router.post("/domain-scan", async (req, res) => {
     ]);
 
     const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass, shodan?.portRiskSummary?.scoreDeduction ?? 0);
-    const [cveSummary, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObs] = await Promise.all([
+    const { detectWAF } = await import("../../services/wafDetector");
+    const { checkDirectIPAccess } = await import("../../services/wafBypassChecker");
+    const { adjustCvesForWAF } = await import("../../services/riskAdjuster");
+
+    const [cveSummaryRaw, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObs, wafResult] = await Promise.all([
       checkNvdCve(shadowIt.services),
       checkCisaKev(shadowIt.services),
       checkOTX(domain),
       checkThreatFox(domain),
       checkFeodoTracker(domain),
       checkMozillaObservatory(domain),
+      detectWAF(domain).catch(() => ({ detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[] })),
     ]);
+
+    // WAF tespit edildiyse bypass kontrolü yap
+    const bypassResult = wafResult.detected
+      ? await checkDirectIPAccess(domain).catch(() => ({ originIp: null, bypassPossible: false }))
+      : { originIp: null, bypassPossible: false };
+
+    // CVE risklerini WAF bağlamında ayarla
+    const cveSummary = adjustCvesForWAF({
+      cveSummary: cveSummaryRaw,
+      wafDetected: wafResult.detected,
+      wafProvider: wafResult.provider,
+      bypassPossible: bypassResult.bypassPossible,
+      headersAddedByWAF: wafResult.headersAddedByWAF,
+    });
+
     const cveSummaryWithEpss = cveSummary.length > 0 ? await enrichWithEpss(cveSummary) : [];
 
     const [scan] = await db
@@ -1246,6 +1266,12 @@ router.post("/domain-scan", async (req, res) => {
         kepConfigured: kep.configured,
         kepRelays: kep.relays,
         kepSecure: kep.secure,
+        wafDetected: wafResult.detected,
+        wafProvider: wafResult.provider,
+        wafBypassPossible: bypassResult.bypassPossible,
+        originIp: bypassResult.originIp,
+        wafHeadersAdded: wafResult.headersAddedByWAF,
+        wafConfidence: wafResult.confidence,
       })
       .returning();
 

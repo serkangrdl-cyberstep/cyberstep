@@ -232,6 +232,15 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
     ? `NOT: Tespit edilen portların tamamı CDN/proxy altyapısına ait (${scan.shodanIsp ?? "bilinmiyor"}). Bu portlar gerçek sunucuda değil CDN üzerinde görünüyor — saldırı senaryosu için CDN-bypass riski veya diğer vektörlere odaklan.`
     : "";
 
+  // WAF bağlam notu
+  const wafScan = scan as typeof scan & { wafDetected?: boolean; wafProvider?: string | null; wafBypassPossible?: boolean | null };
+  const wafContextNote = wafScan.wafDetected
+    ? `WAF DURUMU: ${wafScan.wafProvider ?? "Bilinmeyen"} WAF tespit edildi.
+Bypass mümkün: ${wafScan.wafBypassPossible ? "EVET — kaynak sunucuya direkt erişim var, tam risk geçerli" : "Hayır — WAF aktif koruma sağlıyor"}
+CVE bulgularında risk azaltıldı: ${!wafScan.wafBypassPossible ? "Evet (CVSS skorları ayarlandı)" : "Hayır (bypass riski nedeniyle)"}
+WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları — bunları tam kritik yaz.`
+    : "WAF DURUMU: WAF tespit edilmedi. Tüm bulgular tam riskiyle raporla.";
+
   return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
 TARAMA ÖZETİ
@@ -241,6 +250,7 @@ E-posta: SPF=${scan.spfPass ? "OK" : "FAIL"} DMARC=${scan.dmarcPass ? "OK" : "FA
 SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${scan.sslDaysUntilExpiry !== null ? `${scan.sslDaysUntilExpiry}g kaldı` : "süre bilinmiyor"}
 Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})
 Port analizi: ${portsSummary}${portContextNote ? `\n${portContextNote}` : ""}
+${wafContextNote}
 Kritik CVE'ler: ${criticalCves.length > 0 ? criticalCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})
 Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
 VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100

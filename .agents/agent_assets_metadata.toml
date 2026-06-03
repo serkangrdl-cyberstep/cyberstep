@@ -24,3 +24,9 @@ id = "wj_SOg_n4RDkNmOVTP9Fx"
 uri = "file://docs/entegrasyon-raporu.md"
 type = "text"
 title = "CyberStep.io — Entegrasyon Kataloğu Raporu"
+
+[[outputs]]
+id = "V9dS1QA5xnHMBf78p0ebJ"
+uri = "file://attached_assets/CyberStep_Tum_Servisler_Raporu_2026.md"
+type = "text"
+title = "CyberStep.io — Tüm Servisler Raporu (50 Servis, Haziran 2026)"

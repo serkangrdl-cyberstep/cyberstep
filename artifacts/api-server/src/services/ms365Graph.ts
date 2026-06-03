@@ -91,11 +91,12 @@ export async function exchangeMs365Code(code: string): Promise<{
     grant_type: "authorization_code",
   });
 
-  const res = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+  // T26: AbortController timeout for outbound token exchange request
+  const res = await fetchWithTimeout("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
-  });
+  }, 15_000);
 
   const data = await res.json() as TokenResponse;
   if (data.error || !data.access_token) {
@@ -138,13 +139,15 @@ export async function refreshMs365Token(row: Ms365IntegrationRow): Promise<strin
     scope: "AuditLog.Read.All SecurityEvents.Read.All MailboxSettings.Read offline_access",
   });
 
-  const res = await fetch(
+  // T26: AbortController timeout for outbound token refresh request
+  const res = await fetchWithTimeout(
     `https://login.microsoftonline.com/${row.azure_tenant_id}/oauth2/v2.0/token`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
-    }
+    },
+    15_000
   );
 
   const data = await res.json() as TokenResponse;

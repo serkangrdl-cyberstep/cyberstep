@@ -28,6 +28,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   monitoring: "İzleme",
   compliance: "Uyumluluk",
   itsm: "ITSM",
+  easm: "Saldırı Yüzeyi (EASM)",
+  "threat-intel": "Tehdit İstihbaratı",
+  "email-security": "E-posta Güvenlik",
+  tprm: "Tedarikçi Riski",
+  assessment: "Değerlendirme & Test",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -35,6 +40,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   monitoring: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   compliance: "bg-violet-500/10 text-violet-400 border-violet-500/20",
   itsm: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  easm: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  "threat-intel": "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  "email-security": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+  tprm: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  assessment: "bg-green-500/10 text-green-400 border-green-500/20",
 };
 
 function fmtTL(val: string | number) {
@@ -273,11 +283,16 @@ export default function ServisKatalogu() {
                 <Select value={newSvc.category} onValueChange={v => setNewSvc(p => ({ ...p, category: v }))}>
                   <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="soc">SOC & Güvenlik</SelectItem>
                     <SelectItem value="monitoring">İzleme</SelectItem>
-                    <SelectItem value="assessment">Değerlendirme</SelectItem>
-                    <SelectItem value="response">Müdahale</SelectItem>
                     <SelectItem value="compliance">Uyumluluk</SelectItem>
-                    <SelectItem value="training">Eğitim</SelectItem>
+                    <SelectItem value="itsm">ITSM</SelectItem>
+                    <SelectItem value="easm">Saldırı Yüzeyi (EASM)</SelectItem>
+                    <SelectItem value="threat-intel">Tehdit İstihbaratı</SelectItem>
+                    <SelectItem value="email-security">E-posta Güvenlik</SelectItem>
+                    <SelectItem value="tprm">Tedarikçi Riski</SelectItem>
+                    <SelectItem value="assessment">Değerlendirme & Test</SelectItem>
+                    <SelectItem value="response">Müdahale</SelectItem>
                     <SelectItem value="other">Diğer</SelectItem>
                   </SelectContent>
                 </Select>

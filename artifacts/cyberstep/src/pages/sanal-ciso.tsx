@@ -130,7 +130,7 @@ export default function CisoAsistan() {
             <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight">
               CISO'nuz strateji düşünsün,<br />rutin raporlamayı biz yapalım
             </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
+            <p className="text-white/80 text-lg max-w-2xl leading-relaxed">
               Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu.
               Tam otomatik. <strong className="text-white">2.500 TL/ay + KDV.</strong>
             </p>

@@ -25,7 +25,7 @@ const AI_GUVENLIK_ITEMS = [
   { href: "/sahte-dokuman", label: "AI Sahte Doküman Tespiti", icon: FileText, available: true },
   { href: "/eu-ai-act", label: "EU AI Act Uyum Skoru", icon: Cpu, available: true },
   { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Bot, available: true },
-  { href: "/sanal-ciso", label: "CISO Asistan", icon: ShieldCheck, available: true },
+  { href: "/ciso-asistan-paketi", label: "CISO Asistan", icon: ShieldCheck, available: true },
 ];
 
 const ARACLAR_ITEMS = [
@@ -124,7 +124,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setAiOpen(v => !v)}
                   className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
-                    location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/sanal-ciso") ? "text-primary" : "text-muted-foreground"
+                    location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/ciso-asistan") ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
                   AI Güvenlik
@@ -268,7 +268,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => setMobileAiOpen(v => !v)}
                     className={`flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/sanal-ciso") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                      location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/ciso-asistan") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
                     }`}
                   >
                     AI Güvenlik

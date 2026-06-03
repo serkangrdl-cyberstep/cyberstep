@@ -440,7 +440,7 @@ function Router() {
             <Route path="/dora-bddk-uyum" component={DoraBddkUyum} />
             <Route path="/sektor/:slug" component={SektorPage} />
             <Route path="/tarayici-eklentisi" component={ExtensionDownload} />
-            <Route path="/sanal-ciso" component={SanalCiso} />
+            <Route path="/ciso-asistan-paketi" component={SanalCiso} />
             <Route path="/vciso-erken-erisim" component={VcisoErkenErisim} />
             <Route path="/erp-entegrasyonu" component={ErpEntegrasyonu} />
             <Route path="/sigorta-pazaryeri" component={SigortaPazaryeri} />

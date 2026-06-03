@@ -624,7 +624,7 @@ export default function Pricing() {
               </p>
             </div>
             <Link
-              href="/sanal-ciso"
+              href="/ciso-asistan-paketi"
               className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
             >
               Paketi İncele <ChevronRight className="ml-1.5 h-4 w-4" />

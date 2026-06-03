@@ -17,7 +17,7 @@ const TOOL_CATEGORIES = [
       { href: "/eu-ai-act", label: "AB Yapay Zeka Yasası Uyumu", icon: Scale, desc: "EU AI Act kapsamındaki yükümlülüklerinizi değerlendirin.", badge: null },
       { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Target, desc: "AI sistemlerinize yönelik saldırı simülasyonu.", badge: null },
       { href: "/sahte-dokuman", label: "AI Sahte Doküman Tespiti", icon: Search, desc: "Sahte belgeler ve derin sahte tehditleri tespit edin.", badge: null },
-      { href: "/sanal-ciso", label: "CISO Asistan", icon: Bot, desc: "CISO raporlama yükünü otomatikleştirin: aylık YK raporu, uyum skoru, politika kütüphanesi.", badge: "Yeni" },
+      { href: "/ciso-asistan-paketi", label: "CISO Asistan", icon: Bot, desc: "CISO raporlama yükünü otomatikleştirin: aylık YK raporu, uyum skoru, politika kütüphanesi.", badge: "Yeni" },
     ],
   },
   {

@@ -79,7 +79,7 @@ export default function VcisoErkenErisim() {
           <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight mb-6">
             vCISO Erken Erişim Listesi
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
             Tam zamanlı Sanal CISO hizmetimiz 2027 yılında hayata geçiyor.
             Erken erişim listesine katılın, program açılınca ilk siz haberdar olun.
           </p>
@@ -94,7 +94,6 @@ export default function VcisoErkenErisim() {
             {[
               "Aylık 2 saat birebir CISO görüşmesi",
               "Risk önceliklendirme ve yol haritası",
-              "7/24 CISO danışmanlığı (Slack/e-posta)",
               "Yönetim kurulu sunumuna katılım",
               "CISO Asistan Paketi dahil",
               "Ajans süreçleri desteği (ihale, denetim)",
@@ -122,7 +121,7 @@ export default function VcisoErkenErisim() {
               aylık board raporu, haftalık tehdit özeti ve uyum takibini hemen başlatabilirsiniz.
             </p>
             <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href="/sanal-ciso">CISO Asistan Paketini Gör <ArrowRight className="h-3.5 w-3.5 ml-1.5" /></Link>
+              <Link href="/ciso-asistan-paketi">CISO Asistan Paketini Gör <ArrowRight className="h-3.5 w-3.5 ml-1.5" /></Link>
             </Button>
           </div>
         </div>

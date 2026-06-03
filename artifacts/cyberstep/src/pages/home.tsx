@@ -1232,7 +1232,7 @@ export default function Home() {
                 price: "990 TL/yıl + KDV",
               },
               {
-                href: "/sanal-ciso",
+                href: "/ciso-asistan-paketi",
                 icon: "🛡️",
                 title: "CISO Asistan Paketi",
                 what: "CISO'nuzun rutin işlerini otomatikleştirir: aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545+KVKK uyum skoru, 7 politika şablonu.",
@@ -1340,14 +1340,14 @@ export default function Home() {
                   <p className="text-3xl font-black text-primary">2.500 TL<span className="text-sm font-normal text-muted-foreground">/ay + KDV</span></p>
                 </div>
                 <Link
-                  href="/sanal-ciso"
+                  href="/ciso-asistan-paketi"
                   className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   Paketi İncele
                   <ChevronRight className="ml-1.5 h-4 w-4" />
                 </Link>
                 <Link
-                  href="/sanal-ciso#basvuru"
+                  href="/ciso-asistan-paketi#basvuru"
                   className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 border-2 border-primary text-primary hover:bg-primary/10 transition-colors"
                 >
                   Hemen Başla

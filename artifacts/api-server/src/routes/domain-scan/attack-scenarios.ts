@@ -186,7 +186,7 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
 
 function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   const cveSummary = (scan.cveSummary as Array<{ service: string; cveId: string; description: string; cvssScore: number }> ?? []);
-  const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string }> ?? []);
+  const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string; riskLevel?: string; riskContext?: string; isCdnExpected?: boolean }> ?? []);
   const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string }> ?? []);
 
   const criticalCves = cveSummary.filter(c => c.cvssScore >= 7.0).slice(0, 3);
@@ -204,13 +204,33 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   if (scan.httpHeadersScore < 40) riskFlags.push(`HTTP başlıkları zayıf (${scan.httpHeadersScore}/100)`);
   if ((scan.abuseIpdbScore ?? 0) > 50) riskFlags.push(`AbuseIPDB: ${scan.abuseIpdbScore}`);
 
-  const portsSummary = openPorts.length > 0
-    ? openPorts.slice(0, 5).map(p => `${p.port}/${p.protocol} ${p.service} ${p.product}`.trim()).join(", ")
-    : "tespit edilmedi";
+  // Bağlama duyarlı port özeti
+  const riskOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1, none: 0 };
+  const actualRiskPorts = openPorts.filter(p => (riskOrder[p.riskLevel ?? "low"] ?? 1) >= 2);
+  const cdnExpectedPorts = openPorts.filter(p => p.isCdnExpected);
+  const reviewPorts = openPorts.filter(p => p.riskLevel === "low" && !p.isCdnExpected);
+
+  let portsSummary: string;
+  if (openPorts.length === 0) {
+    portsSummary = "tespit edilmedi";
+  } else {
+    const parts: string[] = [];
+    if (actualRiskPorts.length > 0)
+      parts.push(`RİSKLİ(${actualRiskPorts.map(p => `${p.port}/${p.protocol}[${p.riskLevel}]`).join(", ")})`);
+    if (cdnExpectedPorts.length > 0)
+      parts.push(`CDN-BEKLENEN(${cdnExpectedPorts.map(p => p.port).join(", ")})`);
+    if (reviewPorts.length > 0)
+      parts.push(`DOĞRULAMA-ÖNERİLEN(${reviewPorts.map(p => p.port).join(", ")})`);
+    portsSummary = parts.join(" | ") || "tespit edilmedi";
+  }
 
   const shadowSummary = shadowIt.length > 0
     ? shadowIt.slice(0, 4).map(s => `${s.name}(${s.risk})`).join(", ")
     : "yok";
+
+  const portContextNote = cdnExpectedPorts.length > 0 && actualRiskPorts.length === 0
+    ? `NOT: Tespit edilen portların tamamı CDN/proxy altyapısına ait (${scan.shodanIsp ?? "bilinmiyor"}). Bu portlar gerçek sunucuda değil CDN üzerinde görünüyor — saldırı senaryosu için CDN-bypass riski veya diğer vektörlere odaklan.`
+    : "";
 
   return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
@@ -219,7 +239,8 @@ TARAMA ÖZETİ
 Domain: ${scan.domain} | Risk Skoru: ${scan.overallScore}/100
 E-posta: SPF=${scan.spfPass ? "OK" : "FAIL"} DMARC=${scan.dmarcPass ? "OK" : "FAIL"} DKIM=${scan.dkimPass ? "OK" : "FAIL"}
 SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${scan.sslDaysUntilExpiry !== null ? `${scan.sslDaysUntilExpiry}g kaldı` : "süre bilinmiyor"}
-Açık portlar: ${portsSummary}
+Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})
+Port analizi: ${portsSummary}${portContextNote ? `\n${portContextNote}` : ""}
 Kritik CVE'ler: ${criticalCves.length > 0 ? criticalCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})
 Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
 VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100

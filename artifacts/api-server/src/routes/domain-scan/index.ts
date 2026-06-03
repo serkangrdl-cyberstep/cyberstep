@@ -112,8 +112,9 @@ async function checkSSL(domain: string): Promise<{
   });
 }
 
-function calcScore(spf: boolean, dmarc: boolean, dkim: boolean, mx: boolean, ssl: boolean): number {
-  return (spf ? 20 : 0) + (dmarc ? 25 : 0) + (dkim ? 20 : 0) + (mx ? 10 : 0) + (ssl ? 25 : 0);
+function calcScore(spf: boolean, dmarc: boolean, dkim: boolean, mx: boolean, ssl: boolean, portDeduction = 0): number {
+  const base = (spf ? 20 : 0) + (dmarc ? 25 : 0) + (dkim ? 20 : 0) + (mx ? 10 : 0) + (ssl ? 25 : 0);
+  return Math.max(0, base - portDeduction);
 }
 
 // ─── Shadow IT katalog ───────────────────────────────────────────────────────
@@ -518,7 +519,8 @@ async function checkNvdCve(services: Array<{ name: string; risk: string }>): Pro
 }
 
 // ─── Shodan internet exposure check ──────────────────────────────────────────
-interface ShodanPort { port: number; protocol: string; service: string; product: string; version: string; }
+import { detectCdn, classifyPort, buildPortRiskSummary, type ClassifiedPort, type CdnInfo, type PortRiskSummary } from "../../services/portRiskClassifier";
+interface ShodanPort extends ClassifiedPort {}
 
 export async function detectFinalDomain(domain: string): Promise<string | null> {
   return new Promise((resolve) => {
@@ -551,12 +553,19 @@ export async function checkShodan(domain: string): Promise<{
   vulnCount: number;
   country: string | null;
   isp: string | null;
+  cdn: CdnInfo;
+  portRiskSummary: PortRiskSummary;
 } | null> {
   const apiKey = process.env["SHODAN_API_KEY"];
   if (!apiKey) return null;
+  const empty = (isp: string | null = null): { openPorts: ShodanPort[]; vulnCount: number; country: string | null; isp: string | null; cdn: CdnInfo; portRiskSummary: PortRiskSummary } => ({
+    openPorts: [], vulnCount: 0, country: null, isp,
+    cdn: detectCdn(isp),
+    portRiskSummary: buildPortRiskSummary([]),
+  });
   try {
     const ips = await dns.resolve4(domain);
-    if (!ips || ips.length === 0) return { openPorts: [], vulnCount: 0, country: null, isp: null };
+    if (!ips || ips.length === 0) return empty();
     const ip = ips[0]!;
     return new Promise((resolve) => {
       const req = https.request(
@@ -566,28 +575,31 @@ export async function checkShodan(domain: string): Promise<{
           res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
           res.on("end", () => {
             try {
-              if (res.statusCode !== 200) { resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }); return; }
+              if (res.statusCode !== 200) { resolve(empty()); return; }
               type ShodanHost = { data?: Array<{ port: number; transport?: string; product?: string; version?: string; _shodan?: { module: string } }>; vulns?: Record<string, unknown>; country_code?: string; org?: string; };
               const json = JSON.parse(data) as ShodanHost;
-              const HIGH_RISK_PORTS = new Set([21, 22, 23, 25, 135, 139, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 8080, 27017]);
-              const openPorts = (json.data ?? []).slice(0, 20).map((d) => ({
-                port: d.port,
-                protocol: d.transport ?? "tcp",
-                service: d._shodan?.module ?? "",
-                product: d.product ?? "",
-                version: d.version ?? "",
-                isHighRisk: HIGH_RISK_PORTS.has(d.port),
-              })).sort((a, b) => (b.isHighRisk ? 1 : 0) - (a.isHighRisk ? 1 : 0)).map(({ isHighRisk: _, ...rest }) => rest);
-              resolve({ openPorts, vulnCount: Object.keys(json.vulns ?? {}).length, country: json.country_code ?? null, isp: json.org ?? null });
-            } catch { resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }); }
+              const isp = json.org ?? null;
+              const cdn = detectCdn(isp);
+              const openPorts = (json.data ?? []).slice(0, 20).map((d) =>
+                classifyPort(
+                  { port: d.port, protocol: d.transport ?? "tcp", service: d._shodan?.module ?? "", product: d.product ?? "", version: d.version ?? "" },
+                  cdn,
+                )
+              ).sort((a, b) => {
+                const order: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1, none: 0 };
+                return (order[b.riskLevel] ?? 0) - (order[a.riskLevel] ?? 0);
+              });
+              const portRiskSummary = buildPortRiskSummary(openPorts);
+              resolve({ openPorts, vulnCount: Object.keys(json.vulns ?? {}).length, country: json.country_code ?? null, isp, cdn, portRiskSummary });
+            } catch { resolve(empty()); }
           });
         }
       );
-      req.on("error", () => resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }));
-      req.on("timeout", () => { req.destroy(); resolve({ openPorts: [], vulnCount: 0, country: null, isp: null }); });
+      req.on("error", () => resolve(empty()));
+      req.on("timeout", () => { req.destroy(); resolve(empty()); });
       req.end();
     });
-  } catch { return { openPorts: [], vulnCount: 0, country: null, isp: null }; }
+  } catch { return empty(); }
 }
 
 // ─── VirusTotal domain reputation check ──────────────────────────────────────
@@ -1172,7 +1184,7 @@ router.post("/domain-scan", async (req, res) => {
       checkKEP(domain),
     ]);
 
-    const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+    const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass, shodan?.portRiskSummary?.scoreDeduction ?? 0);
     const [cveSummary, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObs] = await Promise.all([
       checkNvdCve(shadowIt.services),
       checkCisaKev(shadowIt.services),
@@ -1257,8 +1269,15 @@ router.post("/domain-scan", async (req, res) => {
             const grade = overallScore >= 90 ? "A" : overallScore >= 70 ? "B" : overallScore >= 50 ? "C" : overallScore >= 30 ? "D" : "F";
             const gradeColor = overallScore >= 70 ? "#16a34a" : overallScore >= 50 ? "#d97706" : "#dc2626";
             const resultUrl = `${baseUrl}/domain-tarama?domain=${encodeURIComponent(domain)}&scanId=${scan.id}`;
-            const portNote = scan.shodanOpenPorts && (scan.shodanOpenPorts as unknown[]).length > 0
-              ? `<li style="color:#ea580c;"><strong>${(scan.shodanOpenPorts as unknown[]).length} açık port</strong> tespit edildi — detaylar raporda</li>`
+            const rawPorts = (scan.shodanOpenPorts as Array<{ riskLevel?: string }> | null) ?? [];
+            const criticalPorts = rawPorts.filter(p => p.riskLevel === "critical" || p.riskLevel === "high");
+            const cdnPorts = rawPorts.filter(p => p.riskLevel === "none");
+            const portNote = rawPorts.length > 0
+              ? criticalPorts.length > 0
+                ? `<li style="color:#dc2626;"><strong>${criticalPorts.length} yüksek riskli port</strong> tespit edildi — acil inceleme gerekiyor</li>`
+                : cdnPorts.length === rawPorts.length
+                  ? `<li style="color:#16a34a;">${rawPorts.length} port CDN/proxy altyapısına ait — güvenlik riski yok</li>`
+                  : `<li style="color:#d97706;"><strong>${rawPorts.length} açık port</strong> tespit edildi — ${cdnPorts.length > 0 ? `${cdnPorts.length}'i CDN beklentisi, kalanı doğrulama önerilir` : "detaylar raporda"}</li>`
               : "";
             const blacklistNote = scan.blacklisted
               ? `<li style="color:#dc2626;"><strong>Kara liste uyarısı</strong> — ${scan.blacklistCount} listede kayıtlı</li>`

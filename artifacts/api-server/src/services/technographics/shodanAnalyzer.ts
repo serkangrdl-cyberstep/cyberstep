@@ -1,6 +1,7 @@
 import axios from "axios";
 import dns from "dns";
 import type { TechStack } from "./types";
+import { detectCdn, classifyPort } from "../portRiskClassifier";
 
 export async function analyzeShodan(domain: string): Promise<TechStack[]> {
   if (!process.env.SHODAN_API_KEY) return [];
@@ -34,26 +35,43 @@ export async function analyzeShodan(domain: string): Promise<TechStack[]> {
       }
     }
 
-    // ─── AÇIK PORTLAR → GÜVENLİK AÇIĞI ────────────────────
-    const dangerousPorts: Record<number, { product: string; risk: "critical" | "high" | "medium" | "low"; note: string }> = {
-      23:    { product: "Telnet Açık",        risk: "critical", note: "Telnet şifresiz protokol — kritik risk" },
-      3389:  { product: "RDP Açık",           risk: "critical", note: "RDP internete açık — ransomware giriş noktası" },
-      3306:  { product: "MySQL Açık",         risk: "critical", note: "MySQL dışarıdan erişilebilir — veri sızıntısı riski" },
-      5432:  { product: "PostgreSQL Açık",    risk: "critical", note: "PostgreSQL dışarıdan erişilebilir" },
-      27017: { product: "MongoDB Açık",       risk: "critical", note: "MongoDB şifresiz erişilebilir" },
-      6379:  { product: "Redis Açık",         risk: "critical", note: "Redis şifresiz erişilebilir" },
-      9200:  { product: "Elasticsearch Açık", risk: "critical", note: "Elasticsearch herkese açık — veri sızıntısı" },
-      445:   { product: "SMB Açık",           risk: "critical", note: "SMB internete açık — WannaCry risk vektörü" },
-      1433:  { product: "MSSQL Açık",         risk: "critical", note: "MSSQL dışarıdan erişilebilir" },
-      22:    { product: "SSH Açık",           risk: "medium",   note: "SSH dışarıdan erişilebilir — brute force riski" },
-      8080:  { product: "HTTP Alt Port",      risk: "medium",   note: "Alternatif HTTP portu açık" },
-      8443:  { product: "HTTPS Alt Port",     risk: "low",      note: "Alternatif HTTPS portu" },
-    };
-    for (const portData of data.ports || []) {
-      const danger = dangerousPorts[portData];
-      if (danger) {
-        found.push({ category: "open_port", vendor: "network", product: danger.product, confidence: 100, detectedVia: "shodan", securityRisk: danger.risk, securityNote: danger.note, salesSignal: danger.risk === "critical" ? "urgent_risk" : undefined, evidence: { port: portData, ip: ips[0] } });
-      }
+    // ─── CDN tespiti ────────────────────────────────────────
+    const cdnInfo = detectCdn(data.org ?? null);
+    if (cdnInfo.detected) {
+      found.push({
+        category: "cdn",
+        vendor: cdnInfo.provider?.toLowerCase().replace(/\s+/g, "_") ?? "cdn",
+        product: cdnInfo.provider ?? "CDN",
+        confidence: 95,
+        detectedVia: "shodan",
+        salesSignal: undefined,
+        evidence: { org: data.org, cdn: cdnInfo.provider },
+      });
+    }
+
+    // ─── AÇIK PORTLAR — bağlama duyarlı risk ───────────────
+    for (const portNum of data.ports || []) {
+      const classified = classifyPort(
+        { port: portNum, protocol: "tcp", service: "", product: "", version: "" },
+        cdnInfo,
+      );
+      if (classified.riskLevel === "none") continue; // CDN/beklenen — teknografik değer yok
+
+      const riskMap: Record<string, "critical" | "high" | "medium" | "low"> = {
+        critical: "critical", high: "high", medium: "medium", low: "low",
+      };
+      const techRisk = riskMap[classified.riskLevel] ?? "low";
+      found.push({
+        category: "open_port",
+        vendor: "network",
+        product: `Port ${portNum} Açık`,
+        confidence: 100,
+        detectedVia: "shodan",
+        securityRisk: techRisk,
+        securityNote: classified.riskContext,
+        salesSignal: techRisk === "critical" ? "urgent_risk" : undefined,
+        evidence: { port: portNum, ip: ips[0], riskLevel: classified.riskLevel },
+      });
     }
 
     // ─── AĞ ÜRÜNÜ TESPİTİ (FortiGate, Cisco vb.) ──────────

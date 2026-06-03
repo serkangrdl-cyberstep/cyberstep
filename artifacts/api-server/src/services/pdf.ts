@@ -205,7 +205,7 @@ interface DomainScanData {
   usomListed: boolean;
   ctSubdomainCount: number;
   cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
-  shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string; riskLevel?: string; riskContext?: string; isCdnExpected?: boolean }> | null;
   shodanVulnCount: number;
   shodanCountry: string | null;
   shodanIsp: string | null;
@@ -410,10 +410,24 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       }
 
       if (data.shodanOpenPorts !== null) {
-        const sOk = data.shodanOpenPorts.length === 0 && data.shodanVulnCount === 0;
-        const portStr = data.shodanOpenPorts.length === 0
-          ? "Acik port tespit edilmedi"
-          : `${data.shodanOpenPorts.length} acik port tespit edildi${data.shodanCountry ? ` (${data.shodanCountry})` : ""}${data.shodanIsp ? ` — ${data.shodanIsp}` : ""}. Port detaylari tam raporda yer almaktadir.`;
+        const ports = data.shodanOpenPorts;
+        const criticalPorts = ports.filter(p => p.riskLevel === "critical" || p.riskLevel === "high");
+        const cdnPorts = ports.filter(p => p.isCdnExpected);
+        const mediumPorts = ports.filter(p => p.riskLevel === "medium");
+        const sOk = criticalPorts.length === 0 && data.shodanVulnCount === 0;
+        let portStr: string;
+        if (ports.length === 0) {
+          portStr = "Acik port tespit edilmedi";
+        } else if (cdnPorts.length === ports.length) {
+          portStr = `${ports.length} port tespit edildi — tamami CDN/proxy altyapisina ait (${data.shodanIsp ?? "bilinmiyor"}), gercek sunucu riski yok`;
+        } else {
+          const parts: string[] = [];
+          if (criticalPorts.length > 0) parts.push(`${criticalPorts.length} yuksek riskli port (${criticalPorts.map(p => `${p.port}/${p.protocol}`).join(", ")})`);
+          if (mediumPorts.length > 0) parts.push(`${mediumPorts.length} orta riskli port`);
+          if (cdnPorts.length > 0) parts.push(`${cdnPorts.length} CDN beklentisi`);
+          portStr = parts.join("; ") || `${ports.length} port tespit edildi`;
+          if (data.shodanCountry || data.shodanIsp) portStr += ` (${[data.shodanCountry, data.shodanIsp].filter(Boolean).join(", ")})`;
+        }
         intelRow(
           "Internet Maruziyeti Analizi",
           `${portStr}${data.shodanVulnCount > 0 ? ` ${data.shodanVulnCount} bilinen guvenlik acigi mevcut.` : ""}`,

@@ -416,14 +416,14 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://dev.iyzipay.com/",
   },
   {
-    id: "e-fatura", name: "E-Fatura / E-Arşiv (GİB)", category: "Ödeme & Faturalandırma", type: "platform", icon: "🧾",
-    cost: "paid", costLabel: "Entegratör", costNote: "Editel/Logo/Mikro gibi GİB entegratörü aboneliği",
-    envKey: "E_INVOICE_API_KEY", always: false,
-    desc: "Kurumsal faturalar için GİB uyumlu e-Fatura / e-Arşiv üretimi — UBL-TR 2.1 XML formatında otomatik fatura kesimi",
-    why: "Türkiye'de belirli ciro üstü şirketler için e-Fatura/e-Arşiv zorunludur. Manuel fatura kesimi yerine ödeme akışıyla otomatik GİB entegrasyonu sağlar.",
-    how: "Enterprise fatura oluşturulduğunda UBL-TR 2.1 XML üretilir, entegratör API'sine gönderilir ve GİB UUID'si ile kayıt tutulur.",
-    setup: "1. Editel/Logo/Mikro gibi bir GİB entegratörü ile anlaşın  2. E_INVOICE_API_URL ve E_INVOICE_API_KEY değerlerini ekleyin.",
-    docs: "https://ebelge.gib.gov.tr/",
+    id: "parasut-efatura", name: "Paraşüt E-Fatura", category: "Ödeme & Faturalandırma", type: "platform", icon: "🧾",
+    cost: "paid", costLabel: "Paraşüt Aboneliği", costNote: "parasut.com bulut muhasebe + e-Fatura modülü",
+    envKey: "PARASUT_API_KEY", always: false,
+    desc: "Paraşüt OAuth2 API üzerinden otomatik e-Fatura / e-Arşiv üretimi — ödeme tamamlanınca fatura Paraşüt'e yazılır, GİB'e iletilir",
+    why: "Türkiye'de belirli ciro eşiği geçen şirketler için e-Fatura zorunludur. Manuel kesim yerine ödeme akışına bağlı tam otomatik faturalama sağlar.",
+    how: "Iyzico ödeme başarıyla tamamlanınca einvoice.ts servisi Paraşüt OAuth2 token alır, satış faturası oluşturur ve GİB'e iletir. Fatura UUID'si sipariş kaydına işlenir.",
+    setup: "1. parasut.com'dan hesap açın, e-Fatura modülünü aktif edin  2. Geliştirici Paneli → Uygulama Oluştur → Client ID / Client Secret alın  3. Replit Secrets'a PARASUT_API_KEY, PARASUT_CLIENT_ID, PARASUT_CLIENT_SECRET, PARASUT_COMPANY_ID ekleyin.",
+    docs: "https://apidocs.parasut.com/",
   },
   // ─── Üretkenlik ─────────────────────────────────────────────────────────────
   {

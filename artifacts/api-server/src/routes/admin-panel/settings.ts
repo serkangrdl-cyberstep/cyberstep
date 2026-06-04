@@ -15,6 +15,11 @@ const CONFIGURABLE_API_KEYS = new Set([
   "WHOISXML_API_KEY",
   "OTX_API_KEY",
   "GREYNOISE_API_KEY",
+  // E-Fatura (Paraşüt)
+  "PARASUT_API_KEY",
+  "PARASUT_CLIENT_ID",
+  "PARASUT_CLIENT_SECRET",
+  "PARASUT_COMPANY_ID",
 ]);
 
 // ─── Load API keys from DB into process.env at startup ──────────────────────

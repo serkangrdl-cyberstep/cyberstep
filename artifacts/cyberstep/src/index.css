@@ -208,6 +208,13 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  .bg-secondary,
+  .bg-secondary\/50,
+  .bg-secondary\/40,
+  .bg-secondary\/30 {
+    color: hsl(var(--secondary-foreground));
+  }
 }
 
 @layer utilities {

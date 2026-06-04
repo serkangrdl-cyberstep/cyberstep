@@ -212,32 +212,6 @@
 }
 
 @layer utilities {
-  /* ── Koyu bg-secondary bölümlerde metin rengi garantisi ─────────────────── */
-  /* @layer utilities kullanılıyor: Tailwind'in text-* utility'lerini ezer.   */
-  /* @layer base'deki kural utility class'larına yeniliyordu — düzeltildi.    */
-  .bg-secondary,
-  .bg-secondary\/10, .bg-secondary\/20, .bg-secondary\/30,
-  .bg-secondary\/40, .bg-secondary\/50, .bg-secondary\/60,
-  .bg-secondary\/70, .bg-secondary\/80, .bg-secondary\/90,
-  .bg-secondary\/95 {
-    color: hsl(var(--secondary-foreground));
-  }
-  /* text-foreground ve text-muted-foreground torunlar — koyu bölüm içinde açık renk */
-  :is(
-    .bg-secondary, .bg-secondary\/20, .bg-secondary\/30,
-    .bg-secondary\/40, .bg-secondary\/50, .bg-secondary\/60,
-    .bg-secondary\/70, .bg-secondary\/80
-  ) .text-foreground {
-    color: hsl(var(--secondary-foreground));
-  }
-  :is(
-    .bg-secondary, .bg-secondary\/20, .bg-secondary\/30,
-    .bg-secondary\/40, .bg-secondary\/50, .bg-secondary\/60,
-    .bg-secondary\/70, .bg-secondary\/80
-  ) .text-muted-foreground {
-    color: hsl(var(--secondary-foreground) / 0.65);
-  }
-
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }

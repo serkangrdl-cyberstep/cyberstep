@@ -369,18 +369,18 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       </section>
 
       {/* What is it */}
-      <section className="py-12 bg-secondary/50">
+      <section className="py-12 bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4 max-w-3xl space-y-5">
-          <h2 className="text-2xl font-bold text-white">Bu Arac Ne Ise Yarar?</h2>
-          <p className="text-white/80 leading-relaxed">{config.whatIsIt}</p>
+          <h2 className="text-2xl font-bold text-secondary-foreground">Bu Arac Ne Ise Yarar?</h2>
+          <p className="text-secondary-foreground/80 leading-relaxed">{config.whatIsIt}</p>
           {config.howItWorks.length > 0 && (
             <>
-              <h3 className="font-semibold text-white">Nasil Calisir?</h3>
+              <h3 className="font-semibold text-secondary-foreground">Nasil Calisir?</h3>
               <ol className="space-y-2">
                 {config.howItWorks.map((step, i) => (
                   <li key={i} className="flex gap-3">
                     <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">{i + 1}</span>
-                    <span className="text-muted-foreground text-sm">{step}</span>
+                    <span className="text-secondary-foreground/70 text-sm">{step}</span>
                   </li>
                 ))}
               </ol>
@@ -390,13 +390,13 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       </section>
 
       {/* FAQ */}
-      <section className="py-12 bg-secondary/20">
+      <section className="py-12 bg-muted">
         <div className="container mx-auto px-4 max-w-3xl space-y-5">
-          <h2 className="text-2xl font-bold text-white">Sik Sorulan Sorular</h2>
+          <h2 className="text-2xl font-bold text-foreground">Sik Sorulan Sorular</h2>
           <div className="space-y-4">
             {config.faq.map((f, i) => (
-              <div key={i} className="rounded-xl border border-slate-700 bg-slate-800/40 p-5">
-                <p className="font-semibold text-white mb-2">{f.q}</p>
+              <div key={i} className="rounded-xl border border-border bg-card p-5">
+                <p className="font-semibold text-foreground mb-2">{f.q}</p>
                 <p className="text-sm text-muted-foreground">{f.a}</p>
               </div>
             ))}
@@ -406,13 +406,13 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
 
       {/* Related tools */}
       {relatedTools.length > 0 && (
-        <section className="py-10 bg-secondary/50">
+        <section className="py-10 bg-secondary text-secondary-foreground">
           <div className="container mx-auto px-4 max-w-3xl space-y-4">
-            <h2 className="text-xl font-bold text-white">Ilgili Araclar</h2>
+            <h2 className="text-xl font-bold text-secondary-foreground">Ilgili Araclar</h2>
             <div className="flex flex-wrap gap-3">
               {relatedTools.map(t => (
                 <Link key={t.slug} href={`/araclar/${t.slug}`}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800/40 text-sm hover:border-primary/40 hover:text-primary transition-colors text-slate-300">
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-secondary-foreground/20 bg-secondary-foreground/10 text-sm hover:border-primary/60 hover:text-primary transition-colors text-secondary-foreground/80">
                   {t.label} <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               ))}
@@ -425,7 +425,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       <section className="py-14 bg-background">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center">
-            <h3 className="text-xl font-bold text-white mb-2">Tam Guvenlik Raporunuzu Alin</h3>
+            <h3 className="text-xl font-bold text-foreground mb-2">Tam Guvenlik Raporunuzu Alin</h3>
             <p className="text-muted-foreground mb-6">
               20 soruda sirketinizin guvenlik durumunu ogrenin. Ucretsiz, aninda sonuc.
             </p>

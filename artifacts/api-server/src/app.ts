@@ -14,6 +14,7 @@ import dailyDashboardRouter from "./routes/admin-panel/daily-dashboard";
 import portalSubscriptionRouter from "./routes/portal/subscription";
 import portalAccountRouter from "./routes/portal/account";
 import monitoringUptimeRouter from "./routes/monitoring/uptime";
+import seoRouter from "./routes/public/seo";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -313,6 +314,9 @@ export const sessionMiddleware = session({
 });
 
 app.use(sessionMiddleware);
+
+// ─── Public SEO routes (no /api prefix — must be before API routes) ───────────
+app.use(seoRouter);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api", router);

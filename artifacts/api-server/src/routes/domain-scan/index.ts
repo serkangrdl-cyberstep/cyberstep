@@ -1125,6 +1125,85 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
   });
 }
 
+// ─── performDomainScan: Direct call (used by discovery pipeline) ─────────────
+export async function performDomainScan(domain: string): Promise<{
+  id: number;
+  overallScore: number;
+  findings: Array<{ severity: string; title: string }>;
+} | null> {
+  try {
+    const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
+      checkSPF(domain),
+      checkDMARC(domain),
+      checkDKIM(domain),
+      checkMX(domain),
+      checkSSL(domain),
+      checkBlacklists(domain),
+      checkShadowIT(domain),
+      checkUsomList(domain),
+      checkShodan(domain).catch(() => null),
+    ]);
+
+    const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass, shodan?.portRiskSummary?.scoreDeduction ?? 0);
+
+    const cveSummary: NvdCveEntry[] = shadowIt.services.length > 0
+      ? await checkNvdCve(shadowIt.services).catch(() => [])
+      : [];
+
+    const [scan] = await db
+      .insert(domainScansTable)
+      .values({
+        domain,
+        email: null,
+        spfPass: spf.pass, spfRecord: spf.record,
+        dmarcPass: dmarc.pass, dmarcRecord: dmarc.record,
+        dkimPass: dkim.pass, dkimSelectors: dkim.selectors,
+        mxPass: mx.pass, mxRecords: mx.records,
+        sslPass: ssl.pass, sslExpiry: ssl.expiryDate, sslIssuer: ssl.issuer, sslDaysUntilExpiry: ssl.daysUntilExpiry,
+        overallScore,
+        hibpBreachCount: 0, hibpBreaches: [],
+        blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
+        shadowItServices: shadowIt.services,
+        httpHeadersScore: 0, httpHeadersDetails: { hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false },
+        urlhausListed: false, urlhausThreat: null,
+        usomListed: usom.listed,
+        ctSubdomains: [], ctSubdomainCount: 0,
+        cveSummary,
+        shodanOpenPorts: shodan?.openPorts ?? null,
+        shodanVulnCount: shodan?.vulnCount ?? 0,
+        shodanCountry: shodan?.country ?? null,
+        shodanIsp: shodan?.isp ?? null,
+        virusTotalReputation: null, virusTotalMalicious: 0, virusTotalSuspicious: 0,
+        abuseIpdbScore: null, abuseIpdbTotalReports: 0, abuseIpdbCountry: null, abuseIpdbIsp: null,
+        safeBrowsingFlagged: null, safeBrowsingThreats: [],
+        sslLabsGrade: null,
+        badgeToken: randomUUID(),
+        referralSource: "discovery_pipeline",
+        kepConfigured: false, kepRelays: [], kepSecure: false,
+        wafDetected: false, wafProvider: null, wafBypassPossible: false,
+        originIp: null, wafHeadersAdded: [], wafConfidence: 0,
+      })
+      .returning();
+
+    if (!scan) return null;
+
+    const findings: Array<{ severity: string; title: string }> = [
+      ...cveSummary.map((c) => ({
+        severity: (c.cvssScore ?? 0) >= 9 ? "critical" : (c.cvssScore ?? 0) >= 7 ? "high" : "medium",
+        title: c.cveId,
+      })),
+      ...(blacklist.blacklisted ? [{ severity: "critical", title: "Kara liste kaydı tespit edildi" }] : []),
+      ...(usom.listed ? [{ severity: "high", title: "USOM zararlı bağlantı listesinde" }] : []),
+    ];
+
+    logger.info({ domain, overallScore, scanId: scan.id }, "performDomainScan complete");
+    return { id: scan.id, overallScore, findings };
+  } catch (err) {
+    logger.error({ err, domain }, "performDomainScan failed");
+    return null;
+  }
+}
+
 // ─── POST /api/domain-scan ───────────────────────────────────────────────────
 router.post("/domain-scan", anonScanLimiter, async (req, res) => {
   const rawDomain: unknown = req.body?.domain;

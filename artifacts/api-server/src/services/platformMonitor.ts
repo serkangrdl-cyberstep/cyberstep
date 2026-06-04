@@ -117,39 +117,51 @@ export async function checkPlatformCosts(): Promise<void> {
     }
   }
 
-  // Cron pipeline sağlık kontrolü
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    const result = await pool.query<{ cnt: string }>(
-      `SELECT COUNT(*) AS cnt FROM cron_job_runs
-       WHERE job_name = 'lead_qualify'
-         AND started_at::date = $1
-         AND status = 'ok'`,
-      [today],
-    );
-    const ran = Number(result.rows[0]?.cnt ?? 0);
-    const hour = new Date().getHours();
-    if (ran === 0 && hour >= 8) {
-      alerts.push(`Gece pipeline ÇALIŞMADI: ${today}`);
+  // Kritik cron pipeline sağlık kontrolü
+  const criticalCrons = [
+    { name: "lead_qual",     expectedHour: 4,  label: "Lead kalifikasyon" },
+    { name: "crtsh",         expectedHour: 3,  label: "crt.sh taraması",  weekly: true },
+    { name: "shodan",        expectedHour: 4,  label: "Shodan taraması"   },
+    { name: "daily_summary", expectedHour: 8,  label: "Günlük özet"       },
+  ];
+
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentHour = now.getHours();
+
+  for (const cronDef of criticalCrons) {
+    if ((cronDef as { weekly?: boolean }).weekly) {
+      if (now.getDay() !== 1) continue;
     }
-  } catch {
-    // cron_job_runs erişilemez
+    if (currentHour < cronDef.expectedHour + 2) continue;
+
+    try {
+      const result = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(*) AS cnt FROM cron_job_runs
+         WHERE job_name = $1
+           AND started_at::date = $2
+           AND status = 'ok'`,
+        [cronDef.name, todayStr],
+      );
+      const ran = Number(result.rows[0]?.cnt ?? 0);
+      if (ran === 0) {
+        alerts.push(`Cron ÇALIŞMADI: ${cronDef.label} (${cronDef.name}) — ${todayStr}`);
+      }
+    } catch {
+      // cron_job_runs erişilemez
+    }
   }
 
-  // Claude günlük maliyet eşiği
+  // AI günlük maliyet (merkezi ai_cost_log)
   const threshold = parseFloat(process.env["CLAUDE_DAILY_COST_THRESHOLD"] ?? "5");
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const result = await pool.query<{ total_cost: string }>(
-      `SELECT COALESCE(SUM(cost_usd), 0) AS total_cost FROM soc_ai_costs WHERE recorded_date = $1`,
-      [today],
-    );
-    const cost = Number(result.rows[0]?.total_cost ?? 0);
+    const { getDailyCost } = await import("./aiCostTracker");
+    const cost = await getDailyCost();
     if (cost > threshold) {
-      alerts.push(`Claude günlük maliyet: $${cost.toFixed(2)} (limit: $${threshold})`);
+      alerts.push(`AI günlük maliyet: $${cost.toFixed(4)} (limit: $${threshold})`);
     }
   } catch {
-    // soc_ai_costs yok
+    // ai_cost_log erişilemez
   }
 
   if (alerts.length > 0) {

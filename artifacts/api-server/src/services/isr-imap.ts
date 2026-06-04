@@ -9,6 +9,7 @@ import {
 import { eq, and, sql } from "drizzle-orm";
 import { classifyEmail, parseRfqResponseEmail, parseRevisionRequest, generateRfqEmailBody } from "./isr-ai";
 import { getTenantAiFn } from "./ai-client";
+import { decrypt, isEncrypted } from "./encryption";
 import nodemailer from "nodemailer";
 
 interface TenantMailConfig {
@@ -26,7 +27,8 @@ function getImapConfig(tenant?: TenantMailConfig) {
   // If a dedicated ISR IMAP user is set, use its own password; otherwise fall back to shared SMTP credentials
   const isrUser = tenant?.imapUser ?? process.env["ISR_IMAP_USER"];
   const user = isrUser ?? process.env["SMTP_USER"];
-  const pass = tenant?.imapPass ?? (isrUser ? process.env["ISR_IMAP_PASS"] : null) ?? process.env["SMTP_PASS"];
+  const rawImapPass = tenant?.imapPass ?? (isrUser ? process.env["ISR_IMAP_PASS"] : null) ?? process.env["SMTP_PASS"];
+  const pass = rawImapPass && isEncrypted(rawImapPass) ? decrypt(rawImapPass) : rawImapPass;
   if (!user || !pass) return null;
   return { host, port: 993, secure: true, auth: { user, pass } };
 }
@@ -34,7 +36,8 @@ function getImapConfig(tenant?: TenantMailConfig) {
 function getSmtpTransport(tenant?: TenantMailConfig) {
   const isrUser = tenant?.smtpUser ?? process.env["ISR_SMTP_USER"];
   const user = isrUser ?? process.env["SMTP_USER"];
-  const pass = tenant?.smtpPass ?? (isrUser ? process.env["ISR_IMAP_PASS"] : null) ?? process.env["SMTP_PASS"];
+  const rawSmtpPass = tenant?.smtpPass ?? (isrUser ? process.env["ISR_IMAP_PASS"] : null) ?? process.env["SMTP_PASS"];
+  const pass = rawSmtpPass && isEncrypted(rawSmtpPass) ? decrypt(rawSmtpPass) : rawSmtpPass;
   const host = tenant?.smtpHost ?? process.env["ISR_SMTP_HOST"] ?? "smtp.gmail.com";
   const port = tenant?.smtpPort ?? Number(process.env["ISR_SMTP_PORT"] ?? "587");
   if (!user || !pass) return null;

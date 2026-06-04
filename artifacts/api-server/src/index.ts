@@ -1363,6 +1363,24 @@ async function ensureReferralCodeColumn() {
   await db.execute(sql`ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS referral_code TEXT`);
 }
 
+async function ensureAiCostLogTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_cost_log (
+      id            SERIAL PRIMARY KEY,
+      service       VARCHAR(100) NOT NULL,
+      model         VARCHAR(100) NOT NULL,
+      input_tokens  INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd      NUMERIC(12,8) NOT NULL DEFAULT 0,
+      customer_id   INTEGER,
+      metadata      JSONB,
+      recorded_at   TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ai_cost_log_service_date_idx ON ai_cost_log (service, recorded_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ai_cost_log_date_idx ON ai_cost_log (recorded_at DESC)`);
+}
+
 async function ensurePerformanceIndexes() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_email_idx ON domain_scans (email)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_created_at_idx ON domain_scans (created_at DESC)`);
@@ -1437,6 +1455,7 @@ async function startup() {
   await ensureBreachMonitorTable();
   await ensureReferralCodeColumn();
   await ensureDomainScanPurchasesTable();
+  await ensureAiCostLogTable();
   await ensurePerformanceIndexes();
   await ensureDnsTables();
   await ensureCtTable();
@@ -1763,7 +1782,7 @@ function startInflationReminderCron() {
 // ─── Digest Cron ─────────────────────────────────────────────────────────────
 // 06:00 RSS topla → 06:30 Claude zenginleştir → Cuma 07:00 digest üret (İstanbul)
 function startDigestCron() {
-  cron.schedule("0 3 * * *", async () => {
+  cron.schedule("30 3 * * *", async () => {
     logger.info("Digest: RSS haber toplama başlıyor");
     try {
       await collectRSSFeeds();
@@ -2144,8 +2163,8 @@ startup()
     }, { timezone: "Europe/Istanbul" });
     logger.info("SLA breach cron scheduled (08:00 Istanbul)");
 
-    // ─── CASM: Cloud CSPM taraması — Her gece 03:00 ──────────────────────────
-    cron.schedule("0 3 * * *", async () => {
+    // ─── CASM: Cloud CSPM taraması — Her gece 03:45 ──────────────────────────
+    cron.schedule("45 3 * * *", async () => {
       try {
         const { db: dbI } = await import("@workspace/db");
         const { cloudConnectionsTable } = await import("@workspace/db");
@@ -2249,7 +2268,7 @@ startup()
     logger.info("crt.sh discovery cron scheduled (Monday 03:00 Istanbul)");
 
     // ─── Lead Discovery: Shodan — Her gece 03:00 ─────────────────────────────
-    cron.schedule("0 3 * * *", wrapCron("shodan", "0 3 * * *", async () => {
+    cron.schedule("0 4 * * *", wrapCron("shodan", "0 4 * * *", async () => {
       if (!process.env["SHODAN_API_KEY"]) return 0;
       if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("shodan", 100);
@@ -2260,7 +2279,7 @@ startup()
     logger.info("Shodan discovery cron scheduled (daily 03:00 Istanbul)");
 
     // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
-    cron.schedule("0 4 * * *", wrapCron("lead_qual", "0 4 * * *", async () => {
+    cron.schedule("30 4 * * *", wrapCron("lead_qual", "30 4 * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("lead_qual", 20);
       await qualifyPendingCandidates(limit);

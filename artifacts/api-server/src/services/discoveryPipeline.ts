@@ -31,17 +31,16 @@ async function runDomainScanInternal(domain: string): Promise<{
   findings: Array<{ severity: string; title: string }>;
 } | null> {
   try {
-    const apiPort = process.env["PORT"] ?? "5000";
-    const resp = await fetch(`http://localhost:${apiPort}/api/domain-scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ domain }),
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!resp.ok) return null;
-    const data = await resp.json() as { id?: number; overallScore?: number; findings?: Array<{ severity: string; title: string }> };
-    return { id: data.id ?? 0, overallScore: data.overallScore ?? 0, findings: data.findings ?? [] };
-  } catch {
+    const { performDomainScan } = await import("../routes/domain-scan/index");
+    const result = await performDomainScan(domain);
+    if (!result) return null;
+    return {
+      id: result.id ?? 0,
+      overallScore: result.overallScore ?? 0,
+      findings: result.findings ?? [],
+    };
+  } catch (err) {
+    logger.warn({ err, domain }, "Discovery pipeline: direct domain scan failed");
     return null;
   }
 }

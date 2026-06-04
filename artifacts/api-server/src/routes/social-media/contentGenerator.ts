@@ -2,6 +2,7 @@
 // Claude Haiku ile haftalık içerik üretimi, revizyon ve spontane içerik.
 
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { logAiCost, calcCost } from "../../services/aiCostTracker";
 import { db } from "@workspace/db";
 import {
   socialMediaPostsTable,
@@ -34,16 +35,22 @@ Her zaman:
   CTA ücretsiz olsun (tarama, rapor)
   cyberstep.io referansı ver`;
 
-async function callHaiku(systemPrompt: string, userPrompt: string): Promise<string> {
+async function callHaiku(systemPrompt: string, userPrompt: string, maxTokens = 600): Promise<{ text: string; costUsd: number }> {
   const msg = await anthropic.messages.create({
     model: HAIKU,
-    max_tokens: 600,
+    max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
+  const costUsd = calcCost(HAIKU, msg.usage.input_tokens, msg.usage.output_tokens);
+  logAiCost({
+    service: "social_media",
+    model: HAIKU,
+    inputTokens: msg.usage.input_tokens,
+    outputTokens: msg.usage.output_tokens,
+  }).catch(() => {});
   const block = msg.content[0];
-  if (block?.type === "text") return block.text;
-  return "";
+  return { text: block?.type === "text" ? block.text : "", costUsd };
 }
 
 export interface ScanStats {
@@ -159,8 +166,26 @@ async function generatePostText(
   specialDay?: SpecialDay,
   spontaneousTopic?: string,
   spontaneousNotes?: string,
-): Promise<{ caption: string; hashtags: string[] }> {
+): Promise<{ caption: string; hashtags: string[]; costUsd: number; isThread?: boolean }> {
   let userPrompt = "";
+
+  if (platform === "x") {
+    userPrompt = `Platform: X (Twitter)
+İçerik tipi: ${postType === "data_insight" ? "Haftalık veri insight" : postType === "special_day" && specialDay ? `Özel gün: ${specialDay.name}` : "Güvenlik ipucu"}
+${postType === "data_insight" ? `\nBu hafta CyberStep verisi:\n${formatStats(stats)}` : ""}
+
+5 tweet'lik thread yaz. Her tweet max 280 karakter.
+- Tweet 1 (Hook): Bağımsız değer taşımalı, "🧵" ile bitmeli
+- Tweet 2: Problemi somutlaştır, Türkiye verisi kullan
+- Tweet 3: En şaşırtıcı istatistik veya gerçek
+- Tweet 4: Pratik, hemen uygulanabilir öneri
+- Tweet 5: cyberstep.io ücretsiz tarama linki + 3-4 hashtag
+
+Tweet'leri "---" ile ayır. Sadece tweet metinlerini yaz, numara veya etiket ekleme.`;
+    const { text, costUsd } = await callHaiku(SYSTEM_PROMPT, userPrompt, 800);
+    const hashtags = text.match(/#[\w]+/g) ?? [];
+    return { caption: text, hashtags, costUsd, isThread: true };
+  }
 
   if (postType === "special_day" && specialDay) {
     userPrompt = `Platform: ${platform}
@@ -181,8 +206,7 @@ Bu hafta CyberStep verisi:
 ${formatStats(stats)}
 
 ${platform === "linkedin" ? "Başlık cümlesi (FOMO yaratacak), 3-4 madde (rakamlarla), CTA, 5-7 hashtag" : ""}
-${platform === "instagram" ? "Emoji ile güçlü açılış, 2-3 kısa madde, soru ile kapanış, 10-12 hashtag" : ""}
-${platform === "x" ? "280 karakter, tek tweet, en çarpıcı istatistik, 3-4 hashtag" : ""}`;
+${platform === "instagram" ? "Emoji ile güçlü açılış, 2-3 kısa madde, soru ile kapanış, 10-12 hashtag" : ""}`;
   } else if (postType === "spontaneous" && spontaneousTopic) {
     userPrompt = `Platform: ${platform}
 Konu: ${spontaneousTopic}
@@ -201,13 +225,13 @@ Bu konuda ${platform} platformuna özgü eğitici içerik yaz.
 Pratik, uygulanabilir. Hashtag listesi ver.`;
   }
 
-  const text = await callHaiku(SYSTEM_PROMPT, userPrompt);
+  const { text, costUsd } = await callHaiku(SYSTEM_PROMPT, userPrompt);
 
   const hashtagMatch = text.match(/#[\w]+/g);
   const hashtags = hashtagMatch ?? [];
   const caption = text.replace(/#[\w]+/g, "").trim();
 
-  return { caption, hashtags };
+  return { caption, hashtags, costUsd };
 }
 
 export async function generateWeeklyContent(weekStart: Date, calendarId: number): Promise<void> {
@@ -230,9 +254,17 @@ export async function generateWeeklyContent(weekStart: Date, calendarId: number)
       const postType = specialDay ? "special_day" : (i === 0 || i === 2 ? "data_insight" : "security_tip");
 
       try {
-        const { caption, hashtags } = await generatePostText(platform, postType, stats, specialDay);
-        const imageSvg = buildVisualSVG(platform, caption);
+        const { caption: rawCaption, hashtags, costUsd, isThread } = await generatePostText(platform, postType, stats, specialDay);
+        const imageSvg = buildVisualSVG(platform, rawCaption);
         const dim = platform === "linkedin" ? "1200x628" : platform === "x" ? "1200x675" : "1080x1080";
+
+        let caption = rawCaption;
+        let threadTweets: string[] | undefined;
+        if (isThread && rawCaption) {
+          const tweets = rawCaption.split("---").map((t: string) => t.trim()).filter(Boolean);
+          threadTweets = tweets;
+          caption = tweets[0] ?? rawCaption;
+        }
 
         await db.insert(socialMediaPostsTable).values({
           calendarId,
@@ -246,7 +278,8 @@ export async function generateWeeklyContent(weekStart: Date, calendarId: number)
           status: "draft",
           specialDayId: specialDay?.id ?? null,
           dataSource: postType === "data_insight" ? "scan_stats" : "manual",
-          generationCostUsd: "0.0001",
+          generationCostUsd: costUsd.toFixed(6),
+          ...(threadTweets ? { threadTweets } : {}),
         });
 
         logger.info({ platform, postType, date: postDate.toISOString().split("T")[0] }, "Sosyal medya içeriği üretildi");
@@ -279,7 +312,7 @@ Hashtags: ${post.hashtags?.join(" ")}
 
 Bu notla metni yeniden yaz. Sadece yeni metni ver, açıklama yok. Hashtag listesi ver.`;
 
-  const text = await callHaiku(SYSTEM_PROMPT, userPrompt);
+  const { text } = await callHaiku(SYSTEM_PROMPT, userPrompt);
   const hashtagMatch = text.match(/#[\w]+/g);
   const hashtags = hashtagMatch ?? [];
   const caption = text.replace(/#[\w]+/g, "").trim();
@@ -302,7 +335,7 @@ export async function generateSpontaneous(params: {
   const stats = await getWeeklyScanStats();
   const { caption, hashtags } = await generatePostText(
     params.platform, "spontaneous", stats,
-    undefined, params.topic, params.notes
+    undefined, params.topic, params.notes,
   );
   const imageSvg = buildVisualSVG(params.platform, caption);
   const dim = params.platform === "linkedin" ? "1200x628" : params.platform === "x" ? "1200x675" : "1080x1080";

@@ -12,19 +12,33 @@ import { blogPostsTable, siteSettingsTable, newsletterSubscribersTable } from "@
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
+import { logAiCost } from "./aiCostTracker";
 
 interface CarouselSlide { slide: number; text: string; }
 interface VisualPrompts { blog: string; linkedin: string; instagram: string; x: string; }
 
-// ─── Yardımcı: Türkçe başlıktan URL-safe slug ─────────────────────────────────
-function toSlug(title: string): string {
-  return title
+// ─── Yardımcı: Türkçe başlıktan URL-safe slug (benzersiz) ─────────────────────
+async function toSlugUnique(title: string): Promise<string> {
+  const base = title
     .toLowerCase()
     .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
     .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
     .replace(/[^a-z0-9\s-]/g, "")
-    .trim().replace(/\s+/g, "-").slice(0, 80)
-    + "-" + Date.now().toString(36);
+    .trim().replace(/\s+/g, "-").slice(0, 80);
+
+  let candidate = base;
+  let suffix = 2;
+  while (true) {
+    const [existing] = await db
+      .select({ id: blogPostsTable.id })
+      .from(blogPostsTable)
+      .where(eq(blogPostsTable.slug, candidate))
+      .limit(1);
+    if (!existing) return candidate;
+    candidate = `${base}-${suffix}`;
+    suffix++;
+    if (suffix > 99) return `${base}-${Date.now().toString(36)}`;
+  }
 }
 
 // ─── 1 Yıllık İçerik Planı (104 Yazı) ────────────────────────────────────────
@@ -378,6 +392,14 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
     messages: [{ role: "user", content: prompt }],
   });
 
+  logAiCost({
+    service: "blog_autopilot",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
+    metadata: { title: topic.title },
+  }).catch(() => {});
+
   const block = message.content[0];
   const raw = block?.type === "text" ? block.text.trim() : "";
 
@@ -397,7 +419,7 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
 
   return {
     title: parsed.title,
-    slug: toSlug(parsed.title || topic.title),
+    slug: await toSlugUnique(parsed.title || topic.title),
     excerpt: parsed.excerpt,
     content: parsed.content,
     seoTitle: parsed.seoTitle,

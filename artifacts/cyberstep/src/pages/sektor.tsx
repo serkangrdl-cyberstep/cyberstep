@@ -149,6 +149,8 @@ function SectorPageContent({ data }: { data: SectorData }) {
   usePageMeta({
     title: data.metaTitle,
     description: data.metaDesc,
+    canonicalPath: `/sektor/${data.slug}`,
+    keywords: `${data.name} sektörü siber güvenlik, ${data.name} KVKK, KOBİ siber güvenlik`,
   });
 
   return (

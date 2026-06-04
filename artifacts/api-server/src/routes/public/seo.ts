@@ -32,13 +32,44 @@ router.get("/sitemap.xml", async (_req, res) => {
     type SitemapEntry = { url: string; priority: string; changefreq: string; lastmod?: string };
 
     const staticPages: SitemapEntry[] = [
-      { url: "/",              priority: "1.0", changefreq: "weekly"  },
-      { url: "/tarama",        priority: "0.9", changefreq: "weekly"  },
-      { url: "/degerlendirme", priority: "0.9", changefreq: "monthly" },
-      { url: "/fiyatlandirma", priority: "0.8", changefreq: "monthly" },
-      { url: "/hakkimizda",    priority: "0.6", changefreq: "monthly" },
-      { url: "/blog",          priority: "0.8", changefreq: "daily"   },
-      { url: "/iletisim",      priority: "0.5", changefreq: "yearly"  },
+      { url: "/",                          priority: "1.0", changefreq: "weekly"  },
+      { url: "/tarama",                    priority: "0.9", changefreq: "weekly"  },
+      { url: "/degerlendirme",             priority: "0.9", changefreq: "monthly" },
+      { url: "/fiyatlar",                  priority: "0.8", changefreq: "monthly" },
+      { url: "/fiyatlandirma",             priority: "0.7", changefreq: "monthly" },
+      { url: "/hakkimizda",                priority: "0.6", changefreq: "monthly" },
+      { url: "/blog",                      priority: "0.8", changefreq: "daily"   },
+      { url: "/iletisim",                  priority: "0.5", changefreq: "yearly"  },
+      { url: "/neden-cyberstep",           priority: "0.7", changefreq: "monthly" },
+      { url: "/metodoloji",                priority: "0.6", changefreq: "monthly" },
+      { url: "/araclar",                   priority: "0.8", changefreq: "monthly" },
+      // Araç sayfaları
+      { url: "/araclar/domain-guvenlik-taramasi", priority: "0.9", changefreq: "monthly" },
+      { url: "/araclar/ssl-kontrol",              priority: "0.8", changefreq: "monthly" },
+      { url: "/araclar/dmarc-kontrol",            priority: "0.8", changefreq: "monthly" },
+      { url: "/araclar/kvkk-ceza-hesaplayici",    priority: "0.8", changefreq: "monthly" },
+      { url: "/araclar/dark-web-sorgulama",       priority: "0.8", changefreq: "monthly" },
+      { url: "/araclar/siber-risk-roi",           priority: "0.7", changefreq: "monthly" },
+      // Sektör sayfaları
+      { url: "/sektor/saglik",    priority: "0.8", changefreq: "monthly" },
+      { url: "/sektor/finans",    priority: "0.8", changefreq: "monthly" },
+      { url: "/sektor/perakende", priority: "0.8", changefreq: "monthly" },
+      { url: "/sektor/bilisim",   priority: "0.8", changefreq: "monthly" },
+      { url: "/sektor/imalat",    priority: "0.8", changefreq: "monthly" },
+      // Servis & pazarlama sayfaları
+      { url: "/ai-guvenlik",              priority: "0.7", changefreq: "monthly" },
+      { url: "/ai-politika",              priority: "0.7", changefreq: "monthly" },
+      { url: "/ai-arac-izleme",           priority: "0.7", changefreq: "monthly" },
+      { url: "/ai-phishing-simulasyonu",  priority: "0.7", changefreq: "monthly" },
+      { url: "/pentest-lite",             priority: "0.7", changefreq: "monthly" },
+      { url: "/domain-tarama",            priority: "0.7", changefreq: "monthly" },
+      { url: "/eu-ai-act",                priority: "0.7", changefreq: "monthly" },
+      { url: "/dora-bddk-uyum",           priority: "0.7", changefreq: "monthly" },
+      { url: "/kvkk-ceza-sim",            priority: "0.7", changefreq: "monthly" },
+      { url: "/tehdit-istihbarati",       priority: "0.6", changefreq: "monthly" },
+      { url: "/sigorta-pazaryeri",        priority: "0.6", changefreq: "monthly" },
+      { url: "/skor-api",                 priority: "0.6", changefreq: "monthly" },
+      { url: "/bulten/arsiv",             priority: "0.5", changefreq: "weekly"  },
     ];
 
     const blogUrls: SitemapEntry[] = posts.map(p => ({

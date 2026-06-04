@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { ChevronRight, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 export interface ToolSeoConfig {
   slug: string;
@@ -287,6 +288,13 @@ function ToolEmbed({ type }: { type: ToolSeoConfig["toolComponent"] }) {
 
 export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
   const relatedTools = ALL_TOOLS.filter(t => config.relatedTools.some(r => r.slug === t.slug));
+
+  usePageMeta({
+    title: config.title,
+    description: config.metaDescription,
+    canonicalPath: `/araclar/${config.slug}`,
+    keywords: `${config.h1}, ücretsiz araç, siber güvenlik, domain tarama, CyberStep.io`,
+  });
 
   return (
     <div>

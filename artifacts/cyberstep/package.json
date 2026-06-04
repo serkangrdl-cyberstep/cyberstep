@@ -85,6 +85,7 @@
     "@tiptap/starter-kit": "^3.23.6",
     "@types/dompurify": "^3.2.0",
     "dompurify": "^3.4.5",
-    "mermaid": "^11.15.0"
+    "mermaid": "^11.15.0",
+    "react-helmet-async": "^3.0.0"
   }
 }

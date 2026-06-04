@@ -30,3 +30,9 @@ id = "V9dS1QA5xnHMBf78p0ebJ"
 uri = "file://attached_assets/CyberStep_Tum_Servisler_Raporu_2026.md"
 type = "text"
 title = "CyberStep Tüm Servisler Raporu 2026"
+
+[[outputs]]
+id = "MH99M2_TEk_lKYCYjDE__"
+uri = "file://cyberstep-kaynak-kod.tar.gz"
+type = "unspecified"
+title = "CyberStep.io Kaynak Kodu"

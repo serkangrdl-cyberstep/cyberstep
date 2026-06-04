@@ -50,7 +50,6 @@ const CDN_PROVIDER_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
   { pattern: /imperva|incapsula/i,     name: "Imperva" },
   { pattern: /bunny\.net|bunnycdn/i,   name: "BunnyCDN" },
   { pattern: /stackpath|maxcdn/i,      name: "StackPath" },
-  { pattern: /fortinet|fortiweb/i,     name: "Fortinet" },
 ];
 
 // Cloudflare'in proxy olarak aktif ilettiği portlar

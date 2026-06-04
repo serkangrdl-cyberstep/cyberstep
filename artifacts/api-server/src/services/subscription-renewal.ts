@@ -86,19 +86,95 @@ export async function processSubscriptionRenewals() {
 
   for (const { cs, service, customer } of renewals) {
     try {
-      // Iyzico stored card renewal would go here.
-      // For now: log and mark for manual processing.
-      logger.info({ csId: cs.id, serviceSlug: service.slug, customerId: cs.customerId }, "Renewal due — no stored card token yet");
-
       const now = new Date();
       const serviceType = service.serviceType ?? "monthly";
       const newExpiry = serviceType === "annual"
         ? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
         : new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
-      await processRenewalFailure(cs, service.label, customer.email, customer.companyName ?? "Müşteri");
+      const { isIyzicoConfigured, createPaymentWithStoredCard } = await import("./iyzico");
 
-      void newExpiry;
+      if (!isIyzicoConfigured()) {
+        logger.warn({ csId: cs.id }, "İyzico yapılandırılmamış — manuel yenileme linki gönderiliyor");
+        await processRenewalFailure(cs, service.label, customer.email, customer.companyName ?? "Müşteri");
+        continue;
+      }
+
+      if (cs.customerId == null) {
+        logger.warn({ csId: cs.id }, "customerId null — abonelik yenileme atlanıyor");
+        continue;
+      }
+      const customerId: number = cs.customerId;
+      const [sub] = await db
+        .select({ cardUserKey: customerServiceSubscriptionsTable.iyzicoCardUserKey, cardToken: customerServiceSubscriptionsTable.iyzicoCardToken })
+        .from(customerServiceSubscriptionsTable)
+        .where(and(eq(customerServiceSubscriptionsTable.customerId, customerId), eq(customerServiceSubscriptionsTable.serviceSlug, service.slug)))
+        .limit(1);
+
+      if (!sub?.cardUserKey || !sub?.cardToken) {
+        logger.info({ csId: cs.id }, "Kayıtlı kart bulunamadı — yenileme linki gönderiliyor");
+        await processRenewalFailure(cs, service.label, customer.email, customer.companyName ?? "Müşteri");
+        continue;
+      }
+
+      const priceTl = Number(service.priceTl ?? service.monthlyPriceTl ?? 0);
+      const priceTlWithKdv = Math.round(priceTl * 1.20 * 100) / 100;
+      const displayName = customer.fullName ?? customer.companyName ?? "Müşteri";
+      const nameParts = displayName.split(" ");
+      const firstName = nameParts[0] ?? "Müşteri";
+      const lastName = nameParts.slice(1).join(" ") || ".";
+
+      const result = await createPaymentWithStoredCard({
+        price: String(priceTl),
+        paidPrice: String(priceTlWithKdv),
+        currency: "TRY",
+        installment: 1,
+        paymentCard: { cardUserKey: sub.cardUserKey, cardToken: sub.cardToken },
+        buyer: {
+          id: String(customer.id),
+          name: firstName,
+          surname: lastName,
+          email: customer.email,
+          identityNumber: "11111111111",
+          registrationAddress: "Türkiye",
+          city: "Istanbul",
+          country: "Turkey",
+          ip: "127.0.0.1",
+        },
+        shippingAddress: { address: "Türkiye", city: "Istanbul", country: "Turkey", contactName: displayName },
+        billingAddress: { address: "Türkiye", city: "Istanbul", country: "Turkey", contactName: displayName },
+        basketItems: [{
+          id: String(cs.id),
+          name: service.label,
+          category1: "Yazılım",
+          itemType: "VIRTUAL",
+          price: String(priceTl),
+        }],
+        conversationId: crypto.randomBytes(8).toString("hex"),
+      });
+
+      if (result.success) {
+        await db.update(customerServicesTable).set({
+          renewalAttemptCount: 0,
+          nextRenewalAt: newExpiry,
+          lastRenewalFailedAt: null,
+        }).where(eq(customerServicesTable.id, cs.id));
+
+        logger.info({ csId: cs.id, customerId: cs.customerId, paymentId: result.paymentId }, "Otomatik abonelik yenileme başarılı");
+
+        setImmediate(() => {
+          void import("./email").then(({ sendMail }) => {
+            sendMail({
+              to: customer.email,
+              subject: `${service.label} aboneliğiniz yenilendi`,
+              html: `<p>Sayın ${customer.companyName ?? customer.fullName ?? "Değerli Müşteri"},</p><p><strong>${service.label}</strong> aboneliğiniz ${newExpiry.toLocaleDateString("tr-TR")} tarihine kadar yenilendi.</p><p>CyberStep.io</p>`,
+            }).catch(() => {});
+          });
+        });
+      } else {
+        logger.warn({ csId: cs.id, errorMessage: result.errorMessage }, "Otomatik yenileme başarısız — dunning başlatılıyor");
+        await processRenewalFailure(cs, service.label, customer.email, customer.companyName ?? "Müşteri");
+      }
     } catch (err) {
       logger.error({ err, csId: cs.id }, "Renewal processing error");
     }

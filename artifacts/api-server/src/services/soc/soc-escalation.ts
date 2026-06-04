@@ -52,6 +52,9 @@ export async function escalateCase(caseId: number, level: number, reason: string
       suspectIps: socCase.affectedAssets ?? [],
     }, ["email"]);
   }
+  if (notifyAdmin && !ADMIN_EMAIL) {
+    logger.error({ caseId, level }, "SOC_ADMIN_EMAIL tanımlı değil — eskalasyon emaili GÖNDERİLEMEDİ. Bu env var'ı hemen ayarlayın.");
+  }
   if (notifyAdmin && ADMIN_EMAIL) {
     await sendSOCNotification(socCase.customerId, caseId, {
       title: `[SOC ${LEVEL_LABEL[level] ?? `Seviye ${level}`}] ${socCase.title}`,

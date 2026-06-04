@@ -1363,6 +1363,15 @@ async function ensureReferralCodeColumn() {
   await db.execute(sql`ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS referral_code TEXT`);
 }
 
+async function ensurePerformanceIndexes() {
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_email_idx ON domain_scans (email)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_created_at_idx ON domain_scans (created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS assessments_email_idx ON assessments (email)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS fabric_events_customer_id_idx ON fabric_events (customer_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS fabric_events_created_at_idx ON fabric_events (created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_overall_score_idx ON domain_scans (overall_score)`);
+}
+
 async function ensureBreachMonitorTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS breach_monitor_requests (
@@ -1428,6 +1437,7 @@ async function startup() {
   await ensureBreachMonitorTable();
   await ensureReferralCodeColumn();
   await ensureDomainScanPurchasesTable();
+  await ensurePerformanceIndexes();
   await ensureDnsTables();
   await ensureCtTable();
   await ensureMs365Tables();
@@ -2235,8 +2245,8 @@ startup()
       await new Promise((r) => setTimeout(r, 5000));
       await scanCRTSH("%.net.tr", { daysBack: 90, minCorporateScore: 10, limit: Math.floor(limit / 3) });
       return limit;
-    }));
-    logger.info("crt.sh discovery cron scheduled (Monday 03:00)");
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("crt.sh discovery cron scheduled (Monday 03:00 Istanbul)");
 
     // ─── Lead Discovery: Shodan — Her gece 03:00 ─────────────────────────────
     cron.schedule("0 3 * * *", wrapCron("shodan", "0 3 * * *", async () => {
@@ -2246,8 +2256,8 @@ startup()
       const queryIdx = new Date().getDay() % SHODAN_FREE_QUERIES.length;
       await scanShodanFree(queryIdx, limit);
       return limit;
-    }));
-    logger.info("Shodan discovery cron scheduled (daily 03:00)");
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Shodan discovery cron scheduled (daily 03:00 Istanbul)");
 
     // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
     cron.schedule("0 4 * * *", wrapCron("lead_qual", "0 4 * * *", async () => {
@@ -2255,8 +2265,8 @@ startup()
       const limit = await cronGetLimit("lead_qual", 20);
       await qualifyPendingCandidates(limit);
       return limit;
-    }));
-    logger.info("Lead qualification cron scheduled (daily 04:00)");
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Lead qualification cron scheduled (daily 04:00 Istanbul)");
 
     // ─── Certstream queue işleyici — her saat ─────────────────────────────────
     cron.schedule("0 * * * *", wrapCron("certstream_proc", "0 * * * *", async () => {

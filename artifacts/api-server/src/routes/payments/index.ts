@@ -214,6 +214,21 @@ router.post("/payments/service-checkout", async (req: Request, res: Response) =>
     }).catch(err => logger.warn({ err, email }, "Receipt email failed"));
   });
 
+  setImmediate(() => {
+    void import("../../services/einvoice").then(({ createEInvoice }) =>
+      createEInvoice({
+        customerEmail: email,
+        customerName: contactName,
+        companyName,
+        amount: base,
+        kdv,
+        total,
+        serviceLabel: service.label,
+        paymentRef: result.paymentId ?? conversationId,
+      })
+    ).catch(err => logger.warn({ err, email }, "E-fatura oluşturma isteği başarısız"));
+  });
+
   res.json({ success: true, subscriptionId: subscription?.id });
 });
 

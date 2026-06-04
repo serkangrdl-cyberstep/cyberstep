@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import dns from "dns/promises";
 import https from "https";
 import http from "http";
@@ -11,6 +12,16 @@ import { getCustomerId } from "../../middleware/auth";
 
 const router = Router();
 
+// ─── Rate limiters ────────────────────────────────────────────────────────────
+const anonScanLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Saatlik ücretsiz tarama limitine ulaştınız. Hesap oluşturarak daha fazla tarama yapabilirsiniz." },
+  skip: (req) => !!getCustomerId(req),
+});
+
 const DKIM_SELECTORS = [
   "default", "google", "mail", "dkim", "selector1", "selector2",
   "protonmail", "zoho", "k1", "smtp", "email", "mandrill",
@@ -19,29 +30,40 @@ const DKIM_SELECTORS = [
 
 // ─── DNS helpers ─────────────────────────────────────────────────────────────
 
-async function checkSPF(domain: string): Promise<{ pass: boolean; record: string | null }> {
+async function checkSPF(domain: string): Promise<{ pass: boolean; record: string | null; strength: "hardfail" | "softfail" | "neutral" | "none" }> {
   try {
     const records = await dns.resolveTxt(domain);
     for (const r of records) {
       const joined = r.join("");
-      if (joined.startsWith("v=spf1")) return { pass: true, record: joined };
+      if (joined.startsWith("v=spf1")) {
+        // "-all" = hardfail (pass); "~all" = softfail (warn, not pass); "?all" / "+all" / missing = fail
+        if (joined.includes("-all")) return { pass: true, record: joined, strength: "hardfail" };
+        if (joined.includes("~all")) return { pass: false, record: joined, strength: "softfail" };
+        if (joined.includes("?all")) return { pass: false, record: joined, strength: "neutral" };
+        return { pass: false, record: joined, strength: "none" };
+      }
     }
-    return { pass: false, record: null };
+    return { pass: false, record: null, strength: "none" };
   } catch {
-    return { pass: false, record: null };
+    return { pass: false, record: null, strength: "none" };
   }
 }
 
-async function checkDMARC(domain: string): Promise<{ pass: boolean; record: string | null }> {
+async function checkDMARC(domain: string): Promise<{ pass: boolean; record: string | null; policy: string | null }> {
   try {
     const records = await dns.resolveTxt(`_dmarc.${domain}`);
     for (const r of records) {
       const joined = r.join("");
-      if (joined.startsWith("v=DMARC1")) return { pass: true, record: joined };
+      if (joined.startsWith("v=DMARC1")) {
+        const policy = joined.match(/p=([^;]+)/)?.[1]?.toLowerCase() ?? null;
+        // p=reject or p=quarantine = enforced (pass); p=none = monitor-only (not pass)
+        const pass = policy === "reject" || policy === "quarantine";
+        return { pass, record: joined, policy };
+      }
     }
-    return { pass: false, record: null };
+    return { pass: false, record: null, policy: null };
   } catch {
-    return { pass: false, record: null };
+    return { pass: false, record: null, policy: null };
   }
 }
 
@@ -93,7 +115,7 @@ async function checkSSL(domain: string): Promise<{
             const expiry = new Date(cert.valid_to);
             const daysUntilExpiry = Math.floor((expiry.getTime() - Date.now()) / 86400000);
             resolve({
-              pass: daysUntilExpiry > 14,
+              pass: daysUntilExpiry > 30,
               expiryDate: expiry.toISOString(),
               issuer: cert.issuer?.O ?? cert.issuer?.CN ?? null,
               daysUntilExpiry,
@@ -1104,7 +1126,7 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
 }
 
 // ─── POST /api/domain-scan ───────────────────────────────────────────────────
-router.post("/domain-scan", async (req, res) => {
+router.post("/domain-scan", anonScanLimiter, async (req, res) => {
   const rawDomain: unknown = req.body?.domain;
   const rawEmail: unknown = req.body?.email;
 

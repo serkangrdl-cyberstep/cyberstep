@@ -13,14 +13,14 @@ import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 export const SHODAN_FREE_QUERIES = [
-  { q: "ssl.cert.subject.cn:*.com.tr country:TR", label: "TR .com.tr SSL Sertifikaları", priority: 1 },
-  { q: "ssl.cert.subject.cn:*.net.tr country:TR", label: "TR .net.tr SSL Sertifikaları", priority: 2 },
-  { q: 'country:TR "ERP" http.title port:443', label: "TR ERP Sistemleri (Yüksek değer)", priority: 1 },
-  { q: 'country:TR "Outlook Web" http.title', label: "TR Microsoft Exchange", priority: 2 },
-  { q: 'country:TR "Fortinet" OR "FortiGate" port:443', label: "TR Fortinet Cihazları", priority: 1 },
+  { q: "ssl.cert.subject.cn:.com.tr country:TR", label: "TR .com.tr SSL Sertifikaları", priority: 1 },
+  { q: "ssl.cert.subject.cn:.net.tr country:TR", label: "TR .net.tr SSL Sertifikaları", priority: 2 },
+  { q: 'country:TR http.title:"ERP" port:443', label: "TR ERP Sistemleri (Yüksek değer)", priority: 1 },
+  { q: 'country:TR http.title:"Outlook Web App"', label: "TR Microsoft Exchange", priority: 2 },
+  { q: 'country:TR product:"Fortinet" port:443', label: "TR Fortinet Cihazları", priority: 1 },
   { q: 'country:TR product:"VMware vSphere"', label: "TR VMware Altyapısı", priority: 2 },
-  { q: 'country:TR http.title:"Giriş" port:443 ssl', label: "TR Giriş Sayfaları (Kurumsal)", priority: 3 },
-  { q: "ssl.cert.subject.o:* country:TR port:443", label: "TR Kurumsal SSL (Organizasyonlu)", priority: 2 },
+  { q: 'country:TR http.title:"Giriş" port:443', label: "TR Giriş Sayfaları (Kurumsal)", priority: 3 },
+  { q: "country:TR port:443 ssl org:.com.tr", label: "TR Kurumsal SSL (.com.tr org)", priority: 2 },
 ];
 
 function extractRootDomain(hostname: string): string {
@@ -189,18 +189,32 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
     logger.info({ runId: run.id, added }, "Shodan scan done");
     return { runId: run.id, label: qConfig.label, totalOnShodan: (response.data.total as number) ?? 0, processed: matches.length, addedToLeads: added };
   } catch (err: unknown) {
-    const status = axios.isAxiosError(err) ? err.response?.status : null;
+    const isAxios = axios.isAxiosError(err);
+    const status = isAxios ? err.response?.status : null;
+    const responseBody = isAxios ? err.response?.data : undefined;
     let errorMessage = String(err);
 
+    logger.error(
+      { queryIndex, query: qConfig.q, status, responseBody },
+      "Shodan API error — tam hata detayi",
+    );
+
     if (status === 401) {
-      errorMessage = "Shodan 401: API key bu endpoint için yetkisiz. Ücretli plan gerekiyor.";
+      errorMessage = "Shodan 401: API key bu endpoint için yetkisiz.";
     } else if (status === 402) {
       errorMessage = "Shodan 402: Sorgu kredisi yetersiz.";
     } else if (status === 429) {
-      errorMessage = "Shodan 429: Rate limit aşıldı. Birkaç dakika sonra tekrar deneyin.";
-    } else if (status === 500) {
-      errorMessage = "Shodan 500: Shodan API geçici hata döndürdü. Sorgu sınırı veya sunucu sorunu olabilir.";
-      logger.warn({ queryIndex, status }, errorMessage);
+      errorMessage = "Shodan 429: Rate limit aşıldı.";
+    } else if (status === 400) {
+      const detail = typeof responseBody === "object" && responseBody !== null
+        ? JSON.stringify(responseBody)
+        : String(responseBody ?? "");
+      errorMessage = `Shodan 400: Geçersiz sorgu sözdizimi — ${detail}`;
+    } else if (status != null && status >= 500) {
+      const detail = typeof responseBody === "object" && responseBody !== null
+        ? JSON.stringify(responseBody)
+        : String(responseBody ?? "geçici sunucu hatası");
+      errorMessage = `Shodan ${status}: Shodan sunucu hatası — ${detail}`;
       await db.update(discoveryRunsTable).set({ status: "failed", errorMessage })
         .where(eq(discoveryRunsTable.id, run.id));
       return { runId: run.id, label: qConfig.label, totalOnShodan: 0, processed: 0, addedToLeads: 0 };

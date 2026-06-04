@@ -236,7 +236,7 @@ export default function Pricing() {
       <section className="py-16 bg-secondary text-secondary-foreground relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">Fiyatlandırma</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Fiyatlandırma</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">Şeffaf ve Adil Fiyatlar</h1>
           <p className="text-white/80 text-lg max-w-xl mx-auto">
             Mini değerlendirme tamamen ücretsiz. Daha derin bir analiz için Tam Değerlendirme paketi tek seferlik ödemedir.
@@ -392,7 +392,7 @@ export default function Pricing() {
       <section className="pb-16 bg-background">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="text-center mb-8">
-            <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-3">Yeni</Badge>
+            <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">Yeni</Badge>
             <h2 className="text-2xl font-bold mb-2">AI Güvenlik Servisleri</h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-sm">
               Yapay zeka araçlarının yayılmasıyla birlikte yeni uyum yükümlülükleri doğuyor. Politikanızı güncel tutun, araçlarınızı izleyin, saldırıları önceden görün.
@@ -500,7 +500,7 @@ export default function Pricing() {
       <section id="kurumsal-servisler" className="pb-16 bg-background">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-10">
-            <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-3">Kurumsal</Badge>
+            <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">Kurumsal</Badge>
             <h2 className="text-2xl font-bold mb-2">Kurumsal Güvenlik Servisleri</h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-sm">
               Fortinet, Microsoft 365, DNS ve KVKK gibi entegrasyonları aylık abonelikle aktive edin. Her servis ayrı satın alınabilir.

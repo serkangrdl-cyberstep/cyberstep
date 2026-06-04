@@ -90,7 +90,7 @@ export default function ErpEntegrasyonu() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-4xl relative z-10 text-center">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">ERP Ortaklık Programı</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">ERP Ortaklık Programı</Badge>
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
             200.000 KOBİ'ye<br />muhasebe ekranından ulaşın
           </h1>

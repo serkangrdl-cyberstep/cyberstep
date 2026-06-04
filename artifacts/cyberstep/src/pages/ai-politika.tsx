@@ -29,7 +29,7 @@ function LandingView() {
       <section className="py-20 bg-secondary relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{priceLabel}</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">AI Politika Otomatik Güncelleme</h1>
           <p className="text-xl text-white/80 mb-2">KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Siz sadece imzalayın.</p>

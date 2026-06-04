@@ -155,7 +155,7 @@ export default function GuvenlikMerkezi() {
               <Shield className="h-7 w-7 text-primary" />
             </div>
             <div>
-              <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-3">Güvenlik Merkezi</Badge>
+              <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">Güvenlik Merkezi</Badge>
               <h1 className="text-3xl sm:text-4xl font-black text-white mb-3">Platform Güvenlik ve Güven Merkezi</h1>
               <p className="text-white/80 text-base max-w-2xl">
                 CyberStep müşteri verilerini nasıl korur, hangi teknik kontrolleri uygular ve uyumluluk yol haritamız.

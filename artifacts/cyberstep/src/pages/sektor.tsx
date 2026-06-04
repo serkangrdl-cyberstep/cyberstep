@@ -192,7 +192,7 @@ function SectorPageContent({ data }: { data: SectorData }) {
       <section className="py-16 bg-secondary text-secondary-foreground relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10">
-          <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{data.badge}</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{data.badge}</Badge>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 max-w-2xl">{data.headline}</h1>
           <p className="text-white/80 text-lg max-w-2xl mb-8">{data.subheadline}</p>
           <Link href="/assessment/start">

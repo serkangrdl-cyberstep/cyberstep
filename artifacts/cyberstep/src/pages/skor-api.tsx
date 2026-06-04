@@ -252,7 +252,7 @@ export default function SkorApi() {
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
           <div className="flex flex-col md:flex-row items-start gap-12">
             <div className="flex-1">
-              <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">
+              <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">
                 <Code2 className="h-3.5 w-3.5 mr-1.5" />CyberStep Skor API — v1
               </Badge>
               <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">

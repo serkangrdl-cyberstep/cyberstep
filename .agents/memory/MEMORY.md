@@ -1,3 +1,4 @@
+- [bg-primary/20 badge contrast fix](badge-primary-contrast.md) — NEVER use text-primary-foreground on bg-primary/20 inside dark sections; use text-primary instead (17 pages fixed)
 - [Cron Health Monitoring](cron-health-monitoring.md) — wrapCron() in cronRegistry.ts; cron_job_runs table; 3-tab admin UI at /panel/cron-ayarlari; 7 night crons instrumented
 - [AI report JSON parsing](report-ai-json.md) — never store raw model JSON into aiAnalysis; parse robustly + heal legacy rows at every report-read surface
 - [Badge advantages feature](badge-advantages.md) — timed verification badges (1/2 year) + admin CRUD + public display on landing + report pages

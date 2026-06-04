@@ -235,7 +235,7 @@ export default function DoraBddkUyum() {
             <h1 className="text-4xl font-bold mb-4">
               BDDK · SPK · EPDK · DORA
             </h1>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-white/80 text-lg">
               AB'de DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk metriklerini
               zorunlu kılmaya hazırlanıyor. Şimdi bu dili konuşun — regülasyon geldiğinde hazır oyuncu olun.
             </p>

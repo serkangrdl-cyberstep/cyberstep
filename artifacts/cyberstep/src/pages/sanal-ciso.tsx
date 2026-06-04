@@ -363,7 +363,7 @@ export default function CisoAsistan() {
       <section className="py-14 bg-secondary text-secondary-foreground border-t">
         <div className="container mx-auto px-4 max-w-3xl text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Önce mevcut durumunuzu görelim</h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-white/80 mb-6">
             CISO Asistan paketini aktive etmeden önce ücretsiz domain taraması ile güvenlik durumunuzu netleştirelim.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

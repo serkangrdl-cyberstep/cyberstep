@@ -85,7 +85,7 @@ export default function RoiHesaplayici() {
           <h1 className="text-4xl font-bold mb-4">
             Şirketinizin Siber Risk Maliyeti Ne Kadar?
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
             Sektörünüze ve şirket büyüklüğüne göre olası siber saldırı maliyetini, KVKK ceza riskini
             ve CyberStep ile sağlayacağınız tasarrufu hesaplayın.
           </p>

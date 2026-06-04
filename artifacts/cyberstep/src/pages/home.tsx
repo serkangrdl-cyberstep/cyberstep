@@ -627,7 +627,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-white mb-4">
                 {lang === "en" ? "What Is Your Domain Security Score?" : "Alan Adınızın Güvenlik Skoru Kaç?"}
               </h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">
+              <p className="text-white/80 max-w-xl mx-auto">
                 {lang === "en"
                   ? "Instantly check SPF, DMARC, SSL and blacklist status of your company's domain — no registration required."
                   : "Şirketinizin alan adında SPF, DMARC, SSL ve kara liste durumunu anında kontrol edin. Kayıt gerekmez."}
@@ -1362,7 +1362,7 @@ export default function Home() {
         <div className="container mx-auto px-4 text-center">
           <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-white mb-4">{t(T.home.ctaTitle, lang)}</h2>
-          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+          <p className="text-white/80 mb-8 max-w-xl mx-auto">
             {t(T.home.ctaSub, lang)}
           </p>
           <Link

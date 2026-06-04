@@ -82,7 +82,7 @@ export default function MarkaKoruma() {
           <h1 className="text-4xl font-bold mb-4">
             Sahte Domain'ler Markanızı Kullanıyor Mu?
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
             Alan adınızın olası taklitlerini DNS üzerinden kontrol eder. Phishing saldırıları ve
             müşteri kaybı için kullanılabilecek kayıtlı taklit domain'leri tespit eder.
           </p>

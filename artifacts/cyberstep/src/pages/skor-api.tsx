@@ -258,11 +258,11 @@ export default function SkorApi() {
               <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
                 5 Endpoint.<br />3 Katman.<br />Webhook Dahil.
               </h1>
-              <p className="text-muted-foreground text-base leading-relaxed mb-6 max-w-md">
+              <p className="text-white/80 text-base leading-relaxed mb-6 max-w-md">
                 Türkiye'nin kredi notu benzeri domain güvenlik skoru API'si.
                 Freemium'dan Kurumsal'a sıfır entegrasyon maliyetiyle başlayın.
               </p>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-8">
+              <div className="flex items-center gap-4 text-sm text-white/60 mb-8">
                 <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />&lt;200ms yanıt</span>
                 <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />REST · JSON</span>
                 <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />%99.9 SLA</span>

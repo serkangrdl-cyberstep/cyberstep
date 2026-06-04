@@ -454,7 +454,7 @@ export default function TedarikZinciri() {
           <h1 className="text-4xl font-bold mb-4">
             Tedarikçileriniz Ne Kadar Güvenli?
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-3">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto mb-3">
             Üretim, tekstil ve e-ticaret şirketleri Avrupa alıcılarından TPRM raporu isteniyor.
             CyberStep bu raporun Türkçe kaynağı olabilir.
           </p>

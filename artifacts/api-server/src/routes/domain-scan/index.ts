@@ -1113,18 +1113,17 @@ router.post("/domain-scan", async (req, res) => {
     return;
   }
 
-  if (!rawEmail || typeof rawEmail !== "string" || rawEmail.trim().length === 0) {
-    res.status(400).json({ error: "E-posta adresi zorunludur" });
-    return;
-  }
-  const emailStr = rawEmail.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr)) {
-    res.status(400).json({ error: "Geçersiz e-posta adresi" });
-    return;
+  let email: string | null = null;
+  if (rawEmail && typeof rawEmail === "string" && rawEmail.trim().length > 0) {
+    const emailStr = rawEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr)) {
+      res.status(400).json({ error: "Geçersiz e-posta adresi" });
+      return;
+    }
+    email = emailStr;
   }
 
   const domain = sanitizeDomain(rawDomain);
-  const email = emailStr;
 
   // basic domain pattern check
   if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/.test(domain)) {
@@ -1336,16 +1335,18 @@ router.post("/domain-scan", async (req, res) => {
         });
       }
 
-      // Save to scan_leads for drip email campaign
-      db.insert(scanLeadsTable)
-        .values({
-          email: email.toLowerCase(),
-          domain: scan.domain,
-          scanId: scan.id,
-          overallScore: scan.overallScore,
-        })
-        .execute()
-        .catch((err: unknown) => logger.warn({ err }, "Scan lead save failed"));
+      // Save to scan_leads for drip email campaign (only when email provided)
+      if (email) {
+        db.insert(scanLeadsTable)
+          .values({
+            email: email.toLowerCase(),
+            domain: scan.domain,
+            scanId: scan.id,
+            overallScore: scan.overallScore,
+          })
+          .execute()
+          .catch((err: unknown) => logger.warn({ err }, "Scan lead save failed"));
+      }
 
       // Fire-and-forget: redirect domain detection
       setImmediate(async () => {

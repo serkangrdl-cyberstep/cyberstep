@@ -130,7 +130,7 @@ export default function FinansalKayip() {
           <h1 className="text-4xl font-bold mb-4">
             Siber Saldırı Kaça Mal Olur?
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
             IBM Cost of Data Breach ve Verizon DBIR verilerine dayalı, Türkiye KOBİ pazarına uyarlanmış
             finansal etki hesaplayıcısı. Altı kategoride TL bazında kayıp aralığı.
           </p>

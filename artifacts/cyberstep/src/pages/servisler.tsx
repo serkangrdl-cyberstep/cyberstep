@@ -301,7 +301,7 @@ export default function ServislerPage() {
       <section className="py-16 bg-secondary">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">{service.label} için hazır mısınız?</h2>
-          <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+          <p className="text-white/80 mb-6 max-w-xl mx-auto">
             Ücretsiz demo talebinde bulunun veya hemen satın alarak hizmetinizi başlatın.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

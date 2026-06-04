@@ -114,7 +114,7 @@ export default function SaldiriSimulasyonu() {
           <h1 className="text-4xl font-bold mb-4">
             Siber İkiz — Saldırgan Gözüyle Şirketinize Bakın
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
             "Eğer ben saldırgan olsaydım, şirketinize nasıl sızardım?" Gemini AI gerçekçi bir saldırı senaryosu,
             finansal etki analizi ve önleyici 3 hamle üretir.
           </p>

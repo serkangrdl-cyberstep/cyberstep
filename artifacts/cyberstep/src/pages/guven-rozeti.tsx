@@ -114,7 +114,7 @@ export default function GuvenRozeti() {
           <h1 className="text-4xl font-bold mb-4">
             Güvenlik Durumunuzu Müşterilerinize Gösterin
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
             Web sitenize ekleyebileceğiniz, canlı güncellenen güvenlik skoru rozeti. SSL sertifikası
             ve kilit ikonunun siber güvenlik versiyonu — müşteri güvenini somutlaştırır.
           </p>

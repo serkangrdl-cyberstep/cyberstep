@@ -70,7 +70,7 @@ function fmtTime(iso: string): string {
 // ─── Metrik kartı ─────────────────────────────────────────────────────────────
 
 function MetricCard({
-  icon: Icon, label, value, sub, highlight, warn,
+  icon: Icon, label, value, sub, highlight, warn, href,
 }: {
   icon: React.ElementType;
   label: string;
@@ -78,13 +78,16 @@ function MetricCard({
   sub?: string;
   highlight?: boolean;
   warn?: boolean;
+  href?: string;
 }) {
-  return (
-    <div className={`rounded-xl border p-4 flex flex-col gap-2 ${
-      warn ? "border-red-800 bg-red-950/20" :
-      highlight ? "border-primary/40 bg-primary/5" :
-      "border-border bg-card"
-    }`}>
+  const cls = `rounded-xl border p-4 flex flex-col gap-2 ${
+    warn ? "border-red-800 bg-red-950/20" :
+    highlight ? "border-primary/40 bg-primary/5" :
+    "border-border bg-card"
+  } ${href ? "cursor-pointer hover:border-primary/50 transition-colors" : ""}`;
+
+  const inner = (
+    <>
       <div className="flex items-center gap-2">
         <Icon className={`h-4 w-4 ${warn ? "text-red-400" : "text-primary"}`} />
         <span className="text-xs text-muted-foreground">{label}</span>
@@ -93,8 +96,13 @@ function MetricCard({
         {value}
       </div>
       {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
-    </div>
+    </>
   );
+
+  if (href) {
+    return <a href={href} className={cls}>{inner}</a>;
+  }
+  return <div className={cls}>{inner}</div>;
 }
 
 // ─── Aksiyon satırı ───────────────────────────────────────────────────────────
@@ -364,6 +372,8 @@ export default function DailyDashboard() {
                     label="CVE Uyarısı"
                     value={summary.cveAlertsLast24h}
                     warn={summary.cveAlertsLast24h > 0}
+                    sub="Son 24s NVD/CISA KEV — detay için tıkla"
+                    href="/panel/cve"
                   />
                   <MetricCard
                     icon={Activity}

@@ -154,7 +154,7 @@ export default function AdminDashboard() {
         {/* Quick links */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { label: "Değerlendirmeleri Yönet", desc: "Tüm anket sonuçlarını görüntüle", href: "/panel/degerlendiirmeler", icon: FileText },
+            { label: "Değerlendirmeleri Yönet", desc: "Tüm anket sonuçlarını görüntüle", href: "/panel/degerlendirmeler", icon: FileText },
             { label: "Müşteri Yönetimi", desc: "Abonelikler, plan atamaları", href: "/panel/musteriler", icon: Users },
             { label: "Alan Adı Taramaları", desc: "Tüm domain tarama geçmişi", href: "/panel/domain-taramalar", icon: Globe },
             { label: "Site Ayarlarını Düzenle", desc: "Hakkımızda, servisler, KVKK", href: "/panel/ayarlar", icon: Settings },

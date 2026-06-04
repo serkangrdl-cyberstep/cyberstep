@@ -140,30 +140,7 @@ router.get("/admin-panel/domain-scans", requireAdmin, async (req: Request, res: 
   res.json({ total: Number(cnt), page, rows });
 });
 
-// ─── Detail ───────────────────────────────────────────────────────────────────
-router.get("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
-
-  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, id));
-  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
-
-  res.json(scan);
-});
-
-// ─── Delete ───────────────────────────────────────────────────────────────────
-router.delete("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
-
-  const [deleted] = await db.delete(domainScansTable).where(eq(domainScansTable.id, id)).returning({ id: domainScansTable.id });
-  if (!deleted) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
-
-  logger.info({ scanId: id }, "Domain scan deleted by admin");
-  res.json({ ok: true });
-});
-
-// ─── Scheduled / upcoming re-scans ────────────────────────────────────────────
+// ─── Scheduled / upcoming re-scans ── MUST be before /:id ────────────────────
 router.get("/admin-panel/domain-scans/scheduled", requireAdmin, async (_req: Request, res: Response) => {
   const now = new Date();
   const day25 = new Date(now.getTime() - 25 * 24 * 3600 * 1000);
@@ -186,6 +163,29 @@ router.get("/admin-panel/domain-scans/scheduled", requireAdmin, async (_req: Req
   const completed = all.filter(r => r.notified_at !== null);
 
   res.json({ overdue, upcoming, completed: completed.slice(0, 20) });
+});
+
+// ─── Detail ───────────────────────────────────────────────────────────────────
+router.get("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, id));
+  if (!scan) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+
+  res.json(scan);
+});
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+router.delete("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [deleted] = await db.delete(domainScansTable).where(eq(domainScansTable.id, id)).returning({ id: domainScansTable.id });
+  if (!deleted) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+
+  logger.info({ scanId: id }, "Domain scan deleted by admin");
+  res.json({ ok: true });
 });
 
 // ─── Manual scan trigger ──────────────────────────────────────────────────────

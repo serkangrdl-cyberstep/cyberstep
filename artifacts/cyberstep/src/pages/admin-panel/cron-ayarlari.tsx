@@ -279,7 +279,7 @@ function ConfigurableJobCard({
                 )}
               </div>
             )}
-            {job.state.lastError && (
+            {job.state.lastRunStatus === "error" && job.state.lastError && (
               <div className="text-xs text-red-400 truncate" title={job.state.lastError}>
                 Hata: {job.state.lastError}
               </div>

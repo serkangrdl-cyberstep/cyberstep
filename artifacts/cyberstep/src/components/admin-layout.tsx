@@ -115,7 +115,7 @@ const NAV_SECTIONS = [
       { icon: ShieldAlert,     label: "SOC Operasyon",         href: "/panel/soc" },
       { icon: ShieldAlert,     label: "Haftalık Bülten",       href: "/panel/bulletin" },
       { icon: Network,         label: "NOC Operasyon",         href: "/panel/noc" },
-      { icon: Activity,        label: "Observability",         href: "/panel/observability" },
+      { icon: Activity,        label: "Gözlemlenebilirlik",    href: "/panel/observability" },
       { icon: Globe,           label: "DNS İzleme",            href: "/panel/dns-izleme" },
       { icon: ShieldAlert,     label: "CT Log İzleme",         href: "/panel/ct-izleme" },
       { icon: Building2,       label: "Microsoft 365",         href: "/panel/ms365" },

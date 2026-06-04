@@ -103,11 +103,11 @@ export default function AdminObservability() {
   ];
 
   return (
-    <AdminLayout title="Observability & Monitoring">
+    <AdminLayout title="Gözlemlenebilirlik">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Observability & Monitoring</h1>
-          <p className="text-gray-400 text-sm mt-1">Datadog + Azure Monitor entegrasyonlari ve platform metrikleri.</p>
+          <h1 className="text-2xl font-bold text-white">Gözlemlenebilirlik & İzleme</h1>
+          <p className="text-gray-400 text-sm mt-1">Datadog + Azure Monitor entegrasyonları ve platform metrikleri.</p>
         </div>
 
         {/* Tab Navigation */}

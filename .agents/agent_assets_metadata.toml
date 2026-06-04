@@ -42,3 +42,9 @@ id = "PJeYBIlqo-O3Tqv9r7SBI"
 uri = "file://.local/cyberstep-kaynak-kod.zip"
 type = "unspecified"
 title = "CyberStep.io Kaynak Kodu"
+
+[[outputs]]
+id = "qY84c5nMBvjb7Y3YWdaKy"
+uri = "file://cyberstep-code.zip"
+type = "unspecified"
+title = "CyberStep.io — Kaynak Kod"

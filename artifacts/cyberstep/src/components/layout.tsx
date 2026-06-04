@@ -83,7 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {wl ? (
             <div className="flex items-center gap-3 shrink-0">
               {wl.logoUrl ? (
-                <img src={wl.logoUrl} alt={wl.name} className="h-8 object-contain max-w-[140px]" />
+                <img src={wl.logoUrl} alt={wl.name} loading="lazy" className="h-8 object-contain max-w-[140px]" />
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ backgroundColor: wl.primaryColor }}>

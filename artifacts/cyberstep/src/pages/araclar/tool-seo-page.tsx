@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { ChevronRight, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -295,6 +295,54 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
     canonicalPath: `/araclar/${config.slug}`,
     keywords: `${config.h1}, ücretsiz araç, siber güvenlik, domain tarama, CyberStep.io`,
   });
+
+  // SoftwareApplication + FAQPage JSON-LD — Google zengin sonuçları için
+  useEffect(() => {
+    const schemas: object[] = [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": config.h1,
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Web",
+        "url": `https://cyberstep.io/araclar/${config.slug}`,
+        "description": config.metaDescription,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "TRY",
+          "description": "Ücretsiz",
+        },
+        "provider": {
+          "@type": "Organization",
+          "name": "CyberStep.io",
+          "url": "https://cyberstep.io",
+        },
+        "inLanguage": "tr-TR",
+      },
+    ];
+    if (config.faq.length > 0) {
+      schemas.push({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": config.faq.map(f => ({
+          "@type": "Question",
+          "name": f.q,
+          "acceptedAnswer": { "@type": "Answer", "text": f.a },
+        })),
+      });
+    }
+    const id = `ld-json-tool-${config.slug}`;
+    let el = document.getElementById(id) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = id;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify(schemas);
+    return () => { el?.remove(); };
+  }, [config.slug, config.h1, config.metaDescription, config.faq]);
 
   return (
     <div>

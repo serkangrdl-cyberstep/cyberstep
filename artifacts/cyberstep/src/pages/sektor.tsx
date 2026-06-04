@@ -1,5 +1,6 @@
 import { useRoute } from "wouter";
 import { Link } from "wouter";
+import { useEffect } from "react";
 import { Shield, AlertTriangle, CheckCircle2, ChevronRight, TrendingUp, FileWarning, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,38 @@ function SectorPageContent({ data }: { data: SectorData }) {
     canonicalPath: `/sektor/${data.slug}`,
     keywords: `${data.name} sektörü siber güvenlik, ${data.name} KVKK, KOBİ siber güvenlik`,
   });
+
+  // Service JSON-LD — sektör sayfaları için Google zengin sonuçları
+  useEffect(() => {
+    const id = `ld-json-sektor-${data.slug}`;
+    let el = document.getElementById(id) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = id;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "name": `${data.name} Sektörü Siber Güvenlik Değerlendirmesi`,
+      "description": data.metaDesc,
+      "url": `https://cyberstep.io/sektor/${data.slug}`,
+      "provider": {
+        "@type": "Organization",
+        "name": "CyberStep.io",
+        "url": "https://cyberstep.io",
+      },
+      "areaServed": "TR",
+      "availableLanguage": "Turkish",
+      "serviceType": "Siber Güvenlik Değerlendirmesi",
+      "audience": {
+        "@type": "BusinessAudience",
+        "audienceType": `${data.name} Sektörü KOBİ`,
+      },
+    });
+    return () => { el?.remove(); };
+  }, [data.slug, data.name, data.metaDesc]);
 
   return (
     <div className="flex flex-col flex-1">

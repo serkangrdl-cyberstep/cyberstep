@@ -258,7 +258,7 @@ export default function BlogPost() {
 
       {post.coverImageBase64 && (
         <div className="mb-8 rounded-xl overflow-hidden">
-          <img src={post.coverImageBase64} alt={displayTitle} className="w-full max-h-96 object-cover" />
+          <img src={post.coverImageBase64} alt={displayTitle} loading="lazy" className="w-full max-h-96 object-cover" />
         </div>
       )}
 

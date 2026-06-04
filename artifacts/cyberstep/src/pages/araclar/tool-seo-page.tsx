@@ -390,7 +390,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       </section>
 
       {/* FAQ */}
-      <section className="py-12 bg-background">
+      <section className="py-12 bg-secondary/20">
         <div className="container mx-auto px-4 max-w-3xl space-y-5">
           <h2 className="text-2xl font-bold text-white">Sik Sorulan Sorular</h2>
           <div className="space-y-4">

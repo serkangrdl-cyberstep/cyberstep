@@ -309,7 +309,7 @@ function startReminderCron() {
             checkMX(scan.domain),
             checkSSL(scan.domain),
           ]);
-          const newScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+          const newScore = calcScore(spf.pass, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
           const scoreChanged = newScore !== scan.overallScore;
 
           await db.insert(domainScansTable).values({
@@ -396,7 +396,7 @@ function startReminderCron() {
             checkMX(scan.domain),
             checkSSL(scan.domain),
           ]);
-          const newScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass);
+          const newScore = calcScore(spf.pass, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
 
           const changes: Array<{ check: string; wasPass: boolean; isPass: boolean }> = [];
           if ((scan.spfPass ?? false) !== spf.pass) changes.push({ check: "SPF (Sahte E-posta Koruması)", wasPass: scan.spfPass ?? false, isPass: spf.pass });
@@ -2125,7 +2125,7 @@ startup()
     logger.info("KVKK scheduled deletion cron scheduled (04:00 Istanbul)");
 
     // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
-    cron.schedule("0 2 * * *", wrapCron("attack_path_analysis", "0 2 * * *", async () => {
+    cron.schedule("30 2 * * *", wrapCron("attack_path_analysis", "30 2 * * *", async () => {
       const { analyzeAttackPaths, getLatestScan, getActiveCustomers } = await import("./services/attackPathAnalyzer");
       const customers = await getActiveCustomers();
       let analyzed = 0;
@@ -2139,7 +2139,7 @@ startup()
       }
       return analyzed;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Attack path analysis cron scheduled (02:00 Istanbul)");
+    logger.info("Attack path analysis cron scheduled (02:30 Istanbul)");
 
     // ─── CASM: Remediation doğrulama kuyruğu — Her saat ─────────────────────
     cron.schedule("0 * * * *", async () => {

@@ -54,6 +54,18 @@ export async function escalateCase(caseId: number, level: number, reason: string
   }
   if (notifyAdmin && !ADMIN_EMAIL) {
     logger.error({ caseId, level }, "SOC_ADMIN_EMAIL tanımlı değil — eskalasyon emaili GÖNDERİLEMEDİ. Bu env var'ı hemen ayarlayın.");
+    const tgToken = process.env["ADMIN_TELEGRAM_BOT_TOKEN"];
+    const tgChat  = process.env["ADMIN_TELEGRAM_CHAT_ID"];
+    if (tgToken && tgChat) {
+      void fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: tgChat,
+          text: `SOC_ADMIN_EMAIL tanimli degil!\nCase #${caseId} eskalasyonu (Seviye ${level}) admin emaili GONDERILEMEDI.`,
+        }),
+      }).catch(() => {});
+    }
   }
   if (notifyAdmin && ADMIN_EMAIL) {
     await sendSOCNotification(socCase.customerId, caseId, {

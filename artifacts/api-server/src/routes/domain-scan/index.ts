@@ -134,8 +134,30 @@ async function checkSSL(domain: string): Promise<{
   });
 }
 
-function calcScore(spf: boolean, dmarc: boolean, dkim: boolean, mx: boolean, ssl: boolean, portDeduction = 0): number {
-  const base = (spf ? 20 : 0) + (dmarc ? 25 : 0) + (dkim ? 20 : 0) + (mx ? 10 : 0) + (ssl ? 25 : 0);
+function calcScore(
+  spf: boolean,
+  dmarcPolicy: string | null,
+  dkim: boolean,
+  mx: boolean,
+  sslDaysLeft: number,
+  portDeduction = 0,
+): number {
+  // SSL — kademeli puan (binary 30-gün eşiği yerine)
+  const sslScore =
+    sslDaysLeft <= 0  ? 0  :
+    sslDaysLeft <= 7  ? 0  :
+    sslDaysLeft <= 14 ? 15 :
+    sslDaysLeft <= 30 ? 20 :
+    25;
+
+  // DMARC — kademeli puan (p=none izleme modu artık 0 değil)
+  const dmarcScore =
+    dmarcPolicy === "reject"     ? 25 :
+    dmarcPolicy === "quarantine" ? 20 :
+    dmarcPolicy === "none"       ? 15 :
+    0;
+
+  const base = (spf ? 20 : 0) + dmarcScore + (dkim ? 20 : 0) + (mx ? 10 : 0) + sslScore;
   return Math.max(0, base - portDeduction);
 }
 
@@ -1144,7 +1166,14 @@ export async function performDomainScan(domain: string): Promise<{
       checkShodan(domain).catch(() => null),
     ]);
 
-    const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass, shodan?.portRiskSummary?.scoreDeduction ?? 0);
+    const overallScore = calcScore(
+      spf.pass,
+      dmarc.policy ?? null,
+      dkim.pass,
+      mx.pass,
+      ssl.daysUntilExpiry ?? 999,
+      shodan?.portRiskSummary?.scoreDeduction ?? 0,
+    );
 
     const cveSummary: NvdCveEntry[] = shadowIt.services.length > 0
       ? await checkNvdCve(shadowIt.services).catch(() => [])
@@ -1284,7 +1313,14 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       checkKEP(domain),
     ]);
 
-    const overallScore = calcScore(spf.pass, dmarc.pass, dkim.pass, mx.pass, ssl.pass, shodan?.portRiskSummary?.scoreDeduction ?? 0);
+    const overallScore = calcScore(
+      spf.pass,
+      dmarc.policy ?? null,
+      dkim.pass,
+      mx.pass,
+      ssl.daysUntilExpiry ?? 999,
+      shodan?.portRiskSummary?.scoreDeduction ?? 0,
+    );
     const { detectWAF } = await import("../../services/wafDetector");
     const { checkDirectIPAccess } = await import("../../services/wafBypassChecker");
     const { adjustCvesForWAF } = await import("../../services/riskAdjuster");

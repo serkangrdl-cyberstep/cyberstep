@@ -41,7 +41,7 @@ function LandingView() {
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">AI Araç İzleme</h1>
-          <p className="text-xl text-muted-foreground mb-2">ChatGPT, Gemini, Copilot... Gizlilik politikaları sürekli değişiyor.</p>
+          <p className="text-xl text-white/80 mb-2">ChatGPT, Gemini, Copilot... Gizlilik politikaları sürekli değişiyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Değişikliği siz öğrenmeden önce CyberStep size bildiriyor.</p>
           <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
             İzlemeyi Başlat <ChevronRight className="h-5 w-5" />

@@ -78,7 +78,7 @@ export default function ZeroDayUyari() {
               <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight">
                 Zero-Day Patladığında<br />Siz Zaten Haberdarsınız
               </h1>
-              <p className="text-muted-foreground text-base mb-6 max-w-lg leading-relaxed">
+              <p className="text-white/80 text-base mb-6 max-w-lg leading-relaxed">
                 Log4Shell, MOVEit, Citrix Bleed — dünya 48 saat içinde hacklenenlere ve haberdarlara bölünüyor.
                 CyberStep, CISA KEV'i saatlik izler, stack'inizle eşleşen her CVE'yi anında WhatsApp ve e-posta ile bildirir.
               </p>

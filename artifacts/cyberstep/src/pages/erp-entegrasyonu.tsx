@@ -94,7 +94,7 @@ export default function ErpEntegrasyonu() {
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
             200.000 KOBİ'ye<br />muhasebe ekranından ulaşın
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Logo, Mikro, Netsis veya Luca yazılımınıza tek bir API entegrasyonuyla
             CyberStep güvenlik widget'ı ekleyin. Müşteri her gün gördüğü ekranda
             kendi siber güvenlik skorunu görür. Tıklayınca siz komisyon alırsınız.

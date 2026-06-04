@@ -22,10 +22,10 @@ function LandingPage({ onStart }: { onStart: () => void }) {
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">Yapay Zeka ile Sizi Hedef Alan Saldırı Böyle Görünür</h1>
-          <p className="text-lg text-muted-foreground mb-6">
+          <p className="text-lg text-white/80 mb-6">
             Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.
           </p>
-          <p className="text-lg text-muted-foreground mb-8">CyberStep, sizi hedef alan bir saldırının nasıl görüneceğini <strong className="text-white">3 farklı senaryoyla</strong> gösteriyor.</p>
+          <p className="text-lg text-white/80 mb-8">CyberStep, sizi hedef alan bir saldırının nasıl görüneceğini <strong className="text-white">3 farklı senaryoyla</strong> gösteriyor.</p>
           <button onClick={onStart} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
             Simülasyonu Başlat <ChevronRight className="h-5 w-5" />
           </button>

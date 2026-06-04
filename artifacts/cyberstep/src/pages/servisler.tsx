@@ -180,7 +180,7 @@ export default function ServislerPage() {
               </Badge>
             </div>
             <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">{service.label}</h1>
-            <p className="text-lg text-muted-foreground mb-8 leading-relaxed max-w-2xl">{service.shortDescription}</p>
+            <p className="text-lg text-white/80 mb-8 leading-relaxed max-w-2xl">{service.shortDescription}</p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
                 href={`/satin-al/${service.slug}`}

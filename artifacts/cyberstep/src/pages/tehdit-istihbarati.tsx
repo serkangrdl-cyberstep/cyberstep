@@ -119,7 +119,7 @@ export default function TehditIstihbarati() {
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
             Türkiye'nin En Büyük<br />Siber Güvenlik Veri Havuzu
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             CyberStep büyüdükçe Türkiye'nin en kapsamlı siber risk veritabanına sahip olacak.
             Bu veri başlı başına bir ürün — üç farklı model, üç farklı müşteri grubu.
           </p>

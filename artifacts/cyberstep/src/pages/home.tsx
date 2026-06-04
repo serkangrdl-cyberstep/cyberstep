@@ -460,7 +460,7 @@ export default function Home() {
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
               {t(T.home.heroTitle, lang)}
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground">
+            <p className="text-lg md:text-xl text-white/80">
               {t(T.home.heroSubtitle, lang)}
             </p>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-400 pt-2">

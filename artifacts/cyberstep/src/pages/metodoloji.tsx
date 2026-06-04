@@ -87,7 +87,7 @@ export default function Metodoloji() {
         <div className="container mx-auto px-4 max-w-4xl relative z-10">
           <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">Metodoloji Belgesi</Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4">CyberStep Değerlendirme Metodolojisi</h1>
-          <p className="text-muted-foreground text-base max-w-2xl leading-relaxed mb-6">
+          <p className="text-white/80 text-base max-w-2xl leading-relaxed mb-6">
             CyberStep skorlarının nasıl hesaplandığı, hangi uluslararası standartları kullandığı ve
             her metriğin neden önemli olduğu hakkında teknik referans belgesi.
             Hedef kitle: CISO, güvenlik ekipleri, denetçiler, entegrasyon ortakları.

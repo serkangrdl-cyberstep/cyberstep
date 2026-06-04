@@ -75,7 +75,7 @@ export default function TedarikciOnboarding() {
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
             Yeni Tedarikçinizin Güvenliğini<br />Otomatik Değerlendirin
           </h1>
-          <p className="text-muted-foreground text-base mb-6 max-w-xl leading-relaxed">
+          <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Büyük şirketler yeni tedarikçi alırken siber güvenlik sorusu sormuyor.
             CyberStep domain taraması + TPRM anketi + AI tavsiyesini birleştirerek 48 saat içinde
             "Onayla / Şartlı / Reddet" kararını verir.

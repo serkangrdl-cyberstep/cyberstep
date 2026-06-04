@@ -67,7 +67,7 @@ export default function GithubTarama() {
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
             Public Repo'nuzda API Key<br />Açıkta mı? Bilmiyorsunuz.
           </h1>
-          <p className="text-muted-foreground text-base mb-6 max-w-xl leading-relaxed">
+          <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Türkiye'deki 5.000+ yazılım firmasının büyük çoğunluğunun repo güvenliği sıfır.
             CyberStep, GitHub, NPM ve Docker Hub'ı Gitleaks ile tarar; exposed secret ve açık bağımlılıkları raporlar.
           </p>

@@ -159,7 +159,7 @@ function SectorPageContent({ data }: { data: SectorData }) {
         <div className="container mx-auto px-4 relative z-10">
           <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{data.badge}</Badge>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 max-w-2xl">{data.headline}</h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mb-8">{data.subheadline}</p>
+          <p className="text-white/80 text-lg max-w-2xl mb-8">{data.subheadline}</p>
           <Link href="/assessment/start">
             <Button size="lg" className="text-base">
               {data.ctaText} <ChevronRight className="ml-2 h-5 w-5" />

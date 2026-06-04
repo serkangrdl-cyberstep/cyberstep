@@ -88,7 +88,7 @@ export default function ComplianceCalendar() {
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
             Hiçbir Regülasyon Deadline'ını<br />Kaçırmayın
           </h1>
-          <p className="text-muted-foreground text-base mb-6 max-w-xl leading-relaxed">
+          <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             KVKK yıllık bildirimi, VERBİS güncelleme tarihleri, BTK bildirim süreleri, BDDK değerlendirmeleri —
             hepsini tek takvimde takip edin. 30-14-7 gün öncesi WhatsApp ve e-posta hatırlatıcısı.
           </p>

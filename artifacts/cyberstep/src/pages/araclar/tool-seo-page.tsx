@@ -301,7 +301,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
           </div>
           <Badge className="bg-primary/20 text-primary border-primary/30 mb-4">Ucretsiz Arac</Badge>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">{config.h1}</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl">{config.metaDescription}</p>
+          <p className="text-lg text-white/80 max-w-2xl">{config.metaDescription}</p>
         </div>
       </section>
 
@@ -316,7 +316,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       <section className="py-12 bg-secondary/50">
         <div className="container mx-auto px-4 max-w-3xl space-y-5">
           <h2 className="text-2xl font-bold text-white">Bu Arac Ne Ise Yarar?</h2>
-          <p className="text-muted-foreground leading-relaxed">{config.whatIsIt}</p>
+          <p className="text-white/80 leading-relaxed">{config.whatIsIt}</p>
           {config.howItWorks.length > 0 && (
             <>
               <h3 className="font-semibold text-white">Nasil Calisir?</h3>

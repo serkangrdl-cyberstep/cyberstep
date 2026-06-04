@@ -31,12 +31,12 @@ function LandingView() {
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary-foreground border-primary/30 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">AI Politika Otomatik Güncelleme</h1>
-          <p className="text-xl text-muted-foreground mb-2">KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor.</p>
+          <p className="text-xl text-white/80 mb-2">KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Siz sadece imzalayın.</p>
           <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
             Politikamı Oluştur <ChevronRight className="h-5 w-5" />
           </Link>
-          <p className="text-sm text-muted-foreground mt-4">Normal danışmanlık maliyeti: 3.000–8.000 TL/yıl</p>
+          <p className="text-sm text-white/70 mt-4">Normal danışmanlık maliyeti: 3.000–8.000 TL/yıl</p>
         </div>
       </section>
 

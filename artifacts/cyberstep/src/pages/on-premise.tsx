@@ -83,7 +83,7 @@ export default function OnPremise() {
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
             Buluta Veri Gönderemiyorsanız,<br />CyberStep Sizi Bulur
           </h1>
-          <p className="text-muted-foreground text-base mb-6 max-w-xl leading-relaxed">
+          <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Savunma sanayii, bankacılık ve sağlık sektörü bulut SaaS'a veri gönderemez.
             CyberStep'i kendi altyapınızda çalıştırın — Docker Compose ile tek komut, tam özellikli, internet gerektirmez.
           </p>

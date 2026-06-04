@@ -78,7 +78,7 @@ export default function SigortaPazaryeri() {
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
             Siber Sigorta Teklifiniz<br />CyberStep Skorunuzda Gizli
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+          <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Türkiye'de siber sigorta pazarı yıllık %40 büyüyor.
             CyberStep skoru sigorta başvuru belgesi olarak kullanılıyor.
             Tek tıkla <strong className="text-white">Allianz, AXA ve Zurich</strong> Türkiye'den anlık prim teklifi alın.

@@ -76,7 +76,7 @@ export default function MaDueDiligence() {
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
             Satın Aldığınız Şirketin<br />Siber Riskini Fiyata Yansıtın
           </h1>
-          <p className="text-muted-foreground text-base mb-6 max-w-xl leading-relaxed">
+          <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Türkiye'de yılda 400+ şirket el değiştiriyor. Alıcı firma satın aldığı şirketin siber riskini bilmiyor.
             CyberStep'in Satın Alma Öncesi Siber Değerlendirme Raporu 5 iş günü içinde hazır.
           </p>

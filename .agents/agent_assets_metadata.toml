@@ -36,3 +36,9 @@ id = "MH99M2_TEk_lKYCYjDE__"
 uri = "file://cyberstep-kaynak-kod.tar.gz"
 type = "unspecified"
 title = "CyberStep.io Kaynak Kodu"
+
+[[outputs]]
+id = "PJeYBIlqo-O3Tqv9r7SBI"
+uri = "file://.local/cyberstep-kaynak-kod.zip"
+type = "unspecified"
+title = "CyberStep.io Kaynak Kodu"

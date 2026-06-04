@@ -159,7 +159,7 @@ function CertstreamWidget() {
         ) : (
           <>
             {/* Stats grid */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 {
                   label: "Son sertifika",
@@ -392,7 +392,7 @@ export default function AdminLeadDiscovery() {
   return (
     <AdminLayout title="Lead Discovery">
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { label: "Toplam Aday", value: stats?.total ?? 0 },
           { label: "Bekliyor", value: stats?.pending ?? 0 },
@@ -409,14 +409,16 @@ export default function AdminLeadDiscovery() {
       </div>
 
       <Tabs defaultValue="crtsh">
-        <TabsList className="mb-4">
-          <TabsTrigger value="certstream">Certstream</TabsTrigger>
-          <TabsTrigger value="crtsh">crt.sh</TabsTrigger>
-          <TabsTrigger value="shodan">Shodan</TabsTrigger>
-          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="results">Sonuclar</TabsTrigger>
-          <TabsTrigger value="history">Gecmis</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto mb-4">
+          <TabsList className="w-max min-w-full">
+            <TabsTrigger value="certstream">Certstream</TabsTrigger>
+            <TabsTrigger value="crtsh">crt.sh</TabsTrigger>
+            <TabsTrigger value="shodan">Shodan</TabsTrigger>
+            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+            <TabsTrigger value="results">Sonuclar</TabsTrigger>
+            <TabsTrigger value="history">Gecmis</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ── CERTSTREAM TAB ───────────────────────────────────────────── */}
         <TabsContent value="certstream">
@@ -451,7 +453,7 @@ export default function AdminLeadDiscovery() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label className="mb-1 block">Son Kac Gun</Label>
                   <Select value={String(daysBack)} onValueChange={(v) => setDaysBack(parseInt(v))}>
@@ -552,7 +554,7 @@ export default function AdminLeadDiscovery() {
 
         {/* ── PIPELINE TAB ─────────────────────────────────────────────── */}
         <TabsContent value="pipeline">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Tam Pipeline</CardTitle>
@@ -621,12 +623,12 @@ export default function AdminLeadDiscovery() {
         <TabsContent value="results">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <CardTitle>Lead Adaylari</CardTitle>
                   <CardDescription>Toplam {candidatesData?.total ?? 0} kayit</CardDescription>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <Checkbox
                       checked={filterQualified}
@@ -656,6 +658,7 @@ export default function AdminLeadDiscovery() {
                 <div className="text-center py-8 text-muted-foreground text-sm">Yukleniyor...</div>
               ) : (
                 <>
+                  <div className="overflow-x-auto -mx-1">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -756,6 +759,7 @@ export default function AdminLeadDiscovery() {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
 
                   {/* Pagination */}
                   {(candidatesData?.total ?? 0) > 20 && (
@@ -786,6 +790,7 @@ export default function AdminLeadDiscovery() {
               <CardTitle>Tarama Gecmisi</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto -mx-1">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -832,6 +837,7 @@ export default function AdminLeadDiscovery() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

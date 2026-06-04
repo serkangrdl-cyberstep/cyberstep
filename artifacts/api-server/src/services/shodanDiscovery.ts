@@ -198,6 +198,12 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
       errorMessage = "Shodan 402: Sorgu kredisi yetersiz.";
     } else if (status === 429) {
       errorMessage = "Shodan 429: Rate limit aşıldı. Birkaç dakika sonra tekrar deneyin.";
+    } else if (status === 500) {
+      errorMessage = "Shodan 500: Shodan API geçici hata döndürdü. Sorgu sınırı veya sunucu sorunu olabilir.";
+      logger.warn({ queryIndex, status }, errorMessage);
+      await db.update(discoveryRunsTable).set({ status: "failed", errorMessage })
+        .where(eq(discoveryRunsTable.id, run.id));
+      return { runId: run.id, label: qConfig.label, totalOnShodan: 0, processed: 0, addedToLeads: 0 };
     }
 
     await db.update(discoveryRunsTable).set({ status: "failed", errorMessage })

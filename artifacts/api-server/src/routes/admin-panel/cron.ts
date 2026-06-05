@@ -25,8 +25,8 @@ export const CRON_DEFS = [
     name: "crtsh",
     label: "crt.sh Domain Keşfi",
     description: "Certificate Transparency kayıtlarından yeni TR domainleri bulur ve aday olarak kaydeder",
-    defaultSchedule: "0 3 * * 1",
-    scheduleLabel: "Pazartesi 03:00",
+    defaultSchedule: "0 3 * * *",
+    scheduleLabel: "Her gece 03:00",
     defaultEnabled: true,
     defaultLimit: 300,
     requiresApiKey: null as string | null,
@@ -69,7 +69,7 @@ export const CRON_DEFS = [
 
 // All monitored night jobs (read-only display — not manually triggerable unless in CRON_DEFS)
 export const ALL_NIGHT_JOBS = [
-  { name: "crtsh",                   label: "crt.sh Domain Keşfi",              scheduleLabel: "Pazartesi 03:00",   scheduleExpr: "0 3 * * 1", category: "lead-gen"     },
+  { name: "crtsh",                   label: "crt.sh Domain Keşfi",              scheduleLabel: "Her gece 03:00",    scheduleExpr: "0 3 * * *", category: "lead-gen"     },
   { name: "shodan",                   label: "Shodan Pasif Keşif",               scheduleLabel: "Her gece 03:00",    scheduleExpr: "0 3 * * *", category: "lead-gen"     },
   { name: "lead_qual",                label: "Lead Kalifikasyon",                 scheduleLabel: "Her gece 04:00",    scheduleExpr: "0 4 * * *", category: "lead-gen"     },
   { name: "certstream_proc",          label: "Certstream İşleyici",               scheduleLabel: "Her saat",          scheduleExpr: "0 * * * *", category: "lead-gen"     },
@@ -270,9 +270,9 @@ router.post("/admin-panel/cron/trigger/:name", requireAdmin, async (req: Request
     // Fallback: inline execution with wrapCron
     const fn = wrapCron(name, def.defaultSchedule, async () => {
       if (name === "crtsh") {
-        await scanCRTSH("%.com.tr", { daysBack: 90, minCorporateScore: 10, limit });
+        await scanCRTSH("%.com.tr", { daysBack: 2, minCorporateScore: 10, limit });
         await new Promise((r) => setTimeout(r, 3000));
-        await scanCRTSH("%.net.tr", { daysBack: 90, minCorporateScore: 10, limit: Math.floor(limit / 3) });
+        await scanCRTSH("%.net.tr", { daysBack: 2, minCorporateScore: 10, limit: Math.floor(limit / 3) });
       } else if (name === "shodan") {
         if (!process.env["SHODAN_API_KEY"]) return 0;
         const queryIdx = getISOWeek(new Date()) % SHODAN_FREE_QUERIES.length;

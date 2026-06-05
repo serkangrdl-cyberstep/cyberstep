@@ -12,7 +12,7 @@ import { logger } from "../lib/logger";
 import { createCaseWithNumber } from "./soc/soc-cases";
 import { handleCertForLeadDiscovery } from "./certstreamLeadFilter";
 
-const CERTSTREAM_URL = "wss://certstream.calidog.io";
+// Primary and fallback Certstream URLs (see CERTSTREAM_URLS array below)
 const DOMAIN_CACHE_TTL_MS = 60_000; // 1 minute
 
 interface WatchedDomainRow {
@@ -142,22 +142,52 @@ async function processCertificate(cert: CertstreamMessage["data"]["leaf_cert"]):
   }
 }
 
+const CERTSTREAM_URLS = [
+  "wss://certstream.calidog.io",
+  "wss://certstream.fly.dev/",
+];
+
 let ws: WebSocket | null = null;
 let reconnectDelay = 5_000;
 let stopped = false;
+let pingInterval: ReturnType<typeof setInterval> | null = null;
+let currentUrlIndex = 0;
+let messagesReceived = 0;
+let connectionStartAt = 0;
+
+// Switch to next URL if we've been connected >90s with zero messages
+const ZERO_MSG_TIMEOUT_MS = 90_000;
+const PING_INTERVAL_MS = 25_000;
 
 function connect(): void {
   if (stopped) return;
-  logger.info({ url: CERTSTREAM_URL }, "certstream: connecting");
+  const url = CERTSTREAM_URLS[currentUrlIndex % CERTSTREAM_URLS.length]!;
+  logger.info({ url }, "certstream: connecting");
 
-  ws = new WebSocket(CERTSTREAM_URL);
+  ws = new WebSocket(url);
+  messagesReceived = 0;
+  connectionStartAt = Date.now();
 
   ws.on("open", () => {
     reconnectDelay = 5_000;
-    logger.info("certstream: connected to certstream.calidog.io");
+    logger.info({ url }, "certstream: connected");
+
+    // Send a ping every 25s to prevent server-side idle timeout (60s)
+    if (pingInterval) clearInterval(pingInterval);
+    pingInterval = setInterval(() => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.ping();
+        // If still no messages after 90s, terminate → close handler will rotate URL
+        if (messagesReceived === 0 && Date.now() - connectionStartAt > ZERO_MSG_TIMEOUT_MS) {
+          logger.warn({ url, elapsedMs: Date.now() - connectionStartAt }, "certstream: connected but no messages — rotating URL");
+          ws.terminate();
+        }
+      }
+    }, PING_INTERVAL_MS);
   });
 
   ws.on("message", (data: WebSocket.RawData) => {
+    messagesReceived++;
     let msg: CertstreamMessage;
     try {
       msg = JSON.parse(data.toString()) as CertstreamMessage;
@@ -171,14 +201,19 @@ function connect(): void {
   });
 
   ws.on("error", (err) => {
-    logger.warn({ err: String(err) }, "certstream: WebSocket error");
+    logger.warn({ err: String(err), url }, "certstream: WebSocket error");
   });
 
   ws.on("close", () => {
+    if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
     if (stopped) return;
-    logger.warn({ delayMs: reconnectDelay }, "certstream: connection closed, reconnecting");
+    // Always rotate to next URL on close — cycles: calidog.io → fly.dev → calidog.io → ...
+    currentUrlIndex++;
+    // Reset delay when cycling back to the first URL
+    if (currentUrlIndex % CERTSTREAM_URLS.length === 0) reconnectDelay = 5_000;
+    logger.warn({ delayMs: reconnectDelay, nextUrl: CERTSTREAM_URLS[currentUrlIndex % CERTSTREAM_URLS.length] }, "certstream: connection closed, rotating to next URL");
     setTimeout(() => {
-      reconnectDelay = Math.min(reconnectDelay * 2, 120_000);
+      reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
       connect();
     }, reconnectDelay);
   });

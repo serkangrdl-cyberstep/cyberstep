@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable, blogPostsTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
@@ -12,7 +12,7 @@ import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
-import { cronStart, cronIsEnabled, cronGetLimit, wrapCron } from "./services/cronRegistry";
+import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn } from "./services/cronRegistry";
 import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
@@ -2256,16 +2256,19 @@ startup()
     });
     logger.info("NOC baseline check cron scheduled (every hour)");
 
-    // ─── Lead Discovery: crt.sh — Her Pazartesi 03:00 ────────────────────────
-    cron.schedule("0 3 * * 1", wrapCron("crtsh", "0 3 * * 1", async () => {
+    // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
+    // daysBack:2 → sadece son 2 günü tara (günlük çalışır, örtüşme olmaz)
+    cron.schedule("0 3 * * *", wrapCron("crtsh", "0 3 * * *", async () => {
       if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("crtsh", 300);
-      await scanCRTSH("%.com.tr", { daysBack: 90, minCorporateScore: 10, limit });
+      const r1 = await scanCRTSH("%.com.tr", { daysBack: 2, minCorporateScore: 10, limit });
       await new Promise((r) => setTimeout(r, 5000));
-      await scanCRTSH("%.net.tr", { daysBack: 90, minCorporateScore: 10, limit: Math.floor(limit / 3) });
-      return limit;
+      const r2 = await scanCRTSH("%.net.tr", { daysBack: 2, minCorporateScore: 10, limit: Math.floor(limit / 3) });
+      await new Promise((r) => setTimeout(r, 3000));
+      await scanCRTSH("%.org.tr", { daysBack: 2, minCorporateScore: 10, limit: Math.floor(limit / 5) });
+      return (r1.addedToLeads ?? 0) + (r2.addedToLeads ?? 0);
     }), { timezone: "Europe/Istanbul" });
-    logger.info("crt.sh discovery cron scheduled (Monday 03:00 Istanbul)");
+    logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul)");
 
     // ─── Lead Discovery: Shodan — Her gece 03:00 ─────────────────────────────
     cron.schedule("0 4 * * *", wrapCron("shodan", "0 4 * * *", async () => {
@@ -2425,6 +2428,48 @@ startup()
       return subs.length;
     }), { timezone: "Europe/Istanbul" });
     logger.info("CISO uyum skoru cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
+
+    // ─── Startup Catch-up: Kaçırılan Gece Cron'larını Çalıştır ──────────────
+    // Deployment restart sırasında pencereyi kaçıran gece cron'larını telafi eder.
+    // Her cron için son çalışma DB'den okunur; >25 saat geçmişse 30s delay ile çalıştırılır.
+    setImmediate(async () => {
+      const CATCH_UP_CRONS = [
+        { name: "crtsh",                thresholdHours: 25 },
+        { name: "upsell_engine",        thresholdHours: 25 },
+        { name: "platform_cost_check",  thresholdHours: 25 },
+        { name: "lead_qual",            thresholdHours: 25 },
+      ];
+      try {
+        const { rows } = await pool.query<{ job_name: string; last_run: string }>(
+          `SELECT job_name, MAX(started_at) AS last_run
+           FROM cron_job_runs
+           WHERE job_name = ANY($1) AND status IN ('ok','error')
+           GROUP BY job_name`,
+          [CATCH_UP_CRONS.map((c) => c.name)],
+        );
+        const lastRunMap = Object.fromEntries(rows.map((r) => [r.job_name, new Date(r.last_run)]));
+
+        let delayMs = 30_000;
+        for (const { name, thresholdHours } of CATCH_UP_CRONS) {
+          const lastRun = lastRunMap[name];
+          const hoursAgo = lastRun ? (Date.now() - lastRun.getTime()) / 3_600_000 : 999;
+          if (hoursAgo < thresholdHours) continue;
+
+          const fn = getCronFn(name);
+          if (!fn) continue;
+
+          logger.warn({ name, hoursAgo: Math.round(hoursAgo), delayMs }, `Startup catch-up: ${name} kaçırılmış — ${delayMs / 1000}s sonra çalıştırılacak`);
+          const capturedFn = fn;
+          const capturedDelay = delayMs;
+          setTimeout(() => {
+            capturedFn().catch((err: unknown) => logger.error({ err, name }, `Catch-up ${name} başarısız`));
+          }, capturedDelay);
+          delayMs += 90_000; // Aynı anda çakışmayı önlemek için 90s aralıklı başlat
+        }
+      } catch (err) {
+        logger.warn({ err }, "Startup catch-up kontrolü başarısız");
+      }
+    });
 
     const server = app.listen(port, (err) => {
       if (err) {

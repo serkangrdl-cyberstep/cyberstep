@@ -21,6 +21,7 @@ import {
   bulletinSubscribersTable,
   leadScanQueueTable,
   dailySummariesTable,
+  pendingApprovalsTable,
   type ActionItem,
 } from "@workspace/db";
 import { eq, count, gte, lte, and, sum, sql } from "drizzle-orm";
@@ -64,8 +65,17 @@ function buildActionItems(stats: {
   highRisk: number;
   renewalsDue: number;
   overdue: number;
+  pendingApprovals?: number;
 }): ActionItem[] {
   const items: ActionItem[] = [];
+
+  if ((stats.pendingApprovals ?? 0) > 0) items.unshift({
+    priority: 0,
+    icon: "check-circle",
+    description: `${stats.pendingApprovals} aksiyon onayınızı bekliyor`,
+    url: "/panel/approvals",
+    estimatedMinutes: (stats.pendingApprovals ?? 0) * 2,
+  });
 
   if (stats.emailsReady > 0) items.push({
     priority: 1,
@@ -268,14 +278,21 @@ export async function collectDailySummary(date: Date = new Date()): Promise<void
     .from(bulletinSubscribersTable)
     .where(eq(bulletinSubscribersTable.isActive, true));
 
+  // ── Bekleyen HITL onayları ────────────────────────────────────────────────
+
+  const [hitlPending] = await db.select({ count: count() })
+    .from(pendingApprovalsTable)
+    .where(eq(pendingApprovalsTable.status, "pending"));
+
   // ── Aksiyon listesi ─────────────────────────────────────────────────────────
 
   const actionItems = buildActionItems({
-    emailsReady:  Number(emailsReady?.count   ?? 0),
-    pendingPosts: Number(pendingPosts?.count  ?? 0),
-    highRisk:     highChurnRiskCount,
-    renewalsDue:  Number(renewalsDue?.count   ?? 0),
-    overdue:      Number(overduePayments?.count ?? 0),
+    emailsReady:      Number(emailsReady?.count   ?? 0),
+    pendingPosts:     Number(pendingPosts?.count  ?? 0),
+    highRisk:         highChurnRiskCount,
+    renewalsDue:      Number(renewalsDue?.count   ?? 0),
+    overdue:          Number(overduePayments?.count ?? 0),
+    pendingApprovals: Number(hitlPending?.count   ?? 0),
   });
 
   // ── Kaydet (UPSERT) ─────────────────────────────────────────────────────────

@@ -34,6 +34,7 @@
 - [NOC Servisi](noc-service.md) — 5 tablo (noc_integrations/events/metrics/cases/availability); 4 cron (poll/availability/triage/baseline); customers tablosunda sector kolonu YOK; SOC cases category alanı (caseType değil); import yolları: soc.ts ve fortinet.ts
 - [CISO Haftalık Bülten](bulletin-system.md) — weekly_bulletins + bulletin_subscribers + bulletin_clicks; Claude claude-sonnet-4-6 7-bölüm içerik; Cuma 08:00 cron; admin /panel/bulletin; public /bulten/arsiv + /bulten/:slug; watch for Cyrillic 'е' typo in variable names
 - [Write-after-send reminder pattern](write-after-send-reminder.md) — sentAt flags must be written ONLY after successful send; use conditional WHERE sentAt IS NULL for atomic idempotency
+- [IOC Analiz Merkezi & HITL Approval Queue](ioc-approval-queue.md) — kredi tabanlı IOC sorgu + insan onay mekanizması; requireAdmin from middleware/auth; sendAdminTelegram raw fetch pattern
 - [CTI Intel System](cti-intel-system.md) — VulnCheck KEV + 9-feed watcher + annual report calendar; 4 tables; 3 crons (01:00/6h/1st-09:00); admin /panel/cti-istihbarat; VULNCHECK_API_KEY required
 - [AI Cost Tracking](ai-cost-tracking.md) — central ai_cost_log table + aiCostTracker.ts; all AI calls (Claude/Gemini) must log via logAiCost(); getDailyCost() used by platformMonitor
 - [performDomainScan](domain-scan-direct.md) — exported from routes/domain-scan/index.ts; discoveryPipeline imports directly to bypass HTTP rate limiter; returns {id, overallScore, findings}

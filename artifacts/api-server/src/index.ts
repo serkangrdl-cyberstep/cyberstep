@@ -2455,6 +2455,24 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CISO uyum skoru cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
 
+    // ─── IOC Sorgu: Aylık Kredi Sıfırlama — Her ayın 1'i 08:00 Istanbul ─────
+    cron.schedule("0 8 1 * *", wrapCron("ioc_credit_reset", "0 8 1 * *", async () => {
+      const { resetMonthlyCredits } = await import("./services/iocCreditManager");
+      return await resetMonthlyCredits();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("IOC kredi sıfırlama cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
+
+    // ─── HITL Approval Queue: Süresi Dolmuş Onayları İşle — Her 15 dakika ──
+    cron.schedule("*/15 * * * *", async () => {
+      try {
+        const { processExpiredApprovals } = await import("./services/approvalQueue");
+        await processExpiredApprovals();
+      } catch (err) {
+        logger.error({ err }, "processExpiredApprovals cron hatası");
+      }
+    });
+    logger.info("HITL approval expire cron kayıtlandı (her 15 dakika)");
+
     // ─── Startup Catch-up: Kaçırılan Gece Cron'larını Çalıştır ──────────────
     // Deployment restart sırasında pencereyi kaçıran gece cron'larını telafi eder.
     // Her cron için son çalışma DB'den okunur; >25 saat geçmişse 30s delay ile çalıştırılır.

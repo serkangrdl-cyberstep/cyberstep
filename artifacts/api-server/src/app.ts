@@ -13,6 +13,8 @@ import bulletinAdminRouter from "./routes/admin-panel/bulletin";
 import dailyDashboardRouter from "./routes/admin-panel/daily-dashboard";
 import portalSubscriptionRouter from "./routes/portal/subscription";
 import portalAccountRouter from "./routes/portal/account";
+import portalIocRouter from "./routes/portal/ioc-query";
+import adminApprovalsRouter from "./routes/admin-panel/approvals";
 import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import seoRouter from "./routes/public/seo";
 import { logger } from "./lib/logger";
@@ -327,6 +329,8 @@ app.use("/api", bulletinAdminRouter);
 app.use("/api", dailyDashboardRouter);
 app.use("/api", portalSubscriptionRouter);
 app.use("/api", portalAccountRouter);
+app.use("/api/portal/ioc", portalIocRouter);
+app.use("/api/admin-panel/approvals", adminApprovalsRouter);
 app.use("/api", monitoringUptimeRouter);
 
 // ─── Global error handler ─────────────────────────────────────────────────────

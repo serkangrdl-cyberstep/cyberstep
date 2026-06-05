@@ -173,6 +173,8 @@ import AdminMs365 from "./pages/admin-panel/ms365";
 import AdminKvkk from "./pages/admin-panel/kvkk";
 import AdminServiceNow from "./pages/admin-panel/servicenow";
 import AdminIocKontroller from "./pages/admin-panel/ioc-kontroller";
+import AdminApprovals from "./pages/admin-panel/approvals";
+import IocSorgu from "./pages/ioc-sorgu";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
 import HesabimWhitelist from "./pages/hesabim/whitelist";
 import HesabimIocLog from "./pages/hesabim/ioc-log";
@@ -284,6 +286,7 @@ function Router() {
       <Route path="/hesabim/dns-izleme" component={DnsIzleme} />
       <Route path="/hesabim/whitelist" component={HesabimWhitelist} />
       <Route path="/hesabim/ioc-log" component={HesabimIocLog} />
+      <Route path="/hesabim/ioc-sorgu" component={IocSorgu} />
       <Route path="/hesabim/servislerim" component={ServislerimPage} />
       <Route path="/hesabim/ciso-asistan" component={CisoAsistanPortal} />
       <Route path="/yenile" component={YenilePage} />
@@ -377,6 +380,7 @@ function Router() {
       <Route path="/panel/kvkk" component={AdminKvkk} />
       <Route path="/panel/servicenow" component={AdminServiceNow} />
       <Route path="/panel/ioc-kontroller" component={AdminIocKontroller} />
+      <Route path="/panel/approvals" component={AdminApprovals} />
       <Route path="/panel/servis-katalogu" component={AdminServisKatalogu} />
       <Route path="/panel" component={AdminDashboard} />
 

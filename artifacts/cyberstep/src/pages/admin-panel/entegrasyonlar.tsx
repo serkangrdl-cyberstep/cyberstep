@@ -43,6 +43,16 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
   },
   {
+    id: "vulncheck", name: "VulnCheck", category: "Tehdit İstihbaratı", type: "security", icon: "🔍",
+    cost: "freemium", costLabel: "Freemium", costNote: "Community: Ücretsiz (API key gerekli) | Enterprise: Ücretli",
+    envKey: "VULNCHECK_API_KEY", always: false,
+    desc: "NVD ve CISA KEV'den daha güncel CVE + POC kodu varlığı + exploit olgunluk analizi — tehdit aktörü attribution dahil",
+    why: "Bir CVE'nin gerçekten istismar edilip edilmediğini ve kimin kullandığını gösterir. KEV'de olmayan ama aktif POC'ü olan açıkları tespit eder.",
+    how: "CVE istihbarat döngüsüne eklenir. VulnCheck KEV feed'i CISA KEV ile birleştirilir, IOC Analiz Merkezi hash/domain sorgularında zenginleştirme sağlar.",
+    setup: "1. vulncheck.com → Sign Up (Community ücretsiz)  2. Hesap ayarları → API Token oluşturun  3. Token'ı aşağıya yapıştırın.",
+    docs: "https://docs.vulncheck.com/",
+  },
+  {
     id: "urlhaus", name: "URLhaus (Abuse.ch)", category: "Tehdit İstihbaratı", type: "security", icon: "🔗",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "200.000+ zararlı URL ve alan adının anlık kara listesi — fidye yazılımı ve malware dağıtım noktaları",

@@ -25,6 +25,7 @@ interface ServiceCatalogItem {
   isActive: boolean;
   serviceType?: string;
   priceTl?: string;
+  isSelfService?: boolean;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -231,12 +232,21 @@ function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
         <p className="text-base font-bold text-primary mb-2">
           {price} {price !== "Ücretsiz" && <span className="text-xs font-normal text-muted-foreground">{suffix}</span>}
         </p>
-        <Link
-          href="/iletisim"
-          className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-        >
-          Teklif Al
-        </Link>
+        {svc.isActive && svc.isSelfService !== false ? (
+          <Link
+            href={`/satin-al/${svc.slug}`}
+            className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+          >
+            Satın Al
+          </Link>
+        ) : (
+          <Link
+            href="/iletisim"
+            className="block w-full text-center text-xs border border-primary text-primary py-1.5 rounded-lg font-semibold hover:bg-primary/10 transition-colors"
+          >
+            Teklif Al
+          </Link>
+        )}
       </div>
     </div>
   );

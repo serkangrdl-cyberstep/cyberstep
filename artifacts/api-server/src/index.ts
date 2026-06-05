@@ -2270,16 +2270,16 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul)");
 
-    // ─── Lead Discovery: Shodan — Her gece 03:00 ─────────────────────────────
+    // ─── Lead Discovery: Shodan — Her gece 04:00 ─────────────────────────────
     cron.schedule("0 4 * * *", wrapCron("shodan", "0 4 * * *", async () => {
       if (!process.env["SHODAN_API_KEY"]) return 0;
       if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("shodan", 100);
       const queryIdx = new Date().getDay() % SHODAN_FREE_QUERIES.length;
-      await scanShodanFree(queryIdx, limit);
-      return limit;
+      const result = await scanShodanFree(queryIdx, limit);
+      return result.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Shodan discovery cron scheduled (daily 03:00 Istanbul)");
+    logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul)");
 
     // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
     cron.schedule("30 4 * * *", wrapCron("lead_qual", "30 4 * * *", async () => {
@@ -2435,6 +2435,7 @@ startup()
     setImmediate(async () => {
       const CATCH_UP_CRONS = [
         { name: "crtsh",                thresholdHours: 25 },
+        { name: "shodan",               thresholdHours: 25 },
         { name: "upsell_engine",        thresholdHours: 25 },
         { name: "platform_cost_check",  thresholdHours: 25 },
         { name: "lead_qual",            thresholdHours: 25 },

@@ -164,6 +164,31 @@ export async function runDay1EmailCron(): Promise<number> {
       )
     );
 
+  if (targets.length === 0) return 0;
+
+  // Aktif servisleri tek sorguda çek
+  const customerIds = targets.map(t => t.customer.id).filter((id): id is number => id !== null);
+  const subscriptions = customerIds.length > 0
+    ? await db.select({
+        customerId: customerServiceSubscriptionsTable.customerId,
+        serviceSlug: customerServiceSubscriptionsTable.serviceSlug,
+      }).from(customerServiceSubscriptionsTable)
+        .where(
+          and(
+            inArray(customerServiceSubscriptionsTable.customerId, customerIds),
+            eq(customerServiceSubscriptionsTable.status, "active"),
+          )
+        )
+    : [];
+
+  // customerId → ilk aktif servis slug'ı
+  const slugMap = new Map<number, string>();
+  for (const sub of subscriptions) {
+    if (sub.customerId !== null && !slugMap.has(sub.customerId)) {
+      slugMap.set(sub.customerId, sub.serviceSlug);
+    }
+  }
+
   let sent = 0;
 
   for (const { customer, onboarding } of targets) {
@@ -174,6 +199,9 @@ export async function runDay1EmailCron(): Promise<number> {
       onboarding.stepServiceActivated,
     ].filter(Boolean).length;
 
+    const serviceSlug = (customer.id !== null ? slugMap.get(customer.id) : undefined) ?? "";
+    const svcContent = getServiceSpecificOnboardingContent(serviceSlug);
+
     const prompt = `Müşteri ${customer.companyName ?? customer.fullName} için 1. gün onboarding emaili yaz.
 ${!onboarding.stepFirstScan ? "Domain eklemedilerse nasıl ekleyeceklerini anlat." : "İlk taramaları tamamlandı, tebrik et."}
 Tamamlanan adım: ${completedCount}/6. Türkçe, kısa, max 4 cümle.`;
@@ -182,13 +210,23 @@ Tamamlanan adım: ${completedCount}/6. Türkçe, kısa, max 4 cümle.`;
       `Portale girerek ilk domain'inizi ekleyin ve otomatik taramayı başlatın. Sadece birkaç dakika sürer.`,
     );
 
+    const extraBlock = svcContent.d1_extra
+      ? `<div style="margin-top:16px;padding:12px 16px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:0 6px 6px 0;font-size:13px;color:#1e40af;line-height:1.6">${svcContent.d1_extra}</div>`
+      : "";
+
+    const expectBlock = svcContent.expectations
+      ? `<p style="margin:12px 0 0;font-size:12px;color:#64748b;line-height:1.5"><em>${svcContent.expectations}</em></p>`
+      : "";
+
     await sendMail({
       to: customer.email,
       subject: "CyberStep — 1. gün hatırlatması",
       html: `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
 <p>Sayın ${customer.fullName},</p>
 <p>${content.replace(/\n/g, "<br>")}</p>
-<p><a href="${BASE_URL}/portal" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portale Git</a></p>
+${extraBlock}
+${expectBlock}
+<p style="margin-top:20px"><a href="${BASE_URL}/portal" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portale Git</a></p>
 <hr><p style="font-size:12px;color:#888">CyberStep.io</p>
 </body></html>`,
     }).catch(err => logger.warn({ err, customerId: customer.id }, "D+1 email failed"));

@@ -184,7 +184,7 @@ const SEED_DATA = [
   {
     "slug": "microsoft-365",
     "label": "Microsoft 365 Entegrasyonu",
-    "short_description": "Azure AD riskli giriş olaylarını, şüpheli kullanıcı aktivitelerini ve Microsoft 365 güvenlik uyarılarını otomatik olarak izleyin.",
+    "short_description": "Microsoft 365 ortamınızı CyberStep'e bağlayın. Azure AD riskli girişleri, şüpheli kullanıcı aktiviteleri ve M365 güvenlik uyarıları otomatik izlenir ve raporlanır. Kurulum: 15 dakika, teknik bilgi gerekmez.",
     "long_description": "Microsoft 365 ve Azure AD, şirket verilerinin büyük bölümünü barındırır. CyberStep MS365 Entegrasyonu, kullanıcı hesaplarındaki şüpheli aktiviteleri gerçek zamanlı olarak SOC ekibinize iletir.",
     "features": [
       "Azure AD OAuth güvenli bağlantı",
@@ -336,7 +336,7 @@ const SEED_DATA = [
   {
     "slug": "servicenow",
     "label": "ServiceNow Entegrasyonu",
-    "short_description": "SOC vakalarını ServiceNow incident'larıyla çift yönlü senkronize edin. HMAC-SHA256 imzalı webhook ile güvenli entegrasyon.",
+    "short_description": "SOC güvenlik vakalarını ServiceNow'a otomatik aktarın. CyberStep'te açılan güvenlik alarmları ServiceNow incident olarak oluşturulur. Kurulum sırasında teknik destek sağlanır. Kurulum: 3.000 TL (tek seferlik)",
     "long_description": "Kurumsal ITSM sistemlerinde ServiceNow, olay yönetiminin merkezindedir. CyberStep ServiceNow Entegrasyonu, güvenlik vakalarını ServiceNow incident'larına otomatik olarak eşler ve her iki sistemdeki durum değişikliklerini senkronize eder.",
     "features": [
       "Çift yönlü vaka senkronizasyonu",
@@ -375,7 +375,7 @@ const SEED_DATA = [
       }
     ],
     "monthly_price_tl": 2490,
-    "setup_fee_tl": 1000,
+    "setup_fee_tl": 3000,
     "category": "itsm",
     "icon": "Activity",
     "is_active": true,
@@ -546,7 +546,7 @@ const SEED_DATA = [
   {
     "slug": "full-assessment",
     "label": "Tam Güvenlik Değerlendirmesi",
-    "short_description": "60 soruda kapsamlı güvenlik analizi, uzman doğrulamalı",
+    "short_description": "60 soruda kapsamlı güvenlik analizi. AI destekli risk skoru, öncelikli aksiyon planı ve yönetici raporu. 3-5 iş günü içinde teslim.",
     "long_description": "",
     "features": [
       "60 soru / 10 alan",
@@ -651,8 +651,8 @@ const SEED_DATA = [
   },
   {
     "slug": "phishing-simulation",
-    "label": "AI Oltalama Simülasyonu",
-    "short_description": "Şirketinize yönelik gerçekçi phishing senaryoları üretin",
+    "label": "AI Phishing Risk Analizi",
+    "short_description": "Şirketinizi hedef alabilecek phishing saldırı senaryolarını AI ile üretir. Çalışanlarınıza farkındalık eğitiminde kullanın. Gerçek email gönderimi yapılmaz — senaryo ve bilinçlendirme raporu teslim edilir.",
     "long_description": "",
     "features": [
       "3 spear-phishing senaryosu",
@@ -1413,7 +1413,7 @@ const SEED_DATA = [
   {
     "slug": "cve-izleme-pro",
     "label": "CVE İzleme Pro",
-    "short_description": "Sınırsız domain — Telegram + otomatik FortiGate blok. CVE'yi tetikleyen bilinen IP'leri anında engelleyin.",
+    "short_description": "Sınırsız domain — Telegram bildirimi + FortiGate entegrasyonu. CVE'yi tetikleyen tehdit IP'leri tespit edildiğinde FortiGate'e blok önerisi iletilir. Otomatik blok aktivasyonu isteğe bağlıdır ve beyaz liste korumasıyla çalışır.",
     "long_description": "Sınırsız domain, Telegram gerçek zamanlı bildirim, FortiGate otomatik blok kuralı. EPSS skoruna göre önceliklendirme.",
     "features": [
       "Sınırsız domain",
@@ -1622,8 +1622,8 @@ const SEED_DATA = [
   },
   {
     "slug": "pentest-lite-tek",
-    "label": "Pentest Lite — 1 Domain",
-    "short_description": "Pasif keşif tabanlı pentest: Shodan, crt.sh, CVE/EPSS, GreyNoise, MITRE ATT&CK saldırı zinciri senaryosu. Sisteme dokunulmaz.",
+    "label": "Pasif Saldırı Yüzeyi Analizi",
+    "short_description": "Dışarıdan saldırgan gözüyle bakış. Shodan, crt.sh, CVE/EPSS, GreyNoise ve MITRE ATT&CK framework kullanılarak sisteminize erişim sağlanabilecek vektörler haritalanır. Aktif exploit veya sistem erişimi yapılmaz. Türkçe teknik rapor + yönetici özeti.",
     "long_description": "Aktif exploit yapılmaz. Tüm veriler public kaynaklardan. Shodan açık port/banner, crt.sh subdomain, CVE/EPSS/CISA KEV, GreyNoise aktif tarama, OTX tehdit bağlantısı, WAF bypass analizi ve Claude ile MITRE ATT&CK saldırı senaryosu.",
     "features": [
       "1 domain",
@@ -1661,8 +1661,8 @@ const SEED_DATA = [
   },
   {
     "slug": "pentest-lite-5domain",
-    "label": "Pentest Lite — 5 Domain",
-    "short_description": "5 domain için pasif pentest değerlendirmesi. Çapraz domain saldırı yolu analizi ve konsolide risk raporu.",
+    "label": "Pasif Saldırı Yüzeyi Analizi (5 Domain)",
+    "short_description": "5 domain için dışarıdan pasif saldırı yüzeyi analizi. Çapraz domain saldırı yolu, CVE/EPSS, GreyNoise ve MITRE ATT&CK ile konsolide risk raporu. Aktif erişim yapılmaz.",
     "long_description": "5 domaine kadar pasif pentest. Çapraz domain tehdit bağlantısı ve konsolide risk önceliklendirmesi.",
     "features": [
       "5 domain",
@@ -1695,8 +1695,8 @@ const SEED_DATA = [
   },
   {
     "slug": "pentest-lite-yillik",
-    "label": "Pentest Lite Yıllık Abonelik",
-    "short_description": "Yılda 4 kez (çeyreklik) pasif pentest. 24.000 TL/yıl. Saldırı yüzeyi değişikliklerini düzenli takip edin.",
+    "label": "Pasif Saldırı Yüzeyi Analizi (Yıllık)",
+    "short_description": "Yılda 4 kez (çeyreklik) pasif saldırı yüzeyi analizi. Saldırı yüzeyi değişikliklerini düzenli takip edin. Aktif exploit veya sistem erişimi yapılmaz.",
     "long_description": "Yılda 4 çeyreklik pasif pentest; her rapordan sonra delta analizi. Regülatör ve sigorta şirketlerine sunulmaya hazır.",
     "features": [
       "Yılda 4 pentest lite raporu",

@@ -8,7 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Copy,
   ExternalLink, Loader2, ArrowRight, Shield, Wifi, Cloud,
-  Globe, Database, Server, Settings, BookOpen,
+  Globe, Database, Server, Settings, BookOpen, AlertTriangle,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
@@ -42,6 +43,25 @@ const GUIDE_SLUGS = new Set([
   "servicenow",
   "phishing-simulation",
 ]);
+
+interface GuideStep {
+  stepNo: number;
+  title: string;
+  description: string;
+  estimatedSeconds?: number;
+  warning?: string;
+  tip?: string;
+}
+interface GuideTrouble { problem: string; solution: string; }
+interface GuideData {
+  title: string;
+  estimatedMinutes?: number;
+  difficulty?: string;
+  prerequisites?: string[];
+  steps: GuideStep[];
+  troubleshooting?: GuideTrouble[];
+  salesNote?: string;
+}
 
 const SERVICE_ICONS: Record<string, React.ElementType> = {
   "fortinet-fabric": Shield, "soc-operasyon": Shield, "noc": Wifi,
@@ -78,8 +98,22 @@ function CopyField({ label, value }: { label: string; value: string }) {
 function ServiceCard({ entry }: { entry: ServiceEntry }) {
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(false);
-  const label = entry.catalog?.label ?? entry.subscription.serviceLabel ?? entry.subscription.serviceSlug;
-  const Icon = SERVICE_ICONS[entry.subscription.serviceSlug] ?? Settings;
+  const [showGuide, setShowGuide] = useState(false);
+  const slug = entry.subscription.serviceSlug;
+  const hasGuide = GUIDE_SLUGS.has(slug);
+
+  const { data: guideData, isLoading: guideLoading } = useQuery<GuideData>({
+    queryKey: [`/api/portal/integrations/${slug}/guide`],
+    queryFn: () => fetch(`/api/portal/integrations/${slug}/guide`, { credentials: "include" }).then(r => {
+      if (!r.ok) throw new Error("Guide yüklenemedi");
+      return r.json();
+    }),
+    enabled: showGuide && hasGuide,
+    staleTime: Infinity,
+  });
+
+  const label = entry.catalog?.label ?? entry.subscription.serviceLabel ?? slug;
+  const Icon = SERVICE_ICONS[slug] ?? Settings;
   const customerSteps = entry.onboardingSteps.filter(s => s.side === "customer");
   const adminSteps = entry.onboardingSteps.filter(s => s.side === "admin");
   const done = entry.doneCustomerSteps;
@@ -139,18 +173,103 @@ function ServiceCard({ entry }: { entry: ServiceEntry }) {
             </div>
           )}
 
-          {/* Guide link for services that have one */}
-          {GUIDE_SLUGS.has(entry.subscription.serviceSlug) && !fullyActive && (
+          {/* Inline guide accordion */}
+          {hasGuide && !fullyActive && (
             <div className="pt-2">
-              <a
-                href={`/api/portal/integrations/${entry.subscription.serviceSlug}/guide`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => setShowGuide(p => !p)}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 border border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <BookOpen className="h-3.5 w-3.5" />
                 Adım Adım Kurulum Rehberi
-              </a>
+                {showGuide ? <X className="h-3 w-3 ml-0.5" /> : <ChevronDown className="h-3 w-3 ml-0.5" />}
+              </button>
+
+              {showGuide && (
+                <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  {guideLoading ? (
+                    <div className="flex items-center justify-center p-6">
+                      <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                    </div>
+                  ) : guideData ? (
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {/* Guide header */}
+                      <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{guideData.title}</p>
+                        <div className="flex flex-wrap gap-3 mt-1">
+                          {guideData.estimatedMinutes && (
+                            <span className="text-xs text-slate-500">Tahmini süre: {guideData.estimatedMinutes} dakika</span>
+                          )}
+                          {guideData.difficulty && (
+                            <span className="text-xs text-slate-500">{guideData.difficulty}</span>
+                          )}
+                        </div>
+                        {(guideData.prerequisites ?? []).length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-slate-500 font-medium mb-0.5">Gereksinimler:</p>
+                            <ul className="list-disc list-inside space-y-0.5">
+                              {guideData.prerequisites!.map((p, i) => (
+                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400">{p}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Steps */}
+                      {guideData.steps.map(step => (
+                        <div key={step.stepNo} className="px-4 py-3">
+                          <div className="flex items-start gap-3">
+                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                              {step.stepNo}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{step.title}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">{step.description}</p>
+                              {step.warning && (
+                                <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1.5 border border-amber-200 dark:border-amber-800">
+                                  <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                  <p className="text-xs text-amber-700 dark:text-amber-400">{step.warning}</p>
+                                </div>
+                              )}
+                              {step.tip && (
+                                <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1.5 border border-blue-200 dark:border-blue-800">
+                                  <BookOpen className="h-3 w-3 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                                  <p className="text-xs text-blue-700 dark:text-blue-400">{step.tip}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Troubleshooting */}
+                      {(guideData.troubleshooting ?? []).length > 0 && (
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/30">
+                          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">Sorun Giderme</p>
+                          <div className="space-y-2">
+                            {guideData.troubleshooting!.map((t, i) => (
+                              <div key={i}>
+                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{t.problem}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t.solution}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sales note */}
+                      {guideData.salesNote && (
+                        <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/10 border-t border-emerald-100 dark:border-emerald-900/30">
+                          <p className="text-xs text-emerald-700 dark:text-emerald-400">{guideData.salesNote}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="px-4 py-3 text-xs text-slate-500">Rehber yüklenemedi. Lütfen tekrar deneyin.</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

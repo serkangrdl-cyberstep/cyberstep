@@ -35,6 +35,7 @@ import cveAdminRouter from "./cve-admin";
 import musteriProvizyonRouter from "./musteri-provizyon";
 import adminsRouter from "./admins";
 import iocControlsRouter from "./ioc-controls";
+import ctiIntelRouter from "./cti-intel";
 
 const router = Router();
 router.use(authRouter);
@@ -73,5 +74,6 @@ router.use(cveAdminRouter);
 router.use(musteriProvizyonRouter);
 router.use(adminsRouter);
 router.use(iocControlsRouter);
+router.use(ctiIntelRouter);
 
 export default router;

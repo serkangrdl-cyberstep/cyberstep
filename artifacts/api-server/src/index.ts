@@ -36,6 +36,9 @@ import { collectDailySummary } from "./services/dailyDashboard";
 import { runDunningCron } from "./services/dunningManager";
 import { runUpsellEngine } from "./services/upsellEngine";
 import { runMarketWatcher, sendWeeklyMarketSummary } from "./services/marketWatcher";
+import { fetchVulnCheckKEV } from "./services/intelligence/vulncheckService";
+import { checkIntelFeeds } from "./services/intelligence/intelFeedWatcher";
+import { sendMonthlyReportReminder } from "./services/intelligence/annualReportScheduler";
 import { checkPlatformCosts } from "./services/platformMonitor";
 import { runDay1EmailCron } from "./services/onboardingEmailSeries";
 import { runCollectionReminderCron } from "./services/invoice";
@@ -2290,6 +2293,29 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Lead qualification cron scheduled (daily 04:00 Istanbul)");
 
+    // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
+    cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {
+      if (!await cronIsEnabled("vulncheck_kev")) { logger.info("VulnCheck KEV cron devre dışı, atlanıyor"); return 0; }
+      const result = await fetchVulnCheckKEV();
+      return result.upserted;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("VulnCheck KEV cron kayıtlandı (gece 01:00 Istanbul)");
+
+    // ─── CTI Intel Feeds — her 6 saatte bir ──────────────────────────────────
+    cron.schedule("0 */6 * * *", wrapCron("intel_feeds", "0 */6 * * *", async () => {
+      if (!await cronIsEnabled("intel_feeds")) { logger.info("Intel feeds cron devre dışı, atlanıyor"); return 0; }
+      const result = await checkIntelFeeds();
+      return result.newItems;
+    }));
+    logger.info("Intel feeds cron kayıtlandı (her 6 saatte bir)");
+
+    // ─── Yıllık rapor takvim hatırlatması — her ayın 1'i 09:00 Istanbul ──────
+    cron.schedule("0 9 1 * *", wrapCron("annual_report_reminder", "0 9 1 * *", async () => {
+      await sendMonthlyReportReminder();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Yıllık rapor hatırlatma cron kayıtlandı (ayın 1'i 09:00 Istanbul)");
+
     // ─── Certstream queue işleyici — her saat ─────────────────────────────────
     cron.schedule("0 * * * *", wrapCron("certstream_proc", "0 * * * *", async () => {
       if (!await cronIsEnabled("certstream_proc")) { logger.info("Certstream cron devre dışı, atlanıyor"); return 0; }
@@ -2439,6 +2465,8 @@ startup()
         { name: "upsell_engine",        thresholdHours: 25 },
         { name: "platform_cost_check",  thresholdHours: 25 },
         { name: "lead_qual",            thresholdHours: 25 },
+        { name: "vulncheck_kev",        thresholdHours: 25 },
+        { name: "intel_feeds",          thresholdHours: 7 },
       ];
       try {
         const { rows } = await pool.query<{ job_name: string; last_run: string }>(

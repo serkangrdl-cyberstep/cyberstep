@@ -99,3 +99,4 @@ export * from "./upsell";
 export * from "./market-watch";
 export * from "./platform-monitoring";
 export * from "./ciso-assistant";
+export * from "./cti-intel";

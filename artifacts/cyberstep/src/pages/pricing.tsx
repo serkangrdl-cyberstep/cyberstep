@@ -94,7 +94,7 @@ const ENTERPRISE_SERVICES_DATA = [
     slug: "observability",
     icon: Server,
     category: "monitoring",
-    label: "Observability & SIEM",
+    label: "Gözlemlenebilirlik & İzleme",
     desc: "Log kaynaklarınızı merkezi bir noktada toplayın; anomali tespiti ve öngörülü uyarılarla güvenlik görünürlüğünüzü artırın.",
     features: ["Çoklu log kaynağı bağlantısı", "AI destekli anomali tespiti", "Gerçek zamanlı dashboard"],
     price: "2.990",
@@ -454,7 +454,7 @@ export default function Pricing() {
                 <Zap className="h-5 w-5 text-red-500" />
               </div>
               <div>
-                <p className="font-bold text-base mb-1">AI Phishing Simülasyonu</p>
+                <p className="font-bold text-base mb-1">AI Oltalama Simülasyonu</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">Saldırganların şirketinize yönelik hazırlayacağı AI destekli e-postayı önce siz görün. Tek seferlik.</p>
               </div>
               <ul className="space-y-1.5">

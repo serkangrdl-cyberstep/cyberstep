@@ -9,7 +9,7 @@ import {
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
-  ChevronDown, Cpu, BarChart3, Palette, Sunrise,
+  ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -49,6 +49,7 @@ const NAV_SECTIONS = [
       { icon: CreditCard,      label: "Paket Planları",         href: "/panel/fiyatlar" },
       { icon: Tag,             label: "Servis Birim Fiyatları", href: "/panel/servis-fiyatlari" },
       { icon: Package,         label: "Servis Kataloğu",       href: "/panel/servis-katalogu" },
+      { icon: ToggleLeft,      label: "Servis Yönetimi",       href: "/panel/servis-yonetimi" },
       { icon: Receipt,         label: "Fatura Yönetimi",       href: "/panel/faturalar" },
       { icon: TrendingUp,      label: "Gelir / MRR",           href: "/panel/gelir" },
       { icon: Calculator,      label: "Muhasebe Entegrasyonu", href: "/panel/muhasebe" },
@@ -64,6 +65,7 @@ const NAV_SECTIONS = [
       { icon: Share2,          label: "Referral Programı",     href: "/panel/referrallar" },
       { icon: BadgeCheck,      label: "Rozet Avantajları",     href: "/panel/rozet-avantajlari" },
       { icon: Trophy,          label: "Rozet Yönetimi",        href: "/panel/rozetler" },
+      { icon: FileDown,        label: "Demo Raporlar",         href: "/panel/demo-raporlar" },
     ],
   },
   {

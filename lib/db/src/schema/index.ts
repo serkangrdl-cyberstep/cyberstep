@@ -102,3 +102,4 @@ export * from "./ciso-assistant";
 export * from "./cti-intel";
 export * from "./ioc-query";
 export * from "./approvals";
+export * from "./demo-reports";

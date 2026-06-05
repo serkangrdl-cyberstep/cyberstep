@@ -108,6 +108,9 @@ import VerifyPage from "./pages/verify";
 import ServislerPage from "./pages/servisler";
 import SatinAl from "./pages/satin-al";
 import AdminServisKatalogu from "./pages/admin-panel/servis-katalogu";
+import AdminServisYonetimi from "./pages/admin-panel/servis-yonetimi";
+import AdminDemoRaporlar from "./pages/admin-panel/demo-raporlar";
+import DemoPage from "./pages/demo";
 import DomainScan from "./pages/domain-scan";
 import SizintiIzleyici from "./pages/sizinti-izleyici";
 import RoiHesaplayici from "./pages/roi-hesaplayici";
@@ -382,6 +385,8 @@ function Router() {
       <Route path="/panel/ioc-kontroller" component={AdminIocKontroller} />
       <Route path="/panel/approvals" component={AdminApprovals} />
       <Route path="/panel/servis-katalogu" component={AdminServisKatalogu} />
+      <Route path="/panel/servis-yonetimi" component={AdminServisYonetimi} />
+      <Route path="/panel/demo-raporlar" component={AdminDemoRaporlar} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}
@@ -472,6 +477,7 @@ function Router() {
             <Route path="/araclar" component={TumAraclar} />
             <Route path="/rakip-karsilastirma" component={RakipKarsilastirma} />
             <Route path="/sektor-raporu" component={SektorRaporu} />
+            <Route path="/demo" component={DemoPage} />
             <Route path="/servisler/:slug" component={ServislerPage} />
             <Route path="/satin-al/:slug" component={SatinAl} />
             <Route component={NotFound} />

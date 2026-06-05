@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable, serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { logger } from "../../lib/logger";
@@ -178,7 +178,10 @@ router.get("/public/service-catalog", async (_req: Request, res: Response) => {
     const rows = await db
       .select()
       .from(serviceCatalogTable)
-      .where(eq(serviceCatalogTable.isActive, true))
+      .where(and(
+        eq(serviceCatalogTable.isActive, true),
+        eq(serviceCatalogTable.visibility, "public"),
+      ))
       .orderBy(serviceCatalogTable.sortOrder);
     res.json(rows);
   } catch (err) {

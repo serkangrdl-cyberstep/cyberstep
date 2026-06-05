@@ -31,6 +31,10 @@ export const serviceCatalogTable = pgTable("service_catalog", {
   targetAudience: text("target_audience").array().default([]),
   isSelfService: boolean("is_self_service").default(true),
   requiresAdminApproval: boolean("requires_admin_approval").default(false),
+  visibility: varchar("visibility", { length: 20 }).notNull().default("public"),
+  passiveReason: text("passive_reason"),
+  passiveSince: timestamp("passive_since"),
+  roadmapQuarter: varchar("roadmap_quarter", { length: 10 }),
 });
 
 export type ServiceCatalog = typeof serviceCatalogTable.$inferSelect;

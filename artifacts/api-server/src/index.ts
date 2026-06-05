@@ -2464,6 +2464,13 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("IOC kredi sıfırlama cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
 
+    // ─── Demo Rapor Yenileme — Her ayın 1'i 10:00 Istanbul ──────────────────
+    cron.schedule("0 10 1 * *", wrapCron("demo_report_refresh", "0 10 1 * *", async () => {
+      const { generateAllDemoReports } = await import("./services/demoReportGenerator");
+      await generateAllDemoReports();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Demo rapor yenileme cron kayıtlandı (ayın 1'i 10:00 Istanbul)");
+
     // ─── HITL Approval Queue: Süresi Dolmuş Onayları İşle — Her 15 dakika ──
     cron.schedule("*/15 * * * *", async () => {
       try {

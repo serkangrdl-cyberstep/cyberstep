@@ -62,10 +62,12 @@ import iocPortalRouter from "./customer/ioc-portal";
 import adminPanelRouter from "./admin-panel/index";
 import socialMediaRouter from "./social-media/index";
 import cisoRouter from "./ciso/index";
+import demoPublicRouter from "./public/demo";
 
 const router: IRouter = Router();
 
 router.use(publicRouter);
+router.use("/public/demo", demoPublicRouter);
 router.use(v1Router);
 router.use(assessmentsRouter);
 router.use(geminiRouter);

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { assessmentsTable, reportsTable, serviceCatalogTable, demoReportsTable, demoLeadsTable } from "@workspace/db";
+import { eq, and, desc, sql, asc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { sendCustomerReportEmail } from "../../services/email";
 import { recoverReportFields } from "../../lib/report-json";
+import { requireAdmin } from "../../middleware/auth";
 
 const router = Router();
 
@@ -157,6 +158,141 @@ router.post("/admin/review/:token/approve", async (req, res) => {
 
   logger.info({ assessmentId: assessment.id }, "Report approved and customer email sent");
   res.json({ success: true, report: final });
+});
+
+// ── Pasif Servis Yönetimi ──────────────────────────────────────────────────────
+
+// GET /api/admin/services/passive
+router.get("/admin/services/passive", requireAdmin, async (_req, res) => {
+  try {
+    const list = await db.select()
+      .from(serviceCatalogTable)
+      .where(eq(serviceCatalogTable.visibility, "passive"))
+      .orderBy(asc(serviceCatalogTable.roadmapQuarter));
+    res.json({ services: list });
+  } catch (err) {
+    logger.error({ err }, "Passive services fetch error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// GET /api/admin/services/active
+router.get("/admin/services/active", requireAdmin, async (_req, res) => {
+  try {
+    const list = await db.select()
+      .from(serviceCatalogTable)
+      .where(and(eq(serviceCatalogTable.isActive, true), eq(serviceCatalogTable.visibility, "public")))
+      .orderBy(asc(serviceCatalogTable.sortOrder));
+    res.json({ services: list });
+  } catch (err) {
+    logger.error({ err }, "Active services fetch error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/admin/services/:slug/activate
+router.post("/admin/services/:slug/activate", requireAdmin, async (req, res) => {
+  const slug = String(req.params["slug"] ?? "");
+  try {
+    await db.update(serviceCatalogTable).set({
+      isActive: true,
+      visibility: "public",
+      passiveReason: null,
+    }).where(eq(serviceCatalogTable.slug, slug));
+    logger.info({ slug }, "Service activated");
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err, slug }, "Service activate error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/admin/services/:slug/deactivate
+router.post("/admin/services/:slug/deactivate", requireAdmin, async (req, res) => {
+  const slug = String(req.params["slug"] ?? "");
+  const { reason, roadmapQuarter } = req.body as { reason?: string; roadmapQuarter?: string };
+  try {
+    await db.update(serviceCatalogTable).set({
+      isActive: false,
+      visibility: "passive",
+      passiveReason: reason ?? null,
+      passiveSince: new Date(),
+      roadmapQuarter: roadmapQuarter ?? null,
+    }).where(eq(serviceCatalogTable.slug, slug));
+    logger.info({ slug }, "Service deactivated");
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err, slug }, "Service deactivate error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// ── Demo Rapor Admin ───────────────────────────────────────────────────────────
+
+// GET /api/admin/demo-reports
+router.get("/admin/demo-reports", requireAdmin, async (_req, res) => {
+  try {
+    const reports = await db.select().from(demoReportsTable).orderBy(desc(demoReportsTable.generatedAt));
+    res.json({ reports });
+  } catch (err) {
+    logger.error({ err }, "Demo reports admin fetch error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// GET /api/admin/demo-leads
+router.get("/admin/demo-leads", requireAdmin, async (_req, res) => {
+  try {
+    const leads = await db.select().from(demoLeadsTable).orderBy(desc(demoLeadsTable.createdAt)).limit(500);
+    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(demoLeadsTable);
+    const [{ withCompany }] = await db.select({ withCompany: sql<number>`count(*)::int` }).from(demoLeadsTable).where(sql`company IS NOT NULL AND company != ''`);
+    res.json({ leads, total, withCompany });
+  } catch (err) {
+    logger.error({ err }, "Demo leads admin fetch error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// POST /api/admin/demo-reports/refresh — tüm demo raporları yenile
+router.post("/admin/demo-reports/refresh", requireAdmin, async (_req, res) => {
+  res.json({ success: true, message: "Demo rapor üretimi arka planda başlatıldı" });
+  setImmediate(async () => {
+    try {
+      const { generateAllDemoReports } = await import("../../services/demoReportGenerator");
+      await generateAllDemoReports();
+      logger.info("Admin triggered demo report refresh — done");
+    } catch (err) {
+      logger.error({ err }, "Admin demo report refresh failed");
+    }
+  });
+});
+
+// POST /api/admin/demo-reports/:type/refresh — tek raporu yenile
+router.post("/admin/demo-reports/:type/refresh", requireAdmin, async (req, res) => {
+  res.json({ success: true, message: "Rapor üretimi başlatıldı" });
+  const type = String(req.params["type"] ?? "");
+  setImmediate(async () => {
+    try {
+      const { generateAllDemoReports } = await import("../../services/demoReportGenerator");
+      await generateAllDemoReports();
+      logger.info({ type }, "Admin triggered single demo report refresh");
+    } catch (err) {
+      logger.error({ err, type }, "Single demo report refresh failed");
+    }
+  });
+});
+
+// POST /api/admin/demo-reports/:type/toggle — aktif/pasif
+router.post("/admin/demo-reports/:type/toggle", requireAdmin, async (req, res) => {
+  const type = String(req.params["type"] ?? "");
+  const { isActive } = req.body as { isActive: boolean };
+  try {
+    await db.update(demoReportsTable).set({ isActive }).where(eq(demoReportsTable.reportType, type));
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Demo report toggle error");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
 export default router;

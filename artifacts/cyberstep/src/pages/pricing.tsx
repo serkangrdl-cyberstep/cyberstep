@@ -4,7 +4,7 @@ import {
   CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck,
   Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server,
   Search, Crosshair, AlertTriangle, Mail, BarChart2, Layers, Target, ShieldAlert,
-  Cpu, Lock, Radio, GitBranch, TrendingUp,
+  Cpu, Lock, Radio, GitBranch, TrendingUp, PlayCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
@@ -196,6 +196,30 @@ const SERVICE_GROUPS: ServiceGroup[] = [
   },
 ];
 
+const DEMO_SLUG_MAP: Record<string, string> = {
+  "easm-tek": "easm",
+  "easm-ceyreklik": "easm",
+  "easm-yillik": "easm",
+  "pentest-lite-tek": "easm",
+  "pentest-lite-5domain": "easm",
+  "pentest-lite-yillik": "easm",
+  "eposta-guvenligi-tek": "email_security",
+  "eposta-guvenligi-izleme": "email_security",
+  "cve-izleme-lite": "cve_alert",
+  "cve-izleme-standart": "cve_alert",
+  "cve-izleme-pro": "cve_alert",
+  "tprm-5": "tprm",
+  "tprm-10": "tprm",
+  "tprm-20": "tprm",
+  "tehdit-istihbarat-starter": "threat_intel",
+  "tehdit-istihbarat-standart": "threat_intel",
+  "tehdit-istihbarat-pro": "threat_intel",
+  "soc-lite": "board_report",
+  "soc-standart": "board_report",
+  "soc-operasyon": "board_report",
+  "soc-pro": "board_report",
+};
+
 function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
   const Icon = getIcon(svc.slug);
   const price = fmtTL(svc.monthlyPriceTl);
@@ -204,6 +228,7 @@ function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
   const suffix = svc.serviceType === "one_time" ? "· tek seferlik + KDV"
     : svc.serviceType === "annual" ? "/ yıl + KDV"
     : "/ ay + KDV";
+  const demoType = DEMO_SLUG_MAP[svc.slug];
 
   return (
     <div className={`rounded-xl border bg-card p-5 flex flex-col gap-3 hover:border-primary/40 transition-colors ${isBundle ? "border-primary/30 bg-primary/3" : ""}`}>
@@ -212,8 +237,19 @@ function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
           Paket
         </div>
       )}
-      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-        <Icon className="h-5 w-5 text-primary" />
+      <div className="flex items-start justify-between gap-2">
+        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+        {demoType && (
+          <Link
+            href={`/demo?rapor=${demoType}`}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded-full transition-colors whitespace-nowrap"
+          >
+            <PlayCircle className="h-3 w-3" />
+            Demo Gör
+          </Link>
+        )}
       </div>
       <div>
         <p className="font-semibold text-sm mb-1">{svc.label}</p>
@@ -254,9 +290,9 @@ function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
 
 export default function Pricing() {
   usePageMeta({
-    title: "Fiyatlar | CyberStep.io",
-    description: "KOBİ'ler icin siber guvenlik degerlendirme paketleri. Ucretsiz Mini Degerlendirme ile baslayin, tam analizle buyumeye devam edin.",
-    keywords: "siber güvenlik fiyatları, güvenlik değerlendirmesi fiyat, KVKK uyum fiyat, SOC hizmet fiyatı",
+    title: "Hizmetler & Fiyatlar | CyberStep.io",
+    description: "KOBİ'ler icin siber guvenlik hizmetleri ve fiyatları. Ucretsiz Mini Degerlendirme ile baslayin, SOC, EASM, TPRM ve daha fazlasını kesfin.",
+    keywords: "siber güvenlik hizmetleri, siber güvenlik fiyatları, SOC hizmet fiyatı, EASM fiyat, TPRM fiyat",
     canonicalPath: "/fiyatlar",
   });
 
@@ -336,10 +372,10 @@ export default function Pricing() {
       <section className="py-16 bg-secondary text-secondary-foreground relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center">
-          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Fiyatlandırma</Badge>
-          <h1 className="text-4xl font-bold text-white mb-4">Şeffaf ve Adil Fiyatlar</h1>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Hizmetler & Fiyatlar</Badge>
+          <h1 className="text-4xl font-bold text-white mb-4">Şeffaf Fiyatlarla Siber Güvenlik Hizmetleri</h1>
           <p className="text-white/80 text-lg max-w-xl mx-auto">
-            Mini değerlendirme tamamen ücretsiz. Daha derin bir analiz için Tam Değerlendirme paketi tek seferlik ödemedir.
+            Mini değerlendirme ücretsiz. SOC, EASM, TPRM ve daha fazlası için aşağıdaki hizmet kataloğunu inceleyin.
           </p>
         </div>
       </section>

@@ -2,7 +2,7 @@ export const TRANSLATIONS = {
   // ─── Navigation ─────────────────────────────────────────────────────────────
   nav: {
     blog: { tr: "Blog", en: "Blog" },
-    pricing: { tr: "Fiyatlar", en: "Pricing" },
+    pricing: { tr: "Hizmetler", en: "Services" },
     about: { tr: "Hakkımızda", en: "About" },
     contact: { tr: "İletişim", en: "Contact" },
     login: { tr: "Giriş", en: "Sign In" },
@@ -15,7 +15,7 @@ export const TRANSLATIONS = {
     corporate: { tr: "Kurumsal", en: "Company" },
     miniAssessment: { tr: "Mini Değerlendirme", en: "Mini Assessment" },
     fullAssessment: { tr: "Tam Değerlendirme", en: "Full Assessment" },
-    pricing: { tr: "Fiyatlar", en: "Pricing" },
+    pricing: { tr: "Hizmetler", en: "Services" },
     dashboard: { tr: "Dashboard", en: "Dashboard" },
     blog: { tr: "Blog", en: "Blog" },
     about: { tr: "Hakkımızda", en: "About Us" },

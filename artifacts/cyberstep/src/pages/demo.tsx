@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shield, Download, FileText, Lock, CheckCircle, Mail, Building2, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +93,16 @@ export default function DemoPage() {
   const [form, setForm] = useState<LeadForm>({ name: "", email: "", company: "" });
   const [state, setState] = useState<DownloadState>({ loading: false, done: false });
   const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rapor = params.get("rapor");
+    if (rapor && REPORT_TYPES.some((r) => r.type === rapor)) {
+      setSelected(rapor);
+      setState({ loading: false, done: false });
+      setForm({ name: "", email: "", company: "" });
+    }
+  }, []);
 
   function openModal(type: string) {
     setSelected(type);

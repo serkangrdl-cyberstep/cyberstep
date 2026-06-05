@@ -1442,6 +1442,8 @@ async function startup() {
   await ensureEmailTables();
   await maybeSeedPricingPlans();
   await maybeSeedQuestions();
+  const { maybeSeedServiceCatalog } = await import("./services/service-catalog-seed");
+  await maybeSeedServiceCatalog();
   await maybeSeedDemoCustomer();
   await maybeSeedPaidTestCustomer();
   await ensureBlogContentColumns();

@@ -8,8 +8,8 @@
  */
 
 import { db } from "@workspace/db";
-import { customersTable, customerOnboardingTable } from "@workspace/db";
-import { eq, and, isNull, gte, lte, lt } from "drizzle-orm";
+import { customersTable, customerOnboardingTable, customerServiceSubscriptionsTable } from "@workspace/db";
+import { eq, and, isNull, gte, lt, inArray } from "drizzle-orm";
 import { sendMail } from "./email";
 import { getClaudeAiFn } from "./ai-client";
 import { logger } from "../lib/logger";

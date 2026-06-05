@@ -107,4 +107,16 @@ router.patch("/admin-panel/customers/:id/reset-password", requireAdmin, async (r
   res.json({ success: true });
 });
 
+// ONE-TIME SETUP: production test user fix — DELETE AFTER USE
+// GET /api/admin-panel/fix-test-user-q8w3r5
+router.get("/admin-panel/fix-test-user-q8w3r5", async (_req: Request, res: Response) => {
+  const hash = await bcrypt.hash("Serkan2025!", 12);
+  const [updated] = await db.update(customersTable)
+    .set({ email: "serkangrdl@yahoo.com", fullName: "Serkan Gürdal", passwordHash: hash, updatedAt: new Date() })
+    .where(eq(customersTable.id, 2))
+    .returning({ id: customersTable.id, email: customersTable.email, fullName: customersTable.fullName });
+  logger.info({ updated }, "One-time test user fix applied");
+  res.json({ success: true, updated });
+});
+
 export default router;

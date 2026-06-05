@@ -1,0 +1,989 @@
+# CyberStep.io — "Test Ederek Sat" Servisler
+## Replit Agent Promptu — Kelime Değişiklikleri + Onboarding Kılavuzları
+
+---
+
+## BAĞLAM
+
+6 servis için üç şey yapıyoruz:
+
+1. İsim / açıklama düzeltmesi
+   (yanlış beklenti yaratmayan dil)
+
+2. Onboarding kılavuzu
+   (müşteriye kurulum + kullanım rehberi)
+
+3. Beklenti yönetimi notu
+   (satış anında söylenecekler)
+
+---
+
+## ADIM 0 — ÖNCE MEVCUT KODU OKU
+
+```
+Servis açıklamalarının tutulduğu yeri bul:
+  → DB'de services tablosu mu?
+  → Hardcode string mi?
+  → Onboarding email içerikleri nerede?
+
+src/services/onboardingEmailSeries.ts
+→ D+0/1/3/7 email içerikleri nasıl üretiliyor?
+→ Servis tipine göre farklılaşıyor mu?
+
+Portal'da onboarding sayfası var mı?
+→ /portal/onboarding veya /portal/setup
+→ Yoksa oluşturacağız
+```
+
+---
+
+## SERVİS 1 — MİCROSOFT 365 ENTEGRASYONU
+
+### Açıklama Değişikliği
+
+```
+ESKİ:
+  "Azure AD riskli giriş olaylarını,
+   şüpheli kullanıcı aktivitelerini ve
+   Microsoft 365 güvenlik uyarılarını
+   otomatik olarak izleyin."
+
+YENİ:
+  "Microsoft 365 ortamınızı CyberStep'e
+   bağlayın. Azure AD riskli girişleri,
+   şüpheli kullanıcı aktiviteleri ve
+   M365 güvenlik uyarıları otomatik
+   izlenir ve raporlanır.
+   Kurulum: 15 dakika, teknik bilgi gerekmez."
+
+services tablosunda güncelle:
+  WHERE service_key = 'microsoft_365'
+```
+
+### Onboarding Kılavuzu
+
+```typescript
+// src/services/onboarding/guides/microsoft365.ts
+// YENİ DOSYA
+
+export const MICROSOFT_365_GUIDE = {
+  title: "Microsoft 365 Bağlantı Kurulumu",
+  estimatedMinutes: 15,
+  difficulty: "Kolay — teknik bilgi gerekmez",
+
+  prerequisites: [
+    "Microsoft 365 Global Admin veya Security Admin rolü",
+    "CyberStep portal hesabı (zaten var)",
+  ],
+
+  steps: [
+    {
+      stepNo: 1,
+      title: "Azure Portal'a Giriş",
+      description:
+        "portal.azure.com adresine gidin. " +
+        "Microsoft 365 admin hesabınızla giriş yapın.",
+      screenshot: "m365-step1.png",
+      estimatedSeconds: 60,
+    },
+    {
+      stepNo: 2,
+      title: "App Registration Oluştur",
+      description:
+        "Azure Active Directory → App registrations → " +
+        "New registration seçin. " +
+        "İsim: 'CyberStep Security Monitor' yazın. " +
+        "Supported account types: " +
+        "'Accounts in this organizational directory only' seçin. " +
+        "Register butonuna tıklayın.",
+      estimatedSeconds: 120,
+    },
+    {
+      stepNo: 3,
+      title: "Client Secret Oluştur",
+      description:
+        "Certificates & secrets → New client secret. " +
+        "Description: 'CyberStep', Expires: 24 months. " +
+        "Add butonuna tıklayın. " +
+        "Value sütunundaki değeri kopyalayın — " +
+        "bir daha gösterilmeyecek!",
+      estimatedSeconds: 90,
+      warning: "Secret değerini şimdi kopyalayın. " +
+               "Sayfayı kapattıktan sonra tekrar göremezsiniz.",
+    },
+    {
+      stepNo: 4,
+      title: "İzinleri Ayarla",
+      description:
+        "API permissions → Add permission → " +
+        "Microsoft Graph → Application permissions. " +
+        "Şu izinleri ekleyin: " +
+        "AuditLog.Read.All, " +
+        "SecurityEvents.Read.All, " +
+        "IdentityRiskEvent.Read.All. " +
+        "Grant admin consent butonuna tıklayın.",
+      estimatedSeconds: 180,
+    },
+    {
+      stepNo: 5,
+      title: "CyberStep'e Bağla",
+      description:
+        "CyberStep Portal → Entegrasyonlar → " +
+        "Microsoft 365 → Bağla. " +
+        "Tenant ID, Client ID ve " +
+        "Client Secret değerlerini girin. " +
+        "Bağlantıyı Test Et butonuna tıklayın.",
+      estimatedSeconds: 60,
+    },
+    {
+      stepNo: 6,
+      title: "Test",
+      description:
+        "Bağlantı başarılı olunca ilk " +
+        "güvenlik eventleri 5 dakika içinde " +
+        "portal'da görünmeye başlar.",
+      estimatedSeconds: 300,
+    },
+  ],
+
+  // Kurulum başarısız olursa
+  troubleshooting: [
+    {
+      problem: "Bağlantı test başarısız",
+      solution:
+        "Client Secret'in doğru kopyalandığını kontrol edin. " +
+        "Boşluk veya özel karakter girmiş olabilirsiniz.",
+    },
+    {
+      problem: "İzin hatası (403)",
+      solution:
+        "API permissions sayfasında " +
+        "Grant admin consent butonuna tıkladınız mı? " +
+        "Global Admin rolüyle giriş yapmış olmanız gerekiyor.",
+    },
+    {
+      problem: "Event görünmüyor",
+      solution:
+        "İlk eventlerin gelmesi 15 dakika sürebilir. " +
+        "Azure AD'de test amaçlı başarısız bir " +
+        "giriş yaparsanız hemen görünür.",
+    },
+  ],
+
+  // Satış anında söylenecekler
+  salesNote:
+    "Kurulum 15 dakika sürüyor. " +
+    "Kurulum sırasında sorun yaşarsanız " +
+    "destek@cyberstep.io adresine yazın, " +
+    "aynı gün yardım ederiz.",
+};
+```
+
+### Portal Entegrasyon Sayfası
+
+```typescript
+// GET /api/portal/integrations/microsoft365/guide
+router.get("/microsoft365/guide", requireCustomer,
+  async (req, res) => {
+  res.json(MICROSOFT_365_GUIDE);
+});
+
+// POST /api/portal/integrations/microsoft365/connect
+router.post("/microsoft365/connect", requireCustomer,
+  async (req, res) => {
+
+  const { tenantId, clientId, clientSecret } = req.body;
+  const customerId = getCustomerId(req)!;
+
+  // Bağlantı testi
+  const testResult = await testMicrosoft365Connection({
+    tenantId, clientId, clientSecret
+  });
+
+  if (!testResult.success) {
+    res.status(400).json({
+      error: "Bağlantı başarısız",
+      detail: testResult.error,
+      troubleshooting:
+        MICROSOFT_365_GUIDE.troubleshooting,
+    });
+    return;
+  }
+
+  // Şifreli kaydet
+  await saveIntegrationConfig(customerId, "microsoft365", {
+    tenantId,
+    clientId,
+    clientSecret: encrypt(clientSecret),
+  });
+
+  res.json({
+    success: true,
+    message: "Microsoft 365 bağlantısı kuruldu. " +
+             "İlk güvenlik verileri 15 dakika içinde gelecek.",
+  });
+});
+```
+
+---
+
+## SERVİS 2 — TAM GÜVENLİK DEĞERLENDİRMESİ
+
+### Açıklama Değişikliği
+
+```
+ESKİ:
+  "60 soruda kapsamlı güvenlik analizi,
+   uzman doğrulamalı"
+
+YENİ:
+  "60 soruda kapsamlı güvenlik analizi.
+   AI destekli risk skoru, öncelikli
+   aksiyon planı ve yönetici raporu.
+   3-5 iş günü içinde teslim."
+
+services tablosunda güncelle:
+  WHERE service_key = 'tam_guvenlik_degerlendirmesi'
+```
+
+### Değerlendirme Akışı
+
+```typescript
+// src/services/fullSecurityAssessment.ts
+// YENİ DOSYA veya mevcut assessment servisine ekle
+
+export const ASSESSMENT_QUESTIONS = {
+  // Bölüm 1: Altyapı (15 soru)
+  infrastructure: [
+    {
+      id: "inf_01",
+      question: "Kaç adet sunucunuz/sanal makineniz var?",
+      type: "select",
+      options: ["1-5", "6-20", "21-50", "50+"],
+      weight: 2,
+    },
+    {
+      id: "inf_02",
+      question: "Cloud servis kullanıyor musunuz?",
+      type: "multiselect",
+      options: ["AWS", "Azure", "GCP",
+                "Türk bulut", "Kullanmıyorum"],
+      weight: 2,
+    },
+    // ... 13 soru daha
+  ],
+
+  // Bölüm 2: Kimlik & Erişim (10 soru)
+  identity: [
+    {
+      id: "iam_01",
+      question: "Çok faktörlü kimlik doğrulama (MFA) kullanıyor musunuz?",
+      type: "select",
+      options: [
+        "Evet, tüm kullanıcılar için",
+        "Evet, sadece yöneticiler için",
+        "Hayır",
+        "Planlanıyor",
+      ],
+      weight: 3,
+    },
+    // ... 9 soru daha
+  ],
+
+  // Bölüm 3: Veri Güvenliği (10 soru)
+  // Bölüm 4: Ağ Güvenliği (10 soru)
+  // Bölüm 5: KVKK & Uyumluluk (10 soru)
+  // Bölüm 6: Olay Müdahale (5 soru)
+};
+
+// Değerlendirme tamamlandığında rapor üret
+export async function generateAssessmentReport(
+  customerId: number,
+  answers: Record<string, string | string[]>
+): Promise<void> {
+
+  const score = calculateAssessmentScore(answers);
+
+  // Claude Sonnet ile detaylı rapor
+  const report = await callClaude(`
+Siber güvenlik olgunluk değerlendirmesi raporu yaz.
+
+Şirket bilgileri:
+  Sektör: ${answers.sector}
+  Çalışan sayısı: ${answers.employee_count}
+  Genel skor: ${score.total}/100
+
+Bölüm skorları:
+  Altyapı: ${score.infrastructure}/100
+  Kimlik & Erişim: ${score.identity}/100
+  Veri Güvenliği: ${score.data}/100
+  Ağ Güvenliği: ${score.network}/100
+  KVKK Uyum: ${score.kvkk}/100
+  Olay Müdahale: ${score.incident}/100
+
+Kritik yanıtlar:
+${JSON.stringify(score.criticalAnswers, null, 2)}
+
+Şunları üret:
+1. Yönetici özeti (CEO dili, 200 kelime)
+2. En kritik 5 risk (madde madde)
+3. 30-60-90 gün aksiyon planı
+4. 7545 Kanunu uyum boşlukları
+5. KVKK teknik tedbir eksiklikleri
+
+Türkçe, profesyonel, somut öneriler.
+  `, {
+    model: "claude-sonnet-4-6",
+    maxTokens: 2000,
+  });
+
+  // PDF üret ve müşteriye gönder
+  const pdf = await generateAssessmentPDF(score, report);
+
+  await sendEmail({
+    to: await getCustomerEmail(customerId),
+    subject:
+      "Güvenlik Değerlendirme Raporunuz Hazır — CyberStep",
+    html: buildAssessmentEmail(score, pdf.url),
+    attachments: [{ filename: pdf.filename, path: pdf.path }],
+    from: "degerlendirme@cyberstep.io",
+  });
+
+  // Notlar:
+  // 1. İlk 2-3 satışta sen raporu gözden geçir
+  // 2. Claude'un ürettiği aksiyonlar
+  //    müşterinin tech stack'ine göre
+  //    ne kadar isabetli, gör
+  // 3. Skor hesabını kalibre et
+}
+```
+
+### Beklenti Yönetimi
+
+```typescript
+// Satın alma sonrası onboarding emailine ekle:
+const ASSESSMENT_EXPECTATION_NOTE = `
+Bu değerlendirme:
+✓ Dışarıdan görünen güvenlik risklerini ölçer
+✓ KVKK ve 7545 uyum boşluklarını tespit eder
+✓ Öncelikli aksiyon planı sunar
+
+Bu değerlendirme değildir:
+✗ Aktif sızma testi (pentest)
+✗ İç ağ analizi
+✗ Kod güvenlik denetimi
+
+Raporunuz 3-5 iş günü içinde emailinize gelecek.
+`;
+```
+
+---
+
+## SERVİS 3 — PENTEST LİTE
+
+### Açıklama Değişikliği
+
+```
+ESKİ başlık:    "Pentest Lite"
+YENİ başlık:    "Pasif Saldırı Yüzeyi Analizi"
+
+ESKİ açıklama:
+  "Pasif keşif tabanlı pentest:
+   Shodan, crt.sh, CVE/EPSS, GreyNoise,
+   MITRE ATT&CK saldırı zinciri senaryosu.
+   Sisteme dokunulmaz."
+
+YENİ açıklama:
+  "Dışarıdan saldırgan gözüyle bakış.
+   Shodan, crt.sh, CVE/EPSS, GreyNoise
+   ve MITRE ATT&CK framework kullanılarak
+   sisteminize erişim sağlanabilecek
+   vektörler haritalanır.
+   Aktif exploit veya sistem erişimi yapılmaz.
+   Türkçe teknik rapor + yönetici özeti."
+
+services tablosunda güncelle:
+  WHERE service_key IN
+  ('pentest_lite_1', 'pentest_lite_5', 'pentest_lite_yillik')
+```
+
+### Onboarding Formu
+
+```typescript
+// Pentest Lite satın alındığında müşteriden alınacak bilgi
+
+export const PENTEST_SCOPE_FORM = {
+  title: "Analiz Kapsamı Bildirimi",
+  description:
+    "Analizin doğru yapılabilmesi için " +
+    "aşağıdaki bilgileri doldurun.",
+
+  fields: [
+    {
+      id: "primary_domain",
+      label: "Ana domain adı",
+      type: "text",
+      placeholder: "sirket.com.tr",
+      required: true,
+    },
+    {
+      id: "additional_domains",
+      label: "Analiz edilecek ek domain/subdomain",
+      type: "textarea",
+      placeholder: "store.sirket.com.tr\napi.sirket.com.tr",
+      required: false,
+      helpText:
+        "Birden fazla varsa her satıra bir tane yazın",
+    },
+    {
+      id: "known_tech_stack",
+      label: "Bildiğiniz teknolojiler",
+      type: "multiselect",
+      options: [
+        "WordPress", "Microsoft 365", "Cloudflare",
+        "Fortinet", "SAP", "Oracle", "AWS", "Azure",
+        "Diğer / Bilmiyorum",
+      ],
+      required: false,
+    },
+    {
+      id: "contact_name",
+      label: "Teknik rapor teslim kişisi",
+      type: "text",
+      required: true,
+    },
+    {
+      id: "agreed_scope",
+      label: "Kapsam Onayı",
+      type: "checkbox",
+      text:
+        "Bu analiz pasif keşif yöntemiyle yapılacaktır. " +
+        "Sisteme aktif erişim, exploit veya " +
+        "veri sızdırma işlemi yapılmayacaktır. " +
+        "Analizdeki tüm bulgular dışarıdan " +
+        "görünen açık kaynak verilerden elde edilir.",
+      required: true,
+    },
+  ],
+
+  // Form tamamlandıktan sonra
+  successMessage:
+    "Kapsam bilgileri alındı. " +
+    "Analiz 5-7 iş günü içinde tamamlanır. " +
+    "Rapor emailinize gönderilecek.",
+};
+
+// Onboarding emailine eklenecek
+const PENTEST_EXPECTATION_NOTE = `
+Pasif Saldırı Yüzeyi Analizi hakkında:
+
+✓ Dışarıdan görünen tüm saldırı noktaları
+✓ CVE güvenlik açıkları ve EPSS risk skoru
+✓ MITRE ATT&CK saldırı zinciri senaryosu
+✓ Türkçe teknik rapor + yönetici özeti
+
+Bu hizmet penetrasyon testi (pentest) değildir.
+Sisteme aktif erişim yapılmaz.
+Dışarıdan saldırgan perspektifini simüle eder.
+`;
+```
+
+---
+
+## SERVİS 4 — CVE İZLEME PRO (Otomatik Blok)
+
+### Açıklama Değişikliği
+
+```
+ESKİ:
+  "Sınırsız domain — Telegram + otomatik
+   FortiGate blok. CVE'yi tetikleyen
+   bilinen IP'leri anında engelleyin."
+
+YENİ:
+  "Sınırsız domain — Telegram bildirimi +
+   FortiGate entegrasyonu. CVE'yi tetikleyen
+   tehdit IP'leri tespit edildiğinde
+   FortiGate'e blok önerisi iletilir.
+   Otomatik blok aktivasyonu isteğe bağlıdır
+   ve beyaz liste korumasıyla çalışır."
+
+services tablosunda güncelle:
+  WHERE service_key = 'cve_izleme_pro'
+```
+
+### Onboarding — Otomatik Blok Kurulumu
+
+```typescript
+export const CVE_PRO_ONBOARDING = {
+  title: "CVE İzleme Pro — FortiGate Kurulumu",
+  steps: [
+    {
+      stepNo: 1,
+      title: "FortiGate API Key Oluştur",
+      description:
+        "FortiGate arayüzü → System → Administrators → " +
+        "Create New → REST API Admin. " +
+        "İzinler: Network Read, Firewall Write.",
+    },
+    {
+      stepNo: 2,
+      title: "CyberStep'e Bağla",
+      description:
+        "Portal → Entegrasyonlar → FortiGate → " +
+        "IP ve API Key girin.",
+    },
+    {
+      stepNo: 3,
+      title: "Beyaz Liste Kur (ÖNEMLİ)",
+      description:
+        "Portal → Güvenlik → Güvenli IP Listesi. " +
+        "Ödeme sağlayıcınız, ofisiniz, " +
+        "yedekleme sunucunuzun IP'lerini ekleyin. " +
+        "Bu IP'ler hiçbir zaman engellenmez.",
+      warning:
+        "Beyaz liste kurmadan otomatik blok " +
+        "AÇMAYIN. Kritik servisler engellenebilir.",
+    },
+    {
+      stepNo: 4,
+      title: "Otomatik Blok Ayarı",
+      description:
+        "Varsayılan: Kapalı (sadece bildirim). " +
+        "Açmak için: Portal → Ayarlar → " +
+        "Otomatik Blok → Aktif Et. " +
+        "Minimum güven skoru: 80/100 önerilir.",
+    },
+  ],
+
+  autoBlockNote:
+    "Otomatik blok varsayılan kapalıdır. " +
+    "Aktif ettiğinizde her blok işlemi " +
+    "loglanır ve geri alınabilir. " +
+    "Acil durum için tek tıkla durdurabilirsiniz.",
+};
+```
+
+---
+
+## SERVİS 5 — AI OLTaLAMA SİMÜLASYONU → PHISHING RİSK ANALİZİ
+
+### İsim ve Açıklama Değişikliği
+
+```
+ESKİ başlık:    "AI Oltalama Simülasyonu"
+YENİ başlık:    "AI Phishing Risk Analizi"
+
+ESKİ açıklama:
+  "Şirketinize yönelik gerçekçi
+   phishing senaryoları üretin"
+
+YENİ açıklama:
+  "Şirketinizi hedef alabilecek
+   phishing saldırı senaryolarını AI ile
+   üretir. Çalışanlarınıza farkındalık
+   eğitiminde kullanın. Gerçek email
+   gönderimi yapılmaz — senaryo ve
+   bilinçlendirme raporu teslim edilir."
+
+services tablosunda güncelle:
+  WHERE service_key = 'ai_oltalama_simulasyon'
+  SET service_name = 'AI Phishing Risk Analizi'
+```
+
+### Rapor İçeriği
+
+```typescript
+// Müşteriden alınacak bilgi:
+export const PHISHING_ANALYSIS_FORM = {
+  fields: [
+    {
+      id: "domain",
+      label: "Şirket domain adı",
+      type: "text",
+      helpText:
+        "Bu domain üzerinden açık kaynak " +
+        "bilgi toplanır (OSINT)",
+    },
+    {
+      id: "sector",
+      label: "Sektör",
+      type: "select",
+      options: [
+        "Finans / Bankacılık",
+        "Sağlık",
+        "Üretim",
+        "Perakende / E-ticaret",
+        "Teknoloji",
+        "Eğitim",
+        "Diğer",
+      ],
+    },
+    {
+      id: "employee_count",
+      label: "Çalışan sayısı",
+      type: "select",
+      options: ["1-20", "21-100", "101-500", "500+"],
+    },
+    {
+      id: "known_risks",
+      label: "Endişelendiğiniz konular",
+      type: "multiselect",
+      options: [
+        "CEO fraud / BEC",
+        "Fatura sahteciliği",
+        "Kimlik bilgisi hırsızlığı",
+        "Tedarikçi taklidi",
+        "Genel phishing",
+      ],
+    },
+  ],
+};
+
+// Rapor üretimi
+export async function generatePhishingAnalysis(
+  customerId: number,
+  params: PhishingAnalysisParams
+): Promise<void> {
+
+  // 1. OSINT — domain hakkında kamuya açık bilgi
+  const osintData = await collectDomainOSINT(params.domain);
+
+  // 2. Claude ile saldırı senaryoları üret
+  const scenarios = await callClaude(`
+${params.domain} domainli ${params.sector}
+sektöründeki bir şirketi hedef alan
+phishing saldırı senaryoları üret.
+
+OSINT verileri:
+  Çalışan sayısı: ${params.employeeCount}
+  Kamuya açık LinkedIn profilleri: ${osintData.linkedinCount}
+  Email formatı: ${osintData.emailFormat || "bilinmiyor"}
+  CEO/yönetici adları: ${osintData.executives?.join(", ") || "bulunamadı"}
+
+5 ayrı senaryo üret:
+  1. CEO fraud / yönetici taklidi
+  2. Fatura/ödeme sahteciliği
+  3. IT desteği taklidi
+  4. Tedarikçi/partner taklidi
+  5. ${params.knownRisks?.[0] || "Genel phishing"}
+
+Her senaryo için:
+  - Saldırı yöntemi
+  - Örnek email konusu (gerçekçi)
+  - Hedef çalışan tipi
+  - Başarı ihtimali (Düşük/Orta/Yüksek)
+  - Tespit ipuçları
+  - Çalışana verilecek eğitim notu
+
+Türkçe, gerçekçi, eğitim amaçlı.
+  `, {
+    model: "claude-haiku-4-5",
+    maxTokens: 1500,
+  });
+
+  // 3. Farkındalık raporu üret + PDF gönder
+  const pdf = await generatePhishingReportPDF(
+    params, scenarios, osintData
+  );
+
+  await sendEmail({
+    to: await getCustomerEmail(customerId),
+    subject: "AI Phishing Risk Analiz Raporunuz — CyberStep",
+    html: buildPhishingReportEmail(pdf.url),
+    attachments: [{ filename: pdf.filename, path: pdf.path }],
+    from: "analiz@cyberstep.io",
+  });
+}
+```
+
+---
+
+## SERVİS 6 — SERVICENOW ENTEGRASYONU
+
+### Açıklama Değişikliği
+
+```
+ESKİ:
+  "SOC vakalarını ServiceNow incident'larıyla
+   çift yönlü senkronize edin."
+
+YENİ:
+  "SOC güvenlik vakalarını ServiceNow'a
+   otomatik aktarın. CyberStep'te açılan
+   güvenlik alarmları ServiceNow incident
+   olarak oluşturulur. Kurulum sırasında
+   teknik destek sağlanır.
+   Kurulum: 3.000 TL (tek seferlik)"
+
+NOT: Fiyata kurulum ücreti eklendi
+services tablosunda güncelle:
+  WHERE service_key = 'servicenow_entegrasyon'
+  SET setup_fee = 3000
+```
+
+### Onboarding — ServiceNow Kurulum Kılavuzu
+
+```typescript
+export const SERVICENOW_GUIDE = {
+  title: "ServiceNow Entegrasyon Kurulumu",
+  model: "Teklif Al + Kurulum Desteği",
+  note:
+    "Bu entegrasyon kurulum sırasında " +
+    "CyberStep teknik ekibiyle birlikte " +
+    "yapılır. Randevu: destek@cyberstep.io",
+
+  estimatedTime: "2-4 saat (birlikte)",
+
+  prerequisites: [
+    "ServiceNow admin erişimi",
+    "ServiceNow versiyonu: Quebec ve üzeri",
+    "CyberStep SOC Standart veya Pro aboneliği",
+    "Statik IP veya webhook endpoint",
+  ],
+
+  steps: [
+    {
+      stepNo: 1,
+      title: "ServiceNow Inbound Integration Oluştur",
+      description:
+        "ServiceNow → Integration Hub veya " +
+        "Scripted REST API → " +
+        "CyberStep için endpoint oluşturun.",
+      handledBy: "CyberStep teknik ekibi",
+    },
+    {
+      stepNo: 2,
+      title: "HMAC-SHA256 İmza Doğrulama",
+      description:
+        "Webhook güvenliği için imza kontrolü " +
+        "ServiceNow tarafında yapılandırılır.",
+      handledBy: "CyberStep teknik ekibi",
+    },
+    {
+      stepNo: 3,
+      title: "Incident Şeması Haritalama",
+      description:
+        "CyberStep alarm alanlarının " +
+        "ServiceNow incident alanlarına " +
+        "nasıl eşleneceğini belirleyin.",
+      handledBy: "Müşteri + CyberStep birlikte",
+    },
+    {
+      stepNo: 4,
+      title: "Test ve Doğrulama",
+      description:
+        "Test alarmı oluşturun, " +
+        "ServiceNow'da göründüğünü doğrulayın.",
+      handledBy: "Birlikte",
+    },
+  ],
+
+  salesProcess: [
+    "1. Teklif formu doldur",
+    "2. Teknik görüşme randevusu (30 dk, video)",
+    "3. Kurulum günü belirle",
+    "4. 3.000 TL kurulum ücreti + aylık 2.490 TL",
+  ],
+};
+
+// ServiceNow için HITL notu:
+// Bu entegrasyon ilk müşteride
+// bizzat kuruluma gir.
+// Webhook, imza doğrulama,
+// incident şeması — bunları
+// uzaktan çözmek zor.
+// İlk kurulumda öğren,
+// sonraki müşteriler için
+// kılavuzu güncelle.
+```
+
+---
+
+## BÖLÜM 2: ONBOARDİNG EMAİL SERİSİ GÜNCELLEMESİ
+
+```typescript
+// src/services/onboardingEmailSeries.ts
+// Mevcut seriye servis tipine özel içerik ekle
+
+export function getServiceSpecificOnboardingContent(
+  serviceName: string
+): {
+  d1_extra: string;
+  d3_extra: string;
+  expectations: string;
+} {
+
+  const content: Record<string, any> = {
+
+    microsoft_365: {
+      d1_extra:
+        "Microsoft 365 entegrasyonu için " +
+        "15 dakikalık kurulum rehberine bakın: " +
+        `${BASE_URL}/portal/integrations/microsoft365/guide`,
+      d3_extra:
+        "Henüz bağlamadıysanız: " +
+        "Kurulum sırasında sorun yaşarsanız " +
+        "destek@cyberstep.io yazın.",
+      expectations: MICROSOFT_365_GUIDE.salesNote,
+    },
+
+    tam_guvenlik_degerlendirmesi: {
+      d1_extra:
+        "60 soruluk değerlendirmeye başlamak için: " +
+        `${BASE_URL}/portal/assessment/full`,
+      d3_extra:
+        "Değerlendirmenizi tamamladıysanız " +
+        "raporunuz 3-5 iş günü içinde gelecek.",
+      expectations: ASSESSMENT_EXPECTATION_NOTE,
+    },
+
+    pentest_lite_1: {
+      d1_extra:
+        "Analiz kapsamını belirtmek için formu doldurun: " +
+        `${BASE_URL}/portal/pentest/scope`,
+      d3_extra:
+        "Kapsam formu onaylandıktan sonra " +
+        "analiz 5-7 iş günü içinde tamamlanır.",
+      expectations: PENTEST_EXPECTATION_NOTE,
+    },
+
+    cve_izleme_pro: {
+      d1_extra:
+        "FortiGate bağlantısı için kurulum rehberi: " +
+        `${BASE_URL}/portal/integrations/fortigate/guide`,
+      d3_extra:
+        "Otomatik blok açmadan önce " +
+        "beyaz listeyi kurmayı unutmayın!",
+      expectations: CVE_PRO_ONBOARDING.autoBlockNote,
+    },
+
+    ai_phishing_analiz: {
+      d1_extra:
+        "Analiz formunu doldurun: " +
+        `${BASE_URL}/portal/phishing-analysis/form`,
+      d3_extra:
+        "Formunuzu aldık. " +
+        "Rapor 2-3 iş günü içinde gelecek.",
+      expectations:
+        "Bu hizmet gerçek email göndermez. " +
+        "Saldırı senaryoları ve farkındalık raporu üretir.",
+    },
+
+    servicenow_entegrasyon: {
+      d1_extra:
+        "Kurulum randevusu için: " +
+        "destek@cyberstep.io adresine yazın.",
+      d3_extra:
+        "Kurulum toplantısı henüz planlanmadıysa " +
+        "lütfen iletişime geçin.",
+      expectations: SERVICENOW_GUIDE.salesProcess.join("\n"),
+    },
+  };
+
+  return content[serviceName] || {
+    d1_extra: "",
+    d3_extra: "",
+    expectations: "",
+  };
+}
+```
+
+---
+
+## BÖLÜM 3: PORTAL — ONBOARDING SAYFASI
+
+```typescript
+// GET /api/portal/onboarding/status
+router.get("/status", requireCustomer, async (req, res) => {
+  const customerId = getCustomerId(req)!;
+  const subs = await getActiveSubscriptions(customerId);
+
+  const status = await Promise.all(
+    subs.map(async sub => {
+      const guide = getServiceGuide(sub.serviceName);
+      const completed =
+        await getOnboardingProgress(customerId, sub.serviceName);
+      return {
+        serviceName: sub.serviceName,
+        serviceLabel: sub.serviceLabel,
+        hasGuide: !!guide,
+        guideUrl: guide
+          ? `${BASE_URL}/portal/integrations/${sub.serviceName}/guide`
+          : null,
+        completionPct: completed.pct,
+        nextStep: completed.nextStep,
+      };
+    })
+  );
+
+  res.json({ services: status });
+});
+```
+
+```
+Portal — /portal/onboarding
+
+─── KURULUM DURUMUNUZ ───────────────────────────────────
+
+AI SOC Lite            ✅ %100 — Aktif
+  Domain eklendi, izleme başladı
+
+Microsoft 365          ⚠️ %0 — Kurulum Bekleniyor
+  [Kurulum Rehberine Başla →]
+  Tahmini süre: 15 dakika
+
+CVE İzleme Pro         ⚠️ %50 — FortiGate Bekleniyor
+  ✓ Domain eklendi
+  ✗ FortiGate bağlantısı yapılmadı
+  [Bağlantı Rehberi →]
+```
+
+---
+
+## BÖLÜM 4: TEST SENARYOLARI
+
+```
+1. Açıklama güncelleme testi:
+   GET /api/portal/pricing
+   → "AI Phishing Risk Analizi" görünüyor mu?
+   → "Pasif Saldırı Yüzeyi Analizi" görünüyor mu?
+   → "uzman doğrulamalı" ifadesi yok mu?
+
+2. M365 bağlantı testi:
+   POST /api/portal/integrations/microsoft365/connect
+   Geçersiz credentials gönder
+   → 400 + troubleshooting döndü mü?
+   Geçerli credentials gönder
+   → success: true döndü mü?
+
+3. Pentest kapsam formu testi:
+   Pentest Lite satın alındıktan sonra
+   → D+0 emailinde form linki var mı?
+   POST /api/portal/pentest/scope
+   → Kapsam formu kaydedildi mi?
+   → Onboarding durumu %50 oldu mu?
+
+4. Phishing analiz testi:
+   POST /api/portal/phishing-analysis/run
+   { domain: "test.com.tr", sector: "Teknoloji" }
+   → 5 senaryo üretildi mi?
+   → PDF oluştu mu?
+   → Email gönderildi mi?
+
+5. CVE Pro beyaz liste uyarı testi:
+   Müşteri "otomatik blok aç" istediğinde
+   → Beyaz liste yoksa uyarı gösteriyor mu?
+   → "Önce beyaz liste kurun" mesajı var mı?
+
+6. Onboarding status testi:
+   GET /api/portal/onboarding/status
+   → Aktif servisler listede mi?
+   → Her servis için completionPct var mı?
+   → M365 bağlı değilse %0 mı?
+```
+
+---
+
+*CyberStep.io — "Test Ederek Sat" Servisler — Haziran 2026*
+*Doğru beklenti = Mutlu müşteri = Düşük churn*

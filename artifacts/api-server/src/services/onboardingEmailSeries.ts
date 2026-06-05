@@ -68,6 +68,83 @@ CyberStep hesabınız hazır! Aşağıdaki adımları tamamlayarak siber güvenl
   logger.info({ customerId }, "Welcome email sent");
 }
 
+// ─── Servis-özel onboarding içeriği ──────────────────────────────────────────
+
+export function getServiceSpecificOnboardingContent(serviceSlug: string): {
+  d1_extra: string;
+  d3_extra: string;
+  expectations: string;
+} {
+  const content: Record<string, { d1_extra: string; d3_extra: string; expectations: string }> = {
+    "microsoft-365": {
+      d1_extra:
+        `Microsoft 365 entegrasyonu için 15 dakikalık kurulum rehberini inceleyin: ${BASE_URL}/hesabim/kurulum`,
+      d3_extra:
+        "Henüz bağlamadıysanız kurulum sırasında sorun yaşarsanız destek@cyberstep.io yazın.",
+      expectations:
+        "Kurulum 15 dakika sürüyor. Azure AD riskli girişleri ve M365 güvenlik uyarıları otomatik izlenmeye başlar.",
+    },
+    "full-assessment": {
+      d1_extra:
+        `60 soruluk değerlendirmeye başlamak için portalınızı ziyaret edin: ${BASE_URL}/hesabim`,
+      d3_extra:
+        "Değerlendirmenizi tamamladıysanız raporunuz 3-5 iş günü içinde gelecek.",
+      expectations:
+        "Bu değerlendirme dışarıdan görünen güvenlik risklerini, KVKK ve 7545 uyum boşluklarını tespit eder. Aktif sızma testi (pentest) değildir. Raporunuz 3-5 iş günü içinde emailinize gelecek.",
+    },
+    "pentest-lite-tek": {
+      d1_extra:
+        `Analiz kapsamını belirtmek için formu doldurun: ${BASE_URL}/hesabim/kurulum`,
+      d3_extra:
+        "Kapsam formu onaylandıktan sonra analiz 5-7 iş günü içinde tamamlanır.",
+      expectations:
+        "Bu hizmet penetrasyon testi (pentest) değildir. Sisteme aktif erişim yapılmaz. Dışarıdan saldırgan perspektifini simüle eder.",
+    },
+    "pentest-lite-5domain": {
+      d1_extra:
+        `5 domain için analiz kapsamını belirtmek için formu doldurun: ${BASE_URL}/hesabim/kurulum`,
+      d3_extra:
+        "Kapsam formu onaylandıktan sonra analiz 5-7 iş günü içinde tamamlanır.",
+      expectations:
+        "Bu hizmet penetrasyon testi (pentest) değildir. Sisteme aktif erişim yapılmaz. Dışarıdan saldırgan perspektifini simüle eder.",
+    },
+    "pentest-lite-yillik": {
+      d1_extra:
+        `Yıllık analiz kapsamını belirtmek için formu doldurun: ${BASE_URL}/hesabim/kurulum`,
+      d3_extra:
+        "İlk kapsam formu onaylandıktan sonra analiz 5-7 iş günü içinde tamamlanır.",
+      expectations:
+        "Bu hizmet penetrasyon testi (pentest) değildir. Sisteme aktif erişim yapılmaz. Her çeyrek dışarıdan pasif analiz yapılır.",
+    },
+    "cve-izleme-pro": {
+      d1_extra:
+        `FortiGate bağlantısı için kurulum rehberine bakın: ${BASE_URL}/hesabim/kurulum`,
+      d3_extra:
+        "Otomatik blok açmadan önce beyaz listeyi kurmayı unutmayın!",
+      expectations:
+        "Otomatik blok varsayılan kapalıdır. Aktif ettiğinizde her blok işlemi loglanır ve geri alınabilir.",
+    },
+    "phishing-simulation": {
+      d1_extra:
+        `Analiz formunu doldurun: ${BASE_URL}/hesabim/kurulum`,
+      d3_extra:
+        "Formunuzu aldık. Rapor 2-3 iş günü içinde gelecek.",
+      expectations:
+        "Bu hizmet gerçek email göndermez. Saldırı senaryoları ve çalışan farkındalık raporu üretilir.",
+    },
+    "servicenow": {
+      d1_extra:
+        "Kurulum randevusu için: destek@cyberstep.io adresine yazın. Teknik ekibimiz aynı gün döner.",
+      d3_extra:
+        "Kurulum toplantısı henüz planlanmadıysa lütfen iletişime geçin: destek@cyberstep.io",
+      expectations:
+        "Kurulum CyberStep teknik ekibiyle birlikte yapılır (2-4 saat). 3.000 TL kurulum ücreti tek seferlik.",
+    },
+  };
+
+  return content[serviceSlug] ?? { d1_extra: "", d3_extra: "", expectations: "" };
+}
+
 // ─── D+1 emaili ──────────────────────────────────────────────────────────────
 
 export async function runDay1EmailCron(): Promise<number> {

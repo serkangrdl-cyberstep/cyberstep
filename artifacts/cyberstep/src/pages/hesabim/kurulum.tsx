@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Copy,
   ExternalLink, Loader2, ArrowRight, Shield, Wifi, Cloud,
-  Globe, Database, Server, Settings,
+  Globe, Database, Server, Settings, BookOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
@@ -32,6 +32,16 @@ interface KurulumData {
   doneCustomerSteps: number;
   overallProgress: number;
 }
+
+const GUIDE_SLUGS = new Set([
+  "microsoft-365",
+  "cve-izleme-pro",
+  "pentest-lite-tek",
+  "pentest-lite-5domain",
+  "pentest-lite-yillik",
+  "servicenow",
+  "phishing-simulation",
+]);
 
 const SERVICE_ICONS: Record<string, React.ElementType> = {
   "fortinet-fabric": Shield, "soc-operasyon": Shield, "noc": Wifi,
@@ -126,6 +136,21 @@ function ServiceCard({ entry }: { entry: ServiceEntry }) {
               {(entry.generatedUrls ?? []).map(u => (
                 <CopyField key={u.label} label={u.label} value={u.url} />
               ))}
+            </div>
+          )}
+
+          {/* Guide link for services that have one */}
+          {GUIDE_SLUGS.has(entry.subscription.serviceSlug) && !fullyActive && (
+            <div className="pt-2">
+              <a
+                href={`/api/portal/integrations/${entry.subscription.serviceSlug}/guide`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 border border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                Adım Adım Kurulum Rehberi
+              </a>
             </div>
           )}
 

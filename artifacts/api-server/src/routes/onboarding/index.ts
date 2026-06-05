@@ -5,6 +5,7 @@ import { onboardingProgressTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireCustomer } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
+import { getGuideBySlug, GUIDE_SLUGS } from "../../services/onboarding/guides/index";
 
 const router = Router();
 
@@ -83,6 +84,22 @@ router.post("/portal/onboarding/step", requireCustomer, async (req: Request, res
     logger.error({ err }, "Failed to update onboarding step");
     res.status(500).json({ error: "Sunucu hatası" });
   }
+});
+
+// GET /api/portal/integrations/:service/guide — servis kurulum kılavuzu
+router.get("/portal/integrations/:service/guide", requireCustomer, (req: Request, res: Response) => {
+  const service = String(req.params["service"]);
+  const guide = getGuideBySlug(service);
+  if (!guide) {
+    res.status(404).json({ error: "Bu servis için kurulum kılavuzu bulunamadı." });
+    return;
+  }
+  res.json(guide);
+});
+
+// GET /api/portal/integrations/guide-list — kılavuzu olan servisler
+router.get("/portal/integrations/guide-list", requireCustomer, (_req: Request, res: Response) => {
+  res.json({ slugs: GUIDE_SLUGS });
 });
 
 export default router;

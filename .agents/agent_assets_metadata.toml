@@ -48,3 +48,9 @@ id = "qY84c5nMBvjb7Y3YWdaKy"
 uri = "file://cyberstep-code.zip"
 type = "unspecified"
 title = "CyberStep.io — Kaynak Kod"
+
+[[outputs]]
+id = "pOXCS7XJ5XPedHg3TDs7o"
+uri = "file://cyberstep-servis-katalogu.md"
+type = "text"
+title = "CyberStep.io — Servis Kataloğu (46 Servis)"

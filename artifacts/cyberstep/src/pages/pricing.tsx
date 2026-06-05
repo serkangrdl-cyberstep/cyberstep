@@ -1,6 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck, Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server, Search, Crosshair } from "lucide-react";
+import {
+  CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck,
+  Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server,
+  Search, Crosshair, AlertTriangle, Mail, BarChart2, Layers, Target, ShieldAlert,
+  Cpu, Lock, Radio, GitBranch, TrendingUp,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -18,92 +23,76 @@ interface ServiceCatalogItem {
   category: string;
   icon: string;
   isActive: boolean;
+  serviceType?: string;
+  priceTl?: string;
 }
 
-const SERVICE_ICONS: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, React.ElementType> = {
   Network, Globe, FileText, Building2, ScrollText, Activity, Server, Shield,
+  AlertTriangle, Mail, BarChart2, Layers, Target, ShieldAlert, Cpu, Lock,
+  Radio, GitBranch, TrendingUp, Eye, Zap, Search, Crosshair, UserCheck,
 };
 
-const ENTERPRISE_SLUGS = ["fortinet-fabric","dns-izleme","ct-log-izleme","microsoft-365","kvkk-bildirim","servicenow","soc-operasyon","observability"];
+function getIcon(slug: string): React.ElementType {
+  const m: Record<string, React.ElementType> = {
+    "fortinet-fabric": Network,
+    "dns-izleme": Globe,
+    "ct-log-izleme": ScrollText,
+    "microsoft-365": Building2,
+    "kvkk-bildirim": FileText,
+    "servicenow": Activity,
+    "soc-operasyon": Shield,
+    "observability": Server,
+    "soc-lite": ShieldAlert,
+    "soc-standart": Shield,
+    "soc-pro": Shield,
+    "noc-lite": Radio,
+    "noc-standart": Radio,
+    "noc-pro": Radio,
+    "tehdit-istihbarat-starter": AlertTriangle,
+    "tehdit-istihbarat-standart": AlertTriangle,
+    "tehdit-istihbarat-pro": AlertTriangle,
+    "cve-izleme-lite": Lock,
+    "cve-izleme-standart": Lock,
+    "cve-izleme-pro": Lock,
+    "easm-tek": Target,
+    "easm-ceyreklik": Target,
+    "easm-yillik": Target,
+    "tprm-5": Layers,
+    "tprm-10": Layers,
+    "tprm-20": Layers,
+    "pentest-lite-tek": Cpu,
+    "pentest-lite-5domain": Cpu,
+    "pentest-lite-yillik": Cpu,
+    "eposta-guvenligi-tek": Mail,
+    "eposta-guvenligi-izleme": Mail,
+    "ai-security-assessment": Zap,
+    "phishing-simulation": Zap,
+    "eu-ai-act": FileText,
+    "ai-red-team": ShieldAlert,
+    "deepfake-analysis": Eye,
+    "fake-document-scan": Search,
+    "ai-tool-monitoring": Eye,
+    "ai-policy-autoupdate": FileText,
+    "leak-monitor": AlertTriangle,
+    "bundle-full-protection": Layers,
+    "bundle-enterprise-soc": Shield,
+    "bundle-soc-noc-lite": Radio,
+    "bundle-soc-noc-standart": Radio,
+    "bundle-soc-noc-pro": Radio,
+  };
+  return m[slug] ?? Shield;
+}
 
-const ENTERPRISE_SERVICES_DATA = [
-  {
-    slug: "fortinet-fabric",
-    icon: Network,
-    category: "soc",
-    label: "Fortinet Security Fabric",
-    desc: "FortiGate, FortiAnalyzer ve FortiSIEM entegrasyonuyla ağınızdaki tehditleri gerçek zamanlı izleyin ve otomatik bloklama yapın.",
-    features: ["Gerçek zamanlı olay korelasyonu", "Otomatik tehdit bloklama", "SOC analist triage desteği"],
-    price: "4.990",
-  },
-  {
-    slug: "dns-izleme",
-    icon: Globe,
-    category: "monitoring",
-    label: "DNS İzleme",
-    desc: "Alan adlarınızdaki değişiklikleri 5 dakikada bir denetleyin; yetkisiz subdomain, NS veya MX değişikliklerinde anında uyarı alın.",
-    features: ["5 dakikada bir otomatik tarama", "Subdomain, NS, MX takibi", "E-posta ve WhatsApp uyarısı"],
-    price: "990",
-  },
-  {
-    slug: "ct-log-izleme",
-    icon: ScrollText,
-    category: "monitoring",
-    label: "CT Log İzleme",
-    desc: "Alan adınız için dünyada verilen tüm SSL sertifikalarını izleyin; sahte sertifika tespitinde anında bildirim alın.",
-    features: ["crt.sh entegrasyonu", "Sahte sertifika tespiti", "Anlık uyarı sistemi"],
-    price: "490",
-  },
-  {
-    slug: "microsoft-365",
-    icon: Building2,
-    category: "monitoring",
-    label: "Microsoft 365 Entegrasyonu",
-    desc: "Azure AD riskli giriş olaylarını, şüpheli kullanıcı aktivitelerini ve lisans değişikliklerini otomatik olarak izleyin.",
-    features: ["Azure AD OAuth bağlantısı", "Riskli giriş korelasyonu", "Kullanıcı risk skoru izleme"],
-    price: "1.490",
-  },
-  {
-    slug: "kvkk-bildirim",
-    icon: FileText,
-    category: "compliance",
-    label: "KVKK Bildirim Sistemi",
-    desc: "Veri ihlali olaylarını KVKK'nın gerektirdiği 72 saat içinde Kurul'a bildirmek için hazır süreç ve dokümantasyon.",
-    features: ["72 saatlik bildirim sürecini otomatize edin", "Hazır bildirim şablonları", "Olay kaydı ve delil zinciri"],
-    price: "1.990",
-  },
-  {
-    slug: "servicenow",
-    icon: Activity,
-    category: "itsm",
-    label: "ServiceNow Entegrasyonu",
-    desc: "SOC vakalarını ServiceNow incident'larıyla çift yönlü senkronize edin. HMAC-SHA256 imzalı webhook ile güvenli entegrasyon.",
-    features: ["Çift yönlü vaka senkronizasyonu", "HMAC-SHA256 güvenli webhook", "SLA ihlali uyarısı"],
-    price: "2.490",
-  },
-  {
-    slug: "soc-operasyon",
-    icon: Shield,
-    category: "soc",
-    label: "SOC Operasyon Merkezi",
-    desc: "7/24 güvenlik operasyonları; triage, playbook yönetimi, eskalasyon ve olay müdahale desteği.",
-    features: ["7/24 triage ve eskalasyon", "Hazır playbook kütüphanesi", "Aylık SOC raporu"],
-    price: "9.990",
-  },
-  {
-    slug: "observability",
-    icon: Server,
-    category: "monitoring",
-    label: "Gözlemlenebilirlik & İzleme",
-    desc: "Log kaynaklarınızı merkezi bir noktada toplayın; anomali tespiti ve öngörülü uyarılarla güvenlik görünürlüğünüzü artırın.",
-    features: ["Çoklu log kaynağı bağlantısı", "AI destekli anomali tespiti", "Gerçek zamanlı dashboard"],
-    price: "2.990",
-  },
-];
+function fmtTL(v: string | number | undefined): string {
+  const n = parseFloat(String(v ?? "0"));
+  if (!n) return "Ücretsiz";
+  return new Intl.NumberFormat("tr-TR").format(n);
+}
 
-function fmtTL(price: string | undefined): string {
-  const n = parseFloat(price ?? "0");
-  if (!n) return "";
+function fmtTLLabel(v: string | number | undefined): string {
+  const n = parseFloat(String(v ?? "0"));
+  if (!n) return "Ücretsiz";
   return new Intl.NumberFormat("tr-TR").format(n) + " TL + KDV";
 }
 
@@ -157,6 +146,102 @@ const COMPARISON_ROWS: CompRow[] = [
   { label: "Alan Adı Güvenlik Hızlı Tarama", mini: true, full: true },
 ];
 
+interface ServiceGroup {
+  key: string;
+  label: string;
+  slugs: string[];
+  desc?: string;
+  badge?: string;
+  comingSoon?: boolean;
+}
+
+const SERVICE_GROUPS: ServiceGroup[] = [
+  {
+    key: "soc-noc",
+    label: "SOC & NOC",
+    desc: "7/24 güvenlik operasyonları ve ağ operasyon merkezi hizmetleri.",
+    slugs: ["soc-lite","soc-standart","soc-operasyon","noc-lite","noc-standart","noc-pro","bundle-soc-noc-lite","bundle-soc-noc-standart"],
+  },
+  {
+    key: "tehdit-istihbarat",
+    label: "Tehdit İstihbarat & CVE",
+    desc: "Gerçek zamanlı tehdit zekası, CVE izleme ve dark web takibi.",
+    slugs: ["tehdit-istihbarat-starter","tehdit-istihbarat-standart","tehdit-istihbarat-pro","cve-izleme-lite","cve-izleme-standart","cve-izleme-pro","leak-monitor"],
+  },
+  {
+    key: "easm-pentest",
+    label: "EASM & Pentest Lite",
+    desc: "Saldırgan bakış açısıyla dış saldırı yüzeyi yönetimi ve pentest.",
+    slugs: ["easm-tek","easm-ceyreklik","easm-yillik","pentest-lite-tek","pentest-lite-5domain","pentest-lite-yillik"],
+  },
+  {
+    key: "ai-guvenlik",
+    label: "AI Güvenlik",
+    desc: "Yapay zeka araçları, politika yönetimi ve AI simülasyon servisleri.",
+    badge: "Yeni",
+    slugs: ["ai-security-assessment","ai-tool-monitoring","ai-policy-autoupdate","phishing-simulation","ai-red-team","eu-ai-act","deepfake-analysis","fake-document-scan"],
+  },
+  {
+    key: "entegrasyon-izleme",
+    label: "Entegrasyon & İzleme",
+    desc: "Fortinet, Microsoft 365, DNS, CT Log, ServiceNow ve gözlemlenebilirlik.",
+    slugs: ["fortinet-fabric","microsoft-365","servicenow","observability","dns-izleme","ct-log-izleme","kvkk-bildirim"],
+  },
+  {
+    key: "tprm-eposta",
+    label: "TPRM & E-posta",
+    desc: "Tedarikçi risk yönetimi ve e-posta güvenlik denetimi.",
+    slugs: ["tprm-5","tprm-10","tprm-20","eposta-guvenligi-tek","eposta-guvenligi-izleme"],
+  },
+];
+
+function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
+  const Icon = getIcon(svc.slug);
+  const price = fmtTL(svc.monthlyPriceTl);
+  const features: string[] = Array.isArray(svc.features) ? svc.features.slice(0, 3) : [];
+  const isBundle = svc.category === "bundle";
+  const suffix = svc.serviceType === "one_time" ? "· tek seferlik + KDV"
+    : svc.serviceType === "annual" ? "/ yıl + KDV"
+    : "/ ay + KDV";
+
+  return (
+    <div className={`rounded-xl border bg-card p-5 flex flex-col gap-3 hover:border-primary/40 transition-colors ${isBundle ? "border-primary/30 bg-primary/3" : ""}`}>
+      {isBundle && (
+        <div className="text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-300/50 dark:border-green-700/50 px-2 py-0.5 rounded-full w-fit">
+          Paket
+        </div>
+      )}
+      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <Icon className="h-5 w-5 text-primary" />
+      </div>
+      <div>
+        <p className="font-semibold text-sm mb-1">{svc.label}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{svc.shortDescription}</p>
+      </div>
+      {features.length > 0 && (
+        <ul className="space-y-1 flex-1">
+          {features.map((f, i) => (
+            <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />{f}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="pt-2 border-t mt-auto">
+        <p className="text-base font-bold text-primary mb-2">
+          {price} {price !== "Ücretsiz" && <span className="text-xs font-normal text-muted-foreground">{suffix}</span>}
+        </p>
+        <Link
+          href="/iletisim"
+          className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+        >
+          Teklif Al
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function Pricing() {
   usePageMeta({
     title: "Fiyatlar | CyberStep.io",
@@ -165,7 +250,8 @@ export default function Pricing() {
     canonicalPath: "/fiyatlar",
   });
 
-  // Service + Offer JSON-LD — Google zengin sonuçlar ve fiyat kartları için
+  const [activeGroup, setActiveGroup] = useState<string>("soc-noc");
+
   useEffect(() => {
     const id = "ld-json-service";
     let el = document.getElementById(id) as HTMLScriptElement | null;
@@ -208,7 +294,7 @@ export default function Pricing() {
     return () => { el?.remove(); };
   }, []);
 
-  const { data: serviceCatalog = [] } = useQuery<ServiceCatalogItem[]>({
+  const { data: serviceCatalogRaw = [] } = useQuery<ServiceCatalogItem[]>({
     queryKey: ["public-service-catalog"],
     queryFn: () => fetch("/api/public/service-catalog").then(r => r.json()),
     staleTime: 5 * 60 * 1000,
@@ -220,15 +306,19 @@ export default function Pricing() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const serviceCatalog: ServiceCatalogItem[] = Array.isArray(serviceCatalogRaw) ? serviceCatalogRaw : [];
   const dbPlans = Array.isArray(dbPlansRaw) ? dbPlansRaw : [];
   const fullDbPlan = dbPlans.find(p => p.slug === "full");
-  const fullPriceLabel = fullDbPlan ? fmtTL(fullDbPlan.price) : PRICING_PLANS[1].priceLabel;
+  const fullPriceLabel = fullDbPlan ? fmtTLLabel(fullDbPlan.price) : PRICING_PLANS[1].priceLabel;
 
   const plans = PRICING_PLANS.map(p =>
     p.id === "full" && fullDbPlan
       ? { ...p, priceLabel: fullPriceLabel }
       : p
   );
+
+  const currentGroup = SERVICE_GROUPS.find(g => g.key === activeGroup) ?? SERVICE_GROUPS[0];
+  const currentServices = serviceCatalog.filter(s => currentGroup.slugs.includes(s.slug));
 
   return (
     <div className="flex flex-col flex-1">
@@ -282,7 +372,6 @@ export default function Pricing() {
                     </Badge>
                   </div>
                 )}
-
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">{plan.name}</p>
                   <div className="flex items-end gap-1.5 mb-2">
@@ -293,7 +382,6 @@ export default function Pricing() {
                   </div>
                   <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
-
                 <div className="flex gap-4 text-sm">
                   <div className="flex items-center gap-1.5 bg-muted/50 rounded-lg px-3 py-1.5">
                     <span className="font-bold text-primary">{plan.questionCount}</span>
@@ -304,7 +392,6 @@ export default function Pricing() {
                     <span className="text-muted-foreground">alan</span>
                   </div>
                 </div>
-
                 <ul className="space-y-2.5 flex-1">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm">
@@ -319,7 +406,6 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-
                 <Link
                   href={plan.href}
                   className={`inline-flex items-center justify-center rounded-md text-sm font-semibold h-12 px-6 transition-colors ${
@@ -398,7 +484,6 @@ export default function Pricing() {
               Yapay zeka araçlarının yayılmasıyla birlikte yeni uyum yükümlülükleri doğuyor. Politikanızı güncel tutun, araçlarınızı izleyin, saldırıları önceden görün.
             </p>
           </div>
-
           <div className="grid md:grid-cols-3 gap-5 mb-8">
             {/* AI Politika */}
             <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4">
@@ -448,7 +533,7 @@ export default function Pricing() {
               </div>
             </div>
 
-            {/* AI Phishing */}
+            {/* AI Oltalama */}
             <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4">
               <div className="h-11 w-11 rounded-xl bg-red-500/10 flex items-center justify-center">
                 <Zap className="h-5 w-5 text-red-500" />
@@ -496,110 +581,92 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Kurumsal Güvenlik Servisleri */}
-      <section id="kurumsal-servisler" className="pb-16 bg-background">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-10">
+      {/* Tüm Kurumsal Servisler — Sekmeli */}
+      <section id="kurumsal-servisler" className="pb-16 bg-muted/20">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-10 pt-10">
             <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">Kurumsal</Badge>
-            <h2 className="text-2xl font-bold mb-2">Kurumsal Güvenlik Servisleri</h2>
+            <h2 className="text-2xl font-bold mb-2">Tüm Kurumsal Servisler</h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-              Fortinet, Microsoft 365, DNS ve KVKK gibi entegrasyonları aylık abonelikle aktive edin. Her servis ayrı satın alınabilir.
+              SOC, NOC, EASM, tehdit istihbaratı, pentest, TPRM ve daha fazlası. Her servis bağımsız satın alınabilir veya paket halinde alınabilir.
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* Render from DB catalog; fallback to static icons only */}
-            {((): ServiceCatalogItem[] => {
-              const fromDb = (serviceCatalog as ServiceCatalogItem[]).filter(s => ENTERPRISE_SLUGS.includes(s.slug));
-              if (fromDb.length > 0) return fromDb;
-              return ENTERPRISE_SERVICES_DATA.map(s => ({ slug: s.slug, label: s.label, shortDescription: s.desc, features: s.features, monthlyPriceTl: s.price.replace(".", ""), icon: s.slug, isActive: true } as unknown as ServiceCatalogItem));
-            })().map((svc) => {
-              const Icon = SERVICE_ICONS[svc.icon] ?? SERVICE_ICONS[ENTERPRISE_SERVICES_DATA.find(s => s.slug === svc.slug)?.slug ?? ""] ?? Shield;
-              const price = new Intl.NumberFormat("tr-TR").format(Number(svc.monthlyPriceTl));
-              const features: string[] = Array.isArray(svc.features) ? svc.features.slice(0, 3) : (ENTERPRISE_SERVICES_DATA.find(s => s.slug === svc.slug)?.features ?? []);
-              return (
-                <div key={svc.slug} className="rounded-xl border bg-card p-5 flex flex-col gap-3 hover:border-primary/40 transition-colors">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm mb-1">{svc.label}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{svc.shortDescription}</p>
-                  </div>
-                  <ul className="space-y-1 flex-1">
-                    {features.map((f, i) => (
-                      <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />{f}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="pt-2 border-t">
-                    <p className="text-base font-bold text-primary mb-2">{price} TL <span className="text-xs font-normal text-muted-foreground">/ ay + KDV</span></p>
-                    <Link href={`/servisler/${svc.slug}`} className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
-                      İncele
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-            {/* Yakında: Dark Web İzleme */}
-            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-5 flex flex-col gap-3 relative overflow-hidden">
-              <div className="absolute top-3 right-3">
-                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full tracking-wide">Yakında</span>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+
+          {/* Tab navigation */}
+          <div className="flex flex-wrap gap-2 justify-center mb-8">
+            {SERVICE_GROUPS.map(g => (
+              <button
+                key={g.key}
+                onClick={() => setActiveGroup(g.key)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+                  activeGroup === g.key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                }`}
+              >
+                {g.label}
+                {g.badge && (
+                  <span className="ml-1.5 text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold">
+                    {g.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Active group description */}
+          {currentGroup.desc && (
+            <p className="text-center text-sm text-muted-foreground mb-6">{currentGroup.desc}</p>
+          )}
+
+          {/* Service cards */}
+          {currentServices.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+              {currentServices.map(svc => (
+                <ServiceCard key={svc.slug} svc={svc} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              Servisler yükleniyor...
+            </div>
+          )}
+
+          {/* Coming soon tiles */}
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-background p-5 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 <Search className="h-5 w-5 text-muted-foreground" />
               </div>
-              <div>
-                <p className="font-semibold text-sm mb-1 text-foreground/70">Dark Web İzleme</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Kimlik bilgisi sızıntıları ve dark web forum takibi
-                </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-semibold text-sm text-foreground/70">Dark Web İzleme</p>
+                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">Yakında</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Credential sızıntı tespiti ve dark web forum takibi — 2026 Q4</p>
               </div>
-              <ul className="space-y-1 flex-1">
-                {["Credential leak tespiti","Dark web forum izleme","Anlık e-posta uyarısı"].map((f, i) => (
-                  <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                    <CheckCircle2 className="h-3 w-3 text-muted-foreground/40 shrink-0" />{f}
-                  </li>
-                ))}
-              </ul>
-              <div className="pt-2 border-t border-dashed border-muted-foreground/20">
-                <p className="text-xs text-muted-foreground mb-2">2026 Q4 yol haritasında</p>
-                <Link href="/roadmap" className="block w-full text-center text-xs border border-muted-foreground/30 text-muted-foreground py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
-                  Erken Erişim Listesi
-                </Link>
-              </div>
+              <Link href="/roadmap" className="shrink-0 text-xs border border-muted-foreground/30 text-muted-foreground px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+                Erken Erişim
+              </Link>
             </div>
-
-            {/* Yakında: APT Grup İzleme */}
-            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-5 flex flex-col gap-3 relative overflow-hidden">
-              <div className="absolute top-3 right-3">
-                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full tracking-wide">Yakında</span>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-background p-5 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 <Crosshair className="h-5 w-5 text-muted-foreground" />
               </div>
-              <div>
-                <p className="font-semibold text-sm mb-1 text-foreground/70">APT Grup İzleme</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Türkiye'yi hedefleyen tehdit aktörü profilleri ve TTPs analizi
-                </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-semibold text-sm text-foreground/70">APT Grup İzleme</p>
+                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">Yakında</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Türkiye'yi hedefleyen tehdit aktörü profilleri ve MITRE ATT&CK haritalama — 2026 Q4</p>
               </div>
-              <ul className="space-y-1 flex-1">
-                {["Türkiye odaklı APT profilleri","MITRE ATT&CK TTP haritası","Sektörel hedefleme uyarısı"].map((f, i) => (
-                  <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                    <CheckCircle2 className="h-3 w-3 text-muted-foreground/40 shrink-0" />{f}
-                  </li>
-                ))}
-              </ul>
-              <div className="pt-2 border-t border-dashed border-muted-foreground/20">
-                <p className="text-xs text-muted-foreground mb-2">2026 Q4 yol haritasında</p>
-                <Link href="/roadmap" className="block w-full text-center text-xs border border-muted-foreground/30 text-muted-foreground py-1.5 rounded-lg font-medium hover:bg-muted/50 transition-colors">
-                  Erken Erişim Listesi
-                </Link>
-              </div>
+              <Link href="/roadmap" className="shrink-0 text-xs border border-muted-foreground/30 text-muted-foreground px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+                Erken Erişim
+              </Link>
             </div>
           </div>
-          <p className="text-center text-xs text-muted-foreground">
+
+          <p className="text-center text-xs text-muted-foreground mt-8">
             Her servis için ayrıntılı bilgi almak isterseniz{" "}
             <Link href="/iletisim" className="text-primary hover:underline">bizimle iletişime geçin</Link>.
           </p>

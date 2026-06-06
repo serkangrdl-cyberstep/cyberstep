@@ -1674,7 +1674,10 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       urlhausListed: scan.urlhausListed, urlhausThreat: scan.urlhausThreat,
       usomListed: scan.usomListed,
       ctSubdomainCount: scan.ctSubdomainCount,
-      cveSummary: (scan.cveSummary as Array<{ service: string; cveId: string; description: string; cvssScore: number }>) ?? [],
+      cveSummary: ((scan.cveSummary as Array<{ service: string; cveId: string; description: string; cvssScore: number }>) ?? []).filter((cve) => {
+        const year = parseInt(cve.cveId?.split("-")[1] ?? "0");
+        return (new Date().getFullYear() - year) <= 5;
+      }),
       shodanOpenPorts: scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null,
       shodanVulnCount: scan.shodanVulnCount,
       shodanCountry: scan.shodanCountry,

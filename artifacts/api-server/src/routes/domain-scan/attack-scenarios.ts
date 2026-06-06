@@ -216,7 +216,7 @@ function validateReportConsistency(result: AttackScenariosResult, overallScore: 
   if (overallScore >= 80 && (level === "Yüksek" || level === "Kritik")) {
     logger.warn({ score: overallScore, mitre: level }, "MITRE tehdit seviyesi skora göre çok yüksek — Düşük'e düzeltiliyor");
     result.genel_tehdit_seviyesi = "Düşük";
-  } else if (overallScore >= 65 && level === "Kritik") {
+  } else if (overallScore >= 60 && level === "Kritik") {
     logger.warn({ score: overallScore, mitre: level }, "MITRE Kritik skora göre tutarsız — Orta'ya düzeltiliyor");
     result.genel_tehdit_seviyesi = "Orta";
   }
@@ -355,7 +355,7 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
   const sslDaysLeft = scan.sslDaysUntilExpiry ?? 999;
   const mandatedThreatLevel =
     overallScore >= 80 ? "Düşük" :
-    overallScore >= 65 ? "Orta" :
+    overallScore >= 60 ? "Orta" :
     overallScore >= 40 ? "Yüksek" :
     "Kritik";
 

@@ -272,14 +272,36 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     let _pgNum = 1; // içerik sayfası sayacı (kapak hariç)
 
+    // Gerçek CyberStep kalkan ikonunu PDFKit vektör primitifleriyle çizer
+    // x,y: sol-üst köşe, size: PDF point cinsinden boyut (orijinal SVG = 48×48)
+    const _drawShieldIcon = (x: number, y: number, size: number) => {
+      const factor = size / 48;
+      doc.save();
+      doc.translate(x, y);
+      doc.scale(factor, factor);
+      // Kalkan gövdesi: koyu dolgu + cyan kontur
+      doc.fillColor(CS_DARK)
+        .strokeColor(CS_CYAN)
+        .lineWidth(2)
+        .path("M24 3 L42 10 L42 26 C42 35 34 42 24 46 C14 42 6 35 6 26 L6 10 Z")
+        .fillAndStroke();
+      // İç devre H şekli (gradient yerine düz cyan)
+      doc.fillColor(CS_CYAN)
+        .path("M17 30 L17 26 L22 26 L22 22 L17 22 L17 18 L31 18 L31 22 L26 22 L26 26 L31 26 L31 30 Z")
+        .fill();
+      // Köşe siyanür noktaları
+      for (const [px, py] of [[17, 18], [31, 18], [17, 30], [31, 30]] as [number, number][]) {
+        doc.fillColor(CS_CYAN).circle(px, py, 2).fill();
+      }
+      doc.restore();
+    };
+
     // Header: her içerik sayfasının tepesine çizilir
     const _drawHeader = () => {
       const sy = doc.y;
       doc.rect(0, 0, W, 36).fill(CS_DARK);
-      // CS ikon rozeti
-      doc.rect(MARGIN, 7, 22, 22).fill(CS_CYAN);
-      doc.fillColor(CS_DARK).font(FONT_BOLD).fontSize(8)
-        .text("CS", MARGIN + 2, 13, { width: 18, align: "center", lineBreak: false });
+      // CyberStep kalkan ikonu
+      _drawShieldIcon(MARGIN, 7, 22);
       // Logo yazısı
       doc.font(FONT_BOLD).fontSize(13);
       const hcw = doc.widthOfString("Cyber");
@@ -298,10 +320,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       const PH = doc.page.height;
       const sy = doc.y;
       doc.rect(0, PH - 36, W, 36).fill(CS_DARK);
-      // CS ikon rozeti
-      doc.rect(MARGIN, PH - 29, 18, 18).fill(CS_CYAN);
-      doc.fillColor(CS_DARK).font(FONT_BOLD).fontSize(6.5)
-        .text("CS", MARGIN + 1, PH - 24, { width: 16, align: "center", lineBreak: false });
+      // CyberStep kalkan ikonu
+      _drawShieldIcon(MARGIN, PH - 29, 18);
       // Logo yazısı
       doc.font(FONT_BOLD).fontSize(10);
       const fcw = doc.widthOfString("Cyber");
@@ -366,10 +386,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // Logo: CS ikon + Cyber(beyaz) Step(cyan) .io(gri)
     const LOGO_Y = 52;
-    // CS marka ikonu (kapak büyük versiyonu)
-    doc.rect(MARGIN, LOGO_Y - 2, 32, 32).fill(CS_CYAN);
-    doc.fillColor(CS_DARK).font(FONT_BOLD).fontSize(13)
-      .text("CS", MARGIN + 4, LOGO_Y + 7, { width: 24, align: "center", lineBreak: false });
+    // CyberStep kalkan ikonu (kapak büyük versiyonu)
+    _drawShieldIcon(MARGIN, LOGO_Y - 2, 36);
     // Wordmark
     doc.font(FONT_BOLD).fontSize(22);
     const cyberW = doc.widthOfString("Cyber");

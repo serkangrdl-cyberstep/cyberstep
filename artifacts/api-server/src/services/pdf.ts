@@ -305,7 +305,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.fillColor(CS_TEXT).text("Cyber", MARGIN, LOGO_Y, { lineBreak: false });
     doc.fillColor(CS_CYAN).text("Step",  MARGIN + cyberW, LOGO_Y, { lineBreak: false });
     doc.font(FONT_REGULAR).fontSize(11).fillColor(CS_MUTED)
-      .text(".io", MARGIN + cyberW + stepW + 2, LOGO_Y + 5, { lineBreak: false });
+      .text(".io", MARGIN + cyberW + stepW, LOGO_Y, { lineBreak: false });
 
     // Rozet
     const BADGE_Y = LOGO_Y + 34;
@@ -383,7 +383,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.fillColor(CS_TEXT).text("Cyber", MARGIN, 11, { lineBreak: false });
     doc.fillColor(CS_CYAN).text("Step",  MARGIN + cyberW2, 11, { lineBreak: false });
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
-      .text(".io", MARGIN + cyberW2 + stepW2 + 1, 15, { lineBreak: false });
+      .text(".io", MARGIN + cyberW2 + stepW2, 11, { lineBreak: false });
     doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
       .text(`${data.domain}  |  Tarama #${data.id}`,
         MARGIN, 11, { align: "right", width: CONTENT_W });

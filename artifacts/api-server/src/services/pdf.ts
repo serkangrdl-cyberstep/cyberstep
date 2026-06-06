@@ -818,6 +818,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // ── Son sayfaya footer çiz, belgeyi kapat ─────────────────────────────────
     _drawFooter();
+    doc.flushPages();
     doc.end();
   });
 }

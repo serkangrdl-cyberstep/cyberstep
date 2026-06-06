@@ -51,6 +51,7 @@ interface ScanResult {
   sslExpiry: string | null;
   sslIssuer: string | null;
   sslDaysUntilExpiry: number | null;
+  sslNote?: string | null;
   overallScore: number;
   hibpBreachCount: number;
   hibpBreaches: HibpBreach[];
@@ -885,12 +886,26 @@ function UsomCard({ listed }: { listed: boolean }) {
 
 function CertTransparencyCard({ subdomains, count }: { subdomains: string[]; count: number }) {
   const [open, setOpen] = useState(false);
-  const hasSubdomains = count > 0;
+  // count = 0 → yeşil/ok; 1-50 → mavi/bilgi; >50 → sarı/uyarı
+  const level: "ok" | "info" | "warning" = count === 0 ? "ok" : count <= 50 ? "info" : "warning";
+  const styles = {
+    ok:      { card: "bg-green-50/50 border-green-200",   icon: "bg-green-100",  iconText: "text-green-600",  badge: "bg-green-100 text-green-700 border-green-200",  pill: "bg-green-100/80 text-green-800 border-green-200" },
+    info:    { card: "bg-blue-50/50 border-blue-200",     icon: "bg-blue-100",   iconText: "text-blue-600",   badge: "bg-blue-100 text-blue-700 border-blue-200",     pill: "bg-blue-100/80 text-blue-800 border-blue-200"   },
+    warning: { card: "bg-yellow-50/50 border-yellow-200", icon: "bg-yellow-100", iconText: "text-yellow-600", badge: "bg-yellow-100 text-yellow-700 border-yellow-200", pill: "bg-yellow-100/80 text-yellow-800 border-yellow-200" },
+  }[level];
+  const description =
+    count === 0 ? "Sertifika şeffaflık kayıtlarında alt alan adı tespit edilmedi." :
+    count <= 50 ? `SSL sertifika geçmişinde ${count} alt alan adı keşfedildi. Tümünün güncel ve kontrolünüzde olduğunu doğrulayın.` :
+    `SSL sertifika geçmişinde ${count} alt alan adı keşfedildi. Fazla subdomain saldırı yüzeyini artırır — inceleme önerilir.`;
+  const endIcon =
+    level === "ok"      ? <ShieldCheck className="h-5 w-5 text-green-500" /> :
+    level === "info"    ? <Info className="h-5 w-5 text-blue-500" /> :
+    <AlertTriangle className="h-5 w-5 text-yellow-500" />;
   return (
-    <div className={`rounded-xl border p-4 ${!hasSubdomains ? "bg-green-50/50 border-green-200" : "bg-yellow-50/50 border-yellow-200"}`}>
+    <div className={`rounded-xl border p-4 ${styles.card}`}>
       <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-lg shrink-0 ${!hasSubdomains ? "bg-green-100" : "bg-yellow-100"}`}>
-          <Network className={`h-4 w-4 ${!hasSubdomains ? "text-green-600" : "text-yellow-600"}`} />
+        <div className={`p-2 rounded-lg shrink-0 ${styles.icon}`}>
+          <Network className={`h-4 w-4 ${styles.iconText}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -900,17 +915,13 @@ function CertTransparencyCard({ subdomains, count }: { subdomains: string[]; cou
             </Badge>
             <Badge
               variant="outline"
-              className={`text-xs px-2 py-0 border ${!hasSubdomains ? "bg-green-100 text-green-700 border-green-200" : "bg-yellow-100 text-yellow-700 border-yellow-200"}`}
+              className={`text-xs px-2 py-0 border ${styles.badge}`}
             >
               {count === 0 ? "Alt alan yok" : `${count} alt alan`}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {count === 0
-              ? "Sertifika şeffaflık kayıtlarında alt alan adı tespit edilmedi."
-              : `SSL sertifika geçmişinde ${count} alt alan adı keşfedildi. Bilinmeyen alt alanlar güvenlik riski oluşturabilir.`}
-          </p>
-          {hasSubdomains && (
+          <p className="text-xs text-muted-foreground">{description}</p>
+          {count > 0 && (
             <button
               onClick={() => setOpen(!open)}
               className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
@@ -922,7 +933,7 @@ function CertTransparencyCard({ subdomains, count }: { subdomains: string[]; cou
             <div className="mt-2 border-t pt-2">
               <div className="flex flex-wrap gap-1.5">
                 {subdomains.map((s) => (
-                  <span key={s} className="text-xs bg-yellow-100/80 text-yellow-800 border border-yellow-200 rounded px-2 py-0.5 font-mono">{s}</span>
+                  <span key={s} className={`text-xs border rounded px-2 py-0.5 font-mono ${styles.pill}`}>{s}</span>
                 ))}
               </div>
               {count > subdomains.length && (
@@ -932,9 +943,7 @@ function CertTransparencyCard({ subdomains, count }: { subdomains: string[]; cou
             </div>
           )}
         </div>
-        <div className="shrink-0">
-          {!hasSubdomains ? <ShieldCheck className="h-5 w-5 text-green-500" /> : <AlertTriangle className="h-5 w-5 text-yellow-500" />}
-        </div>
+        <div className="shrink-0">{endIcon}</div>
       </div>
     </div>
   );
@@ -2145,7 +2154,7 @@ export default function DomainScanPage() {
                       { label: "DMARC", pass: result.dmarcPass, detail: result.dmarcRecord ?? "Kayıt yok" },
                       { label: "DKIM", pass: result.dkimPass, detail: result.dkimSelectors.length > 0 ? result.dkimSelectors.join(", ") : "Tespit edilemedi" },
                       { label: "MX", pass: result.mxPass, detail: result.mxRecords.length > 0 ? result.mxRecords[0].exchange : "Kayıt yok" },
-                      { label: "SSL", pass: result.sslPass, detail: result.sslExpiry ? `Son: ${new Date(result.sslExpiry).toLocaleDateString("tr-TR")}${result.sslDaysUntilExpiry !== null ? ` (${result.sslDaysUntilExpiry} gün)` : ""}` : "Sertifika yok" },
+                      { label: "SSL", pass: result.sslPass, detail: result.sslExpiry ? `Son: ${new Date(result.sslExpiry).toLocaleDateString("tr-TR")}${result.sslDaysUntilExpiry !== null ? ` (${result.sslDaysUntilExpiry} gün)` : ""}` : (result.sslNote ?? "Sertifika alınamadı") },
                     ].map(({ label, pass, detail }) => (
                       <div key={label} className={`rounded-lg p-3 text-xs border ${pass ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40"}`}>
                         <div className="flex items-center gap-1.5 mb-1">

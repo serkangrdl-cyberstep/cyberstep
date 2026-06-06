@@ -104,7 +104,10 @@ async function checkSSL(domain: string): Promise<{
   expiryDate: string | null;
   issuer: string | null;
   daysUntilExpiry: number | null;
+  note: string | null;
 }> {
+  const SSL_UNREACHABLE_NOTE =
+    "SSL sertifikası alınamadı. Alan adı HTTPS üzerinden erişilemiyor veya geçersiz/süresi dolmuş sertifika kullanıyor olabilir.";
   return new Promise((resolve) => {
     const req = https.request(
       { hostname: domain, port: 443, method: "HEAD", timeout: 8000, rejectUnauthorized: true },
@@ -114,34 +117,47 @@ async function checkSSL(domain: string): Promise<{
           if (cert?.valid_to) {
             const expiry = new Date(cert.valid_to);
             const daysUntilExpiry = Math.floor((expiry.getTime() - Date.now()) / 86400000);
+            const note =
+              daysUntilExpiry <= 0 ? "SSL sertifikasının süresi dolmuş. Acil yenileme gerekiyor." :
+              daysUntilExpiry <= 14 ? `SSL sertifikası ${daysUntilExpiry} gün içinde sona eriyor. Acil yenileme önerilir.` :
+              daysUntilExpiry <= 30 ? `SSL sertifikası ${daysUntilExpiry} gün içinde sona eriyor. Yenileme planlaması yapın.` :
+              null;
             resolve({
               pass: daysUntilExpiry > 30,
               expiryDate: expiry.toISOString(),
               issuer: cert.issuer?.O ?? cert.issuer?.CN ?? null,
               daysUntilExpiry,
+              note,
             });
           } else {
-            resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null });
+            resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE });
           }
         } catch {
-          resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null });
+          resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE });
         }
       }
     );
-    req.on("error", () => resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null }));
-    req.on("timeout", () => { req.destroy(); resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null }); });
+    req.on("error", () => resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE }));
+    req.on("timeout", () => { req.destroy(); resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE }); });
     req.end();
   });
 }
 
 function calcScore(
-  spf: boolean,
+  spfStrength: "hardfail" | "softfail" | "neutral" | "none",
   dmarcPolicy: string | null,
   dkim: boolean,
   mx: boolean,
   sslDaysLeft: number,
   portDeduction = 0,
 ): number {
+  // SPF — kademeli puan (softfail kısmi kredi alır)
+  const spfScore =
+    spfStrength === "hardfail" ? 20 :
+    spfStrength === "softfail" ? 14 :
+    spfStrength === "neutral"  ? 10 :
+    0;
+
   // SSL — kademeli puan (binary 30-gün eşiği yerine)
   const sslScore =
     sslDaysLeft <= 0  ? 0  :
@@ -157,7 +173,7 @@ function calcScore(
     dmarcPolicy === "none"       ? 15 :
     0;
 
-  const base = (spf ? 20 : 0) + dmarcScore + (dkim ? 20 : 0) + (mx ? 10 : 0) + sslScore;
+  const base = spfScore + dmarcScore + (dkim ? 20 : 0) + (mx ? 10 : 0) + sslScore;
   return Math.max(0, base - portDeduction);
 }
 
@@ -519,16 +535,19 @@ const NVD_SERVICE_KEYWORDS: Record<string, string> = {
 
 interface NvdCveEntry { service: string; cveId: string; description: string; cvssScore: number; }
 
-async function checkNvdCve(services: Array<{ name: string; risk: string }>): Promise<NvdCveEntry[]> {
+async function checkNvdCve(services: Array<{ name: string; risk: string; version?: string }>): Promise<NvdCveEntry[]> {
   const targets = services
     .filter(s => NVD_SERVICE_KEYWORDS[s.name] && (s.risk === "Yüksek" || s.risk === "Orta"))
     .slice(0, 2);
   if (targets.length === 0) return [];
   const results: NvdCveEntry[] = [];
+  // Bug 6: CVE yaş filtresi — versiyon bilinmiyorsa son 3 yılın CVE'lerini al
+  const cutoffYear = new Date().getFullYear() - 3;
   for (const service of targets) {
     const keyword = NVD_SERVICE_KEYWORDS[service.name]!;
+    const hasKnownVersion = service.version && service.version !== "unknown";
     await new Promise<void>((resolve) => {
-      const path = `/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(keyword)}&resultsPerPage=2&cvssV3Severity=CRITICAL`;
+      const path = `/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(keyword)}&resultsPerPage=5&cvssV3Severity=CRITICAL`;
       const req = https.request(
         { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 8000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },
         (res) => {
@@ -543,10 +562,19 @@ async function checkNvdCve(services: Array<{ name: string; risk: string }>): Pro
             try {
               type NvdResp = { vulnerabilities?: Array<{ cve: { id: string; descriptions: Array<{ lang: string; value: string }>; metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }> } } }> };
               const json = JSON.parse(data) as NvdResp;
-              for (const vuln of (json.vulnerabilities ?? []).slice(0, 2)) {
+              let added = 0;
+              for (const vuln of (json.vulnerabilities ?? [])) {
+                if (added >= 2) break;
+                const cveId = vuln.cve.id;
+                // Versiyon bilinmiyorsa 3 yıldan eski CVE'leri filtrele
+                if (!hasKnownVersion) {
+                  const cveYear = parseInt(cveId.split("-")[1] ?? "0");
+                  if (!isNaN(cveYear) && cveYear < cutoffYear) continue;
+                }
                 const desc = vuln.cve.descriptions.find(d => d.lang === "en")?.value ?? "";
                 const score = vuln.cve.metrics?.cvssMetricV31?.[0]?.cvssData.baseScore ?? 9.0;
-                results.push({ service: service.name, cveId: vuln.cve.id, description: desc.substring(0, 250), cvssScore: score });
+                results.push({ service: service.name, cveId, description: desc.substring(0, 250), cvssScore: score });
+                added++;
               }
             } catch { /* ignore */ }
             resolve();
@@ -1168,7 +1196,7 @@ export async function performDomainScan(domain: string): Promise<{
     ]);
 
     const overallScore = calcScore(
-      spf.pass,
+      spf.strength,
       dmarc.policy ?? null,
       dkim.pass,
       mx.pass,
@@ -1315,7 +1343,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     ]);
 
     const overallScore = calcScore(
-      spf.pass,
+      spf.strength,
       dmarc.policy ?? null,
       dkim.pass,
       mx.pass,
@@ -1498,7 +1526,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       });
     }
 
-    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss });
+    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss, sslNote: ssl.note });
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
     res.status(500).json({ error: "Tarama sırasında bir hata oluştu" });
@@ -1517,7 +1545,15 @@ router.get("/domain-scan/:id", async (req, res) => {
     res.status(404).json({ error: "Tarama bulunamadı" });
     return;
   }
-  res.json(scan);
+  // SSL note — DB'de saklanmıyor, sslDaysUntilExpiry'den hesaplanıyor
+  const days = scan.sslDaysUntilExpiry;
+  const sslNote =
+    days === null ? "SSL sertifikası alınamadı. Alan adı HTTPS üzerinden erişilemiyor veya geçersiz/süresi dolmuş sertifika kullanıyor olabilir." :
+    days <= 0     ? "SSL sertifikasının süresi dolmuş. Acil yenileme gerekiyor." :
+    days <= 14    ? `SSL sertifikası ${days} gün içinde sona eriyor. Acil yenileme önerilir.` :
+    days <= 30    ? `SSL sertifikası ${days} gün içinde sona eriyor. Yenileme planlaması yapın.` :
+    null;
+  res.json({ ...scan, sslNote });
 });
 
 // ─── GET /api/domain-scan/history/:domain ────────────────────────────────────

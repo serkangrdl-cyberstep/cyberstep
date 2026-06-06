@@ -333,7 +333,7 @@ async function generateAIReport(
           checkSSL(domain), checkHIBP(domain), checkBlacklists(domain), checkShadowIT(domain),
           checkHTTPHeaders(domain), checkURLhaus(domain), checkUsomList(domain), checkCertTransparency(domain),
         ]);
-        const overallScore = calcScore(spf.pass, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
+        const overallScore = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
         const [inserted] = await db.insert(domainScansTable).values({
           domain,
           email: assessment.email,

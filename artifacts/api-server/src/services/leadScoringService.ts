@@ -10,11 +10,14 @@ const EXCLUDED_TLDS = [
 const EXCLUDED_EXACT_DOMAINS = new Set([
   "tobb.org.tr", "tusiad.org", "tesk.org.tr",
   "halkbank.com.tr", "ziraatbank.com.tr",
+  "vakifbank.com.tr", "isbank.com.tr",
+  "garanti.com.tr", "akbank.com",
 ]);
 
 const EXCLUDED_ASN_KEYWORDS = [
-  "odalar ve borsalar", "belediye", "bakanlık", "bakanlik",
-  "üniversite", "universite", "hükümeti", "hukumeti", "devlet", "kamu",
+  "odalar ve borsalar", "belediye", "bakanlık", "bakanlik", "bakanligi",
+  "üniversite", "universite", "university", "hükümeti", "hukumeti",
+  "devlet", "kamu", "municipality",
 ];
 
 export function shouldExcludeFromPipeline(

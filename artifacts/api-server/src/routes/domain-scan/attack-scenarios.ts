@@ -193,13 +193,10 @@ function validateReportConsistency(result: AttackScenariosResult, overallScore: 
   const level = result.genel_tehdit_seviyesi;
   if (!level) return;
 
-  if (overallScore >= 80 && level === "Yüksek") {
+  if (overallScore >= 85 && (level === "Yüksek" || level === "Kritik")) {
     logger.warn({ score: overallScore, mitre: level }, "MITRE tehdit seviyesi skora göre çok yüksek — Düşük'e düzeltiliyor");
     result.genel_tehdit_seviyesi = "Düşük";
-  } else if (overallScore >= 80 && level === "Kritik") {
-    logger.warn({ score: overallScore, mitre: level }, "MITRE tehdit seviyesi skora göre çok yüksek — Orta'ya düzeltiliyor");
-    result.genel_tehdit_seviyesi = "Orta";
-  } else if (overallScore >= 60 && level === "Kritik") {
+  } else if (overallScore >= 65 && level === "Kritik") {
     logger.warn({ score: overallScore, mitre: level }, "MITRE Kritik skora göre tutarsız — Orta'ya düzeltiliyor");
     result.genel_tehdit_seviyesi = "Orta";
   }
@@ -268,8 +265,8 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
   const overallScore = scan.overallScore ?? 50;
   const sslDaysLeft = scan.sslDaysUntilExpiry ?? 999;
   const mandatedThreatLevel =
-    overallScore >= 80 ? "Düşük" :
-    overallScore >= 60 ? "Orta" :
+    overallScore >= 85 ? "Düşük" :
+    overallScore >= 65 ? "Orta" :
     overallScore >= 40 ? "Yüksek" :
     "Kritik";
 
@@ -307,7 +304,7 @@ Risk bayrakları: ${riskFlags.length > 0 ? riskFlags.join("; ") : "yok"}
 ZORUNLU KURAL — GENEL TEHDİT SEVİYESİ
 ======================================
 Skora göre genel_tehdit_seviyesi DEĞERİ ZORUNLU OLARAK şu olmalı: "${mandatedThreatLevel}"
-(Skor 80-100 → Düşük | 60-79 → Orta | 40-59 → Yüksek | 0-39 → Kritik)
+(Skor 85-100 → Düşük | 65-84 → Orta | 40-64 → Yüksek | 0-39 → Kritik)
 Bu kurala kesinlikle uy. Senaryo ağırlığına göre değiştirme.
 
 SENARYO ÜRETİM KURALLARI

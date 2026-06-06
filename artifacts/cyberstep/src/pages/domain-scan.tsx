@@ -103,15 +103,22 @@ interface ScanResult {
   createdAt: string;
 }
 
-function ShodanCard({ openPorts, vulnCount, country, isp }: {
+function ShodanCard({ openPorts, vulnCount, country, isp, wafDetected, domain }: {
   openPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
   vulnCount: number;
   country: string | null;
   isp: string | null;
+  wafDetected?: boolean;
+  domain?: string;
 }) {
   const [open, setOpen] = useState(false);
   const notConfigured = openPorts === null;
   const hasRisk = !notConfigured && (openPorts.length > 5 || vulnCount > 0);
+
+  // Bug 19: Dolaylı CDN notu — WAF header tespit edilmemişse ve Türk domain + yurt dışı IP varsa göster
+  const cdnNote = (!wafDetected && country && country !== "TR" && domain && domain.endsWith(".tr"))
+    ? `WAF/CDN header tespit edilemedi. Sunucu IP'si ${country}'da — Türk alan adı + yurt dışı IP, CDN kullanımına işaret edebilir. Port riskleri CDN arkasında geçerli olmayabilir.`
+    : null;
   return (
     <div className={`rounded-xl border p-4 ${notConfigured ? "bg-slate-50/50 border-slate-200" : hasRisk ? "bg-orange-50/50 border-orange-200" : "bg-green-50/50 border-green-200"}`}>
       <div className="flex items-start gap-3">
@@ -154,6 +161,12 @@ function ShodanCard({ openPorts, vulnCount, country, isp }: {
                 {country ? ` Sunucu konumu: ${country}.` : ""}
                 {isp ? ` Sağlayıcı: ${isp}.` : ""}
               </p>
+              {cdnNote && (
+                <div className="mt-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 flex items-start gap-2">
+                  <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-blue-700">{cdnNote}</p>
+                </div>
+              )}
               {openPorts.length > 0 && (
                 <div className="mt-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 flex items-start gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
@@ -2271,6 +2284,13 @@ export default function DomainScanPage() {
                       <div className="flex items-start gap-2">
                         {result.abuseIpdbScore < 25 ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}
                         <span><span className="font-medium">IP Kötüye Kullanım: </span>Güven skoru %{result.abuseIpdbScore}{result.abuseIpdbTotalReports > 0 ? ` — ${result.abuseIpdbTotalReports} rapor` : ""}</span>
+                      </div>
+                    )}
+                    {/* Bug 19: Dolaylı CDN notu — WAF header yoksa + Türk domain + yurt dışı IP */}
+                    {!result.wafDetected && result.shodanCountry && result.shodanCountry !== "TR" && result.domain.endsWith(".tr") && (
+                      <div className="flex items-start gap-2 mt-1 pt-2 border-t border-slate-100">
+                        <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                        <span className="text-blue-700"><span className="font-medium">CDN Notu: </span>WAF/CDN header tespit edilemedi. Sunucu IP'si {result.shodanCountry}&apos;da — Türk alan adı ile yurt dışı IP, CDN kullanımına işaret edebilir. Port riskleri CDN arkasında geçerli olmayabilir.</span>
                       </div>
                     )}
                   </div>

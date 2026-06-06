@@ -227,19 +227,35 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string; riskLevel?: string; riskContext?: string; isCdnExpected?: boolean }> ?? []);
   const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string; version?: string }> ?? []);
 
-  // Bug 14: CVE age filter — exclude old/low-risk CVEs from MITRE scenario names
+  // Bug 14 / Bug 6: CVE filter — EPSS > 0.005 OR CISA KEV → aktif; eski/düşük-risk → bilgi amaçlı
   const currentYear = new Date().getFullYear();
-  const activeCves = cveSummary.filter(c => {
-    if (c.cvssScore < 7.0) return false;
-    const cveYear = parseInt(c.cveId?.split("-")[1] ?? "0");
-    // Exclude CVEs older than 5 years unless CVSS is critical (9+)
-    if (cveYear > 0 && (currentYear - cveYear) > 5 && c.cvssScore < 9.0) return false;
-    return true;
-  }).slice(0, 3);
+  const cveFull = cveSummary as Array<{
+    service: string; cveId: string; description: string; cvssScore: number;
+    epss?: number | null; inCisaKev?: boolean;
+  }>;
 
-  const informationalCves = cveSummary.filter(c => {
-    const cveYear = parseInt(c.cveId?.split("-")[1] ?? "0");
-    return cveYear > 0 && (currentYear - cveYear) > 5 && c.cvssScore < 9.0;
+  function filterCVEsForMITRE(
+    cveList: typeof cveFull
+  ): typeof cveFull {
+    if (!cveList?.length) return [];
+    return cveList.filter(cve => {
+      if (cve.inCisaKev) return true;
+      if ((cve.epss ?? 0) > 0.005) return true;
+      const year = parseInt(cve.cveId?.split("-")[1] ?? "0");
+      const age = currentYear - (year || currentYear);
+      if (age > 5) return false;
+      if (cve.cvssScore < 7.0) return false;
+      return true;
+    });
+  }
+
+  const activeCves = filterCVEsForMITRE(cveFull).slice(0, 3);
+
+  const informationalCves = cveFull.filter(c => {
+    const year = parseInt(c.cveId?.split("-")[1] ?? "0");
+    const age = currentYear - (year || currentYear);
+    const passedFilter = activeCves.some(a => a.cveId === c.cveId);
+    return !passedFilter && (age > 5 || c.cvssScore < 7.0 || (c.epss ?? 0) <= 0.005 && !c.inCisaKev);
   });
 
   // Backward compat alias
@@ -366,11 +382,11 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
   } else {
     scenarioRules.push("SSL sertifikası süresi DOLMUŞ — tarayıcı güvenlik uyarısı aktif, site erişimi sorunlu. 'Kritik' senaryo üret.");
   }
-  // DMARC'a göre e-posta sahteciliği senaryosu kuralı
+  // DMARC'a göre e-posta sahteciliği senaryosu kuralı — Bug 16
   if (dmarcPolicy === "reject") {
     scenarioRules.push("E-posta sahteciliği/phishing senaryosu KESİNLİKLE ÜRETME — DMARC p=reject aktif, e-posta sahteciliği teknik olarak engellendi.");
   } else if (dmarcPolicy === "quarantine") {
-    scenarioRules.push("E-posta sahteciliği/phishing senaryosu üretebilirsin ancak maksimum seviyeyi 'Orta' ile sınırla — DMARC p=quarantine tam engel değil, ancak çoğu saldırıyı karantinaya alır.");
+    scenarioRules.push("⛔ KURAL — E-POSTA SENARYOSU: DMARC p=quarantine aktif. E-posta senaryosu üreteceksen seviye ZORUNLU OLARAK maksimum 'Orta' olmalı. 'Yüksek' veya 'Kritik' KESİNLİKLE OLAMAZ. SPF durumundan bağımsız bu kural geçerlidir.");
   } else {
     scenarioRules.push(`E-posta sahteciliği/phishing senaryosu üretebilirsin, seviye 'Yüksek' olabilir — DMARC ${dmarcPolicy === "none" ? "p=none (izleme modu, gerçek koruma yok)" : "kaydı yok (hiç koruma yok)"}.`);
   }
@@ -387,7 +403,38 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
     scenarioRules.push(`${unknownVersionShadow.map(s => s.name).join(", ")} tespit edildi ama versiyon bilgisi alınamadı — "eski bağımlılık" ifadesi KESİNLİKLE KULLANMA. Bunun yerine "güncel sürüm kullandığınızı doğrulayın" şeklinde öneri yaz, versiyon bilinmeden senaryo üretme.`);
   }
 
-  return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
+  // Bug 2: CDN/WAF tespit edildiyse prompt'un EN BAŞINA blok koy — Claude kuralı listedeyken görmezden gelebilir
+  const cdnProviderName = wafScan.wafDetected
+    ? (wafScan.wafProvider ?? "CDN/WAF")
+    : hasCdn
+      ? (scan.shodanIsp ?? "CDN")
+      : null;
+  const cdnBlock = cdnProviderName
+    ? `⛔⛔⛔ ZORUNLU — HER ŞEYDEN ÖNCE OKU:
+CDN/WAF TESPİT EDİLDİ: ${cdnProviderName.toUpperCase()}
+
+Bu alan adı bir CDN veya WAF tarafından korunuyor.
+- "bypass" kelimesini KESİNLİKLE KULLANMA
+- "kaynak sunucu" ifadesini KULLANMA
+- "${cdnProviderName}" adını senaryo başlığında KULLANMA
+- CDN bypass senaryosu YAZMA
+- WAF'ı atlatma yöntemi içeren senaryo YAZMA
+
+Bu kural, aşağıdaki tüm kurallardan ve senaryolardan önce gelir.
+⛔⛔⛔
+
+`
+    : "";
+
+  // Bug 6+14: Yasaklı CVE ID listesi — prompt'a açıkça yaz
+  const prohibitedCveIds = informationalCves.map(c => c.cveId).filter(Boolean);
+  const cveProhibitionBlock = prohibitedCveIds.length > 0
+    ? `\n⛔ YASAK CVE ID'LERİ: ${prohibitedCveIds.join(", ")}
+   Bu CVE ID'lerini senaryo başlığında, içeriğinde veya saldırı zincirinde KESİNLİKLE YAZMA.
+   Bu CVE'ler eski/düşük-riskli (EPSS<%0.5, CISA KEV'de yok, 5+ yıllık) — aktif tehdit oluşturmuyor.`
+    : "";
+
+  return `${cdnBlock}Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
 TARAMA ÖZETİ
 ============
@@ -398,7 +445,7 @@ CDN/WAF: ${wafScan.wafDetected ? (wafScan.wafProvider ?? "tespit edildi") : "tes
 Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})
 Port analizi: ${portsSummary}${portContextNote ? `\n${portContextNote}` : ""}
 ${wafContextNote}${cdnLocationNote ? `\nCDN OLASILIK NOTU: ${cdnLocationNote}` : ""}
-Aktif Risk CVE'leri: ${activeCves.length > 0 ? activeCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})${informationalCves.length > 0 ? `\nBilgi Amaçlı CVE'ler (eski/düşük risk): ${informationalCves.map(c => c.cveId).join(", ")} — senaryoda CVE ID kullanma, sadece genel terim kullan` : ""}
+Aktif Risk CVE'leri: ${activeCves.length > 0 ? activeCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}${(c as { epss?: number | null }).epss ? ` EPSS:${(((c as { epss?: number | null }).epss ?? 0) * 100).toFixed(2)}%` : ""}]`).join(", ") : "yok"} (toplam tarama: ${cveSummary.length})${informationalCves.length > 0 ? `\nBilgi Amaçlı CVE sayısı: ${informationalCves.length} adet (eski/düşük-riskli — ID'ler gizlendi, senaryo üretme)` : ""}${cveProhibitionBlock}
 Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
 VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100
 HIBP ihlaller: ${scan.hibpBreachCount} | Shadow IT: ${shadowSummary}
@@ -415,8 +462,8 @@ SENARYO ÜRETİM KURALLARI
 =========================
 ${scenarioRules.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 ${activeCves.length > 0
-  ? `${scenarioRules.length + 1}. Senaryo başlığında ve içeriğinde SADECE "Aktif Risk CVE'leri" listesindeki CVE ID'lerini kullan. Bilgi Amaçlı listesindeki CVE'leri başlık veya saldırı zincirinde KULLANMA.`
-  : `${scenarioRules.length + 1}. Güvenilir aktif CVE yok — senaryo başlığında CVE ID YAZMA. WordPress/jQuery gibi genel teknoloji terimleri kullan.`
+  ? `${scenarioRules.length + 1}. ⛔ CVE KURALI: Senaryo başlığında ve içeriğinde SADECE yukarıdaki "Aktif Risk CVE'leri" listesindeki CVE ID'lerini kullan. "YASAK CVE ID'LERİ" bölümündekileri KESİNLİKLE KULLANMA.`
+  : `${scenarioRules.length + 1}. ⛔ CVE KURALI: Güvenilir aktif CVE yok — senaryo başlığında veya içeriğinde hiçbir CVE ID YAZMA. WordPress/jQuery gibi genel teknoloji terimleri kullan.`
 }
 
 GÖREV

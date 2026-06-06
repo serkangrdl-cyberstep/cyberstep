@@ -1310,6 +1310,9 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     return;
   }
 
+  // ─── Session tenantId (oturum açmış kullanıcı) ───────────────────────────
+  const sessionTenantId = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | null | undefined ?? null;
+
   // ─── Domain scan limit check (for logged-in customers) ───────────────────
   const customerId = getCustomerId(req);
   if (customerId) {
@@ -1458,6 +1461,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         originIp: bypassResult.originIp,
         wafHeadersAdded: wafResult.headersAddedByWAF,
         wafConfidence: wafResult.confidence,
+        tenantId: sessionTenantId,
       })
       .returning();
 
@@ -1619,7 +1623,10 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
         })
       : null;
 
-    const isFreeReport = !scan.tenantId;
+    // Ücretsiz rapor: scan.tenantId yoksa VE isteği yapan oturum açmış değilse
+    const pdfSessionTenantId = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | null | undefined ?? null;
+    const pdfCustomerId = getCustomerId(req);
+    const isFreeReport = !scan.tenantId && !pdfSessionTenantId && !pdfCustomerId;
 
     // Score breakdown — PDF için de hesaplanıyor
     const pdfSpfStr = scan.spfRecord ?? "";

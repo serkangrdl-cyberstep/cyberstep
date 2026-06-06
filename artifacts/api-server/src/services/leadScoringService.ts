@@ -1,6 +1,75 @@
 import { getClaudeAiFn } from "./ai-client";
 import { logger } from "../lib/logger";
 
+// ─── Domain eleme filtresi ────────────────────────────────────────────────────
+
+const EXCLUDED_TLDS = [
+  ".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr",
+];
+
+const EXCLUDED_EXACT_DOMAINS = new Set([
+  "tobb.org.tr", "tusiad.org", "tesk.org.tr",
+  "halkbank.com.tr", "ziraatbank.com.tr",
+]);
+
+const EXCLUDED_ASN_KEYWORDS = [
+  "odalar ve borsalar", "belediye", "bakanlık", "bakanlik",
+  "üniversite", "universite", "hükümeti", "hukumeti", "devlet", "kamu",
+];
+
+export function shouldExcludeFromPipeline(
+  domain: string,
+  shodanOrg: string | null,
+): { exclude: boolean; reason: string } {
+  const d = domain.toLowerCase();
+
+  for (const tld of EXCLUDED_TLDS) {
+    if (d.endsWith(tld)) return { exclude: true, reason: `Kamu TLD: ${tld}` };
+  }
+
+  if (EXCLUDED_EXACT_DOMAINS.has(d)) {
+    return { exclude: true, reason: "Hariç tutulan domain" };
+  }
+
+  const orgLower = (shodanOrg ?? "").toLowerCase();
+  for (const kw of EXCLUDED_ASN_KEYWORDS) {
+    if (orgLower.includes(kw)) return { exclude: true, reason: `Kurum tipi: ${kw}` };
+  }
+
+  return { exclude: false, reason: "" };
+}
+
+// ─── CVE breakdown hesaplayıcı ────────────────────────────────────────────────
+
+export interface CVEBreakdown {
+  total: number;
+  critical: number;
+  high: number;
+  medium: number;
+  informational: number;
+  cisaKev: number;
+}
+
+export function computeCVEBreakdown(
+  cveSummary: Array<{ cvssScore: number; cveId?: string }>,
+  cisaKevIds: string[] = [],
+): CVEBreakdown {
+  const kevSet = new Set(cisaKevIds.map(id => id.toUpperCase()));
+  let critical = 0, high = 0, medium = 0, informational = 0, cisaKev = 0;
+
+  for (const cve of cveSummary) {
+    const score = cve.cvssScore ?? 0;
+    if (score >= 9.0) critical++;
+    else if (score >= 7.0) high++;
+    else if (score >= 4.0) medium++;
+    else informational++;
+
+    if (cve.cveId && kevSet.has(cve.cveId.toUpperCase())) cisaKev++;
+  }
+
+  return { total: cveSummary.length, critical, high, medium, informational, cisaKev };
+}
+
 export interface LeadScoreResult {
   score: number;
   factors: Record<string, number | string>;

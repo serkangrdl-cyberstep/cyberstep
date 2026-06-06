@@ -47,6 +47,15 @@ interface ShodanQuery {
   priority: number;
 }
 
+interface CVEBreakdown {
+  total: number;
+  critical: number;
+  high: number;
+  medium: number;
+  informational: number;
+  cisaKev: number;
+}
+
 interface SourceData {
   ip?: string;
   org?: string;
@@ -54,6 +63,7 @@ interface SourceData {
   httpTitle?: string | null;
   shodanQuery?: string;
   product?: string;
+  cveBreakdown?: CVEBreakdown;
   [key: string]: unknown;
 }
 
@@ -1022,8 +1032,8 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
 
-              {/* Risk skoru */}
-              <div className="flex items-center gap-4">
+              {/* Risk skoru + CVE breakdown */}
+              <div className="flex items-start gap-4 flex-wrap">
                 <div>
                   <div className="text-xs text-muted-foreground">Risk Skoru</div>
                   <div className={`text-2xl font-bold ${(detailCandidate.riskScore ?? 0) >= 70 ? "text-red-600" : (detailCandidate.riskScore ?? 0) >= 40 ? "text-orange-500" : "text-gray-500"}`}>
@@ -1039,6 +1049,40 @@ export default function AdminLeadDiscovery() {
                   <Badge variant="outline">{detailCandidate.source === "crtsh" ? "crt.sh" : "Shodan"}</Badge>
                 </div>
               </div>
+
+              {/* CVE breakdown */}
+              {detailCandidate.sourceData?.cveBreakdown && detailCandidate.sourceData.cveBreakdown.total > 0 && (
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">CVE Dağılımı ({detailCandidate.sourceData.cveBreakdown.total} toplam)</div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {detailCandidate.sourceData.cveBreakdown.critical > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold border border-red-200">
+                        {detailCandidate.sourceData.cveBreakdown.critical} Kritik
+                      </span>
+                    )}
+                    {detailCandidate.sourceData.cveBreakdown.high > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold border border-orange-200">
+                        {detailCandidate.sourceData.cveBreakdown.high} Yüksek
+                      </span>
+                    )}
+                    {detailCandidate.sourceData.cveBreakdown.medium > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200">
+                        {detailCandidate.sourceData.cveBreakdown.medium} Orta
+                      </span>
+                    )}
+                    {detailCandidate.sourceData.cveBreakdown.informational > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                        {detailCandidate.sourceData.cveBreakdown.informational} Bilgi
+                      </span>
+                    )}
+                    {detailCandidate.sourceData.cveBreakdown.cisaKev > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold border border-purple-200">
+                        {detailCandidate.sourceData.cveBreakdown.cisaKev} CISA KEV
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Bulgular */}
               {(detailCandidate.findingHighlights?.length ?? 0) > 0 && (

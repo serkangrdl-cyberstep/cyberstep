@@ -11,6 +11,7 @@ import { db } from "@workspace/db";
 import { discoveryRunsTable, leadCandidatesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { shouldExcludeFromPipeline } from "./leadScoringService";
 
 export const SHODAN_FREE_QUERIES = [
   { q: "ssl.cert.subject.cn:.com.tr country:TR", label: "TR .com.tr SSL Sertifikaları", priority: 1 },
@@ -147,8 +148,15 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
       const domain = extractDomainFromShodan(match);
       if (!domain) continue;
 
+      const orgStr = (match.org as string | undefined) ?? null;
+      const exclusion = shouldExcludeFromPipeline(domain, orgStr);
+      if (exclusion.exclude) {
+        logger.debug({ domain, reason: exclusion.reason }, "Shodan: domain eleme listesinde, atlanıyor");
+        continue;
+      }
+
       const ssl = match.ssl as { cert?: { subject?: { o?: string } } } | undefined;
-      const companyName = ssl?.cert?.subject?.o || (match.org as string | undefined) || null;
+      const companyName = ssl?.cert?.subject?.o || orgStr || null;
       const sector = inferSector(match);
       const http = match.http as { title?: string } | undefined;
       const isFortigate = ((match.product as string ?? "") + (http?.title ?? "")).toLowerCase().includes("forti");

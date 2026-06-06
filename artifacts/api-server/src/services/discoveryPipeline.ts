@@ -12,6 +12,7 @@ import { scanShodanFree, SHODAN_FREE_QUERIES } from "./shodanDiscovery";
 import * as apolloService from "./apolloService";
 import * as hunterService from "./hunterService";
 import { generateLeadTeaserEmail } from "./leadTeaserEmail";
+import { shouldExcludeFromPipeline, computeCVEBreakdown } from "./leadScoringService";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
@@ -29,6 +30,7 @@ async function runDomainScanInternal(domain: string): Promise<{
   id: number;
   overallScore: number;
   findings: Array<{ severity: string; title: string }>;
+  cveSummary: Array<{ cvssScore: number; cveId?: string }>;
 } | null> {
   try {
     const { performDomainScan } = await import("../routes/domain-scan/index");
@@ -38,6 +40,7 @@ async function runDomainScanInternal(domain: string): Promise<{
       id: result.id ?? 0,
       overallScore: result.overallScore ?? 0,
       findings: result.findings ?? [],
+      cveSummary: (result.cveSummary as Array<{ cvssScore: number; cveId?: string }>) ?? [],
     };
   } catch (err) {
     logger.warn({ err, domain }, "Discovery pipeline: direct domain scan failed");
@@ -115,6 +118,17 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
 
   for (const candidate of pending) {
     try {
+      // Eleme kontrolü — kamu TLD'leri ve kurum tiplerini atla
+      const sourceOrg = (candidate.sourceData as Record<string, unknown> | null)?.["org"] as string | null ?? null;
+      const exclusion = shouldExcludeFromPipeline(candidate.domain, sourceOrg);
+      if (exclusion.exclude) {
+        logger.info({ domain: candidate.domain, reason: exclusion.reason }, "Kalifikasyon: domain eleme listesinde, atlanıyor");
+        await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
+          .where(eq(leadCandidatesTable.id, candidate.id));
+        await sleep(500);
+        continue;
+      }
+
       await db.update(leadCandidatesTable).set({ scanStatus: "scanning" })
         .where(eq(leadCandidatesTable.id, candidate.id));
 
@@ -131,6 +145,11 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
       // Düzeltme 2: sadece gerçekten düşük skorlu (yüksek riskli) domainler lead olarak kalifikasyon alır
       const isQualified = scanResult.overallScore < 60;
 
+      // CVE breakdown hesapla ve sourceData'ya ekle
+      const cveBreakdown = computeCVEBreakdown(scanResult.cveSummary);
+      const existingSourceData = (candidate.sourceData as Record<string, unknown> | null) ?? {};
+      const updatedSourceData = { ...existingSourceData, cveBreakdown };
+
       await db.update(leadCandidatesTable).set({
         scanStatus: "scanned",
         scanId: scanResult.id,
@@ -138,6 +157,7 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
         criticalFindings: criticals.length,
         findingHighlights: criticals.slice(0, 3).map((f) => f.title),
         isQualified,
+        sourceData: updatedSourceData,
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
 

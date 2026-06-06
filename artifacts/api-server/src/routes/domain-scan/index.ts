@@ -1152,6 +1152,7 @@ export async function performDomainScan(domain: string): Promise<{
   id: number;
   overallScore: number;
   findings: Array<{ severity: string; title: string }>;
+  cveSummary: Array<{ cvssScore: number; cveId?: string }>;
 } | null> {
   try {
     const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
@@ -1226,7 +1227,7 @@ export async function performDomainScan(domain: string): Promise<{
     ];
 
     logger.info({ domain, overallScore, scanId: scan.id }, "performDomainScan complete");
-    return { id: scan.id, overallScore, findings };
+    return { id: scan.id, overallScore, findings, cveSummary };
   } catch (err) {
     logger.error({ err, domain }, "performDomainScan failed");
     return null;

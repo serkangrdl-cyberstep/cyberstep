@@ -54,7 +54,15 @@ export function isTurkishDomain(d: string): boolean {
   return d.endsWith(".tr");
 }
 
+const EXCLUDED_TLDS_CRTSH = [
+  ".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr",
+];
+
 export function isExcluded(domain: string): boolean {
+  const d = domain.toLowerCase();
+  for (const tld of EXCLUDED_TLDS_CRTSH) {
+    if (d.endsWith(tld)) return true;
+  }
   for (const ex of EXCLUDED_DOMAINS) {
     if (domain.includes(ex)) return true;
   }

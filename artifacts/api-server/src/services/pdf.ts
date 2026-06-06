@@ -261,7 +261,7 @@ interface DomainScanData {
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 }, bufferPages: true });
+    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 } });
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
@@ -270,49 +270,72 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     const MARGIN = 48;
     const CONTENT_W = W - MARGIN * 2;
 
-    // Kaç sayfa eklendi (kapak = 0, içerik sayfaları 1+)
-    let pageIndex = 0;
+    let _pgNum = 1; // içerik sayfası sayacı (kapak hariç)
 
-    const drawContentHeader = () => {
-      const savedY = doc.y;
+    // Header: her içerik sayfasının tepesine çizilir
+    const _drawHeader = () => {
+      const sy = doc.y;
       doc.rect(0, 0, W, 36).fill(CS_DARK);
+      // CS ikon rozeti
+      doc.rect(MARGIN, 7, 22, 22).fill(CS_CYAN);
+      doc.fillColor(CS_DARK).font(FONT_BOLD).fontSize(8)
+        .text("CS", MARGIN + 2, 13, { width: 18, align: "center", lineBreak: false });
+      // Logo yazısı
       doc.font(FONT_BOLD).fontSize(13);
-      const cw = doc.widthOfString("Cyber");
-      const sw = doc.widthOfString("Step");
-      doc.fillColor(CS_TEXT).text("Cyber", MARGIN, 11, { lineBreak: false });
-      doc.fillColor(CS_CYAN).text("Step",  MARGIN + cw, 11, { lineBreak: false });
+      const hcw = doc.widthOfString("Cyber");
+      const hsw = doc.widthOfString("Step");
+      doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 28, 11, { lineBreak: false });
+      doc.fillColor(CS_CYAN).text("Step",  MARGIN + 28 + hcw, 11, { lineBreak: false });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
-        .text(".io", MARGIN + cw + sw, 11, { lineBreak: false });
+        .text(".io", MARGIN + 28 + hcw + hsw, 13, { lineBreak: false });
       doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
-        .text(`${data.domain}  |  Tarama #${data.id}`,
-          MARGIN, 11, { align: "right", width: CONTENT_W });
-      doc.y = savedY;
+        .text(`${data.domain}  |  Tarama #${data.id}`, MARGIN, 11, { align: "right", width: CONTENT_W });
+      doc.y = sy;
     };
 
-    const drawContentFooter = (pageNum: number, totalPages: number) => {
+    // Footer: her içerik sayfasının altına çizilir
+    const _drawFooter = () => {
       const PH = doc.page.height;
+      const sy = doc.y;
       doc.rect(0, PH - 36, W, 36).fill(CS_DARK);
+      // CS ikon rozeti
+      doc.rect(MARGIN, PH - 29, 18, 18).fill(CS_CYAN);
+      doc.fillColor(CS_DARK).font(FONT_BOLD).fontSize(6.5)
+        .text("CS", MARGIN + 1, PH - 24, { width: 16, align: "center", lineBreak: false });
+      // Logo yazısı
       doc.font(FONT_BOLD).fontSize(10);
-      const cw2 = doc.widthOfString("Cyber");
-      const sw2 = doc.widthOfString("Step");
-      doc.fillColor(CS_TEXT).text("Cyber", MARGIN, PH - 22, { lineBreak: false });
-      doc.fillColor(CS_CYAN).text("Step",  MARGIN + cw2, PH - 22, { lineBreak: false });
+      const fcw = doc.widthOfString("Cyber");
+      const fsw = doc.widthOfString("Step");
+      doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 24, PH - 23, { lineBreak: false });
+      doc.fillColor(CS_CYAN).text("Step",  MARGIN + 24 + fcw, PH - 23, { lineBreak: false });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
-        .text(".io", MARGIN + cw2 + sw2, PH - 22, { lineBreak: false });
+        .text(".io", MARGIN + 24 + fcw + fsw, PH - 23, { lineBreak: false });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
-        .text(`${data.domain}  |  Alan Adi Guvenlik Taramasi`, MARGIN, PH - 22, { align: "center", width: CONTENT_W });
+        .text(`${data.domain}  |  Alan Adı Güvenlik Taraması`, MARGIN, PH - 23, { align: "center", width: CONTENT_W });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
-        .text(`${pageNum} / ${totalPages}`, MARGIN, PH - 22, { align: "right", width: CONTENT_W });
+        .text(`Sayfa ${_pgNum}`, MARGIN, PH - 23, { align: "right", width: CONTENT_W });
+      doc.y = sy;
     };
 
-    // Her yeni sayfa açıldığında (addPage) otomatik header
-    doc.on("pageAdded", () => {
-      pageIndex++;
-      // Kapak sayfası (pageIndex=0) buraya düşmez — o ilk sayfa.
-      // pageIndex >= 1 → içerik sayfası → header çiz
-      drawContentHeader();
-      doc.y = 52;
-    });
+    // Yerel checkPageBreak: global fonksiyonu gölgeler; footer+header otomatik yönetir
+    const checkPageBreak = (doc_: typeof doc, needed: number) => {
+      if (doc_.y + needed > doc_.page.height - 52) {
+        _drawFooter();
+        _pgNum++;
+        doc_.addPage();
+        _drawHeader();
+        doc_.y = 52;
+      }
+    };
+
+    // Yerel sectionTitle: global fonksiyonu gölgeler; Türkçe + yerel checkPageBreak
+    const sectionTitle = (title: string) => {
+      checkPageBreak(doc, 40);
+      doc.rect(MARGIN, doc.y, CONTENT_W, 1).fill(PRIMARY);
+      doc.y += 6;
+      doc.fillColor(DARK).fontSize(12).font(FONT_BOLD).text(title, MARGIN, doc.y);
+      doc.y += 12;
+    };
 
     const intelRow = (label: string, value: string, ok: boolean) => {
       checkPageBreak(doc, 28);
@@ -328,12 +351,12 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     // ══ SAYFA 1: KAPAK (CyberStep koyu tema) ══════════════════════════════════
     const H = doc.page.height;
     const scoreCol = dsScoreColor(data.overallScore);
-    const scoreLabel = data.overallScore >= 80 ? "Iyi" : data.overallScore >= 60 ? "Orta" : data.overallScore >= 40 ? "Zayif" : "Kritik";
+    const scoreLabel = data.overallScore >= 80 ? "İyi" : data.overallScore >= 60 ? "Orta" : data.overallScore >= 40 ? "Zayıf" : "Kritik";
     const scoreDesc = data.overallScore >= 80
-      ? "Temel guvenlik onlemleri buyuk olcude yerinde."
-      : data.overallScore >= 60 ? "Onemli guvenlik eksiklikleri mevcut."
-      : data.overallScore >= 40 ? "Kritik guvenlik aciklari tespit edildi."
-      : "Ciddi siber risk altindasiniz.";
+      ? "Temel güvenlik önlemleri büyük ölçüde yerinde."
+      : data.overallScore >= 60 ? "Önemli güvenlik eksiklikleri mevcut."
+      : data.overallScore >= 40 ? "Kritik güvenlik açıkları tespit edildi."
+      : "Ciddi siber risk altındasınız.";
 
     // Tüm sayfa koyu zemin
     doc.rect(0, 0, W, H).fill(CS_DARK);
@@ -341,21 +364,26 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.circle(W + 60, -60, 310).lineWidth(0.5).strokeColor(CS_CARD).stroke();
     doc.circle(W + 130, 160, 210).lineWidth(0.5).strokeColor(CS_CARD).stroke();
 
-    // Logo: Cyber(beyaz) Step(cyan) .io(gri)
+    // Logo: CS ikon + Cyber(beyaz) Step(cyan) .io(gri)
     const LOGO_Y = 52;
+    // CS marka ikonu (kapak büyük versiyonu)
+    doc.rect(MARGIN, LOGO_Y - 2, 32, 32).fill(CS_CYAN);
+    doc.fillColor(CS_DARK).font(FONT_BOLD).fontSize(13)
+      .text("CS", MARGIN + 4, LOGO_Y + 7, { width: 24, align: "center", lineBreak: false });
+    // Wordmark
     doc.font(FONT_BOLD).fontSize(22);
     const cyberW = doc.widthOfString("Cyber");
     const stepW  = doc.widthOfString("Step");
-    doc.fillColor(CS_TEXT).text("Cyber", MARGIN, LOGO_Y, { lineBreak: false });
-    doc.fillColor(CS_CYAN).text("Step",  MARGIN + cyberW, LOGO_Y, { lineBreak: false });
-    doc.font(FONT_REGULAR).fontSize(11).fillColor(CS_MUTED)
-      .text(".io", MARGIN + cyberW + stepW, LOGO_Y, { lineBreak: false });
+    doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 40, LOGO_Y, { lineBreak: false });
+    doc.fillColor(CS_CYAN).text("Step",  MARGIN + 40 + cyberW, LOGO_Y, { lineBreak: false });
+    doc.font(FONT_REGULAR).fontSize(14).fillColor(CS_MUTED)
+      .text(".io", MARGIN + 40 + cyberW + stepW, LOGO_Y + 6, { lineBreak: false });
 
     // Rozet
     const BADGE_Y = LOGO_Y + 34;
     doc.rect(MARGIN, BADGE_Y, 228, 16).fill(CS_CARD);
     doc.fillColor(CS_CYAN).font(FONT_BOLD).fontSize(7)
-      .text("ALAN ADI GUVENLIK TARAMA RAPORU", MARGIN + 10, BADGE_Y + 4.5, { width: 208, lineBreak: false });
+      .text("ALAN ADI GÜVENLİK TARAMA RAPORU", MARGIN + 10, BADGE_Y + 4.5, { width: 208, lineBreak: false });
 
     // Alan adı + tarih
     const DOMAIN_Y = Math.floor(H * 0.36);
@@ -414,15 +442,17 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     // "Gizli" rozeti (sağ alt)
     doc.rect(W - MARGIN - 52, CVR_FOOT_Y + 5, 52, 14).fill(CS_CARD);
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(6.5)
-      .text("GIZLI", W - MARGIN - 52, CVR_FOOT_Y + 8.5,
+      .text("GİZLİ", W - MARGIN - 52, CVR_FOOT_Y + 8.5,
         { width: 52, align: "center", lineBreak: false });
 
-    // ══ İÇERİK SAYFASI başlat (pageAdded event header'ı otomatik çizer) ═══
+    // ══ İÇERİK SAYFASI ════════════════════════════════════════════════════════
     doc.addPage();
+    _drawHeader();
+    doc.y = 52;
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
     if (data.scoreBreakdown) {
-      sectionTitle(doc, "Puan Dokumu", MARGIN, CONTENT_W);
+      sectionTitle("Puan Dökümü");
       checkPageBreak(doc, 48);
       const bd = data.scoreBreakdown;
       const cols: Array<{ label: string; val: number; max: number }> = [
@@ -455,13 +485,13 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     }
 
     // ── E-posta ve SSL Kontrolleri ─────────────────────────────────────────────
-    sectionTitle(doc, "E-posta ve SSL Guvenlik Kontrolleri", MARGIN, CONTENT_W);
+    sectionTitle("E-posta ve SSL Güvenlik Kontrolleri");
     const checks = [
-      { label: "SPF Kaydi", pass: data.spfPass, detail: data.spfRecord, weight: "20 puan" },
-      { label: "DMARC Politikasi", pass: data.dmarcPass, detail: data.dmarcRecord, weight: "25 puan" },
-      { label: "DKIM Imzasi", pass: data.dkimPass, detail: data.dkimSelectors.join(", ") || null, weight: "20 puan" },
-      { label: "MX Kayitlari", pass: data.mxPass, detail: data.mxRecords[0]?.exchange ?? null, weight: "10 puan" },
-      { label: "SSL/TLS Sertifikasi", pass: data.sslPass, detail: data.sslDaysUntilExpiry !== null ? `${data.sslIssuer ?? ""} - ${data.sslDaysUntilExpiry} gun gecerli` : null, weight: "25 puan" },
+      { label: "SPF Kaydı", pass: data.spfPass, detail: data.spfRecord, weight: "20 puan" },
+      { label: "DMARC Politikası", pass: data.dmarcPass, detail: data.dmarcRecord, weight: "25 puan" },
+      { label: "DKIM İmzası", pass: data.dkimPass, detail: data.dkimSelectors.join(", ") || null, weight: "20 puan" },
+      { label: "MX Kayıtları", pass: data.mxPass, detail: data.mxRecords[0]?.exchange ?? null, weight: "10 puan" },
+      { label: "SSL/TLS Sertifikası", pass: data.sslPass, detail: data.sslDaysUntilExpiry !== null ? `${data.sslIssuer ?? ""} - ${data.sslDaysUntilExpiry} gün geçerli` : null, weight: "25 puan" },
     ];
     for (const chk of checks) {
       checkPageBreak(doc, 34);
@@ -481,15 +511,15 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.y += 8;
 
     // ── Web Guvenlik Basliklari ────────────────────────────────────────────────
-    sectionTitle(doc, "Web Sunucu Guvenlik Basliklari", MARGIN, CONTENT_W);
+    sectionTitle("Web Sunucu Güvenlik Başlıkları");
     checkPageBreak(doc, 12);
     const scoreC: [number, number, number] = data.httpHeadersScore >= 4 ? [22, 163, 74] : data.httpHeadersScore >= 2 ? [217, 119, 6] : [220, 38, 38];
-    doc.fillColor(scoreC).fontSize(9).font(FONT_BOLD).text(`Toplam skor: ${data.httpHeadersScore}/5 baslik`, MARGIN, doc.y);
+    doc.fillColor(scoreC).fontSize(9).font(FONT_BOLD).text(`Toplam skor: ${data.httpHeadersScore}/5 başlık`, MARGIN, doc.y);
     doc.y += 10;
     const hd = data.httpHeadersDetails;
     const headerItems = [
       { label: "HSTS (Strict-Transport-Security)", ok: hd?.hsts ?? false },
-      { label: "X-Frame-Options (clickjacking korumasi)", ok: hd?.xFrameOptions ?? false },
+      { label: "X-Frame-Options (clickjacking koruması)", ok: hd?.xFrameOptions ?? false },
       { label: "X-Content-Type-Options", ok: hd?.xContentTypeOptions ?? false },
       { label: "Content-Security-Policy (CSP)", ok: hd?.csp ?? false },
       { label: "Referrer-Policy", ok: hd?.referrerPolicy ?? false },
@@ -516,35 +546,35 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     }
 
     // ── Risk Istihbarati ──────────────────────────────────────────────────────
-    sectionTitle(doc, "Risk Istihbarati", MARGIN, CONTENT_W);
+    sectionTitle("Risk İstihbaratı");
     intelRow(
-      "Veri Sizintisi (HIBP)",
-      data.hibpBreachCount === 0 ? "Temiz — sizinti kaydi yok" : `${data.hibpBreachCount} sizinti kaydi bulundu`,
+      "Veri Sızıntısı (HIBP)",
+      data.hibpBreachCount === 0 ? "Temiz — sızıntı kaydı yok" : `${data.hibpBreachCount} sızıntı kaydı bulundu`,
       data.hibpBreachCount === 0
     );
     intelRow(
       "Kara Liste (DNSBL)",
-      data.blacklisted ? `${data.blacklistCount} spam listesinde kayitli` : "Temiz — hicbir kara listede yok",
+      data.blacklisted ? `${data.blacklistCount} spam listesinde kayıtlı` : "Temiz — hiçbir kara listede yok",
       !data.blacklisted
     );
     intelRow(
-      "URLhaus Zararli URL",
-      data.urlhausListed ? `Zararli isaretlendi${data.urlhausThreat ? `: ${data.urlhausThreat}` : ""}` : "Temiz — zararli URL listesinde yok",
+      "URLhaus Zararlı URL",
+      data.urlhausListed ? `Zararlı işaretlendi${data.urlhausThreat ? `: ${data.urlhausThreat}` : ""}` : "Temiz — zararlı URL listesinde yok",
       !data.urlhausListed
     );
     intelRow(
       "USOM Ulusal Kara Liste",
-      data.usomListed ? "USOM zararli domain listesinde kayitli" : "Temiz — USOM listesinde yok",
+      data.usomListed ? "USOM zararlı domain listesinde kayıtlı" : "Temiz — USOM listesinde yok",
       !data.usomListed
     );
 
     // Shadow IT
     const highRisk = data.shadowItServices.filter(s => s.risk === "Yuksek");
     intelRow(
-      "Golge BT Tespiti (Shadow IT)",
+      "Gölge BT Tespiti (Shadow IT)",
       data.shadowItServices.length === 0
-        ? "Ucuncu parti servis tespit edilmedi"
-        : `${data.shadowItServices.length} servis — ${highRisk.length} yuksek riskli${data.shadowItServices.length > 0 ? ` (${data.shadowItServices.slice(0, 4).map(s => s.name).join(", ")}${data.shadowItServices.length > 4 ? "..." : ""})` : ""}`,
+        ? "Üçüncü parti servis tespit edilmedi"
+        : `${data.shadowItServices.length} servis — ${highRisk.length} yüksek riskli${data.shadowItServices.length > 0 ? ` (${data.shadowItServices.slice(0, 4).map(s => s.name).join(", ")}${data.shadowItServices.length > 4 ? "..." : ""})` : ""}`,
       highRisk.length === 0
     );
 
@@ -553,8 +583,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       intelRow(
         "Sertifika Seffafligi (crt.sh)",
         data.ctSubdomainCount <= 50
-          ? `${data.ctSubdomainCount} alt alan adi tespit edildi — guncelligi dogrulayin`
-          : `${data.ctSubdomainCount} alt alan adi — cok sayida subdomain saldiri yuzeyini artirabilir`,
+          ? `${data.ctSubdomainCount} alt alan adı tespit edildi — güncelliği doğrulayın`
+          : `${data.ctSubdomainCount} alt alan adı — çok sayıda subdomain saldırı yüzeyini artırabilir`,
         data.ctSubdomainCount <= 50
       );
     }
@@ -562,7 +592,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // ── CVE Guvenlik Aciklari (sadece ucretli) ─────────────────────────────────
     if (!data.isFreeReport && data.cveSummary.length > 0) {
-      sectionTitle(doc, "Tespit Edilen CVE Guvenlik Aciklari", MARGIN, CONTENT_W);
+      sectionTitle("Tespit Edilen CVE Güvenlik Açıkları");
       for (const cve of data.cveSummary.slice(0, 6)) {
         checkPageBreak(doc, 38);
         const cy = doc.y;
@@ -582,15 +612,15 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     // ── Katman 1 Tehdit Istihbarati (sadece ucretli) ──────────────────────────
     const hasK1 = data.virusTotalReputation !== null || data.abuseIpdbScore !== null || data.shodanOpenPorts !== null;
     if (!data.isFreeReport && hasK1) {
-      sectionTitle(doc, "Katman 1 Tehdit Istihbarati", MARGIN, CONTENT_W);
+      sectionTitle("Katman 1 Tehdit İstihbaratı");
 
       if (data.virusTotalReputation !== null) {
         const vtOk = data.virusTotalMalicious === 0;
         intelRow(
           "VirusTotal Domain Reputation",
           vtOk
-            ? `Temiz — 70+ motor zararli isaretlemedi. Reputation skoru: ${data.virusTotalReputation}`
-            : `${data.virusTotalMalicious} motor zararli isaretledi, ${data.virusTotalSuspicious} supheli. Reputation: ${data.virusTotalReputation}`,
+            ? `Temiz — 70+ motor zararlı işaretlemedi. Reputation skoru: ${data.virusTotalReputation}`
+            : `${data.virusTotalMalicious} motor zararlı işaretledi, ${data.virusTotalSuspicious} şüpheli. Reputation: ${data.virusTotalReputation}`,
           vtOk
         );
       }
@@ -599,7 +629,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         const aOk = data.abuseIpdbScore < 25;
         intelRow(
           "IP Kotuye Kullanim Gecmisi",
-          `Guven skoru: %${data.abuseIpdbScore} — son 90 gunde ${data.abuseIpdbTotalReports} rapor${data.abuseIpdbCountry ? `. Konum: ${data.abuseIpdbCountry}` : ""}${data.abuseIpdbIsp ? `, ${data.abuseIpdbIsp}` : ""}`,
+          `Güven skoru: %${data.abuseIpdbScore} — son 90 günde ${data.abuseIpdbTotalReports} rapor${data.abuseIpdbCountry ? `. Konum: ${data.abuseIpdbCountry}` : ""}${data.abuseIpdbIsp ? `, ${data.abuseIpdbIsp}` : ""}`,
           aOk
         );
       }
@@ -614,10 +644,10 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         if (ports.length === 0) {
           portStr = "Acik port tespit edilmedi";
         } else if (cdnPorts.length === ports.length) {
-          portStr = `${ports.length} port tespit edildi — tamami CDN/proxy altyapisina ait (${data.shodanIsp ?? "bilinmiyor"}), gercek sunucu riski yok`;
+          portStr = `${ports.length} port tespit edildi — tamamı CDN/proxy altyapısına ait (${data.shodanIsp ?? "bilinmiyor"}), gerçek sunucu riski yok`;
         } else {
           const parts: string[] = [];
-          if (criticalPorts.length > 0) parts.push(`${criticalPorts.length} yuksek riskli port (${criticalPorts.map(p => `${p.port}/${p.protocol}`).join(", ")})`);
+          if (criticalPorts.length > 0) parts.push(`${criticalPorts.length} yüksek riskli port (${criticalPorts.map(p => `${p.port}/${p.protocol}`).join(", ")})`);
           if (mediumPorts.length > 0) parts.push(`${mediumPorts.length} orta riskli port`);
           if (cdnPorts.length > 0) parts.push(`${cdnPorts.length} CDN beklentisi`);
           portStr = parts.join("; ") || `${ports.length} port tespit edildi`;
@@ -625,7 +655,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         }
         intelRow(
           "Internet Maruziyeti Analizi",
-          `${portStr}${data.shodanVulnCount > 0 ? ` ${data.shodanVulnCount} bilinen guvenlik acigi mevcut.` : ""}`,
+          `${portStr}${data.shodanVulnCount > 0 ? ` ${data.shodanVulnCount} bilinen güvenlik açığı mevcut.` : ""}`,
           sOk
         );
       }
@@ -634,7 +664,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // ── MITRE ATT&CK Saldiri Senaryolari ────────────────────────────────────
     if (data.attackScenarios && data.attackScenarios.senaryolar.length > 0) {
-      sectionTitle(doc, "MITRE ATT&CK Saldin Senaryolari", MARGIN, CONTENT_W);
+      sectionTitle("MITRE ATT&CK Saldırı Senaryoları");
 
       const levelColor: [number, number, number] =
         data.attackScenarios.genel_tehdit_seviyesi === "Kritik" ? [220, 38, 38] :
@@ -729,7 +759,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       // ── Oncelikli Aksiyon Listesi ──────────────────────────────────────────
       const onceKapat = data.attackScenarios.once_kapat ?? [];
       if (onceKapat.length > 0) {
-        sectionTitle(doc, "Oncelikli Aksiyon Listesi", MARGIN, CONTENT_W);
+        sectionTitle("Öncelikli Aksiyon Listesi");
         for (const item of onceKapat) {
           checkPageBreak(doc, 60);
           const ay = doc.y;
@@ -754,10 +784,10 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       const lockY = doc.y + 8;
       doc.rect(MARGIN, lockY, CONTENT_W, 80).fillAndStroke([239, 246, 255], [147, 197, 253]);
       doc.fillColor([37, 99, 235]).fontSize(11).font(FONT_BOLD)
-        .text("Tam Rapor — Ucretsiz Hesap ile Sinirlidir", MARGIN + 16, lockY + 12, { width: CONTENT_W - 32 });
+        .text("Tam Rapor — Ücretsiz Hesap ile Sınırlıdır", MARGIN + 16, lockY + 12, { width: CONTENT_W - 32 });
       doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
         .text(
-          "Bu rapor ozet bilgileri icermektedir. Hesap olusturarak CVE guvenlik aciklari, MITRE ATT&CK saldiri senaryolari, AI destekli tehdit analizi ve oncelikli aksiyon planini iceren tam raporu ucretsiz indirin.",
+          "Bu rapor özet bilgileri içermektedir. Hesap oluşturarak CVE güvenlik açıkları, MITRE ATT&CK saldırı senaryoları, AI destekli tehdit analizi ve öncelikli aksiyon planını içeren tam raporu ücretsiz indirin.",
           MARGIN + 16, lockY + 30, { width: CONTENT_W - 32 }
         );
       doc.fillColor([37, 99, 235]).fontSize(8).font(FONT_BOLD)
@@ -765,18 +795,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = lockY + 88;
     }
 
-    // ── Her sayfaya footer + sayfa numarası (bufferPages ile) ─────────────────
-    const totalPages = doc.bufferedPageRange().count;
-    // Kapak sayfası (index 0) hariç, içerik sayfalarına (index 1+) footer çiz
-    for (let i = 0; i < totalPages; i++) {
-      doc.switchToPage(i);
-      if (i === 0) {
-        // Kapak — footer zaten kapak tasarımında var, atla
-        continue;
-      }
-      drawContentFooter(i, totalPages - 1); // -1: kapak sayfa numarasına dahil değil
-    }
-
+    // ── Son sayfaya footer çiz, belgeyi kapat ─────────────────────────────────
+    _drawFooter();
     doc.end();
   });
 }
@@ -1021,9 +1041,8 @@ function sectionTitle(doc: InstanceType<typeof PDFDocument>, title: string, x: n
 }
 
 function checkPageBreak(doc: InstanceType<typeof PDFDocument>, needed: number) {
-  // 52 = header bandı yüksekliği, 40 = footer için boşluk
-  if (doc.y + needed > doc.page.height - 40) {
+  if (doc.y + needed > doc.page.height - 60) {
     doc.addPage();
-    // doc.y = 52 pageAdded event'i tarafından set edilir
+    doc.y = 40;
   }
 }

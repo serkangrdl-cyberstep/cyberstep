@@ -261,7 +261,7 @@ interface DomainScanData {
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 } });
+    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 }, bufferPages: true });
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
@@ -319,21 +319,24 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     const _drawFooter = () => {
       const PH = doc.page.height;
       const sy = doc.y;
+
+      // Sayfa akışını dondur — otomatik sayfa geçişini engelle
+      doc.switchToPage(doc.bufferedPageRange().start + doc.bufferedPageRange().count - 1);
+
       doc.rect(0, PH - 36, W, 36).fill(CS_DARK);
-      // CyberStep kalkan ikonu
       _drawShieldIcon(MARGIN, PH - 29, 18);
-      // Logo yazısı
       doc.font(FONT_BOLD).fontSize(10);
       const fcw = doc.widthOfString("Cyber");
       const fsw = doc.widthOfString("Step");
-      doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 24, PH - 23, { lineBreak: false });
-      doc.fillColor(CS_CYAN).text("Step",  MARGIN + 24 + fcw, PH - 23, { lineBreak: false });
+      doc.fillColor(CS_TEXT) .text("Cyber", MARGIN + 24, PH - 23, { lineBreak: false });
+      doc.fillColor(CS_CYAN) .text("Step",  MARGIN + 24 + fcw, PH - 23, { lineBreak: false });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
         .text(".io", MARGIN + 24 + fcw + fsw, PH - 23, { lineBreak: false });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
         .text(`${data.domain}  |  Alan Adı Güvenlik Taraması`, MARGIN, PH - 23, { align: "center", width: CONTENT_W });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
         .text(`Sayfa ${_pgNum}`, MARGIN, PH - 23, { align: "right", width: CONTENT_W });
+
       doc.y = sy;
     };
 

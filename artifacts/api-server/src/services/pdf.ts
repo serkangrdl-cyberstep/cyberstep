@@ -261,7 +261,7 @@ interface DomainScanData {
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 } });
+    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 }, bufferPages: true });
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
@@ -269,6 +269,50 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     const W = doc.page.width;
     const MARGIN = 48;
     const CONTENT_W = W - MARGIN * 2;
+
+    // Kaç sayfa eklendi (kapak = 0, içerik sayfaları 1+)
+    let pageIndex = 0;
+
+    const drawContentHeader = () => {
+      const savedY = doc.y;
+      doc.rect(0, 0, W, 36).fill(CS_DARK);
+      doc.font(FONT_BOLD).fontSize(13);
+      const cw = doc.widthOfString("Cyber");
+      const sw = doc.widthOfString("Step");
+      doc.fillColor(CS_TEXT).text("Cyber", MARGIN, 11, { lineBreak: false });
+      doc.fillColor(CS_CYAN).text("Step",  MARGIN + cw, 11, { lineBreak: false });
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
+        .text(".io", MARGIN + cw + sw, 11, { lineBreak: false });
+      doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
+        .text(`${data.domain}  |  Tarama #${data.id}`,
+          MARGIN, 11, { align: "right", width: CONTENT_W });
+      doc.y = savedY;
+    };
+
+    const drawContentFooter = (pageNum: number, totalPages: number) => {
+      const PH = doc.page.height;
+      doc.rect(0, PH - 36, W, 36).fill(CS_DARK);
+      doc.font(FONT_BOLD).fontSize(10);
+      const cw2 = doc.widthOfString("Cyber");
+      const sw2 = doc.widthOfString("Step");
+      doc.fillColor(CS_TEXT).text("Cyber", MARGIN, PH - 22, { lineBreak: false });
+      doc.fillColor(CS_CYAN).text("Step",  MARGIN + cw2, PH - 22, { lineBreak: false });
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
+        .text(".io", MARGIN + cw2 + sw2, PH - 22, { lineBreak: false });
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
+        .text(`${data.domain}  |  Alan Adi Guvenlik Taramasi`, MARGIN, PH - 22, { align: "center", width: CONTENT_W });
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
+        .text(`${pageNum} / ${totalPages}`, MARGIN, PH - 22, { align: "right", width: CONTENT_W });
+    };
+
+    // Her yeni sayfa açıldığında (addPage) otomatik header
+    doc.on("pageAdded", () => {
+      pageIndex++;
+      // Kapak sayfası (pageIndex=0) buraya düşmez — o ilk sayfa.
+      // pageIndex >= 1 → içerik sayfası → header çiz
+      drawContentHeader();
+      doc.y = 52;
+    });
 
     const intelRow = (label: string, value: string, ok: boolean) => {
       checkPageBreak(doc, 28);
@@ -373,21 +417,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       .text("GIZLI", W - MARGIN - 52, CVR_FOOT_Y + 8.5,
         { width: 52, align: "center", lineBreak: false });
 
-    // ══ İÇERİK SAYFASI başlat ══════════════════════════════════════════════
+    // ══ İÇERİK SAYFASI başlat (pageAdded event header'ı otomatik çizer) ═══
     doc.addPage();
-    // Dar koyu başlık bandı (içerik sayfaları için)
-    doc.rect(0, 0, W, 36).fill(CS_DARK);
-    doc.font(FONT_BOLD).fontSize(13);
-    const cyberW2 = doc.widthOfString("Cyber");
-    const stepW2  = doc.widthOfString("Step");
-    doc.fillColor(CS_TEXT).text("Cyber", MARGIN, 11, { lineBreak: false });
-    doc.fillColor(CS_CYAN).text("Step",  MARGIN + cyberW2, 11, { lineBreak: false });
-    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
-      .text(".io", MARGIN + cyberW2 + stepW2, 11, { lineBreak: false });
-    doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
-      .text(`${data.domain}  |  Tarama #${data.id}`,
-        MARGIN, 11, { align: "right", width: CONTENT_W });
-    doc.y = 52;
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
     if (data.scoreBreakdown) {
@@ -734,12 +765,18 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = lockY + 88;
     }
 
-    // ── Footer ────────────────────────────────────────────────────────────────
-    checkPageBreak(doc, 60);
-    const footerY = doc.page.height - 50;
-    doc.rect(0, footerY, W, 50).fill(DARK);
-    doc.fillColor([148, 163, 184]).fontSize(8).font(FONT_REGULAR)
-      .text(`CyberStep.io  |  Alan Adi Guvenlik Taramasi  |  Tarama #${data.id}`, MARGIN, footerY + 18, { width: CONTENT_W, align: "center" });
+    // ── Her sayfaya footer + sayfa numarası (bufferPages ile) ─────────────────
+    const totalPages = doc.bufferedPageRange().count;
+    // Kapak sayfası (index 0) hariç, içerik sayfalarına (index 1+) footer çiz
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(i);
+      if (i === 0) {
+        // Kapak — footer zaten kapak tasarımında var, atla
+        continue;
+      }
+      drawContentFooter(i, totalPages - 1); // -1: kapak sayfa numarasına dahil değil
+    }
+
     doc.end();
   });
 }
@@ -984,8 +1021,9 @@ function sectionTitle(doc: InstanceType<typeof PDFDocument>, title: string, x: n
 }
 
 function checkPageBreak(doc: InstanceType<typeof PDFDocument>, needed: number) {
-  if (doc.y + needed > doc.page.height - 60) {
+  // 52 = header bandı yüksekliği, 40 = footer için boşluk
+  if (doc.y + needed > doc.page.height - 40) {
     doc.addPage();
-    doc.y = 40;
+    // doc.y = 52 pageAdded event'i tarafından set edilir
   }
 }

@@ -226,7 +226,7 @@ const SHADOW_IT_CATALOG: Array<{
   { name: "Zendesk", category: "Canlı Destek", pattern: /zendesk\.com|zdassets\.com|ekr\.zdassets\.com/i, risk: "Düşük", desc: "Müşteri destek yönetimi. Destek talepleri Zendesk bulutunda saklanır." },
   { name: "Tawk.to", category: "Canlı Destek", pattern: /tawk\.to/i, risk: "Orta", desc: "Ücretsiz canlı destek widget'ı. Sohbet verileri üçüncü taraf sunucularda saklanır; ücretsiz planlarda veri gizliliği sınırlı." },
   { name: "Crisp Chat", category: "Canlı Destek", pattern: /crisp\.chat/i, risk: "Düşük", desc: "Canlı destek ve chatbot platformu." },
-  { name: "WordPress", category: "CMS", pattern: /wp-content\/|wp-includes\/|wordpress/i, risk: "Yüksek", desc: "WordPress CMS tespit edildi. Güncel tutulmayan WordPress, eklenti ve temalar en yaygın web saldırısı hedefidir. Tüm güncellemelerin yapıldığından emin olun." },
+  { name: "WordPress", category: "CMS", pattern: /wp-content\/|wp-includes\/|wordpress/i, risk: "Yüksek", desc: "WordPress CMS tespit edildi. Güncel tutulmayan WordPress, eklenti ve temalar en yaygın web saldırısı hedefidir. Tüm güncellemelerin yapıldığından emin olun.", versionExtract: /name=["']generator["'][^>]*content=["']WordPress\s*([\d.]+)/i },
   { name: "Wix", category: "CMS", pattern: /wix\.com|wixstatic\.com/i, risk: "Düşük", desc: "Wix bulut web sitesi oluşturucu. Altyapı Wix tarafından yönetilir." },
   { name: "Shopify", category: "E-ticaret", pattern: /cdn\.shopify\.com|shopifycdn\.com/i, risk: "Düşük", desc: "Shopify e-ticaret platformu. PCI DSS Level 1 uyumlu, güvenli ödeme altyapısı." },
   { name: "WooCommerce", category: "E-ticaret", pattern: /woocommerce/i, risk: "Orta", desc: "WordPress üzerine kurulu e-ticaret eklentisi. Ödeme verilerinin güvenliği kritik — PCI DSS uyumunu ve SSL'i doğrulayın." },
@@ -1382,7 +1382,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       checkThreatFox(domain),
       checkFeodoTracker(domain),
       checkMozillaObservatory(domain),
-      detectWAF(domain).catch(() => ({ detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[] })),
+      detectWAF(domain).catch(() => ({ detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[], indirectCdnProvider: null, indirectCdnNote: null })),
     ]);
 
     // WAF tespit edildiyse bypass kontrolü yap

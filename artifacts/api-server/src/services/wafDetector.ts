@@ -3,7 +3,6 @@
 // Hata durumunda güvenli fallback döner — taramayı asla durdurmaz.
 
 import axios from "axios";
-import type { AxiosResponse } from "axios";
 
 export type WafProvider = "cloudflare" | "f5" | "akamai" | "imperva" | "sucuri" | "aws_waf" | "fortinet";
 
@@ -17,6 +16,20 @@ const WAF_SIGNATURES: Record<WafProvider, { headers: string[]; cookies: string[]
   fortinet:   { headers: ["x-fortigate", "x-fortiweb", "x-fw-header"], cookies: ["FORTIWAFSID", "FSCSRF", "fgCSRFToken"], body: ["fortiweb", "fortigate", "application blocked", "fortinet", "fortigate-challenge"] },
 };
 
+// Dolaylı CDN sinyal header'ları (daha düşük güven — tespit eder ama provider kesin değil)
+const INDIRECT_CDN_HEADERS: Array<{ header: string; provider: string }> = [
+  { header: "x-cache",         provider: "cdn_generic"  },
+  { header: "x-served-by",     provider: "fastly"       },
+  { header: "x-cache-hits",    provider: "fastly"       },
+  { header: "via",             provider: "cdn_generic"  },
+  { header: "x-azure-ref",     provider: "azure_cdn"    },
+  { header: "x-amz-cf-id",     provider: "aws_cloudfront" },
+  { header: "x-sucuri-id",     provider: "sucuri"       },
+  { header: "x-fw",            provider: "fortinet_cdn" },
+  { header: "cf-ray",          provider: "cloudflare"   },
+  { header: "cf-cache-status", provider: "cloudflare"   },
+];
+
 // WAF sağlayıcılarının genellikle eklediği güvenlik başlıkları
 const WAF_ADDS: Record<string, string[]> = {
   cloudflare: ["x-content-type-options", "x-frame-options"],
@@ -27,13 +40,18 @@ const WAF_ADDS: Record<string, string[]> = {
 };
 
 export const WAF_DISPLAY_NAMES: Record<string, string> = {
-  cloudflare: "Cloudflare",
-  f5:         "F5 BIG-IP",
-  akamai:     "Akamai",
-  imperva:    "Imperva",
-  sucuri:     "Sucuri",
-  aws_waf:    "AWS WAF",
-  fortinet:   "Fortinet FortiWeb",
+  cloudflare:     "Cloudflare",
+  f5:             "F5 BIG-IP",
+  akamai:         "Akamai",
+  imperva:        "Imperva",
+  sucuri:         "Sucuri",
+  aws_waf:        "AWS WAF",
+  fortinet:       "Fortinet FortiWeb",
+  cdn_generic:    "CDN",
+  fastly:         "Fastly CDN",
+  azure_cdn:      "Azure CDN",
+  aws_cloudfront: "AWS CloudFront",
+  fortinet_cdn:   "Fortinet CDN",
 };
 
 export interface WafResult {
@@ -41,9 +59,15 @@ export interface WafResult {
   provider: string | null;
   confidence: number;
   headersAddedByWAF: string[];
+  // Dolaylı tespit: WAF net değil ama CDN sinyali var
+  indirectCdnProvider: string | null;
+  indirectCdnNote: string | null;
 }
 
-const EMPTY: WafResult = { detected: false, provider: null, confidence: 0, headersAddedByWAF: [] };
+const EMPTY: WafResult = {
+  detected: false, provider: null, confidence: 0, headersAddedByWAF: [],
+  indirectCdnProvider: null, indirectCdnNote: null,
+};
 
 export async function detectWAF(domain: string): Promise<WafResult> {
   try {
@@ -90,12 +114,39 @@ export async function detectWAF(domain: string): Promise<WafResult> {
     }
 
     const detected = bestScore >= 25;
-    return {
-      detected,
-      provider: detected ? bestProvider : null,
-      confidence: bestScore,
-      headersAddedByWAF: detected && bestProvider ? (WAF_ADDS[bestProvider] ?? []) : [],
-    };
+    if (detected) {
+      return {
+        detected,
+        provider: bestProvider,
+        confidence: bestScore,
+        headersAddedByWAF: bestProvider ? (WAF_ADDS[bestProvider] ?? []) : [],
+        indirectCdnProvider: null,
+        indirectCdnNote: null,
+      };
+    }
+
+    // Doğrudan tespit yok — dolaylı CDN header kontrolü (orta güven)
+    let indirectProvider: string | null = null;
+    for (const { header, provider } of INDIRECT_CDN_HEADERS) {
+      if (headers[header.toLowerCase()] || headers[header]) {
+        indirectProvider = provider;
+        break;
+      }
+    }
+
+    if (indirectProvider) {
+      const displayName = WAF_DISPLAY_NAMES[indirectProvider] ?? indirectProvider;
+      return {
+        detected: false,
+        provider: null,
+        confidence: 0,
+        headersAddedByWAF: [],
+        indirectCdnProvider: indirectProvider,
+        indirectCdnNote: `WAF header'ları kesin tespit edilemedi. ${displayName} CDN sinyali alındı (dolaylı). Port riskleri CDN arkasında geçerli olmayabilir.`,
+      };
+    }
+
+    return EMPTY;
   } catch {
     return EMPTY;
   }

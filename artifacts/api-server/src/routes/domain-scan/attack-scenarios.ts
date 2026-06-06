@@ -193,7 +193,7 @@ function validateReportConsistency(result: AttackScenariosResult, overallScore: 
   const level = result.genel_tehdit_seviyesi;
   if (!level) return;
 
-  if (overallScore >= 85 && (level === "Yüksek" || level === "Kritik")) {
+  if (overallScore >= 80 && (level === "Yüksek" || level === "Kritik")) {
     logger.warn({ score: overallScore, mitre: level }, "MITRE tehdit seviyesi skora göre çok yüksek — Düşük'e düzeltiliyor");
     result.genel_tehdit_seviyesi = "Düşük";
   } else if (overallScore >= 65 && level === "Kritik") {
@@ -205,7 +205,7 @@ function validateReportConsistency(result: AttackScenariosResult, overallScore: 
 function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   const cveSummary = (scan.cveSummary as Array<{ service: string; cveId: string; description: string; cvssScore: number }> ?? []);
   const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string; riskLevel?: string; riskContext?: string; isCdnExpected?: boolean }> ?? []);
-  const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string }> ?? []);
+  const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string; version?: string }> ?? []);
 
   // Bug 14: CVE age filter — exclude old/low-risk CVEs from MITRE scenario names
   const currentYear = new Date().getFullYear();
@@ -259,9 +259,33 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
     portsSummary = parts.join(" | ") || "tespit edilmedi";
   }
 
-  const shadowHighRisk = shadowIt.filter(s => s.risk === "high" || s.risk === "yüksek").length;
+  const shadowHighRisk = shadowIt.filter(s => s.risk.toLowerCase() === "high" || s.risk.toLowerCase() === "yüksek").length;
+
+  // Bug 18: Versiyon-farkındalıklı Shadow IT analizi
+  const SHADOW_KNOWN_LATEST: Record<string, string> = { jquery: "3.7.0", wordpress: "6.5.0", woocommerce: "9.0.0" };
+  const shadowITAnnotated = shadowIt.map(s => {
+    const key = s.name.toLowerCase().replace(/[^a-z]/g, "");
+    const latestVersion = SHADOW_KNOWN_LATEST[key];
+    const version = s.version ?? null;
+    if (version && latestVersion) {
+      const ap = version.split(".").map(Number);
+      const bp = latestVersion.split(".").map(Number);
+      let outdated = false;
+      for (let i = 0; i < Math.max(ap.length, bp.length); i++) {
+        const diff = (ap[i] ?? 0) - (bp[i] ?? 0);
+        if (diff < 0) { outdated = true; break; }
+        if (diff > 0) break;
+      }
+      return { ...s, version, isOutdated: outdated };
+    }
+    return { ...s, version, isOutdated: null as boolean | null };
+  });
   const shadowSummary = shadowIt.length > 0
-    ? shadowIt.slice(0, 4).map(s => `${s.name}(${s.risk})`).join(", ")
+    ? shadowITAnnotated.slice(0, 5).map(s => {
+        if (s.version && s.isOutdated === true)  return `${s.name} ${s.version}(GÜNCEL DEĞİL)`;
+        if (s.version && s.isOutdated === false) return `${s.name} ${s.version}(güncel)`;
+        return `${s.name}(versiyon bilinmiyor)`;
+      }).join(", ")
     : "yok";
 
   const portContextNote = hasCdn
@@ -277,11 +301,24 @@ CVE bulgularında risk azaltıldı: ${!wafScan.wafBypassPossible ? "Evet (CVSS s
 WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları — bunları tam kritik yaz.`
     : "WAF DURUMU: WAF tespit edilmedi. Tüm bulgular tam riskiyle raporla.";
 
-  // Skora göre zorunlu tehdit seviyesi
+  // Bug 19: Dolaylı CDN tespiti — WAF header + IP konum analizi
+  const wafScanExt = wafScan as typeof wafScan & { indirectCdnNote?: string | null };
+  const ipLocationCdnHint = (
+    !wafScan.wafDetected &&
+    !wafScanExt.indirectCdnNote &&
+    scan.shodanCountry !== null &&
+    scan.shodanCountry !== "TR" &&
+    scan.domain.endsWith(".tr")
+  )
+    ? `WAF/CDN header tespit edilemedi. Sunucu IP'si ${scan.shodanCountry}'da — Türk alan adı + yurt dışı IP CDN kullanımına işaret edebilir. Port riskleri CDN arkasında geçerli olmayabilir.`
+    : null;
+  const cdnLocationNote = wafScanExt.indirectCdnNote ?? ipLocationCdnHint;
+
+  // Skora göre zorunlu tehdit seviyesi — Bug 1: eşik 80
   const overallScore = scan.overallScore ?? 50;
   const sslDaysLeft = scan.sslDaysUntilExpiry ?? 999;
   const mandatedThreatLevel =
-    overallScore >= 85 ? "Düşük" :
+    overallScore >= 80 ? "Düşük" :
     overallScore >= 65 ? "Orta" :
     overallScore >= 40 ? "Yüksek" :
     "Kritik";
@@ -297,10 +334,17 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
   } else if (!hasCdn) {
     scenarioRules.push("CDN bypass senaryosu üretebilirsin — CDN tespit edilmedi, direkt sunucu erişimi söz konusu.");
   }
-  if (sslDaysLeft >= 30) {
-    scenarioRules.push("SSL sona erme saldırısı ÜRETME — SSL süresi yeterli (30 günden fazla kaldı).");
+  // Bug 17: Kademeli SSL senaryo kuralı — süresi dolmadan MitM olmaz
+  if (scan.sslDaysUntilExpiry === null) {
+    scenarioRules.push("SSL senaryo ÜRETME — SSL durumu tespit edilemedi, gerçek risk bilinmiyor.");
+  } else if (sslDaysLeft > 30) {
+    scenarioRules.push("SSL sona erme saldırısı ÜRETME — Sertifika geçerli, yeterli süre var.");
+  } else if (sslDaysLeft > 7) {
+    scenarioRules.push(`SSL senaryo üreteceksen: sertifika ${sslDaysLeft} gün içinde sona eriyor. MitM veya credential harvesting YAZMA — henüz gerçek risk yok. Senaryo maksimum 'Orta' seviyede olmalı: "SSL sertifikası yakında doluyor, yenilenmezse site güvensiz görünecek."`);
+  } else if (sslDaysLeft > 0) {
+    scenarioRules.push(`SSL acil durum senaryosu üret — sertifika ${sslDaysLeft} gün içinde sona eriyor. Seviye 'Yüksek', acil yenileme gerekiyor.`);
   } else {
-    scenarioRules.push(`SSL sona erme saldırısı ÜRETEBİLİRSİN — SSL ${sslDaysLeft} gün içinde sona eriyor.`);
+    scenarioRules.push("SSL sertifikası süresi DOLMUŞ — tarayıcı güvenlik uyarısı aktif, site erişimi sorunlu. 'Kritik' senaryo üret.");
   }
   // DMARC'a göre e-posta sahteciliği senaryosu kuralı
   if (dmarcPolicy === "reject") {
@@ -309,6 +353,18 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
     scenarioRules.push("E-posta sahteciliği/phishing senaryosu üretebilirsin ancak maksimum seviyeyi 'Orta' ile sınırla — DMARC p=quarantine tam engel değil, ancak çoğu saldırıyı karantinaya alır.");
   } else {
     scenarioRules.push(`E-posta sahteciliği/phishing senaryosu üretebilirsin, seviye 'Yüksek' olabilir — DMARC ${dmarcPolicy === "none" ? "p=none (izleme modu, gerçek koruma yok)" : "kaydı yok (hiç koruma yok)"}.`);
+  }
+  // Bug 18: Versiyon bilgisine göre Shadow IT senaryo kuralı
+  const outdatedShadow = shadowITAnnotated.filter(s => s.isOutdated === true);
+  const unknownVersionShadow = shadowITAnnotated.filter(s =>
+    s.isOutdated === null && s.version === null &&
+    ["jquery","wordpress","woocommerce"].some(k => s.name.toLowerCase().includes(k))
+  );
+  if (outdatedShadow.length > 0) {
+    scenarioRules.push(`Güncel olmayan bileşen senaryosu üretebilirsin: ${outdatedShadow.map(s => `${s.name} ${s.version}`).join(", ")} — spesifik versiyon numarasını senaryoda yaz.`);
+  }
+  if (unknownVersionShadow.length > 0) {
+    scenarioRules.push(`${unknownVersionShadow.map(s => s.name).join(", ")} tespit edildi ama versiyon bilgisi alınamadı — "eski bağımlılık" ifadesi KESİNLİKLE KULLANMA. Bunun yerine "güncel sürüm kullandığınızı doğrulayın" şeklinde öneri yaz, versiyon bilinmeden senaryo üretme.`);
   }
 
   return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
@@ -321,7 +377,7 @@ SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${
 CDN/WAF: ${wafScan.wafDetected ? (wafScan.wafProvider ?? "tespit edildi") : "tespit edilmedi"} | Shadow IT yüksek riskli: ${shadowHighRisk}
 Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})
 Port analizi: ${portsSummary}${portContextNote ? `\n${portContextNote}` : ""}
-${wafContextNote}
+${wafContextNote}${cdnLocationNote ? `\nCDN OLASILIK NOTU: ${cdnLocationNote}` : ""}
 Aktif Risk CVE'leri: ${activeCves.length > 0 ? activeCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})${informationalCves.length > 0 ? `\nBilgi Amaçlı CVE'ler (eski/düşük risk): ${informationalCves.map(c => c.cveId).join(", ")} — senaryoda CVE ID kullanma, sadece genel terim kullan` : ""}
 Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
 VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100
@@ -332,7 +388,7 @@ Risk bayrakları: ${riskFlags.length > 0 ? riskFlags.join("; ") : "yok"}
 ZORUNLU KURAL — GENEL TEHDİT SEVİYESİ
 ======================================
 Skora göre genel_tehdit_seviyesi DEĞERİ ZORUNLU OLARAK şu olmalı: "${mandatedThreatLevel}"
-(Skor 85-100 → Düşük | 65-84 → Orta | 40-64 → Yüksek | 0-39 → Kritik)
+(Skor 80-100 → Düşük | 65-79 → Orta | 40-64 → Yüksek | 0-39 → Kritik)
 Bu kurala kesinlikle uy. Senaryo ağırlığına göre değiştirme.
 
 SENARYO ÜRETİM KURALLARI

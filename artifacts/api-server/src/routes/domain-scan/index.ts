@@ -1615,6 +1615,16 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       ? (scan.attackScenariosJson as { genel_tehdit_seviyesi: string; senaryolar: Array<{ baslik: string; olasilik: string; etki: string }> })
       : null;
 
+    // Score breakdown — PDF için de hesaplanıyor
+    const pdfSpfStr = scan.spfRecord ?? "";
+    const pdfSpfStrength: "hardfail" | "softfail" | "neutral" | "none" =
+      pdfSpfStr.includes("-all") ? "hardfail" :
+      pdfSpfStr.includes("~all") ? "softfail" :
+      pdfSpfStr.includes("?all") ? "neutral" : "none";
+    const pdfDmarcMatch = (scan.dmarcRecord ?? "").match(/p=(\w+)/i);
+    const pdfDmarcPol = pdfDmarcMatch ? pdfDmarcMatch[1]!.toLowerCase() : null;
+    const pdfScoreBreakdown = calcScore(pdfSpfStrength, pdfDmarcPol, scan.dkimPass ?? false, scan.mxPass ?? false, scan.sslDaysUntilExpiry ?? null);
+
     const buf = await generateDomainScanPDF({
       id: scan.id,
       domain: scan.domain,
@@ -1646,6 +1656,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       abuseIpdbIsp: scan.abuseIpdbIsp,
       createdAt: scan.createdAt.toISOString(),
       attackScenarios: attackScenariosData,
+      scoreBreakdown: pdfScoreBreakdown,
     });
     const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");
     res.setHeader("Content-Type", "application/pdf");

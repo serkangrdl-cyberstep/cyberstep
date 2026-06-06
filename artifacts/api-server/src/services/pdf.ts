@@ -226,6 +226,10 @@ interface DomainScanData {
       teknikler?: Array<{ adi: string; tactic: string }>;
     }>;
   } | null;
+  scoreBreakdown?: {
+    spf: number; dmarc: number; dkim: number; mx: number; ssl: number;
+    portDeduction: number; total: number;
+  } | null;
 }
 
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
@@ -271,6 +275,40 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR).text("/ 100 puan", W - MARGIN - 80, boxTop + 38, { width: 60, align: "right" });
     doc.fillColor(scoreColor).fontSize(10).font(FONT_BOLD).text(scoreLabel, MARGIN + 16, boxTop + 36, { width: 80 });
     doc.y = boxTop + 80;
+
+    // ── Puan Dökümü ───────────────────────────────────────────────────────────
+    if (data.scoreBreakdown) {
+      sectionTitle(doc, "Puan Dokumu", MARGIN, CONTENT_W);
+      checkPageBreak(doc, 48);
+      const bd = data.scoreBreakdown;
+      const cols: Array<{ label: string; val: number; max: number }> = [
+        { label: "SPF",   val: bd.spf,   max: 20 },
+        { label: "DMARC", val: bd.dmarc, max: 25 },
+        { label: "DKIM",  val: bd.dkim,  max: 20 },
+        { label: "MX",    val: bd.mx,    max: 10 },
+        { label: "SSL",   val: bd.ssl,   max: 25 },
+      ];
+      const cellW = (CONTENT_W - (cols.length - 1) * 6) / cols.length;
+      const rowY = doc.y;
+      cols.forEach((col, i) => {
+        const cx = MARGIN + i * (cellW + 6);
+        const pct = col.max > 0 ? col.val / col.max : 0;
+        const cellColor: [number, number, number] =
+          pct >= 1 ? [22, 163, 74] : pct >= 0.5 ? [217, 119, 6] : [220, 38, 38];
+        doc.rect(cx, rowY, cellW, 38).fillAndStroke(LIGHT, [226, 232, 240]);
+        doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR).text(col.label, cx, rowY + 5, { width: cellW, align: "center" });
+        doc.fillColor(cellColor).fontSize(13).font(FONT_BOLD).text(`${col.val}`, cx, rowY + 16, { width: cellW - 20, align: "right" });
+        doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(`/${col.max}`, cx + cellW - 18, rowY + 20, { width: 18 });
+      });
+      doc.y = rowY + 44;
+      if (bd.portDeduction > 0) {
+        checkPageBreak(doc, 16);
+        doc.fillColor([220, 38, 38]).fontSize(8).font(FONT_BOLD)
+          .text(`Port kesintisi: -${bd.portDeduction} puan`, MARGIN, doc.y);
+        doc.y += 14;
+      }
+      doc.y += 4;
+    }
 
     // ── E-posta ve SSL Kontrolleri ─────────────────────────────────────────────
     sectionTitle(doc, "E-posta ve SSL Guvenlik Kontrolleri", MARGIN, CONTENT_W);

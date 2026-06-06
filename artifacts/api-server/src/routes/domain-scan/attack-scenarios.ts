@@ -286,6 +286,10 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
     overallScore >= 40 ? "Yüksek" :
     "Kritik";
 
+  // DMARC politikası türetimi (p=none / quarantine / reject)
+  const dmarcPolicyMatch = (scan.dmarcRecord ?? "").match(/p=(\w+)/i);
+  const dmarcPolicy = dmarcPolicyMatch ? dmarcPolicyMatch[1]!.toLowerCase() : null;
+
   // Koşullu senaryo üretim kuralları
   const scenarioRules: string[] = [];
   if (hasCdn && shadowHighRisk === 0) {
@@ -298,13 +302,21 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
   } else {
     scenarioRules.push(`SSL sona erme saldırısı ÜRETEBİLİRSİN — SSL ${sslDaysLeft} gün içinde sona eriyor.`);
   }
+  // DMARC'a göre e-posta sahteciliği senaryosu kuralı
+  if (dmarcPolicy === "reject") {
+    scenarioRules.push("E-posta sahteciliği/phishing senaryosu KESİNLİKLE ÜRETME — DMARC p=reject aktif, e-posta sahteciliği teknik olarak engellendi.");
+  } else if (dmarcPolicy === "quarantine") {
+    scenarioRules.push("E-posta sahteciliği/phishing senaryosu üretebilirsin ancak maksimum seviyeyi 'Orta' ile sınırla — DMARC p=quarantine tam engel değil, ancak çoğu saldırıyı karantinaya alır.");
+  } else {
+    scenarioRules.push(`E-posta sahteciliği/phishing senaryosu üretebilirsin, seviye 'Yüksek' olabilir — DMARC ${dmarcPolicy === "none" ? "p=none (izleme modu, gerçek koruma yok)" : "kaydı yok (hiç koruma yok)"}.`);
+  }
 
   return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
 TARAMA ÖZETİ
 ============
 Domain: ${scan.domain} | Risk Skoru: ${overallScore}/100
-E-posta: SPF=${scan.spfPass ? "OK" : "FAIL"} DMARC=${scan.dmarcPass ? "OK" : "FAIL"} DKIM=${scan.dkimPass ? "OK" : "FAIL"}
+E-posta: SPF=${scan.spfPass ? "OK" : "FAIL"} DMARC=${scan.dmarcPass ? `OK (politika: p=${dmarcPolicy ?? "?"})` : "FAIL (kayıt yok)"} DKIM=${scan.dkimPass ? "OK" : "FAIL"}
 SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${sslDaysLeft < 999 ? `${sslDaysLeft}g kaldı` : "süre bilinmiyor"}
 CDN/WAF: ${wafScan.wafDetected ? (wafScan.wafProvider ?? "tespit edildi") : "tespit edilmedi"} | Shadow IT yüksek riskli: ${shadowHighRisk}
 Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})

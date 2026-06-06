@@ -355,12 +355,14 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       highRisk.length === 0
     );
 
-    // Subdomains
+    // Subdomains — 1-50: bilgi (ok=true), >50: uyarı (ok=false)
     if (data.ctSubdomainCount > 0) {
       intelRow(
         "Sertifika Seffafligi (crt.sh)",
-        `${data.ctSubdomainCount} alt alan adi SSL sertifika gecmisinde tespit edildi`,
-        data.ctSubdomainCount < 5
+        data.ctSubdomainCount <= 50
+          ? `${data.ctSubdomainCount} alt alan adi tespit edildi — guncelligi dogrulayin`
+          : `${data.ctSubdomainCount} alt alan adi — cok sayida subdomain saldiri yuzeyini artirabilir`,
+        data.ctSubdomainCount <= 50
       );
     }
     doc.y += 4;

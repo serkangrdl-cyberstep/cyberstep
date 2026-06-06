@@ -146,7 +146,7 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
 
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 2000,
+      max_tokens: 3500,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -156,14 +156,34 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
     const block = message.content[0];
     const rawText = block?.type === "text" ? block.text.trim() : "";
 
-    // Extract JSON from response (Claude may wrap in ```json blocks)
-    const jsonMatch = rawText.match(/```json\s*([\s\S]+?)\s*```/) ?? rawText.match(/(\{[\s\S]+\})/);
-    const jsonStr = jsonMatch?.[1] ?? rawText;
+    // Extract JSON from response (Claude may wrap in ```json blocks or add surrounding text)
+    let jsonStr =
+      rawText.match(/```json\s*([\s\S]+?)\s*```/)?.[1] ??
+      rawText.match(/```\s*([\s\S]+?)\s*```/)?.[1] ??
+      rawText.match(/(\{[\s\S]+\})/s)?.[1] ??
+      rawText;
+
+    // Truncation guard: find the last valid closing brace and trim trailing garbage
+    const lastBrace = jsonStr.lastIndexOf("}");
+    if (lastBrace !== -1) jsonStr = jsonStr.substring(0, lastBrace + 1);
 
     // Milestone 4: parsing done, saving to DB
     progressBus.emit(scanId, { step: 2, pct: 82, label: "Senaryolar yazılıyor" });
 
-    const result: AttackScenariosResult = JSON.parse(jsonStr);
+    let result: AttackScenariosResult;
+    try {
+      result = JSON.parse(jsonStr) as AttackScenariosResult;
+    } catch (parseErr) {
+      // If JSON is still malformed (e.g. truncated array inside), build a minimal safe fallback
+      logger.warn({ parseErr, scanId, rawText: rawText.slice(0, 200) }, "Attack scenarios JSON parse failed — using fallback");
+      result = {
+        risk_ozet: "Tarama verileri analiz edildi ancak senaryo detayları oluşturulamadı. Lütfen yeniden deneyin.",
+        genel_tehdit_seviyesi: "Orta",
+        senaryolar: [],
+        once_kapat: [],
+        generated_at: new Date().toISOString(),
+      } as AttackScenariosResult;
+    }
     result.generated_at = new Date().toISOString();
 
     // Düzeltme 3: skor-MITRE tutarlılık kontrolü

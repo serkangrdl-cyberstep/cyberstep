@@ -225,11 +225,13 @@ interface DomainScanData {
       etki: string;
       teknikler?: Array<{ adi: string; tactic: string }>;
     }>;
+    once_kapat?: Array<{ oncelik: number; aksiyon: string; neden: string }>;
   } | null;
   scoreBreakdown?: {
     spf: number; dmarc: number; dkim: number; mx: number; ssl: number;
     portDeduction: number; total: number;
   } | null;
+  isFreeReport?: boolean;
 }
 
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
@@ -405,8 +407,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     }
     doc.y += 4;
 
-    // ── CVE Guvenlik Aciklari ──────────────────────────────────────────────────
-    if (data.cveSummary.length > 0) {
+    // ── CVE Guvenlik Aciklari (sadece ucretli) ─────────────────────────────────
+    if (!data.isFreeReport && data.cveSummary.length > 0) {
       sectionTitle(doc, "Tespit Edilen CVE Guvenlik Aciklari", MARGIN, CONTENT_W);
       for (const cve of data.cveSummary.slice(0, 6)) {
         checkPageBreak(doc, 38);
@@ -424,9 +426,9 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y += 4;
     }
 
-    // ── Katman 1 Tehdit Istihbarati ────────────────────────────────────────────
+    // ── Katman 1 Tehdit Istihbarati (sadece ucretli) ──────────────────────────
     const hasK1 = data.virusTotalReputation !== null || data.abuseIpdbScore !== null || data.shodanOpenPorts !== null;
-    if (hasK1) {
+    if (!data.isFreeReport && hasK1) {
       sectionTitle(doc, "Katman 1 Tehdit Istihbarati", MARGIN, CONTENT_W);
 
       if (data.virusTotalReputation !== null) {
@@ -508,6 +510,43 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         doc.y = sy + 50;
       }
       doc.y += 4;
+
+      // ── Oncelikli Aksiyon Listesi ──────────────────────────────────────────
+      const onceKapat = data.attackScenarios.once_kapat ?? [];
+      if (onceKapat.length > 0) {
+        sectionTitle(doc, "Oncelikli Aksiyon Listesi", MARGIN, CONTENT_W);
+        for (const item of onceKapat) {
+          checkPageBreak(doc, 44);
+          const ay = doc.y;
+          doc.rect(MARGIN, ay, CONTENT_W, 36).fillAndStroke([255, 241, 242], [254, 202, 202]);
+          doc.circle(MARGIN + 14, ay + 18, 10).fill([220, 38, 38]);
+          doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD)
+            .text(String(item.oncelik), MARGIN + 9, ay + 12, { width: 10, align: "center" });
+          doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
+            .text(item.aksiyon, MARGIN + 30, ay + 5, { width: CONTENT_W - 36, lineBreak: false });
+          doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
+            .text(item.neden.substring(0, 120), MARGIN + 30, ay + 20, { width: CONTENT_W - 36 });
+          doc.y = ay + 42;
+        }
+        doc.y += 4;
+      }
+    }
+
+    // ── Ucretsiz rapor kilitleme kutusu ───────────────────────────────────────
+    if (data.isFreeReport) {
+      checkPageBreak(doc, 100);
+      const lockY = doc.y + 8;
+      doc.rect(MARGIN, lockY, CONTENT_W, 80).fillAndStroke([239, 246, 255], [147, 197, 253]);
+      doc.fillColor([37, 99, 235]).fontSize(11).font(FONT_BOLD)
+        .text("Tam Rapor — Ucretsiz Hesap ile Sinirlidir", MARGIN + 16, lockY + 12, { width: CONTENT_W - 32 });
+      doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
+        .text(
+          "Bu rapor ozet bilgileri icermektedir. Hesap olusturarak CVE guvenlik aciklari, MITRE ATT&CK saldiri senaryolari, AI destekli tehdit analizi ve oncelikli aksiyon planini iceren tam raporu ucretsiz indirin.",
+          MARGIN + 16, lockY + 30, { width: CONTENT_W - 32 }
+        );
+      doc.fillColor([37, 99, 235]).fontSize(8).font(FONT_BOLD)
+        .text("cyberstep.io/kayit", MARGIN + 16, lockY + 62, { width: CONTENT_W - 32 });
+      doc.y = lockY + 88;
     }
 
     // ── Footer ────────────────────────────────────────────────────────────────

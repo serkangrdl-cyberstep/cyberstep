@@ -1796,7 +1796,7 @@ function startDigestCron() {
     }
   }, { timezone: "Europe/Istanbul" });
 
-  cron.schedule("30 3 * * *", async () => {
+  cron.schedule("0 4 * * *", async () => {
     logger.info("Digest: Haber zenginleştirme (AI özet + CVE çıkarma) başlıyor");
     try {
       await enrichNewsItems();

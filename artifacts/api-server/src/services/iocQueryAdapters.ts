@@ -6,17 +6,56 @@
 import dns from "dns/promises";
 import { logger } from "../lib/logger";
 
+const iocCache = new Map<string, { data: unknown; expiresAt: number }>();
+
+function cacheGet<T>(key: string): T | null {
+  const entry = iocCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    iocCache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function cacheSet(key: string, data: unknown, ttlMs = 5 * 60 * 1000): void {
+  iocCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
+async function axiosWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 2
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 429 && attempt < maxRetries) {
+        const wait = Math.pow(2, attempt) * 1000;
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("axiosWithRetry: max retries exceeded");
+}
+
 // ─── SHODAN IP ─────────────────────────────────────────────────────────────────
 
 export async function queryShodan(ip: string): Promise<Record<string, unknown> | null> {
   const key = process.env["SHODAN_API_KEY"];
   if (!key) return null;
+  const cacheKey = `shodan:${ip}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.get(`https://api.shodan.io/shodan/host/${encodeURIComponent(ip)}`, {
+    const res = await axiosWithRetry(() => axios.get(`https://api.shodan.io/shodan/host/${encodeURIComponent(ip)}`, {
       params: { key }, timeout: 12000,
-    });
-    return {
+    }));
+    const result = {
       ports:       res.data.ports || [],
       hostnames:   res.data.hostnames || [],
       org:         res.data.org,
@@ -26,6 +65,8 @@ export async function queryShodan(ip: string): Promise<Record<string, unknown> |
       vulns:       res.data.vulns ? Object.keys(res.data.vulns) : [],
       tags:        res.data.tags || [],
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err: unknown) {
     if ((err as { response?: { status?: number } }).response?.status !== 404) {
       logger.warn({ err }, "Shodan query error");
@@ -51,15 +92,18 @@ export async function queryShodanDomain(domain: string): Promise<Record<string, 
 export async function queryAbuseIPDB(ip: string): Promise<Record<string, unknown> | null> {
   const key = process.env["ABUSEIPDB_API_KEY"];
   if (!key) return null;
+  const cacheKey = `abuseipdb:${ip}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.get("https://api.abuseipdb.com/api/v2/check", {
+    const res = await axiosWithRetry(() => axios.get("https://api.abuseipdb.com/api/v2/check", {
       headers: { Key: key, Accept: "application/json" },
       params:  { ipAddress: ip, maxAgeInDays: 90, verbose: true },
       timeout: 10000,
-    });
+    }));
     const d = res.data.data;
-    return {
+    const result = {
       abuse_confidence_score: d.abuseConfidenceScore,
       total_reports:          d.totalReports,
       last_reported_at:       d.lastReportedAt,
@@ -73,6 +117,8 @@ export async function queryAbuseIPDB(ip: string): Promise<Record<string, unknown
         comment:     typeof r["comment"] === "string" ? r["comment"].slice(0, 200) : null,
       })),
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err }, "AbuseIPDB query error");
     return null;
@@ -87,6 +133,9 @@ export async function queryVirusTotal(
 ): Promise<Record<string, unknown> | null> {
   const key = process.env["VIRUSTOTAL_API_KEY"];
   if (!key) return null;
+  const cacheKey = `virustotal:${type}:${value}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
     const endpoints: Record<string, string> = {
@@ -95,12 +144,12 @@ export async function queryVirusTotal(
       hash:   `https://www.virustotal.com/api/v3/files/${value}`,
       url:    `https://www.virustotal.com/api/v3/urls/${Buffer.from(value).toString("base64url")}`,
     };
-    const res = await axios.get(endpoints[type], {
+    const res = await axiosWithRetry(() => axios.get(endpoints[type], {
       headers: { "x-apikey": key },
       timeout: 15000,
-    });
+    }));
     const stats = (res.data.data?.attributes?.last_analysis_stats as Record<string, number>) || {};
-    return {
+    const result = {
       malicious:     stats["malicious"] || 0,
       suspicious:    stats["suspicious"] || 0,
       clean:         stats["undetected"] || 0,
@@ -110,6 +159,8 @@ export async function queryVirusTotal(
       tags:          res.data.data?.attributes?.tags || [],
       last_analysis_date: res.data.data?.attributes?.last_analysis_date,
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err, type, value: value.slice(0, 30) }, "VirusTotal query error");
     return null;
@@ -121,12 +172,15 @@ export async function queryVirusTotal(
 export async function queryGreyNoise(ip: string): Promise<Record<string, unknown> | null> {
   const key = process.env["GREYNOISE_API_KEY"];
   if (!key) return null;
+  const cacheKey = `greynoise:${ip}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.get(`https://api.greynoise.io/v3/community/${encodeURIComponent(ip)}`, {
+    const res = await axiosWithRetry(() => axios.get(`https://api.greynoise.io/v3/community/${encodeURIComponent(ip)}`, {
       headers: { key }, timeout: 8000,
-    });
-    return {
+    }));
+    const result = {
       noise:          res.data.noise,
       riot:           res.data.riot,
       classification: res.data.classification,
@@ -135,6 +189,8 @@ export async function queryGreyNoise(ip: string): Promise<Record<string, unknown
       last_seen:      res.data.last_seen,
       message:        res.data.message,
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err: unknown) {
     if ((err as { response?: { status?: number } }).response?.status === 404) {
       return { noise: false, riot: false, classification: "unknown" };
@@ -150,16 +206,19 @@ export async function queryThreatFox(
   iocType: "ip" | "domain" | "hash" | "url",
   value: string,
 ): Promise<Record<string, unknown> | null> {
+  const cacheKey = `threatfox:${iocType}:${value}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.post(
+    const res = await axiosWithRetry(() => axios.post(
       "https://threatfox-api.abuse.ch/api/v1/",
       { query: "search_ioc", search_term: value },
       { timeout: 10000 },
-    );
+    ));
     if (res.data.query_status !== "ok") return { found: false };
     const data: Record<string, unknown>[] = (res.data.data || []).slice(0, 5);
-    return {
+    const result = {
       found: data.length > 0,
       iocs: data.map((d) => ({
         threat_type: d["threat_type"],
@@ -170,6 +229,8 @@ export async function queryThreatFox(
         reporter:    d["reporter"],
       })),
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err, iocType }, "ThreatFox query error");
     return null;
@@ -179,14 +240,17 @@ export async function queryThreatFox(
 // ─── URLHAUS ──────────────────────────────────────────────────────────────────
 
 export async function queryURLhaus(value: string): Promise<Record<string, unknown> | null> {
+  const cacheKey = `urlhaus:${value}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.post(
+    const res = await axiosWithRetry(() => axios.post(
       "https://urlhaus-api.abuse.ch/v1/host/",
       `host=${encodeURIComponent(value)}`,
       { headers: { "Content-Type": "application/x-www-form-urlencoded" }, timeout: 10000 },
-    );
-    return {
+    ));
+    const result = {
       found:      res.data.query_status === "is_host",
       urls_count: res.data.urls?.length || 0,
       urls: (res.data.urls || []).slice(0, 3).map((u: Record<string, unknown>) => ({
@@ -196,6 +260,8 @@ export async function queryURLhaus(value: string): Promise<Record<string, unknow
         date_added: u["date_added"],
       })),
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err }, "URLhaus query error");
     return null;
@@ -205,17 +271,20 @@ export async function queryURLhaus(value: string): Promise<Record<string, unknow
 // ─── MALWAREBAZAAR ────────────────────────────────────────────────────────────
 
 export async function queryMalwareBazaar(hash: string): Promise<Record<string, unknown> | null> {
+  const cacheKey = `malwarebazaar:${hash}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.post(
+    const res = await axiosWithRetry(() => axios.post(
       "https://mb-api.abuse.ch/api/v1/",
       `query=get_info&hash=${hash}`,
       { headers: { "Content-Type": "application/x-www-form-urlencoded" }, timeout: 10000 },
-    );
+    ));
     if (res.data.query_status !== "ok") return { found: false };
     const data = (res.data.data as Record<string, unknown>[])?.[0];
     if (!data) return { found: false };
-    return {
+    const result = {
       found:           true,
       file_type:       data["file_type"],
       file_size:       data["file_size"],
@@ -226,6 +295,8 @@ export async function queryMalwareBazaar(hash: string): Promise<Record<string, u
       vendor_intel:    data["vendor_intel"],
       delivery_method: data["delivery_method"],
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err }, "MalwareBazaar query error");
     return null;
@@ -235,16 +306,23 @@ export async function queryMalwareBazaar(hash: string): Promise<Record<string, u
 // ─── FEODO TRACKER ────────────────────────────────────────────────────────────
 
 export async function queryFeodoTracker(ip: string): Promise<Record<string, unknown>> {
+  const cacheKey = `feodo:${ip}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.get(
+    const res = await axiosWithRetry(() => axios.get(
       "https://feodotracker.abuse.ch/downloads/ipblocklist.json",
       { timeout: 10000 },
-    );
+    ));
     const list: Array<Record<string, unknown>> = Array.isArray(res.data) ? res.data : [];
     const match = list.find((e) => e["ip_address"] === ip);
-    if (!match) return { is_c2: false };
-    return {
+    if (!match) {
+      const notFound = { is_c2: false };
+      cacheSet(cacheKey, notFound);
+      return notFound;
+    }
+    const result = {
       is_c2:       true,
       malware:     match["malware"],
       status:      match["status"],
@@ -252,6 +330,8 @@ export async function queryFeodoTracker(ip: string): Promise<Record<string, unkn
       last_online: match["last_online"],
       country:     match["country"],
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch {
     return { is_c2: false };
   }
@@ -260,13 +340,16 @@ export async function queryFeodoTracker(ip: string): Promise<Record<string, unkn
 // ─── WHOIS (node built-in DNS fallback) ───────────────────────────────────────
 
 export async function queryWHOIS(domain: string): Promise<Record<string, unknown> | null> {
+  const cacheKey = `whois:${domain}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     // Use WHOIS via rdap.org (no package needed)
     const { default: axios } = await import("axios");
-    const res = await axios.get(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+    const res = await axiosWithRetry(() => axios.get(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
       timeout: 8000,
       headers: { Accept: "application/json" },
-    });
+    }));
     const events: Array<{ eventAction: string; eventDate: string }> = res.data.events || [];
     const registration = events.find((e) => e.eventAction === "registration");
     const expiration   = events.find((e) => e.eventAction === "expiration");
@@ -279,7 +362,7 @@ export async function queryWHOIS(domain: string): Promise<Record<string, unknown
     const registrar = fnEntry ? (fnEntry[3] as string | undefined) : undefined;
 
     const createdDate = registration?.eventDate ? new Date(registration.eventDate) : null;
-    return {
+    const result = {
       created_date:    registration?.eventDate || null,
       expiry_date:     expiration?.eventDate || null,
       registrar:       registrar || null,
@@ -287,6 +370,8 @@ export async function queryWHOIS(domain: string): Promise<Record<string, unknown
         ? Math.floor((Date.now() - createdDate.getTime()) / 86400000)
         : null,
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err }, "WHOIS query error");
     return null;
@@ -298,9 +383,12 @@ export async function queryWHOIS(domain: string): Promise<Record<string, unknown
 export async function queryGoogleSafeBrowsing(url: string): Promise<Record<string, unknown> | null> {
   const key = process.env["GOOGLE_SAFE_BROWSING_API_KEY"];
   if (!key) return null;
+  const cacheKey = `gsb:${url}`;
+  const cached = cacheGet<Record<string, unknown>>(cacheKey);
+  if (cached) return cached;
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.post(
+    const res = await axiosWithRetry(() => axios.post(
       `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${key}`,
       {
         client:     { clientId: "cyberstep", clientVersion: "1.0" },
@@ -312,11 +400,13 @@ export async function queryGoogleSafeBrowsing(url: string): Promise<Record<strin
         },
       },
       { timeout: 8000 },
-    );
-    return {
+    ));
+    const result = {
       threats:  res.data.matches || [],
       is_safe:  !res.data.matches?.length,
     };
+    cacheSet(cacheKey, result);
+    return result;
   } catch (err) {
     logger.warn({ err }, "Google Safe Browsing query error");
     return null;

@@ -1,3 +1,4 @@
+// TODO: IYZICO_IDENTITY_NUMBER env değişkeni MASAK AML gereksinimi için gerçek değerle doldurulmalı
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
@@ -145,11 +146,11 @@ router.post("/payments/service-checkout", async (req: Request, res: Response) =>
       name: firstName,
       surname: lastName,
       email,
-      identityNumber: "11111111111",
+      identityNumber: process.env.IYZICO_IDENTITY_NUMBER ?? "11111111111",
       registrationAddress: "Türkiye",
       city: "İstanbul",
       country: "Turkey",
-      ip: ip ?? "127.0.0.1",
+      ip: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "127.0.0.1",
     },
     shippingAddress: { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName },
     billingAddress: { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName },
@@ -434,11 +435,11 @@ router.post("/customer/service-subscriptions/:id/renew", async (req: Request, re
     name: firstName,
     surname: lastName,
     email: sub.email,
-    identityNumber: "11111111111",
+    identityNumber: process.env.IYZICO_IDENTITY_NUMBER ?? "11111111111",
     registrationAddress: "Türkiye",
     city: "İstanbul",
     country: "Turkey",
-    ip: ip ?? "127.0.0.1",
+    ip: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "127.0.0.1",
   };
   const addrInfo = { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName: sub.contactName };
   const basketItems = [{ id: sub.serviceSlug, name: sub.serviceLabel, category1: "Siber Güvenlik Hizmetleri", itemType: "VIRTUAL", price: String(base) }];
@@ -612,11 +613,11 @@ router.post("/payments/service-subscriptions/:id/renew", requireAdmin, async (re
     name: firstName,
     surname: lastName,
     email: sub.email,
-    identityNumber: "11111111111",
+    identityNumber: process.env.IYZICO_IDENTITY_NUMBER ?? "11111111111",
     registrationAddress: "Türkiye",
     city: "İstanbul",
     country: "Turkey",
-    ip: ip ?? "127.0.0.1",
+    ip: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "127.0.0.1",
   };
   const addrInfo = { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName: sub.contactName };
   const basketItems = [{ id: service.slug, name: service.label, category1: "Siber Güvenlik Hizmetleri", itemType: "VIRTUAL", price: String(base) }];

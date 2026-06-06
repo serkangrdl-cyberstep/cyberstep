@@ -5,6 +5,7 @@ import { logger } from "../lib/logger";
 import { checkAndSaveDnsChanges, type DnsChange, type DnsSnapshot, formatDnsValue } from "./dnsResolver";
 import { createCaseWithNumber } from "./soc/soc-cases";
 import { sendMail } from "./email";
+import { wrapCron } from "./cronRegistry";
 
 const TZ = { timezone: "Europe/Istanbul" } as const;
 
@@ -85,50 +86,44 @@ async function sendDnsChangeAlert(to: string, domain: string, changes: DnsChange
   });
 }
 
-// Guard against concurrent runs — if a previous cycle is still in flight, skip.
-let dnsRunInProgress = false;
+async function runDnsMonitorCycle(): Promise<void> {
+  // No LIMIT — all active watched domains must be covered within each 5-minute cycle.
+  // The 500 ms sleep between domains provides natural throttling; at 500 ms/domain,
+  // ~600 domains fit comfortably within 5 minutes.
+  const result = await db.execute<WatchedDomainRow>(sql`
+    SELECT d.id, d.customer_id, d.domain, c.email AS customer_email
+    FROM dns_watched_domains d
+    JOIN customers c ON c.id = d.customer_id
+    WHERE d.is_active = true
+    ORDER BY COALESCE(d.last_checked_at, '1970-01-01') ASC
+  `);
+  const rows = (result as unknown as { rows: WatchedDomainRow[] }).rows ?? [];
+
+  for (const row of rows) {
+    await checkAndSaveDnsChanges({
+      customerId: row.customer_id,
+      domain: row.domain,
+      watchedDomainId: row.id,
+      onChanges: async (changes, snapshot) => {
+        if (row.customer_email) {
+          await sendDnsChangeAlert(row.customer_email, row.domain, changes, snapshot);
+        }
+      },
+      onSocCase: createDnsSocCase,
+    });
+    // Throttle DNS resolver requests to avoid thundering-herd
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
 
 export function startDnsCrons(): void {
-  cron.schedule("*/5 * * * *", async () => {
-    if (dnsRunInProgress) {
-      logger.warn("DNS monitor cron: previous run still in progress, skipping");
-      return;
-    }
-    dnsRunInProgress = true;
-    try {
-      // No LIMIT — all active watched domains must be covered within each 5-minute cycle.
-      // The 500 ms sleep between domains provides natural throttling; at 500 ms/domain,
-      // ~600 domains fit comfortably within 5 minutes.
-      const result = await db.execute<WatchedDomainRow>(sql`
-        SELECT d.id, d.customer_id, d.domain, c.email AS customer_email
-        FROM dns_watched_domains d
-        JOIN customers c ON c.id = d.customer_id
-        WHERE d.is_active = true
-        ORDER BY COALESCE(d.last_checked_at, '1970-01-01') ASC
-      `);
-      const rows = (result as unknown as { rows: WatchedDomainRow[] }).rows ?? [];
-
-      for (const row of rows) {
-        await checkAndSaveDnsChanges({
-          customerId: row.customer_id,
-          domain: row.domain,
-          watchedDomainId: row.id,
-          onChanges: async (changes, snapshot) => {
-            if (row.customer_email) {
-              await sendDnsChangeAlert(row.customer_email, row.domain, changes, snapshot);
-            }
-          },
-          onSocCase: createDnsSocCase,
-        });
-        // Throttle DNS resolver requests to avoid thundering-herd
-        await new Promise(r => setTimeout(r, 500));
-      }
-    } catch (err) {
-      logger.error({ err }, "DNS monitor cron failed");
-    } finally {
-      dnsRunInProgress = false;
-    }
-  }, TZ);
+  cron.schedule(
+    "*/5 * * * *",
+    wrapCron("dns_monitor", "*/5 * * * *", async () => {
+      await runDnsMonitorCycle();
+    }),
+    TZ
+  );
 
   logger.info("DNS monitor cron scheduled (every 5 min)");
 }

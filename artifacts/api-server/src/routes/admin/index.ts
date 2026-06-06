@@ -10,7 +10,7 @@ import { requireAdmin } from "../../middleware/auth";
 const router = Router();
 
 // GET /api/admin/review/:token
-router.get("/admin/review/:token", async (req, res) => {
+router.get("/admin/review/:token", requireAdmin, async (req, res) => {
   const { token } = req.params;
 
   const [report] = await db
@@ -37,7 +37,7 @@ router.get("/admin/review/:token", async (req, res) => {
 });
 
 // PUT /api/admin/review/:token
-router.put("/admin/review/:token", async (req, res) => {
+router.put("/admin/review/:token", requireAdmin, async (req, res) => {
   const { token } = req.params;
   const { aiAnalysis, recommendations, adminNotes } = req.body as {
     aiAnalysis?: string;

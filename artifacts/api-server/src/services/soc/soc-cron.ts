@@ -8,6 +8,7 @@ import { db, aiUsageLogTable } from "@workspace/db";
 import { gte, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { sendMail } from "../email";
+import { wrapCron } from "../cronRegistry";
 import { seedSOC } from "./soc-seed";
 import { processTriageQueue } from "./soc-triage";
 import { checkSLABreaches } from "./soc-escalation";
@@ -15,8 +16,6 @@ import { runWeeklySOCReports } from "./soc-report";
 
 const TZ = { timezone: "Europe/Istanbul" } as const;
 const ADMIN_EMAIL = process.env["SOC_ADMIN_EMAIL"] ?? "";
-
-let triageRunning = false;
 
 async function sendMonthlyAICostReport(): Promise<void> {
   if (!ADMIN_EMAIL) {
@@ -57,17 +56,14 @@ export function startSOCCrons(): void {
   // Seed playbooks + SLA matrix on startup (idempotent)
   void seedSOC();
 
-  // Triage queue — every 5 minutes (in-process lock prevents overlapping runs)
-  cron.schedule("*/5 * * * *", () => {
-    if (triageRunning) {
-      logger.warn("SOC triage cron skipped: previous run still in progress");
-      return;
-    }
-    triageRunning = true;
-    processTriageQueue()
-      .catch((err) => logger.warn({ err }, "SOC triage cron failed"))
-      .finally(() => { triageRunning = false; });
-  }, TZ);
+  // Triage queue — every 5 minutes (DB-backed overlap protection via wrapCron)
+  cron.schedule(
+    "*/5 * * * *",
+    wrapCron("soc_triage", "*/5 * * * *", async () => {
+      await processTriageQueue();
+    }),
+    TZ
+  );
   logger.info("SOC triage cron scheduled (every 5 min)");
 
   // SLA breach check — every 5 minutes

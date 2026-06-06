@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, Eye, FileText, ActivitySquare, ShieldCheck, Wrench } from "lucide-react";
+import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Wrench } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Footer } from "./footer";
 import { useWhiteLabel } from "@/contexts/white-label-context";
@@ -21,8 +21,6 @@ const AI_GUVENLIK_ITEMS = [
   { href: "/ai-phishing-simulasyonu", label: "AI Phishing Simülasyonu", icon: Mail, available: true },
   { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: ActivitySquare, available: true },
   { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, available: true },
-  { href: "/deepfake-analizi", label: "Deepfake Tehdit Analizi", icon: Eye, available: true },
-  { href: "/sahte-dokuman", label: "AI Sahte Doküman Tespiti", icon: FileText, available: true },
   { href: "/eu-ai-act", label: "EU AI Act Uyum Skoru", icon: Cpu, available: true },
   { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Bot, available: true },
   { href: "/ciso-asistan-paketi", label: "CISO Asistan", icon: ShieldCheck, available: true },
@@ -124,7 +122,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setAiOpen(v => !v)}
                   className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
-                    location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/ciso-asistan") ? "text-primary" : "text-muted-foreground"
+                    location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/ciso-asistan") ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
                   AI Güvenlik
@@ -268,7 +266,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => setMobileAiOpen(v => !v)}
                     className={`flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/deepfake") || location.startsWith("/sahte") || location.startsWith("/ciso-asistan") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                      location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/ciso-asistan") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
                     }`}
                   >
                     AI Güvenlik

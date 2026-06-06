@@ -1191,22 +1191,6 @@ export default function Home() {
                 price: "2.490 TL + KDV",
               },
               {
-                href: "/deepfake-analizi",
-                icon: "🎭",
-                title: "Deepfake & Ses Klonu Analizi",
-                what: "Yöneticilerinizin YouTube, LinkedIn ve haber kaynaklarındaki dijital izini analiz eder. CEO fraud saldırılarına karşı ses klonu risk haritası çıkarır.",
-                why: "Modern ses klonlama araçları 3 dakika ses örnekle çalışıyor. CEO fraud saldırıları Türkiye'de yılda milyonlarca TL zarara neden oluyor.",
-                price: "1.490 TL + KDV",
-              },
-              {
-                href: "/sahte-dokuman",
-                icon: "📄",
-                title: "AI Sahte Doküman Tespiti",
-                what: "Fatura, sözleşme, kimlik ve diğer belgeleri yapay zeka ile analiz eder. Metadata anomalisi, format tutarsızlığı ve manipülasyon izleri tespit edilir.",
-                why: "AI ile üretilen sahte belgeler artık gözle ayırt edilemiyor. Muhasebe ve hukuk süreçlerinde tedarikçi kimliği doğrulaması kritik.",
-                price: "49 TL / tarama + KDV",
-              },
-              {
                 href: "/ai-phishing-simulasyonu",
                 icon: "🎣",
                 title: "AI Phishing Simülasyonu",

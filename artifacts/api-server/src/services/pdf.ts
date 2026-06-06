@@ -298,7 +298,6 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // Header: her içerik sayfasının tepesine çizilir
     const _drawHeader = () => {
-      const sy = doc.y;
       doc.rect(0, 0, W, 36).fill(CS_DARK);
       // CyberStep kalkan ikonu
       _drawShieldIcon(MARGIN, 7, 22);
@@ -312,7 +311,6 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         .text(".io", MARGIN + 28 + hcw + hsw, 13, { lineBreak: false });
       doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
         .text(`${data.domain}  |  Tarama #${data.id}`, MARGIN, 11, { align: "right", width: CONTENT_W });
-      doc.y = sy;
     };
 
     // Footer: her içerik sayfasının altına çizilir
@@ -346,6 +344,9 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         _drawFooter();
         _pgNum++;
         doc_.addPage();
+        // Yeni sayfada header'ı switchToPage ile çiz — cursor karışmasın
+        const newPageIdx = doc_.bufferedPageRange().start + doc_.bufferedPageRange().count - 1;
+        doc_.switchToPage(newPageIdx);
         _drawHeader();
         doc_.y = 52;
       }

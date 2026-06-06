@@ -52,6 +52,15 @@ interface ScanResult {
   sslIssuer: string | null;
   sslDaysUntilExpiry: number | null;
   sslNote?: string | null;
+  scoreBreakdown?: {
+    spf: number;
+    dmarc: number;
+    dkim: number;
+    mx: number;
+    ssl: number;
+    portDeduction: number;
+    total: number;
+  } | null;
   overallScore: number;
   hibpBreachCount: number;
   hibpBreaches: HibpBreach[];
@@ -2105,6 +2114,40 @@ export default function DomainScanPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Score breakdown */}
+          {result.scoreBreakdown && (
+            <Card className="shadow-sm mb-6 border border-border/50">
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Puan Dökümü</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { label: "SPF", key: "spf" as const, max: 20 },
+                    { label: "DMARC", key: "dmarc" as const, max: 25 },
+                    { label: "DKIM", key: "dkim" as const, max: 20 },
+                    { label: "MX", key: "mx" as const, max: 10 },
+                    { label: "SSL", key: "ssl" as const, max: 25 },
+                  ].map(({ label, key, max }) => {
+                    const val = result.scoreBreakdown![key];
+                    const pct = Math.round((val / max) * 100);
+                    const color = pct === 100 ? "text-green-600" : pct >= 50 ? "text-yellow-600" : "text-red-500";
+                    return (
+                      <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2 bg-muted/20">
+                        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+                        <span className={`text-xs font-bold tabular-nums ${color}`}>{val}<span className="text-muted-foreground font-normal">/{max}</span></span>
+                      </div>
+                    );
+                  })}
+                  {result.scoreBreakdown.portDeduction > 0 && (
+                    <div className="flex items-center justify-between rounded-md border border-red-200 px-3 py-2 bg-red-50/50">
+                      <span className="text-xs text-red-600 font-medium">Port Kesintisi</span>
+                      <span className="text-xs font-bold text-red-600 tabular-nums">-{result.scoreBreakdown.portDeduction}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* E-posta durumu: analiz bitmeden "bekliyor", bittikten sonra "gönderildi" */}
           {attackTeaserStatus === "loading" ? (

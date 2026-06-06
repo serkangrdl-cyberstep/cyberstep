@@ -312,7 +312,7 @@ function startReminderCron() {
             checkMX(scan.domain),
             checkSSL(scan.domain),
           ]);
-          const newScore = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
+          const { total: newScore } = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry);
           const scoreChanged = newScore !== scan.overallScore;
 
           await db.insert(domainScansTable).values({
@@ -399,7 +399,7 @@ function startReminderCron() {
             checkMX(scan.domain),
             checkSSL(scan.domain),
           ]);
-          const newScore = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
+          const { total: newScore } = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry);
 
           const changes: Array<{ check: string; wasPass: boolean; isPass: boolean }> = [];
           if ((scan.spfPass ?? false) !== spf.pass) changes.push({ check: "SPF (Sahte E-posta Koruması)", wasPass: scan.spfPass ?? false, isPass: spf.pass });

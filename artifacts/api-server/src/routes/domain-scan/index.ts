@@ -143,38 +143,57 @@ async function checkSSL(domain: string): Promise<{
   });
 }
 
+export interface ScoreBreakdown {
+  spf: number;
+  dmarc: number;
+  dkim: number;
+  mx: number;
+  ssl: number;
+  portDeduction: number;
+  total: number;
+}
+
 function calcScore(
   spfStrength: "hardfail" | "softfail" | "neutral" | "none",
   dmarcPolicy: string | null,
   dkim: boolean,
   mx: boolean,
-  sslDaysLeft: number,
+  sslDaysLeft: number | null,
   portDeduction = 0,
-): number {
-  // SPF — kademeli puan (softfail kısmi kredi alır)
+): ScoreBreakdown {
+  // SPF — kademeli puan
   const spfScore =
     spfStrength === "hardfail" ? 20 :
     spfStrength === "softfail" ? 14 :
     spfStrength === "neutral"  ? 10 :
     0;
 
-  // SSL — kademeli puan (binary 30-gün eşiği yerine)
+  // SSL — kademeli puan (null = ulaşılamadı = 0)
   const sslScore =
-    sslDaysLeft <= 0  ? 0  :
-    sslDaysLeft <= 7  ? 0  :
-    sslDaysLeft <= 14 ? 15 :
-    sslDaysLeft <= 30 ? 20 :
+    sslDaysLeft === null ? 0  :
+    sslDaysLeft <= 0     ? 0  :
+    sslDaysLeft <= 6     ? 2  :
+    sslDaysLeft <= 13    ? 8  :
+    sslDaysLeft <= 29    ? 15 :
+    sslDaysLeft <= 59    ? 20 :
     25;
 
-  // DMARC — kademeli puan (p=none izleme modu artık 0 değil)
+  // DMARC — kademeli puan (p=none izleme modu = 10)
   const dmarcScore =
     dmarcPolicy === "reject"     ? 25 :
     dmarcPolicy === "quarantine" ? 20 :
-    dmarcPolicy === "none"       ? 15 :
+    dmarcPolicy === "none"       ? 10 :
     0;
 
-  const base = spfScore + dmarcScore + (dkim ? 20 : 0) + (mx ? 10 : 0) + sslScore;
-  return Math.max(0, base - portDeduction);
+  // DKIM — 8 puan kısmi kredi (bulunamıyor olabilir ama aktif olabilir)
+  const dkimScore = dkim ? 20 : 8;
+
+  const mxScore = mx ? 10 : 0;
+
+  const base = spfScore + dmarcScore + dkimScore + mxScore + sslScore;
+  const total = Math.max(0, base - portDeduction);
+
+  return { spf: spfScore, dmarc: dmarcScore, dkim: dkimScore, mx: mxScore, ssl: sslScore, portDeduction, total };
 }
 
 // ─── Shadow IT katalog ───────────────────────────────────────────────────────
@@ -1195,14 +1214,15 @@ export async function performDomainScan(domain: string): Promise<{
       checkShodan(domain).catch(() => null),
     ]);
 
-    const overallScore = calcScore(
+    const scoreResult = calcScore(
       spf.strength,
       dmarc.policy ?? null,
       dkim.pass,
       mx.pass,
-      ssl.daysUntilExpiry ?? 999,
+      ssl.daysUntilExpiry,
       shodan?.portRiskSummary?.scoreDeduction ?? 0,
     );
+    const overallScore = scoreResult.total;
 
     const cveSummary: NvdCveEntry[] = shadowIt.services.length > 0
       ? await checkNvdCve(shadowIt.services).catch(() => [])
@@ -1218,7 +1238,7 @@ export async function performDomainScan(domain: string): Promise<{
         dkimPass: dkim.pass, dkimSelectors: dkim.selectors,
         mxPass: mx.pass, mxRecords: mx.records,
         sslPass: ssl.pass, sslExpiry: ssl.expiryDate, sslIssuer: ssl.issuer, sslDaysUntilExpiry: ssl.daysUntilExpiry,
-        overallScore,
+        overallScore: scoreResult.total,
         hibpBreachCount: 0, hibpBreaches: [],
         blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
         shadowItServices: shadowIt.services,
@@ -1342,14 +1362,15 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       checkKEP(domain),
     ]);
 
-    const overallScore = calcScore(
+    const scoreResult = calcScore(
       spf.strength,
       dmarc.policy ?? null,
       dkim.pass,
       mx.pass,
-      ssl.daysUntilExpiry ?? 999,
+      ssl.daysUntilExpiry,
       shodan?.portRiskSummary?.scoreDeduction ?? 0,
     );
+    const overallScore = scoreResult.total;
     const { detectWAF } = await import("../../services/wafDetector");
     const { checkDirectIPAccess } = await import("../../services/wafBypassChecker");
     const { adjustCvesForWAF } = await import("../../services/riskAdjuster");
@@ -1526,7 +1547,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       });
     }
 
-    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss, sslNote: ssl.note });
+    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss, sslNote: ssl.note, scoreBreakdown: scoreResult });
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
     res.status(500).json({ error: "Tarama sırasında bir hata oluştu" });
@@ -1553,7 +1574,20 @@ router.get("/domain-scan/:id", async (req, res) => {
     days <= 14    ? `SSL sertifikası ${days} gün içinde sona eriyor. Acil yenileme önerilir.` :
     days <= 30    ? `SSL sertifikası ${days} gün içinde sona eriyor. Yenileme planlaması yapın.` :
     null;
-  res.json({ ...scan, sslNote });
+
+  // Score breakdown — DB'deki kayıtlardan hesaplanıyor
+  const spfStr = scan.spfRecord ?? "";
+  const spfStrength: "hardfail" | "softfail" | "neutral" | "none" =
+    spfStr.includes("-all") ? "hardfail" :
+    spfStr.includes("~all") ? "softfail" :
+    spfStr.includes("?all") ? "neutral" :
+    "none";
+  const dmarcRecStr = scan.dmarcRecord ?? "";
+  const dmarcPolicyMatch = dmarcRecStr.match(/p=(\w+)/i);
+  const dmarcPol = dmarcPolicyMatch ? dmarcPolicyMatch[1]!.toLowerCase() : null;
+  const scoreBreakdown = calcScore(spfStrength, dmarcPol, scan.dkimPass ?? false, scan.mxPass ?? false, scan.sslDaysUntilExpiry ?? null);
+
+  res.json({ ...scan, sslNote, scoreBreakdown });
 });
 
 // ─── GET /api/domain-scan/history/:domain ────────────────────────────────────

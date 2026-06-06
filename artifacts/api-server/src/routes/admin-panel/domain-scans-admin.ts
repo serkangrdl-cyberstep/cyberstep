@@ -222,7 +222,7 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
       checkShodan(domain),
     ]);
 
-    const overallScore = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry ?? 999);
+    const { total: overallScore } = calcScore(spf.strength, dmarc.policy ?? null, dkim.pass, mx.pass, ssl.daysUntilExpiry);
 
     const [scan] = await db.insert(domainScansTable).values({
       domain,

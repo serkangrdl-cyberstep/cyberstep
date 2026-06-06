@@ -207,7 +207,23 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   const openPorts = (scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string; riskLevel?: string; riskContext?: string; isCdnExpected?: boolean }> ?? []);
   const shadowIt = (scan.shadowItServices as Array<{ name: string; category: string; risk: string }> ?? []);
 
-  const criticalCves = cveSummary.filter(c => c.cvssScore >= 7.0).slice(0, 3);
+  // Bug 14: CVE age filter — exclude old/low-risk CVEs from MITRE scenario names
+  const currentYear = new Date().getFullYear();
+  const activeCves = cveSummary.filter(c => {
+    if (c.cvssScore < 7.0) return false;
+    const cveYear = parseInt(c.cveId?.split("-")[1] ?? "0");
+    // Exclude CVEs older than 5 years unless CVSS is critical (9+)
+    if (cveYear > 0 && (currentYear - cveYear) > 5 && c.cvssScore < 9.0) return false;
+    return true;
+  }).slice(0, 3);
+
+  const informationalCves = cveSummary.filter(c => {
+    const cveYear = parseInt(c.cveId?.split("-")[1] ?? "0");
+    return cveYear > 0 && (currentYear - cveYear) > 5 && c.cvssScore < 9.0;
+  });
+
+  // Backward compat alias
+  const criticalCves = activeCves;
 
   const riskFlags: string[] = [];
   if (!scan.spfPass) riskFlags.push("SPF eksik — phishing riski");
@@ -294,7 +310,7 @@ CDN/WAF: ${wafScan.wafDetected ? (wafScan.wafProvider ?? "tespit edildi") : "tes
 Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})
 Port analizi: ${portsSummary}${portContextNote ? `\n${portContextNote}` : ""}
 ${wafContextNote}
-Kritik CVE'ler: ${criticalCves.length > 0 ? criticalCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})
+Aktif Risk CVE'leri: ${activeCves.length > 0 ? activeCves.map(c => `${c.cveId}[CVSS:${c.cvssScore}]`).join(", ") : "yok"} (toplam: ${cveSummary.length})${informationalCves.length > 0 ? `\nBilgi Amaçlı CVE'ler (eski/düşük risk): ${informationalCves.map(c => c.cveId).join(", ")} — senaryoda CVE ID kullanma, sadece genel terim kullan` : ""}
 Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
 VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100
 HIBP ihlaller: ${scan.hibpBreachCount} | Shadow IT: ${shadowSummary}
@@ -310,6 +326,10 @@ Bu kurala kesinlikle uy. Senaryo ağırlığına göre değiştirme.
 SENARYO ÜRETİM KURALLARI
 =========================
 ${scenarioRules.map((r, i) => `${i + 1}. ${r}`).join("\n")}
+${activeCves.length > 0
+  ? `${scenarioRules.length + 1}. Senaryo başlığında ve içeriğinde SADECE "Aktif Risk CVE'leri" listesindeki CVE ID'lerini kullan. Bilgi Amaçlı listesindeki CVE'leri başlık veya saldırı zincirinde KULLANMA.`
+  : `${scenarioRules.length + 1}. Güvenilir aktif CVE yok — senaryo başlığında CVE ID YAZMA. WordPress/jQuery gibi genel teknoloji terimleri kullan.`
+}
 
 GÖREV
 =====

@@ -281,26 +281,113 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = iy + 32;
     };
 
-    // ── Header ────────────────────────────────────────────────────────────────
-    doc.rect(0, 0, W, 90).fill(DARK);
-    doc.fillColor(WHITE).fontSize(20).font(FONT_BOLD).text("CyberStep.io", MARGIN, 28, { lineBreak: false });
-    doc.fillColor([148, 163, 184]).fontSize(10).font(FONT_REGULAR).text("Alan Adi Guvenlik Tarama Raporu", MARGIN, 56);
-    doc.fillColor([148, 163, 184]).fontSize(9).text(
-      `#${data.id}  |  ${new Date(data.createdAt).toLocaleDateString("tr-TR")}`,
-      MARGIN, 56, { align: "right", width: CONTENT_W }
-    );
-    doc.y = 110;
-
-    // ── Domain + Score ────────────────────────────────────────────────────────
-    const scoreColor: [number, number, number] = data.overallScore >= 80 ? [22, 163, 74] : data.overallScore >= 60 ? [217, 119, 6] : data.overallScore >= 40 ? [234, 88, 12] : [220, 38, 38];
+    // ══ SAYFA 1: KAPAK (CyberStep koyu tema) ══════════════════════════════════
+    const H = doc.page.height;
+    const scoreCol = dsScoreColor(data.overallScore);
     const scoreLabel = data.overallScore >= 80 ? "Iyi" : data.overallScore >= 60 ? "Orta" : data.overallScore >= 40 ? "Zayif" : "Kritik";
-    const boxTop = doc.y;
-    doc.rect(MARGIN, boxTop, CONTENT_W, 64).fillAndStroke(LIGHT, [226, 232, 240]);
-    doc.fillColor(DARK).fontSize(15).font(FONT_BOLD).text(data.domain, MARGIN + 16, boxTop + 10, { width: CONTENT_W - 120 });
-    doc.fillColor(scoreColor).fontSize(28).font(FONT_BOLD).text(`${data.overallScore}`, W - MARGIN - 80, boxTop + 6, { width: 60, align: "right" });
-    doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR).text("/ 100 puan", W - MARGIN - 80, boxTop + 38, { width: 60, align: "right" });
-    doc.fillColor(scoreColor).fontSize(10).font(FONT_BOLD).text(scoreLabel, MARGIN + 16, boxTop + 36, { width: 80 });
-    doc.y = boxTop + 80;
+    const scoreDesc = data.overallScore >= 80
+      ? "Temel guvenlik onlemleri buyuk olcude yerinde."
+      : data.overallScore >= 60 ? "Onemli guvenlik eksiklikleri mevcut."
+      : data.overallScore >= 40 ? "Kritik guvenlik aciklari tespit edildi."
+      : "Ciddi siber risk altindasiniz.";
+
+    // Tüm sayfa koyu zemin
+    doc.rect(0, 0, W, H).fill(CS_DARK);
+    // Dekoratif çember (sağ üst)
+    doc.circle(W + 60, -60, 310).lineWidth(0.5).strokeColor(CS_CARD).stroke();
+    doc.circle(W + 130, 160, 210).lineWidth(0.5).strokeColor(CS_CARD).stroke();
+
+    // Logo: Cyber(beyaz) Step(cyan) .io(gri)
+    const LOGO_Y = 52;
+    doc.font(FONT_BOLD).fontSize(22);
+    const cyberW = doc.widthOfString("Cyber");
+    const stepW  = doc.widthOfString("Step");
+    doc.fillColor(CS_TEXT).text("Cyber", MARGIN, LOGO_Y, { lineBreak: false });
+    doc.fillColor(CS_CYAN).text("Step",  MARGIN + cyberW, LOGO_Y, { lineBreak: false });
+    doc.font(FONT_REGULAR).fontSize(11).fillColor(CS_MUTED)
+      .text(".io", MARGIN + cyberW + stepW + 2, LOGO_Y + 5, { lineBreak: false });
+
+    // Rozet
+    const BADGE_Y = LOGO_Y + 34;
+    doc.rect(MARGIN, BADGE_Y, 228, 16).fill(CS_CARD);
+    doc.fillColor(CS_CYAN).font(FONT_BOLD).fontSize(7)
+      .text("ALAN ADI GUVENLIK TARAMA RAPORU", MARGIN + 10, BADGE_Y + 4.5, { width: 208, lineBreak: false });
+
+    // Alan adı + tarih
+    const DOMAIN_Y = Math.floor(H * 0.36);
+    doc.fillColor(CS_TEXT).font(FONT_BOLD).fontSize(22)
+      .text(data.domain, MARGIN, DOMAIN_Y, { width: W - MARGIN * 2 - 160, lineBreak: false });
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8.5)
+      .text(`${new Date(data.createdAt).toLocaleDateString("tr-TR")}  |  Rapor #${data.id}`,
+        MARGIN, DOMAIN_Y + 34);
+
+    // ── Dairesel gösterge (gauge ring) ───────────────────────────────────────
+    const GX = W - MARGIN - 86;
+    const GY = DOMAIN_Y + 50;
+    const GR = 42;
+    const GLW = 12;
+    // Arka plan halkası
+    doc.circle(GX, GY, GR).lineWidth(GLW).strokeColor(CS_CARD).stroke();
+    // Skor yayı
+    if (data.overallScore > 0) {
+      const ang = (Math.min(data.overallScore, 99.9) / 100) * Math.PI * 2;
+      (doc as unknown as { arc(x: number, y: number, r: number, s: number, e: number, cw?: boolean): typeof doc })
+        .arc(GX, GY, GR, -Math.PI / 2, -Math.PI / 2 + ang, false)
+        .lineWidth(GLW).strokeColor(scoreCol).stroke();
+    }
+    // Merkez doldur (halka efekti)
+    doc.circle(GX, GY, GR - GLW / 2 - 2).fill(CS_DARK);
+    // Skor sayısı
+    const numW2 = GR * 1.6;
+    doc.fillColor(scoreCol).font(FONT_BOLD).fontSize(18)
+      .text(`${data.overallScore}`, GX - numW2 / 2, GY - 12,
+        { width: numW2, align: "center", lineBreak: false });
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
+      .text("/100", GX - numW2 / 2, GY + 7,
+        { width: numW2, align: "center", lineBreak: false });
+
+    // Skor seviyesi + açıklama
+    const LVL_Y = DOMAIN_Y + 78;
+    doc.fillColor(scoreCol).font(FONT_BOLD).fontSize(16).text(scoreLabel, MARGIN, LVL_Y);
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
+      .text(scoreDesc, MARGIN, LVL_Y + 23, { width: 270 });
+
+    // TR sektör karşılaştırma barı
+    const BAR_Y = LVL_Y + 72;
+    const CBAR_W = 144;
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7).text("TR Ort. 58", MARGIN, BAR_Y);
+    doc.rect(MARGIN, BAR_Y + 13, CBAR_W, 4).fill(CS_CARD);
+    doc.rect(MARGIN, BAR_Y + 13, CBAR_W * 0.58, 4).fill(CS_PANEL);
+    doc.rect(MARGIN, BAR_Y + 13, CBAR_W * (data.overallScore / 100), 4).fill(scoreCol);
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
+      .text(`Siz ${data.overallScore}`, MARGIN + CBAR_W + 8, BAR_Y + 11);
+
+    // Kapak alt bilgi çizgisi
+    const CVR_FOOT_Y = H - 50;
+    doc.rect(MARGIN, CVR_FOOT_Y, CONTENT_W, 0.5).fill(CS_CARD);
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
+      .text(`${data.domain}  |  CyberStep.io`, MARGIN, CVR_FOOT_Y + 10);
+    // "Gizli" rozeti (sağ alt)
+    doc.rect(W - MARGIN - 52, CVR_FOOT_Y + 5, 52, 14).fill(CS_CARD);
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(6.5)
+      .text("GIZLI", W - MARGIN - 52, CVR_FOOT_Y + 8.5,
+        { width: 52, align: "center", lineBreak: false });
+
+    // ══ İÇERİK SAYFASI başlat ══════════════════════════════════════════════
+    doc.addPage();
+    // Dar koyu başlık bandı (içerik sayfaları için)
+    doc.rect(0, 0, W, 36).fill(CS_DARK);
+    doc.font(FONT_BOLD).fontSize(13);
+    const cyberW2 = doc.widthOfString("Cyber");
+    const stepW2  = doc.widthOfString("Step");
+    doc.fillColor(CS_TEXT).text("Cyber", MARGIN, 11, { lineBreak: false });
+    doc.fillColor(CS_CYAN).text("Step",  MARGIN + cyberW2, 11, { lineBreak: false });
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
+      .text(".io", MARGIN + cyberW2 + stepW2 + 1, 15, { lineBreak: false });
+    doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
+      .text(`${data.domain}  |  Tarama #${data.id}`,
+        MARGIN, 11, { align: "right", width: CONTENT_W });
+    doc.y = 52;
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
     if (data.scoreBreakdown) {
@@ -385,6 +472,17 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = hiy + 13;
     }
     doc.y += 10;
+
+    // ── WAF/CDN Dolaylı Tespit Notu (Bug 19) ──────────────────────────────────
+    if (data.wafNote) {
+      checkPageBreak(doc, 36);
+      const wny = doc.y;
+      doc.rect(MARGIN, wny, CONTENT_W, 30).fill([240, 251, 255]);
+      doc.rect(MARGIN, wny, 3, 30).fill(CS_CYAN);
+      doc.fillColor([68, 102, 102]).fontSize(8.5).font(FONT_REGULAR)
+        .text(`i  ${data.wafNote}`, MARGIN + 12, wny + 8, { width: CONTENT_W - 18 });
+      doc.y = wny + 38;
+    }
 
     // ── Risk Istihbarati ──────────────────────────────────────────────────────
     sectionTitle(doc, "Risk Istihbarati", MARGIN, CONTENT_W);
@@ -536,12 +634,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         doc.rect(MARGIN, sy, CONTENT_W, 22).fill([253, 246, 236]);
         doc.fillColor(sColor).fontSize(7.5).font(FONT_BOLD)
           .text(s.olasilik.toUpperCase(), MARGIN + 6, sy + 6, { width: 48, lineBreak: false });
-        if (s.acillik) {
-          doc.fillColor([100, 116, 139]).fontSize(7).font(FONT_REGULAR)
-            .text(`[${s.acillik}]`, MARGIN + 58, sy + 6, { width: 50, lineBreak: false });
-        }
         doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
-          .text(s.baslik, MARGIN + 112, sy + 5, { width: CONTENT_W - 118, lineBreak: false });
+          .text(s.baslik, MARGIN + 60, sy + 5, { width: CONTENT_W - 66, lineBreak: false });
         doc.y = sy + 28;
 
         // Giriş noktası

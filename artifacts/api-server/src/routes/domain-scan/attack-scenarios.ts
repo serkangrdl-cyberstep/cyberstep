@@ -271,7 +271,7 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   if (scan.usomListed) riskFlags.push("USOM listesinde");
   if (scan.hibpBreachCount > 0) riskFlags.push(`${scan.hibpBreachCount} veri ihlali`);
   if (scan.virusTotalMalicious > 0) riskFlags.push(`VirusTotal: ${scan.virusTotalMalicious} zararlı`);
-  if (scan.httpHeadersScore < 40) riskFlags.push(`HTTP başlıkları zayıf (${scan.httpHeadersScore}/100)`);
+  if (scan.httpHeadersScore < 3) riskFlags.push(`HTTP başlıkları zayıf (${scan.httpHeadersScore}/5 başlık)`);
   if ((scan.abuseIpdbScore ?? 0) > 50) riskFlags.push(`AbuseIPDB: ${scan.abuseIpdbScore}`);
 
   // Bağlama duyarlı port özeti
@@ -449,7 +449,7 @@ Aktif Risk CVE'leri: ${activeCves.length > 0 ? activeCves.map(c => `${c.cveId}[C
 Kara liste: ${scan.blacklisted ? `${scan.blacklistCount} listede` : "temiz"} | URLhaus: ${scan.urlhausListed ? "kayıtlı" : "temiz"} | USOM: ${scan.usomListed ? "listede" : "temiz"}
 VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbScore ?? "N/A"}/100
 HIBP ihlaller: ${scan.hibpBreachCount} | Shadow IT: ${shadowSummary}
-HTTP başlıkları: ${scan.httpHeadersScore}/100 | Subdomain: ${scan.ctSubdomainCount}
+HTTP başlıkları: ${scan.httpHeadersScore}/5 başlık | Subdomain: ${scan.ctSubdomainCount}
 Risk bayrakları: ${riskFlags.length > 0 ? riskFlags.join("; ") : "yok"}
 
 ZORUNLU KURAL — GENEL TEHDİT SEVİYESİ

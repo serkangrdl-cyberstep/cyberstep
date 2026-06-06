@@ -1648,6 +1648,15 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
     const pdfDmarcPol = pdfDmarcMatch ? pdfDmarcMatch[1]!.toLowerCase() : null;
     const pdfScoreBreakdown = calcScore(pdfSpfStrength, pdfDmarcPol, scan.dkimPass ?? false, scan.mxPass ?? false, scan.sslDaysUntilExpiry ?? null);
 
+    const pdfWafNote =
+      !scan.wafDetected &&
+      !scan.wafProvider &&
+      scan.shodanCountry &&
+      scan.shodanCountry !== "TR" &&
+      scan.domain.endsWith(".tr")
+        ? `WAF/CDN basligi tespit edilemedi. Sunucu IP'si ${scan.shodanCountry}'da (${scan.shodanIsp ?? "bilinmiyor"}) — .tr alan adinda yurt disi sunucu CDN kullanimina isaret edebilir.`
+        : null;
+
     const buf = await generateDomainScanPDF({
       id: scan.id,
       domain: scan.domain,
@@ -1678,6 +1687,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       abuseIpdbCountry: scan.abuseIpdbCountry,
       abuseIpdbIsp: scan.abuseIpdbIsp,
       createdAt: scan.createdAt.toISOString(),
+      wafNote: pdfWafNote,
       attackScenarios: isFreeReport ? null : attackScenariosData,
       scoreBreakdown: pdfScoreBreakdown,
       isFreeReport,

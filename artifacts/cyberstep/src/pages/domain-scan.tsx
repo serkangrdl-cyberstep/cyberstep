@@ -2089,8 +2089,8 @@ export default function DomainScanPage() {
                       : "Kritik güvenlik açıkları tespit edildi. Aşağıdaki adımları mümkün olan en kısa sürede tamamlayın."}
                   </p>
                   {/* Sektör karşılaştırması */}
-                  <div className="mt-2 text-xs text-muted-foreground border rounded-lg px-3 py-2 bg-muted/30 flex items-center gap-2">
-                    <span className="shrink-0">
+                  <div className="mt-2 text-xs text-muted-foreground border rounded-lg px-3 py-2 bg-muted/30 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                    <span>
                       {result.overallScore >= 86
                         ? "CyberStep'te taranan domainlerin %92'si bu skorun altındadır — üst %8 güvenlik profili"
                         : result.overallScore >= 76
@@ -2101,7 +2101,7 @@ export default function DomainScanPage() {
                         ? "CyberStep'te taranan domainlerin %55'i bu skorun üstündedir — iyileştirme fırsatı var"
                         : "CyberStep'te taranan domainlerin %82'si bu skorun üstündedir — acil iyileştirme gerekiyor"}
                     </span>
-                    <a href="/roi-hesaplayici" className="ml-auto shrink-0 text-primary hover:underline whitespace-nowrap font-medium">
+                    <a href="/roi-hesaplayici" className="sm:ml-auto shrink-0 text-primary hover:underline whitespace-nowrap font-medium">
                       Risk Maliyeti Hesapla →
                     </a>
                   </div>

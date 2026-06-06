@@ -1618,7 +1618,17 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
     const attackScenariosData = (scan.attackScenariosStatus === "complete" && scan.attackScenariosJson)
       ? (scan.attackScenariosJson as {
           genel_tehdit_seviyesi: string;
-          senaryolar: Array<{ baslik: string; olasilik: string; etki: string }>;
+          risk_ozet?: string;
+          senaryolar: Array<{
+            baslik: string;
+            olasilik: string;
+            acillik?: string;
+            giris_noktasi?: string;
+            saldiri_zinciri?: string[];
+            etki: string;
+            kvkk_etkisi?: string;
+            mitre_teknikler?: Array<{ kod: string; isim: string }>;
+          }>;
           once_kapat?: Array<{ oncelik: number; aksiyon: string; neden: string }>;
         })
       : null;

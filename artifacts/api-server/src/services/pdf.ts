@@ -219,11 +219,16 @@ interface DomainScanData {
   createdAt: string;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
+    risk_ozet?: string;
     senaryolar: Array<{
       baslik: string;
       olasilik: string;
+      acillik?: string;
+      giris_noktasi?: string;
+      saldiri_zinciri?: string[];
       etki: string;
-      teknikler?: Array<{ adi: string; tactic: string }>;
+      kvkk_etkisi?: string;
+      mitre_teknikler?: Array<{ kod: string; isim: string }>;
     }>;
     once_kapat?: Array<{ oncelik: number; aksiyon: string; neden: string }>;
   } | null;
@@ -493,40 +498,107 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         .text(`Genel Tehdit Seviyesi: ${data.attackScenarios.genel_tehdit_seviyesi}`, MARGIN, doc.y, { width: CONTENT_W });
       doc.y += 10;
 
-      for (const s of data.attackScenarios.senaryolar.slice(0, 5)) {
-        checkPageBreak(doc, 50);
+      // risk_ozet özet satırı
+      if (data.attackScenarios.risk_ozet) {
+        checkPageBreak(doc, 24);
+        doc.fillColor(GRAY).fontSize(8.5).font(FONT_REGULAR)
+          .text(data.attackScenarios.risk_ozet, MARGIN, doc.y, { width: CONTENT_W });
+        doc.y += 10;
+      }
+
+      for (const s of data.attackScenarios.senaryolar.slice(0, 3)) {
+        checkPageBreak(doc, 120);
         const sy = doc.y;
         const sColor: [number, number, number] =
           s.olasilik === "Yüksek" ? [220, 38, 38] :
           s.olasilik === "Orta" ? [217, 119, 6] : [22, 163, 74];
 
-        doc.rect(MARGIN, sy, CONTENT_W, 42).fillAndStroke([254, 249, 245], [253, 186, 116]);
-        doc.fillColor(sColor).fontSize(8).font(FONT_BOLD)
-          .text(s.olasilik.toUpperCase(), MARGIN + 6, sy + 5, { width: 55, lineBreak: false });
+        // Başlık satırı
+        doc.rect(MARGIN, sy, CONTENT_W, 22).fill([253, 246, 236]);
+        doc.fillColor(sColor).fontSize(7.5).font(FONT_BOLD)
+          .text(s.olasilik.toUpperCase(), MARGIN + 6, sy + 6, { width: 48, lineBreak: false });
+        if (s.acillik) {
+          doc.fillColor([100, 116, 139]).fontSize(7).font(FONT_REGULAR)
+            .text(`[${s.acillik}]`, MARGIN + 58, sy + 6, { width: 50, lineBreak: false });
+        }
         doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
-          .text(s.baslik, MARGIN + 64, sy + 4, { width: CONTENT_W - 70, lineBreak: false });
+          .text(s.baslik, MARGIN + 112, sy + 5, { width: CONTENT_W - 118, lineBreak: false });
+        doc.y = sy + 28;
+
+        // Giriş noktası
+        if (s.giris_noktasi) {
+          doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
+            .text("Giris Noktasi:", MARGIN + 8, doc.y, { width: 70, lineBreak: false });
+          doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
+            .text(s.giris_noktasi.substring(0, 160), MARGIN + 82, doc.y - 10, { width: CONTENT_W - 88 });
+          doc.y += 4;
+        }
+
+        // Saldırı zinciri
+        if (s.saldiri_zinciri && s.saldiri_zinciri.length > 0) {
+          checkPageBreak(doc, 14);
+          doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
+            .text("Saldiri Zinciri:", MARGIN + 8, doc.y, { width: CONTENT_W - 16 });
+          doc.y += 2;
+          for (const step of s.saldiri_zinciri.slice(0, 4)) {
+            checkPageBreak(doc, 12);
+            doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR)
+              .text(`  ${step.substring(0, 140)}`, MARGIN + 16, doc.y, { width: CONTENT_W - 24 });
+            doc.y += 2;
+          }
+          doc.y += 2;
+        }
+
+        // Etki
+        checkPageBreak(doc, 14);
+        doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
+          .text("Etki:", MARGIN + 8, doc.y, { width: 30, lineBreak: false });
         doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
-          .text(s.etki.substring(0, 130), MARGIN + 6, sy + 20, { width: CONTENT_W - 12 });
-        doc.y = sy + 50;
+          .text(s.etki.substring(0, 200), MARGIN + 42, doc.y - 10, { width: CONTENT_W - 48 });
+        doc.y += 4;
+
+        // KVKK
+        if (s.kvkk_etkisi) {
+          checkPageBreak(doc, 14);
+          doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
+            .text("KVKK:", MARGIN + 8, doc.y, { width: 34, lineBreak: false });
+          doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR)
+            .text(s.kvkk_etkisi.substring(0, 160), MARGIN + 46, doc.y - 10, { width: CONTENT_W - 52 });
+          doc.y += 4;
+        }
+
+        // MITRE teknikler
+        if (s.mitre_teknikler && s.mitre_teknikler.length > 0) {
+          checkPageBreak(doc, 12);
+          const mitreTags = s.mitre_teknikler.slice(0, 3).map(t => `${t.kod} ${t.isim}`).join("  |  ");
+          doc.fillColor([100, 116, 139]).fontSize(6.5).font(FONT_REGULAR)
+            .text(`MITRE: ${mitreTags}`, MARGIN + 8, doc.y, { width: CONTENT_W - 16 });
+          doc.y += 4;
+        }
+
+        doc.y += 8;
+        // ince ayırıcı çizgi
+        doc.moveTo(MARGIN, doc.y).lineTo(MARGIN + CONTENT_W, doc.y).strokeColor([226, 232, 240]).lineWidth(0.5).stroke();
+        doc.y += 10;
       }
-      doc.y += 4;
 
       // ── Oncelikli Aksiyon Listesi ──────────────────────────────────────────
       const onceKapat = data.attackScenarios.once_kapat ?? [];
       if (onceKapat.length > 0) {
         sectionTitle(doc, "Oncelikli Aksiyon Listesi", MARGIN, CONTENT_W);
         for (const item of onceKapat) {
-          checkPageBreak(doc, 44);
+          checkPageBreak(doc, 60);
           const ay = doc.y;
-          doc.rect(MARGIN, ay, CONTENT_W, 36).fillAndStroke([255, 241, 242], [254, 202, 202]);
-          doc.circle(MARGIN + 14, ay + 18, 10).fill([220, 38, 38]);
-          doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD)
-            .text(String(item.oncelik), MARGIN + 9, ay + 12, { width: 10, align: "center" });
+          // Sol kenar çizgisi (sabit yükseklik yerine dinamik)
           doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
-            .text(item.aksiyon, MARGIN + 30, ay + 5, { width: CONTENT_W - 36, lineBreak: false });
+            .text(`${item.oncelik}.  ${item.aksiyon}`, MARGIN + 20, ay, { width: CONTENT_W - 24 });
+          const afterTitle = doc.y + 3;
           doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
-            .text(item.neden.substring(0, 120), MARGIN + 30, ay + 20, { width: CONTENT_W - 36 });
-          doc.y = ay + 42;
+            .text(item.neden.substring(0, 220), MARGIN + 20, afterTitle, { width: CONTENT_W - 24 });
+          const blockEnd = doc.y + 10;
+          // Sol kırmızı çizgi
+          doc.moveTo(MARGIN + 8, ay - 2).lineTo(MARGIN + 8, blockEnd - 4).strokeColor([220, 38, 38]).lineWidth(2).stroke();
+          doc.y = blockEnd;
         }
         doc.y += 4;
       }

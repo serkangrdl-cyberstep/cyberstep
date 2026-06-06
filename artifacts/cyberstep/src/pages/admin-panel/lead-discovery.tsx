@@ -47,6 +47,16 @@ interface ShodanQuery {
   priority: number;
 }
 
+interface SourceData {
+  ip?: string;
+  org?: string;
+  port?: number;
+  httpTitle?: string | null;
+  shodanQuery?: string;
+  product?: string;
+  [key: string]: unknown;
+}
+
 interface LeadCandidate {
   id: number;
   domain: string;
@@ -67,7 +77,44 @@ interface LeadCandidate {
   teaserBody: string | null;
   teaserGeneratedAt: string | null;
   teaserSentAt: string | null;
+  sourceData: SourceData | null;
   createdAt: string;
+}
+
+const CVE_DESCS: Record<string, string> = {
+  "CVE-2007-6013": "Eski Wordpress gizli anahtar ifşası — güncelleme gerekli",
+  "CVE-2016-1209": "Crypt_Blowfish sabit zamanlı karşılaştırma bypass — kimlik doğrulama riski",
+  "CVE-2014-3704": "Drupal SQL injection (Drupalgeddon) — kritik",
+  "CVE-2017-5638": "Apache Struts RCE — uzaktan kod çalıştırma",
+  "CVE-2021-44228": "Log4Shell — Java Log4j uzaktan kod çalıştırma",
+};
+
+function FindingBadges({ highlights }: { highlights: string[] | null }) {
+  if (!highlights || highlights.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {highlights.map((h) => {
+        const isCve = h.startsWith("CVE-");
+        const desc = CVE_DESCS[h];
+        return isCve ? (
+          <a
+            key={h}
+            href={`https://nvd.nist.gov/vuln/detail/${h}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={desc ?? h}
+            className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 font-mono"
+          >
+            {h}
+          </a>
+        ) : (
+          <span key={h} className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
+            {h}
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 function statusBadge(status: string) {
@@ -238,6 +285,7 @@ export default function AdminLeadDiscovery() {
   const [filterHasContact, setFilterHasContact] = useState(false);
   const [filterNotSent, setFilterNotSent] = useState(false);
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
+  const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: stats } = useQuery<Stats>({
@@ -382,6 +430,37 @@ export default function AdminLeadDiscovery() {
       qc.invalidateQueries({ queryKey: ["lead-candidates"] });
       qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
     },
+  });
+
+  const pushToQueue = useMutation({
+    mutationFn: (c: LeadCandidate) =>
+      fetch("/api/lead-gen/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ domain: c.domain, companyName: c.companyName ?? "" }),
+      }).then(async (r) => {
+        const j = await r.json() as { error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: () => toast({ description: "ISR kuyruğuna eklendi." }),
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
+  const fingerprintLead = useMutation({
+    mutationFn: (domain: string) =>
+      fetch(`${BASE}/tech-stack/fingerprint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain }),
+      }).then(async (r) => {
+        const j = await r.json() as { error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: () => toast({ description: "Tech fingerprint başlatıldı." }),
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
   });
 
   const TLD_OPTIONS = [".com.tr", ".net.tr", ".org.tr", ".edu.tr", ".bel.tr"];
@@ -662,41 +741,60 @@ export default function AdminLeadDiscovery() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Domain</TableHead>
-                        <TableHead>Kaynak</TableHead>
-                        <TableHead>Durum</TableHead>
+                        <TableHead>Domain / Şirket</TableHead>
+                        <TableHead>Kaynak Detay</TableHead>
                         <TableHead className="text-right">Risk</TableHead>
-                        <TableHead className="text-right">Kritik</TableHead>
+                        <TableHead>Bulgular</TableHead>
                         <TableHead>İletişim</TableHead>
                         <TableHead>Teaser</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(candidatesData?.rows ?? []).map((c) => (
+                      {(candidatesData?.rows ?? []).map((c) => {
+                        const sd = c.sourceData;
+                        return (
                         <TableRow key={c.id}>
                           <TableCell>
                             <div className="font-medium text-sm">{c.domain}</div>
-                            {c.companyName && <div className="text-xs text-muted-foreground">{c.companyName}</div>}
-                            {!!c.hasFortigate && <span className="text-xs text-orange-600 font-medium">FortiGate</span>}
+                            {c.companyName && <div className="text-xs text-muted-foreground truncate max-w-[160px]">{c.companyName}</div>}
+                            <div className="flex gap-1 mt-0.5">
+                              {!!c.hasFortigate && <span className="text-[10px] text-orange-600 font-medium">FortiGate</span>}
+                              {c.isQualified && <span className="text-[10px] text-green-600 font-medium">Kalifikasyon</span>}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {c.source === "crtsh" ? "crt.sh" : "Shodan"}
-                            </Badge>
+                            <div className="space-y-0.5">
+                              <Badge variant="outline" className="text-[10px] h-4">
+                                {c.source === "crtsh" ? "crt.sh" : "Shodan"}
+                              </Badge>
+                              {sd?.ip && (
+                                <div className="text-[10px] font-mono text-muted-foreground">
+                                  {sd.ip}{sd.port ? `:${sd.port}` : ""}
+                                </div>
+                              )}
+                              {sd?.product && (
+                                <div className="text-[10px] text-blue-600 truncate max-w-[130px]">{sd.product}</div>
+                              )}
+                              {sd?.shodanQuery && (
+                                <div className="text-[10px] text-muted-foreground italic truncate max-w-[130px]">{sd.shodanQuery}</div>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell>{statusBadge(c.scanStatus)}</TableCell>
                           <TableCell className="text-right">
                             {c.riskScore != null ? (
-                              <span className={`font-bold ${c.riskScore >= 70 ? "text-red-600" : c.riskScore >= 40 ? "text-orange-500" : "text-gray-500"}`}>
-                                {c.riskScore}
-                              </span>
+                              <div className="text-right">
+                                <span className={`font-bold text-sm ${c.riskScore >= 70 ? "text-red-600" : c.riskScore >= 40 ? "text-orange-500" : "text-gray-500"}`}>
+                                  {c.riskScore}
+                                </span>
+                                {c.criticalFindings > 0 && (
+                                  <div className="text-[10px] text-red-500">{c.criticalFindings} kritik</div>
+                                )}
+                              </div>
                             ) : "—"}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {c.criticalFindings > 0 ? (
-                              <span className="text-red-600 font-bold">{c.criticalFindings}</span>
-                            ) : "—"}
+                          <TableCell className="max-w-[180px]">
+                            <FindingBadges highlights={c.findingHighlights} />
                           </TableCell>
                           <TableCell>
                             {c.contactEmail ? (
@@ -723,32 +821,51 @@ export default function AdminLeadDiscovery() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1">
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7 w-full"
+                                onClick={() => setDetailCandidate(c)}
+                              >
+                                Detay
+                              </Button>
                               {!c.teaserSubject && c.isQualified && (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs h-7"
+                                  className="text-xs h-7 w-full"
                                   onClick={() => generateTeaser.mutate(c.id)}
                                   disabled={generateTeaser.isPending}
                                 >
-                                  Teaser Uret
+                                  Teaser
                                 </Button>
                               )}
                               {!!c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
                                 <Button
                                   size="sm"
-                                  className="text-xs h-7"
+                                  className="text-xs h-7 w-full"
                                   onClick={() => sendTeaser.mutate(c.id)}
                                   disabled={sendTeaser.isPending}
                                 >
                                   Gönder
                                 </Button>
                               )}
+                              {c.isQualified && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7 w-full text-purple-600 border-purple-200 hover:bg-purple-50"
+                                  onClick={() => pushToQueue.mutate(c)}
+                                  disabled={pushToQueue.isPending}
+                                >
+                                  ISR Kuyruğu
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="text-xs h-7 text-red-500 hover:text-red-700"
+                                className="text-xs h-7 w-full text-red-500 hover:text-red-700"
                                 onClick={() => { if (confirm("Aday silinsin mi?")) deleteCandidate.mutate(c.id); }}
                               >
                                 Sil
@@ -756,7 +873,8 @@ export default function AdminLeadDiscovery() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                   </div>
@@ -842,6 +960,136 @@ export default function AdminLeadDiscovery() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Lead Detail Dialog */}
+      {!!detailCandidate && (
+        <Dialog open={!!detailCandidate} onOpenChange={() => setDetailCandidate(null)}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="font-mono text-base">{detailCandidate.domain}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              {/* Şirket bilgisi */}
+              {detailCandidate.companyName && (
+                <div>
+                  <div className="text-xs text-muted-foreground mb-0.5">Şirket</div>
+                  <div className="font-medium">{detailCandidate.companyName}</div>
+                </div>
+              )}
+
+              {/* Shodan kaynak bilgisi */}
+              {detailCandidate.sourceData && (
+                <div className="bg-slate-50 border rounded-md p-3 space-y-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shodan Tespit Detayı</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {detailCandidate.sourceData.ip && (
+                      <div>
+                        <span className="text-muted-foreground">IP Adresi: </span>
+                        <span className="font-mono font-medium">{detailCandidate.sourceData.ip}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.port && (
+                      <div>
+                        <span className="text-muted-foreground">Açık Port: </span>
+                        <span className="font-mono font-medium text-orange-600">{detailCandidate.sourceData.port}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.product && (
+                      <div>
+                        <span className="text-muted-foreground">Ürün: </span>
+                        <span className="font-medium">{detailCandidate.sourceData.product}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.org && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Organizasyon: </span>
+                        <span>{detailCandidate.sourceData.org}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.httpTitle && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">HTTP Başlığı: </span>
+                        <span className="italic">{detailCandidate.sourceData.httpTitle}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.shodanQuery && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Tetikleyen Shodan Sorgusu: </span>
+                        <span className="font-mono text-blue-600">{detailCandidate.sourceData.shodanQuery}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Risk skoru */}
+              <div className="flex items-center gap-4">
+                <div>
+                  <div className="text-xs text-muted-foreground">Risk Skoru</div>
+                  <div className={`text-2xl font-bold ${(detailCandidate.riskScore ?? 0) >= 70 ? "text-red-600" : (detailCandidate.riskScore ?? 0) >= 40 ? "text-orange-500" : "text-gray-500"}`}>
+                    {detailCandidate.riskScore ?? "—"}<span className="text-sm font-normal text-muted-foreground">/100</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Kritik Bulgu</div>
+                  <div className="text-2xl font-bold text-red-600">{detailCandidate.criticalFindings}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Kaynak</div>
+                  <Badge variant="outline">{detailCandidate.source === "crtsh" ? "crt.sh" : "Shodan"}</Badge>
+                </div>
+              </div>
+
+              {/* Bulgular */}
+              {(detailCandidate.findingHighlights?.length ?? 0) > 0 && (
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">Güvenlik Bulguları</div>
+                  <div className="space-y-1.5">
+                    {(detailCandidate.findingHighlights ?? []).map((h) => {
+                      const isCve = h.startsWith("CVE-");
+                      const desc = CVE_DESCS[h];
+                      return (
+                        <div key={h} className="flex items-start gap-2 p-2 rounded bg-red-50 border border-red-100">
+                          <span className="text-red-600 mt-0.5">•</span>
+                          <div>
+                            {isCve ? (
+                              <a href={`https://nvd.nist.gov/vuln/detail/${h}`} target="_blank" rel="noopener noreferrer"
+                                className="font-mono text-red-700 font-medium hover:underline text-xs">{h}</a>
+                            ) : (
+                              <span className="font-medium text-red-700 text-xs">{h}</span>
+                            )}
+                            {desc && <div className="text-xs text-red-600/80 mt-0.5">{desc}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Aksiyonlar */}
+              <div className="flex gap-2 pt-2 border-t flex-wrap">
+                {detailCandidate.isQualified && !detailCandidate.teaserSubject && (
+                  <Button size="sm" variant="outline" onClick={() => { generateTeaser.mutate(detailCandidate.id); setDetailCandidate(null); }}>
+                    Teaser Üret
+                  </Button>
+                )}
+                {detailCandidate.isQualified && (
+                  <Button size="sm" variant="outline" className="text-purple-600 border-purple-200"
+                    onClick={() => { pushToQueue.mutate(detailCandidate); setDetailCandidate(null); }}>
+                    ISR Kuyruğuna Ekle
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" className="text-cyan-600 border-cyan-200"
+                  onClick={() => { fingerprintLead.mutate(detailCandidate.domain); setDetailCandidate(null); }}>
+                  Tech Fingerprint
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDetailCandidate(null)}>Kapat</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Teaser Preview Dialog */}
       {!!teaserPreview && (

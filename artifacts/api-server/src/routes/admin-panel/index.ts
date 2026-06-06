@@ -36,6 +36,7 @@ import musteriProvizyonRouter from "./musteri-provizyon";
 import adminsRouter from "./admins";
 import iocControlsRouter from "./ioc-controls";
 import ctiIntelRouter from "./cti-intel";
+import indexReportsRouter from "./index-reports";
 
 const router = Router();
 router.use(authRouter);
@@ -75,5 +76,6 @@ router.use(musteriProvizyonRouter);
 router.use(adminsRouter);
 router.use(iocControlsRouter);
 router.use(ctiIntelRouter);
+router.use(indexReportsRouter);
 
 export default router;

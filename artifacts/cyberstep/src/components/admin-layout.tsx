@@ -72,8 +72,9 @@ const NAV_SECTIONS = [
     title: "İstihbarat & Teknografi",
     dept: "istihbarat",
     items: [
-      { icon: Cpu,             label: "Tech Intelligence",     href: "/panel/tech-intelligence" },
+      { icon: Cpu,             label: "Tech Intelligence",      href: "/panel/tech-intelligence" },
       { icon: BarChart3,       label: "Intelligence Reports",   href: "/panel/intelligence" },
+      { icon: TrendingUp,      label: "Siber Güvenlik Endeksi", href: "/panel/endeks-raporu" },
     ],
   },
   {

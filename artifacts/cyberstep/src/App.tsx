@@ -198,6 +198,7 @@ import AdminStatusPage from "./pages/admin-panel/status";
 import AdminLeadDiscovery from "./pages/admin-panel/lead-discovery";
 import AdminTechIntelligence from "./pages/admin-panel/tech-intelligence";
 import AdminIntelligence from "./pages/admin-panel/istihbarat";
+import AdminEndeksRaporu from "./pages/admin-panel/endeks-raporu";
 import AdminCtiIstihbarat from "./pages/admin-panel/cti-istihbarat";
 import SslKontrol from "./pages/araclar/ssl-kontrol";
 import DomainGuvenlikTaramasi from "./pages/araclar/domain-guvenlik-taramasi";
@@ -362,6 +363,7 @@ function Router() {
       <Route path="/panel/lead-discovery" component={AdminLeadDiscovery} />
       <Route path="/panel/tech-intelligence" component={AdminTechIntelligence} />
       <Route path="/panel/intelligence" component={AdminIntelligence} />
+      <Route path="/panel/endeks-raporu" component={AdminEndeksRaporu} />
       <Route path="/panel/cti-istihbarat" component={AdminCtiIstihbarat} />
       <Route path="/panel/gunluk-ozet" component={AdminDailyDashboard} />
       <Route path="/panel/status" component={AdminStatusPage} />

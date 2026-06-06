@@ -84,6 +84,18 @@ export const domainScansTable = pgTable("domain_scans", {
   wafConfidence: integer("waf_confidence"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
+  // Endeks alanları
+  sector: text("sector"),
+  city: text("city"),
+  hostingProvider: text("hosting_provider"),
+  isWordpress: boolean("is_wordpress").notNull().default(false),
+  hasCdn: boolean("has_cdn").notNull().default(false),
+  cdnProvider: text("cdn_provider"),
+  openPortsCount: integer("open_ports_count").notNull().default(0),
+  criticalCveCount: integer("critical_cve_count").notNull().default(0),
+  highCveCount: integer("high_cve_count").notNull().default(0),
+  includedInIndex: boolean("included_in_index").notNull().default(true),
+  excludedReason: text("excluded_reason"),
 });
 
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });

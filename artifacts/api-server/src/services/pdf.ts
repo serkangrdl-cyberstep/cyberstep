@@ -187,6 +187,24 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
 
 // ─── Domain Scan PDF ─────────────────────────────────────────────────────────
 
+// ─── CyberStep Brand Palette (domain scan) ───────────────────────────────────
+const CS_DARK:   [number, number, number] = [6, 13, 26];
+const CS_PANEL:  [number, number, number] = [7, 24, 40];
+const CS_CARD:   [number, number, number] = [12, 47, 71];
+const CS_CYAN:   [number, number, number] = [0, 200, 255];
+const CS_AMBER:  [number, number, number] = [245, 166, 35];
+const CS_TEXT:   [number, number, number] = [232, 237, 245];
+const CS_MUTED:  [number, number, number] = [123, 143, 175];
+const CS_DANGER: [number, number, number] = [255, 69, 96];
+const CS_OFF:    [number, number, number] = [10, 14, 23];
+
+function dsScoreColor(score: number): [number, number, number] {
+  if (score >= 80) return CS_CYAN;
+  if (score >= 60) return [0, 200, 170];
+  if (score >= 40) return CS_AMBER;
+  return CS_DANGER;
+}
+
 interface DomainScanData {
   id: number;
   domain: string;
@@ -217,6 +235,7 @@ interface DomainScanData {
   abuseIpdbCountry: string | null;
   abuseIpdbIsp: string | null;
   createdAt: string;
+  wafNote?: string | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;

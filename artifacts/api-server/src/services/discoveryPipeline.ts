@@ -128,7 +128,8 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
       }
 
       const criticals = scanResult.findings.filter((f) => f.severity === "critical");
-      const isQualified = criticals.length >= 1 && scanResult.overallScore >= 40;
+      // Düzeltme 2: sadece gerçekten düşük skorlu (yüksek riskli) domainler lead olarak kalifikasyon alır
+      const isQualified = scanResult.overallScore < 60;
 
       await db.update(leadCandidatesTable).set({
         scanStatus: "scanned",

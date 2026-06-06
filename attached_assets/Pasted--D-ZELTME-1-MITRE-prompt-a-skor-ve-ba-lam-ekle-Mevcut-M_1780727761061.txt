@@ -1,0 +1,69 @@
+// DÜZELTME 1 — MITRE prompt'a skor ve bağlam ekle
+
+// Mevcut MITRE prompt'u bul
+// "MITRE ATT&CK", "attack scenario",
+// "saldırı senaryosu" içeren Claude çağrısını bul
+
+// ESKİ prompt (muhtemelen böyle):
+const mitrePrompt = `
+${domain} için MITRE ATT&CK saldırı senaryoları üret.
+`;
+
+// YENİ prompt:
+const mitrePrompt = `
+${domain} için MITRE ATT&CK saldırı senaryoları üret.
+
+BAĞLAM — bu bilgileri dikkate al:
+Genel güvenlik skoru: ${overallScore}/100
+SSL durumu: ${sslDaysLeft} gün geçerli
+CDN/WAF: ${wafProvider || "tespit edilmedi"}
+Shadow IT: ${shadowItHighRisk} yüksek riskli servis
+
+KURAL:
+Skor 80-100 → Genel Tehdit Seviyesi: DÜŞÜK
+Skor 60-79  → Genel Tehdit Seviyesi: ORTA
+Skor 40-59  → Genel Tehdit Seviyesi: YÜKSEK
+Skor 0-39   → Genel Tehdit Seviyesi: KRİTİK
+
+Senaryo üretim kuralları:
+CDN bypass senaryosu → SADECE CDN olmayan domainlerde üret
+                        CDN varsa ve 0 yüksek riskli ise üretme
+SSL saldırısı → SADECE sslDaysLeft < 30 ise üret
+Genel seviye → skora göre belirle, senaryolara göre değil
+`;
+
+// DÜZELTME 2 — Lead kalifikasyonu
+// Pipeline'da MITRE level yerine overallScore kullan
+
+// Mevcut kalifikasyon mantığını bul
+// "mitreLevel", "threatLevel", "genel_tehdit" içeren yeri
+
+// ESKİ:
+const isLead = mitreLevel === "Yüksek" ||
+               mitreLevel === "Kritik";
+
+// YENİ:
+const isLead = overallScore < 60;
+// Sadece gerçekten düşük skorlu domainler
+
+// DÜZELTME 3 — Skor-MITRE tutarlılık kontrolü
+// Rapor üretilmeden önce kontrol ekle:
+
+function validateReportConsistency(report: ScanReport): void {
+  // Yüksek skor + yüksek tehdit = çelişki
+  if (report.overallScore >= 80 &&
+      report.mitreTheatLevel === "Yüksek") {
+    logger.warn({
+      domain: report.domain,
+      score: report.overallScore,
+      mitre: report.mitreTheatLevel,
+    }, "MITRE tehdit seviyesi skora göre çok yüksek — düzeltiliyor");
+
+    report.mitreTheatLevel = "Düşük";
+  }
+
+  if (report.overallScore >= 60 &&
+      report.mitreTheatLevel === "Kritik") {
+    report.mitreTheatLevel = "Orta";
+  }
+}

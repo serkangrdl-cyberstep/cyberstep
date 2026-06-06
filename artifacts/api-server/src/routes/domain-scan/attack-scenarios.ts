@@ -166,6 +166,9 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
     const result: AttackScenariosResult = JSON.parse(jsonStr);
     result.generated_at = new Date().toISOString();
 
+    // Düzeltme 3: skor-MITRE tutarlılık kontrolü
+    validateReportConsistency(result, scan.overallScore ?? 50);
+
     await db.update(domainScansTable)
       .set({ attackScenariosStatus: "complete", attackScenariosJson: result })
       .where(eq(domainScansTable.id, scanId));
@@ -181,6 +184,24 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
       .set({ attackScenariosStatus: "error" })
       .where(eq(domainScansTable.id, scanId))
       .catch(() => null);
+  }
+}
+
+// ─── Skor-MITRE tutarlılık doğrulayıcı ──────────────────────────────────────
+
+function validateReportConsistency(result: AttackScenariosResult, overallScore: number): void {
+  const level = result.genel_tehdit_seviyesi;
+  if (!level) return;
+
+  if (overallScore >= 80 && level === "Yüksek") {
+    logger.warn({ score: overallScore, mitre: level }, "MITRE tehdit seviyesi skora göre çok yüksek — Düşük'e düzeltiliyor");
+    result.genel_tehdit_seviyesi = "Düşük";
+  } else if (overallScore >= 80 && level === "Kritik") {
+    logger.warn({ score: overallScore, mitre: level }, "MITRE tehdit seviyesi skora göre çok yüksek — Orta'ya düzeltiliyor");
+    result.genel_tehdit_seviyesi = "Orta";
+  } else if (overallScore >= 60 && level === "Kritik") {
+    logger.warn({ score: overallScore, mitre: level }, "MITRE Kritik skora göre tutarsız — Orta'ya düzeltiliyor");
+    result.genel_tehdit_seviyesi = "Orta";
   }
 }
 
@@ -209,6 +230,7 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
   const actualRiskPorts = openPorts.filter(p => (riskOrder[p.riskLevel ?? "low"] ?? 1) >= 2);
   const cdnExpectedPorts = openPorts.filter(p => p.isCdnExpected);
   const reviewPorts = openPorts.filter(p => p.riskLevel === "low" && !p.isCdnExpected);
+  const hasCdn = cdnExpectedPorts.length > 0 && actualRiskPorts.length === 0;
 
   let portsSummary: string;
   if (openPorts.length === 0) {
@@ -224,11 +246,12 @@ function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
     portsSummary = parts.join(" | ") || "tespit edilmedi";
   }
 
+  const shadowHighRisk = shadowIt.filter(s => s.risk === "high" || s.risk === "yüksek").length;
   const shadowSummary = shadowIt.length > 0
     ? shadowIt.slice(0, 4).map(s => `${s.name}(${s.risk})`).join(", ")
     : "yok";
 
-  const portContextNote = cdnExpectedPorts.length > 0 && actualRiskPorts.length === 0
+  const portContextNote = hasCdn
     ? `NOT: Tespit edilen portların tamamı CDN/proxy altyapısına ait (${scan.shodanIsp ?? "bilinmiyor"}). Bu portlar gerçek sunucuda değil CDN üzerinde görünüyor — saldırı senaryosu için CDN-bypass riski veya diğer vektörlere odaklan.`
     : "";
 
@@ -241,13 +264,36 @@ CVE bulgularında risk azaltıldı: ${!wafScan.wafBypassPossible ? "Evet (CVSS s
 WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları — bunları tam kritik yaz.`
     : "WAF DURUMU: WAF tespit edilmedi. Tüm bulgular tam riskiyle raporla.";
 
+  // Skora göre zorunlu tehdit seviyesi
+  const overallScore = scan.overallScore ?? 50;
+  const sslDaysLeft = scan.sslDaysUntilExpiry ?? 999;
+  const mandatedThreatLevel =
+    overallScore >= 80 ? "Düşük" :
+    overallScore >= 60 ? "Orta" :
+    overallScore >= 40 ? "Yüksek" :
+    "Kritik";
+
+  // Koşullu senaryo üretim kuralları
+  const scenarioRules: string[] = [];
+  if (hasCdn && shadowHighRisk === 0) {
+    scenarioRules.push("CDN bypass senaryosu ÜRETME — CDN var ve yüksek riskli Shadow IT yok.");
+  } else if (!hasCdn) {
+    scenarioRules.push("CDN bypass senaryosu üretebilirsin — CDN tespit edilmedi, direkt sunucu erişimi söz konusu.");
+  }
+  if (sslDaysLeft >= 30) {
+    scenarioRules.push("SSL sona erme saldırısı ÜRETME — SSL süresi yeterli (30 günden fazla kaldı).");
+  } else {
+    scenarioRules.push(`SSL sona erme saldırısı ÜRETEBİLİRSİN — SSL ${sslDaysLeft} gün içinde sona eriyor.`);
+  }
+
   return `Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
 TARAMA ÖZETİ
 ============
-Domain: ${scan.domain} | Risk Skoru: ${scan.overallScore}/100
+Domain: ${scan.domain} | Risk Skoru: ${overallScore}/100
 E-posta: SPF=${scan.spfPass ? "OK" : "FAIL"} DMARC=${scan.dmarcPass ? "OK" : "FAIL"} DKIM=${scan.dkimPass ? "OK" : "FAIL"}
-SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${scan.sslDaysUntilExpiry !== null ? `${scan.sslDaysUntilExpiry}g kaldı` : "süre bilinmiyor"}
+SSL: ${scan.sslPass ? "Geçerli" : "Sorunlu"} (${scan.sslLabsGrade ?? "?"}) | ${sslDaysLeft < 999 ? `${sslDaysLeft}g kaldı` : "süre bilinmiyor"}
+CDN/WAF: ${wafScan.wafDetected ? (wafScan.wafProvider ?? "tespit edildi") : "tespit edilmedi"} | Shadow IT yüksek riskli: ${shadowHighRisk}
 Altyapı: ${scan.shodanIsp ?? "bilinmiyor"} (${scan.shodanCountry ?? "?"})
 Port analizi: ${portsSummary}${portContextNote ? `\n${portContextNote}` : ""}
 ${wafContextNote}
@@ -257,6 +303,16 @@ VirusTotal: ${scan.virusTotalMalicious} zararlı | AbuseIPDB: ${scan.abuseIpdbSc
 HIBP ihlaller: ${scan.hibpBreachCount} | Shadow IT: ${shadowSummary}
 HTTP başlıkları: ${scan.httpHeadersScore}/100 | Subdomain: ${scan.ctSubdomainCount}
 Risk bayrakları: ${riskFlags.length > 0 ? riskFlags.join("; ") : "yok"}
+
+ZORUNLU KURAL — GENEL TEHDİT SEVİYESİ
+======================================
+Skora göre genel_tehdit_seviyesi DEĞERİ ZORUNLU OLARAK şu olmalı: "${mandatedThreatLevel}"
+(Skor 80-100 → Düşük | 60-79 → Orta | 40-59 → Yüksek | 0-39 → Kritik)
+Bu kurala kesinlikle uy. Senaryo ağırlığına göre değiştirme.
+
+SENARYO ÜRETİM KURALLARI
+=========================
+${scenarioRules.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 
 GÖREV
 =====

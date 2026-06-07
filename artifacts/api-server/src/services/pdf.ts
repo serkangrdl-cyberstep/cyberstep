@@ -261,16 +261,17 @@ interface DomainScanData {
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 }, bufferPages: true });
+    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 40, left: 0, right: 0 }, bufferPages: true, autoFirstPage: false });
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
+    // Kapak sayfası — pageAdded henüz kayıtlı değil, header çizilmez
+    doc.addPage();
+
     const W = doc.page.width;
     const MARGIN = 48;
     const CONTENT_W = W - MARGIN * 2;
-
-    let _pgNum = 1; // içerik sayfası sayacı (kapak hariç)
 
     // Gerçek CyberStep kalkan ikonunu PDFKit vektör primitifleriyle çizer
     // x,y: sol-üst köşe, size: PDF point cinsinden boyut (orijinal SVG = 48×48)
@@ -313,14 +314,9 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         .text(`${data.domain}  |  Tarama #${data.id}`, MARGIN, 11, { align: "right", width: CONTENT_W });
     };
 
-    // Footer: her içerik sayfasının altına çizilir
-    const _drawFooter = () => {
+    // Footer: doc.end() öncesi döngüyle tüm içerik sayfalarına çizilir
+    const _drawFooter = (pageNum: number, totalPages: number) => {
       const PH = doc.page.height;
-      const sy = doc.y;
-
-      // Sayfa akışını dondur — otomatik sayfa geçişini engelle
-      doc.switchToPage(doc.bufferedPageRange().start + doc.bufferedPageRange().count - 1);
-
       doc.rect(0, PH - 36, W, 36).fill(CS_DARK);
       _drawShieldIcon(MARGIN, PH - 29, 18);
       doc.font(FONT_BOLD).fontSize(10);
@@ -333,22 +329,13 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
         .text(`${data.domain}  |  Alan Adı Güvenlik Taraması`, MARGIN, PH - 23, { align: "center", width: CONTENT_W });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
-        .text(`Sayfa ${_pgNum}`, MARGIN, PH - 23, { align: "right", width: CONTENT_W });
-
-      doc.y = sy;
+        .text(`Sayfa ${pageNum} / ${totalPages}`, MARGIN, PH - 23, { align: "right", width: CONTENT_W });
     };
 
-    // Yerel checkPageBreak: global fonksiyonu gölgeler; footer+header otomatik yönetir
+    // Yerel checkPageBreak: addPage() pageAdded event'ini tetikler — header + doc.y = 52 otomatik
     const checkPageBreak = (doc_: typeof doc, needed: number) => {
       if (doc_.y + needed > doc_.page.height - 52) {
-        _drawFooter();
-        _pgNum++;
         doc_.addPage();
-        // Yeni sayfada header'ı switchToPage ile çiz — cursor karışmasın
-        const newPageIdx = doc_.bufferedPageRange().start + doc_.bufferedPageRange().count - 1;
-        doc_.switchToPage(newPageIdx);
-        _drawHeader();
-        doc_.y = 52;
       }
     };
 
@@ -468,11 +455,12 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         { width: 52, align: "center", lineBreak: false });
 
     // ══ İÇERİK SAYFASI ════════════════════════════════════════════════════════
-    doc.addPage();
-    const firstContentPageIdx = doc.bufferedPageRange().start + doc.bufferedPageRange().count - 1;
-    doc.switchToPage(firstContentPageIdx);
-    _drawHeader();
-    doc.y = 52;
+    // pageAdded'ı şimdi kayıt et — kapak zaten çizildi, bundan sonraki her addPage() header çizer
+    doc.on('pageAdded', () => {
+      _drawHeader();
+      doc.y = 52;
+    });
+    doc.addPage(); // pageAdded tetiklenir → header + doc.y = 52
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
     if (data.scoreBreakdown) {
@@ -819,8 +807,13 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = lockY + 88;
     }
 
-    // ── Son sayfaya footer çiz, belgeyi kapat ─────────────────────────────────
-    _drawFooter();
+    // ── Tüm içerik sayfalarına footer çiz (index 0 = kapak, atla) ────────────
+    const range = doc.bufferedPageRange();
+    const contentPageCount = range.count - 1;
+    for (let i = 1; i < range.count; i++) {
+      doc.switchToPage(range.start + i);
+      _drawFooter(i, contentPageCount);
+    }
     doc.flushPages();
     doc.end();
   });

@@ -71,8 +71,6 @@ function getIcon(slug: string): React.ElementType {
     "phishing-simulation": Zap,
     "eu-ai-act": FileText,
     "ai-red-team": ShieldAlert,
-    "deepfake-analysis": Eye,
-    "fake-document-scan": Search,
     "ai-tool-monitoring": Eye,
     "ai-policy-autoupdate": FileText,
     "leak-monitor": AlertTriangle,
@@ -180,7 +178,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
     label: "AI Güvenlik",
     desc: "Yapay zeka araçları, politika yönetimi ve AI simülasyon servisleri.",
     badge: "Yeni",
-    slugs: ["ai-security-assessment","ai-tool-monitoring","ai-policy-autoupdate","phishing-simulation","ai-red-team","eu-ai-act","deepfake-analysis","fake-document-scan"],
+    slugs: ["ai-security-assessment","ai-tool-monitoring","ai-policy-autoupdate","phishing-simulation","ai-red-team","eu-ai-act"],
   },
   {
     key: "entegrasyon-izleme",

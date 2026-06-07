@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useSearch } from "wouter";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useSearch } from "wouter";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Eye, EyeOff, CheckCircle2, Lock, Gift } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,22 @@ const PLAN_LABELS: Record<string, string> = {
   premium: "Premium Danışmanlık",
 };
 
+const SERVICE_LABELS: Record<string, string> = {
+  "ai-phishing": "AI Phishing Simülasyonu",
+  "eu-ai-act": "EU AI Act Uyum Skoru",
+  "ai-red-team": "AI Red Team Raporu",
+  "ciso-asistan": "CISO Asistan Paketi",
+};
+
 export default function CustomerRegister() {
-  const [, navigate] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showPw, setShowPw] = useState(false);
+  const [registered, setRegistered] = useState(false);
   const [refValidation, setRefValidation] = useState<{ valid: boolean; reward?: string; error?: string } | null>(null);
   const [kvkkAccepted, setKvkkAccepted] = useState(false);
+  const [intendedService, setIntendedService] = useState("");
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -28,10 +36,12 @@ export default function CustomerRegister() {
     referralCode: "",
   });
 
-  // Pre-fill referral code from URL ?ref=CODE
+  // Pre-fill referral code and intended service from URL params
   useEffect(() => {
     const params = new URLSearchParams(search);
     const ref = params.get("ref");
+    const svc = params.get("service") ?? "";
+    setIntendedService(svc);
     if (ref) {
       setForm(f => ({ ...f, referralCode: ref.toUpperCase() }));
       // Auto-validate
@@ -56,7 +66,7 @@ export default function CustomerRegister() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, intendedService: intendedService || undefined }),
       }).then(async r => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error ?? "Kayıt başarısız");
@@ -64,8 +74,7 @@ export default function CustomerRegister() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customer-me"] });
-      toast({ title: "Hesap oluşturuldu", description: "2FA kurulumunu yapabilir veya atlayabilirsiniz." });
-      navigate("/totp-kurulum");
+      setRegistered(true);
     },
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
@@ -83,6 +92,41 @@ export default function CustomerRegister() {
     registerMutation.mutate(form);
   };
 
+  if (registered) {
+    return (
+      <div className="min-h-screen bg-secondary flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md text-center space-y-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-primary">
+            <Shield className="h-7 w-7" />
+            <span className="font-bold text-2xl text-white">CyberStep.io</span>
+          </Link>
+          <div className="flex justify-center">
+            <CheckCircle2 className="h-16 w-16 text-emerald-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white mb-3">Bilgileriniz Alındı</h1>
+            <p className="text-slate-300 text-base leading-relaxed">
+              Ödeme bilgileri için en kısa sürede sizinle irtibata geçilecektir.
+            </p>
+          </div>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 text-left space-y-2">
+            <p className="text-slate-400 text-sm"><span className="text-slate-300 font-medium">Ad:</span> {form.fullName}</p>
+            <p className="text-slate-400 text-sm"><span className="text-slate-300 font-medium">E-posta:</span> {form.email}</p>
+            {form.companyName && <p className="text-slate-400 text-sm"><span className="text-slate-300 font-medium">Şirket:</span> {form.companyName}</p>}
+            {intendedService && SERVICE_LABELS[intendedService] && (
+              <p className="text-slate-400 text-sm"><span className="text-slate-300 font-medium">İlgilenilen servis:</span> {SERVICE_LABELS[intendedService]}</p>
+            )}
+          </div>
+          <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Link href="/hesabim">Hesabıma Git</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const serviceLabel = intendedService ? SERVICE_LABELS[intendedService] : null;
+
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md space-y-4">
@@ -92,15 +136,15 @@ export default function CustomerRegister() {
             <span className="font-bold text-2xl text-white">CyberStep.io</span>
           </Link>
           <h1 className="text-2xl font-bold text-white">Hesap Oluşturun</h1>
-          <p className="text-muted-foreground mt-1">Tam Değerlendirme platformuna erişim için kayıt olun</p>
+          <p className="text-muted-foreground mt-1">Platforma erişim için kayıt olun</p>
         </div>
 
-        {/* Plan highlight */}
+        {/* Plan / service highlight */}
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 flex gap-3 items-start">
           <Lock className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="text-emerald-300 font-medium">Tam Değerlendirme Erişimi</p>
-            <p className="text-emerald-400/80 text-xs mt-1">60 soruluk derinlemesine analiz, PDF rapor ve uzman danışmanlık hizmetine erişin.</p>
+            <p className="text-emerald-300 font-medium">{serviceLabel ?? "Platform Erişimi"}</p>
+            <p className="text-emerald-400/80 text-xs mt-1">{serviceLabel ? `${serviceLabel} için kayıt bilgilerinizi bırakın, ekibimiz sizinle iletişime geçecektir.` : "Hesabınızı oluşturun ve hizmetlerimize erişin."}</p>
           </div>
         </div>
 

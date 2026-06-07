@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Shield, CheckCircle2, ArrowRight, FileText,
   BarChart3, BookOpen, Mail, TrendingDown,
@@ -88,32 +88,16 @@ export default function CisoAsistan() {
     description: "CISO'nuzun rutin raporlama yükünü otomatikleştirin. Aylık yönetim kurulu raporu, 7545 ve KVKK uyum skoru, haftalık tehdit özeti, 7 politika şablonu — 2.500 TL/ay.",
   });
 
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
+  const [, navigate] = useLocation();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [sending, setSending] = useState(false);
   const set = (k: keyof FormState) => (v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.company) return;
     setSending(true);
-    try {
-      const res = await fetch("/api/public/ciso-lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, tier: "ciso-asistan" }),
-      });
-      if (res.ok) {
-        toast({ title: "Talebiniz alındı", description: "Ekibimiz en geç 1 iş günü içinde sizinle iletişime geçecek." });
-        setForm(EMPTY);
-      } else {
-        throw new Error();
-      }
-    } catch {
-      toast({ title: "Hata", description: "Bir sorun oluştu, lütfen tekrar deneyin.", variant: "destructive" });
-    } finally {
-      setSending(false);
-    }
+    navigate("/kayit?service=ciso-asistan");
   };
 
   return (

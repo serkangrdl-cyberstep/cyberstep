@@ -35,6 +35,20 @@ interface OverviewData {
 interface MonthlyRow { month: string; assessment_count: number; completed_count: number; }
 interface PaymentRow { month: string; revenue: number; kdv: number; }
 
+interface PendingReg {
+  id: number;
+  fullName: string;
+  email: string;
+  companyName: string | null;
+  subscriptionPlan: string | null;
+  createdAt: string;
+}
+
+interface PendingRegsData {
+  count: number;
+  recent: PendingReg[];
+}
+
 interface DailyData {
   domainScans:      { last24h: number; total: number; };
   leadCandidates:   { last24h: number; total: number; };
@@ -145,6 +159,12 @@ export default function AdminDashboard() {
     refetchInterval: 60000,
   });
 
+  const { data: pendingRegs } = useQuery<PendingRegsData>({
+    queryKey: ["admin-pending-regs"],
+    queryFn: () => fetch("/api/admin-panel/analytics/pending-registrations", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
   const fmt = (n: number) => new Intl.NumberFormat("tr-TR").format(Math.round(n));
   const fmtCur = (n: number) => new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(n);
 
@@ -165,6 +185,38 @@ export default function AdminDashboard() {
               <Clock className="h-3 w-3 mr-1" />
               {overview?.pendingReviews} bekleyen rapor incelemesi
             </Badge>
+          </div>
+        )}
+
+        {/* Bekleyen Kayıtlar */}
+        {(pendingRegs?.count ?? 0) > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+                <Users className="h-4 w-4 text-amber-400" />
+                Bekleyen Kayıtlar
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] px-1.5">{pendingRegs?.count ?? 0}</Badge>
+              </h2>
+              <button onClick={() => navigate("/panel/musteriler")} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">
+                Tümünü Gör
+              </button>
+            </div>
+            <div className="space-y-2">
+              {(pendingRegs?.recent ?? []).slice(0, 5).map(r => (
+                <div key={r.id} className="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">{r.fullName}</p>
+                    <p className="text-slate-400 text-xs">{r.email}{r.companyName ? ` — ${r.companyName}` : ""}</p>
+                  </div>
+                  <div className="text-right">
+                    {r.subscriptionPlan && (
+                      <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] mb-1">{r.subscriptionPlan}</Badge>
+                    )}
+                    <p className="text-slate-500 text-[11px]">{new Date(r.createdAt).toLocaleDateString("tr-TR")}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

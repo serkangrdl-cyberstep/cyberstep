@@ -21,25 +21,9 @@ export default function EuAiActPage() {
   const [form, setForm] = useState({ companyName: "", contactEmail: "", sector: "", employeeCount: "" });
   const [error, setError] = useState("");
 
-  async function handleStart(e: React.FormEvent) {
+  function handleStart(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.companyName.trim()) { setError("Şirket adı zorunlu"); return; }
-    setLoading(true);
-    setError("");
-    try {
-      const r = await fetch("/api/eu-aiact/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await r.json();
-      if (!r.ok) { setError(data.error ?? "Bir hata oluştu"); return; }
-      navigate(`/eu-ai-act/sorular/${data.id}`);
-    } catch {
-      setError("Bağlantı hatası");
-    } finally {
-      setLoading(false);
-    }
+    navigate("/kayit?service=eu-ai-act");
   }
 
   if (step === "form") {

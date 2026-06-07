@@ -308,4 +308,26 @@ router.get("/admin-panel/analytics/daily", requireAdmin, async (_req: Request, r
   });
 });
 
+// GET /api/admin-panel/analytics/pending-registrations
+router.get("/admin-panel/analytics/pending-registrations", requireAdmin, async (_req: Request, res: Response) => {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const rows = await db.select({
+    id: customersTable.id,
+    fullName: customersTable.fullName,
+    email: customersTable.email,
+    companyName: customersTable.companyName,
+    subscriptionPlan: customersTable.subscriptionPlan,
+    createdAt: customersTable.createdAt,
+  })
+    .from(customersTable)
+    .where(and(
+      eq(customersTable.subscriptionStatus, "inactive"),
+      gte(customersTable.createdAt, thirtyDaysAgo),
+    ))
+    .orderBy(desc(customersTable.createdAt))
+    .limit(20);
+
+  res.json({ count: rows.length, recent: rows });
+});
+
 export default router;

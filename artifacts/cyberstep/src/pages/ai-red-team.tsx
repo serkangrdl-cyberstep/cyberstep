@@ -45,24 +45,9 @@ export default function AiRedTeamPage() {
     return () => clearInterval(interval);
   }, [rid]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.companyName || !form.domain) { setError("Şirket adı ve domain zorunlu"); return; }
-    if (!form.consentAccepted) { setError("Analiz için onay gerekli"); return; }
-    setLoading(true); setError("");
-    try {
-      const r = await fetch("/api/red-team/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const d = await r.json();
-      if (!r.ok) { setError(d.error ?? "Hata"); return; }
-      setRid(d.id);
-      setPolling(true);
-      navigate(`/ai-red-team/${d.id}`);
-    } catch { setError("Bağlantı hatası"); }
-    finally { setLoading(false); }
+    navigate("/kayit?service=ai-red-team");
   }
 
   const { data: prices } = useServicePrices();

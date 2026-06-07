@@ -8,7 +8,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { generateTotpSecret, generateTotpQrUrl, verifyTotp } from "../../services/auth";
 import { logger } from "../../lib/logger";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
-import { sendPasswordResetEmail } from "../../services/email";
+import { sendPasswordResetEmail, sendMail } from "../../services/email";
 
 // Re-export for other modules that import from here
 export { requireCustomer };
@@ -85,6 +85,26 @@ router.post("/auth/register", async (req: Request, res: Response) => {
 
   getSession(req)["customerId"] = customer.id;
   logger.info({ customerId: customer.id }, "Customer registered");
+
+  // Fire-and-forget admin notification
+  const intendedService = (req.body as Record<string, unknown>)["intendedService"] as string | undefined;
+  setImmediate(async () => {
+    try {
+      const adminEmail = process.env["SMTP_USER"] ?? "info@cyberstep.io";
+      const serviceLabel = intendedService ? ` — İlgilenilen Servis: ${intendedService}` : "";
+      await sendMail({
+        to: adminEmail,
+        subject: `Yeni Kayıt: ${customer.fullName}${serviceLabel}`,
+        html: `<p><strong>Ad Soyad:</strong> ${customer.fullName}</p>
+<p><strong>E-posta:</strong> ${customer.email}</p>
+<p><strong>Şirket:</strong> ${customer.companyName ?? "—"}</p>
+${intendedService ? `<p><strong>İlgilenilen Servis:</strong> ${intendedService}</p>` : ""}
+<p><strong>Kayıt Tarihi:</strong> ${new Date().toLocaleString("tr-TR")}</p>`,
+      });
+    } catch (err) {
+      logger.warn({ err }, "Failed to send admin registration notification");
+    }
+  });
 
   const { passwordHash: _, totpSecret: __, ...safe } = customer;
   res.status(201).json(safe);

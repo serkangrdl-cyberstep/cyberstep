@@ -101,27 +101,20 @@ interface SimForm {
   sector: string; employeeCount: string; consentAccepted: boolean;
 }
 
-function ConsentForm({ onCreated }: { onCreated: (id: number) => void }) {
+function ConsentForm({ onCreated: _onCreated }: { onCreated: (id: number) => void }) {
+  const [, navigate] = useLocation();
   const { data: prices } = useServicePrices();
   const _p = prices?.["ai-phishing"];
   const submitLabel = _p ? `Simülasyonu Başlat — ${formatPrice(_p.amount, _p.unit)} + KDV` : "Simülasyonu Başlat — 1.990 TL + KDV";
   const [form, setForm] = useState<SimForm>({ companyName: "", domain: "", contactEmail: "", sector: "", employeeCount: "", consentAccepted: false });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const set = (k: keyof SimForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.consentAccepted) { setError("Onay vermeniz gerekli."); return; }
-    setLoading(true); setError("");
-    try {
-      const r = await fetch("/api/phishing-sim/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      const data = await r.json() as { id?: number; error?: string };
-      if (!r.ok) { setError(data.error ?? "Hata oluştu"); return; }
-      onCreated(data.id!);
-    } catch { setError("Bir hata oluştu, lütfen tekrar deneyin."); }
-    finally { setLoading(false); }
+    navigate("/kayit?service=ai-phishing");
   };
 
   return (
@@ -173,9 +166,9 @@ function ConsentForm({ onCreated }: { onCreated: (id: number) => void }) {
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
-        <button type="submit" disabled={loading || !form.consentAccepted}
+        <button type="submit" disabled={!form.consentAccepted}
           className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {loading ? "Başlatılıyor..." : submitLabel}
+          {submitLabel}
         </button>
       </form>
     </div>

@@ -29,19 +29,33 @@ function LandingPage({ onStart }: { onStart: () => void }) {
           <button onClick={onStart} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
             Simülasyonu Başlat <ChevronRight className="h-5 w-5" />
           </button>
-          <p className="text-xs text-muted-foreground mt-4">Hicbir e-posta gonderilmez. Yalnizca farkındalık amaclidir.</p>
+          <p className="text-xs text-muted-foreground mt-4">Hiçbir e-posta gönderilmez. Yalnızca farkındalık amaçlıdır.</p>
+
+          <div className="grid grid-cols-3 gap-4 mt-10">
+            {[
+              { value: "%65,2", label: "Türk şirketleri geçen yıl saldırıya uğradı" },
+              { value: "%71,3", label: "Çalışanlar yetersiz siber güvenlik eğitimi aldı" },
+              { value: "14,6", label: "Ortalama yıllık saldırı sayısı (şirket başına)" },
+            ].map(s => (
+              <div key={s.value} className="rounded-xl bg-white/10 border border-white/20 p-4">
+                <div className="text-3xl font-bold text-primary mb-1">{s.value}</div>
+                <div className="text-xs text-white/70 leading-tight">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/40 mt-2">Kaynak: Fortinet / DORinsight 2025 Türkiye Siber Güvenlik Araştırması</p>
         </div>
       </section>
 
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 max-w-4xl">
           <h2 className="text-2xl font-bold text-center mb-10">Simülasyon Neyi İçerir?</h2>
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <div className="grid md:grid-cols-2 gap-6 mb-10">
             {[
-              { icon: Search, title: "Kamuya açık veri analizi", desc: "Web siteniz, teknoloji altyapısı ve domain bilgileri toplanır." },
-              { icon: Mail, title: "3 gerçekçi saldırı senaryosu", desc: "CEO dolandırıcılığı, IT destek kimlik avı ve fatura sahteciliği." },
-              { icon: Shield, title: "Her senaryo için koruma", desc: "Saldırıyı engelleyen tek teknik veya prosedürel önlem." },
-              { icon: AlertTriangle, title: "Kırmızı alarm işaretleri", desc: "E-postada dikkat edilmesi gereken ipuçları açıkça işaretlenir." },
+              { icon: Search, title: "Şirketinize Özel Senaryolar", desc: "Genel şablonlar değil — domain'iniz, çalışan yapınız ve sektörünüze göre AI tarafından üretilen gerçekçi phishing senaryoları." },
+              { icon: Mail, title: "3 Kritik Saldırı Vektörü", desc: "CEO Fraud, IT Destek Taklit, Tedarikçi/Fatura Dolandırıcılığı — Türkiye'de en sık kullanılan 3 senaryo türü." },
+              { icon: Shield, title: "OSINT Tabanlı Analiz", desc: "Saldırganların sizi araştırmak için kullandığı kamuya açık veriler analiz edilir — DMARC açıkları, sızdırılmış veriler, dijital ayak izi." },
+              { icon: AlertTriangle, title: "Raporla, Önlem Al", desc: "Hangi çalışan profili risk altında? Hangi departman önce eğitilmeli? Somut aksiyon önerileriyle hazır rapor." },
             ].map(f => (
               <div key={f.title} className="flex gap-4 p-5 rounded-xl border bg-card">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -55,10 +69,26 @@ function LandingPage({ onStart }: { onStart: () => void }) {
             ))}
           </div>
 
+          <div className="rounded-2xl border border-border bg-muted/40 p-6 mb-8">
+            <h3 className="font-bold text-lg mb-4 text-center">Neden Beklememelisiniz?</h3>
+            <ul className="space-y-3">
+              {[
+                "Saldırıların %91'i e-posta ile başlar — en savunmasız noktanız çalışanlarınız",
+                "Ortalama bir phishing saldırısının maliyeti: 500.000 TL+ (BEC dahil)",
+                "KVKK: Çalışan hatası sonucu veri ihlalinde şirket sorumluluğu devam eder",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-3 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div className="rounded-2xl border-2 border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20 p-6 text-center">
             <AlertTriangle className="h-6 w-6 text-amber-600 mx-auto mb-2" />
             <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1">Etik Güvence</p>
-            <p className="text-sm text-amber-700 dark:text-amber-300">Bu araç yalnızca farkındalık amaçlıdır. Hiçbir gerçek e-posta gönderilmez. Tüm veriler kamuya açık kaynaklardan alınır. Simülasyon raporları yalnızca sizi hedef aldığınızı size gösterir.</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300">Bu araç yalnızca farkındalık amaçlıdır. Hiçbir gerçek e-posta gönderilmez. Tüm veriler kamuya açık kaynaklardan alınır. Simülasyon raporları yalnızca sizi hedef aldığınızı size gösterir. Bu simülasyon yalnızca kendi şirketiniz için kullanılabilir. Gerçek phishing saldırısı gerçekleştirmez — yalnızca risk analizi ve eğitim senaryoları üretir.</p>
           </div>
         </div>
       </section>
@@ -72,6 +102,9 @@ interface SimForm {
 }
 
 function ConsentForm({ onCreated }: { onCreated: (id: number) => void }) {
+  const { data: prices } = useServicePrices();
+  const _p = prices?.["ai-phishing"];
+  const submitLabel = _p ? `Simülasyonu Başlat — ${formatPrice(_p.amount, _p.unit)} + KDV` : "Simülasyonu Başlat — 1.990 TL + KDV";
   const [form, setForm] = useState<SimForm>({ companyName: "", domain: "", contactEmail: "", sector: "", employeeCount: "", consentAccepted: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -142,7 +175,7 @@ function ConsentForm({ onCreated }: { onCreated: (id: number) => void }) {
 
         <button type="submit" disabled={loading || !form.consentAccepted}
           className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {loading ? "Başlatılıyor..." : "Simülasyonu Başlat — 1.990 TL + KDV"}
+          {loading ? "Başlatılıyor..." : submitLabel}
         </button>
       </form>
     </div>

@@ -1,0 +1,52 @@
+artifacts/cyberstep/src/pages/ai-phishing-simulasyonu.tsx dosyasında LandingPage bileşenini (satır 14-67) şu şekilde zenginleştir:
+
+── 1. HERO SECTION — İstatistik Şeridi ──────────────────────────────
+
+Hero başlığının altına 3 istatistik kartı ekle (Fortinet/DORinsight 2025 verisi):
+
+%65,2
+Türk şirketleri geçen yıl saldırıya uğradı
+
+%71,3
+Çalışanlar yetersiz siber güvenlik eğitimi aldı
+
+14,6
+Ortalama yıllık saldırı sayısı (şirket başına)
+
+Kaynak notu: "Fortinet / DORinsight 2025 Türkiye Siber Güvenlik Araştırması"
+
+── 2. ÖZELLIK KARTLARI — Güçlendir ──────────────────────────────────
+
+Mevcut özellik kartlarına şunu ekle veya güncelle:
+
+Kart 1: "Şirketinize Özel Senaryolar"
+"Genel şablonlar değil — domain'iniz, çalışan yapınız ve sektörünüze göre AI tarafından üretilen gerçekçi phishing senaryoları"
+
+Kart 2: "3 Kritik Saldırı Vektörü"  
+"CEO Fraud, IT Destek Taklit, Tedarikçi/Fatura Dolandırıcılığı — Türkiye'de en sık kullanılan 3 senaryo türü"
+
+Kart 3: "OSINT Tabanlı Analiz"
+"Saldırganların sizi araştırmak için kullandığı kamuya açık veriler analiz edilir — DMARC açıkları, sızdırılmış veriler, dijital ayak izi"
+
+Kart 4: "Raporla, Önlem Al"
+"Hangi çalışan profili risk altında? Hangi departman önce eğitilmeli? Somut aksiyon önerileriyle hazır rapor"
+
+── 3. SOCIAL PROOF BLOĞU ────────────────────────────────────────────
+
+Özellik kartlarının altına küçük bir "neden şimdi?" bloğu ekle:
+
+Başlık: "Neden Beklememelisiniz?"
+
+3 madde:
+- Saldırıların %91'i e-posta ile başlar — en savunmasız noktanız çalışanlarınız
+- Ortalama bir phishing saldırısının maliyeti: 500.000 TL+ (BEC dahil)  
+- KVKK: Çalışan hatası sonucu veri ihlalinde şirket sorumluluğu devam eder
+
+── 4. BUTON METNİ FIX ───────────────────────────────────────────────
+
+Satır 145'teki hardcoded "1.990 TL + KDV" buton metnini useServicePrices hook'undan gelen fiyatla değiştir — badge ile tutarlı olsun.
+
+── 5. ETİK UYARI — Güçlendir ────────────────────────────────────────
+
+Mevcut etik uyarıya şunu ekle:
+"Bu simülasyon yalnızca kendi şirketiniz için kullanılabilir. Gerçek phishing saldırısı gerçekleştirmez — yalnızca risk analizi ve eğitim senaryoları üretir."

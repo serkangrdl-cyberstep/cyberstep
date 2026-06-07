@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable } from "@workspace/db";
+import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable, leadCandidatesTable, discoveryRunsTable } from "@workspace/db";
 import { count, sum, avg, sql, desc, gte, and, eq, asc } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 
@@ -267,6 +267,45 @@ router.get("/admin-panel/analytics/monthly-assessments", requireAdmin, async (_r
   }
 
   res.json(Object.values(pivoted));
+});
+
+// GET /api/admin-panel/analytics/daily
+router.get("/admin-panel/analytics/daily", requireAdmin, async (_req: Request, res: Response) => {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [dsLast24h] = await db.select({ count: count() }).from(domainScansTable).where(gte(domainScansTable.createdAt, since));
+  const [dsTotal]   = await db.select({ count: count() }).from(domainScansTable);
+
+  const [lcLast24h] = await db.select({ count: count() }).from(leadCandidatesTable).where(gte(leadCandidatesTable.createdAt, since));
+  const [lcTotal]   = await db.select({ count: count() }).from(leadCandidatesTable);
+
+  const [qlLast24h] = await db.select({ count: count() }).from(leadCandidatesTable).where(and(eq(leadCandidatesTable.isQualified, true), gte(leadCandidatesTable.updatedAt, since)));
+  const [qlTotal]   = await db.select({ count: count() }).from(leadCandidatesTable).where(eq(leadCandidatesTable.isQualified, true));
+
+  const [tLast24h] = await db.select({ count: count() }).from(leadCandidatesTable).where(and(sql`${leadCandidatesTable.teaserSubject} IS NOT NULL`, gte(leadCandidatesTable.updatedAt, since)));
+  const [tTotal]   = await db.select({ count: count() }).from(leadCandidatesTable).where(sql`${leadCandidatesTable.teaserSubject} IS NOT NULL`);
+
+  const cronRuns   = await db.execute(sql`SELECT COUNT(*)::int AS cnt FROM cron_job_runs WHERE started_at > ${since}`);
+  const cronErrors = await db.execute(sql`SELECT COUNT(*)::int AS cnt FROM cron_job_runs WHERE started_at > ${since} AND status != 'ok'`);
+  const lastRun    = await db.execute(sql`SELECT job_name, status, started_at FROM cron_job_runs ORDER BY started_at DESC LIMIT 1`);
+
+  const [drRow] = await db.select({ found: sum(discoveryRunsTable.totalFound), added: sum(discoveryRunsTable.totalAdded) }).from(discoveryRunsTable).where(gte(discoveryRunsTable.startedAt, since));
+
+  res.json({
+    domainScans:      { last24h: dsLast24h.count, total: dsTotal.count },
+    leadCandidates:   { last24h: lcLast24h.count, total: lcTotal.count },
+    qualifiedLeads:   { last24h: qlLast24h.count, total: qlTotal.count },
+    teasersGenerated: { last24h: tLast24h.count,  total: tTotal.count  },
+    cronJobs: {
+      last24h_runs:   (cronRuns.rows[0]   as { cnt: number }).cnt,
+      last24h_errors: (cronErrors.rows[0] as { cnt: number }).cnt,
+      last_run: lastRun.rows[0] ? (lastRun.rows[0] as { job_name: string; status: string; started_at: string }) : null,
+    },
+    discoveryRuns: {
+      last24h_found: Number(drRow?.found  ?? 0),
+      last24h_added: Number(drRow?.added ?? 0),
+    },
+  });
 });
 
 export default router;

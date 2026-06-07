@@ -1,0 +1,66 @@
+artifacts/cyberstep/src/pages/admin-panel/index.tsx dosyasına "Son 24 Saat" özet bölümü ekle.
+
+── 1. BACKEND — YENİ ENDPOINT ───────────────────────────────────────
+
+artifacts/api-server/src/routes/admin-panel/analytics.ts (veya analytics klasörü) dosyasına GET /api/admin-panel/analytics/daily endpoint'i ekle:
+
+const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+Şu sorguları çalıştır ve tek JSON döndür:
+
+{
+  domainScans: {
+    last24h: domain_scans tablosunda son 24 saatte created_at olanların sayısı,
+    total: domain_scans toplam sayısı
+  },
+  leadCandidates: {
+    last24h: lead_candidates tablosunda son 24 saatte eklenenler,
+    total: lead_candidates toplam
+  },
+  qualifiedLeads: {
+    last24h: lead_candidates WHERE is_qualified=true AND updated_at > since,
+    total: lead_candidates WHERE is_qualified=true toplam
+  },
+  teasersGenerated: {
+    last24h: lead_candidates WHERE teaser_subject IS NOT NULL AND updated_at > since,
+    total: lead_candidates WHERE teaser_subject IS NOT NULL toplam
+  },
+  cronJobs: {
+    last24h_runs: cron_job_runs WHERE started_at > since sayısı,
+    last24h_errors: cron_job_runs WHERE started_at > since AND status != 'ok' sayısı,
+    last_run: cron_job_runs ORDER BY started_at DESC LIMIT 1 → {job_name, status, started_at}
+  },
+  discoveryRuns: {
+    last24h_found: discovery_runs WHERE created_at > since → SUM(total_found),
+    last24h_added: discovery_runs WHERE created_at > since → SUM(total_added)
+  }
+}
+
+── 2. FRONTEND — SON 24 SAAT BÖLÜMÜ ────────────────────────────────
+
+artifacts/cyberstep/src/pages/admin-panel/index.tsx dosyasında mevcut 12 metrik kartın ÜSTÜNE "Son 24 Saat" başlıklı bir bölüm ekle.
+
+useQuery ile GET /api/admin-panel/analytics/daily çağır, 60 sn'de bir refresh.
+
+Gösterim — 2 satır grid (3+3 kart):
+
+Satır 1 — Pipeline:
+┌─────────────────────┬─────────────────────┬─────────────────────┐
+│   Domain Tarama     │   Yeni Aday         │   Qualify Edilen    │
+│   24s: X / Top: Y   │   24s: X / Top: Y   │   24s: X / Top: Y   │
+└─────────────────────┴─────────────────────┴─────────────────────┘
+
+Satır 2 — Çıktı & Sistem:
+┌─────────────────────┬─────────────────────┬─────────────────────┐
+│   Teaser Üretilen   │   Cron Çalışma      │   Discovery         │
+│   24s: X / Top: Y   │   24s: X · Hata: Z  │   Bulunan: X        │
+│                     │   Son: job_name ✓/✗  │   Eklenen: Y        │
+└─────────────────────┴─────────────────────┴─────────────────────┘
+
+Her kartta:
+- Büyük sayı: son 24 saat değeri
+- Alt metin: "/ Toplam: Y"
+- Hata varsa kırmızı badge
+- Cron son çalışma: yeşil ✓ veya kırmızı ✗
+
+Bölüm başlığı: "Son 24 Saat — Pipeline Durumu" + son güncelleme saati

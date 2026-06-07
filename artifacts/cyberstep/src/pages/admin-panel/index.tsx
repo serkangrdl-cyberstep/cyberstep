@@ -6,6 +6,7 @@ import {
   TrendingUp, CheckCircle, Clock,
   BarChart3, DollarSign, Globe, Users,
   Database, ChevronDown, ChevronUp, ExternalLink, Info,
+  Activity, AlertCircle, Search, Mail,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,79 @@ interface OverviewData {
 
 interface MonthlyRow { month: string; assessment_count: number; completed_count: number; }
 interface PaymentRow { month: string; revenue: number; kdv: number; }
+
+interface DailyData {
+  domainScans:      { last24h: number; total: number; };
+  leadCandidates:   { last24h: number; total: number; };
+  qualifiedLeads:   { last24h: number; total: number; };
+  teasersGenerated: { last24h: number; total: number; };
+  cronJobs: {
+    last24h_runs: number;
+    last24h_errors: number;
+    last_run: { job_name: string; status: string; started_at: string; } | null;
+  };
+  discoveryRuns: { last24h_found: number; last24h_added: number; };
+}
+
+function DailyPipelineCard({ title, last24h, total, icon: Icon, color = "text-emerald-400" }: {
+  title: string; last24h: number; total: number; icon: React.ElementType; color?: string;
+}) {
+  return (
+    <Card className="bg-slate-800 border-slate-700">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-slate-400 text-xs">{title}</span>
+          <Icon className={`h-4 w-4 ${color}`} />
+        </div>
+        <div className="text-2xl font-bold text-white mb-1">{last24h}</div>
+        <div className="text-slate-500 text-xs">/ Toplam: {total}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CronDailyCard({ data }: { data: DailyData["cronJobs"] | null }) {
+  const ok = data ? data.last24h_errors === 0 : null;
+  return (
+    <Card className="bg-slate-800 border-slate-700">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-slate-400 text-xs">Cron Çalışma</span>
+          <Activity className="h-4 w-4 text-violet-400" />
+        </div>
+        <div className="text-2xl font-bold text-white mb-1">{data?.last24h_runs ?? "—"}</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {data && data.last24h_errors > 0 && (
+            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-1.5 py-0">
+              <AlertCircle className="h-2.5 w-2.5 mr-1" />{data.last24h_errors} hata
+            </Badge>
+          )}
+          {data?.last_run && (
+            <span className={`text-[10px] flex items-center gap-0.5 ${data.last_run.status === "ok" ? "text-emerald-400" : "text-red-400"}`}>
+              {data.last_run.status === "ok" ? "✓" : "✗"} {data.last_run.job_name}
+            </span>
+          )}
+          {ok === null && <span className="text-slate-600 text-xs">—</span>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiscoveryDailyCard({ data }: { data: DailyData["discoveryRuns"] | null }) {
+  return (
+    <Card className="bg-slate-800 border-slate-700">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-slate-400 text-xs">Discovery</span>
+          <Search className="h-4 w-4 text-sky-400" />
+        </div>
+        <div className="text-2xl font-bold text-white mb-1">{data?.last24h_found ?? "—"}</div>
+        <div className="text-slate-500 text-xs">Bulunan / Eklenen: {data?.last24h_added ?? "—"}</div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function StatCard({ title, value, sub, icon: Icon, color = "text-emerald-400" }: {
   title: string; value: string | number; sub?: string; icon: React.ElementType; color?: string;
@@ -65,6 +139,12 @@ export default function AdminDashboard() {
     queryFn: () => fetch("/api/admin-panel/analytics/monthly", { credentials: "include" }).then(r => r.json()),
   });
 
+  const { data: daily, dataUpdatedAt } = useQuery<DailyData>({
+    queryKey: ["admin-daily"],
+    queryFn: () => fetch("/api/admin-panel/analytics/daily", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
   const fmt = (n: number) => new Intl.NumberFormat("tr-TR").format(Math.round(n));
   const fmtCur = (n: number) => new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(n);
 
@@ -87,6 +167,29 @@ export default function AdminDashboard() {
             </Badge>
           </div>
         )}
+
+        {/* Son 24 Saat — Pipeline Durumu */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-400" />
+              Son 24 Saat — Pipeline Durumu
+            </h2>
+            {dataUpdatedAt > 0 && (
+              <span className="text-slate-500 text-xs">
+                Son güncelleme: {new Date(dataUpdatedAt).toLocaleTimeString("tr-TR")}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <DailyPipelineCard title="Domain Tarama"   last24h={daily?.domainScans.last24h      ?? 0} total={daily?.domainScans.total      ?? 0} icon={Globe}        color="text-emerald-400" />
+            <DailyPipelineCard title="Yeni Aday"       last24h={daily?.leadCandidates.last24h    ?? 0} total={daily?.leadCandidates.total    ?? 0} icon={Users}        color="text-sky-400"     />
+            <DailyPipelineCard title="Qualify Edilen"  last24h={daily?.qualifiedLeads.last24h    ?? 0} total={daily?.qualifiedLeads.total    ?? 0} icon={CheckCircle}  color="text-violet-400"  />
+            <DailyPipelineCard title="Teaser Üretilen" last24h={daily?.teasersGenerated.last24h  ?? 0} total={daily?.teasersGenerated.total  ?? 0} icon={Mail}         color="text-amber-400"   />
+            <CronDailyCard      data={daily?.cronJobs      ?? null} />
+            <DiscoveryDailyCard data={daily?.discoveryRuns ?? null} />
+          </div>
+        </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -814,16 +814,17 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = lockY + 88;
     }
 
-    // ── Tüm içerik sayfalarına footer çiz (index 0 = kapak, atla) ────────────
-    // pageAdded listener'ı kaldır — footer çizimi sırasında yeni sayfa açılmamalı
     doc.removeAllListeners('pageAdded');
 
     const range = doc.bufferedPageRange();
-    const contentPageCount = range.count - 1;
+    const contentPages = range.count - 1; // kapak hariç içerik sayfası sayısı
+
+    // Sadece içerik sayfalarına footer çiz (index 1'den başla, 0 = kapak)
     for (let i = 1; i < range.count; i++) {
       doc.switchToPage(range.start + i);
-      _drawFooter(i, contentPageCount);
+      _drawFooter(i, contentPages);
     }
+    // Kapak sayfasına dokunma — kapak footer'ı zaten kapak çiziminde yapıldı
 
     doc.flushPages();
     doc.end();

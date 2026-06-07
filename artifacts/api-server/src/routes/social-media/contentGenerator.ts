@@ -169,7 +169,18 @@ function buildWeeklySystemPrompt(stats: ScanStats): string {
   const issueList = stats.topIssues.length
     ? stats.topIssues.join("; ")
     : "çeşitli güvenlik açıkları";
-  return `${SYSTEM_PROMPT}
+  return `## Türkiye Siber Güvenlik Pazar Verileri (Fortinet/DORinsight 2025)
+- Türkiye'deki kurumların %65,2'si son 12 ayda en az bir siber saldırıya uğradı
+- Saldırıya maruz kalanlar ortalama 14,6 farklı saldırıyla karşılaştı
+- Kurumların %40,9'u mevcut güvenlik altyapısının yetersiz olduğunu düşünüyor
+- %53,3'ü nitelikli uzman eksikliği nedeniyle güvenlik seviyesini artıramıyor
+- %44,3'ü OT güvenlik seviyesini "yetersiz" veya "gelişmekte" olarak değerlendiriyor
+- %88'i AI tabanlı güvenlik çözümlerini kullanıyor veya kullanmayı planlıyor
+- %68,7'si önümüzdeki dönemde düzenlemelerin artacağını öngörüyor
+Kaynak: Fortinet Türkiye / DORinsight 2025 Türkiye Siber Güvenlik Araştırması.
+Bu verileri içeriklerde referans olarak kullan. Özellikle "%65 saldırı oranı", "uzman eksikliği", "AI güvenlik ilgisi" istatistiklerini merak uyandıran başlıklarda ve argümanlarda kullan.
+
+${SYSTEM_PROMPT}
 
 HAFTALIK TARAMA VERİSİ (sistem bağlamı — içerikte mutlaka kullan):
 Bu hafta ${stats.totalScans} Türk şirketi tarandı. Ortalama skor: ${stats.avgScore}/100. ${stats.riskyDomains} şirkette kritik açık tespit edildi. En yaygın sorunlar: ${issueList}. Bu verileri kullanarak LinkedIn ve Instagram için etkileyici, merak uyandıran Türkçe içerik üret.`;

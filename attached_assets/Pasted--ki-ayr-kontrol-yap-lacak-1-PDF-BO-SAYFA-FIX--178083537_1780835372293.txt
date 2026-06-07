@@ -1,0 +1,67 @@
+İki ayrı kontrol yapılacak:
+
+── 1. PDF BOŞ SAYFA FIX ─────────────────────────────────────────────
+
+artifacts/api-server/src/services/pdf.ts dosyasında generateDomainScanPDF fonksiyonunda PDF boş sayfa sorunu var. Sorun: footer döngüsünde switchToPage kullanılınca pageAdded event tetikleniyor ve boş sayfalar oluşuyor.
+
+Şu değişiklikleri uygula:
+
+a) doc.on('pageAdded') listener'ı eklemeden önce bir flag tanımla:
+   let headerListenerActive = false;
+
+b) Mevcut doc.on('pageAdded', ...) bloğunu şu şekilde değiştir:
+   doc.on('pageAdded', () => {
+     if (!headerListenerActive) return;
+     _drawHeader();
+     doc.y = 52;
+   });
+
+c) Kapak sayfası bittikten sonra, ilk içerik sayfası addPage() çağrısından HEMEN ÖNCE şunu ekle:
+   headerListenerActive = true;
+
+d) Footer döngüsünden HEMEN ÖNCE şunu ekle:
+   headerListenerActive = false;
+
+e) Değişikliği build et ve test et:
+   pnpm --filter @workspace/api-server run build
+   curl -s -o /tmp/test.pdf -w "%{http_code}" https://cyberstepio-cyber-risk-analyzer.replit.app/api/domain-scan/30/pdf
+   pdfinfo /tmp/test.pdf | grep Pages
+   
+   Beklenen: Pages: 3
+
+── 2. ADMIN PANEL QUALIFIED TAB KONTROLÜ ────────────────────────────
+
+artifacts/cyberstep/src/pages/admin-panel/lead-discovery.tsx dosyasında şunları kontrol et:
+
+a) "Qualified" adlı bir TabsTrigger var mı?
+b) TabsContent value="qualified" bloğu var mı?
+c) Stats kartlarında "Contact Bulunan" ve "Teaser Gönderildi" label'ları var mı?
+d) GET /api/admin-panel/lead-discovery/qualified endpoint'i çağrılıyor mu?
+
+Eğer bunlar yoksa artifacts/cyberstep/src/pages/admin-panel/lead-discovery.tsx dosyasını git'ten çek:
+   git log --oneline artifacts/cyberstep/src/pages/admin-panel/lead-discovery.tsx | head -5
+
+Son commit'te "Qualified tab" geçiyorsa dosya güncel demektir — frontend'i rebuild et:
+   pnpm --filter @workspace/cyberstep run build
+
+Eğer Qualified tab kodu yoksa bana söyle, kodu tekrar yazacağım.
+
+── 3. BACKEND STATS ENDPOINTİ KONTROLÜ ──────────────────────────────
+
+artifacts/api-server/src/routes/admin-panel/lead-discovery.ts dosyasında GET /stats endpoint'inin döndürdüğü JSON'da şu alanlar var mı:
+- total
+- qualified  
+- withContact
+- teaserSent
+
+Yoksa şu alanları hesaplayıp döndürecek şekilde güncelle:
+   const [stats] = await db.execute(sql`
+     SELECT
+       COUNT(*) as total,
+       COUNT(*) FILTER (WHERE is_qualified = true) as qualified,
+       COUNT(*) FILTER (WHERE is_qualified = true AND contact_email IS NOT NULL AND contact_email != '') as "withContact",
+       COUNT(*) FILTER (WHERE teaser_sent_at IS NOT NULL) as "teaserSent"
+     FROM lead_candidates
+   `);
+
+Tüm değişiklikleri yaptıktan sonra git add -A && git commit -m "fix: PDF boş sayfa + admin panel stats endpoint" && git push yap.

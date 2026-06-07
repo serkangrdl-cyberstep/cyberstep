@@ -4,7 +4,7 @@
  * finds contacts via Apollo/Hunter, generates teaser emails via Claude.
  */
 import { db } from "@workspace/db";
-import { leadCandidatesTable } from "@workspace/db";
+import { leadCandidatesTable, domainScansTable, customerTechStackTable } from "@workspace/db";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { scanCRTSH } from "./crtshScanner";
@@ -18,6 +18,15 @@ import { shouldExcludeFromPipeline, computeCVEBreakdown } from "./leadScoringSer
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
+}
+
+function getSalesSignal(vendorName: string): string | null {
+  const n = vendorName.toLowerCase();
+  if (n.includes("cloudflare")) return "cdn_user";
+  if (n.includes("wordpress")) return "cms_wordpress";
+  if (n.includes("fortinet") || n.includes("fortigate")) return "fortinet_customer";
+  if (n.includes("microsoft") || n.includes("office 365") || n.includes("exchange")) return "microsoft_shop";
+  return null;
 }
 
 function getISOWeek(date: Date): number {
@@ -162,6 +171,48 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
         sourceData: updatedSourceData,
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
+
+      // Shadow IT → customer_tech_stack aktarımı
+      try {
+        const scanRow = await db
+          .select({ shadowItServices: domainScansTable.shadowItServices })
+          .from(domainScansTable)
+          .where(eq(domainScansTable.id, scanResult.id))
+          .then((r) => r[0]);
+
+        const services = (scanRow?.shadowItServices ?? []) as Array<{
+          name: string; category: string; risk: string; description: string; version?: string;
+        }>;
+
+        if (services.length > 0) {
+          // Önceki shadow IT girişlerini temizle (re-scan senaryosu)
+          await db.delete(customerTechStackTable).where(
+            and(
+              eq(customerTechStackTable.leadCandidateId, candidate.id),
+              eq(customerTechStackTable.detectedVia, "shadow_it_scan"),
+            ),
+          );
+
+          for (const svc of services) {
+            await db.insert(customerTechStackTable).values({
+              domain: candidate.domain,
+              leadCandidateId: candidate.id,
+              category: svc.category,
+              vendor: svc.name,
+              version: svc.version ?? null,
+              securityRisk: (svc.risk as "critical" | "high" | "medium" | "low" | "none") ?? null,
+              securityNote: svc.description,
+              salesSignal: getSalesSignal(svc.name),
+              detectedVia: "shadow_it_scan",
+              confidence: 80,
+            }).onConflictDoNothing();
+          }
+
+          logger.info({ domain: candidate.domain, count: services.length }, "Shadow IT → customer_tech_stack aktarıldı");
+        }
+      } catch (e) {
+        logger.warn({ domain: candidate.domain, err: String(e) }, "Shadow IT tech_stack aktarımı başarısız");
+      }
 
       if (!isQualified) {
         logger.info({ domain: candidate.domain, score: scanResult.overallScore }, "Kalifikasyon reddedildi");

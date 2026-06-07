@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db, pool } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable, blogPostsTable } from "@workspace/db";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable, blogPostsTable, demoReportsTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
@@ -1478,6 +1478,22 @@ async function startup() {
   await ensureAdminPermissions();
   await ensureIocTables();
   await loadApiKeysFromDb();
+  maybeSeedDemoReports();
+}
+
+function maybeSeedDemoReports(): void {
+  setImmediate(async () => {
+    try {
+      const existing = await db.select({ id: demoReportsTable.id }).from(demoReportsTable).limit(1);
+      if (existing.length > 0) return;
+      logger.info("Demo raporlar bulunamadi — otomatik uretim baslıyor");
+      const { generateAllDemoReports } = await import("./services/demoReportGenerator");
+      await generateAllDemoReports();
+      logger.info("Demo rapor seed tamamlandi");
+    } catch (err) {
+      logger.warn({ err }, "Demo rapor seed hatasi");
+    }
+  });
 }
 
 async function ensureIocTables() {

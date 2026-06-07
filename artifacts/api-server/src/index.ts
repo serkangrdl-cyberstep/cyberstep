@@ -2286,14 +2286,14 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul)");
 
-    // ─── Lead Discovery: Kalifikasyon — Her gece 04:00 ───────────────────────
-    cron.schedule("30 4 * * *", wrapCron("lead_qual", "30 4 * * *", async () => {
+    // ─── Lead Discovery: Kalifikasyon — Günde 4 kez 04:00/10:00/16:00/22:00 ──
+    cron.schedule("0 4,10,16,22 * * *", wrapCron("lead_qual", "0 4,10,16,22 * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("lead_qual", 20);
+      const limit = await cronGetLimit("lead_qual", 50);
       await qualifyPendingCandidates(limit);
       return limit;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Lead qualification cron scheduled (daily 04:00 Istanbul)");
+    logger.info("Lead qualification cron scheduled (04:00/10:00/16:00/22:00 Istanbul, limit 50)");
 
     // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
     cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {

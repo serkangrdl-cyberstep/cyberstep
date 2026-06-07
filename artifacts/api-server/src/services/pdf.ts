@@ -318,7 +318,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
         .text(".io", MARGIN + 28 + hcw + hsw, 13, { lineBreak: false, height: 0 });
       doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
-        .text(`${data.domain}  |  Tarama #${data.id}`, MARGIN, 11, { align: "right", width: CONTENT_W, lineBreak: false, height: 0 });
+        .text(data.domain, MARGIN, 11, { align: "right", width: CONTENT_W, lineBreak: false, height: 0 });
       doc.restore();
     };
 
@@ -409,7 +409,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.fillColor(CS_TEXT).font(FONT_BOLD).fontSize(22)
       .text(data.domain, MARGIN, DOMAIN_Y, { width: W - MARGIN * 2 - 160, lineBreak: false });
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8.5)
-      .text(`${new Date(data.createdAt).toLocaleDateString("tr-TR")}  |  Rapor #${data.id}`,
+      .text(new Date(data.createdAt).toLocaleDateString("tr-TR"),
         MARGIN, DOMAIN_Y + 34);
 
     // ── Dairesel gösterge (gauge ring) ───────────────────────────────────────
@@ -826,6 +826,29 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       _drawFooter(i, contentPages);
     }
     // Kapak sayfasına dokunma — kapak footer'ı zaten kapak çiziminde yapıldı
+
+    // Son sayfada: hakkında + yasal uyarı bloğu
+    doc.switchToPage(range.start + range.count - 1);
+    checkPageBreak(doc, 120);
+    const aboutY = doc.y + 12;
+    doc.moveTo(MARGIN, aboutY).lineTo(MARGIN + CONTENT_W, aboutY)
+      .lineWidth(0.5).strokeColor([148, 163, 184]).stroke();
+    doc.moveDown(0.6);
+    doc.fillColor(CS_CYAN).font(FONT_BOLD).fontSize(9)
+      .text("CyberStep.io Hakkında", MARGIN, doc.y, { width: CONTENT_W });
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
+      .text(
+        "CyberStep.io, Türkiye'deki işletmelerin siber güvenlik risklerini hızlı ve anlaşılır biçimde görselleştiren yapay zeka destekli bir değerlendirme platformudur. Tüm siber güvenlik hizmetlerimiz için cyberstep.io adresini ziyaret edin.",
+        MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
+      );
+    doc.moveDown(0.8);
+    doc.fillColor([55, 65, 81]).font(FONT_BOLD).fontSize(9)
+      .text("Yasal Uyarı", MARGIN, doc.y, { width: CONTENT_W });
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
+      .text(
+        "Bu rapor, kamuya açık kaynaklardan pasif tarama yöntemiyle hazırlanmıştır. Sonuçlar bilgilendirme amaçlıdır; eksiksizlik veya doğruluk garantisi verilmez. CyberStep.io, bu rapordaki bulgulara dayanılarak alınan kararlardan doğacak zararlardan sorumlu tutulamaz. © 2026 CyberStep.io",
+        MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
+      );
 
     doc.flushPages();
     doc.end();

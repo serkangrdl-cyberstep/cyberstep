@@ -187,6 +187,8 @@ async function buildDemoPDF(params: {
 
     doc.on("pageAdded", () => {
       if (!headerActive) return;
+      // Koyu arka plan — tüm sayfa (header + footer sonradan üstüne çizilir)
+      doc.rect(0, 0, W, doc.page.height).fill(CS_DARK);
       drawHeader();
       doc.y = 52;
     });

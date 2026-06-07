@@ -11,6 +11,8 @@ import { scanCRTSH } from "./crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./shodanDiscovery";
 import * as apolloService from "./apolloService";
 import * as hunterService from "./hunterService";
+import { whoisLookup } from "./whoisService";
+import { scrapeContactEmail } from "./webContactScraper";
 import { generateLeadTeaserEmail } from "./leadTeaserEmail";
 import { shouldExcludeFromPipeline, computeCVEBreakdown } from "./leadScoringService";
 
@@ -167,21 +169,25 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
         continue;
       }
 
-      // İletişim bul (Apollo önce, Hunter fallback)
+      // İletişim bul: Apollo → Hunter → WHOIS → Web scraping
       if (!candidate.contactEmail) {
         try {
-          const apolloContacts = await apolloService.findDecisionMakers(candidate.domain);
           let contactEmail: string | null = null;
           let contactName: string | null = null;
           let contactTitle: string | null = null;
           let contactSource = "apollo";
 
+          // 1. Apollo
+          const apolloContacts = await apolloService.findDecisionMakers(candidate.domain);
           if (apolloContacts.length > 0) {
             const c = apolloContacts[0] as { email?: string; name?: string; title?: string };
             contactEmail = c.email ?? null;
             contactName = c.name ?? null;
             contactTitle = c.title ?? null;
-          } else {
+          }
+
+          // 2. Hunter fallback
+          if (!contactEmail) {
             const hunterResult = await hunterService.domainSearch(candidate.domain);
             const top = hunterResult.emails[0] as { value?: string; first_name?: string; last_name?: string; position?: string } | undefined;
             if (top) {
@@ -189,6 +195,24 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
               contactName = [top.first_name, top.last_name].filter(Boolean).join(" ") || null;
               contactTitle = top.position ?? null;
               contactSource = "hunter";
+            }
+          }
+
+          // 3. WHOIS fallback
+          if (!contactEmail) {
+            const whoisEmail = await whoisLookup(candidate.domain);
+            if (whoisEmail) {
+              contactEmail = whoisEmail;
+              contactSource = "whois";
+            }
+          }
+
+          // 4. Web scraping fallback
+          if (!contactEmail) {
+            const webContact = await scrapeContactEmail(candidate.domain);
+            if (webContact) {
+              contactEmail = webContact.email;
+              contactSource = `web${webContact.sourcePath}`;
             }
           }
 
@@ -200,6 +224,7 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
               contactSource,
               updatedAt: new Date(),
             }).where(eq(leadCandidatesTable.id, candidate.id));
+            logger.info({ domain: candidate.domain, source: contactSource }, "Kontak bulundu");
           }
         } catch (e) {
           logger.warn({ domain: candidate.domain, err: String(e) }, "İletişim bulma başarısız");

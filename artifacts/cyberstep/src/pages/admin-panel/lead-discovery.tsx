@@ -10,7 +10,8 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 
@@ -297,6 +298,10 @@ export default function AdminLeadDiscovery() {
   const [filterNotSent, setFilterNotSent] = useState(false);
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
+  const [contactEditTarget, setContactEditTarget] = useState<LeadCandidate | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editTitle, setEditTitle] = useState("");
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: stats } = useQuery<Stats>({
@@ -443,6 +448,35 @@ export default function AdminLeadDiscovery() {
       qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
     },
     onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
+  const saveContact = useMutation({
+    mutationFn: ({ id, contactEmail, contactName, contactTitle }: { id: number; contactEmail: string; contactName: string; contactTitle: string }) =>
+      fetch(`${BASE}/lead-discovery/candidates/${id}/contact`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactEmail, contactName, contactTitle }),
+      }).then(async (r) => {
+        const j = await r.json() as { error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: () => {
+      toast({ description: "Kontak bilgisi kaydedildi." });
+      setContactEditTarget(null);
+      qc.invalidateQueries({ queryKey: ["lead-qualified"] });
+      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
+  const reEnrich = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${BASE}/lead-discovery/candidates/${id}/re-enrich`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: () => {
+      toast({ description: "Kontak arama başlatıldı (WHOIS + Web)." });
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["lead-qualified"] }), 15000);
+    },
   });
 
   const deleteCandidate = useMutation({
@@ -821,7 +855,31 @@ export default function AdminLeadDiscovery() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="flex flex-col gap-1 min-w-[100px]">
+                              <div className="flex flex-col gap-1 min-w-[110px]">
+                                {!c.contactEmail && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 w-full"
+                                    onClick={() => reEnrich.mutate(c.id)}
+                                    disabled={reEnrich.isPending}
+                                  >
+                                    Yeniden Ara
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7 w-full"
+                                  onClick={() => {
+                                    setContactEditTarget(c);
+                                    setEditEmail(c.contactEmail ?? "");
+                                    setEditName(c.contactName ?? "");
+                                    setEditTitle(c.contactTitle ?? "");
+                                  }}
+                                >
+                                  Kontak Düzenle
+                                </Button>
                                 {!c.teaserSubject && c.contactEmail && (
                                   <Button
                                     size="sm"
@@ -1349,6 +1407,59 @@ export default function AdminLeadDiscovery() {
                 )}
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      {/* Kontak Düzenleme Dialog */}
+      {!!contactEditTarget && (
+        <Dialog open={!!contactEditTarget} onOpenChange={() => setContactEditTarget(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Kontak Düzenle — {contactEditTarget.domain}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div>
+                <Label className="text-xs mb-1 block">E-posta *</Label>
+                <Input
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="ornek@sirket.com.tr"
+                  type="email"
+                />
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Ad Soyad</Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Ahmet Yılmaz"
+                />
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Unvan</Label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="IT Müdürü"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setContactEditTarget(null)}>Vazgec</Button>
+              <Button
+                disabled={!editEmail || saveContact.isPending}
+                onClick={() =>
+                  saveContact.mutate({
+                    id: contactEditTarget.id,
+                    contactEmail: editEmail,
+                    contactName: editName,
+                    contactTitle: editTitle,
+                  })
+                }
+              >
+                Kaydet
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

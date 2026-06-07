@@ -15,6 +15,8 @@ import { scanCRTSH } from "../../services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "../../services/shodanDiscovery";
 import { runFullDiscoveryAndQualify, qualifyPendingCandidates } from "../../services/discoveryPipeline";
 import { generateLeadTeaserEmail } from "../../services/leadTeaserEmail";
+import { whoisLookup } from "../../services/whoisService";
+import { scrapeContactEmail } from "../../services/webContactScraper";
 import { processCertstreamQueue } from "../../services/certstreamLeadProcessor";
 import { logger } from "../../lib/logger";
 
@@ -201,6 +203,68 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
     .where(conditions.length ? and(...conditions) : undefined);
 
   res.json({ rows, total, page, pageSize });
+});
+
+// ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/contact ────────────
+router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { contactEmail, contactName, contactTitle } = req.body as {
+    contactEmail?: string; contactName?: string; contactTitle?: string;
+  };
+  if (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    res.status(400).json({ error: "Geçerli bir e-posta adresi gerekli." }); return;
+  }
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
+
+  await db.update(leadCandidatesTable).set({
+    contactEmail: contactEmail.trim(),
+    contactName: contactName?.trim() || null,
+    contactTitle: contactTitle?.trim() || null,
+    contactSource: "manual",
+    updatedAt: new Date(),
+  }).where(eq(leadCandidatesTable.id, id));
+
+  res.json({ message: "Kontak bilgisi güncellendi." });
+});
+
+// ─── POST /api/admin-panel/lead-discovery/candidates/:id/re-enrich ────────────
+router.post("/admin-panel/lead-discovery/candidates/:id/re-enrich", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
+
+  res.json({ message: "Kontak arama başlatıldı (WHOIS + Web scraping)." });
+
+  setImmediate(async () => {
+    try {
+      let contactEmail: string | null = null;
+      let contactSource = "";
+
+      // WHOIS
+      const whoisEmail = await whoisLookup(candidate.domain);
+      if (whoisEmail) { contactEmail = whoisEmail; contactSource = "whois"; }
+
+      // Web scraping fallback
+      if (!contactEmail) {
+        const webContact = await scrapeContactEmail(candidate.domain);
+        if (webContact) { contactEmail = webContact.email; contactSource = `web${webContact.sourcePath}`; }
+      }
+
+      if (contactEmail) {
+        await db.update(leadCandidatesTable).set({
+          contactEmail,
+          contactSource,
+          updatedAt: new Date(),
+        }).where(eq(leadCandidatesTable.id, id));
+        logger.info({ id, domain: candidate.domain, source: contactSource, email: contactEmail }, "Re-enrich kontak bulundu");
+      } else {
+        logger.info({ id, domain: candidate.domain }, "Re-enrich: kontak bulunamadı");
+      }
+    } catch (e) {
+      logger.error({ id, err: String(e) }, "Re-enrich başarısız");
+    }
+  });
 });
 
 // ─── POST /api/admin-panel/lead-discovery/candidates/:id/teaser ──────────────

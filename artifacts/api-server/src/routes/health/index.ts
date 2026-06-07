@@ -14,6 +14,27 @@ import { sendMail } from "../../services/email";
 
 const router = Router();
 
+// ─── GET /api/health — Infrastructure ping ────────────────────────────────────
+router.get("/health", async (_req: Request, res: Response) => {
+  const start = Date.now();
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.json({
+      status: "ok",
+      uptime: Math.floor(process.uptime()),
+      db: "connected",
+      latency_ms: Date.now() - start,
+      timestamp: new Date().toISOString(),
+    });
+  } catch {
+    res.status(503).json({
+      status: "error",
+      db: "disconnected",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // ─── Health Score Calculation ────────────────────────────────────────────────
 
 interface HealthResult {

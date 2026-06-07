@@ -883,13 +883,13 @@ function startIsrImapCron() {
 
 // ─── Cron: Scan lead e-posta aktivasyon dizisi (her saat bir kez) ─────────────
 function startScanLeadDripCron() {
-  cron.schedule("0 * * * *", async () => {
-    try {
+  cron.schedule(
+    "0 * * * *",
+    wrapCron("scan_lead_drip", "0 * * * *", async () => {
       await runScanLeadDripCron();
-    } catch (err) {
-      logger.error({ err }, "Scan lead drip cron error");
-    }
-  }, { timezone: "Europe/Istanbul" });
+    }),
+    { timezone: "Europe/Istanbul" },
+  );
   logger.info("Scan lead drip cron scheduled (hourly)");
 }
 

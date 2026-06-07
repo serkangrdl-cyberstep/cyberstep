@@ -12,29 +12,29 @@ const NAV_LINKS = (lang: "tr" | "en") => [
   { href: "/blog", label: t(T.nav.blog, lang) },
   { href: "/fiyatlar", label: t(T.nav.pricing, lang) },
   { href: "/hakkimizda", label: t(T.nav.about, lang) },
-  { href: "/neden-cyberstep", label: "Neden CyberStep?" },
+  { href: "/neden-cyberstep", label: lang === "en" ? "Why CyberStep?" : "Neden CyberStep?" },
   { href: "/iletisim", label: t(T.nav.contact, lang) },
 ];
 
-const AI_GUVENLIK_ITEMS = [
-  { href: "/ai-guvenlik-degerlendirmesi", label: "AI Risk Değerlendirmesi", icon: ShieldCheck, available: true },
-  { href: "/ai-phishing-simulasyonu", label: "AI Phishing Simülasyonu", icon: Mail, available: true },
-  { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: ActivitySquare, available: true },
-  { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, available: true },
-  { href: "/eu-ai-act", label: "EU AI Act Uyum Skoru", icon: Cpu, available: true },
-  { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Bot, available: true },
-  { href: "/ciso-asistan-paketi", label: "CISO Asistan", icon: ShieldCheck, available: true },
+const AI_GUVENLIK_ITEMS = (lang: "tr" | "en") => [
+  { href: "/ai-guvenlik-degerlendirmesi", label: lang === "en" ? "AI Risk Assessment" : "AI Risk Değerlendirmesi", icon: ShieldCheck, available: true },
+  { href: "/ai-phishing-simulasyonu", label: lang === "en" ? "AI Phishing Simulation" : "AI Phishing Simülasyonu", icon: Mail, available: true },
+  { href: "/ai-arac-izleme", label: lang === "en" ? "AI Tool Monitoring" : "AI Araç İzleme", icon: ActivitySquare, available: true },
+  { href: "/ai-politika", label: lang === "en" ? "AI Policy Auto-Update" : "AI Politika Otogüncelleme", icon: FileText, available: true },
+  { href: "/eu-ai-act", label: lang === "en" ? "EU AI Act Compliance Score" : "EU AI Act Uyum Skoru", icon: Cpu, available: true },
+  { href: "/ai-red-team", label: lang === "en" ? "AI Red Team Report" : "AI Red Team Raporu", icon: Bot, available: true },
+  { href: "/ciso-asistan-paketi", label: lang === "en" ? "CISO Assistant" : "CISO Asistan", icon: ShieldCheck, available: true },
 ];
 
-const ARACLAR_ITEMS = [
-  { href: "/domain-tarama", label: "Alan Adı Güvenlik Taraması" },
-  { href: "/sizinti-izleyici", label: "Sızıntı İzleyici" },
-  { href: "/kvkk-ceza-sim", label: "KVKK Ceza Simülatörü" },
-  { href: "/m365-denetim", label: "Microsoft 365 Denetimi" },
-  { href: "/sektorel-kiyaslama", label: "Sektörel Kıyaslama" },
-  { href: "/roi-hesaplayici", label: "ROI Hesaplayıcı" },
-  { href: "/marka-koruma", label: "Marka Koruma" },
-  { href: "/araclar", label: "Tüm Araçlar" },
+const ARACLAR_ITEMS = (lang: "tr" | "en") => [
+  { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
+  { href: "/sizinti-izleyici", label: lang === "en" ? "Leak Monitor" : "Sızıntı İzleyici" },
+  { href: "/kvkk-ceza-sim", label: lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü" },
+  { href: "/m365-denetim", label: lang === "en" ? "Microsoft 365 Audit" : "Microsoft 365 Denetimi" },
+  { href: "/sektorel-kiyaslama", label: lang === "en" ? "Sector Benchmarking" : "Sektörel Kıyaslama" },
+  { href: "/roi-hesaplayici", label: lang === "en" ? "ROI Calculator" : "ROI Hesaplayıcı" },
+  { href: "/marka-koruma", label: lang === "en" ? "Brand Protection" : "Marka Koruma" },
+  { href: "/araclar", label: lang === "en" ? "All Tools" : "Tüm Araçlar" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -125,12 +125,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/ciso-asistan") ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  AI Güvenlik
+                  {lang === "en" ? "AI Security" : "AI Güvenlik"}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${aiOpen ? "rotate-180" : ""}`} />
                 </button>
                 {aiOpen && (
                   <div className="absolute top-full left-0 mt-1.5 w-64 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden">
-                    {AI_GUVENLIK_ITEMS.map(({ href, label, icon: Icon, available }) => (
+                    {AI_GUVENLIK_ITEMS(lang).map(({ href, label, icon: Icon, available }) => (
                       <Link
                         key={label}
                         href={href}
@@ -144,7 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           {label}
                         </span>
                         {!available && (
-                          <span className="ml-auto text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">Yakında</span>
+                          <span className="ml-auto text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">{lang === "en" ? "Soon" : "Yakında"}</span>
                         )}
                       </Link>
                     ))}
@@ -161,21 +161,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <Wrench className="h-3.5 w-3.5" />
-                  Araçlar
+                  {lang === "en" ? "Tools" : "Araçlar"}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${toolsOpen ? "rotate-180" : ""}`} />
                 </button>
                 {toolsOpen && (
                   <div className="absolute top-full left-0 mt-1.5 w-56 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden">
-                    {ARACLAR_ITEMS.map(({ href, label }) => (
+                    {ARACLAR_ITEMS(lang).map(({ href, label }) => {
+                      const isAllTools = href === "/araclar";
+                      return (
                       <Link
                         key={href}
                         href={href}
                         onClick={() => setToolsOpen(false)}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${label === "Tüm Araçlar" ? "font-semibold text-primary border-t mt-1 pt-2.5" : "text-foreground"}`}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${isAllTools ? "font-semibold text-primary border-t mt-1 pt-2.5" : "text-foreground"}`}
                       >
-                        {label === "Tüm Araçlar" ? <>{label} <ChevronRight className="h-3.5 w-3.5 ml-auto" /></> : label}
+                        {isAllTools ? <>{label} <ChevronRight className="h-3.5 w-3.5 ml-auto" /></> : label}
                       </Link>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -269,12 +272,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/ciso-asistan") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
                     }`}
                   >
-                    AI Güvenlik
+                    {lang === "en" ? "AI Security" : "AI Güvenlik"}
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileAiOpen ? "rotate-180" : ""}`} />
                   </button>
                   {mobileAiOpen && (
                     <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-emerald-500/30 pl-3">
-                      {AI_GUVENLIK_ITEMS.map(({ href, label, available }) => (
+                      {AI_GUVENLIK_ITEMS(lang).map(({ href, label, available }) => (
                         <Link
                           key={label}
                           href={href}
@@ -282,7 +285,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           className="flex items-center justify-between w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
                         >
                           {label}
-                          {!available && <span className="text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">Yakında</span>}
+                          {!available && <span className="text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">{lang === "en" ? "Soon" : "Yakında"}</span>}
                         </Link>
                       ))}
                     </div>
@@ -296,12 +299,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => setMobileToolsOpen(v => !v)}
                     className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors text-foreground hover:bg-muted"
                   >
-                    <span className="flex items-center gap-2"><Wrench className="h-4 w-4" />Araçlar</span>
+                    <span className="flex items-center gap-2"><Wrench className="h-4 w-4" />{lang === "en" ? "Tools" : "Araçlar"}</span>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileToolsOpen ? "rotate-180" : ""}`} />
                   </button>
                   {mobileToolsOpen && (
                     <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3">
-                      {ARACLAR_ITEMS.map(({ href, label }) => (
+                      {ARACLAR_ITEMS(lang).map(({ href, label }) => (
                         <Link
                           key={href}
                           href={href}

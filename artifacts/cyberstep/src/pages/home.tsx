@@ -445,7 +445,7 @@ export default function Home() {
       {/* Beta Banner */}
       <div className="bg-primary/10 border-b border-primary/20 text-primary py-2.5 px-4 text-sm text-center">
         <span className="inline-flex items-center gap-2">
-          Siber tehditler durmuyor. Biz de durmuyoruz.
+          {lang === "en" ? "Cyber threats don't stop. Neither do we." : "Siber tehditler durmuyor. Biz de durmuyoruz."}
         </span>
       </div>
       {/* Hero */}
@@ -730,11 +730,11 @@ export default function Home() {
             <div className="text-center mb-8">
               <Badge variant="outline" className="mb-3">
                 <ShieldAlert className="h-3 w-3 mr-1" />
-                Güncel Tehdit İstihbaratı
+                {lang === "en" ? "Latest Threat Intelligence" : "Güncel Tehdit İstihbaratı"}
               </Badge>
-              <h2 className="text-2xl font-bold">Siber Güvenlik Duyuruları</h2>
+              <h2 className="text-2xl font-bold">{lang === "en" ? "Cybersecurity Advisories" : "Siber Güvenlik Duyuruları"}</h2>
               <p className="text-muted-foreground mt-2 text-sm max-w-lg mx-auto">
-                USOM, BTK ve uluslararası kaynaklardan derlenen güncel siber güvenlik uyarıları
+                {lang === "en" ? "Up-to-date cybersecurity alerts compiled from USOM, BTK and international sources" : "USOM, BTK ve uluslararası kaynaklardan derlenen güncel siber güvenlik uyarıları"}
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
@@ -748,8 +748,8 @@ export default function Home() {
                   adv.severity === "high" ? "bg-orange-100 text-orange-700 border-orange-200" :
                   "bg-yellow-100 text-yellow-700 border-yellow-200";
                 const badgeLabel =
-                  adv.severity === "critical" ? "Kritik" :
-                  adv.severity === "high" ? "Yüksek" : "Orta";
+                  adv.severity === "critical" ? (lang === "en" ? "Critical" : "Kritik") :
+                  adv.severity === "high" ? (lang === "en" ? "High" : "Yüksek") : (lang === "en" ? "Medium" : "Orta");
                 return (
                   <div key={adv.id} className={`rounded-xl border p-4 ${severityClass}`}>
                     <div className="flex items-start gap-3">
@@ -888,58 +888,67 @@ export default function Home() {
       <section className="py-24 bg-slate-950 text-white border-t border-slate-800">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-16">
-            <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest mb-4">Neden CyberStep?</p>
+            <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest mb-4">{lang === "en" ? "Why CyberStep?" : "Neden CyberStep?"}</p>
             <h2 className="text-3xl md:text-4xl font-bold leading-tight max-w-3xl mx-auto">
-              Siber güvenlik bir gecede tamamlanmaz.
+              {lang === "en" ? "Cybersecurity is not completed overnight." : "Siber güvenlik bir gecede tamamlanmaz."}
             </h2>
           </div>
           <div className="grid md:grid-cols-2 gap-12 mb-16">
             <div className="space-y-5 text-slate-300 leading-relaxed">
               <p>
-                Merdiveni tek seferde çıkmak mümkün değildir — her basamak bir üstekinin zeminini hazırlar.
-                Bir basamağı atlayamazsın. Kısamazsın. Ama doğru basamakları, doğru sırayla atarsan zirveye ulaşırsın.
+                {lang === "en"
+                  ? "You can't climb a ladder in one leap — each rung builds the foundation for the next. You can't skip a step. You can't shortcut. But if you climb the right steps, in the right order, you reach the top."
+                  : "Merdiveni tek seferde çıkmak mümkün değildir — her basamak bir üstekinin zeminini hazırlar. Bir basamağı atlayamazsın. Kısamazsın. Ama doğru basamakları, doğru sırayla atarsan zirveye ulaşırsın."}
               </p>
               <p>
-                Türkiye'deki şirketlerin büyük çoğunluğu bu merdivende nerede durduğunu bilmiyor.
-                Hangi basamakta olduklarını görecek araçları yok. Yol haritaları yok.
-                Mevcut araçlar İngilizce, erişilmez fiyatlı ve teknik ekip gerektiriyor.
+                {lang === "en"
+                  ? "The majority of companies in Turkey don't know where they stand on this ladder. They don't have tools to see which rung they're on. No roadmap. Existing tools are in English, prohibitively priced, and require a technical team."
+                  : "Türkiye'deki şirketlerin büyük çoğunluğu bu merdivende nerede durduğunu bilmiyor. Hangi basamakta olduklarını görecek araçları yok. Yol haritaları yok. Mevcut araçlar İngilizce, erişilmez fiyatlı ve teknik ekip gerektiriyor."}
               </p>
               <p className="text-white font-medium">
-                CyberStep bu boşluk için doğdu — ve büyüdükçe o boşluğun ne kadar derin olduğunu gördük.
+                {lang === "en"
+                  ? "CyberStep was born for this gap — and as we grew, we saw how deep that gap really was."
+                  : "CyberStep bu boşluk için doğdu — ve büyüdükçe o boşluğun ne kadar derin olduğunu gördük."}
               </p>
             </div>
             <div className="space-y-6">
               <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
-                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3">İsmimizde iki anlam iç içe</p>
+                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3">{lang === "en" ? "Two meanings in our name" : "İsmimizde iki anlam iç içe"}</p>
                 <p className="text-slate-300 text-sm leading-relaxed mb-3">
-                  İngilizce'de <em>step</em> hem <strong className="text-white">adım</strong> hem de <strong className="text-white">ayak izi</strong> demek.
-                  Bu tesadüf değil — bilinçli bir tercih.
+                  {lang === "en"
+                    ? "In English, <em>step</em> means both a <strong>move forward</strong> and a <strong>footprint</strong>. This is no coincidence — it's a deliberate choice."
+                    : <><em>step</em> hem <strong className="text-white">adım</strong> hem de <strong className="text-white">ayak izi</strong> demek. Bu tesadüf değil — bilinçli bir tercih.</>}
                 </p>
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  Siber güvenliğin en kritik kavramlarından biri dijital ayak izi: şirketinizin dışarıdan görünen saldırı yüzeyi.
-                  Bir saldırgan sizi hedef almadan önce ayak izinizi takip eder — hangi sistemler açık, hangi veriler sızmış, hangi kapılar kilitlenmemiş.
+                  {lang === "en"
+                    ? "Digital footprint is one of cybersecurity's most critical concepts: your company's externally visible attack surface. An attacker follows your footprint before targeting you — which systems are exposed, which data has leaked, which doors are unlocked."
+                    : "Siber güvenliğin en kritik kavramlarından biri dijital ayak izi: şirketinizin dışarıdan görünen saldırı yüzeyi. Bir saldırgan sizi hedef almadan önce ayak izinizi takip eder — hangi sistemler açık, hangi veriler sızmış, hangi kapılar kilitlenmemiş."}
                 </p>
                 <p className="text-slate-300 text-sm leading-relaxed mt-3 font-medium">
-                  CyberStep hem güvenlik adımlarınızı planlar hem dijital izinizi yönetir. Adım adım, iz bırakarak.
+                  {lang === "en"
+                    ? "CyberStep both plans your security steps and manages your digital footprint. Step by step, leaving a trail."
+                    : "CyberStep hem güvenlik adımlarınızı planlar hem dijital izinizi yönetir. Adım adım, iz bırakarak."}
                 </p>
               </div>
               <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
-                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3">Neden .io?</p>
+                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3">{lang === "en" ? "Why .io?" : "Neden .io?"}</p>
                 <p className="text-slate-300 text-sm leading-relaxed mb-3">
-                  Bu bir danışmanlık firması değil, bir platform. <strong className="text-white">.io</strong> bilinçli bir sinyal:
-                  yapay zeka ve bulut altyapısı üzerine kurulu, sürekli büyüyen bir teknoloji ekosistemi.
+                  {lang === "en"
+                    ? <>This is not a consulting firm, it's a platform. <strong className="text-white">.io</strong> is a deliberate signal: a continuously growing technology ecosystem built on AI and cloud infrastructure.</>
+                    : <>Bu bir danışmanlık firması değil, bir platform. <strong className="text-white">.io</strong> bilinçli bir sinyal: yapay zeka ve bulut altyapısı üzerine kurulu, sürekli büyüyen bir teknoloji ekosistemi.</>}
                 </p>
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  Dış saldırı yüzeyi taraması, sürekli maruz kalma yönetimi, yapay zeka güvenlik analizi, EU AI Act uyumu,
-                  KVKK entegrasyonu, firewall otomasyonu — bunlar ayrı araçlar değil, birbiriyle konuşan tek bir platform.
+                  {lang === "en"
+                    ? "External attack surface scanning, continuous exposure management, AI security analysis, EU AI Act compliance, KVKK integration, firewall automation — not separate tools, but one interconnected platform."
+                    : "Dış saldırı yüzeyi taraması, sürekli maruz kalma yönetimi, yapay zeka güvenlik analizi, EU AI Act uyumu, KVKK entegrasyonu, firewall otomasyonu — bunlar ayrı araçlar değil, birbiriyle konuşan tek bir platform."}
                 </p>
-                <p className="text-emerald-400 text-sm font-semibold mt-3">Türkiye'de ilk kez, Türkçe.</p>
+                <p className="text-emerald-400 text-sm font-semibold mt-3">{lang === "en" ? "First time in Turkey, in Turkish." : "Türkiye'de ilk kez, Türkçe."}</p>
               </div>
             </div>
           </div>
           <div className="text-center">
             <a href="/hakkimizda" className="inline-flex items-center gap-2 text-emerald-400 font-medium hover:text-emerald-300 transition-colors text-sm">
-              Ekibimizi ve hikayemizi tanıyın
+              {lang === "en" ? "Meet our team and story" : "Ekibimizi ve hikayemizi tanıyın"}
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </a>
           </div>
@@ -951,7 +960,7 @@ export default function Home() {
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-5">
-              <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">Felsefemiz</p>
+              <p className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">{lang === "en" ? "Our Philosophy" : "Felsefemiz"}</p>
               <h2 className="text-3xl md:text-4xl font-bold leading-tight">
                 {lang === "en"
                   ? "Don't buy 'security'. Buy business continuity."
@@ -1033,7 +1042,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">
               <Shield className="h-3 w-3 mr-1" />
-              Ücretsiz Araçlar
+              {lang === "en" ? "Free Tools" : "Ücretsiz Araçlar"}
             </Badge>
             <h2 className="text-3xl font-bold">
               {lang === "en" ? "Free Security Analysis Tools" : "Ücretsiz Siber Güvenlik Analiz Araçları"}
@@ -1057,16 +1066,16 @@ export default function Home() {
               {
                 href: "/kvkk-verbis",
                 icon: "📋",
-                title: "KVKK VERBİS Yükümlülük Kontrolü",
-                what: "Şirketinizin VERBİS'e kayıt yaptırma yükümlülüğü olup olmadığını 3 soruda belirler.",
-                why: "VERBİS'e kayıtsız kalan yükümlü şirketler 94.000 TL'ye kadar idari ceza riskiyle karşı karşıyadır.",
+                title: lang === "en" ? "KVKK VERBİS Obligation Check" : "KVKK VERBİS Yükümlülük Kontrolü",
+                what: lang === "en" ? "Determines in 3 questions whether your company is obliged to register with VERBİS." : "Şirketinizin VERBİS'e kayıt yaptırma yükümlülüğü olup olmadığını 3 soruda belirler.",
+                why: lang === "en" ? "Companies obliged to register but not registered face administrative fines up to 94,000 TL." : "VERBİS'e kayıtsız kalan yükümlü şirketler 94.000 TL'ye kadar idari ceza riskiyle karşı karşıyadır.",
               },
               {
                 href: "/m365-denetim",
                 icon: "☁️",
-                title: "Microsoft 365 Güvenlik Denetimi",
-                what: "Microsoft 365 ortamınızdaki 26 kritik güvenlik ayarını 5 kategoride kontrol eder: Kimlik, Veri, E-posta, İzleme ve Mobil.",
-                why: "M365'teki yanlış yapılandırmalar, kuruluş içi veri sızdırma ve hesap ele geçirme saldırılarının ana nedenidir.",
+                title: lang === "en" ? "Microsoft 365 Security Audit" : "Microsoft 365 Güvenlik Denetimi",
+                what: lang === "en" ? "Checks 26 critical security settings in your Microsoft 365 environment across 5 categories: Identity, Data, Email, Monitoring, and Mobile." : "Microsoft 365 ortamınızdaki 26 kritik güvenlik ayarını 5 kategoride kontrol eder: Kimlik, Veri, E-posta, İzleme ve Mobil.",
+                why: lang === "en" ? "Misconfigurations in M365 are the leading cause of insider data leaks and account takeover attacks." : "M365'teki yanlış yapılandırmalar, kuruluş içi veri sızdırma ve hesap ele geçirme saldırılarının ana nedenidir.",
               },
               {
                 href: "/siber-sigorta",
@@ -1078,37 +1087,37 @@ export default function Home() {
               {
                 href: "/kep-rehberi",
                 icon: "📧",
-                title: "KEP İhtiyaç Değerlendirmesi",
-                what: "Şirketinizin Kayıtlı Elektronik Posta (KEP) hesabı açmasının zorunlu veya önerilen olup olmadığını 3 soruda belirler.",
-                why: "Yasal tebligatlarda KEP kullanılmaması, mahkeme süreçlerinde ciddi hak kayıplarına yol açabilir.",
+                title: lang === "en" ? "KEP (Registered Email) Need Assessment" : "KEP İhtiyaç Değerlendirmesi",
+                what: lang === "en" ? "Determines in 3 questions whether your company is required or recommended to open a Registered Electronic Mail (KEP) account." : "Şirketinizin Kayıtlı Elektronik Posta (KEP) hesabı açmasının zorunlu veya önerilen olup olmadığını 3 soruda belirler.",
+                why: lang === "en" ? "Failure to use KEP for legal notifications can lead to serious loss of rights in court proceedings." : "Yasal tebligatlarda KEP kullanılmaması, mahkeme süreçlerinde ciddi hak kayıplarına yol açabilir.",
               },
               {
                 href: "/erp-tarama",
                 icon: "🗄️",
-                title: "ERP Güvenlik Tarama Listesi",
-                what: "SAP, Logo Tiger, Netsis, Mikro gibi ERP sistemlerindeki 11 kritik güvenlik denetim maddesini kategorize eder.",
-                why: "ERP sistemleri şirketin en kritik verisini barındırır. Fidye yazılımı saldırılarının birincil hedefidir.",
+                title: lang === "en" ? "ERP Security Checklist" : "ERP Güvenlik Tarama Listesi",
+                what: lang === "en" ? "Categorizes 11 critical security audit items for ERP systems such as SAP, Logo Tiger, Netsis, and Mikro." : "SAP, Logo Tiger, Netsis, Mikro gibi ERP sistemlerindeki 11 kritik güvenlik denetim maddesini kategorize eder.",
+                why: lang === "en" ? "ERP systems hold a company's most critical data and are the primary target of ransomware attacks." : "ERP sistemleri şirketin en kritik verisini barındırır. Fidye yazılımı saldırılarının birincil hedefidir.",
               },
               {
                 href: "/sektorel-kiyaslama",
                 icon: "📊",
-                title: "Sektörel Siber Güvenlik Kıyaslama",
-                what: "Siber güvenlik puanınızı 9 farklı sektörün ortalamasıyla karşılaştırır; olay maliyetleri ve en yaygın tehditleri gösterir.",
-                why: "Hangi alanda geride olduğunuzu bilmek, kaynakları doğru riske yönlendirmenizi sağlar.",
+                title: lang === "en" ? "Sector Cybersecurity Benchmarking" : "Sektörel Siber Güvenlik Kıyaslama",
+                what: lang === "en" ? "Compares your cybersecurity score against 9 sector averages; shows incident costs and the most common threats." : "Siber güvenlik puanınızı 9 farklı sektörün ortalamasıyla karşılaştırır; olay maliyetleri ve en yaygın tehditleri gösterir.",
+                why: lang === "en" ? "Knowing where you lag behind helps you direct resources to the right risks." : "Hangi alanda geride olduğunuzu bilmek, kaynakları doğru riske yönlendirmenizi sağlar.",
               },
               {
                 href: "/kvkk-ceza-sim",
                 icon: "⚖️",
-                title: "KVKK Ceza Simülatörü",
-                what: "Seçtiğiniz KVKK ihlali türü ve ağırlaştırıcı/hafifletici koşullara göre KVK Kurulu'nun uygulayabileceği idari para cezasını hesaplar.",
-                why: "Ceza maliyetini önceden bilmek, uyum yatırımlarının geri dönüşünü somutlaştırır ve önceliklendirme yapar.",
+                title: lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü",
+                what: lang === "en" ? "Calculates the administrative fine the Personal Data Protection Authority could impose based on the KVKK violation type and aggravating/mitigating factors." : "Seçtiğiniz KVKK ihlali türü ve ağırlaştırıcı/hafifletici koşullara göre KVK Kurulu'nun uygulayabileceği idari para cezasını hesaplar.",
+                why: lang === "en" ? "Knowing the penalty cost in advance makes the ROI of compliance investments concrete and helps prioritize." : "Ceza maliyetini önceden bilmek, uyum yatırımlarının geri dönüşünü somutlaştırır ve önceliklendirme yapar.",
               },
               {
                 href: "/phishing-sim",
                 icon: "🎣",
-                title: "Phishing Farkındalık Testi",
-                what: "Gerçek kimlik avı senaryolarına dayanan 6 e-posta örneğiyle çalışanların phishing farkındalık seviyesini ölçer.",
-                why: "Kimlik avı saldırıları tüm ihlallerin %90'ından fazlasının başlangıç noktasıdır. İnsan faktörü en büyük risktir.",
+                title: lang === "en" ? "Phishing Awareness Test" : "Phishing Farkındalık Testi",
+                what: lang === "en" ? "Measures employees' phishing awareness with 6 real-world phishing scenario emails." : "Gerçek kimlik avı senaryolarına dayanan 6 e-posta örneğiyle çalışanların phishing farkındalık seviyesini ölçer.",
+                why: lang === "en" ? "Phishing attacks are the starting point of more than 90% of all breaches. The human factor is the biggest risk." : "Kimlik avı saldırıları tüm ihlallerin %90'ından fazlasının başlangıç noktasıdır. İnsan faktörü en büyük risktir.",
               },
               {
                 href: "/domain-tarama",
@@ -1120,106 +1129,106 @@ export default function Home() {
               {
                 href: "/saldiri-simulasyonu",
                 icon: "🎯",
-                title: "Saldırı Simülasyonu — Siber İkiz",
-                what: "Gemini AI, şirket profilinizi analiz ederek gerçekçi bir saldırı senaryosu oluşturur: saldırgan nasıl girer, ilk 24 saat ne olur, tahmini finansal etki nedir?",
-                why: "Soyut riskleri somut hikâyeye dönüştürür. Patronun bütçe kararı vermesini kolaylaştıran en güçlü araç.",
+                title: lang === "en" ? "Attack Simulation — Cyber Twin" : "Saldırı Simülasyonu — Siber İkiz",
+                what: lang === "en" ? "Gemini AI analyzes your company profile to create a realistic attack scenario: how an attacker enters, what happens in the first 24 hours, and the estimated financial impact." : "Gemini AI, şirket profilinizi analiz ederek gerçekçi bir saldırı senaryosu oluşturur: saldırgan nasıl girer, ilk 24 saat ne olur, tahmini finansal etki nedir?",
+                why: lang === "en" ? "Turns abstract risks into a concrete story. The most powerful tool for helping management make budget decisions." : "Soyut riskleri somut hikâyeye dönüştürür. Patronun bütçe kararı vermesini kolaylaştıran en güçlü araç.",
               },
               {
                 href: "/finansal-kayip",
                 icon: "💸",
-                title: "Siber Kayıp Hesaplayıcı",
-                what: "Sektör, çalışan sayısı ve ciro bilgisine göre altı kategoride TL bazında siber saldırı finansal etkisini hesaplar.",
-                why: "IBM CODB ve Verizon DBIR verilerine dayalı. 'Siber güvenlik neden gerekli?' sorusunu TL rakamıyla yanıtlar.",
+                title: lang === "en" ? "Cyber Loss Calculator" : "Siber Kayıp Hesaplayıcı",
+                what: lang === "en" ? "Calculates the financial impact of a cyberattack in TRY across six categories based on sector, employee count, and revenue." : "Sektör, çalışan sayısı ve ciro bilgisine göre altı kategoride TL bazında siber saldırı finansal etkisini hesaplar.",
+                why: lang === "en" ? "Based on IBM CODB and Verizon DBIR data. Answers 'Why is cybersecurity necessary?' with TRY figures." : "IBM CODB ve Verizon DBIR verilerine dayalı. 'Siber güvenlik neden gerekli?' sorusunu TL rakamıyla yanıtlar.",
               },
               {
                 href: "/marka-koruma",
                 icon: "🛡️",
-                title: "Marka Koruma ve Taklit Domain Tespiti",
-                what: "Alan adınızın 70+ varyantını DNS üzerinden kontrol eder. Phishing ve müşteri yönlendirme için kayıtlı sahte domain'leri tespit eder.",
-                why: "Tüketicilerin %73'ü marka taklidi içeren olumsuz deneyimden sonra o markadan ayrılır. KVKK yükümlülüğü de söz konusu olabilir.",
+                title: lang === "en" ? "Brand Protection & Fake Domain Detection" : "Marka Koruma ve Taklit Domain Tespiti",
+                what: lang === "en" ? "Checks 70+ variants of your domain via DNS. Detects fake domains registered for phishing and customer misdirection." : "Alan adınızın 70+ varyantını DNS üzerinden kontrol eder. Phishing ve müşteri yönlendirme için kayıtlı sahte domain'leri tespit eder.",
+                why: lang === "en" ? "73% of consumers leave a brand after a negative experience involving brand impersonation. KVKK obligations may also apply." : "Tüketicilerin %73'ü marka taklidi içeren olumsuz deneyimden sonra o markadan ayrılır. KVKK yükümlülüğü de söz konusu olabilir.",
               },
               {
                 href: "/ai-guvenlik-degerlendirmesi",
                 icon: "🤖",
-                title: "Yapay Zeka Güvenlik Değerlendirmesi",
-                what: "ChatGPT, Gemini, Copilot gibi 20+ AI aracının KVKK uyum durumu, veri saklama politikası ve şirket riskleri. 25 soruluk analizle AI veri maruz kalma haritası çıkarılır.",
-                why: "KVKK'ya göre ABD menşeli AI araçlarına kişisel veri göndermek yurt dışı aktarım sayılır. Ücretsiz ChatGPT'ye girilen veriler model eğitimi için kullanılabilir.",
+                title: lang === "en" ? "AI Security Assessment" : "Yapay Zeka Güvenlik Değerlendirmesi",
+                what: lang === "en" ? "KVKK compliance status, data retention policies, and company risks for 20+ AI tools like ChatGPT, Gemini, Copilot. A 25-question analysis maps your AI data exposure." : "ChatGPT, Gemini, Copilot gibi 20+ AI aracının KVKK uyum durumu, veri saklama politikası ve şirket riskleri. 25 soruluk analizle AI veri maruz kalma haritası çıkarılır.",
+                why: lang === "en" ? "Sending personal data to US-based AI tools is considered a cross-border transfer under KVKK. Data entered into free ChatGPT may be used for model training." : "KVKK'ya göre ABD menşeli AI araçlarına kişisel veri göndermek yurt dışı aktarım sayılır. Ücretsiz ChatGPT'ye girilen veriler model eğitimi için kullanılabilir.",
                 price: "2.900 TL + KDV",
               },
               {
                 href: "/tedarik-zinciri",
                 icon: "🔗",
-                title: "TPRM — Tedarik Zinciri Risk Yönetimi",
-                what: "Tedarikçi domain taraması, AI risk skorkartı ve tedarikçiye anket linki gönderimi. Beyan + teknik tarama = bileşik risk skoru. DORA Madde 28 uyumlu 3 kademe TPRM modülü.",
-                why: "Üretim sektöründe tehdit aktörü faaliyetleri son yılda %71 arttı; saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti. Avrupa alıcıları TPRM raporu istiyor.",
+                title: lang === "en" ? "TPRM — Supply Chain Risk Management" : "TPRM — Tedarik Zinciri Risk Yönetimi",
+                what: lang === "en" ? "Supplier domain scanning, AI risk scorecard, and survey link sending to suppliers. Declaration + technical scan = composite risk score. 3-tier TPRM module compliant with DORA Article 28." : "Tedarikçi domain taraması, AI risk skorkartı ve tedarikçiye anket linki gönderimi. Beyan + teknik tarama = bileşik risk skoru. DORA Madde 28 uyumlu 3 kademe TPRM modülü.",
+                why: lang === "en" ? "Threat actor activity in manufacturing rose 71% last year; the majority of attacks occurred through the supplier network. European buyers are asking for TPRM reports." : "Üretim sektöründe tehdit aktörü faaliyetleri son yılda %71 arttı; saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti. Avrupa alıcıları TPRM raporu istiyor.",
               },
               {
                 href: "/roi-hesaplayici",
                 icon: "🧮",
-                title: "Siber Risk ROI Hesaplayıcı",
-                what: "Sektör ve çalışan sayısına göre olası siber saldırı maliyetini, KVKK ceza riskini ve CyberStep ile sağlanacak tasarrufu TL bazında hesaplar.",
-                why: "IBM 2024 verilerine göre şirketlerin ortalama siber saldırı maliyeti 350 bin – 1,2 milyon TL. ROI hesabı bütçe kararını somutlaştırır.",
+                title: lang === "en" ? "Cyber Risk ROI Calculator" : "Siber Risk ROI Hesaplayıcı",
+                what: lang === "en" ? "Calculates the likely cyberattack cost, KVKK penalty risk, and savings with CyberStep in TRY based on sector and employee count." : "Sektör ve çalışan sayısına göre olası siber saldırı maliyetini, KVKK ceza riskini ve CyberStep ile sağlanacak tasarrufu TL bazında hesaplar.",
+                why: lang === "en" ? "According to IBM 2024 data, the average cyberattack cost for companies is 350K–1.2M TL. ROI calculations make budget decisions concrete." : "IBM 2024 verilerine göre şirketlerin ortalama siber saldırı maliyeti 350 bin – 1,2 milyon TL. ROI hesabı bütçe kararını somutlaştırır.",
               },
               {
                 href: "/guven-rozeti",
                 icon: "🏅",
-                title: "AI Güven Rozeti",
-                what: "Alan adınızı tarar, canlı güncellenen güvenlik skoru rozeti oluşturur. Tek satır HTML ile web sitenize ekleyin.",
-                why: "SSL logosunun siber güvenlik versiyonu — müşteri güvenini somutlaştıran, görünür ve gömülebilir bir güvence.",
+                title: lang === "en" ? "AI Trust Badge" : "AI Güven Rozeti",
+                what: lang === "en" ? "Scans your domain and creates a live-updating security score badge. Add it to your website with one line of HTML." : "Alan adınızı tarar, canlı güncellenen güvenlik skoru rozeti oluşturur. Tek satır HTML ile web sitenize ekleyin.",
+                why: lang === "en" ? "The cybersecurity equivalent of the SSL logo — a visible, embeddable assurance that makes customer trust tangible." : "SSL logosunun siber güvenlik versiyonu — müşteri güvenini somutlaştıran, görünür ve gömülebilir bir güvence.",
               },
               {
                 href: "/dora-bddk-uyum",
                 icon: "⚖️",
-                title: "BDDK / SPK / EPDK / DORA Uyum Analizi",
-                what: "Siber güvenlik puanınızı BDDK BSY, SPK VIII/54, EPDK ve DORA (AB) makalelerine eşler. Gemini AI domain bazlı uyum boşluğu ve yol haritası üretir.",
-                why: "DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk zorunluluğuna hazırlanıyor. Şimdi bu dili konuşan platform olun.",
+                title: lang === "en" ? "BDDK / SPK / EPDK / DORA Compliance Analysis" : "BDDK / SPK / EPDK / DORA Uyum Analizi",
+                what: lang === "en" ? "Maps your cybersecurity score to BDDK BSY, SPK VIII/54, EPDK and DORA (EU) articles. Gemini AI generates domain-based compliance gaps and a roadmap." : "Siber güvenlik puanınızı BDDK BSY, SPK VIII/54, EPDK ve DORA (AB) makalelerine eşler. Gemini AI domain bazlı uyum boşluğu ve yol haritası üretir.",
+                why: lang === "en" ? "DORA came into force in January 2025. BDDK and SPK are preparing similar quantitative ICT risk requirements. Become the platform that speaks this language now." : "DORA Ocak 2025'te yürürlüğe girdi. BDDK ve SPK benzer niceliksel ICT risk zorunluluğuna hazırlanıyor. Şimdi bu dili konuşan platform olun.",
               },
               {
                 href: "/eu-ai-act",
                 icon: "🇪🇺",
-                title: "EU AI Act Uyum Skoru",
-                what: "20 soruluk değerlendirme ile şirketinizin AB Yapay Zeka Yasası kapsamındaki uyum durumunu ve risk kategorisini belirler.",
-                why: "1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar.",
+                title: lang === "en" ? "EU AI Act Compliance Score" : "EU AI Act Uyum Skoru",
+                what: lang === "en" ? "Determines your company's compliance status and risk category under the EU AI Act with a 20-question assessment." : "20 soruluk değerlendirme ile şirketinizin AB Yapay Zeka Yasası kapsamındaki uyum durumunu ve risk kategorisini belirler.",
+                why: lang === "en" ? "From August 1, 2026, companies offering products or services to the EU are obligated. Penalty: up to €35 million." : "1 Ağustos 2026'dan itibaren AB'ye ürün veya hizmet sunan şirketler yükümlü. Ceza: 35 milyon Euro'ya kadar.",
                 price: "1.990 TL + KDV",
               },
               {
                 href: "/ai-red-team",
                 icon: "🎯",
-                title: "AI Red Team Raporu",
-                what: "Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 30 dakikada saldırgan bakış açısı.",
-                why: "Bir saldırgan sizi hedef almadan önce tam olarak bu analizi yapar. Açığı onlardan önce görün.",
+                title: lang === "en" ? "AI Red Team Report" : "AI Red Team Raporu",
+                what: lang === "en" ? "AI-gathered intelligence from public sources — tech infrastructure, executive info, email format, breach history. An attacker's perspective in 30 minutes." : "Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. 30 dakikada saldırgan bakış açısı.",
+                why: lang === "en" ? "An attacker does exactly this analysis before targeting you. See the gap before they do." : "Bir saldırgan sizi hedef almadan önce tam olarak bu analizi yapar. Açığı onlardan önce görün.",
                 price: "2.490 TL + KDV",
               },
               {
                 href: "/ai-phishing-simulasyonu",
                 icon: "🎣",
-                title: "AI Phishing Simülasyonu",
-                what: "Şirketinizi hedef alacak yapay zeka destekli phishing e-postasını saldırganlardan önce görün. OSINT analizi + 3 gerçekçi senaryo + her senaryo için koruma yöntemi.",
-                why: "Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.",
+                title: lang === "en" ? "AI Phishing Simulation" : "AI Phishing Simülasyonu",
+                what: lang === "en" ? "See the AI-powered phishing email targeting your company before attackers do. OSINT analysis + 3 realistic scenarios + protection method for each." : "Şirketinizi hedef alacak yapay zeka destekli phishing e-postasını saldırganlardan önce görün. OSINT analizi + 3 gerçekçi senaryo + her senaryo için koruma yöntemi.",
+                why: lang === "en" ? "Attackers now use AI to analyze your website, LinkedIn profile, and public data to craft personalized emails targeting your employees." : "Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.",
                 price: "1.990 TL + KDV",
               },
               {
                 href: "/ai-arac-izleme",
                 icon: "📡",
-                title: "AI Araç İzleme",
-                what: "ChatGPT, Gemini, Copilot gizlilik politikası değişince anında e-posta bildirimi alın. 20+ AI aracı haftalık kontrol, KVKK uyum puanı güncelleme.",
-                why: "AI araç politikaları sessiz sedasız değişiyor. Şirketinize ait veri aniden farklı bir ülkede işlenmeye başlayabilir.",
+                title: lang === "en" ? "AI Tool Monitoring" : "AI Araç İzleme",
+                what: lang === "en" ? "Get instant email notifications when ChatGPT, Gemini, or Copilot privacy policies change. Weekly checks for 20+ AI tools, KVKK compliance score updates." : "ChatGPT, Gemini, Copilot gizlilik politikası değişince anında e-posta bildirimi alın. 20+ AI aracı haftalık kontrol, KVKK uyum puanı güncelleme.",
+                why: lang === "en" ? "AI tool policies change silently. Data belonging to your company can suddenly start being processed in a different country." : "AI araç politikaları sessiz sedasız değişiyor. Şirketinize ait veri aniden farklı bir ülkede işlenmeye başlayabilir.",
                 price: "490 TL/ay + KDV",
               },
               {
                 href: "/ai-politika",
                 icon: "📑",
-                title: "AI Politika Otogüncelleme",
-                what: "Şirketinizin yapay zeka kullanım politikasını yasal değişikliklere göre otomatik güncelleyen canlı belge. KVKK, EU AI Act ve sektörel düzenlemeler takip edilir.",
-                why: "Manuel politika güncelleme hem zaman alır hem hatalara açıktır. Politika boşlukları KVKK ihlali ve EU AI Act cezasına yol açabilir.",
+                title: lang === "en" ? "AI Policy Auto-Update" : "AI Politika Otogüncelleme",
+                what: lang === "en" ? "A live document that automatically updates your company's AI usage policy in line with legal changes. Tracks KVKK, EU AI Act, and sector regulations." : "Şirketinizin yapay zeka kullanım politikasını yasal değişikliklere göre otomatik güncelleyen canlı belge. KVKK, EU AI Act ve sektörel düzenlemeler takip edilir.",
+                why: lang === "en" ? "Manual policy updates are time-consuming and error-prone. Policy gaps can lead to KVKK violations and EU AI Act penalties." : "Manuel politika güncelleme hem zaman alır hem hatalara açıktır. Politika boşlukları KVKK ihlali ve EU AI Act cezasına yol açabilir.",
                 price: "990 TL/yıl + KDV",
               },
               {
                 href: "/ciso-asistan-paketi",
                 icon: "🛡️",
-                title: "CISO Asistan Paketi",
-                what: "CISO'nuzun rutin işlerini otomatikleştirir: aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545+KVKK uyum skoru, 7 politika şablonu.",
-                why: "Board raporu hazırlamak, uyum takibi yapmak CISO'nun zamanının büyük kısmını alıyor. Bu paketi otomatikleştirin, CISO strateji odaklanabilsin.",
+                title: lang === "en" ? "CISO Assistant Package" : "CISO Asistan Paketi",
+                what: lang === "en" ? "Automates your CISO's routine tasks: monthly board report, weekly threat digest, 7545+KVKK compliance score, 7 policy templates." : "CISO'nuzun rutin işlerini otomatikleştirir: aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545+KVKK uyum skoru, 7 politika şablonu.",
+                why: lang === "en" ? "Preparing board reports and tracking compliance takes up the bulk of a CISO's time. Automate this package so your CISO can focus on strategy." : "Board raporu hazırlamak, uyum takibi yapmak CISO'nun zamanının büyük kısmını alıyor. Bu paketi otomatikleştirin, CISO strateji odaklanabilsin.",
                 price: "2.500 TL/ay + KDV",
               },
             ].map((tool) => (
@@ -1243,11 +1252,11 @@ export default function Home() {
                     </div>
                     <div className="space-y-2">
                       <div>
-                        <span className="text-xs font-bold text-primary uppercase tracking-wide">Ne yapar?</span>
+                        <span className="text-xs font-bold text-primary uppercase tracking-wide">{lang === "en" ? "What it does" : "Ne yapar?"}</span>
                         <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{tool.what}</p>
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Neden gerekli?</span>
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">{lang === "en" ? "Why it matters" : "Neden gerekli?"}</span>
                         <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{tool.why}</p>
                       </div>
                     </div>
@@ -1299,18 +1308,23 @@ export default function Home() {
             <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
               <div className="flex-1">
                 <span className="inline-block text-xs font-bold text-primary uppercase tracking-widest mb-3">
-                  CISO Asistan Paketi
+                  {lang === "en" ? "CISO Assistant Package" : "CISO Asistan Paketi"}
                 </span>
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  CISO'nuz strateji düşünsün,<br className="hidden sm:block" /> rutin raporlamayı biz yapalım
+                  {lang === "en"
+                    ? <>{`Let your CISO focus on strategy,`}<br className="hidden sm:block" />{` we'll handle routine reporting`}</>
+                    : <>CISO'nuz strateji düşünsün,<br className="hidden sm:block" /> rutin raporlamayı biz yapalım</>}
                 </h2>
                 <p className="text-muted-foreground text-sm leading-relaxed max-w-xl">
-                  Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu.
-                  CISO'su olan şirketlerde raporlama yükünü kaldırır;
-                  CISO'su olmayanlara minimum 7545 uyumu sağlar.
+                  {lang === "en"
+                    ? "Monthly board report, weekly threat summary, 7545 and KVKK compliance score, 7 policy templates. Removes reporting burden for companies with a CISO; provides minimum 7545 compliance for those without."
+                    : "Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu. CISO'su olan şirketlerde raporlama yükünü kaldırır; CISO'su olmayanlara minimum 7545 uyumu sağlar."}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["Aylık YK Raporu", "Haftalık Tehdit Özeti", "7545 + KVKK Skoru", "7 Politika Şablonu"].map(tag => (
+                  {(lang === "en"
+                    ? ["Monthly Board Report", "Weekly Threat Digest", "7545 + KVKK Score", "7 Policy Templates"]
+                    : ["Aylık YK Raporu", "Haftalık Tehdit Özeti", "7545 + KVKK Skoru", "7 Politika Şablonu"]
+                  ).map(tag => (
                     <span key={tag} className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full border border-primary/20">
                       {tag}
                     </span>
@@ -1319,21 +1333,21 @@ export default function Home() {
               </div>
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="text-center mb-1">
-                  <p className="text-xs text-muted-foreground">Aylık abonelik</p>
+                  <p className="text-xs text-muted-foreground">{lang === "en" ? "Monthly subscription" : "Aylık abonelik"}</p>
                   <p className="text-3xl font-black text-primary">2.500 TL<span className="text-sm font-normal text-muted-foreground">/ay + KDV</span></p>
                 </div>
                 <Link
                   href="/ciso-asistan-paketi"
                   className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  Paketi İncele
+                  {lang === "en" ? "View Package" : "Paketi İncele"}
                   <ChevronRight className="ml-1.5 h-4 w-4" />
                 </Link>
                 <Link
                   href="/ciso-asistan-paketi#basvuru"
                   className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-12 px-7 border-2 border-primary text-primary hover:bg-primary/10 transition-colors"
                 >
-                  Hemen Başla
+                  {lang === "en" ? "Get Started" : "Hemen Başla"}
                 </Link>
               </div>
             </div>

@@ -125,6 +125,9 @@ export default function CisoAsistan() {
               <Button asChild variant="outline" size="lg" className="border-white/20 text-white hover:bg-white/10">
                 <a href="#kapsam">Paketi Gör</a>
               </Button>
+              <Button asChild variant="outline" size="lg" className="border-white/20 text-white hover:bg-white/10">
+                <a href="/demo?rapor=board_report"><FileText className="h-4 w-4 mr-2" />Örnek Raporu İndir</a>
+              </Button>
             </div>
           </div>
         </div>

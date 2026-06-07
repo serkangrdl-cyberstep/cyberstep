@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useLocation } from "wouter";
-import { Eye, ArrowRight, AlertTriangle, Shield, CheckCircle2, ChevronRight } from "lucide-react";
+import { Eye, ArrowRight, AlertTriangle, Shield, CheckCircle2, ChevronRight, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 
@@ -70,9 +70,15 @@ export default function AiRedTeamPage() {
               Bir saldırgan şirketinizi hedef almadan önce 30 dakikada <strong className="text-white">ne öğrenir?</strong>
             </p>
             <p className="text-slate-400 text-sm mb-8">Kamuya açık kaynaklardan AI ile toplanan istihbarat — teknoloji altyapısı, yönetici bilgileri, e-posta formatı, sızıntı geçmişi. {rtPriceLabel}.</p>
-            <Button onClick={() => setStep("form")} size="lg" className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8">
-              Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={() => setStep("form")} size="lg" className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8">
+                Analizi Başlat <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <a href="/demo?rapor=threat_intel" className="inline-flex items-center gap-2 border border-white/20 text-white/80 hover:text-white hover:border-white/40 px-6 py-3 rounded-lg text-sm font-medium transition-colors">
+                <FileText className="h-4 w-4" />
+                Örnek Raporu İndir
+              </a>
+            </div>
             <p className="text-slate-500 text-xs mt-3">Fiyat: {rtPriceLabel}</p>
           </div>
         </div>

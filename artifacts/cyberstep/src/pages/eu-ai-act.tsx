@@ -106,6 +106,10 @@ export default function EuAiActPage() {
             <Button onClick={() => setStep("form")} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8">
               Uyum Skorumu Öğren <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+            <a href="/demo?rapor=board_report" className="inline-flex items-center gap-2 border border-white/20 text-white/80 hover:text-white hover:border-white/40 px-6 py-3 rounded-lg text-sm font-medium transition-colors">
+              <FileText className="h-4 w-4" />
+              Örnek Raporu İndir
+            </a>
           </div>
           <p className="text-blue-300/50 text-xs mt-4">Fiyat: {euPriceLabel} — AB'ye ihracat yapmasanız da değerlendirin</p>
         </div>

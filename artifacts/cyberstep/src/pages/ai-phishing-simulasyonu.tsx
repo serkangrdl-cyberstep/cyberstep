@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
-import { ChevronRight, Search, Mail, Shield, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Search, Mail, Shield, AlertTriangle, Clock, CheckCircle2, FileText } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const SECTORS = [
@@ -26,9 +26,15 @@ function LandingPage({ onStart }: { onStart: () => void }) {
             Saldırganlar artık şirketinizin web sitesini, LinkedIn profilini ve kamuya açık verilerini yapay zeka ile analiz edip çalışanlarınıza özel e-postalar hazırlıyor.
           </p>
           <p className="text-lg text-white/80 mb-8">CyberStep, sizi hedef alan bir saldırının nasıl görüneceğini <strong className="text-white">3 farklı senaryoyla</strong> gösteriyor.</p>
-          <button onClick={onStart} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
-            Simülasyonu Başlat <ChevronRight className="h-5 w-5" />
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button onClick={onStart} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
+              Simülasyonu Başlat <ChevronRight className="h-5 w-5" />
+            </button>
+            <a href="/demo?rapor=email_security" className="inline-flex items-center gap-2 border border-white/20 text-white/80 hover:text-white hover:border-white/40 px-6 py-4 rounded-xl text-sm font-medium transition-colors">
+              <FileText className="h-4 w-4" />
+              Örnek Raporu İndir
+            </a>
+          </div>
           <p className="text-xs text-muted-foreground mt-4">Hiçbir e-posta gönderilmez. Yalnızca farkındalık amaçlıdır.</p>
 
           <div className="grid grid-cols-3 gap-4 mt-10">

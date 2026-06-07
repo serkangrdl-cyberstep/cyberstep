@@ -216,6 +216,16 @@ const DEMO_SLUG_MAP: Record<string, string> = {
   "soc-standart": "board_report",
   "soc-operasyon": "board_report",
   "soc-pro": "board_report",
+  "ai-security-assessment": "board_report",
+  "phishing-simulation": "email_security",
+  "eu-ai-act": "board_report",
+  "ai-red-team": "threat_intel",
+  "ai-tool-monitoring": "threat_intel",
+  "ai-policy-autoupdate": "board_report",
+  "domain-scan": "easm",
+  "noc-lite": "board_report",
+  "noc-standart": "board_report",
+  "noc-pro": "board_report",
 };
 
 function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {

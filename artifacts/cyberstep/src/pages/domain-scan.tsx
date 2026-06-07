@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
-  Mail, Lock, Server, Loader2, ArrowRight, Info,
+  Mail, Lock, Server, Loader2, ArrowRight, Info, FileText,
   DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network, Wifi, Flag,
   Swords, ChevronDown, ChevronUp, Target, Zap, AlertOctagon,
 } from "lucide-react";
@@ -1888,6 +1888,12 @@ export default function DomainScanPage() {
           Alan adınızın e-posta güvenlik kayıtlarını, SSL sertifikasını, veri sızıntısı geçmişini ve spam listesi
           durumunu otomatik kontrol edin. Hiçbir yazılım kurmanıza gerek yok — sadece alan adınızı girin.
         </p>
+        <div className="mt-3">
+          <a href="/demo?rapor=easm" className="inline-flex items-center gap-1.5 text-xs border border-primary/30 bg-primary/5 text-primary px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
+            <FileText className="h-3.5 w-3.5" />
+            Örnek Tarama Raporunu İndir
+          </a>
+        </div>
       </div>
 
       {/* Form */}

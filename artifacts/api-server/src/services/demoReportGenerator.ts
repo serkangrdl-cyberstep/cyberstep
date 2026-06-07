@@ -187,8 +187,6 @@ async function buildDemoPDF(params: {
 
     doc.on("pageAdded", () => {
       if (!headerActive) return;
-      // Koyu arka plan — tüm sayfa (header + footer sonradan üstüne çizilir)
-      doc.rect(0, 0, W, doc.page.height).fill(CS_DARK);
       drawHeader();
       doc.y = 52;
     });
@@ -220,11 +218,17 @@ async function buildDemoPDF(params: {
       if (doc.y + needed > doc.page.height - 52) doc.addPage();
     };
 
+    // İçerik sayfası renkleri (beyaz zemin üzeri okunabilir)
+    const C_TITLE: [number, number, number]  = [6, 13, 26];    // bölüm başlığı — koyu lacivert
+    const C_BODY:  [number, number, number]  = [30, 40, 60];   // paragraf metni
+    const C_GRAY:  [number, number, number]  = [90, 105, 130]; // ikincil metin
+    const C_LINE:  [number, number, number]  = [0, 160, 210];  // ayraç çizgisi — koyu cyan
+
     const sectionTitle = (title: string) => {
       checkBreak(44);
-      doc.rect(MARGIN, doc.y, CW, 1).fill(CS_CYAN);
-      doc.y += 7;
-      doc.fillColor(CS_TEXT).fontSize(11).font(FONT_BOLD).text(title, MARGIN, doc.y);
+      doc.rect(MARGIN, doc.y, CW, 1.5).fill(C_LINE);
+      doc.y += 8;
+      doc.fillColor(C_TITLE).fontSize(11).font(FONT_BOLD).text(title, MARGIN, doc.y);
       doc.y += 16;
     };
 
@@ -332,27 +336,28 @@ async function buildDemoPDF(params: {
 
       const text = stripMarkdown(section.content);
       checkBreak(20);
-      doc.fillColor(CS_TEXT).fontSize(9).font(FONT_REGULAR)
+      doc.fillColor(C_BODY).fontSize(9.5).font(FONT_REGULAR)
         .text(text, MARGIN, doc.y, {
           width: CW,
           lineGap: 4,
-          paragraphGap: 5,
+          paragraphGap: 6,
         });
       doc.y += 18;
     }
 
-    // Disclaimer box
+    // Disclaimer box — açık zemin, koyu yazı
     checkBreak(52);
-    doc.rect(MARGIN, doc.y, CW, 0.5).fill(CS_CARD);
+    doc.rect(MARGIN, doc.y, CW, 0.5).fill([210, 220, 235]);
     doc.y += 10;
-    doc.rect(MARGIN, doc.y, CW, 36).fill(CS_PANEL);
-    doc.rect(MARGIN, doc.y, 3, 36).fill(CS_CYAN);
-    doc.fillColor(CS_MUTED).fontSize(7.5).font(FONT_REGULAR)
+    const discY = doc.y;
+    doc.rect(MARGIN, discY, CW, 36).fill([240, 245, 252]);
+    doc.rect(MARGIN, discY, 3, 36).fill(C_LINE);
+    doc.fillColor(C_GRAY).fontSize(7.5).font(FONT_REGULAR)
       .text(
         "Bu DEMO rapordur. Veriler gerçek bir taramadan anonimleştirilmiştir. " +
         "Kendi alan adınızı taratmak ve gerçek değerlendirme başlatmak için cyberstep.io adresini ziyaret edin. " +
         "© 2026 CyberStep.io — Tüm hakları saklıdır.",
-        MARGIN + 12, doc.y + 8,
+        MARGIN + 12, discY + 8,
         { width: CW - 18, lineGap: 3 },
       );
 

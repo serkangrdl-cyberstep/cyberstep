@@ -266,12 +266,15 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // DEBUG: tüm pageAdded olaylarını logla (kapak dahil)
+    // Tek pageAdded listener — flag false iken (kapak + footer döngüsü) sessizce döner
+    let headerListenerActive = false;
     doc.on('pageAdded', () => {
-      console.log('[PDF DEBUG] pageAdded tetiklendi, toplam sayfa:', doc.bufferedPageRange().count, 'stack:', new Error().stack?.split('\n')[2]);
+      if (!headerListenerActive) return;
+      _drawHeader();
+      doc.y = 52;
     });
 
-    // Kapak sayfası — header listener henüz kayıtlı değil
+    // Kapak sayfası — headerListenerActive = false → header çizilmez
     doc.addPage();
 
     const W = doc.page.width;
@@ -462,11 +465,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         { width: 52, align: "center", lineBreak: false });
 
     // ══ İÇERİK SAYFASI ════════════════════════════════════════════════════════
-    // pageAdded'ı şimdi kayıt et — kapak zaten çizildi, bundan sonraki her addPage() header çizer
-    doc.on('pageAdded', () => {
-      _drawHeader();
-      doc.y = 52;
-    });
+    // flag = true → bundan sonraki her addPage() (checkPageBreak dahil) header çizer
+    headerListenerActive = true;
     doc.addPage(); // pageAdded tetiklenir → header + doc.y = 52
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
@@ -814,7 +814,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       doc.y = lockY + 88;
     }
 
-    doc.removeAllListeners('pageAdded');
+    // flag = false → switchToPage pageAdded'ı tetiklese bile header çizilmez
+    headerListenerActive = false;
 
     const range = doc.bufferedPageRange();
     const contentPages = range.count - 1; // kapak hariç içerik sayfası sayısı

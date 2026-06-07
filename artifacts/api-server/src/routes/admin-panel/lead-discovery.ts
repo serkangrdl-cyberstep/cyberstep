@@ -278,7 +278,7 @@ router.post("/admin-panel/lead-discovery/candidates/:id/teaser", requireAdmin, a
     try {
       await generateLeadTeaserEmail(id, {
         overallScore: candidate.riskScore ?? 0,
-        findings: (candidate.findingHighlights ?? []).map((t) => ({ severity: "critical", title: t })),
+        findings: (candidate.findingHighlights ?? []).map((t, i) => ({ severity: (i < 3 ? "critical" : "high") as "critical" | "high", title: t })),
       });
     } catch (e) {
       logger.error({ id, err: String(e) }, "Manuel teaser üretimi başarısız");

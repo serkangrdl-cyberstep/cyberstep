@@ -880,7 +880,7 @@ export default function AdminLeadDiscovery() {
                                 >
                                   Kontak Düzenle
                                 </Button>
-                                {!c.teaserSubject && c.contactEmail && (
+                                {!c.teaserSubject && (
                                   <Button
                                     size="sm"
                                     variant="outline"

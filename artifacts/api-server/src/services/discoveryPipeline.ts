@@ -232,15 +232,15 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
         await sleep(500);
       }
 
-      // Teaser üret
-      try {
-        const refreshed = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, candidate.id)).then((r) => r[0]);
-        if (refreshed?.contactEmail) {
+      // Teaser üret — contactEmail olmasa da fire-and-forget
+      setImmediate(async () => {
+        try {
           await generateLeadTeaserEmail(candidate.id, scanResult);
+          logger.info({ domain: candidate.domain }, "Teaser email otomatik üretildi");
+        } catch (e) {
+          logger.warn({ err: String(e), domain: candidate.domain }, "Teaser email üretimi başarısız");
         }
-      } catch (e) {
-        logger.warn({ domain: candidate.domain, err: String(e) }, "Teaser üretimi başarısız");
-      }
+      });
 
       logger.info({ domain: candidate.domain, criticals: criticals.length, score: scanResult.overallScore }, "Kalifikasyon geçti");
     } catch (e) {

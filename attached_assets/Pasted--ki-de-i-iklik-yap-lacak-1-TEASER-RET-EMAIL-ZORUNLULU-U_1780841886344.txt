@@ -1,0 +1,70 @@
+İki değişiklik yapılacak:
+
+── 1. TEASER ÜRET — EMAIL ZORUNLULUĞUNU KALDIR ─────────────────────────────
+
+artifacts/cyberstep/src/pages/admin-panel/lead-discovery.tsx dosyasında Qualified tab'daki "Teaser Üret" butonunun koşulunu değiştir:
+
+Mevcut:
+{!c.teaserSubject && c.contactEmail && (
+  <Button ... onClick={() => generateTeaser.mutate(c.id)}>
+    Teaser Üret
+  </Button>
+)}
+
+Yeni — contact email şartını kaldır:
+{!c.teaserSubject && (
+  <Button ... onClick={() => generateTeaser.mutate(c.id)}>
+    Teaser Üret
+  </Button>
+)}
+
+── 2. QUALIFY SONRASI OTOMATİK TEASER ÜRETİMİ ──────────────────────────────
+
+artifacts/api-server/src/services/discoveryPipeline.ts dosyasında qualifyPendingCandidates fonksiyonunda, bir aday qualify olduktan (isQualified = true) hemen sonra otomatik teaser üretimini tetikle:
+
+import { generateLeadTeaserEmail } from "./leadTeaserEmail";
+
+// qualify sonrası — mevcut DB update'inden hemen sonra:
+if (isQualified) {
+  setImmediate(async () => {
+    try {
+      await generateLeadTeaserEmail(candidate.id);
+      logger.info({ domain: candidate.domain }, "Teaser email otomatik üretildi");
+    } catch (e) {
+      logger.warn({ err: String(e), domain: candidate.domain }, "Teaser email üretimi başarısız");
+    }
+  });
+}
+
+── 3. SEVERITY FIX ───────────────────────────────────────────────────────────
+
+artifacts/api-server/src/routes/admin-panel/lead-discovery.ts dosyasında satır 217'deki findings mapping'ini düzelt:
+
+Mevcut:
+findings: (candidate.findingHighlights ?? []).map((t) => ({ severity: "critical", title: t }))
+
+Yeni — ilk 3 bulgu critical, kalanlar high:
+findings: (candidate.findingHighlights ?? []).map((t, i) => ({ 
+  severity: i < 3 ? "critical" : "high" as "critical" | "high", 
+  title: t 
+}))
+
+── 4. MODEL GÜNCELLEMESİ ────────────────────────────────────────────────────
+
+artifacts/api-server/src/services/leadTeaserEmail.ts dosyasında hardcoded model adını güncelle:
+
+Mevcut: "claude-sonnet-4-5" veya benzeri eski model
+Yeni: "claude-haiku-4-5-20251001"
+
+── 5. TEST ──────────────────────────────────────────────────────────────────
+
+Değişiklikleri yaptıktan sonra:
+1. pnpm --filter @workspace/api-server run build
+2. pnpm --filter @workspace/cyberstep run build
+3. Şu lead için teaser üret:
+   psql $DATABASE_URL -c "UPDATE lead_candidates SET scan_status='pending' WHERE id=80;"
+   Qualify endpoint'ini tetikle, teaser otomatik üretilsin
+4. Sonucu kontrol et:
+   psql $DATABASE_URL -c "SELECT domain, teaser_subject, LEFT(teaser_body, 300) as preview FROM lead_candidates WHERE id=80;"
+
+git commit && git push yap.

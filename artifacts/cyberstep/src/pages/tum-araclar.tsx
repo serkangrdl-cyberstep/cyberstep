@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowRight, Globe, ShieldAlert, FileText, BarChart2, Search, AlertCircle, Target, Bot, Cpu, BookOpen, Scale, Building2, Zap, Activity, Shield, Mail, Eye, Layers, TrendingUp, Lock, Phone } from "lucide-react";
+import { ArrowRight, Globe, ShieldAlert, FileText, BarChart2, Search, AlertCircle, Target, Bot, Cpu, BookOpen, Scale, Building2, Zap, Activity, Shield, Mail, Layers, TrendingUp, Lock, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
@@ -13,10 +13,8 @@ const TOOL_CATEGORIES = [
       { href: "/ai-phishing-simulasyonu", label: "AI Phishing Simülasyonu", icon: Mail, desc: "Gerçekçi AI destekli saldırı senaryolarıyla farkındalığı test edin.", badge: "Yeni" },
       { href: "/ai-arac-izleme", label: "AI Araç İzleme", icon: Activity, desc: "Şirketinizdeki yapay zeka araçlarını tespit edin ve yönetin.", badge: null },
       { href: "/ai-politika", label: "AI Politika Otogüncelleme", icon: FileText, desc: "Regülasyonlara uygun AI politikalarını otomatik güncelleyin.", badge: null },
-      { href: "/deepfake-analizi", label: "Deepfake Tehdit Analizi", icon: Eye, desc: "Deepfake ve ses klonu tehditlerini analiz edin.", badge: null },
       { href: "/eu-ai-act", label: "AB Yapay Zeka Yasası Uyumu", icon: Scale, desc: "EU AI Act kapsamındaki yükümlülüklerinizi değerlendirin.", badge: null },
       { href: "/ai-red-team", label: "AI Red Team Raporu", icon: Target, desc: "AI sistemlerinize yönelik saldırı simülasyonu.", badge: null },
-      { href: "/sahte-dokuman", label: "AI Sahte Doküman Tespiti", icon: Search, desc: "Sahte belgeler ve derin sahte tehditleri tespit edin.", badge: null },
       { href: "/ciso-asistan-paketi", label: "CISO Asistan", icon: Bot, desc: "CISO raporlama yükünü otomatikleştirin: aylık YK raporu, uyum skoru, politika kütüphanesi.", badge: "Yeni" },
     ],
   },

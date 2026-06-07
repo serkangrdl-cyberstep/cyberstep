@@ -434,7 +434,7 @@ Bu kural, aşağıdaki tüm kurallardan ve senaryolardan önce gelir.
    Bu CVE'ler eski/düşük-riskli (EPSS<%0.5, CISA KEV'de yok, 5+ yıllık) — aktif tehdit oluşturmuyor.`
     : "";
 
-  return `${cdnBlock}Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir KOBİ'nin dış güvenlik tarama sonuçlarını analiz ediyorsun.
+  return `${cdnBlock}Sen kıdemli bir tehdit modelleyicisisin. Türkiye'deki bir işletmenin dış güvenlik tarama sonuçlarını analiz ediyorsun.
 
 TARAMA ÖZETİ
 ============

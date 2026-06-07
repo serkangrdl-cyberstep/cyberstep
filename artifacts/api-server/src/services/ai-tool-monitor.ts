@@ -81,7 +81,7 @@ export async function checkToolForChanges(toolId: number): Promise<void> {
 
 async function generateChangeSummary(toolName: string, changes: string[]): Promise<string> {
   try {
-    const prompt = `${toolName} yapay zeka aracının gizlilik politikasında değişiklik tespit edildi.\n\nDeğişiklikler:\n${changes.join("\n")}\n\nBu değişikliği Türk KOBİ patronuna anlatan 2-3 cümlelik özet yaz. Teknik terim kullanma. Şu soruyu yanıtla: "Bu beni nasıl etkiler?" Eğer risk artıyorsa açıkça belirt. Sadece özet metni döndür.`;
+    const prompt = `${toolName} yapay zeka aracının gizlilik politikasında değişiklik tespit edildi.\n\nDeğişiklikler:\n${changes.join("\n")}\n\nBu değişikliği Türk işletme patronuna anlatan 2-3 cümlelik özet yaz. Teknik terim kullanma. Şu soruyu yanıtla: "Bu beni nasıl etkiler?" Eğer risk artıyorsa açıkça belirt. Sadece özet metni döndür.`;
     return await claudeFn(prompt);
   } catch {
     return changes.join("; ");

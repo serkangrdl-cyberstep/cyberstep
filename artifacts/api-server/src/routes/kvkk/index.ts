@@ -33,7 +33,7 @@ Bilgiler:
 - İşleme Amacı: ${processingPurpose}
 - Saklama Süresi: ${retentionPeriod ?? "Hizmet sözleşmesi süresi boyunca"}
 
-Taslak şunları içermeli (Türkçe, hukuki dil, KOBİ'nin anlayabileceği açıklıkta):
+Taslak şunları içermeli (Türkçe, hukuki dil, işletmenin anlayabileceği açıklıkta):
 1. Taraflar ve Tanımlar
 2. Kişisel Veri İşleme Kapsamı ve Amacı
 3. Veri İşleyenin Yükümlülükleri (KVKK Md.12 kapsamında teknik ve idari tedbirler)
@@ -67,12 +67,12 @@ router.post("/panic-advice", async (req, res) => {
     return;
   }
 
-  const prompt = `Sen Türkiye'de KOBİler için siber güvenlik olay müdahale uzmanısın.
-Bir KOBİ şu anda siber saldırı altında ve acil yardıma ihtiyacı var.
+  const prompt = `Sen Türkiye'de işletmeler için siber güvenlik olay müdahale uzmanısın.
+Bir işletme şu anda siber saldırı altında ve acil yardıma ihtiyacı var.
 
 Saldırı Bilgileri:
 - Saldırı türü: ${attackType}
-- Firma türü: ${companyType ?? "KOBİ"}
+- Firma türü: ${companyType ?? "işletme"}
 - Saldırıdan bu yana geçen süre: ${timeElapsed ?? "Bilinmiyor"}
 - Mevcut durum: ${currentImpact}
 - Etkilenen sistemler: ${affectedSystems ?? "Belirtilmemiş"}
@@ -80,7 +80,7 @@ Saldırı Bilgileri:
 Lütfen aşağıdaki formatta ACIL müdahale planı ver:
 
 ## İlk 30 Dakika (Hemen Yapın)
-- 3-5 somut adım, KOBİ sahibinin bizzat yapabileceği
+- 3-5 somut adım, işletme sahibinin bizzat yapabileceği
 - Her adım tek cümle, jargon yok
 
 ## İlk 4 Saat

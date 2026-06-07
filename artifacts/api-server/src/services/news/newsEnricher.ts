@@ -40,7 +40,7 @@ async function enrichBatch(items: RawItem[]): Promise<EnrichedResult[]> {
     .join("\n\n---\n\n");
 
   const systemPrompt = `Sen CyberStep.io'nun siber güvenlik haber analistisisin.
-Türk KOBİ CISO'ları ve IT direktörleri için haberleri analiz et.
+Türk işletme CISO'ları ve IT direktörleri için haberleri analiz et.
 Yanıtın kesinlikle geçerli JSON dizisi olmalı — başka hiçbir şey yazma.`;
 
   const userPrompt = `Şu ${items.length} haberi analiz et:
@@ -52,7 +52,7 @@ Her haber için:
 - summary: 1-2 cümle Türkçe özet (iş riski odaklı, teknik jargon yok)
 - cve_ids: metinde geçen CVE ID'leri dizisi (CVE-YYYY-NNNNN formatında, yoksa [])
 - category: "cve_vulnerability" | "threat_intel" | "data_breach" | "regulation_kvkk" | "vendor_security" | "turkey_news" | "sector_news" | "general"
-- relevance: 1-10 Türk KOBİ için önem (10=acil/kritik, 7+=bültene alınır, 1=alakasız)
+- relevance: 1-10 Türk işletme için önem (10=acil/kritik, 7+=bültene alınır, 1=alakasız)
 
 Yanıt formatı: [{"id":X,"summary":"...","cve_ids":[],"category":"...","relevance":N},...]`;
 

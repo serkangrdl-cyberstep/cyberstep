@@ -386,9 +386,9 @@ ALAN ADI GÜVENLİK TARAMASI (${domainScan.domain}):
 - Tespit Edilen 3. Taraf Servisler (${(domainScan.shadowItServices as any[]).length}): ${(domainScan.shadowItServices as any[]).length > 0 ? (domainScan.shadowItServices as any[]).map((s: any) => `${s.name} (${s.risk} risk)`).join(", ") : "Yok"}
 - Alan Adı Güvenlik Skoru: ${domainScan.overallScore}/100` : "";
 
-  const prompt = `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; iş sürekliliği, fidye saldırısı riski ve yasal uyum (KVKK vb.) odaklı bir Siber Sağlık Karnesi analizi yazmak.
+  const prompt = `Sen işletme sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; iş sürekliliği, fidye saldırısı riski ve yasal uyum (KVKK vb.) odaklı bir Siber Sağlık Karnesi analizi yazmak.
 
-ÖNEMLİ BAĞLAM: Bu analiz bir KOBİ sahibine sunulacak. "MFA", "EDR", "SPF", "DMARC", "endpoint", "patch", "vulnerability", "zero-day" gibi teknik terimler KOBİ sahibi için anlamsızdır. Her zayıflığı şu çerçevede ifade et: "Bu açık varsa → şirkete şu iş sonucu çıkar (üretim durur / fidye ödenir / müşteri verisi sızar / KVKK cezası gelir)".
+ÖNEMLİ BAĞLAM: Bu analiz bir işletme sahibine sunulacak. "MFA", "EDR", "SPF", "DMARC", "endpoint", "patch", "vulnerability", "zero-day" gibi teknik terimler işletme sahibi için anlamsızdır. Her zayıflığı şu çerçevede ifade et: "Bu açık varsa → şirkete şu iş sonucu çıkar (üretim durur / fidye ödenir / müşteri verisi sızar / KVKK cezası gelir)".
 
 Firma: ${assessment.companyName}
 Sektör: ${assessment.sector}
@@ -442,18 +442,18 @@ YAZIM KURALLARI (kesinlikle uy):
 - aiAnalysis içinde markdown yok: #, ##, **, *, - KULLANMA
 - recommendations: iş sahibinin o gün uygulayabileceği veya IT/danışmana verebileceği somut talimatlar. Her madde "X yapın/yaptırın" formatında tek cümle. Teknik terim yok.${domainScan ? " Alan adı sorunları için somut adımlar ekle." : ""}
 - Önerileri öncelik sırasına göre listele: önce iş sürekliliğini en çok tehdit eden açık
-- estimatedBreachCostMin ve estimatedBreachCostMax: sektör, çalışan sayısı, risk seviyesi ve tespit edilen açıklara göre Türk Lirası cinsinden gerçekçi ihlal maliyeti tahmini (fidye, üretim kaybı, KVKK cezası, itibar kaybı dahil). Türkiye KOBİ gerçeklerini yansıt. Sadece tam sayı, sembol/noktalama yok.
+- estimatedBreachCostMin ve estimatedBreachCostMax: sektör, çalışan sayısı, risk seviyesi ve tespit edilen açıklara göre Türk Lirası cinsinden gerçekçi ihlal maliyeti tahmini (fidye, üretim kaybı, KVKK cezası, itibar kaybı dahil). Türkiye işletme gerçeklerini yansıt. Sadece tam sayı, sembol/noktalama yok.
 - riskReductionPercent: önerileri tam uygularsa beklenen risk azalma yüzdesi (0–100 arası tam sayı).
-- weeklyActionPlan: 4 haftalık eylem planı. Her haftada 2–3 somut, uygulanabilir görev. KOBİ sahibinin bizzat yapabileceği veya IT'ye yaptırabileceği. Teknik jargon yok. Görevler reports ile tutarlı olmalı.
+- weeklyActionPlan: 4 haftalık eylem planı. Her haftada 2–3 somut, uygulanabilir görev. işletme sahibinin bizzat yapabileceği veya IT'ye yaptırabileceği. Teknik jargon yok. Görevler reports ile tutarlı olmalı.
 - kvkkPenaltyMin ve kvkkPenaltyMax: Tespit edilen açıkları Türkiye KVKK Madde 12 (teknik ve idari tedbirler zorunluluğu) ve Madde 18 (yaptırımlar) kapsamında değerlendir. KVK Kurulu'nun 2022-2024 emsal kararlarından hareketle şirketin sektörü, çalışan sayısı ve ihlal ağırlığına göre olası idari para cezası aralığını TL cinsinden hesapla. Sadece tam sayı (sembol/virgül/nokta yok).
 - kvkkRiskLevel: KVKK ihlal riski seviyesi — yalnızca şu değerlerden biri: "Düşük", "Orta", "Yüksek" veya "Kritik"
 - kvkkRiskArticles: İhlal riski taşıyan KVKK maddeleri dizisi. Örn: ["Md.12", "Md.18"]
-- kvkkRiskSummary: 2-3 cümle, KOBİ sahibinin anlayacağı dilde KVKK riski özeti. Teknik jargon yok — somut iş ve hukuki etki. Cezanın kişisel yönetim sorumluluğu boyutuna değin.
+- kvkkRiskSummary: 2-3 cümle, işletme sahibinin anlayacağı dilde KVKK riski özeti. Teknik jargon yok — somut iş ve hukuki etki. Cezanın kişisel yönetim sorumluluğu boyutuna değin.
 - sectorBenchmarkPercent: Bu firmayı Türkiye'de aynı sektör ve çalışan grubundaki şirketler içinde kaçıncı yüzdelik dilime koyarsın? Genel siber güvenlik raporları ve sektörel veriyi kullan. 0=en kötü, 100=en iyi yüzdelik dilim. Tam sayı.
-- sectorBenchmarkComment: Tek cümle sektör karşılaştırması. Örn: "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip."
+- sectorBenchmarkComment: Tek cümle sektör karşılaştırması. Örn: "Türkiye perakende sektöründeki işletmelerin %58'i sizden daha iyi skora sahip."
 - verbisRequired: Bu şirketin Türkiye KVKK kapsamında VERBİS (Veri Sorumluları Sicili Bilgi Sistemi)'ne kayıt yaptırması zorunlu mu? Sağlık, hukuk, finans, e-ticaret sektörleri ve 50+ çalışanlı firmalar için genellikle zorunlu. true veya false döndür.
 - verbisRiskLevel: VERBİS kaydı yaptırmamış olmanın getirdiği risk seviyesi — yalnızca: "Düşük", "Orta", "Yüksek" veya "Acil". Kayıt zorunluysa ve yoksa "Acil" veya "Yüksek" ver.
-- verbisSteps: VERBİS kaydı için somut 4-5 adımlık yol haritası. Her adım tek cümle, KOBİ sahibinin anlayacağı dilde. Kayıtlıysa iyileştirme adımları ver.
+- verbisSteps: VERBİS kaydı için somut 4-5 adımlık yol haritası. Her adım tek cümle, işletme sahibinin anlayacağı dilde. Kayıtlıysa iyileştirme adımları ver.
 - insuranceReadinessPercent: Bu şirketin siber sigorta için hazırlık puanı (0-100). Türkiye'de Allianz, AXA, Zurich gibi şirketlerin değerlendirme kriterlerini baz al: MFA, yedekleme, şifreleme, olay müdahale planı, e-posta güvenliği, yama yönetimi. Tam sayı.
 - insuranceGaps: Sigorta kapsamını engelleyen veya primi artıran eksikleri listele. Her madde tek cümle, somut. 3-5 madde.
 - Yanıtı şu JSON şablonuyla başlat: {"aiAnalysis":
@@ -484,7 +484,7 @@ JSON şablonu:
   "kvkkRiskArticles": ["Md.12", "Md.18"],
   "kvkkRiskSummary": "KVKK riski 2-3 cümle özeti.",
   "sectorBenchmarkPercent": 42,
-  "sectorBenchmarkComment": "Türkiye perakende sektöründeki KOBİlerin %58'i sizden daha iyi skora sahip.",
+  "sectorBenchmarkComment": "Türkiye perakende sektöründeki işletmelerin %58'i sizden daha iyi skora sahip.",
   "verbisRequired": true,
   "verbisRiskLevel": "Yüksek",
   "verbisSteps": ["Adım 1: verbis.kvkk.gov.tr adresine gidin.", "Adım 2: Veri sorumlusu olarak kayıt başlatın."],
@@ -493,7 +493,7 @@ JSON şablonu:
 }`;
 
   // Full assessment: extended prompt with maturityLevel + findings + 8-week plan
-  const fullPrompt = assessment.assessmentType === "full" ? `Sen KOBİ sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; 60 soruluk kapsamlı Siber Güvenlik Olgunluk Analizi yazmak.
+  const fullPrompt = assessment.assessmentType === "full" ? `Sen işletme sahiplerine siber güvenlik danışmanlığı yapan kıdemli bir uzmansın. Görevin: teknik jargon KULLANMADAN, iş sahibinin anlayacağı dilde; 60 soruluk kapsamlı Siber Güvenlik Olgunluk Analizi yazmak.
 
 ÖNEMLİ BAĞLAM: Bu analiz ücretli tam değerlendirme raporu. Daha kapsamlı, daha analitik ve daha fazla sektöre özgü öngörü içermeli.
 

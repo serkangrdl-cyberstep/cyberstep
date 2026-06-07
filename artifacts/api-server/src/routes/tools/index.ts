@@ -23,16 +23,16 @@ router.post("/breach-simulator", async (req: Request, res: Response) => {
     return;
   }
 
-  const prompt = `Sen Türkiye'deki KOBİ'ler için siber güvenlik risk simülatörüsün.
+  const prompt = `Sen Türkiye'deki işletmeler için siber güvenlik risk simülatörüsün.
 
 Şirket profili:
 - Sektör: ${sector}
 - Çalışan sayısı: ${employeeCount}
 - Yıllık ciro: ${annualRevenue ? annualRevenue + " TL" : "belirtilmedi"}
-- Bilinen teknik riskler: ${knownRisks || "genel KOBİ profili"}
+- Bilinen teknik riskler: ${knownRisks || "genel işletme profili"}
 
 Bu şirkete yönelik gerçekçi bir siber saldırı senaryosu oluştur. Saldırgan bakış açısından anlat.
-Türkiye KOBİ pazarında gerçekleşen olaylara dayalı somut veriler kullan.
+Türkiye işletme pazarında gerçekleşen olaylara dayalı somut veriler kullan.
 
 SADECE aşağıdaki JSON formatında yanıt ver, başka metin ekleme:
 {
@@ -99,12 +99,12 @@ router.post("/finansal-kayip", async (req: Request, res: Response) => {
     return;
   }
 
-  const prompt = `Türkiye'deki bir KOBİ için siber saldırı finansal etki analizi yap.
+  const prompt = `Türkiye'deki bir işletme için siber saldırı finansal etki analizi yap.
 
 Şirket: ${sector} sektörü, ${employeeCount} çalışan, yıllık ${annualRevenue} TL ciro
 Tespit edilen riskler: ${riskler?.join(", ") || "Genel risk profili"}
 
-IBM Cost of Data Breach 2024, Verizon DBIR 2024 ve Türkiye'deki KOBİ siber olay verilerini referans alarak
+IBM Cost of Data Breach 2024, Verizon DBIR 2024 ve Türkiye'deki işletme siber olay verilerini referans alarak
 gerçekçi TL bazında kayıp hesapla. Şirketin cirosunu ve sektörünü göz önünde bulundur.
 
 SADECE aşağıdaki JSON formatında yanıt ver:
@@ -425,7 +425,7 @@ router.post("/tedarik-zinciri", async (req: Request, res: Response) => {
     sslDays: r.sslDays,
   }));
 
-  const prompt = `Sen Türkiye'deki KOBİ'ler için tedarik zinciri siber güvenlik risk analistsin.
+  const prompt = `Sen Türkiye'deki işletmeler için tedarik zinciri siber güvenlik risk analistsin.
 
 Müşteri şirket: ${companyName ?? "belirtilmedi"}, ${sector} sektörü
 
@@ -503,7 +503,7 @@ router.post("/benchmark-ai", async (req: Request, res: Response) => {
     return;
   }
 
-  const prompt = `Sen Türkiye KOBİ siber güvenlik danışmanısın. Sert, patron diline yakın, harekete geçirici yaz.
+  const prompt = `Sen Türkiye işletme siber güvenlik danışmanısın. Sert, patron diline yakın, harekete geçirici yaz.
 
 Şirket profili:
 - Sektör: ${sector}

@@ -13,7 +13,7 @@ import {
 import { eq, and } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
-const SYSTEM_PROMPT = `Sen Türkiye'deki KOBİ'ler için siber güvenlik politikaları yazan uzman bir hukuk+güvenlik danışmanısın.
+const SYSTEM_PROMPT = `Sen Türkiye'deki işletmeler için siber güvenlik politikaları yazan uzman bir hukuk+güvenlik danışmanısın.
 7545 Sayılı Siber Güvenlik Kanunu ve KVKK uyumlu, profesyonel, uygulanabilir Türkçe politikalar yaz.
 Madde madde, net başlıklar. Gereksiz uzatma.`;
 

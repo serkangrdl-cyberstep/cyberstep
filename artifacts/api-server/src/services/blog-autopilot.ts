@@ -288,7 +288,7 @@ async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise
   const focusKeyword = topic.keywords.split(",")[0].trim();
 
   const prompt = `Sen CyberStep.io adlı Türk siber güvenlik platformunun içerik direktörüsün.
-Türkiye'deki KOBİ sahiplerine, IT yöneticilerine ve KVKK danışmanlarına yönelik blog yazıları üretiyorsun.
+Türkiye'deki işletme sahiplerine, IT yöneticilerine ve KVKK danışmanlarına yönelik blog yazıları üretiyorsun.
 
 ═══════════════════════════════════════════
 YAZI PARAMETRELERİ
@@ -308,7 +308,7 @@ GENEL YAZIM KURALLARI — BUNLARI ASLA İHLAL ETME
 ═══════════════════════════════════════════
 
 TON VE DİL:
-- Hedef okuyucu teknik bilgisi olmayan KOBİ patronu.
+- Hedef okuyucu teknik bilgisi olmayan işletme sahibi.
   "Saldırı yüzey alanı" değil "açık kapılar"; "exploit" değil "açık"; "authentication" değil "kimlik doğrulama".
 - Samimi ama profesyonel. Patrona danışmanlık veren biri gibi konuş.
 - Aktif çatı kullan. "Yapılabilir" değil "Yapın".

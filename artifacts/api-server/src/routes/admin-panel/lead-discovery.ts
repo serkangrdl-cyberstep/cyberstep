@@ -6,9 +6,10 @@ import {
   discoveryRunsTable,
   certstreamQueueTable,
   certstreamStatusTable,
+  customerTechStackTable,
 } from "@workspace/db";
 import {
-  eq, desc, sql, and, count, isNull, isNotNull, gte,
+  eq, desc, sql, and, count, isNull, isNotNull, gte, asc,
 } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { scanCRTSH } from "../../services/crtshScanner";
@@ -321,6 +322,22 @@ router.get("/admin-panel/lead-discovery/certstream/status", requireAdmin, async 
   const [{ totalAll }] = await db.select({ totalAll: count() }).from(certstreamQueueTable);
 
   res.json({ ...status, queuePending: pending, last24hReceived: last24h, totalQueued: totalAll });
+});
+
+// ─── GET /api/admin-panel/lead-discovery/candidates/:id/tech-stack ───────────
+router.get("/admin-panel/lead-discovery/candidates/:id/tech-stack", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const stack = await db
+    .select({
+      vendor: customerTechStackTable.vendor,
+      category: customerTechStackTable.category,
+      salesSignal: customerTechStackTable.salesSignal,
+      securityRisk: customerTechStackTable.securityRisk,
+    })
+    .from(customerTechStackTable)
+    .where(eq(customerTechStackTable.leadCandidateId, id))
+    .orderBy(asc(customerTechStackTable.category));
+  res.json(stack);
 });
 
 // ─── POST /api/admin-panel/lead-discovery/certstream/process ─────────────────

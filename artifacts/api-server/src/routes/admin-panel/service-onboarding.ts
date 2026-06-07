@@ -457,7 +457,7 @@ router.post("/admin-panel/onboarding/:customerId/step", requireAdmin, async (req
       </a>
     </div>
     <div style="background:#f1f5f9;padding:16px 32px;font-size:12px;color:#94a3b8;text-align:center;">
-      CyberStep.io — KOBİ Siber Güvenlik Platformu
+      CyberStep.io — işletme Siber Güvenlik Platformu
     </div>
   </div>
 </body>

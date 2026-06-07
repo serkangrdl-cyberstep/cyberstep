@@ -154,6 +154,13 @@ function runStatusBadge(status: string) {
   return <Badge variant="secondary">{status}</Badge>;
 }
 
+interface TechStackItem {
+  vendor: string;
+  category: string;
+  salesSignal: string | null;
+  securityRisk: string | null;
+}
+
 interface CertstreamStatusData {
   id: number;
   status: string;
@@ -314,6 +321,12 @@ export default function AdminLeadDiscovery() {
     queryKey: ["lead-discovery-runs"],
     queryFn: () => fetch(`${BASE}/lead-discovery/runs?limit=20`).then((r) => r.json()),
     refetchInterval: 10_000,
+  });
+
+  const { data: candidateTechStack } = useQuery<TechStackItem[]>({
+    queryKey: ["candidate-tech-stack", detailCandidate?.id],
+    queryFn: () => fetch(`${BASE}/lead-discovery/candidates/${detailCandidate!.id}/tech-stack`).then((r) => r.json()),
+    enabled: !!detailCandidate,
   });
 
   const { data: shodanQueries } = useQuery<ShodanQuery[]>({
@@ -1343,6 +1356,36 @@ export default function AdminLeadDiscovery() {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tech Stack */}
+              {(candidateTechStack?.length ?? 0) > 0 && (
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">Teknoloji Yığını</div>
+                  <div className="space-y-1">
+                    {[...candidateTechStack!]
+                      .sort((a, b) => (b.securityRisk === "Yüksek" ? 1 : 0) - (a.securityRisk === "Yüksek" ? 1 : 0))
+                      .map((t, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <span className="flex-1 font-medium truncate">{t.vendor}</span>
+                          <span className="text-muted-foreground text-[10px]">{t.category}</span>
+                          {t.salesSignal && (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              t.salesSignal === "fortinet_customer" ? "bg-red-100 text-red-700" :
+                              t.salesSignal === "cms_wordpress" ? "bg-orange-100 text-orange-700" :
+                              t.salesSignal === "cdn_user" ? "bg-blue-100 text-blue-700" :
+                              t.salesSignal === "microsoft_shop" ? "bg-purple-100 text-purple-700" :
+                              "bg-slate-100 text-slate-600"
+                            }`}>{t.salesSignal}</span>
+                          )}
+                          {t.securityRisk === "Yüksek" && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">risk</span>
+                          )}
+                        </div>
+                      ))
+                    }
                   </div>
                 </div>
               )}

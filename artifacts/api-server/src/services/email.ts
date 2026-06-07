@@ -806,7 +806,7 @@ export async function sendDomainRescanEmail(params: {
     <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0">
       <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
         Bu e-posta ${domain} alan adı için otomatik periyodik tarama sonucu gönderilmiştir.<br>
-        CyberStep.io &mdash; KOBİ'ler için Siber Güvenlik
+        CyberStep.io &mdash; işletmeler için Siber Güvenlik
       </p>
     </div>
   </div>
@@ -1015,7 +1015,7 @@ export async function sendPasswordResetEmail(params: {
         <tr>
           <td style="background:#f8fafc;padding:20px 40px;text-align:center">
             <p style="margin:0;font-size:12px;color:#94a3b8">
-              CyberStep.io · KOBİ'ler için Siber Güvenlik Değerlendirme Platformu
+              CyberStep.io · işletmeler için Siber Güvenlik Değerlendirme Platformu
             </p>
           </td>
         </tr>
@@ -1131,9 +1131,9 @@ export async function sendScanLeadDripEmail(params: {
     <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
     <div style="padding:32px">
       <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Siber Saldırı Sizi Kaça Mal Olur?</h2>
-      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">IBM 2024 raporuna göre Türkiye'deki KOBİ'ler için bir siber saldırının ortalama maliyeti <strong>350,000 TL – 1,200,000 TL</strong> arasında değişiyor. KVKK cezaları buna dahil değil.</p>
+      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">IBM 2024 raporuna göre Türkiye'deki işletmeler için bir siber saldırının ortalama maliyeti <strong>350,000 TL – 1,200,000 TL</strong> arasında değişiyor. KVKK cezaları buna dahil değil.</p>
       <div style="background:#fef2f2;border-radius:8px;padding:20px;margin-bottom:20px;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Orta ölçekli KOBİ tahmini</div>
+        <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Orta ölçekli işletme tahmini</div>
         <div style="font-size:36px;font-weight:900;color:#dc2626">850.000 TL</div>
         <div style="font-size:12px;color:#9f1239;margin-top:2px">+ olası KVKK cezası 100.000 – 750.000 TL</div>
       </div>
@@ -1243,7 +1243,7 @@ export async function sendOnboardingD3Email(params: {
       <a href="${params.assessmentUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:16px 24px;border-radius:8px;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:20px">
         Degerlendirmeyi Baslat
       </a>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİler için siber güvenlik platformu</p>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — işletmeler için siber güvenlik platformu</p>
     </div>
   </div>
 </body></html>`,
@@ -1279,10 +1279,10 @@ export async function sendOnboardingD7Email(params: {
     <div style="padding:32px">
       <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Merhaba ${greeting},</h2>
       <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.6">
-        Bir haftadır CyberStep.io'dasınız. KOBİler için siber güvenlik artık bir lüks değil — zorunluluk.
+        Bir haftadır CyberStep.io'dasınız. işletmeler için siber güvenlik artık bir lüks değil — zorunluluk.
       </p>
       <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:16px 20px;margin-bottom:24px">
-        <p style="margin:0;font-size:14px;color:#854d0e;font-weight:700">Türkiye'deki KOBİlerin %67'si siber saldırı sonrası 6 ay içinde kapanıyor.</p>
+        <p style="margin:0;font-size:14px;color:#854d0e;font-weight:700">Türkiye'deki işletmelerin %67'si siber saldırı sonrası 6 ay içinde kapanıyor.</p>
         <p style="margin:6px 0 0;font-size:13px;color:#92400e">Şirketinizin nerede durduğunu bilmek, ilk adım.</p>
       </div>
       <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6">
@@ -1296,7 +1296,7 @@ export async function sendOnboardingD7Email(params: {
           Ucretsiz Mini Degerlendirme (20 soru)
         </a>
       </div>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİler için siber güvenlik platformu</p>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — işletmeler için siber güvenlik platformu</p>
     </div>
   </div>
 </body></html>`,
@@ -1363,7 +1363,7 @@ export async function sendServiceNowReconnectSummaryEmail(params: {
       </p>
     </div>
     <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0">
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİ'ler için siber güvenlik platformu</p>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — işletmeler için siber güvenlik platformu</p>
     </div>
   </div>
 </body></html>`,
@@ -1426,7 +1426,7 @@ export async function sendServiceNowConnectionAlertEmail(params: {
       </p>
     </div>
     <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0">
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — KOBİ'ler için siber güvenlik platformu</p>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — işletmeler için siber güvenlik platformu</p>
     </div>
   </div>
 </body></html>`,
@@ -1484,7 +1484,7 @@ export async function sendSubscriptionCancellationEmail(params: {
   </div>` : ""}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
   <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>
-  <p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu</p>
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — işletme Siber Güvenlik Platformu</p>
 </div>
 </body>
 </html>`;
@@ -1551,7 +1551,7 @@ export async function sendSubscriptionExpiryReminder(params: {
 
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0 16px">
   <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>
-  <p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu</p>
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — işletme Siber Güvenlik Platformu</p>
 </div>
 </body>
 </html>`;

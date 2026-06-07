@@ -184,7 +184,7 @@ async function analyzeWithClaude(
 }> {
   try {
     const ai = getClaudeAiFn("claude-haiku-4-5");
-    const prompt = `Sen bir siber güvenlik analistisin. Türk KOBİ'lere danışmanlık yapıyorsun.
+    const prompt = `Sen bir siber güvenlik analistisin. Türk işletmelere danışmanlık yapıyorsun.
 Aşağıdaki IOC sorgu sonuçlarını analiz et.
 
 Sorgulanan: ${queryValue} (tip: ${queryType})

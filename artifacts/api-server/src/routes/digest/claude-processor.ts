@@ -30,12 +30,12 @@ async function scoreNewsItems(
     .join("\n\n");
 
   const system = `Sen bir Türk siber güvenlik uzmanısın. Haber başlıklarını ve özetlerini analiz ederek 
-Türk KOBİ'ler için önem skorunu 1-10 arasında değerlendiriyorsun.
+Türk işletmeler için önem skorunu 1-10 arasında değerlendiriyorsun.
 Yanıtını kesinlikle şu formatta ver (her satırda bir haber):
 ID:SAYI SKOR:SAYI
 Örnek: ID:42 SKOR:8`;
 
-  const user = `Aşağıdaki ${items.length} haberi Türk KOBİ'ler için önem açısından değerlendir:
+  const user = `Aşağıdaki ${items.length} haberi Türk işletmeler için önem açısından değerlendir:
 
 ${itemsText}
 
@@ -112,7 +112,7 @@ export async function generateWeeklyDigest(
   const weekLabel = `${week.weekYear} Yılı ${week.weekNumber}. Hafta`;
 
   const systemBase = `Sen CyberStep.io için çalışan bir Türk siber güvenlik içerik uzmanısın.
-Hedef kitle: Türkiye'deki KOBİ sahipleri ve IT sorumluları.
+Hedef kitle: Türkiye'deki işletme sahipleri ve IT sorumluları.
 Dil: Türkçe. Ton: Profesyonel ama anlaşılır. Teknik jargondan kaçın.
 Emoji kullanma.`;
 
@@ -120,7 +120,7 @@ Emoji kullanma.`;
     callClaude(
       systemBase,
       `${weekLabel} için siber güvenlik haftalık özeti yaz. Maksimum 600 kelime. 
-Öne çıkan olayları, Türkiye'ye etkisini ve KOBİ önerilerini içermeli.
+Öne çıkan olayları, Türkiye'ye etkisini ve işletme önerilerini içermeli.
 Haber listesi:
 ${newsContext}`
     ),
@@ -128,7 +128,7 @@ ${newsContext}`
     callClaude(
       systemBase + "\nLinkedIn paylaşımı yazıyorsun. Maksimum 3000 karakter.",
       `${weekLabel} siber güvenlik özetini LinkedIn için yaz.
-Başlık, 3-5 madde öne çıkan olay, KOBİ'lere 2-3 öneri, kapanış CTA.
+Başlık, 3-5 madde öne çıkan olay, işletmelere 2-3 öneri, kapanış CTA.
 Haber listesi:
 ${newsContext}`
     ),
@@ -144,7 +144,7 @@ ${newsContext}`
     callClaude(
       systemBase + "\nInstagram caption yazıyorsun. Maksimum 2200 karakter.",
       `${weekLabel} siber güvenlik özetini Instagram gönderisi için yaz.
-Dikkat çekici açılış, 3-4 madde, hashtag'ler (#SiberGüvenlik #KOBİ #CyberStep #Türkiye).
+Dikkat çekici açılış, 3-4 madde, hashtag'ler (#SiberGüvenlik #işletme #CyberStep #Türkiye).
 Haber listesi:
 ${newsContext}`
     ),

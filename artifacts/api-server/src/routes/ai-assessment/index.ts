@@ -531,7 +531,7 @@ Lütfen aşağıdaki JSON formatında Türkçe rapor üret. Sadece JSON döndür
   }
 }`;
 
-    const systemPrompt = `Sen CyberStep.io'nun Yapay Zeka Güvenlik Danışmanısın. KOBİ'ler için AI araçlarının getirdiği KVKK ve siber güvenlik risklerini analiz edersin. Teknik jargon kullanmadan, patron dilinde, somut ve uygulanabilir tavsiyeler verirsin. SADECE geçerli JSON döndür.`;
+    const systemPrompt = `Sen CyberStep.io'nun Yapay Zeka Güvenlik Danışmanısın. işletmeler için AI araçlarının getirdiği KVKK ve siber güvenlik risklerini analiz edersin. Teknik jargon kullanmadan, patron dilinde, somut ve uygulanabilir tavsiyeler verirsin. SADECE geçerli JSON döndür.`;
 
     const claudeFn = getClaudeAiFn();
     const fullPrompt = `${systemPrompt}\n\n${prompt}`;

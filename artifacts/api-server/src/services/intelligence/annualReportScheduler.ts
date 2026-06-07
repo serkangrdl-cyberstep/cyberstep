@@ -95,7 +95,7 @@ export async function analyzeAnnualReport(params: {
 
   const prompt = `Sen CyberStep.io'nun tehdit istihbarat analistisın.
 Türkiye'nin siber güvenlik ekosistemini çok iyi biliyorsun.
-KOBİ müşterileri için günlük tehdit analizi yapıyorsun.
+işletme müşterileri için günlük tehdit analizi yapıyorsun.
 
 Aşağıdaki raporu analiz et:
 Rapor: ${params.title} (${params.publisher}, ${params.reportYear})

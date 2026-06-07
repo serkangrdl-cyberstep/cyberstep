@@ -1514,7 +1514,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
                   <a href="${resultUrl}" style="display:block;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:20px;">
                     Tam Raporu Gör
                   </a>
-                  <p style="font-size:12px;color:#475569;text-align:center;">CyberStep.io · Türkiye'nin KOBİ Siber Güvenlik Platformu</p>
+                  <p style="font-size:12px;color:#475569;text-align:center;">CyberStep.io · Türkiye'nin işletme Siber Güvenlik Platformu</p>
                 </div>
               `,
             });

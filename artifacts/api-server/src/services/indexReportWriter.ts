@@ -96,7 +96,7 @@ Sadece JSON dizisi döndür. 5 madde. Türkçe.
   const globalContextRaw = await callClaude(`
 Türkiye Siber Güvenlik Endeksi için küresel bağlam paragrafı yaz (100-150 kelime):
 
-WEF 2026: %94 lider AI'ı en büyük risk olarak görüyor, siber eşitsizlik uçurumu büyüyor, KOBİ'ler geride.
+WEF 2026: %94 lider AI'ı en büyük risk olarak görüyor, siber eşitsizlik uçurumu büyüyor, işletmeler geride.
 VulnCheck 2026: KEV'lerin %28.96'sı CVE öncesi istismar, network edge cihazlar 1 numara hedef.
 
 Türkiye verisi (${stats.avgScore}/100 ortalama skor, %${stats.email.dmarcMissing} DMARC eksik) ile küresel tabloyu karşılaştır.

@@ -222,7 +222,7 @@ async function maybeSeedQuestions() {
 
 // ─── Cron: 30-günlük hatırlatıcı e-postası (her gün 09:00'da çalışır) ─────────
 function startReminderCron() {
-  cron.schedule("0 9 * * *", async () => {
+  cron.schedule("0 9 * * *", wrapCron("reminder_30day", "0 9 * * *", async () => {
     logger.info("Running 30-day reminder cron job");
     try {
       const thirtyDaysAgo = new Date();
@@ -281,12 +281,12 @@ function startReminderCron() {
     } catch (err) {
       logger.error({ err }, "Reminder cron job failed");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
 
   logger.info("30-day reminder cron scheduled (09:00 Istanbul)");
 
   // Domain re-tarama: e-postası olan ve 30+ gün önce taranan kayıtları yeniden tara
-  cron.schedule("30 9 * * *", async () => {
+  cron.schedule("30 9 * * *", wrapCron("domain_rescan", "30 9 * * *", async () => {
     logger.info("Running domain re-scan cron job");
     try {
       const thirtyDaysAgo = new Date();
@@ -362,11 +362,11 @@ function startReminderCron() {
     } catch (err) {
       logger.error({ err }, "Domain re-scan cron job failed");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
 
   logger.info("Domain re-scan cron scheduled (09:30 Istanbul)");
 
-  cron.schedule("0 8 * * 1", async () => {
+  cron.schedule("0 8 * * 1", wrapCron("weekly_delta", "0 8 * * 1", async () => {
     logger.info("Running weekly delta cron job");
     try {
       const sixtyDaysAgo = new Date();
@@ -447,7 +447,7 @@ function startReminderCron() {
     } catch (err) {
       logger.error({ err }, "Weekly delta cron job failed");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
 
   logger.info("Weekly delta cron scheduled (Monday 08:00 Istanbul)");
 }
@@ -870,14 +870,14 @@ async function ensureIsrTables() {
 }
 
 function startIsrImapCron() {
-  cron.schedule("*/5 * * * *", async () => {
+  cron.schedule("*/5 * * * *", wrapCron("isr_imap", "*/5 * * * *", async () => {
     try {
       const { processInbox } = await import("./services/isr-imap");
       await processInbox();
     } catch (err) {
       logger.error({ err }, "ISR IMAP cron error");
     }
-  });
+  }));
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
@@ -1787,25 +1787,25 @@ function startInflationReminderCron() {
 // ─── Digest Cron ─────────────────────────────────────────────────────────────
 // 06:00 RSS topla → 06:30 Claude zenginleştir → Cuma 07:00 digest üret (İstanbul)
 function startDigestCron() {
-  cron.schedule("30 3 * * *", async () => {
+  cron.schedule("30 3 * * *", wrapCron("digest_rss_collect", "30 3 * * *", async () => {
     logger.info("Digest: RSS haber toplama başlıyor");
     try {
       await collectRSSFeeds();
     } catch (err) {
       logger.error({ err }, "Digest: RSS haber toplama başarısız");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
 
-  cron.schedule("0 4 * * *", async () => {
+  cron.schedule("0 4 * * *", wrapCron("digest_enrich", "0 4 * * *", async () => {
     logger.info("Digest: Haber zenginleştirme (AI özet + CVE çıkarma) başlıyor");
     try {
       await enrichNewsItems();
     } catch (err) {
       logger.error({ err }, "Digest: Haber zenginleştirme başarısız");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
 
-  cron.schedule("0 4 * * 5", async () => {
+  cron.schedule("0 4 * * 5", wrapCron("digest_weekly_generate", "0 4 * * 5", async () => {
     logger.info("Digest: Haftalık digest oluşturma başlıyor");
     try {
       const id = await generateWeeklyDigest();
@@ -1813,7 +1813,7 @@ function startDigestCron() {
     } catch (err) {
       logger.error({ err }, "Digest: Haftalık digest oluşturma başarısız");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
 
   logger.info("Digest cron scheduled (06:00 collect → 06:30 enrich → Fri 07:00 generate Istanbul)");
 }
@@ -1829,14 +1829,14 @@ function startBlogAutopilotCron() {
       logger.error({ err }, "Blog autopilot: yazı üretimi başarısız");
     }
   };
-  cron.schedule("0 6 * * 1", runJob); // Her Pazartesi 09:00 İstanbul
-  cron.schedule("0 6 * * 4", runJob); // Her Perşembe 09:00 İstanbul
+  cron.schedule("0 6 * * 1", wrapCron("blog_autopilot_mon", "0 6 * * 1", runJob)); // Her Pazartesi 09:00 İstanbul
+  cron.schedule("0 6 * * 4", wrapCron("blog_autopilot_thu", "0 6 * * 4", runJob)); // Her Perşembe 09:00 İstanbul
   logger.info("Blog autopilot cron scheduled (Mon & Thu 09:00 Istanbul)");
 }
 
 // ─── Cron: Sosyal Medya — Pazar 20:00 İstanbul haftalık içerik üret ────────────
 function startSocialMediaWeeklyCron() {
-  cron.schedule("0 17 * * 0", async () => {
+  cron.schedule("0 17 * * 0", wrapCron("social_media_weekly", "0 17 * * 0", async () => {
     try {
       logger.info("Sosyal medya haftalık içerik üretimi başlıyor (Pazar 20:00)");
       const { generateWeeklyContent } = await import("./routes/social-media/contentGenerator");
@@ -1853,13 +1853,13 @@ function startSocialMediaWeeklyCron() {
     } catch (err) {
       logger.error({ err }, "Sosyal medya haftalık içerik cron hatası");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
   logger.info("Sosyal medya haftalık içerik cron zamanlandı (Pazar 20:00 İstanbul)");
 }
 
 // ─── Cron: AI Araç Politika İzleme (her Pazar 02:00 İstanbul) ─────────────────
 function startAiToolMonitorCron() {
-  cron.schedule("0 2 * * 0", async () => {
+  cron.schedule("0 2 * * 0", wrapCron("ai_tool_monitor", "0 2 * * 0", async () => {
     try {
       logger.info("AI araç politika kontrolü başlıyor");
       const { checkAllToolsForChanges } = await import("./services/ai-tool-monitor");
@@ -1867,13 +1867,13 @@ function startAiToolMonitorCron() {
     } catch (err) {
       logger.error({ err }, "AI araç politika kontrol cron hatası");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
   logger.info("AI araç politika izleme cron zamanlandı (Pazar 02:00 İstanbul)");
 }
 
 // ─── Cron: AI Politika Çeyreklik Güncelleme (1 Oca/Nis/Tem/Eki 03:00) ─────────
 function startQuarterlyPolicyUpdateCron() {
-  cron.schedule("0 3 1 1,4,7,10 *", async () => {
+  cron.schedule("0 3 1 1,4,7,10 *", wrapCron("quarterly_policy_update", "0 3 1 1,4,7,10 *", async () => {
     try {
       logger.info("AI politika çeyreklik güncelleme başlıyor");
       const { runQuarterlyPolicyUpdate } = await import("./services/policy-generator");
@@ -1881,39 +1881,39 @@ function startQuarterlyPolicyUpdateCron() {
     } catch (err) {
       logger.error({ err }, "AI politika çeyreklik güncelleme cron hatası");
     }
-  }, { timezone: "Europe/Istanbul" });
+  }), { timezone: "Europe/Istanbul" });
   logger.info("AI politika çeyreklik güncelleme cron zamanlandı (1 Oca/Nis/Tem/Eki 03:00 İstanbul)");
 }
 
 // ─── Growth Engine Crons ──────────────────────────────────────────────────────
 function startGrowthEngineCrons() {
   // SSL bitiş taraması — her gece 01:00 İstanbul (22:00 UTC)
-  cron.schedule("0 22 * * *", async () => {
+  cron.schedule("0 22 * * *", wrapCron("growth_ssl_expiry", "0 22 * * *", async () => {
     try {
       const { runSSLExpiryCron } = await import("./services/growth-engine");
       await runSSLExpiryCron();
     } catch (err) {
       logger.warn({ err }, "SSL expiry growth cron failed");
     }
-  });
+  }));
   // CVE uyarısı — her gece 02:30 İstanbul (23:30 UTC)
-  cron.schedule("30 23 * * *", async () => {
+  cron.schedule("30 23 * * *", wrapCron("growth_cve_alert", "30 23 * * *", async () => {
     try {
       const { runCVEAlertCron } = await import("./services/growth-engine");
       await runCVEAlertCron();
     } catch (err) {
       logger.warn({ err }, "CVE alert growth cron failed");
     }
-  });
+  }));
   // Port değişikliği — her Pazar 04:00 İstanbul (01:00 UTC)
-  cron.schedule("0 1 * * 0", async () => {
+  cron.schedule("0 1 * * 0", wrapCron("growth_port_change", "0 1 * * 0", async () => {
     try {
       const { runPortChangeCron } = await import("./services/growth-engine");
       await runPortChangeCron();
     } catch (err) {
       logger.warn({ err }, "Port change growth cron failed");
     }
-  });
+  }));
   logger.info("Growth engine crons scheduled (SSL 01:00, CVE 02:30, Port Sun 04:00 Istanbul)");
 }
 

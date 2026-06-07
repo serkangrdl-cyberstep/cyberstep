@@ -86,7 +86,7 @@ function buildPrompt(ctx: { companyName: string; sector: string; scanSummary: st
     `${i + 1}. [${e.severity}] tip=${e.eventType} aksiyon=${e.action ?? "-"} kaynak=${e.srcIp ?? "-"} hedef=${e.dstIp ?? "-"}:${e.dstPort ?? "-"} saldırı=${e.attackName ?? "-"} cihaz=${e.deviceName ?? "-"} mesaj=${(e.message ?? "").slice(0, 160)}`
   ).join("\n");
 
-  return `Sen kıdemli bir SOC (Güvenlik Operasyon Merkezi) analistisin. Bir KOBİ'nin Fortinet güvenlik duvarından (FortiGate/FortiAnalyzer) gelen olayları analiz edip tek bir korelasyon (saldırı senaryosu) çıkaracaksın.
+  return `Sen kıdemli bir SOC (Güvenlik Operasyon Merkezi) analistisin. Bir işletmenin Fortinet güvenlik duvarından (FortiGate/FortiAnalyzer) gelen olayları analiz edip tek bir korelasyon (saldırı senaryosu) çıkaracaksın.
 
 ŞİRKET: ${ctx.companyName} (sektör: ${ctx.sector})
 DIŞ TEHDİT SİNYALLERİ (alan adı taramasından): ${ctx.scanSummary}

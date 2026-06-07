@@ -74,7 +74,7 @@ async function sendReceiptEmail(params: {
   ${params.paymentRef ? `<p style="color:#94a3b8;font-size:12px">Ödeme Ref: ${params.paymentRef}</p>` : ""}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
   <p style="color:#64748b;font-size:13px">Sorularınız için <a href="mailto:info@cyberstep.io" style="color:#0ea5e9">info@cyberstep.io</a> adresine yazabilirsiniz.</p>
-  <p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu</p>
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — işletme Siber Güvenlik Platformu</p>
 </div>
 </body>
 </html>`;

@@ -25,7 +25,7 @@ function renderRegistrationEmail(step: number, ctx: Record<string, unknown>): { 
     3: {
       subject: "Türkiye'deki Siber Tehditler — Sektörünüz Risk Altında mı?",
       html: `<p>Merhaba <strong>${name}</strong>,</p>
-<p>Bu hafta Türkiye'de 47 yeni kimlik avı kampanyası tespit edildi. KOBİ'ler bu saldırıların %68'inin hedefinde.</p>
+<p>Bu hafta Türkiye'de 47 yeni kimlik avı kampanyası tespit edildi. işletmeler bu saldırıların %68'inin hedefinde.</p>
 <p>Ücretsiz Mini Değerlendirme ile şirketinizin hazırlık düzeyini ölçün.</p>
 <a href="https://cyberstep.io/degerlendirme/baslat" style="background:#0ea5e9;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:16px 0">Ücretsiz Değerlendirmeye Başla</a>`,
     },
@@ -106,7 +106,7 @@ function wrapHtml(content: string): string {
 <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
 ${content}
 <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
-<p style="color:#94a3b8;font-size:12px">CyberStep.io — KOBİ Siber Güvenlik Platformu | <a href="https://cyberstep.io/abonelik-iptal?ref=email">Abonelikten çık</a></p>
+<p style="color:#94a3b8;font-size:12px">CyberStep.io — işletme Siber Güvenlik Platformu | <a href="https://cyberstep.io/abonelik-iptal?ref=email">Abonelikten çık</a></p>
 </div></body></html>`;
 }
 

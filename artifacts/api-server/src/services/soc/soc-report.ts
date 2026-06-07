@@ -95,7 +95,7 @@ export async function generateWeeklySOCReport(customerId: number): Promise<boole
       .map((c) => `- [${c.severity}] ${c.title} (durum: ${c.status}${c.slaBreached ? ", SLA aşıldı" : ""})`)
       .join("\n") || "Bu hafta vaka oluşmadı.";
 
-    const prompt = `Sen bir SOC yöneticisisin. Aşağıdaki haftalık SOC verisinden, KOBİ patronunun anlayacağı sade Türkçe ile 3-5 paragraflık yönetici özeti yaz. Teknik jargondan kaçın, iş riskine odaklan.
+    const prompt = `Sen bir SOC yöneticisisin. Aşağıdaki haftalık SOC verisinden, işletme patronunun anlayacağı sade Türkçe ile 3-5 paragraflık yönetici özeti yaz. Teknik jargondan kaçın, iş riskine odaklan.
 
 ŞİRKET: ${customer.companyName ?? "Müşteri"}
 DÖNEM: ${weekLabel}

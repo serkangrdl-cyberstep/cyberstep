@@ -1,3 +1,4 @@
+import fs from "fs";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db, pool } from "@workspace/db";
@@ -1484,9 +1485,22 @@ async function startup() {
 function maybeSeedDemoReports(): void {
   setImmediate(async () => {
     try {
-      const existing = await db.select({ id: demoReportsTable.id }).from(demoReportsTable).limit(1);
-      if (existing.length > 0) return;
-      logger.info("Demo raporlar bulunamadi — otomatik uretim baslıyor");
+      const existing = await db
+        .select({ id: demoReportsTable.id, pdfPath: demoReportsTable.pdfPath })
+        .from(demoReportsTable)
+        .limit(6);
+
+      // DB kayıt yok VEYA herhangi bir PDF dosyası disk üzerinde eksikse yeniden üret
+      const missingFile = existing.some(
+        (r) => !r.pdfPath || !fs.existsSync(r.pdfPath),
+      );
+
+      if (existing.length > 0 && !missingFile) return;
+
+      logger.info(
+        { dbRows: existing.length, missingFile },
+        "Demo raporlar eksik — otomatik uretim baslıyor",
+      );
       const { generateAllDemoReports } = await import("./services/demoReportGenerator");
       await generateAllDemoReports();
       logger.info("Demo rapor seed tamamlandi");

@@ -59,30 +59,60 @@ export interface ScanStats {
   spfFailPct: number;
   dmarcFailPct: number;
   hibpBreachPct: number;
+  riskyDomains: number;
+  topIssues: string[];
 }
 
 async function getWeeklyScanStats(): Promise<ScanStats> {
   try {
-    const rows = await db.execute(`
-      SELECT
-        COUNT(*) AS total,
-        ROUND(AVG(overall_score)) AS avg_score,
-        ROUND(100.0 * SUM(CASE WHEN spf_pass = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) AS spf_fail_pct,
-        ROUND(100.0 * SUM(CASE WHEN dmarc_pass = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) AS dmarc_fail_pct,
-        ROUND(100.0 * SUM(CASE WHEN hibp_breach_count > 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) AS hibp_pct
-      FROM domain_scans
-      WHERE created_at >= NOW() - INTERVAL '7 days'
-    `);
-    const r = (rows.rows as Array<Record<string, unknown>>)[0] ?? {};
+    const [mainRows, issueRows] = await Promise.all([
+      db.execute(`
+        SELECT
+          COUNT(*)                                                                             AS total,
+          ROUND(AVG(overall_score))                                                           AS avg_score,
+          ROUND(100.0 * SUM(CASE WHEN spf_pass  = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) AS spf_fail_pct,
+          ROUND(100.0 * SUM(CASE WHEN dmarc_pass = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) AS dmarc_fail_pct,
+          ROUND(100.0 * SUM(CASE WHEN hibp_breach_count > 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) AS hibp_pct,
+          SUM(CASE WHEN overall_score < 60 THEN 1 ELSE 0 END)                                AS risky_domains
+        FROM domain_scans
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+      `),
+      db.execute(`
+        SELECT issue, cnt FROM (
+          SELECT 'DMARC kaydı eksik'        AS issue, SUM(CASE WHEN dmarc_pass = false           THEN 1 ELSE 0 END) AS cnt FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+          UNION ALL
+          SELECT 'SPF kaydı eksik',                   SUM(CASE WHEN spf_pass  = false            THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+          UNION ALL
+          SELECT 'SSL sertifikası yakın/geçersiz',    SUM(CASE WHEN ssl_days_until_expiry < 30   THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+          UNION ALL
+          SELECT 'Kara listeye alınmış domain',       SUM(CASE WHEN blacklisted = true           THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+          UNION ALL
+          SELECT 'Veri ihlali tespit edildi (HIBP)',  SUM(CASE WHEN hibp_breach_count > 0        THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+          UNION ALL
+          SELECT 'HTTP güvenlik başlıkları eksik',    SUM(CASE WHEN http_headers_score < 50      THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+        ) t
+        WHERE cnt > 0
+        ORDER BY cnt DESC
+        LIMIT 3
+      `),
+    ]);
+
+    const r = (mainRows.rows as Array<Record<string, unknown>>)[0] ?? {};
+    const topIssues = (issueRows.rows as Array<{ issue: string; cnt: unknown }>).map(
+      (row) => `${row.issue} (%${Math.round(Number(row.cnt) / Math.max(Number(r["total"] ?? 1), 1) * 100)})`
+    );
+
     return {
-      totalScans: Number(r["total"] ?? 0),
-      avgScore: Number(r["avg_score"] ?? 0),
-      spfFailPct: Number(r["spf_fail_pct"] ?? 0),
+      totalScans:   Number(r["total"]         ?? 0),
+      avgScore:     Number(r["avg_score"]      ?? 0),
+      spfFailPct:   Number(r["spf_fail_pct"]   ?? 0),
       dmarcFailPct: Number(r["dmarc_fail_pct"] ?? 0),
-      hibpBreachPct: Number(r["hibp_pct"] ?? 0),
+      hibpBreachPct:Number(r["hibp_pct"]       ?? 0),
+      riskyDomains: Number(r["risky_domains"]  ?? 0),
+      topIssues,
     };
   } catch {
-    return { totalScans: 0, avgScore: 0, spfFailPct: 0, dmarcFailPct: 0, hibpBreachPct: 0 };
+    return { totalScans: 0, avgScore: 0, spfFailPct: 0, dmarcFailPct: 0, hibpBreachPct: 0, riskyDomains: 0, topIssues: [] };
   }
 }
 
@@ -123,11 +153,26 @@ function getISOWeek(d: Date): number {
 }
 
 function formatStats(stats: ScanStats): string {
-  return `Bu hafta ${stats.totalScans} domain taraması yapıldı.
-Ortalama risk skoru: ${stats.avgScore}/100
+  const issueList = stats.topIssues.length
+    ? stats.topIssues.join(", ")
+    : "yeterli veri yok";
+  return `Bu hafta ${stats.totalScans} Türk şirketi tarandı.
+Ortalama güvenlik skoru: ${stats.avgScore}/100
+Riskli şirket sayısı (skor < 60): ${stats.riskyDomains}
+En yaygın 3 açık: ${issueList}
 SPF kaydı eksik: %${stats.spfFailPct}
 DMARC kaydı eksik: %${stats.dmarcFailPct}
-HIBP ihlali tespit edilen: %${stats.hibpBreachPct}`;
+Veri ihlali tespit edilen: %${stats.hibpBreachPct}`;
+}
+
+function buildWeeklySystemPrompt(stats: ScanStats): string {
+  const issueList = stats.topIssues.length
+    ? stats.topIssues.join("; ")
+    : "çeşitli güvenlik açıkları";
+  return `${SYSTEM_PROMPT}
+
+HAFTALIK TARAMA VERİSİ (sistem bağlamı — içerikte mutlaka kullan):
+Bu hafta ${stats.totalScans} Türk şirketi tarandı. Ortalama skor: ${stats.avgScore}/100. ${stats.riskyDomains} şirkette kritik açık tespit edildi. En yaygın sorunlar: ${issueList}. Bu verileri kullanarak LinkedIn ve Instagram için etkileyici, merak uyandıran Türkçe içerik üret.`;
 }
 
 function buildVisualSVG(platform: string, caption: string): string {
@@ -166,7 +211,9 @@ async function generatePostText(
   specialDay?: SpecialDay,
   spontaneousTopic?: string,
   spontaneousNotes?: string,
+  systemPromptOverride?: string,
 ): Promise<{ caption: string; hashtags: string[]; costUsd: number; isThread?: boolean }> {
+  const activeSystemPrompt = systemPromptOverride ?? SYSTEM_PROMPT;
   let userPrompt = "";
 
   if (platform === "x") {
@@ -182,7 +229,7 @@ ${postType === "data_insight" ? `\nBu hafta CyberStep verisi:\n${formatStats(sta
 - Tweet 5: cyberstep.io ücretsiz tarama linki + 3-4 hashtag
 
 Tweet'leri "---" ile ayır. Sadece tweet metinlerini yaz, numara veya etiket ekleme.`;
-    const { text, costUsd } = await callHaiku(SYSTEM_PROMPT, userPrompt, 800);
+    const { text, costUsd } = await callHaiku(activeSystemPrompt, userPrompt, 800);
     const hashtags = text.match(/#[\w]+/g) ?? [];
     return { caption: text, hashtags, costUsd, isThread: true };
   }
@@ -225,7 +272,7 @@ Bu konuda ${platform} platformuna özgü eğitici içerik yaz.
 Pratik, uygulanabilir. Hashtag listesi ver.`;
   }
 
-  const { text, costUsd } = await callHaiku(SYSTEM_PROMPT, userPrompt);
+  const { text, costUsd } = await callHaiku(activeSystemPrompt, userPrompt);
 
   const hashtagMatch = text.match(/#[\w]+/g);
   const hashtags = hashtagMatch ?? [];
@@ -236,6 +283,7 @@ Pratik, uygulanabilir. Hashtag listesi ver.`;
 
 export async function generateWeeklyContent(weekStart: Date, calendarId: number): Promise<void> {
   const stats = await getWeeklyScanStats();
+  const weeklySystemPrompt = buildWeeklySystemPrompt(stats);
   const allSpecials = await db.select().from(specialDaysTable).where(eq(specialDaysTable.isActive, true));
   const weekSpecials = getSpecialDaysForWeek(weekStart, allSpecials);
 
@@ -254,7 +302,7 @@ export async function generateWeeklyContent(weekStart: Date, calendarId: number)
       const postType = specialDay ? "special_day" : (i === 0 || i === 2 ? "data_insight" : "security_tip");
 
       try {
-        const { caption: rawCaption, hashtags, costUsd, isThread } = await generatePostText(platform, postType, stats, specialDay);
+        const { caption: rawCaption, hashtags, costUsd, isThread } = await generatePostText(platform, postType, stats, specialDay, undefined, undefined, weeklySystemPrompt);
         const imageSvg = buildVisualSVG(platform, rawCaption);
         const dim = platform === "linkedin" ? "1200x628" : platform === "x" ? "1200x675" : "1080x1080";
 

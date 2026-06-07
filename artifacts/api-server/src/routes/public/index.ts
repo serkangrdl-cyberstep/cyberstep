@@ -450,4 +450,58 @@ router.post("/public/renewal-token/:token/renew", async (req: Request, res: Resp
   }
 });
 
+// POST /api/public/contact — iletişim formu
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla mesaj gönderildi, lütfen daha sonra tekrar deneyin." },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
+});
+
+router.post("/public/contact", contactLimiter, async (req: Request, res: Response) => {
+  const { name, email, company, message } = req.body as Record<string, string>;
+  if (!name?.trim() || !email?.trim() || !message?.trim()) {
+    res.status(400).json({ error: "Ad soyad, e-posta ve mesaj zorunludur." });
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Geçerli bir e-posta adresi giriniz." });
+    return;
+  }
+  if (message.trim().length < 10) {
+    res.status(400).json({ error: "Mesajınız en az 10 karakter olmalıdır." });
+    return;
+  }
+
+  const adminEmail = process.env.SMTP_USER ?? "info@cyberstep.io";
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;background:#f4f7fb;padding:32px">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <h2 style="color:#0ea5e9;margin-top:0">Yeni İletişim Formu Mesajı</h2>
+  <table style="width:100%;border-collapse:collapse;margin:16px 0">
+    <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b;width:120px">Ad Soyad</td><td style="padding:8px 0;font-weight:600">${name.trim()}</td></tr>
+    <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b">E-posta</td><td style="padding:8px 0"><a href="mailto:${email}" style="color:#0ea5e9">${email.trim()}</a></td></tr>
+    ${company?.trim() ? `<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 0;color:#64748b">Firma</td><td style="padding:8px 0">${company.trim()}</td></tr>` : ""}
+  </table>
+  <p style="color:#374151;white-space:pre-wrap;background:#f8fafc;padding:16px;border-radius:6px;border:1px solid #e2e8f0">${message.trim()}</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+  <p style="color:#94a3b8;font-size:12px">CyberStep.io — iletişim formu</p>
+</div></body></html>`;
+
+  try {
+    await sendMail({
+      to: adminEmail,
+      subject: `[CyberStep] İletişim Formu: ${name.trim()}${company?.trim() ? ` — ${company.trim()}` : ""}`,
+      html,
+    });
+    logger.info({ name: name.trim(), email: email.trim(), company: company?.trim() }, "Contact form submitted");
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Contact form email failed");
+    res.status(500).json({ error: "Mesajınız gönderilemedi, lütfen doğrudan info@cyberstep.io adresine yazın." });
+  }
+});
+
 export default router;

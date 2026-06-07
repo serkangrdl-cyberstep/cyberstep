@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Mail, Phone, MapPin, Send } from "lucide-react";
+import { Mail, Send } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +28,26 @@ export default function Iletisim() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSending(false);
-    toast({ title: "Mesajınız iletildi", description: "En kısa sürede size geri döneceğiz." });
-    setForm({ name: "", email: "", company: "", message: "" });
+    try {
+      const res = await fetch("/api/public/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? "Sunucu hatası");
+      }
+      toast({ title: "Mesajınız iletildi", description: "En kısa sürede size geri döneceğiz." });
+      setForm({ name: "", email: "", company: "", message: "" });
+    } catch (err) {
+      toast({ title: "Gönderim başarısız", description: err instanceof Error ? err.message : "Lütfen tekrar deneyin.", variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
   };
+
+  const email = settings?.["contact.email"] ?? "info@cyberstep.io";
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,25 +62,17 @@ export default function Iletisim() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <div>
             <h2 className="text-2xl font-bold mb-6">İletişim Bilgileri</h2>
-            <div className="space-y-6">
-              {[
-                { icon: Mail, label: "E-posta", value: settings?.["contact.email"] ?? "info@cyberstep.io" },
-                { icon: Phone, label: "Telefon", value: settings?.["contact.phone"] ?? "+90 212 000 00 00" },
-                { icon: MapPin, label: "Adres", value: settings?.["contact.address"] ?? "İstanbul, Türkiye" },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">{label}</div>
-                    <div className="font-medium">{value}</div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-start gap-4 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                <Mail className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">E-posta</div>
+                <a href={`mailto:${email}`} className="font-medium hover:text-primary transition-colors">{email}</a>
+              </div>
             </div>
 
-            <div className="mt-8 p-6 bg-primary/5 border border-primary/20 rounded-xl">
+            <div className="p-6 bg-primary/5 border border-primary/20 rounded-xl">
               <h3 className="font-semibold mb-2">Hızlı Değerlendirme</h3>
               <p className="text-sm text-muted-foreground mb-4">Ücretsiz Mini Değerlendirme ile hemen başlayın, 5 dakikada sonuçlarınızı görün.</p>
               <a href="/assessment/start" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
@@ -75,7 +82,7 @@ export default function Iletisim() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold mb-6">Mesaj Gönderin</h2>
+            <h2 className="text-2xl font-bold mb-6">Bize Ulaşın</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -88,7 +95,7 @@ export default function Iletisim() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Firma Adı</Label>
+                <Label>Firma Adı <span className="text-muted-foreground text-xs">(isteğe bağlı)</span></Label>
                 <Input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} placeholder="Şirketinizin adı" />
               </div>
               <div className="space-y-2">

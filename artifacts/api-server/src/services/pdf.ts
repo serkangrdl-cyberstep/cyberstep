@@ -469,6 +469,8 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // ══ İÇERİK SAYFASI ════════════════════════════════════════════════════════
     doc.addPage();
+    const firstContentPageIdx = doc.bufferedPageRange().start + doc.bufferedPageRange().count - 1;
+    doc.switchToPage(firstContentPageIdx);
     _drawHeader();
     doc.y = 52;
 

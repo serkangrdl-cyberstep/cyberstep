@@ -1908,7 +1908,6 @@ export default function DomainScanPage() {
             <div className="space-y-1.5">
               <Label htmlFor="email">
                 E-posta <span className="text-red-500">*</span>
-                <span className="text-muted-foreground text-xs ml-1">(rapor + 30 günlük izleme bildirimleri)</span>
               </Label>
               <Input
                 id="email"

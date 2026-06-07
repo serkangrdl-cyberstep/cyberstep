@@ -2262,38 +2262,46 @@ startup()
     logger.info("NOC baseline check cron scheduled (every hour)");
 
     // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
-    // daysBack:2 → sadece son 2 günü tara (günlük çalışır, örtüşme olmaz)
+    // daysBack:7 → haftalık pencere; 502 retry zaten fetchCrtsh içinde (4 deneme, üstel geri çekilme)
     cron.schedule("0 3 * * *", wrapCron("crtsh", "0 3 * * *", async () => {
       if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("crtsh", 300);
-      const r1 = await scanCRTSH("%.com.tr", { daysBack: 2, minCorporateScore: 10, limit });
+      const limit = await cronGetLimit("crtsh", 500);
+      const r1 = await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 10, limit });
       await new Promise((r) => setTimeout(r, 5000));
-      const r2 = await scanCRTSH("%.net.tr", { daysBack: 2, minCorporateScore: 10, limit: Math.floor(limit / 3) });
+      const r2 = await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit * 0.4) });
       await new Promise((r) => setTimeout(r, 3000));
-      await scanCRTSH("%.org.tr", { daysBack: 2, minCorporateScore: 10, limit: Math.floor(limit / 5) });
-      return (r1.addedToLeads ?? 0) + (r2.addedToLeads ?? 0);
+      const r3 = await scanCRTSH("%.org.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit * 0.2) });
+      await new Promise((r) => setTimeout(r, 3000));
+      const r4 = await scanCRTSH("%.web.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit * 0.1) });
+      return (r1.addedToLeads ?? 0) + (r2.addedToLeads ?? 0) + (r3.addedToLeads ?? 0) + (r4.addedToLeads ?? 0);
     }), { timezone: "Europe/Istanbul" });
-    logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul)");
+    logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul, daysBack:7, limit:500)");
 
-    // ─── Lead Discovery: Shodan — Her gece 04:00 ─────────────────────────────
+    // ─── Lead Discovery: Shodan — Her gece 04:00 (2 sorgu/gece, tam rotasyon) ──
+    // epoch-day bazlı rotasyon: 8 sorgunun hepsi sırayla çalışır (getDay() 0-6 olduğundan index 7 hiç çalışmıyordu)
     cron.schedule("0 4 * * *", wrapCron("shodan", "0 4 * * *", async () => {
       if (!process.env["SHODAN_API_KEY"]) return 0;
       if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("shodan", 100);
-      const queryIdx = new Date().getDay() % SHODAN_FREE_QUERIES.length;
-      const result = await scanShodanFree(queryIdx, limit);
-      return result.addedToLeads;
+      const limit = await cronGetLimit("shodan", 300);
+      const epochDay = Math.floor(Date.now() / 86_400_000);
+      const qLen = SHODAN_FREE_QUERIES.length;
+      const idx1 = epochDay % qLen;
+      const idx2 = (epochDay + 1) % qLen;
+      const r1 = await scanShodanFree(idx1, limit);
+      await new Promise((r) => setTimeout(r, 8000));
+      const r2 = await scanShodanFree(idx2, limit);
+      return r1.addedToLeads + r2.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul)");
+    logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul, 2 queries/night, limit:300 each)");
 
-    // ─── Lead Discovery: Kalifikasyon — Günde 4 kez 04:00/10:00/16:00/22:00 ──
-    cron.schedule("0 4,10,16,22 * * *", wrapCron("lead_qual", "0 4,10,16,22 * * *", async () => {
+    // ─── Lead Discovery: Kalifikasyon — Günde 6 kez 02:00/06:00/10:00/14:00/18:00/22:00 ──
+    cron.schedule("0 2,6,10,14,18,22 * * *", wrapCron("lead_qual", "0 2,6,10,14,18,22 * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("lead_qual", 50);
+      const limit = await cronGetLimit("lead_qual", 100);
       await qualifyPendingCandidates(limit);
       return limit;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Lead qualification cron scheduled (04:00/10:00/16:00/22:00 Istanbul, limit 50)");
+    logger.info("Lead qualification cron scheduled (02:00/06:00/10:00/14:00/18:00/22:00 Istanbul, limit 100)");
 
     // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
     cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {

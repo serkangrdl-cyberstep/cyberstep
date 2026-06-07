@@ -266,7 +266,12 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // Kapak sayfası — pageAdded henüz kayıtlı değil, header çizilmez
+    // DEBUG: tüm pageAdded olaylarını logla (kapak dahil)
+    doc.on('pageAdded', () => {
+      console.log('[PDF DEBUG] pageAdded tetiklendi, toplam sayfa:', doc.bufferedPageRange().count, 'stack:', new Error().stack?.split('\n')[2]);
+    });
+
+    // Kapak sayfası — header listener henüz kayıtlı değil
     doc.addPage();
 
     const W = doc.page.width;

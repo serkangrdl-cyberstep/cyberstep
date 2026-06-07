@@ -171,6 +171,29 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
       doc.y = noteY + noteH + 16;
     }
 
+    // ─── HAKKINDA + YASAL UYARI ──────────────────────────
+    checkPageBreak(doc, 120);
+    const aboutY2 = doc.y + 12;
+    doc.moveTo(MARGIN, aboutY2).lineTo(MARGIN + CONTENT_W, aboutY2)
+      .lineWidth(0.5).strokeColor([148, 163, 184]).stroke();
+    doc.moveDown(0.6);
+    doc.fillColor(PRIMARY).font(FONT_BOLD).fontSize(9)
+      .text("CyberStep.io Hakkında", MARGIN, doc.y, { width: CONTENT_W });
+    doc.fillColor(GRAY).font(FONT_REGULAR).fontSize(8)
+      .text(
+        "CyberStep.io, Türkiye'deki işletmelerin siber güvenlik risklerini hızlı ve anlaşılır biçimde görselleştiren yapay zeka destekli bir değerlendirme platformudur. Tüm siber güvenlik hizmetlerimiz için cyberstep.io adresini ziyaret edin.",
+        MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
+      );
+    doc.moveDown(0.8);
+    doc.fillColor([55, 65, 81]).font(FONT_BOLD).fontSize(9)
+      .text("Yasal Uyarı", MARGIN, doc.y, { width: CONTENT_W });
+    doc.fillColor(GRAY).font(FONT_REGULAR).fontSize(8)
+      .text(
+        "Bu rapor, kamuya açık kaynaklardan pasif tarama yöntemiyle hazırlanmıştır. Sonuçlar bilgilendirme amaçlıdır; eksiksizlik veya doğruluk garantisi verilmez. CyberStep.io, bu rapordaki bulgulara dayanılarak alınan kararlardan doğacak zararlardan sorumlu tutulamaz. © 2026 CyberStep.io",
+        MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
+      );
+    doc.y += 16;
+
     // ─── FOOTER ──────────────────────────────────────────
     checkPageBreak(doc, 60);
     const footerY = doc.page.height - 50;

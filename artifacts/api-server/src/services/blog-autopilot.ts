@@ -8,8 +8,8 @@
 
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db } from "@workspace/db";
-import { blogPostsTable, siteSettingsTable, newsletterSubscribersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { blogPostsTable, blogContentCalendarTable, siteSettingsTable, newsletterSubscribersTable } from "@workspace/db";
+import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
@@ -221,7 +221,10 @@ async function setAutopilotIndex(index: number): Promise<void> {
 }
 
 // ─── Kategori kodu çıkar ──────────────────────────────────────────────────────
+const VALID_CODES = new Set<string>(["FA", "RE", "SE", "DU", "CO"]);
+
 function getCategoryCode(category: string): "FA" | "RE" | "SE" | "DU" | "CO" {
+  if (VALID_CODES.has(category)) return category as "FA" | "RE" | "SE" | "DU" | "CO";
   if (category.startsWith("Sektör:")) return "SE";
   if (category === "KVKK & Uyumluluk") return "DU";
   const faCategories = [
@@ -440,19 +443,49 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
 }
 
 // ─── Ana fonksiyon: Sıradaki yazıyı üret ve yayınla ─────────────────────────
+// Önce blog_content_calendar tablosundan sıradaki planlanmış yazıyı alır.
+// Tablo boşaldıysa BLOG_PLAN dizisine (hardcoded 104 yazı) döner.
 export async function generateAndPublishBlogPost(): Promise<void> {
-  const index = await getAutopilotIndex();
-  const total = BLOG_PLAN.length;
+  // 1. Paneldeki içerik takviminden sıradaki "planned" girdiyi al
+  const [calendarEntry] = await db
+    .select()
+    .from(blogContentCalendarTable)
+    .where(eq(blogContentCalendarTable.status, "planned"))
+    .orderBy(asc(blogContentCalendarTable.sortOrder))
+    .limit(1);
 
-  if (index >= total) {
-    logger.info({ index, total }, "Blog autopilot: tüm plan tamamlandı, baştan başlanıyor");
-    await setAutopilotIndex(0);
+  let topic: typeof BLOG_PLAN[number];
+  let calendarId: number | null = null;
+
+  if (calendarEntry) {
+    // Panel takviminden oluştur
+    calendarId = calendarEntry.id;
+    const angleparts: string[] = [];
+    if (calendarEntry.targetAudience) angleparts.push(`Hedef kitle: ${calendarEntry.targetAudience}`);
+    if (calendarEntry.cyberstepTool) angleparts.push(`CyberStep aracı öne çıkar: ${calendarEntry.cyberstepTool}`);
+    if (calendarEntry.aiPromptNotes) angleparts.push(calendarEntry.aiPromptNotes);
+    topic = {
+      category: calendarEntry.category,
+      title: calendarEntry.titleTr,
+      keywords: calendarEntry.seoKeyword ?? calendarEntry.titleTr,
+      angle: angleparts.join(". ") || "Pratik, uygulanabilir rehber",
+    };
+    logger.info(
+      { calendarId, sortOrder: calendarEntry.sortOrder, title: topic.title },
+      "Blog autopilot: takvimden yazı üretiliyor",
+    );
+  } else {
+    // Takvim bitti veya boş — BLOG_PLAN'a dön
+    const index = await getAutopilotIndex();
+    const total = BLOG_PLAN.length;
+    if (index >= total) {
+      logger.info({ index, total }, "Blog autopilot: tüm plan tamamlandı, baştan başlanıyor");
+      await setAutopilotIndex(0);
+    }
+    const currentIndex = index >= total ? 0 : index;
+    topic = BLOG_PLAN[currentIndex];
+    logger.info({ index: currentIndex, title: topic.title }, "Blog autopilot: BLOG_PLAN'dan yazı üretiliyor");
   }
-
-  const currentIndex = index >= total ? 0 : index;
-  const topic = BLOG_PLAN[currentIndex];
-
-  logger.info({ index: currentIndex, title: topic.title }, "Blog autopilot: yazı üretiliyor");
 
   const generated = await generateBlogPostContent(topic);
 
@@ -478,6 +511,18 @@ export async function generateAndPublishBlogPost(): Promise<void> {
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: yazı yayınlandı");
 
+  // Takvim satırını "published" olarak işaretle
+  if (calendarId !== null) {
+    await db
+      .update(blogContentCalendarTable)
+      .set({ status: "published", publishedAt: new Date(), slug: post.slug })
+      .where(eq(blogContentCalendarTable.id, calendarId));
+  } else {
+    // BLOG_PLAN indeksini ilerlet
+    const index = await getAutopilotIndex();
+    await setAutopilotIndex(index + 1);
+  }
+
   // Bülten abonelerine gönder
   void (async () => {
     try {
@@ -492,9 +537,6 @@ export async function generateAndPublishBlogPost(): Promise<void> {
       logger.warn({ err, postId: post.id }, "Blog autopilot: bülten gönderilemedi");
     }
   })();
-
-  // Sonraki indekse ilerle
-  await setAutopilotIndex(currentIndex + 1);
 }
 
 // ─── Taslak üret (yayınlamadan kaydet) ───────────────────────────────────────
@@ -534,25 +576,46 @@ export async function generateAndSaveDraft(): Promise<{ postId: number; slug: st
 
 // ─── Admin durum bilgisi ──────────────────────────────────────────────────────
 export async function getBlogAutopilotStatus() {
+  // Takvim istatistikleri
+  const allCalendar = await db.select({ status: blogContentCalendarTable.status }).from(blogContentCalendarTable);
+  const calendarTotal = allCalendar.length;
+  const calendarPublished = allCalendar.filter(r => r.status === "published").length;
+  const calendarPlanned = calendarTotal - calendarPublished;
+
+  // Sıradaki takvim girişi
+  const [nextCalendarEntry] = await db
+    .select()
+    .from(blogContentCalendarTable)
+    .where(eq(blogContentCalendarTable.status, "planned"))
+    .orderBy(asc(blogContentCalendarTable.sortOrder))
+    .limit(1);
+
+  // BLOG_PLAN yedek indeksi
   const index = await getAutopilotIndex();
   const safeIndex = Math.min(index, BLOG_PLAN.length - 1);
-  const nextTopic = BLOG_PLAN[safeIndex];
+
+  const nextTopic = nextCalendarEntry
+    ? { title: nextCalendarEntry.titleTr, category: nextCalendarEntry.category }
+    : BLOG_PLAN[safeIndex];
+
+  // En son yayınlanan yazı (publishedAt DESC)
   const [lastPost] = await db.select({
     id: blogPostsTable.id,
     title: blogPostsTable.title,
     publishedAt: blogPostsTable.publishedAt,
   }).from(blogPostsTable)
     .where(eq(blogPostsTable.status, "published"))
-    .orderBy(blogPostsTable.publishedAt)
+    .orderBy(asc(blogPostsTable.publishedAt))
     .limit(1);
 
   return {
-    totalPlanned: BLOG_PLAN.length,
-    currentIndex: index,
-    completedCount: Math.min(index, BLOG_PLAN.length),
-    weeksCompleted: Math.floor(Math.min(index, BLOG_PLAN.length) / 2),
+    totalPlanned: calendarTotal > 0 ? calendarTotal : BLOG_PLAN.length,
+    currentIndex: calendarPublished,
+    completedCount: calendarPublished,
+    weeksCompleted: Math.floor(calendarPublished / 2),
+    calendarPlanned,
     nextTopic: {
-      index: safeIndex,
+      index: calendarPublished,
       category: nextTopic.category,
       categoryCode: getCategoryCode(nextTopic.category),
       title: nextTopic.title,

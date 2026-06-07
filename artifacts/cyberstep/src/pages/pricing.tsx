@@ -286,7 +286,7 @@ function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
         ) : (
           <Link
             href="/iletisim"
-            className="block w-full text-center text-xs border border-primary text-primary py-1.5 rounded-lg font-semibold hover:bg-primary/10 transition-colors"
+            className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
           >
             Teklif Al
           </Link>

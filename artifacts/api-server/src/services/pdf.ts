@@ -299,37 +299,39 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
 
     // Header: her içerik sayfasının tepesine çizilir
     const _drawHeader = () => {
+      doc.save();
       doc.rect(0, 0, W, 36).fill(CS_DARK);
-      // CyberStep kalkan ikonu
       _drawShieldIcon(MARGIN, 7, 22);
-      // Logo yazısı
       doc.font(FONT_BOLD).fontSize(13);
       const hcw = doc.widthOfString("Cyber");
       const hsw = doc.widthOfString("Step");
-      doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 28, 11, { lineBreak: false });
-      doc.fillColor(CS_CYAN).text("Step",  MARGIN + 28 + hcw, 11, { lineBreak: false });
+      doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 28, 11, { lineBreak: false, height: 0 });
+      doc.fillColor(CS_CYAN).text("Step",  MARGIN + 28 + hcw, 11, { lineBreak: false, height: 0 });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
-        .text(".io", MARGIN + 28 + hcw + hsw, 13, { lineBreak: false });
+        .text(".io", MARGIN + 28 + hcw + hsw, 13, { lineBreak: false, height: 0 });
       doc.fillColor([148, 163, 184]).font(FONT_REGULAR).fontSize(9)
-        .text(`${data.domain}  |  Tarama #${data.id}`, MARGIN, 11, { align: "right", width: CONTENT_W });
+        .text(`${data.domain}  |  Tarama #${data.id}`, MARGIN, 11, { align: "right", width: CONTENT_W, lineBreak: false, height: 0 });
+      doc.restore();
     };
 
     // Footer: doc.end() öncesi döngüyle tüm içerik sayfalarına çizilir
     const _drawFooter = (pageNum: number, totalPages: number) => {
       const PH = doc.page.height;
+      doc.save();
       doc.rect(0, PH - 36, W, 36).fill(CS_DARK);
       _drawShieldIcon(MARGIN, PH - 29, 18);
       doc.font(FONT_BOLD).fontSize(10);
       const fcw = doc.widthOfString("Cyber");
       const fsw = doc.widthOfString("Step");
-      doc.fillColor(CS_TEXT) .text("Cyber", MARGIN + 24, PH - 23, { lineBreak: false });
-      doc.fillColor(CS_CYAN) .text("Step",  MARGIN + 24 + fcw, PH - 23, { lineBreak: false });
+      doc.fillColor(CS_TEXT).text("Cyber", MARGIN + 24, PH - 23, { lineBreak: false, height: 0 });
+      doc.fillColor(CS_CYAN).text("Step", MARGIN + 24 + fcw, PH - 23, { lineBreak: false, height: 0 });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
-        .text(".io", MARGIN + 24 + fcw + fsw, PH - 23, { lineBreak: false });
+        .text(".io", MARGIN + 24 + fcw + fsw, PH - 23, { lineBreak: false, height: 0 });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
-        .text(`${data.domain}  |  Alan Adı Güvenlik Taraması`, MARGIN, PH - 23, { align: "center", width: CONTENT_W });
+        .text(`${data.domain}  |  Alan Adı Güvenlik Taraması`, MARGIN, PH - 23, { align: "center", width: CONTENT_W, lineBreak: false, height: 0 });
       doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
-        .text(`Sayfa ${pageNum} / ${totalPages}`, MARGIN, PH - 23, { align: "right", width: CONTENT_W });
+        .text(`Sayfa ${pageNum} / ${totalPages}`, MARGIN, PH - 23, { align: "right", width: CONTENT_W, lineBreak: false, height: 0 });
+      doc.restore();
     };
 
     // Yerel checkPageBreak: addPage() pageAdded event'ini tetikler — header + doc.y = 52 otomatik

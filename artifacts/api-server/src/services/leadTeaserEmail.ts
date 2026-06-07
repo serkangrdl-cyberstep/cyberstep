@@ -19,7 +19,7 @@ export async function generateLeadTeaserEmail(
   const highs = scanResult.findings.filter((f) => f.severity === "high").slice(0, 2);
   const topFindings = [...criticals, ...highs].map((f) => `- ${f.title}`).join("\n");
 
-  const prompt = `Sen CyberStep.io adına yazıyorsun. Türk KOBİ'lere siber güvenlik hizmeti sunuyoruz.
+  const prompt = `Sen CyberStep.io adına yazıyorsun. Türk işletmelere siber güvenlik hizmeti sunuyoruz.
 Aşağıdaki şirket için kısa, profesyonel bir teaser e-posta yaz.
 
 Şirket: ${candidate.domain}

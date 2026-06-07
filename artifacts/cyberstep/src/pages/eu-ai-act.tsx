@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,8 @@ const SECTORS = ["Finans", "Sağlık", "Perakende", "Bilişim/Yazılım", "İmal
 const EMP_COUNTS = ["1-10", "11-50", "51-200", "201-500", "500+"];
 
 export default function EuAiActPage() {
-  usePageMeta({ title: "EU AI Act Uyum Skoru", description: "AB Yapay Zeka Yasası kapsamında şirketinizin uyum durumunu öğrenin. 20 soruda risk kategorinizi ve yükümlülüklerinizi belirleyin." });
+  const { lang } = useLanguage();
+  usePageMeta({ title: lang === "en" ? "EU AI Act Compliance Score | CyberStep.io" : "EU AI Act Uyum Skoru", description: lang === "en" ? "Find out your company's compliance status under the EU AI Act. Determine your risk category and obligations in 20 questions." : "AB Yapay Zeka Yasası kapsamında şirketinizin uyum durumunu öğrenin. 20 soruda risk kategorinizi ve yükümlülüklerinizi belirleyin." });
   const [, navigate] = useLocation();
 
   const [step, setStep] = useState<"landing" | "form">("landing");

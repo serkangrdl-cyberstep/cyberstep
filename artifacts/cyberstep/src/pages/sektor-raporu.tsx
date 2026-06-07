@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTORS = [
   { value: "finans", label: "Finans & Bankacılık" },
@@ -34,6 +35,7 @@ const SECTOR_STATS: Record<string, { avgScore: number; topFindings: string[]; kv
 };
 
 export default function SektorRaporu() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Sektörel Güvenlik Benchmark Raporu 2026 | CyberStep.io",
     description: "Türkiye'de sektörünüzün siber güvenlik ortalaması nerede? Ücretsiz sektörel benchmark raporu indirin.",
@@ -92,7 +94,7 @@ export default function SektorRaporu() {
             Ücretsiz Benchmark Raporu — Q2 2026
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-            Sektörünüz <span className="text-emerald-400">Nerede Duruyor?</span>
+            {lang === "en" ? <>Where Does Your Sector <span className="text-emerald-400">Stand?</span></> : <>Sektörünüz <span className="text-emerald-400">Nerede Duruyor?</span></>}
           </h1>
           <p className="text-slate-400 text-lg max-w-xl mx-auto">
             Türkiye'deki sektörünüzün siber güvenlik ortalaması, en yaygın açıklar ve KVKK uyum oranı — tek raporda.

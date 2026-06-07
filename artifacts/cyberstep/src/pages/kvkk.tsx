@@ -1,6 +1,7 @@
 import { Shield, FileText, Database, Eye, Lock, UserCheck, Trash2, Mail, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTIONS = [
   {
@@ -56,6 +57,7 @@ const SECTIONS = [
 ];
 
 export default function Kvkk() {
+  const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],
     queryFn: () => fetch("/api/public/settings").then(r => r.json()),
@@ -72,7 +74,7 @@ export default function Kvkk() {
         <div className="container mx-auto px-4 max-w-4xl text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <FileText className="h-10 w-10 text-emerald-400" />
-            <h1 className="text-4xl font-bold">KVKK Aydınlatma Metni</h1>
+            <h1 className="text-4xl font-bold">{lang === "en" ? "KVKK Disclosure Text" : "KVKK Aydınlatma Metni"}</h1>
           </div>
           <p className="text-slate-400">6698 Sayılı Kişisel Verilerin Korunması Kanunu kapsamında hazırlanmıştır</p>
         </div>

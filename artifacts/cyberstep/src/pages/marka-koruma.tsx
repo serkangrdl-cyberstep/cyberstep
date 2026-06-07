@@ -10,6 +10,7 @@ import {
   Shield, AlertTriangle, CheckCircle2, Search, Loader2,
   ChevronRight, RotateCcw, Globe, XCircle, ShieldAlert,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 interface DomainResult {
   domain: string;
@@ -33,6 +34,7 @@ const RISK_CONFIG = {
 };
 
 export default function MarkaKoruma() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Marka Koruma ve Domain Taklidi Tespiti | CyberStep.io",
     description: "Alan adınızın taklitlerini tespit edin. Typosquatting ve phishing amaçlı sahte domain'leri anında kontrol edin.",
@@ -77,10 +79,10 @@ export default function MarkaKoruma() {
         <div className="container mx-auto px-4 py-14 max-w-4xl text-center">
           <Badge variant="outline" className="mb-4 border-blue-500/40 text-blue-400 bg-blue-500/5">
             <Globe className="h-3 w-3 mr-1" />
-            Marka Koruma ve Typosquatting Tespiti
+            {lang === "en" ? "Brand Protection & Typosquatting Detection" : "Marka Koruma ve Typosquatting Tespiti"}
           </Badge>
           <h1 className="text-4xl font-bold mb-4">
-            Sahte Domain'ler Markanızı Kullanıyor Mu?
+            {lang === "en" ? "Are Fake Domains Using Your Brand?" : "Sahte Domain'ler Markanızı Kullanıyor Mu?"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
             Alan adınızın olası taklitlerini DNS üzerinden kontrol eder. Phishing saldırıları ve

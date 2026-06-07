@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 interface SectorData {
   slug: string;
@@ -333,6 +334,7 @@ function SectorPageContent({ data }: { data: SectorData }) {
 }
 
 export default function SektorPage() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/sektor/:slug");
   const slug = params?.slug ?? "";
   const data = SECTORS[slug];
@@ -340,7 +342,7 @@ export default function SektorPage() {
   if (!data) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold mb-4">Sektör bulunamadı</h1>
+        <h1 className="text-2xl font-bold mb-4">{lang === "en" ? "Sector not found" : "Sektör bulunamadı"}</h1>
         <p className="text-muted-foreground mb-6">Desteklenen sektörler: sağlık, finans, perakende, bilişim, imalat</p>
         <Link href="/assessment/start">
           <Button>Değerlendirmeye Başla</Button>

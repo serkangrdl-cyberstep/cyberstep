@@ -9,6 +9,7 @@ import { useParams, useLocation } from "wouter";
 import { Mic, Video, ArrowRight, AlertTriangle, CheckCircle2, ChevronRight, Shield } from "lucide-react";
 import { Link } from "wouter";
 import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
+import { useLanguage } from "@/contexts/language-context";
 
 const RISK_COLORS: Record<string, string> = {
   critical: "text-red-600 border-red-500 bg-red-50 dark:bg-red-900/20",
@@ -21,6 +22,7 @@ const RISK_LABELS: Record<string, string> = {
 };
 
 export default function DeepfakeAnaliziPage() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "Deepfake & Ses Klonu Tehdit Analizi", description: "Yöneticilerinizin sesi veya görüntüsü deepfake saldırısına açık mı? 10 dakikada öğrenin." });
 
   const params = useParams();
@@ -84,11 +86,10 @@ export default function DeepfakeAnaliziPage() {
         <div className="bg-gradient-to-b from-purple-950 via-purple-900 to-background pt-20 pb-16 px-4">
           <div className="container mx-auto max-w-3xl text-center">
             <Badge className="mb-4 bg-purple-600/20 text-purple-300 border-purple-600/30">
-              <Mic className="h-3.5 w-3.5 mr-1" /> Deepfake & Ses Klonu Analizi
+              <Mic className="h-3.5 w-3.5 mr-1" /> {lang === "en" ? "Deepfake & Voice Clone Analysis" : "Deepfake & Ses Klonu Analizi"}
             </Badge>
             <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
-              Deepfake &amp; Ses Klonu<br />
-              <span className="text-purple-400">Tehdit Analizi</span>
+              {lang === "en" ? <>Deepfake &amp; Voice Clone<br /><span className="text-purple-400">Threat Analysis</span></> : <>Deepfake &amp; Ses Klonu<br /><span className="text-purple-400">Tehdit Analizi</span></>}
             </h1>
             <p className="text-purple-100/80 text-lg mb-3">
               Modern ses klonlama araçları <strong className="text-white">3 dakika ses</strong> ile çalışıyor.<br />
@@ -138,8 +139,8 @@ export default function DeepfakeAnaliziPage() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-16 max-w-lg">
           <button onClick={() => setStep("landing")} className="text-sm text-muted-foreground hover:text-foreground mb-8 flex items-center gap-1">← Geri</button>
-          <Badge className="mb-4 bg-purple-600/20 text-purple-400 border-purple-600/30">Deepfake & Ses Klonu Analizi</Badge>
-          <h1 className="text-2xl font-bold mb-2">Şirket Bilgileri</h1>
+          <Badge className="mb-4 bg-purple-600/20 text-purple-400 border-purple-600/30">{lang === "en" ? "Deepfake & Voice Clone Analysis" : "Deepfake & Ses Klonu Analizi"}</Badge>
+          <h1 className="text-2xl font-bold mb-2">{lang === "en" ? "Company Information" : "Şirket Bilgileri"}</h1>
           <p className="text-muted-foreground text-sm mb-8">Yönetici profillerini bulmak için şirket adı ve domain gerekli.</p>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

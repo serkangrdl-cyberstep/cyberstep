@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -27,6 +28,7 @@ const SECTIONS = [
 ];
 
 export default function BulletinDetailPage() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/bulten/:slug");
   const slug = params?.slug ?? "";
 

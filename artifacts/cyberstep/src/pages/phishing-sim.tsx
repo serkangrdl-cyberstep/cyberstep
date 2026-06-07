@@ -9,6 +9,7 @@ import {
   RotateCcw, Eye, Lock, ArrowRight, Info,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 interface PhishingEmail {
   id: string;
@@ -109,6 +110,7 @@ interface AnswerRecord {
 }
 
 export default function PhishingSim() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Kimlik Avı Simülasyonu | CyberStep.io",
     description: "Phishing e-postalarını tanımayı öğrenin. Gerçekçi örneklerle siber güvenlik farkındalık testi.",
@@ -163,9 +165,9 @@ export default function PhishingSim() {
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <Mail className="h-6 w-6 text-primary" />
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Kimlik Avı Simülasyonu</Badge>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{lang === "en" ? "Phishing Simulation" : "Kimlik Avı Simülasyonu"}</Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Sonuçlarınız</h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "Your Results" : "Sonuçlarınız"}</h1>
         </div>
 
         <Card className={`shadow-sm border-2 mb-6 ${levelColor === "emerald" ? "border-emerald-500/30 bg-emerald-500/5" : levelColor === "amber" ? "border-amber-500/30 bg-amber-500/5" : "border-red-500/30 bg-red-500/5"}`}>
@@ -224,9 +226,9 @@ export default function PhishingSim() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <Mail className="h-6 w-6 text-primary" />
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Kimlik Avı Simülasyonu</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{lang === "en" ? "Phishing Simulation" : "Kimlik Avı Simülasyonu"}</Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Phishing E-posta Testi</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "Phishing Email Test" : "Phishing E-posta Testi"}</h1>
         <p className="text-muted-foreground">Her e-postanın gerçek mi yoksa kimlik avı mı olduğunu belirleyin.</p>
       </div>
 

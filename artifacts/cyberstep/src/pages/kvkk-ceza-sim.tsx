@@ -7,6 +7,7 @@ import {
   Shield, AlertTriangle, ChevronRight, Info, RotateCcw, Scale, FileText,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 interface ViolationType {
   id: string;
@@ -46,6 +47,7 @@ function fmt(n: number) {
 }
 
 export default function KvkkCezaSim() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "KVKK İdari Para Cezası Hesaplayıcı | CyberStep.io",
     description: "KVKK ihlali durumunda uygulanabilecek idari para cezasını tahmin edin. Ücretsiz simülatör.",
@@ -82,9 +84,9 @@ export default function KvkkCezaSim() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <Scale className="h-6 w-6 text-primary" />
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">KVKK Simülatör</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{lang === "en" ? "KVKK Simulator" : "KVKK Simülatör"}</Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">KVKK Ceza Simülatörü</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü"}</h1>
         <p className="text-muted-foreground max-w-xl">
           KVKK ihlali durumunda Kurul'un uygulayabileceği idari para cezasını tahmin edin. 2024 yılı güncel taban rakamlarına dayanmaktadır.
         </p>

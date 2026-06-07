@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const ARCH_LAYERS = [
   {
@@ -138,6 +139,7 @@ const CERT_ROADMAP = [
 ];
 
 export default function GuvenlikMerkezi() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Güvenlik Merkezi | CyberStep.io",
     description: "CyberStep.io platform güvenlik mimarisi, veri işleme politikaları, şifreleme standartları ve ISO 27001 yol haritası.",
@@ -155,8 +157,8 @@ export default function GuvenlikMerkezi() {
               <Shield className="h-7 w-7 text-primary" />
             </div>
             <div>
-              <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">Güvenlik Merkezi</Badge>
-              <h1 className="text-3xl sm:text-4xl font-black text-white mb-3">Platform Güvenlik ve Güven Merkezi</h1>
+              <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">{lang === "en" ? "Security Center" : "Güvenlik Merkezi"}</Badge>
+              <h1 className="text-3xl sm:text-4xl font-black text-white mb-3">{lang === "en" ? "Platform Security & Trust Center" : "Platform Güvenlik ve Güven Merkezi"}</h1>
               <p className="text-white/80 text-base max-w-2xl">
                 CyberStep müşteri verilerini nasıl korur, hangi teknik kontrolleri uygular ve uyumluluk yol haritamız.
                 Bu sayfa enterprise müşteriler, tedarik ekipleri ve denetçiler için hazırlanmıştır.

@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertTriangle, ArrowRight, ArrowLeft, CheckCircle2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 type AnswerType = "evet" | "kismen" | "bilmiyorum" | "hayir";
 
@@ -20,6 +21,7 @@ const ANSWER_OPTIONS: { value: AnswerType; label: string; sublabel: string; acti
 ];
 
 export default function FullAssessmentRunner() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/assessment/full/:id");
   const id = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
@@ -106,7 +108,7 @@ export default function FullAssessmentRunner() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">Tam Değerlendirme</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">{lang === "en" ? "Full Assessment" : "Tam Değerlendirme"}</Badge>
           <span className="text-lg font-bold">{assessment.companyName}</span>
         </div>
 

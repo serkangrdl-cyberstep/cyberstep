@@ -11,6 +11,7 @@ import {
   Shield, AlertTriangle, Clock, TrendingDown, Newspaper,
   Loader2, ChevronRight, RotateCcw, Zap, Lock, Target,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTORS = [
   "Üretim / İmalat", "Perakende / E-ticaret", "Lojistik / Taşımacılık",
@@ -53,6 +54,7 @@ interface SimulationResult {
 }
 
 export default function SaldiriSimulasyonu() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Saldırı Simülasyonu — Siber İkiz | CyberStep.io",
     description: "Yapay zeka ile şirketinize yönelik gerçekçi bir siber saldırı senaryosu oluşturun. Saldırganın bakış açısından riski görün.",
@@ -109,10 +111,10 @@ export default function SaldiriSimulasyonu() {
         <div className="container mx-auto px-4 py-14 max-w-4xl text-center">
           <Badge variant="outline" className="mb-4 border-red-500/40 text-red-400 bg-red-500/5">
             <Target className="h-3 w-3 mr-1" />
-            Yapay Zeka ile Saldırı Simülasyonu
+            {lang === "en" ? "AI-Powered Attack Simulation" : "Yapay Zeka ile Saldırı Simülasyonu"}
           </Badge>
           <h1 className="text-4xl font-bold mb-4">
-            Siber İkiz — Saldırgan Gözüyle Şirketinize Bakın
+            {lang === "en" ? "Cyber Twin — See Your Company Through an Attacker's Eyes" : "Siber İkiz — Saldırgan Gözüyle Şirketinize Bakın"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
             "Eğer ben saldırgan olsaydım, şirketinize nasıl sızardım?" Gemini AI gerçekçi bir saldırı senaryosu,

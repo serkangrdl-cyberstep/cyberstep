@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { ChevronRight, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 export interface ToolSeoConfig {
   slug: string;
@@ -287,6 +288,7 @@ function ToolEmbed({ type }: { type: ToolSeoConfig["toolComponent"] }) {
 // ── Main page component ──────────────────────────────────────────────────────
 
 export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
+  const { lang } = useLanguage();
   const relatedTools = ALL_TOOLS.filter(t => config.relatedTools.some(r => r.slug === t.slug));
 
   usePageMeta({
@@ -355,7 +357,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
             <ChevronRight className="h-4 w-4" />
             <span className="text-white">{config.h1}</span>
           </div>
-          <Badge className="bg-primary/20 text-primary border-primary/30 mb-4">Ucretsiz Arac</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/30 mb-4">{lang === "en" ? "Free Tool" : "Ücretsiz Araç"}</Badge>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">{config.h1}</h1>
           <p className="text-lg text-white/80 max-w-2xl">{config.metaDescription}</p>
         </div>

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 const REPORT_TYPES = [
   {
@@ -89,6 +90,7 @@ interface DownloadState {
 }
 
 export default function DemoPage() {
+  const { lang } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState<LeadForm>({ name: "", email: "", company: "" });
   const [state, setState] = useState<DownloadState>({ loading: false, done: false });
@@ -146,10 +148,10 @@ export default function DemoPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-medium mb-4">
             <Shield className="w-4 h-4" />
-            Örnek Raporlar
+            {lang === "en" ? "Sample Reports" : "Örnek Raporlar"}
           </div>
           <h1 className="text-3xl font-bold tracking-tight mb-3">
-            Gerçek Tarama Verisiyle Hazırlanmış Demo Raporlar
+            {lang === "en" ? "Demo Reports Built from Real Scan Data" : "Gerçek Tarama Verisiyle Hazırlanmış Demo Raporlar"}
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             CyberStep.io'nun ürettiği raporların kalitesini görmek için aşağıdan bir örnek indirin.

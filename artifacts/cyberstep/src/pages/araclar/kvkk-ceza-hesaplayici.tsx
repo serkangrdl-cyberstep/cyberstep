@@ -1,4 +1,5 @@
 import { ToolSeoPage, type ToolSeoConfig } from "./tool-seo-page";
+import { useLanguage } from "@/contexts/language-context";
 
 const config: ToolSeoConfig = {
   slug: "kvkk-ceza-hesaplayici",
@@ -27,5 +28,6 @@ const config: ToolSeoConfig = {
 };
 
 export default function KvkkCezaHesaplayici() {
+  const { lang } = useLanguage();
   return <ToolSeoPage config={config} />;
 }

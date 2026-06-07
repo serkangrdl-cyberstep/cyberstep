@@ -26,9 +26,9 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 const formSchema = z.object({
   companyName: z.string().min(2, { message: "Şirket adı en az 2 karakter olmalıdır." }),
@@ -44,15 +44,17 @@ const formSchema = z.object({
 export default function AssessmentStart() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  // ?ref= parametresini yakala — referral tracking için assessment'a kaydedilir
+  const { lang } = useLanguage();
   const referralCode = new URLSearchParams(window.location.search).get("ref") ?? undefined;
 
   usePageMeta({
-    title: "Ucretsiz Degerlendirme Basla | CyberStep.io",
-    description: "Sirket bilgilerinizi girin, 20 soruluk Mini Degerlendirmeyi tamamlayin ve kisisellestirilmis siber guvenlik raporunuzu alin.",
+    title: lang === "en" ? "Start Free Assessment | CyberStep.io" : "Ucretsiz Degerlendirme Basla | CyberStep.io",
+    description: lang === "en"
+      ? "Enter your company details, complete the 20-question Mini Assessment and receive your personalized cybersecurity report."
+      : "Sirket bilgilerinizi girin, 20 soruluk Mini Degerlendirmeyi tamamlayin ve kisisellestirilmis siber guvenlik raporunuzu alin.",
     noIndex: true,
   });
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -81,10 +83,10 @@ export default function AssessmentStart() {
         onSuccess: (data) => {
           setLocation(`/assessment/${data.id}`);
         },
-        onError: (error) => {
+        onError: () => {
           toast({
-            title: "Hata",
-            description: "Değerlendirme başlatılırken bir hata oluştu.",
+            title: lang === "en" ? "Error" : "Hata",
+            description: lang === "en" ? "An error occurred while starting the assessment." : "Değerlendirme başlatılırken bir hata oluştu.",
             variant: "destructive",
           });
         },
@@ -95,16 +97,26 @@ export default function AssessmentStart() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Ücretsiz Siber Güvenlik Analizi</h1>
-        <p className="text-muted-foreground">Şirketinizin siber güvenlik durumunu öğrenmek için bilgileri doldurun.</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">
+          {lang === "en" ? "Free Cybersecurity Analysis" : "Ücretsiz Siber Güvenlik Analizi"}
+        </h1>
+        <p className="text-muted-foreground">
+          {lang === "en"
+            ? "Fill in the details to assess your company's cybersecurity posture."
+            : "Şirketinizin siber güvenlik durumunu öğrenmek için bilgileri doldurun."}
+        </p>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Şirket Bilgileri</CardTitle>
-              <CardDescription>Raporunuzun hazırlanabilmesi için temel şirket bilgileri.</CardDescription>
+              <CardTitle>{lang === "en" ? "Company Information" : "Şirket Bilgileri"}</CardTitle>
+              <CardDescription>
+                {lang === "en"
+                  ? "Basic company information needed to prepare your report."
+                  : "Raporunuzun hazırlanabilmesi için temel şirket bilgileri."}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -113,25 +125,25 @@ export default function AssessmentStart() {
                   name="companyName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Şirket Adı</FormLabel>
+                      <FormLabel>{lang === "en" ? "Company Name" : "Şirket Adı"}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Örn: Acme A.Ş." {...field} />
+                        <Input placeholder={lang === "en" ? "e.g. Acme Ltd." : "Örn: Acme A.Ş."} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="sector"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sektör</FormLabel>
+                      <FormLabel>{lang === "en" ? "Sector" : "Sektör"}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Sektör seçin" />
+                            <SelectValue placeholder={lang === "en" ? "Select sector" : "Sektör seçin"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -152,9 +164,9 @@ export default function AssessmentStart() {
                   name="contactName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Yetkili Kişi</FormLabel>
+                      <FormLabel>{lang === "en" ? "Contact Person" : "Yetkili Kişi"}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ad Soyad" {...field} />
+                        <Input placeholder={lang === "en" ? "Full Name" : "Ad Soyad"} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -166,11 +178,11 @@ export default function AssessmentStart() {
                   name="employeeCount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Çalışan Sayısı</FormLabel>
+                      <FormLabel>{lang === "en" ? "Employee Count" : "Çalışan Sayısı"}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Çalışan sayısı" />
+                            <SelectValue placeholder={lang === "en" ? "Employee count" : "Çalışan sayısı"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -191,11 +203,15 @@ export default function AssessmentStart() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>E-posta Adresi</FormLabel>
+                      <FormLabel>{lang === "en" ? "Email Address" : "E-posta Adresi"}</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="ornek@sirket.com" {...field} />
+                        <Input type="email" placeholder="example@company.com" {...field} />
                       </FormControl>
-                      <FormDescription>Raporunuz bu adrese gönderilebilir.</FormDescription>
+                      <FormDescription>
+                        {lang === "en"
+                          ? "Your report can be sent to this address."
+                          : "Raporunuz bu adrese gönderilebilir."}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -206,9 +222,9 @@ export default function AssessmentStart() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Telefon (İsteğe bağlı)</FormLabel>
+                      <FormLabel>{lang === "en" ? "Phone (Optional)" : "Telefon (İsteğe bağlı)"}</FormLabel>
                       <FormControl>
-                        <Input type="tel" placeholder="0555 555 55 55" {...field} />
+                        <Input type="tel" placeholder="+90 555 555 55 55" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -220,11 +236,15 @@ export default function AssessmentStart() {
                   name="companyDomain"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Web Alan Adı (İsteğe bağlı)</FormLabel>
+                      <FormLabel>{lang === "en" ? "Web Domain (Optional)" : "Web Alan Adı (İsteğe bağlı)"}</FormLabel>
                       <FormControl>
-                        <Input placeholder="sirketiniz.com" {...field} />
+                        <Input placeholder="yourcompany.com" {...field} />
                       </FormControl>
-                      <FormDescription>Girerseniz alan adınızın e-posta ve SSL güvenliği de taranır.</FormDescription>
+                      <FormDescription>
+                        {lang === "en"
+                          ? "If provided, your domain's email and SSL security will also be scanned."
+                          : "Girerseniz alan adınızın e-posta ve SSL güvenliği de taranır."}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -235,7 +255,7 @@ export default function AssessmentStart() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Değerlendirme Tipi</CardTitle>
+              <CardTitle>{lang === "en" ? "Assessment Type" : "Değerlendirme Tipi"}</CardTitle>
             </CardHeader>
             <CardContent>
               <FormField
@@ -256,12 +276,16 @@ export default function AssessmentStart() {
                           <FormLabel className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
                             <Zap className="mb-3 h-6 w-6 text-primary" />
                             <div className="flex flex-col items-center space-y-1">
-                              <span className="font-semibold text-lg">Ücretsiz Mini Analiz</span>
-                              <span className="text-sm text-muted-foreground">20 Kritik Soru</span>
+                              <span className="font-semibold text-lg">
+                                {lang === "en" ? "Free Mini Analysis" : "Ücretsiz Mini Analiz"}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {lang === "en" ? "20 Critical Questions" : "20 Kritik Soru"}
+                              </span>
                             </div>
                           </FormLabel>
                         </FormItem>
-                        
+
                         <FormItem>
                           <FormControl>
                             <RadioGroupItem value="full" className="peer sr-only" />
@@ -269,8 +293,12 @@ export default function AssessmentStart() {
                           <FormLabel className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer relative">
                             <ShieldCheck className="mb-3 h-6 w-6 text-primary" />
                             <div className="flex flex-col items-center space-y-1">
-                              <span className="font-semibold text-lg">Kapsamlı Analiz</span>
-                              <span className="text-sm text-muted-foreground">55 Detaylı Soru</span>
+                              <span className="font-semibold text-lg">
+                                {lang === "en" ? "Comprehensive Analysis" : "Kapsamlı Analiz"}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {lang === "en" ? "55 Detailed Questions" : "55 Detaylı Soru"}
+                              </span>
                             </div>
                           </FormLabel>
                         </FormItem>
@@ -288,10 +316,10 @@ export default function AssessmentStart() {
               {createAssessment.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Başlatılıyor...
+                  {lang === "en" ? "Starting..." : "Başlatılıyor..."}
                 </>
               ) : (
-                "Değerlendirmeye Başla"
+                lang === "en" ? "Start Assessment" : "Değerlendirmeye Başla"
               )}
             </Button>
           </div>

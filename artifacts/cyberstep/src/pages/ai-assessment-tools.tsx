@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, ChevronRight, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 interface AiTool {
   id: number;
@@ -35,6 +36,7 @@ const RISK_CONFIG: Record<string, { label: string; cls: string }> = {
 };
 
 export default function AiAssessmentTools() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/ai-guvenlik/:id/araclar");
   const id = Number(params?.id ?? 0);
   const [, navigate] = useLocation();
@@ -133,7 +135,7 @@ export default function AiAssessmentTools() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-            Şirketinizde hangi yapay zeka araçları kullanılıyor?
+            {lang === "en" ? "Which AI tools are used in your company?" : "Şirketinizde hangi yapay zeka araçları kullanılıyor?"}
           </h1>
           <p className="text-slate-500 dark:text-slate-400">
             Çalışanlarınızın kullandığı araçları seçin. Emin değilseniz tahmin edin — sonuçlarda düzeltebilirsiniz.

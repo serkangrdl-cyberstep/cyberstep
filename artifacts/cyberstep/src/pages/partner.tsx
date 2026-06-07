@@ -2,13 +2,14 @@ import { Link } from "wouter";
 import { Shield, CheckCircle, ArrowRight, HandshakeIcon, Percent, Award, Globe, BarChart3, Users, Briefcase, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function Partner() {
+  const { lang } = useLanguage();
   usePageMeta({
-    title: "Partner Programı | CyberStep.io",
-    description: "KVKK danışmanları, IT firmalar ve sigorta aracıları için white-label siber güvenlik platformu. Referral komisyonu, partner sertifikası ve dedike destek.",
+    title: lang === "en" ? "Partner Program | CyberStep.io" : "Partner Programı | CyberStep.io",
+    description: lang === "en" ? "White-label cybersecurity platform for KVKK consultants, IT firms and insurance brokers. Referral commission, partner certificate and dedicated support." : "KVKK danışmanları, IT firmalar ve sigorta aracıları için white-label siber güvenlik platformu. Referral komisyonu, partner sertifikası ve dedike destek.",
     canonicalPath: "/partner",
-    lang: "tr",
   });
 
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "", type: "", notes: "" });

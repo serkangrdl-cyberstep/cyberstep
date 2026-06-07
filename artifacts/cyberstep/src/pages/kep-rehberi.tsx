@@ -8,6 +8,7 @@ import {
   ExternalLink, RotateCcw, Info, Mail, Clock, Building2, FileText,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 type Answer = "yes" | "no" | null;
 
@@ -112,6 +113,7 @@ const KEP_STEPS = [
 ];
 
 export default function KepRehberi() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "KEP (Kayıtlı Elektronik Posta) Rehberi | CyberStep.io",
     description: "Şirketinizin KEP ihtiyacını değerlendirin, sağlayıcıları karşılaştırın ve başvuru adımlarını öğrenin.",
@@ -157,9 +159,9 @@ export default function KepRehberi() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <Mail className="h-6 w-6 text-primary" />
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">KEP Rehberi</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{lang === "en" ? "KEP Guide" : "KEP Rehberi"}</Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">KEP İhtiyaç Değerlendirmesi</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "KEP Needs Assessment" : "KEP İhtiyaç Değerlendirmesi"}</h1>
         <p className="text-muted-foreground max-w-xl">
           Kayıtlı Elektronik Posta (KEP) kullanmanız gerekip gerekmediğini 3 soruyla öğrenin. Hukuki geçerliliği olan e-posta gönderimi için resmi rehber.
         </p>

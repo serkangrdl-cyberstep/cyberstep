@@ -1,4 +1,5 @@
 import { ToolSeoPage, type ToolSeoConfig } from "./tool-seo-page";
+import { useLanguage } from "@/contexts/language-context";
 
 const config: ToolSeoConfig = {
   slug: "domain-guvenlik-taramasi",
@@ -29,5 +30,6 @@ const config: ToolSeoConfig = {
 };
 
 export default function DomainGuvenlikTaramasi() {
+  const { lang } = useLanguage();
   return <ToolSeoPage config={config} />;
 }

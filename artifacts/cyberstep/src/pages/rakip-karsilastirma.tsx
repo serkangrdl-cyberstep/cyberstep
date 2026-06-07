@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 interface ScanBrief {
   domain: string;
@@ -41,6 +42,7 @@ function ScoreBadge({ score, riskLevel }: { score: number; riskLevel: string }) 
 }
 
 export default function RakipKarsilastirma() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Rakibiniz Nerede? — Güvenlik Skoru Karşılaştırma | CyberStep.io",
     description: "Kendi domain'inizin güvenlik skorunu rakibinizle karşılaştırın. Farkı görün, önce kapatın.",
@@ -116,7 +118,7 @@ export default function RakipKarsilastirma() {
             Ücretsiz Karşılaştırma Aracı
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-            Rakibiniz <span className="text-emerald-400">Nerede?</span>
+            {lang === "en" ? <>Where Is Your Competitor <span className="text-emerald-400">Standing?</span></> : <>Rakibiniz <span className="text-emerald-400">Nerede?</span></>}
           </h1>
           <p className="text-slate-400 text-lg max-w-xl mx-auto">
             Kendi alan adınızın güvenlik skorunu rakibinizle karşılaştırın. Farkı görün, önce siz kapatın.

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const REPORT_SECTIONS = [
   { no: "01", title: "Dış Saldırı Yüzeyi Analizi", detail: "Hedef şirketin domain, IP ve alt domain altyapısı — açık portlar, eski TLS, hatalı DNS yapılandırması" },
@@ -33,6 +34,7 @@ type FormState = { company: string; email: string; phone: string; targetDomain: 
 const EMPTY: FormState = { company: "", email: "", phone: "", targetDomain: "", deadline: "" };
 
 export default function MaDueDiligence() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "M&A Siber Due Diligence | CyberStep.io",
     description: "Satın alma öncesi siber güvenlik değerlendirmesi — dış saldırı yüzeyi, veri sızıntısı, finansal risk nicelikleştirme.",
@@ -72,9 +74,9 @@ export default function MaDueDiligence() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-500/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
-          <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 mb-4">M&A Siber Due Diligence</Badge>
+          <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 mb-4">{lang === "en" ? "M&A Cyber Due Diligence" : "M&A Siber Due Diligence"}</Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
-            Satın Aldığınız Şirketin<br />Siber Riskini Fiyata Yansıtın
+            {lang === "en" ? <>Price the Cyber Risk of<br />the Company You're Acquiring</> : <>Satın Aldığınız Şirketin<br />Siber Riskini Fiyata Yansıtın</>}
           </h1>
           <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Türkiye'de yılda 400+ şirket el değiştiriyor. Alıcı firma satın aldığı şirketin siber riskini bilmiyor.

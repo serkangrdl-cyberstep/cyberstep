@@ -8,21 +8,23 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertTriangle, ArrowRight, ArrowLeft, CheckCircle2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 type AnswerType = "evet" | "kismen" | "bilmiyorum" | "hayir";
-
-const ANSWER_OPTIONS: { value: AnswerType; label: string; sublabel: string; activeClass: string; hoverClass: string }[] = [
-  { value: "evet",       label: "Evet",       sublabel: "Tam anlamıyla uygulanıyor",  activeClass: "border-green-500 bg-green-50 text-green-700",   hoverClass: "hover:bg-green-50 hover:text-green-700 hover:border-green-300" },
-  { value: "kismen",     label: "Kısmen",     sublabel: "Kısmen uygulanıyor",         activeClass: "border-yellow-500 bg-yellow-50 text-yellow-700", hoverClass: "hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300" },
-  { value: "hayir",      label: "Hayır",      sublabel: "Henüz uygulanmıyor",         activeClass: "border-red-500 bg-red-50 text-red-700",          hoverClass: "hover:bg-red-50 hover:text-red-700 hover:border-red-300" },
-  { value: "bilmiyorum", label: "Bilmiyorum", sublabel: "Bu konuda bilgim yok",       activeClass: "border-orange-500 bg-orange-50 text-orange-700", hoverClass: "hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300" },
-];
 
 export default function AssessmentRunner() {
   const [, params] = useRoute("/assessment/:id");
   const id = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { lang } = useLanguage();
+
+  const ANSWER_OPTIONS: { value: AnswerType; label: string; sublabel: string; activeClass: string; hoverClass: string }[] = [
+    { value: "evet",       label: lang === "en" ? "Yes"      : "Evet",       sublabel: lang === "en" ? "Fully implemented"    : "Tam anlamıyla uygulanıyor",  activeClass: "border-green-500 bg-green-50 text-green-700",   hoverClass: "hover:bg-green-50 hover:text-green-700 hover:border-green-300" },
+    { value: "kismen",     label: lang === "en" ? "Partially": "Kısmen",     sublabel: lang === "en" ? "Partially implemented" : "Kısmen uygulanıyor",         activeClass: "border-yellow-500 bg-yellow-50 text-yellow-700", hoverClass: "hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300" },
+    { value: "hayir",      label: lang === "en" ? "No"       : "Hayır",      sublabel: lang === "en" ? "Not implemented yet"  : "Henüz uygulanmıyor",         activeClass: "border-red-500 bg-red-50 text-red-700",          hoverClass: "hover:bg-red-50 hover:text-red-700 hover:border-red-300" },
+    { value: "bilmiyorum", label: lang === "en" ? "Don't know": "Bilmiyorum",sublabel: lang === "en" ? "No information on this": "Bu konuda bilgim yok",       activeClass: "border-orange-500 bg-orange-50 text-orange-700", hoverClass: "hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300" },
+  ];
 
   const { data: assessment, isLoading } = useGetAssessment(id, {
     query: { queryKey: ["assessment", id], enabled: !!id }
@@ -69,8 +71,8 @@ export default function AssessmentRunner() {
   const handleSubmit = async () => {
     if (answeredCount < totalQuestions) {
       toast({
-        title: "Eksik Cevaplar",
-        description: "Lütfen tüm soruları cevaplayınız.",
+        title: lang === "en" ? "Missing Answers" : "Eksik Cevaplar",
+        description: lang === "en" ? "Please answer all questions." : "Lütfen tüm soruları cevaplayınız.",
         variant: "destructive",
       });
       return;
@@ -86,7 +88,11 @@ export default function AssessmentRunner() {
       await completeAssessment.mutateAsync({ id });
       setLocation(`/assessment/${id}/report`);
     } catch {
-      toast({ title: "Hata", description: "Sonuçlar kaydedilirken bir hata oluştu.", variant: "destructive" });
+      toast({
+        title: lang === "en" ? "Error" : "Hata",
+        description: lang === "en" ? "An error occurred while saving results." : "Sonuçlar kaydedilirken bir hata oluştu.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -102,13 +108,11 @@ export default function AssessmentRunner() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Header + progress */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight mb-4">
-          Siber Güvenlik Analizi: {assessment.companyName}
+          {lang === "en" ? "Cybersecurity Analysis" : "Siber Güvenlik Analizi"}: {assessment.companyName}
         </h1>
 
-        {/* Domain tabs */}
         <div className="flex flex-wrap gap-2 mb-4">
           {MINI_ASSESSMENT_SECTIONS.map((sec, idx) => {
             const secAnswered = sec.questions.filter(q => answers[q.id] !== undefined).length;
@@ -144,17 +148,18 @@ export default function AssessmentRunner() {
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{Math.round(progress)}% tamamlandı</span>
+          <span>{Math.round(progress)}% {lang === "en" ? "completed" : "tamamlandı"}</span>
           {remainingQuestions > 0 && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              Tahminen ~{estimatedMinutes} dakika kaldı
+              {lang === "en"
+                ? `Approx. ~${estimatedMinutes} min remaining`
+                : `Tahminen ~${estimatedMinutes} dakika kaldı`}
             </span>
           )}
         </div>
       </div>
 
-      {/* Section card */}
       <div className={`transition-opacity duration-200 ${animating ? "opacity-0" : "opacity-100"}`}>
         <Card className="border-t-4 border-t-primary shadow-md">
           <CardHeader className="bg-muted/30 pb-4">
@@ -165,12 +170,15 @@ export default function AssessmentRunner() {
               {section.title}
               {sectionComplete && (
                 <Badge className="ml-auto bg-green-100 text-green-700 border-green-200 text-xs">
-                  <CheckCircle2 className="h-3 w-3 mr-1" /> Tamamlandı
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {lang === "en" ? "Completed" : "Tamamlandı"}
                 </Badge>
               )}
             </CardTitle>
             <CardDescription>
-              Bu bölümdeki soruları şirketinizin mevcut durumuna en uygun şekilde yanıtlayın.
+              {lang === "en"
+                ? "Answer the questions in this section to best reflect your company's current situation."
+                : "Bu bölümdeki soruları şirketinizin mevcut durumuna en uygun şekilde yanıtlayın."}
             </CardDescription>
           </CardHeader>
 
@@ -191,7 +199,8 @@ export default function AssessmentRunner() {
                             <h3 className="text-base font-medium leading-snug flex-1">{q.text}</h3>
                             {q.weight === 3 && (
                               <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium shrink-0 mt-0.5">
-                                <AlertTriangle className="h-3 w-3" /> Kritik kontrol
+                                <AlertTriangle className="h-3 w-3" />
+                                {lang === "en" ? "Critical control" : "Kritik kontrol"}
                               </span>
                             )}
                           </div>
@@ -227,7 +236,9 @@ export default function AssessmentRunner() {
 
                     {answered === "bilmiyorum" && (
                       <p className="text-xs text-amber-600 mt-2 ml-6">
-                        "Bilmiyorum" yanıtı, güvenlik değerlendirmesinde "Hayır" ile aynı etkiye sahiptir.
+                        {lang === "en"
+                          ? '"Don\'t know" has the same effect as "No" in the security assessment.'
+                          : '"Bilmiyorum" yanıtı, güvenlik değerlendirmesinde "Hayır" ile aynı etkiye sahiptir.'}
                       </p>
                     )}
                   </div>
@@ -238,7 +249,8 @@ export default function AssessmentRunner() {
 
           <CardFooter className="flex justify-between p-6 bg-muted/20 border-t">
             <Button variant="outline" onClick={() => switchSection("prev")} disabled={isFirstSection}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Önceki Bölüm
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {lang === "en" ? "Previous Section" : "Önceki Bölüm"}
             </Button>
 
             {isLastSection ? (
@@ -252,14 +264,15 @@ export default function AssessmentRunner() {
                 ) : (
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                 )}
-                Tamamla ve Gönder
+                {lang === "en" ? "Complete & Submit" : "Tamamla ve Gönder"}
                 {answeredCount < totalQuestions && (
-                  <span className="ml-2 text-xs opacity-70">({totalQuestions - answeredCount} eksik)</span>
+                  <span className="ml-2 text-xs opacity-70">({totalQuestions - answeredCount} {lang === "en" ? "missing" : "eksik"})</span>
                 )}
               </Button>
             ) : (
               <Button onClick={() => switchSection("next")}>
-                Sonraki Bölüm <ArrowRight className="ml-2 h-4 w-4" />
+                {lang === "en" ? "Next Section" : "Sonraki Bölüm"}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
           </CardFooter>

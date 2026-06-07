@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/contexts/language-context";
 
 const ATTACK_TYPES = [
   { value: "Ransomware / Fidye Yazılımı", label: "Fidye Yazılımı (Ransomware)" },
@@ -82,6 +83,7 @@ function renderMarkdown(text: string) {
 }
 
 export default function SiberPanik() {
+  const { lang } = useLanguage();
   const [attackType, setAttackType] = useState("");
   const [currentImpact, setCurrentImpact] = useState("");
   const [timeElapsed, setTimeElapsed] = useState("");
@@ -111,11 +113,13 @@ export default function SiberPanik() {
               <Shield className="h-8 w-8" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold mb-2">Siber Panik Butonu</h1>
+          <h1 className="text-2xl font-bold mb-2">{lang === "en" ? "Cyber Panic Button" : "Siber Panik Butonu"}</h1>
           <p className="text-red-100 text-sm max-w-md mx-auto">
-            Siber saldırı altındaysanız, sakin kalın. Adımları takip edin ve AI destekli acil müdahale planınızı alın.
+            {lang === "en"
+              ? "If you're under a cyber attack, stay calm. Follow the steps and get your AI-powered emergency response plan."
+              : "Siber saldırı altındaysanız, sakin kalın. Adımları takip edin ve AI destekli acil müdahale planınızı alın."}
           </p>
-          <Badge className="mt-3 bg-white/20 text-white border-white/30 text-xs">Ücretsiz — Kayıt Gerektirmez</Badge>
+          <Badge className="mt-3 bg-white/20 text-white border-white/30 text-xs">{lang === "en" ? "Free — No Registration Required" : "Ücretsiz — Kayıt Gerektirmez"}</Badge>
         </div>
       </div>
 

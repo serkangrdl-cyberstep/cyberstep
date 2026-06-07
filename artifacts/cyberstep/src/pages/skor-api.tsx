@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 // ─── Endpoint definitions ─────────────────────────────────────────────────────
 const ENDPOINTS = [
@@ -213,6 +214,7 @@ function CodeBlock({ code, lang = "json" }: { code: string; lang?: string }) {
 }
 
 export default function SkorApi() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Skor API v1 | CyberStep.io",
     description: "CyberStep domain güvenlik skoru API'si. 5 endpoint, 3 katman fiyatlandırma, webhook desteği. Freemium günlük 10 çağrı ücretsiz.",
@@ -253,10 +255,10 @@ export default function SkorApi() {
           <div className="flex flex-col md:flex-row items-start gap-12">
             <div className="flex-1">
               <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">
-                <Code2 className="h-3.5 w-3.5 mr-1.5" />CyberStep Skor API — v1
+                <Code2 className="h-3.5 w-3.5 mr-1.5" />CyberStep Score API — v1
               </Badge>
               <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
-                5 Endpoint.<br />3 Katman.<br />Webhook Dahil.
+                {lang === "en" ? <>5 Endpoints.<br />3 Tiers.<br />Webhooks Included.</> : <>5 Endpoint.<br />3 Katman.<br />Webhook Dahil.</>}
               </h1>
               <p className="text-white/80 text-base leading-relaxed mb-6 max-w-md">
                 Türkiye'nin kredi notu benzeri domain güvenlik skoru API'si.

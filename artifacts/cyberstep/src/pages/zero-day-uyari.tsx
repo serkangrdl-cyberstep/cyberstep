@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const THREAT_EXAMPLES = [
   { cve: "CVE-2021-44228", name: "Log4Shell", affected: "Java uygulamaları, Apache, VMware", cvss: "10.0", impact: "Uzaktan kod çalıştırma" },
@@ -33,6 +34,7 @@ type FormState = { company: string; email: string; domain: string; stack: string
 const EMPTY: FormState = { company: "", email: "", domain: "", stack: "" };
 
 export default function ZeroDayUyari() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Zero-Day Anlık Uyarı Servisi | CyberStep.io",
     description: "CISA KEV izleme, stack eşleştirme ve WhatsApp+e-posta ile anlık zero-day uyarı servisi.",
@@ -74,9 +76,9 @@ export default function ZeroDayUyari() {
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
           <div className="flex flex-col lg:flex-row items-start gap-10">
             <div className="flex-1">
-              <Badge className="bg-red-500/20 text-red-300 border-red-500/30 mb-4">Zero-Day Uyarı Servisi</Badge>
+              <Badge className="bg-red-500/20 text-red-300 border-red-500/30 mb-4">{lang === "en" ? "Zero-Day Alert Service" : "Zero-Day Uyarı Servisi"}</Badge>
               <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight">
-                Zero-Day Patladığında<br />Siz Zaten Haberdarsınız
+                {lang === "en" ? <>When a Zero-Day Drops,<br />You Already Know</> : <>Zero-Day Patladığında<br />Siz Zaten Haberdarsınız</>}
               </h1>
               <p className="text-white/80 text-base mb-6 max-w-lg leading-relaxed">
                 Log4Shell, MOVEit, Citrix Bleed — dünya 48 saat içinde hacklenenlere ve haberdarlara bölünüyor.

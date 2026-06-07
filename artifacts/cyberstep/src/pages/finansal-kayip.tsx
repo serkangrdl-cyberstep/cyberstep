@@ -10,6 +10,7 @@ import {
   TrendingDown, Loader2, ChevronRight, RotateCcw,
   Clock, Users, Star, Scale, ShieldAlert, Server, Calculator,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTORS = [
   "Üretim / İmalat", "Perakende / E-ticaret", "Lojistik / Taşımacılık",
@@ -67,6 +68,7 @@ interface KayipResult {
 }
 
 export default function FinansalKayip() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Siber Saldırı Finansal Kayıp Hesaplayıcı | CyberStep.io",
     description: "Şirketinize yapılacak bir siber saldırının TL cinsinden finansal etkisini hesaplayın. IBM ve Verizon DBIR verileri referans alınmıştır.",
@@ -125,10 +127,10 @@ export default function FinansalKayip() {
         <div className="container mx-auto px-4 py-14 max-w-4xl text-center">
           <Badge variant="outline" className="mb-4 border-amber-500/40 text-amber-400 bg-amber-500/5">
             <Calculator className="h-3 w-3 mr-1" />
-            TL Bazlı Finansal Etki Analizi
+            {lang === "en" ? "Financial Impact Analysis in TRY" : "TL Bazlı Finansal Etki Analizi"}
           </Badge>
           <h1 className="text-4xl font-bold mb-4">
-            Siber Saldırı Kaça Mal Olur?
+            {lang === "en" ? "What Would a Cyber Attack Cost?" : "Siber Saldırı Kaça Mal Olur?"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
             IBM Cost of Data Breach ve Verizon DBIR verilerine dayalı, Türkiye KOBİ pazarına uyarlanmış

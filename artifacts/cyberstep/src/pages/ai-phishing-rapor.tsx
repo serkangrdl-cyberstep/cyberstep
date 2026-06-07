@@ -5,6 +5,7 @@ import { AlertTriangle, Shield, Clock } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { Layout } from "@/components/layout";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 interface OsintSource { id: number; sourceType: string; dataFound: string; riskContribution: string; }
 interface EmailPayload { from_display: string; to: string; subject: string; body: string; manipulation_technique: string; }
@@ -23,6 +24,7 @@ interface SimReport {
 const RISK_COL: Record<string, string> = { high: "text-red-600", medium: "text-amber-600", low: "text-green-600" };
 
 export default function AiPhishingRapor() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "AI Phishing Simülasyon Raporu | CyberStep.io", description: "Şirketinize yönelik AI tabanlı phishing simülasyon sonuçları." });
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, isError } = useQuery<SimReport>({
@@ -61,7 +63,7 @@ export default function AiPhishingRapor() {
 
       <div className="container mx-auto px-4 max-w-4xl py-10">
         <div className="mb-8">
-          <Badge variant="outline" className="mb-3">Phishing Simülasyon Raporu</Badge>
+          <Badge variant="outline" className="mb-3">{lang === "en" ? "Phishing Simulation Report" : "Phishing Simülasyon Raporu"}</Badge>
           <h1 className="text-3xl font-bold mb-1">{data.companyName}</h1>
           <p className="text-muted-foreground">{data.domain} · {new Date(data.createdAt).toLocaleDateString("tr-TR")}</p>
         </div>

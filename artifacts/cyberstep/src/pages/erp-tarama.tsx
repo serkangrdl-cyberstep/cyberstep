@@ -8,6 +8,7 @@ import {
   Shield, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp,
   RotateCcw, Info, Database, Lock, Users, Monitor, Cloud, ExternalLink,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 interface RiskItem {
   id: string;
@@ -43,6 +44,7 @@ const RISK_META: Record<string, { label: string; color: string; border: string }
 type CheckState = "yes" | "no" | "na" | null;
 
 export default function ErpTarama() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "ERP Güvenlik Tarama Listesi | CyberStep.io",
     description: "ERP sisteminizin (SAP, Logo, Netsis, Mikro vb.) güvenlik risklerini kontrol edin. KOBİ'ler için ücretsiz ERP denetim listesi.",
@@ -71,9 +73,9 @@ export default function ErpTarama() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <Database className="h-6 w-6 text-primary" />
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">ERP Güvenlik</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{lang === "en" ? "ERP Security" : "ERP Güvenlik"}</Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">ERP Güvenlik Tarama Listesi</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "ERP Security Checklist" : "ERP Güvenlik Tarama Listesi"}</h1>
         <p className="text-muted-foreground max-w-2xl">
           SAP, Logo Tiger, Netsis, Mikro veya herhangi bir ERP sistemi kullanan KOBİ'ler için kritik güvenlik kontrol listesi.
         </p>

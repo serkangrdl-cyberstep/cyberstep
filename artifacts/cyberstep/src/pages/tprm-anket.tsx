@@ -9,6 +9,7 @@ import {
   Shield, CheckCircle2, XCircle, Loader2, AlertTriangle,
   Building2, Globe,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 const ANSWER_OPTIONS = [
   { value: "evet", label: "Evet", score: 10, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 ring-emerald-500/30" },
@@ -40,6 +41,7 @@ interface SubmitResult {
 }
 
 export default function TprmAnket() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/tprm/anket/:token");
   const token = params?.token ?? "";
 
@@ -211,9 +213,9 @@ export default function TprmAnket() {
             <span className="font-bold text-lg">CyberStep.io</span>
           </div>
           <Badge variant="outline" className="mb-3 border-violet-500/40 text-violet-400 bg-violet-500/5">
-            Tedarikçi Siber Güvenlik Anketi
+            {lang === "en" ? "Supplier Cybersecurity Survey" : "Tedarikçi Siber Güvenlik Anketi"}
           </Badge>
-          <h1 className="text-2xl font-bold mb-2">Siber Güvenlik Öz-Değerlendirmesi</h1>
+          <h1 className="text-2xl font-bold mb-2">{lang === "en" ? "Cybersecurity Self-Assessment" : "Siber Güvenlik Öz-Değerlendirmesi"}</h1>
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Building2 className="h-4 w-4" />
             <span>{data.companyName} tarafından gönderildi</span>

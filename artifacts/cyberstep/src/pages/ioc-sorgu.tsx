@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 const THREAT_COLORS: Record<string, string> = {
   critical: "bg-red-500/15 text-red-400 border-red-500/40",
@@ -62,6 +63,7 @@ interface Credits {
 }
 
 export default function IocSorgu() {
+  const { lang } = useLanguage();
   const { toast } = useToast();
   const [inputValue, setInputValue] = useState("");
   const [activeQueryId, setActiveQueryId] = useState<number | null>(null);
@@ -169,7 +171,7 @@ export default function IocSorgu() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Shield className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-bold">Tehdit Sorgulama Merkezi</h1>
+            <h1 className="text-2xl font-bold">{lang === "en" ? "Threat Intelligence Center" : "Tehdit Sorgulama Merkezi"}</h1>
           </div>
           <p className="text-slate-400 text-sm">
             IP, domain, dosya hash veya URL sorgulayın. Shodan, VirusTotal, AbuseIPDB ve daha fazlası paralel analiz eder.

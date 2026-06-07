@@ -9,6 +9,7 @@ import {
   Info, ExternalLink, TrendingUp,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 type StepId = "sector" | "employees" | "revenue" | "data_types" | "controls" | "prior_incident";
 
@@ -162,6 +163,7 @@ function fmt(n: number) {
 }
 
 export default function SiberSigorta() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Siber Sigorta Prim Hesaplayıcı | CyberStep.io",
     description: "Şirketinizin siber sigorta ihtiyacını ve tahmini prim aralığını öğrenin. Ücretsiz risk değerlendirmesi.",
@@ -213,10 +215,10 @@ export default function SiberSigorta() {
         <div className="flex items-center gap-2 mb-3">
           <Shield className="h-6 w-6 text-primary" />
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            Siber Sigorta
+            {lang === "en" ? "Cyber Insurance" : "Siber Sigorta"}
           </Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Siber Sigorta Prim Tahmini</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "Cyber Insurance Premium Estimate" : "Siber Sigorta Prim Tahmini"}</h1>
         <p className="text-muted-foreground">
           6 soruyla şirketinizin risk profilini değerlendirin, tahmini sigorta primini ve önerilen teminat tutarını öğrenin.
         </p>

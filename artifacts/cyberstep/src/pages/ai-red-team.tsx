@@ -9,8 +9,10 @@ import { useParams, useLocation } from "wouter";
 import { Eye, ArrowRight, AlertTriangle, Shield, CheckCircle2, ChevronRight, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function AiRedTeamPage() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "AI Red Team Raporu", description: "Saldırganlar 30 dakikada şirketiniz hakkında ne öğrenir? CyberStep AI Red Team ile kamuya açık dijital izinizi analiz edin." });
 
   const params = useParams();
@@ -64,7 +66,7 @@ export default function AiRedTeamPage() {
             </Badge>
             <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
               AI Red Team<br />
-              <span className="text-red-400">Raporu</span>
+              <span className="text-red-400">{lang === "en" ? "Report" : "Raporu"}</span>
             </h1>
             <p className="text-slate-300 text-lg mb-3">
               Bir saldırgan şirketinizi hedef almadan önce 30 dakikada <strong className="text-white">ne öğrenir?</strong>
@@ -118,8 +120,8 @@ export default function AiRedTeamPage() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-16 max-w-lg">
           <button onClick={() => setStep("landing")} className="text-sm text-muted-foreground hover:text-foreground mb-8 flex items-center gap-1">← Geri</button>
-          <Badge className="mb-4 bg-red-600/20 text-red-400 border-red-600/30">AI Red Team Raporu</Badge>
-          <h1 className="text-2xl font-bold mb-2">Şirket Bilgileri</h1>
+          <Badge className="mb-4 bg-red-600/20 text-red-400 border-red-600/30">{lang === "en" ? "AI Red Team Report" : "AI Red Team Raporu"}</Badge>
+          <h1 className="text-2xl font-bold mb-2">{lang === "en" ? "Company Information" : "Şirket Bilgileri"}</h1>
           <p className="text-muted-foreground text-sm mb-8">OSINT analizi için şirket adı ve domain gerekli.</p>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTORS = [
   { icon: Shield, name: "Savunma Sanayii", detail: "SSB ve MSB tedarikçileri, ITAR/EAR uyumluluğu gerektirenler" },
@@ -40,6 +41,7 @@ type FormState = { company: string; email: string; phone: string; sector: string
 const EMPTY: FormState = { company: "", email: "", phone: "", sector: "" };
 
 export default function OnPremise() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "On-Premise Kurulum | CyberStep.io",
     description: "Savunma, bankacılık ve sağlık sektörü için hava boşluklu (air-gapped) on-premise CyberStep kurulumu.",
@@ -81,7 +83,7 @@ export default function OnPremise() {
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
           <Badge className="bg-slate-500/20 text-slate-300 border-slate-500/30 mb-4">On-Premise / Air-Gapped</Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
-            Buluta Veri Gönderemiyorsanız,<br />CyberStep Sizi Bulur
+            {lang === "en" ? <>If You Can't Send Data to the Cloud,<br />CyberStep Comes to You</> : <>Buluta Veri Gönderemiyorsanız,<br />CyberStep Sizi Bulur</>}
           </h1>
           <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Savunma sanayii, bankacılık ve sağlık sektörü bulut SaaS'a veri gönderemez.

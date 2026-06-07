@@ -8,6 +8,7 @@ import {
   Shield, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronUp,
   Download, RotateCcw, Lock, Mail, Monitor, Users, FileText, ExternalLink,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 interface CheckItem {
   id: string;
@@ -102,6 +103,7 @@ function RiskBadge({ risk }: { risk: CheckItem["risk"] }) {
 }
 
 export default function M365Denetim() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Microsoft 365 Güvenlik Denetimi | CyberStep.io",
     description: "Microsoft 365 ortamınızın güvenlik yapılandırmasını adım adım kontrol edin. Ücretsiz denetim kontrol listesi.",
@@ -143,10 +145,10 @@ export default function M365Denetim() {
         <div className="flex items-center gap-2 mb-3">
           <Shield className="h-6 w-6 text-primary" />
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            M365 Güvenlik
+            {lang === "en" ? "M365 Security" : "M365 Güvenlik"}
           </Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Microsoft 365 Güvenlik Denetimi</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "Microsoft 365 Security Audit" : "Microsoft 365 Güvenlik Denetimi"}</h1>
         <p className="text-muted-foreground max-w-2xl">
           M365 ortamınızdaki kritik güvenlik ayarlarını kontrol edin. Her madde için durumu işaretleyin; sonuçta öncelikli aksiyonlarınızı görün.
         </p>

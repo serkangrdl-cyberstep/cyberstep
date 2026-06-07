@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 // ─── Scoring methodology ──────────────────────────────────────────────────────
 
@@ -73,6 +74,7 @@ const ANSWER_WEIGHTS = [
 ];
 
 export default function Metodoloji() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Değerlendirme Metodolojisi | CyberStep.io",
     description: "CyberStep siber güvenlik skorlama metodolojisi: domain teknik analizi, Mini Değerlendirme soru ağırlıkları, CVSS, EPSS ve MITRE ATT&CK entegrasyonu.",
@@ -85,8 +87,8 @@ export default function Metodoloji() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-4xl relative z-10">
-          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Metodoloji Belgesi</Badge>
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-4">CyberStep Değerlendirme Metodolojisi</h1>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{lang === "en" ? "Methodology Document" : "Metodoloji Belgesi"}</Badge>
+          <h1 className="text-3xl sm:text-4xl font-black text-white mb-4">{lang === "en" ? "CyberStep Assessment Methodology" : "CyberStep Değerlendirme Metodolojisi"}</h1>
           <p className="text-white/80 text-base max-w-2xl leading-relaxed mb-6">
             CyberStep skorlarının nasıl hesaplandığı, hangi uluslararası standartları kullandığı ve
             her metriğin neden önemli olduğu hakkında teknik referans belgesi.

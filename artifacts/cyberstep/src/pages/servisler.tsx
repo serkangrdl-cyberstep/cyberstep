@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { CheckCircle2, ChevronRight, ArrowRight, Shield, Network, Globe, FileText, Building2, ScrollText, Activity, Server } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/language-context";
 
 interface ServiceCatalogItem {
   id: number;
@@ -22,13 +23,6 @@ interface ServiceCatalogItem {
 
 const ICONS: Record<string, React.ElementType> = {
   Network, Globe, FileText, Building2, ScrollText, Activity, Server, Shield,
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  soc: "SOC & Güvenlik Operasyonları",
-  monitoring: "Sürekli İzleme",
-  compliance: "Uyumluluk",
-  itsm: "IT Servis Yönetimi",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -118,12 +112,19 @@ const STATIC_SERVICES: ServiceCatalogItem[] = [
 ];
 
 function NotFound() {
+  const { lang } = useLanguage();
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Servis Bulunamadı</h1>
-        <p className="text-muted-foreground mb-4">Aradığınız servis mevcut değil.</p>
-        <Link href="/fiyatlar" className="text-primary hover:underline">Tüm servisler</Link>
+        <h1 className="text-2xl font-bold mb-2">
+          {lang === "en" ? "Service Not Found" : "Servis Bulunamadı"}
+        </h1>
+        <p className="text-muted-foreground mb-4">
+          {lang === "en" ? "The service you are looking for does not exist." : "Aradığınız servis mevcut değil."}
+        </p>
+        <Link href="/fiyatlar" className="text-primary hover:underline">
+          {lang === "en" ? "All Services" : "Tüm Servisler"}
+        </Link>
       </div>
     </div>
   );
@@ -132,6 +133,14 @@ function NotFound() {
 export default function ServislerPage() {
   const [, params] = useRoute("/servisler/:slug");
   const slug = params?.slug ?? "";
+  const { lang } = useLanguage();
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    soc: lang === "en" ? "SOC & Security Operations" : "SOC & Güvenlik Operasyonları",
+    monitoring: lang === "en" ? "Continuous Monitoring" : "Sürekli İzleme",
+    compliance: lang === "en" ? "Compliance" : "Uyumluluk",
+    itsm: lang === "en" ? "IT Service Management" : "IT Servis Yönetimi",
+  };
 
   const { data: allServices = [], isLoading } = useQuery<ServiceCatalogItem[]>({
     queryKey: ["public-service-catalog"],
@@ -142,15 +151,17 @@ export default function ServislerPage() {
   const service = allServices.find(s => s.slug === slug) ?? (isLoading ? undefined : STATIC_SERVICES.find(s => s.slug === slug));
 
   usePageMeta({
-    title: service ? `${service.label} | CyberStep.io` : "Servis | CyberStep.io",
-    description: service?.shortDescription ?? "CyberStep.io kurumsal güvenlik servisleri",
+    title: service ? `${service.label} | CyberStep.io` : (lang === "en" ? "Service | CyberStep.io" : "Servis | CyberStep.io"),
+    description: service?.shortDescription ?? (lang === "en" ? "CyberStep.io enterprise security services" : "CyberStep.io kurumsal güvenlik servisleri"),
     canonicalPath: `/servisler/${slug}`,
   });
 
   if (isLoading && !service) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Yükleniyor...</div>
+        <div className="text-muted-foreground">
+          {lang === "en" ? "Loading..." : "Yükleniyor..."}
+        </div>
       </div>
     );
   }
@@ -186,26 +197,28 @@ export default function ServislerPage() {
                 href={`/satin-al/${service.slug}`}
                 className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors"
               >
-                Hemen Başla <ArrowRight className="h-4 w-4" />
+                {lang === "en" ? "Get Started" : "Hemen Başla"} <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href={`/iletisim?servis=${service.slug}`}
                 className="inline-flex items-center justify-center gap-2 border border-primary/40 text-primary px-8 py-3 rounded-xl font-semibold hover:bg-primary/10 transition-colors"
               >
-                Demo İste
+                {lang === "en" ? "Request Demo" : "Demo İste"}
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Fiyat + özellikler */}
+      {/* Price + features */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Özellikler listesi */}
+            {/* Features list */}
             <div className="lg:col-span-2">
-              <h2 className="text-2xl font-bold mb-6">Neler dahil?</h2>
+              <h2 className="text-2xl font-bold mb-6">
+                {lang === "en" ? "What's included?" : "Neler dahil?"}
+              </h2>
               {features.length > 0 ? (
                 <ul className="space-y-3">
                   {features.map((f, i) => (
@@ -216,7 +229,9 @@ export default function ServislerPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground">Özellik listesi yakında eklenecek.</p>
+                <p className="text-muted-foreground">
+                  {lang === "en" ? "Feature list coming soon." : "Özellik listesi yakında eklenecek."}
+                </p>
               )}
 
               {service.longDescription && (
@@ -226,15 +241,19 @@ export default function ServislerPage() {
               )}
             </div>
 
-            {/* Fiyat kartı */}
+            {/* Price card */}
             <div className="lg:col-span-1">
               <div className="sticky top-6 rounded-2xl border border-primary/30 bg-primary/5 p-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Aylık Fiyat</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  {lang === "en" ? "Monthly Price" : "Aylık Fiyat"}
+                </p>
                 <p className="text-4xl font-bold text-primary mb-1">{fmtTL(service.monthlyPriceTl)} TL</p>
-                <p className="text-sm text-muted-foreground mb-1">aylık + KDV</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  {lang === "en" ? "monthly + VAT" : "aylık + KDV"}
+                </p>
                 {hasSetup && (
                   <p className="text-xs text-muted-foreground mb-4">
-                    + {fmtTL(service.setupFeeTl)} TL kurulum ücreti (tek seferlik)
+                    + {fmtTL(service.setupFeeTl)} TL {lang === "en" ? "setup fee (one-time)" : "kurulum ücreti (tek seferlik)"}
                   </p>
                 )}
                 <div className="space-y-2 mt-4">
@@ -242,13 +261,13 @@ export default function ServislerPage() {
                     href={`/satin-al/${service.slug}`}
                     className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors"
                   >
-                    Satın Al <ChevronRight className="h-4 w-4" />
+                    {lang === "en" ? "Buy Now" : "Satın Al"} <ChevronRight className="h-4 w-4" />
                   </Link>
                   <Link
                     href={`/iletisim?servis=${service.slug}`}
                     className="w-full flex items-center justify-center gap-2 border border-border py-3 rounded-xl font-medium hover:bg-muted/50 transition-colors text-sm"
                   >
-                    Demo İste
+                    {lang === "en" ? "Request Demo" : "Demo İste"}
                   </Link>
                 </div>
               </div>
@@ -257,11 +276,13 @@ export default function ServislerPage() {
         </div>
       </section>
 
-      {/* Nasıl çalışır */}
+      {/* How it works */}
       {howItWorks.length > 0 && (
         <section className="py-16 bg-muted/30">
           <div className="container mx-auto px-4 max-w-4xl">
-            <h2 className="text-2xl font-bold text-center mb-10">Nasıl çalışır?</h2>
+            <h2 className="text-2xl font-bold text-center mb-10">
+              {lang === "en" ? "How does it work?" : "Nasıl çalışır?"}
+            </h2>
             <div className="grid md:grid-cols-3 gap-6">
               {howItWorks.map((step, i) => (
                 <div key={i} className="text-center">
@@ -277,11 +298,13 @@ export default function ServislerPage() {
         </section>
       )}
 
-      {/* SSS */}
+      {/* FAQ */}
       {faq.length > 0 && (
         <section className="py-16 bg-background">
           <div className="container mx-auto px-4 max-w-3xl">
-            <h2 className="text-2xl font-bold text-center mb-8">Sık Sorulan Sorular</h2>
+            <h2 className="text-2xl font-bold text-center mb-8">
+              {lang === "en" ? "Frequently Asked Questions" : "Sık Sorulan Sorular"}
+            </h2>
             <div className="space-y-4">
               {faq.map((item, i) => (
                 <details key={i} className="group border rounded-xl overflow-hidden">
@@ -300,16 +323,22 @@ export default function ServislerPage() {
       {/* CTA banner */}
       <section className="py-16 bg-secondary">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">{service.label} için hazır mısınız?</h2>
+          <h2 className="text-2xl font-bold text-white mb-3">
+            {lang === "en"
+              ? `Ready to get started with ${service.label}?`
+              : `${service.label} için hazır mısınız?`}
+          </h2>
           <p className="text-white/80 mb-6 max-w-xl mx-auto">
-            Ücretsiz demo talebinde bulunun veya hemen satın alarak hizmetinizi başlatın.
+            {lang === "en"
+              ? "Request a free demo or buy now and start your service."
+              : "Ücretsiz demo talebinde bulunun veya hemen satın alarak hizmetinizi başlatın."}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href={`/satin-al/${service.slug}`} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
-              Hemen Başla <ArrowRight className="h-4 w-4" />
+              {lang === "en" ? "Get Started" : "Hemen Başla"} <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/fiyatlar" className="inline-flex items-center gap-2 border border-primary/30 text-primary px-8 py-3 rounded-xl font-semibold hover:bg-primary/10 transition-colors">
-              Tüm Servisler
+              {lang === "en" ? "All Services" : "Tüm Servisler"}
             </Link>
           </div>
         </div>

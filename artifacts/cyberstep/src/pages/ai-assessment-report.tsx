@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { Loader2, Brain, AlertTriangle, CheckCircle, Shield, FileText, ChevronRight, Download, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -93,6 +94,7 @@ const AREA_KEYS: (keyof Assessment)[] = ["area1Score", "area2Score", "area3Score
 const AREA_MAX = [50, 110, 45, 50];
 
 export default function AiAssessmentReport() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/ai-guvenlik/:id/rapor");
   const id = Number(params?.id ?? 0);
 

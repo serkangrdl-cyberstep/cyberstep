@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useGetReport, useGetAssessment } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/language-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -297,6 +298,7 @@ export default function AssessmentReport() {
 }
 
 function AssessmentReportCore({ id }: { id: number }) {
+  const { lang } = useLanguage();
   const [showAnswers, setShowAnswers] = useState(false);
   const [contactForm, setContactForm] = useState<ContactForm>({ name: "", email: "", phone: "", note: "" });
   const [contactSent, setContactSent] = useState(false);
@@ -492,14 +494,14 @@ function AssessmentReportCore({ id }: { id: number }) {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-              Mini Değerlendirme Sonucu
+              {lang === "en" ? "Mini Assessment Result" : "Mini Değerlendirme Sonucu"}
             </Badge>
             <span className="text-sm text-muted-foreground">
               {new Date(report.createdAt).toLocaleDateString("tr-TR")}
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {assessment?.companyName || "Şirket"} — Siber Risk Özeti
+            {assessment?.companyName || (lang === "en" ? "Company" : "Şirket")} — {lang === "en" ? "Cyber Risk Summary" : "Siber Risk Özeti"}
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -510,27 +512,27 @@ function AssessmentReportCore({ id }: { id: number }) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                 </svg>
-                PDF Hazırlanıyor
+                {lang === "en" ? "Preparing PDF" : "PDF Hazırlanıyor"}
               </span>
             ) : (
               <>
-                <Download className="mr-2 h-4 w-4" /> PDF İndir
+                <Download className="mr-2 h-4 w-4" /> {lang === "en" ? "Download PDF" : "PDF İndir"}
               </>
             )}
           </Button>
           <Button variant="outline" onClick={handleMailtoShare}>
-            <Share2 className="mr-2 h-4 w-4" /> Tedarikçine Gönder
+            <Share2 className="mr-2 h-4 w-4" /> {lang === "en" ? "Send to Supplier" : "Tedarikçine Gönder"}
           </Button>
           {customer ? (
             <Link href="/raporlarim">
               <Button variant="outline">
-                Raporlarıma Dön <ArrowRight className="ml-2 h-4 w-4" />
+                {lang === "en" ? "My Reports" : "Raporlarıma Dön"} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           ) : (
             <Link href="/assessment/start">
               <Button variant="outline">
-                Yeni Değerlendirme <ArrowRight className="ml-2 h-4 w-4" />
+                {lang === "en" ? "New Assessment" : "Yeni Değerlendirme"} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           )}
@@ -541,8 +543,8 @@ function AssessmentReportCore({ id }: { id: number }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card className={`col-span-1 md:col-span-2 shadow-sm border-t-4 ${getRiskBorderColor(report.riskLevel)}`}>
           <CardHeader className="pb-2">
-            <CardTitle>Risk Skoru</CardTitle>
-            <CardDescription>Siber güvenlik olgunluk seviyeniz</CardDescription>
+            <CardTitle>{lang === "en" ? "Risk Score" : "Risk Skoru"}</CardTitle>
+            <CardDescription>{lang === "en" ? "Your cybersecurity maturity level" : "Siber güvenlik olgunluk seviyeniz"}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row items-center gap-8">
@@ -565,20 +567,20 @@ function AssessmentReportCore({ id }: { id: number }) {
               <div className="flex-1 space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium">Risk Seviyesi</span>
+                    <span className="text-sm font-medium">{lang === "en" ? "Risk Level" : "Risk Seviyesi"}</span>
                     <Badge className={getRiskColor(report.riskLevel)}>{report.riskLevel}</Badge>
                   </div>
                   <Progress value={scorePercent} className="h-3" />
-                  <p className="text-xs text-muted-foreground mt-1">%{scorePercent.toFixed(0)} — yüksek skor daha iyi güvenlik anlamına gelir</p>
+                  <p className="text-xs text-muted-foreground mt-1">%{scorePercent.toFixed(0)} — {lang === "en" ? "higher score means better security" : "yüksek skor daha iyi güvenlik anlamına gelir"}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30 border text-sm">
-                  <span className="font-medium">Sektör Karşılaştırması ({assessment?.sector ?? "Genel"}): </span>
+                  <span className="font-medium">{lang === "en" ? "Sector Comparison" : "Sektör Karşılaştırması"} ({assessment?.sector ?? (lang === "en" ? "General" : "Genel")}): </span>
                   <span className={benchmarkDiff >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                    {benchmarkDiff >= 0 ? "+" : ""}{benchmarkDiff.toFixed(0)} puan
+                    {benchmarkDiff >= 0 ? "+" : ""}{benchmarkDiff.toFixed(0)} {lang === "en" ? "pts" : "puan"}
                   </span>
                   <span className="text-muted-foreground">
-                    {" "}(sektör ort. %{sectorBenchmark}
-                    {report.sectorAvg ? " — gerçek veri" : " — sektör tahmini"})
+                    {" "}({lang === "en" ? "sector avg." : "sektör ort."} %{sectorBenchmark}
+                    {report.sectorAvg ? (lang === "en" ? " — real data" : " — gerçek veri") : (lang === "en" ? " — sector estimate" : " — sektör tahmini")})
                   </span>
                 </div>
               </div>
@@ -590,15 +592,17 @@ function AssessmentReportCore({ id }: { id: number }) {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
               <AlertOctagon className="h-5 w-5 text-destructive" />
-              Kırmızı Alarmlar
+              {lang === "en" ? "Red Alarms" : "Kırmızı Alarmlar"}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center justify-center h-full pt-4 pb-2">
               <span className="text-6xl font-bold text-destructive mb-2">{report.redAlarmCount}</span>
-              <p className="text-center text-sm font-medium">Kritik Güvenlik Açığı</p>
+              <p className="text-center text-sm font-medium">{lang === "en" ? "Critical Security Gaps" : "Kritik Güvenlik Açığı"}</p>
               <p className="text-center text-xs text-muted-foreground mt-2">
-                Derhal aksiyon alınması gereken temel güvenlik eksiklikleri tespit edildi.
+                {lang === "en"
+                  ? "Fundamental security deficiencies requiring immediate action were detected."
+                  : "Derhal aksiyon alınması gereken temel güvenlik eksiklikleri tespit edildi."}
               </p>
             </div>
           </CardContent>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const PROCESS_STEPS = [
   { step: "1", title: "Tedarikçi Bilgisi Girin", detail: "Ana müşteri portalından tedarikçinin adı ve domain adresini girin. CyberStep davet e-postasını otomatik gönderir.", badge: "Otomatik" },
@@ -32,6 +33,7 @@ type FormState = { company: string; email: string; supplierCount: string; sector
 const EMPTY: FormState = { company: "", email: "", supplierCount: "", sector: "" };
 
 export default function TedarikciOnboarding() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Tedarikçi Onboarding Servisi | CyberStep.io",
     description: "Yeni tedarikçi kabul sürecinde otomatik siber güvenlik değerlendirmesi — domain tarama + TPRM anketi + AI tavsiye.",
@@ -71,9 +73,9 @@ export default function TedarikciOnboarding() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-emerald-500/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
-          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 mb-4">Tedarikçi Onboarding</Badge>
+          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 mb-4">{lang === "en" ? "Supplier Onboarding" : "Tedarikçi Onboarding"}</Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
-            Yeni Tedarikçinizin Güvenliğini<br />Otomatik Değerlendirin
+            {lang === "en" ? <>Automatically Assess Your<br />New Supplier's Security</> : <>Yeni Tedarikçinizin Güvenliğini<br />Otomatik Değerlendirin</>}
           </h1>
           <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Büyük şirketler yeni tedarikçi alırken siber güvenlik sorusu sormuyor.

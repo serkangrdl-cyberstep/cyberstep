@@ -1,4 +1,5 @@
 import { ToolSeoPage, type ToolSeoConfig } from "./tool-seo-page";
+import { useLanguage } from "@/contexts/language-context";
 
 const config: ToolSeoConfig = {
   slug: "dark-web-sorgulama",
@@ -28,5 +29,6 @@ const config: ToolSeoConfig = {
 };
 
 export default function DarkWebSorgulama() {
+  const { lang } = useLanguage();
   return <ToolSeoPage config={config} />;
 }

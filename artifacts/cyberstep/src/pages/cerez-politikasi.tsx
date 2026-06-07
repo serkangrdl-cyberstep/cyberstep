@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Cookie, Calendar, ChevronRight, Shield, BarChart3, Megaphone, Settings } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/language-context";
 
 const COOKIE_CATEGORIES = [
   {
@@ -46,6 +47,7 @@ const COOKIE_CATEGORIES = [
 ];
 
 export default function CerezPolitikasi() {
+  const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],
     queryFn: () => fetch("/api/public/settings").then(r => r.json()),
@@ -74,7 +76,7 @@ export default function CerezPolitikasi() {
               <Cookie className="h-6 w-6 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold mb-2">Çerez Politikası</h1>
+              <h1 className="text-3xl font-bold mb-2">{lang === "en" ? "Cookie Policy" : "Çerez Politikası"}</h1>
               <div className="flex items-center gap-2 text-slate-400 text-sm">
                 <Calendar className="h-3.5 w-3.5" />
                 <span>Son güncelleme: {formatted}</span>

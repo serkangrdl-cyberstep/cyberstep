@@ -8,6 +8,7 @@ import {
   ExternalLink, RotateCcw, Info, FileText, Clock, Building2,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 type Answer = "yes" | "no" | null;
 
@@ -149,6 +150,7 @@ const VERBIS_STEPS = [
 ];
 
 export default function KvkkVerbis() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "KVKK VERBİS Yükümlülük Kontrolü | CyberStep.io",
     description: "Şirketinizin KVKK VERBİS kaydına ihtiyacı var mı? Ücretsiz wizard ile öğrenin, başvuru adımlarını görün.",
@@ -194,10 +196,10 @@ export default function KvkkVerbis() {
         <div className="flex items-center gap-2 mb-3">
           <Shield className="h-6 w-6 text-primary" />
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            KVKK Uyum Aracı
+            {lang === "en" ? "KVKK Compliance Tool" : "KVKK Uyum Aracı"}
           </Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">VERBİS Yükümlülük Kontrolü</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "VERBİS Obligation Check" : "VERBİS Yükümlülük Kontrolü"}</h1>
         <p className="text-muted-foreground max-w-xl">
           Şirketinizin Veri Sorumluları Sicili'ne (VERBİS) kayıt yaptırması gerekip gerekmediğini 3 soruyla öğrenin.
         </p>

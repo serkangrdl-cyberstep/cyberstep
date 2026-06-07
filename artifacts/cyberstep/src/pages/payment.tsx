@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 interface AssessmentInfo {
   id: number;
@@ -37,11 +38,12 @@ function formatCardNumber(value: string) {
 }
 
 export default function Payment() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/payment/:id");
   const assessmentId = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
 
-  usePageMeta({ title: "Odeme | CyberStep.io", noIndex: true });
+  usePageMeta({ title: lang === "en" ? "Payment | CyberStep.io" : "Odeme | CyberStep.io", noIndex: true });
 
   const [form, setForm] = useState({
     cardHolderName: "",
@@ -154,8 +156,8 @@ export default function Payment() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
       <div className="text-center mb-10">
-        <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">Guvenli Odeme</Badge>
-        <h1 className="text-3xl font-bold mb-2">Tam Degerlendirme - Odeme</h1>
+        <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">{lang === "en" ? "Secure Payment" : "Guvenli Odeme"}</Badge>
+        <h1 className="text-3xl font-bold mb-2">{lang === "en" ? "Full Assessment — Payment" : "Tam Degerlendirme - Odeme"}</h1>
         <p className="text-muted-foreground">256-bit SSL sifreleme ile guvenli odeme</p>
       </div>
 

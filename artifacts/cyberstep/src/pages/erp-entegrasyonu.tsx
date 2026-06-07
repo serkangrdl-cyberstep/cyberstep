@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const ERP_PARTNERS = [
   { name: "Logo", users: "80.000+", color: "bg-blue-500/10 text-blue-600 border-blue-200" },
@@ -53,6 +54,7 @@ type FormState = { name: string; email: string; company: string; phone: string; 
 const EMPTY: FormState = { name: "", email: "", company: "", phone: "", role: "", erpSoftware: "", message: "" };
 
 export default function ErpEntegrasyonu() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "ERP Gömülü Güvenlik | CyberStep.io",
     description: "Muhasebe ve ERP yazılımlarına CyberStep güvenlik skoru widget entegrasyonu. Logo, Mikro, Netsis, Luca kullanıcılarına ulaşın.",
@@ -90,9 +92,9 @@ export default function ErpEntegrasyonu() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-4xl relative z-10 text-center">
-          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">ERP Ortaklık Programı</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{lang === "en" ? "ERP Partnership Program" : "ERP Ortaklık Programı"}</Badge>
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
-            200.000 KOBİ'ye<br />muhasebe ekranından ulaşın
+            {lang === "en" ? <>Reach 200,000 SMBs<br />from the accounting screen</> : <>200.000 KOBİ'ye<br />muhasebe ekranından ulaşın</>}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Logo, Mikro, Netsis veya Luca yazılımınıza tek bir API entegrasyonuyla

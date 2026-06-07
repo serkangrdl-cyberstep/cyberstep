@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 type FormState = {
   email: string;
@@ -25,6 +26,7 @@ const EMPTY: FormState = {
 const EMP_OPTIONS = ["1–10", "11–50", "51–200", "201–500", "500+"];
 
 export default function VcisoErkenErisim() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "vCISO Erken Erişim | CyberStep.io",
     description: "Sanal CISO hizmetimiz 2027 yol haritasında. Erken erişim listesine katılın, program başladığında ilk haberdar edenler arasında olun.",
@@ -74,10 +76,10 @@ export default function VcisoErkenErisim() {
         <div className="container mx-auto px-4 max-w-3xl relative z-10 text-center">
           <Badge className="bg-primary/20 text-primary border-primary/40 mb-6">
             <Clock className="h-3.5 w-3.5 mr-1.5" />
-            2027 Yol Haritası
+            {lang === "en" ? "2027 Roadmap" : "2027 Yol Haritası"}
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight mb-6">
-            vCISO Erken Erişim Listesi
+            {lang === "en" ? "vCISO Early Access List" : "vCISO Erken Erişim Listesi"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
             Tam zamanlı Sanal CISO hizmetimiz 2027 yılında hayata geçiyor.

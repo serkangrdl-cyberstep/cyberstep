@@ -1,8 +1,10 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Home, ArrowLeft } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function NotFound() {
+  const { lang } = useLanguage();
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-slate-950 px-4">
       <div className="text-center max-w-md">
@@ -13,10 +15,12 @@ export default function NotFound() {
         </div>
         <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-3">404</h1>
         <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-3">
-          Sayfa Bulunamadı
+          {lang === "en" ? "Page Not Found" : "Sayfa Bulunamadı"}
         </h2>
         <p className="text-slate-500 dark:text-slate-400 mb-8">
-          Aradığınız sayfa taşınmış, silinmiş veya hiç var olmamış olabilir.
+          {lang === "en"
+            ? "The page you are looking for may have been moved, deleted, or never existed."
+            : "Aradığınız sayfa taşınmış, silinmiş veya hiç var olmamış olabilir."}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white">

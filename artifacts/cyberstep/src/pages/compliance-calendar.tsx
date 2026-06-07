@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const DEADLINES_STATIC = [
   { regulation: "KVKK", task: "VERBİS Yıllık Güncelleme", deadline: "Ekim 2026", urgency: "medium", recurring: "Yıllık" },
@@ -44,6 +45,7 @@ const urgencyLabel = (u: string) =>
   u === "high" ? "Yüksek" : u === "medium" ? "Orta" : "Düşük";
 
 export default function ComplianceCalendar() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Compliance Calendar | CyberStep.io",
     description: "KVKK, VERBİS, BTK, BDDK ve ISO 27001 deadline takibi — otomatik hatırlatıcı sistemi.",
@@ -86,7 +88,7 @@ export default function ComplianceCalendar() {
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
           <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30 mb-4">Compliance Calendar</Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
-            Hiçbir Regülasyon Deadline'ını<br />Kaçırmayın
+            {lang === "en" ? <>Never Miss a Regulation<br />Deadline</> : <>Hiçbir Regülasyon Deadline'ını<br />Kaçırmayın</>}
           </h1>
           <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             KVKK yıllık bildirimi, VERBİS güncelleme tarihleri, BTK bildirim süreleri, BDDK değerlendirmeleri —

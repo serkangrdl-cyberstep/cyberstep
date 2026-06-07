@@ -13,6 +13,7 @@ import {
   Send, Copy, CheckCheck, FileText, Zap, Crown, BarChart2,
   TrendingDown,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTORS = [
   "Üretim / İmalat", "Perakende / E-ticaret", "Lojistik / Taşımacılık",
@@ -384,6 +385,7 @@ function TprmReport({ result, companyName, sector }: { result: TedResult; compan
 // ── Ana Bileşen ────────────────────────────────────────────────────────────────
 
 export default function TedarikZinciri() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "TPRM Modülü — Tedarik Zinciri Risk Yönetimi | CyberStep.io",
     description: "Tedarikçilerinizin siber güvenlik durumunu tarayın, anket gönderin ve TPRM raporu alın. DORA Madde 28 uyumlu.",
@@ -449,10 +451,10 @@ export default function TedarikZinciri() {
         <div className="container mx-auto px-4 py-14 max-w-5xl text-center">
           <Badge variant="outline" className="mb-4 border-violet-500/40 text-violet-400 bg-violet-500/5">
             <Building2 className="h-3 w-3 mr-1" />
-            TPRM — Tedarik Zinciri Risk Yönetimi
+            {lang === "en" ? "TPRM — Supply Chain Risk Management" : "TPRM — Tedarik Zinciri Risk Yönetimi"}
           </Badge>
           <h1 className="text-4xl font-bold mb-4">
-            Tedarikçileriniz Ne Kadar Güvenli?
+            {lang === "en" ? "How Secure Are Your Suppliers?" : "Tedarikçileriniz Ne Kadar Güvenli?"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto mb-3">
             Üretim, tekstil ve e-ticaret şirketleri Avrupa alıcılarından TPRM raporu isteniyor.

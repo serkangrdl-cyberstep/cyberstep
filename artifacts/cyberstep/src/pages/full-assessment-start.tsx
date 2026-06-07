@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Shield, CheckCircle2, Clock, Award, Lock, Plus, X, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/language-context";
 
 const formSchema = z.object({
   companyName: z.string().min(2, "Şirket adı en az 2 karakter olmalıdır"),
@@ -32,6 +33,7 @@ const FULL_FEATURES = [
 ];
 
 export default function FullAssessmentStart() {
+  const { lang } = useLanguage();
   const [, setLocation] = useLocation();
   const createAssessment = useCreateAssessment();
   const { data: customer, isLoading: customerLoading, isError: customerError } = useCustomer();
@@ -101,9 +103,9 @@ export default function FullAssessmentStart() {
     return (
       <div className="container mx-auto px-4 py-20 max-w-md text-center">
         <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Giriş Gerekli</h2>
-        <p className="text-muted-foreground mb-6">Kapsamlı analizi kullanmak için hesabınıza giriş yapmanız gerekiyor.</p>
-        <Button onClick={() => setLocation("/giris")} className="w-full">Giriş Yap</Button>
+        <h2 className="text-2xl font-bold mb-2">{lang === "en" ? "Login Required" : "Giriş Gerekli"}</h2>
+        <p className="text-muted-foreground mb-6">{lang === "en" ? "You need to log in to your account to use the comprehensive analysis." : "Kapsamlı analizi kullanmak için hesabınıza giriş yapmanız gerekiyor."}</p>
+        <Button onClick={() => setLocation("/giris")} className="w-full">{lang === "en" ? "Log In" : "Giriş Yap"}</Button>
       </div>
     );
   }
@@ -113,13 +115,13 @@ export default function FullAssessmentStart() {
     return (
       <div className="container mx-auto px-4 py-20 max-w-md text-center">
         <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Full Plan Gerekli</h2>
+        <h2 className="text-2xl font-bold mb-2">{lang === "en" ? "Full Plan Required" : "Full Plan Gerekli"}</h2>
         <p className="text-muted-foreground mb-6">
-          60 soruluk Kapsamlı Analiz yalnızca Full Plan abonelerine açıktır.
+          {lang === "en" ? "The 60-question Comprehensive Analysis is available to Full Plan subscribers only." : "60 soruluk Kapsamlı Analiz yalnızca Full Plan abonelerine açıktır."}
         </p>
-        <Button onClick={() => setLocation("/fiyatlar")} className="w-full">Planları Gör</Button>
+        <Button onClick={() => setLocation("/fiyatlar")} className="w-full">{lang === "en" ? "See Plans" : "Planları Gör"}</Button>
         <Button variant="outline" onClick={() => setLocation("/assessment/start")} className="w-full mt-3">
-          Ücretsiz Mini Analiz Yap
+          {lang === "en" ? "Try Free Mini Analysis" : "Ücretsiz Mini Analiz Yap"}
         </Button>
       </div>
     );
@@ -128,10 +130,10 @@ export default function FullAssessmentStart() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">
       <div className="text-center mb-10">
-        <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">Tam Değerlendirme</Badge>
-        <h1 className="text-3xl font-bold tracking-tight mb-3">Firma Bilgilerinizi Girin</h1>
+        <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">{lang === "en" ? "Full Assessment" : "Tam Değerlendirme"}</Badge>
+        <h1 className="text-3xl font-bold tracking-tight mb-3">{lang === "en" ? "Enter Your Company Details" : "Firma Bilgilerinizi Girin"}</h1>
         <p className="text-muted-foreground max-w-lg mx-auto">
-          60 soruluk kapsamlı değerlendirmeye başlamadan önce şirketinizle ilgili temel bilgileri doldurun.
+          {lang === "en" ? "Fill in basic information about your company before starting the 60-question comprehensive assessment." : "60 soruluk kapsamlı değerlendirmeye başlamadan önce şirketinizle ilgili temel bilgileri doldurun."}
         </p>
       </div>
 

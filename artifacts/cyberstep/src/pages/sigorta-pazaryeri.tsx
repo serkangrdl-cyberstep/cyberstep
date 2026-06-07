@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLanguage } from "@/contexts/language-context";
 
 const INSURERS = [
   { name: "Allianz", country: "Türkiye", tier: "Premium" },
@@ -37,6 +38,7 @@ type FormState = { name: string; email: string; company: string; phone: string; 
 const EMPTY: FormState = { name: "", email: "", company: "", phone: "", sector: "", employeeCount: "", formType: "customer", message: "" };
 
 export default function SigortaPazaryeri() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Siber Sigorta Pazaryeri | CyberStep.io",
     description: "CyberStep güvenlik skoru ile anlık siber sigorta teklifleri. Allianz, AXA, Zurich Türkiye'den tek tıkla poliçe karşılaştırması.",
@@ -74,9 +76,9 @@ export default function SigortaPazaryeri() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-4xl relative z-10 text-center">
-          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Siber Sigorta Pazaryeri — Yakında</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{lang === "en" ? "Cyber Insurance Marketplace — Coming Soon" : "Siber Sigorta Pazaryeri — Yakında"}</Badge>
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
-            Siber Sigorta Teklifiniz<br />CyberStep Skorunuzda Gizli
+            {lang === "en" ? <>Your Cyber Insurance Offer<br />Is Hidden in Your CyberStep Score</> : <>Siber Sigorta Teklifiniz<br />CyberStep Skorunuzda Gizli</>}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed mb-8">
             Türkiye'de siber sigorta pazarı yıllık %40 büyüyor.

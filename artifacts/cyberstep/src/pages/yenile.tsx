@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 import { Loader2, RefreshCw, AlertCircle, CheckCircle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ interface RenewalCard {
 const EMPTY_CARD: RenewalCard = { cardHolderName: "", cardNumber: "", expireMonth: "", expireYear: "", cvc: "" };
 
 export default function YenilePage() {
+  const { lang } = useLanguage();
   const [, navigate] = useLocation();
 
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
@@ -131,7 +133,7 @@ export default function YenilePage() {
           <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
             <AlertCircle className="w-7 h-7 text-red-400" />
           </div>
-          <h1 className="text-xl font-semibold text-white">Link Geçersiz</h1>
+          <h1 className="text-xl font-semibold text-white">{lang === "en" ? "Invalid Link" : "Link Geçersiz"}</h1>
           <p className="text-slate-400 text-sm">{loadError}</p>
           <Button onClick={() => navigate("/giris")} className="bg-sky-600 hover:bg-sky-500">
             Hesabıma Giriş Yap
@@ -148,7 +150,7 @@ export default function YenilePage() {
           <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
             <CheckCircle className="w-7 h-7 text-emerald-400" />
           </div>
-          <h1 className="text-xl font-semibold text-white">Abonelik Yenilendi</h1>
+          <h1 className="text-xl font-semibold text-white">{lang === "en" ? "Subscription Renewed" : "Abonelik Yenilendi"}</h1>
           <p className="text-slate-300 text-sm">
             <strong>{info?.serviceLabel}</strong> aboneliğiniz başarıyla yenilendi.
           </p>
@@ -176,7 +178,7 @@ export default function YenilePage() {
           <div className="w-14 h-14 rounded-full bg-sky-500/10 flex items-center justify-center mx-auto mb-4">
             <RefreshCw className="w-7 h-7 text-sky-400" />
           </div>
-          <h1 className="text-xl font-semibold text-white">Abonelik Yenileme</h1>
+          <h1 className="text-xl font-semibold text-white">{lang === "en" ? "Subscription Renewal" : "Abonelik Yenileme"}</h1>
           <p className="text-slate-400 text-sm mt-1">Giriş yapmadan tek tıkla yenileyin</p>
         </div>
 

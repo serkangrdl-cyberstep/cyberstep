@@ -10,6 +10,7 @@ import {
   ShieldAlert, TrendingDown, Calculator, ChevronRight,
   AlertTriangle, Building2, Users, BadgeCheck, Info,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 // ─── Veri tabloları ───────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ function riskRenk(kvkkRisk: string) {
 
 // ─── Bileşen ──────────────────────────────────────────────────────────────────
 export default function RoiHesaplayici() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Siber Risk ROI Hesaplayıcı — Şirketinizin Siber Maruziyetini Hesaplayın | CyberStep.io",
     description: "Sektörünüz ve şirket büyüklüğünüze göre tahmini siber risk maliyetinizi ve CyberStep ile sağlayacağınız tasarrufu hesaplayın.",
@@ -80,10 +82,10 @@ export default function RoiHesaplayici() {
         <div className="container mx-auto px-4 py-14 max-w-4xl text-center">
           <Badge variant="outline" className="mb-4 border-orange-500/40 text-orange-400 bg-orange-500/5">
             <Calculator className="h-3 w-3 mr-1" />
-            Siber Risk Hesaplayıcı
+            {lang === "en" ? "Cyber Risk Calculator" : "Siber Risk Hesaplayıcı"}
           </Badge>
           <h1 className="text-4xl font-bold mb-4">
-            Şirketinizin Siber Risk Maliyeti Ne Kadar?
+            {lang === "en" ? "What Is Your Company's Cyber Risk Cost?" : "Şirketinizin Siber Risk Maliyeti Ne Kadar?"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
             Sektörünüze ve şirket büyüklüğüne göre olası siber saldırı maliyetini, KVKK ceza riskini

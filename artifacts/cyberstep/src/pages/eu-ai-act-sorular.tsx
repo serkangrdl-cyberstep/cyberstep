@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useLocation, useParams } from "wouter";
 import { Info, ChevronRight } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 interface Question {
   id: number;
@@ -25,6 +26,7 @@ const ANSWER_OPTIONS = [
 ];
 
 export default function EuAiActSorularPage() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "EU AI Act Değerlendirme" });
   const params = useParams();
   const id = Number(params["id"]);

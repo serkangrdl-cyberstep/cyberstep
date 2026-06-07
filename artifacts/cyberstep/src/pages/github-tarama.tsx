@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const SCAN_TARGETS = [
   { icon: Github, title: "Public GitHub Repoları", items: ["Hardcoded API key, token, şifre (Gitleaks tabanlı)", "AWS/GCP/Azure credential sızıntısı", ".env dosyası commit geçmişinde", "Yüksek riskli commit'lerde secret örüntüsü"] },
@@ -24,6 +25,7 @@ type FormState = { company: string; email: string; github: string; npmOrg: strin
 const EMPTY: FormState = { company: "", email: "", github: "", npmOrg: "" };
 
 export default function GithubTarama() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "GitHub ve Açık Kod Taraması | CyberStep.io",
     description: "Public repo, NPM paket ve Docker imajlarında exposed API key, hardcoded şifre ve açık bağımlılık taraması.",
@@ -63,9 +65,9 @@ export default function GithubTarama() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-primary/15 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-5xl relative z-10">
-          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Yazılım Firmaları İçin</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{lang === "en" ? "For Software Companies" : "Yazılım Firmaları İçin"}</Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight max-w-2xl">
-            Public Repo'nuzda API Key<br />Açıkta mı? Bilmiyorsunuz.
+            {lang === "en" ? <>Is Your API Key Exposed<br />in a Public Repo? You Don't Know.</> : <>Public Repo'nuzda API Key<br />Açıkta mı? Bilmiyorsunuz.</>}
           </h1>
           <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Türkiye'deki 5.000+ yazılım firmasının büyük çoğunluğunun repo güvenliği sıfır.

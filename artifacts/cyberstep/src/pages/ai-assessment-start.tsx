@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Brain, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SECTORS, EMPLOYEE_COUNTS } from "@/lib/constants";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function AiAssessmentStart() {
+  const { lang } = useLanguage();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -64,10 +66,10 @@ export default function AiAssessmentStart() {
             <Brain className="h-8 w-8 text-violet-600 dark:text-violet-400" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-            Yapay Zeka Güvenlik Değerlendirmesi
+            {lang === "en" ? "AI Security Assessment" : "Yapay Zeka Güvenlik Değerlendirmesi"}
           </h1>
           <p className="text-slate-500 dark:text-slate-400">
-            Şirket bilgilerinizi girerek başlayın. Teknik bilgi gerekmez.
+            {lang === "en" ? "Enter your company details to get started. No technical knowledge required." : "Şirket bilgilerinizi girerek başlayın. Teknik bilgi gerekmez."}
           </p>
         </div>
 

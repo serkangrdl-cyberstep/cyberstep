@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Download, Loader2, FileText, CheckCircle2 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 const DATA_CATEGORY_OPTIONS = [
   "Ad, Soyad", "E-posta Adresi", "Telefon Numarası", "TC Kimlik No",
@@ -14,6 +15,7 @@ const DATA_CATEGORY_OPTIONS = [
 ];
 
 export default function KvkkDpa() {
+  const { lang } = useLanguage();
   const [form, setForm] = useState({
     companyName: "",
     partnerName: "",
@@ -90,7 +92,7 @@ export default function KvkkDpa() {
           <Shield className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">KVKK DPA Sözlesme Taslagi</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{lang === "en" ? "KVKK DPA Contract Template" : "KVKK DPA Sözleşme Taslağı"}</h1>
           <p className="text-sm text-muted-foreground">Veri Isleme Anlasması (DPA) olusturun — hızlı, AI destekli, Türkiye KVKK uyumlu</p>
         </div>
       </div>

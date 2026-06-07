@@ -4,6 +4,7 @@ import { Shield, Search, AlertTriangle, CheckCircle2, Lock, ExternalLink, Info, 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 interface BreachResult {
   domain: string;
@@ -44,6 +45,7 @@ function RiskBadge({ count }: { count: number }) {
 }
 
 export default function SizintiIzleyici() {
+  const { lang } = useLanguage();
   const { toast } = useToast();
   const [domain, setDomain] = useState("");
   const [result, setResult] = useState<BreachResult | null>(null);
@@ -81,7 +83,7 @@ export default function SizintiIzleyici() {
             Dark Web &amp; Veri Sızıntısı Taraması
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Şirket E-postalarınız Sızdı mı?
+            {lang === "en" ? "Have Your Company Emails Been Leaked?" : "Şirket E-postalarınız Sızdı mı?"}
           </h1>
           <p className="text-slate-400 text-lg mb-3">
             Domain adresinizi girin — çalışanlarınıza ait e-postaların dark web'de ve veri ihlali veritabanlarında

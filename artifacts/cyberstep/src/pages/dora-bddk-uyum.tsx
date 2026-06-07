@@ -9,6 +9,7 @@ import {
   Scale, AlertTriangle, CheckCircle2, XCircle, Loader2,
   ChevronRight, RotateCcw, FileCheck, Shield, Building2, Zap, ExternalLink,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 // ── Düzenleyici Kurumlar ─────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ interface ComplianceResult {
 }
 
 export default function DoraBddkUyum() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "BDDK / SPK / EPDK / DORA Uyum Analizi | CyberStep.io",
     description: "Türkiye ve AB siber güvenlik regülasyonlarına uyum durumunuzu analiz edin. BDDK BSY, SPK, EPDK ve DORA makalelerine eşleme.",
@@ -230,7 +232,7 @@ export default function DoraBddkUyum() {
           <div className="max-w-3xl mx-auto text-center">
             <Badge variant="outline" className="mb-4 border-blue-500/40 text-blue-400 bg-blue-500/5">
               <Scale className="h-3 w-3 mr-1" />
-              Regülasyon Uyum Analizi
+              {lang === "en" ? "Regulatory Compliance Analysis" : "Regülasyon Uyum Analizi"}
             </Badge>
             <h1 className="text-4xl font-bold mb-4">
               BDDK · SPK · EPDK · DORA

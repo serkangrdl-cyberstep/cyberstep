@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertTriangle, ArrowRight, ArrowLeft, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 type AnswerType = "evet" | "kismen" | "hayir" | "bilmiyorum";
 
@@ -68,6 +69,7 @@ const SECTIONS = [
 ];
 
 export default function AiAssessmentRunner() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/ai-guvenlik/:id/sorular");
   const id = Number(params?.id ?? 0);
   const [, navigate] = useLocation();

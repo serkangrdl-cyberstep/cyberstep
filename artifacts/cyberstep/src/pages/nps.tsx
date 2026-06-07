@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Shield, CheckCircle2 } from "lucide-react";
 
 export default function NpsPage() {
+  const { lang } = useLanguage();
   const { token } = useParams<{ token: string }>();
   const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState("");
@@ -45,8 +47,8 @@ export default function NpsPage() {
     <NpsLayout>
       <div className="text-center mb-8">
         <p className="text-slate-400 text-sm">Sayın {data?.companyName ?? data?.customerName},</p>
-        <h1 className="text-2xl font-bold text-white mt-2">CyberStep'i bir meslektaşınıza tavsiye etme olasılığınız nedir?</h1>
-        <p className="text-slate-500 text-sm mt-2">0 = Kesinlikle tavsiye etmem, 10 = Kesinlikle tavsiye ederim</p>
+        <h1 className="text-2xl font-bold text-white mt-2">{lang === "en" ? "How likely are you to recommend CyberStep to a colleague?" : "CyberStep'i bir meslektaşınıza tavsiye etme olasılığınız nedir?"}</h1>
+        <p className="text-slate-500 text-sm mt-2">{lang === "en" ? "0 = Not at all likely, 10 = Extremely likely" : "0 = Kesinlikle tavsiye etmem, 10 = Kesinlikle tavsiye ederim"}</p>
       </div>
 
       <div className="flex flex-wrap justify-center gap-2 mb-6">

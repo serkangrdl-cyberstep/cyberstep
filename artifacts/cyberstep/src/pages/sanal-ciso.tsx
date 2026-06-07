@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const WHAT_IT_IS = [
   "CISO'nuzun rutin işlerini otomatikleştirir",
@@ -83,9 +84,10 @@ const EMPTY: FormState = {
 };
 
 export default function CisoAsistan() {
+  const { lang } = useLanguage();
   usePageMeta({
-    title: "CISO Asistan Paketi | CyberStep.io",
-    description: "CISO'nuzun rutin raporlama yükünü otomatikleştirin. Aylık yönetim kurulu raporu, 7545 ve KVKK uyum skoru, haftalık tehdit özeti, 7 politika şablonu — 2.500 TL/ay.",
+    title: lang === "en" ? "CISO Assistant Package | CyberStep.io" : "CISO Asistan Paketi | CyberStep.io",
+    description: lang === "en" ? "Automate your CISO's routine reporting workload. Monthly board report, compliance score, weekly threat digest, 7 policy templates — 2,500 TL/mo." : "CISO'nuzun rutin raporlama yükünü otomatikleştirin. Aylık yönetim kurulu raporu, 7545 ve KVKK uyum skoru, haftalık tehdit özeti, 7 politika şablonu — 2.500 TL/ay.",
   });
 
   const { toast: _toast } = useToast();
@@ -109,10 +111,10 @@ export default function CisoAsistan() {
         <div className="container mx-auto px-4 max-w-4xl relative z-10">
           <div className="flex flex-col items-center text-center gap-6">
             <Badge className="bg-primary/20 text-primary border-primary/40">
-              CISO Asistan Paketi
+              {lang === "en" ? "CISO Assistant Package" : "CISO Asistan Paketi"}
             </Badge>
             <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight">
-              CISO'nuz strateji düşünsün,<br />rutin raporlamayı biz yapalım
+              {lang === "en" ? <>Let your CISO focus on strategy,<br />we handle the routine reporting</> : <>CISO'nuz strateji düşünsün,<br />rutin raporlamayı biz yapalım</>}
             </h1>
             <p className="text-white/80 text-lg max-w-2xl leading-relaxed">
               Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu.

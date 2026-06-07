@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 interface ServiceCatalogItem {
   id: number;
@@ -43,6 +44,7 @@ function calcPrices(monthlyTl: number, billingCycle: "monthly" | "annual") {
 }
 
 export default function SatinAl() {
+  const { lang } = useLanguage();
   const [, params] = useRoute("/satin-al/:slug");
   const slug = params?.slug ?? "";
   const [, setLocation] = useLocation();
@@ -168,7 +170,7 @@ export default function SatinAl() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
       <div className="text-center mb-10">
-        <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">Güvenli Ödeme</Badge>
+        <Badge className="bg-primary/10 text-primary border-primary/20 mb-3">{lang === "en" ? "Secure Payment" : "Güvenli Ödeme"}</Badge>
         <h1 className="text-3xl font-bold mb-2">{service.label}</h1>
         <p className="text-muted-foreground">{service.shortDescription}</p>
       </div>

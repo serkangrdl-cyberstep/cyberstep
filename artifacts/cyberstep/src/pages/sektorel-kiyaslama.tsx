@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 // ── Percentile hesabı (normal dağılım yaklaşımı) ──────────────────────────
 function erf(x: number): number {
@@ -82,6 +83,7 @@ function ScoreDiff({ userScore, benchmark }: { userScore: number; benchmark: num
 }
 
 export default function SektorelKiyaslama() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "Sektörel Siber Güvenlik Kıyaslama | CyberStep.io",
     description: "Şirketinizin siber güvenlik puanını sektör ortalamasıyla karşılaştırın. Ücretsiz benchmark raporu.",
@@ -149,9 +151,9 @@ export default function SektorelKiyaslama() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <BarChart2 className="h-6 w-6 text-primary" />
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Sektörel Kıyaslama</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{lang === "en" ? "Sector Benchmarking" : "Sektörel Kıyaslama"}</Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Sektör Ortalamasıyla Karşılaştır</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">{lang === "en" ? "Compare with Sector Average" : "Sektör Ortalamasıyla Karşılaştır"}</h1>
         <p className="text-muted-foreground max-w-xl">
           Siber güvenlik puanınızı sektörünüzdeki şirketlerin ortalamasıyla kıyaslayın, nerede durduğunuzu görün.
         </p>

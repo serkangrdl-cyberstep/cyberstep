@@ -6,6 +6,7 @@ import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 import { Bell, ChevronRight, Eye, AlertTriangle, CheckCircle2, Clock, Plus } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { Layout } from "@/components/layout";
+import { useLanguage } from "@/contexts/language-context";
 
 interface MonSub { id: number; status: string; monitoredToolIds: number[]; nextBillingDate: string | null; alertOnCritical: boolean; alertOnImportant: boolean; }
 interface AITool { id: number; toolName: string; provider: string; category: string; riskLevel: string; riskSummary: string; trainsOnUserData: boolean; kvkkCompatible: boolean; dataRetentionDays: number | null; }
@@ -31,6 +32,7 @@ const RISK_STYLE: Record<string, string> = {
 };
 
 function LandingView() {
+  const { lang } = useLanguage();
   const { data: prices } = useServicePrices();
   const p = prices?.["ai-arac-izleme"];
   const priceLabel = p ? `${formatPrice(p.amount, p.unit)} + KDV` : "490 TL / ay + KDV";
@@ -40,7 +42,7 @@ function LandingView() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{priceLabel}</Badge>
-          <h1 className="text-4xl font-bold text-white mb-4">AI Araç İzleme</h1>
+          <h1 className="text-4xl font-bold text-white mb-4">{lang === "en" ? "AI Tool Monitoring" : "AI Araç İzleme"}</h1>
           <p className="text-xl text-white/80 mb-2">ChatGPT, Gemini, Copilot... Gizlilik politikaları sürekli değişiyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Değişikliği siz öğrenmeden önce CyberStep size bildiriyor.</p>
           <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
@@ -115,6 +117,7 @@ function AddToolsModal({ allTools, currentIds, onSave, onClose }: {
 }
 
 function DashboardView({ customerId }: { customerId: number }) {
+  const { lang } = useLanguage();
   const qc = useQueryClient();
   const [showAddTools, setShowAddTools] = useState(false);
 
@@ -158,7 +161,7 @@ function DashboardView({ customerId }: { customerId: number }) {
     <div className="container mx-auto px-4 max-w-4xl py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">AI Araç İzleme Paneli</h1>
+          <h1 className="text-2xl font-bold">{lang === "en" ? "AI Tool Monitoring Dashboard" : "AI Araç İzleme Paneli"}</h1>
           <p className="text-sm text-muted-foreground">Abonelik aktif · {subscription.nextBillingDate ? `Sonraki fatura: ${new Date(subscription.nextBillingDate).toLocaleDateString("tr-TR")}` : ""}</p>
         </div>
         <button onClick={() => setShowAddTools(true)}
@@ -254,6 +257,7 @@ function DashboardView({ customerId }: { customerId: number }) {
 }
 
 export default function AiAracIzleme() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "AI Araç İzleme | CyberStep.io", description: "ChatGPT, Gemini, Copilot gizlilik politikası değişikliklerini haftalık takip edin. KVKK uyum bildirimleri." });
   const { data: customer, isLoading } = useCustomer();
   if (isLoading) return null;

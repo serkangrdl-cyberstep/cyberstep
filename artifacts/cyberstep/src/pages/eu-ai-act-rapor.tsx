@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useParams } from "wouter";
 import { Shield, AlertTriangle, CheckCircle2, Clock, ArrowRight, Scale } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 interface Report {
   risk_category: string;
@@ -51,6 +52,7 @@ const EFFORT_COLOR: Record<string, string> = {
 };
 
 export default function EuAiActRaporPage() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "EU AI Act Uyum Raporu" });
   const params = useParams();
   const id = Number(params["id"]);
@@ -105,7 +107,7 @@ export default function EuAiActRaporPage() {
       <div className="container mx-auto px-4 py-12 max-w-3xl">
         {/* Header */}
         <div className="mb-8">
-          <Badge className="mb-3 bg-blue-600/20 text-blue-400 border-blue-500/30">EU AI Act Uyum Raporu</Badge>
+          <Badge className="mb-3 bg-blue-600/20 text-blue-400 border-blue-500/30">{lang === "en" ? "EU AI Act Compliance Report" : "EU AI Act Uyum Raporu"}</Badge>
           <h1 className="text-3xl font-bold mb-1">{data.companyName}</h1>
           <p className="text-muted-foreground text-sm">Değerlendirme #{data.id}</p>
         </div>

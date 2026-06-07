@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 const PRODUCTS = [
   {
@@ -78,9 +79,10 @@ type FormState = { name: string; email: string; company: string; phone: string; 
 const EMPTY: FormState = { name: "", email: "", company: "", phone: "", useCase: "", product: "", message: "" };
 
 export default function TehditIstihbarati() {
+  const { lang } = useLanguage();
   usePageMeta({
-    title: "Tehdit İstihbaratı Veri Ürünleri | CyberStep.io",
-    description: "CyberStep Türkiye siber tehdit verisi: yıllık tehdit raporu, küresel firmalar için IoC feed API ve sigorta şirketlerine aktüeryal veri.",
+    title: lang === "en" ? "Threat Intelligence Data Products | CyberStep.io" : "Tehdit İstihbaratı Veri Ürünleri | CyberStep.io",
+    description: lang === "en" ? "CyberStep Turkey cyber threat data: annual threat report, IoC feed API for global firms, and actuarial data for insurers." : "CyberStep Türkiye siber tehdit verisi: yıllık tehdit raporu, küresel firmalar için IoC feed API ve sigorta şirketlerine aktüeryal veri.",
   });
 
   const { toast } = useToast();
@@ -115,16 +117,17 @@ export default function TehditIstihbarati() {
       <section className="relative overflow-hidden bg-secondary text-secondary-foreground py-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 max-w-4xl relative z-10 text-center">
-          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">Tehdit İstihbaratı · Veri Ürünleri</Badge>
+          <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{lang === "en" ? "Threat Intelligence · Data Products" : "Tehdit İstihbaratı · Veri Ürünleri"}</Badge>
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
-            Türkiye'nin En Büyük<br />Siber Güvenlik Veri Havuzu
+            {lang === "en" ? <>Turkey's Largest<br />Cybersecurity Data Pool</> : <>Türkiye'nin En Büyük<br />Siber Güvenlik Veri Havuzu</>}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed mb-8">
-            CyberStep büyüdükçe Türkiye'nin en kapsamlı siber risk veritabanına sahip olacak.
-            Bu veri başlı başına bir ürün — üç farklı model, üç farklı müşteri grubu.
+            {lang === "en"
+              ? "As CyberStep grows, it will have Turkey's most comprehensive cyber risk database. This data is a product in its own right — three models, three customer groups."
+              : "CyberStep büyüdükçe Türkiye'nin en kapsamlı siber risk veritabanına sahip olacak. Bu veri başlı başına bir ürün — üç farklı model, üç farklı müşteri grubu."}
           </p>
           <Button asChild size="lg" className="bg-primary hover:bg-primary/90 font-semibold px-8">
-            <a href="#urunler">Ürünleri İncele <ArrowRight className="h-4 w-4 ml-2" /></a>
+            <a href="#urunler">{lang === "en" ? "Explore Products" : "Ürünleri İncele"} <ArrowRight className="h-4 w-4 ml-2" /></a>
           </Button>
         </div>
       </section>

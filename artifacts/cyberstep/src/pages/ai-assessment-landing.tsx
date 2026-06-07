@@ -3,6 +3,7 @@ import { Shield, Brain, FileText, AlertTriangle, CheckCircle, ChevronRight, Lock
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { useLanguage } from "@/contexts/language-context";
 
 const TOOLS_LIST = [
   { name: "ChatGPT", risk: "YUKSEK", category: "Ücretsiz" },
@@ -48,35 +49,36 @@ const STEPS = [
 ];
 
 export default function AiAssessmentLanding() {
+  const { lang } = useLanguage();
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Hero */}
       <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <Badge className="mb-4 bg-violet-600/20 text-violet-300 border-violet-500/30">
-            Yeni Servis
+            {lang === "en" ? "New Service" : "Yeni Servis"}
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-            Yapay Zeka Güvenlik<br />Değerlendirmesi
+            {lang === "en" ? <>AI Security<br />Assessment</> : <>Yapay Zeka Güvenlik<br />Değerlendirmesi</>}
           </h1>
           <p className="text-xl text-slate-300 mb-4 max-w-2xl mx-auto">
-            Çalışanlarınız yapay zekaya ne gönderiyor?<br />
-            <span className="text-violet-300 font-medium">KVKK ne diyor?</span>
+            {lang === "en" ? <>What are your employees sending to AI?<br /><span className="text-violet-300 font-medium">What does data protection law say?</span></> : <>Çalışanlarınız yapay zekaya ne gönderiyor?<br /><span className="text-violet-300 font-medium">KVKK ne diyor?</span></>}
           </p>
           <p className="text-slate-400 mb-10 max-w-xl mx-auto">
-            ChatGPT, Gemini, Copilot... Türk şirketlerinde her gün milyonlarca kelime yapay zeka araçlarına gidiyor.
-            Müşteri bilgisi, sözleşme, maaş... Siz de bunun farkında mısınız?
+            {lang === "en"
+              ? "ChatGPT, Gemini, Copilot... Millions of words flow into AI tools every day in Turkish companies. Customer data, contracts, salaries... Are you aware?"
+              : "ChatGPT, Gemini, Copilot... Türk şirketlerinde her gün milyonlarca kelime yapay zeka araçlarına gidiyor. Müşteri bilgisi, sözleşme, maaş... Siz de bunun farkında mısınız?"}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/ai-guvenlik/start">
               <Button size="lg" className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-8">
-                Değerlendirmeyi Başlat
+                {lang === "en" ? "Start Assessment" : "Değerlendirmeyi Başlat"}
                 <ChevronRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
           </div>
           <p className="mt-4 text-sm text-slate-500">
-            2.900 TL — Tek seferlik · ~15 dakika · Teknik bilgi gerekmez
+            {lang === "en" ? "2,900 TL — One-time · ~15 min · No technical knowledge required" : "2.900 TL — Tek seferlik · ~15 dakika · Teknik bilgi gerekmez"}
           </p>
         </div>
       </section>

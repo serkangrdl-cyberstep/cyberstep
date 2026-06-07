@@ -6,6 +6,7 @@ import { useServicePrices, formatPrice } from "@/hooks/use-service-prices";
 import { CheckCircle2, FileText, Download, Clock, ChevronRight, RefreshCw, Shield, Zap, RotateCcw } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { Layout } from "@/components/layout";
+import { useLanguage } from "@/contexts/language-context";
 
 interface PolicyDoc {
   id: number; version: number; versionLabel: string; status: string;
@@ -21,6 +22,7 @@ function useCustomer() {
 }
 
 function LandingView() {
+  const { lang } = useLanguage();
   const { data: prices } = useServicePrices();
   const p = prices?.["ai-politika"];
   const priceLabel = p ? `${formatPrice(p.amount, p.unit)} + KDV` : "990 TL / yıl + KDV";
@@ -30,7 +32,7 @@ function LandingView() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{priceLabel}</Badge>
-          <h1 className="text-4xl font-bold text-white mb-4">AI Politika Otomatik Güncelleme</h1>
+          <h1 className="text-4xl font-bold text-white mb-4">{lang === "en" ? "AI Policy Auto-Update" : "AI Politika Otomatik Güncelleme"}</h1>
           <p className="text-xl text-white/80 mb-2">KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor.</p>
           <p className="text-lg text-primary font-semibold mb-8">Siz sadece imzalayın.</p>
           <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
@@ -75,6 +77,7 @@ function LandingView() {
 }
 
 function ManagementView({ customerId }: { customerId: number }) {
+  const { lang } = useLanguage();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"current" | "history" | "settings">("current");
 
@@ -122,7 +125,7 @@ function ManagementView({ customerId }: { customerId: number }) {
     <div className="container mx-auto px-4 max-w-4xl py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">AI Kullanım Politikası</h1>
+          <h1 className="text-2xl font-bold">{lang === "en" ? "AI Usage Policy" : "AI Kullanım Politikası"}</h1>
           <p className="text-muted-foreground text-sm">Abonelik aktif — sonraki fatura: {sub.nextBillingDate ?? "—"}</p>
         </div>
         <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}
@@ -250,6 +253,7 @@ function ManagementView({ customerId }: { customerId: number }) {
 }
 
 export default function AiPolitika() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "AI Politika Otogüncelleme | CyberStep.io", description: "KVKK uyumlu yapay zeka kullanım politikanız otomatik güncellenir. Her çeyrek yeni versiyon, PDF + Word indirme." });
   const { data: customer, isLoading } = useCustomer();
   if (isLoading) return null;

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -15,6 +16,7 @@ interface BulletinSummary {
 }
 
 export default function BulletinArchivePage() {
+  const { lang } = useLanguage();
   const { data: bulletins = [], isLoading } = useQuery<BulletinSummary[]>({
     queryKey: ["bulletin-archive"],
     queryFn: async () => {
@@ -32,7 +34,7 @@ export default function BulletinArchivePage() {
             <span className="text-2xl font-black text-[#00C8FF]">Step</span>
             <span className="text-sm text-[#7B8FAF]">.io</span>
           </div>
-          <h1 className="text-3xl font-bold text-[#E8EDF5]">Haftalık Bülten Arsivi</h1>
+          <h1 className="text-3xl font-bold text-[#E8EDF5]">{lang === "en" ? "Weekly Bulletin Archive" : "Haftalık Bülten Arsivi"}</h1>
           <p className="text-[#A8B8D0] mt-2">Her hafta Cuma, Türkiye'nin siber güvenlik gündemine dair istihbarat özeti.</p>
         </div>
 

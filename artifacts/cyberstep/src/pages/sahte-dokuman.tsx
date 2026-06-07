@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ArrowRight, RotateCcw } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 interface ScanResult {
   id: number;
@@ -28,6 +29,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 
 export default function SahteDokulmanPage() {
+  const { lang } = useLanguage();
   usePageMeta({ title: "AI Sahte Doküman Tespiti", description: "Fatura, sözleşme veya kimlik belgesi gerçek mi? AI ile üretilmiş veya manipüle edilmiş mi? Saniyeler içinde öğrenin." });
 
   const [dragOver, setDragOver] = useState(false);
@@ -110,11 +112,10 @@ export default function SahteDokulmanPage() {
       <div className="bg-gradient-to-b from-amber-950 via-amber-900 to-background pt-20 pb-16 px-4">
         <div className="container mx-auto max-w-3xl text-center">
           <Badge className="mb-4 bg-amber-600/20 text-amber-300 border-amber-600/30">
-            <FileText className="h-3.5 w-3.5 mr-1" /> AI Doküman Tespiti
+            <FileText className="h-3.5 w-3.5 mr-1" /> {lang === "en" ? "AI Document Detection" : "AI Doküman Tespiti"}
           </Badge>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Fatura, Sözleşme, Kimlik<br />
-            <span className="text-amber-400">Gerçek mi, Sahte mi?</span>
+            {lang === "en" ? <>Invoice, Contract, ID<br /><span className="text-amber-400">Real or Fake?</span></> : <>Fatura, Sözleşme, Kimlik<br /><span className="text-amber-400">Gerçek mi, Sahte mi?</span></>}
           </h1>
           <p className="text-amber-100/80 text-base mb-2">
             Yapay zeka ile üretilmiş veya manipüle edilmiş belgeleri saniyeler içinde tespit edin.

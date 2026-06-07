@@ -2,13 +2,14 @@ import { Link } from "wouter";
 import { Shield, CheckCircle, ArrowRight, Building2, Layers, Zap, Globe, Lock, Users, BarChart3, HeadphonesIcon, CalendarCheck } from "lucide-react";
 import { useState } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function Kurumsal() {
+  const { lang } = useLanguage();
   usePageMeta({
-    title: "Kurumsal Siber Güvenlik Platformu | CyberStep.io",
-    description: "Orta ve büyük ölçekli şirketler için sürekli maruz kalma yönetimi. Firewall entegrasyonu, white-label, SLA garantisi, kurumsal onboarding.",
+    title: lang === "en" ? "Enterprise Cybersecurity Platform | CyberStep.io" : "Kurumsal Siber Güvenlik Platformu | CyberStep.io",
+    description: lang === "en" ? "Continuous exposure management for mid-size and large enterprises. Firewall integration, white-label, SLA guarantee, enterprise onboarding." : "Orta ve büyük ölçekli şirketler için sürekli maruz kalma yönetimi. Firewall entegrasyonu, white-label, SLA garantisi, kurumsal onboarding.",
     canonicalPath: "/kurumsal",
-    lang: "tr",
   });
 
   const [form, setForm] = useState({ name: "", company: "", title: "", email: "", phone: "", employees: "", notes: "" });

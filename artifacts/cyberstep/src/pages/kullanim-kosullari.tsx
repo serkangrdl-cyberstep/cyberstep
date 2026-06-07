@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Calendar, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/language-context";
 
 const SECTIONS = [
   {
@@ -50,6 +51,7 @@ const SECTIONS = [
 ];
 
 export default function KullanimKosullari() {
+  const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],
     queryFn: () => fetch("/api/public/settings").then(r => r.json()),
@@ -73,7 +75,7 @@ export default function KullanimKosullari() {
               <FileText className="h-6 w-6 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold mb-2">Kullanım Koşulları</h1>
+              <h1 className="text-3xl font-bold mb-2">{lang === "en" ? "Terms of Use" : "Kullanım Koşulları"}</h1>
               <div className="flex items-center gap-2 text-slate-400 text-sm">
                 <Calendar className="h-3.5 w-3.5" />
                 <span>Son güncelleme: {formatted}</span>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useLanguage } from "@/contexts/language-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1661,9 +1662,12 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
 }
 
 export default function DomainScanPage() {
+  const { lang } = useLanguage();
   usePageMeta({
-    title: "Ücretsiz Domain Güvenlik Taraması | CyberStep.io",
-    description: "SPF, DKIM, DMARC, SSL, kara liste, dark web sızıntı — tek taramada tüm güvenlik kontrolü. Ücretsiz, anında sonuç.",
+    title: lang === "en" ? "Free Domain Security Scan | CyberStep.io" : "Ücretsiz Domain Güvenlik Taraması | CyberStep.io",
+    description: lang === "en"
+      ? "SPF, DKIM, DMARC, SSL, blacklist, dark web leak — all security checks in one scan. Free, instant results."
+      : "SPF, DKIM, DMARC, SSL, kara liste, dark web sızıntı — tek taramada tüm güvenlik kontrolü. Ücretsiz, anında sonuç.",
     keywords: "domain güvenlik tarama, ssl kontrol, dmarc kontrol, domain blacklist kontrol, dark web sorgulama",
     canonicalPath: "/domain-tarama",
   });
@@ -1880,18 +1884,21 @@ export default function DomainScanPage() {
         <div className="flex items-center gap-2 mb-3">
           <Globe className="h-5 w-5 text-primary" />
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            Dış Ağ Taraması
+            {lang === "en" ? "External Network Scan" : "Dış Ağ Taraması"}
           </Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Alan Adı Güvenlik Taraması</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">
+          {lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması"}
+        </h1>
         <p className="text-muted-foreground leading-relaxed">
-          Alan adınızın e-posta güvenlik kayıtlarını, SSL sertifikasını, veri sızıntısı geçmişini ve spam listesi
-          durumunu otomatik kontrol edin. Hiçbir yazılım kurmanıza gerek yok — sadece alan adınızı girin.
+          {lang === "en"
+            ? "Automatically check your domain's email security records, SSL certificate, data breach history, and spam list status. No software to install — just enter your domain."
+            : "Alan adınızın e-posta güvenlik kayıtlarını, SSL sertifikasını, veri sızıntısı geçmişini ve spam listesi durumunu otomatik kontrol edin. Hiçbir yazılım kurmanıza gerek yok — sadece alan adınızı girin."}
         </p>
         <div className="mt-3">
           <a href="/demo?rapor=easm" className="inline-flex items-center gap-1.5 text-xs border border-primary/30 bg-primary/5 text-primary px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
             <FileText className="h-3.5 w-3.5" />
-            Örnek Tarama Raporunu İndir
+            {lang === "en" ? "View Sample Scan Report" : "Örnek Tarama Raporunu İndir"}
           </a>
         </div>
       </div>
@@ -1901,10 +1908,10 @@ export default function DomainScanPage() {
         <CardContent className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div className="space-y-1.5">
-              <Label htmlFor="domain">Alan Adı</Label>
+              <Label htmlFor="domain">{lang === "en" ? "Domain Name" : "Alan Adı"}</Label>
               <Input
                 id="domain"
-                placeholder="sirketiniz.com"
+                placeholder={lang === "en" ? "yourcompany.com" : "sirketiniz.com"}
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !scanMutation.isPending && domain.trim() && scanMutation.mutate()}
@@ -1913,12 +1920,12 @@ export default function DomainScanPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">
-                E-posta <span className="text-red-500">*</span>
+                {lang === "en" ? "Email" : "E-posta"} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="siz@sirket.com"
+                placeholder={lang === "en" ? "you@company.com" : "siz@sirket.com"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={scanMutation.isPending}
@@ -1933,18 +1940,20 @@ export default function DomainScanPage() {
             {scanMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Taranıyor...
+                {lang === "en" ? "Scanning..." : "Taranıyor..."}
               </>
             ) : (
               <>
                 <Globe className="h-4 w-4 mr-2" />
-                Taramayı Başlat
+                {lang === "en" ? "Start Scan" : "Taramayı Başlat"}
               </>
             )}
           </Button>
           {scanMutation.isPending && (
             <p className="text-xs text-muted-foreground mt-2">
-              DNS kayıtları, SSL, veri sızıntısı ve kara listeler kontrol ediliyor...
+              {lang === "en"
+                ? "Checking DNS records, SSL, data breaches and blacklists..."
+                : "DNS kayıtları, SSL, veri sızıntısı ve kara listeler kontrol ediliyor..."}
             </p>
           )}
         </CardContent>
@@ -1975,14 +1984,18 @@ export default function DomainScanPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-orange-800 dark:text-orange-300">
-                    MITRE ATT&CK Tehdit Analizi Çalışıyor
+                    {lang === "en" ? "MITRE ATT&CK Threat Analysis Running" : "MITRE ATT&CK Tehdit Analizi Çalışıyor"}
                   </p>
                   <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
-                    Saldırı senaryoları ve risk derecelendirmesi hesaplanıyor — bu birkaç dakika sürebilir. Rapor analiz bittikten sonra e-postanıza gönderilecek.
+                    {lang === "en"
+                      ? "Attack scenarios and risk ratings are being calculated — this may take a few minutes. The report will be emailed once analysis is complete."
+                      : "Saldırı senaryoları ve risk derecelendirmesi hesaplanıyor — bu birkaç dakika sürebilir. Rapor analiz bittikten sonra e-postanıza gönderilecek."}
                   </p>
                 </div>
                 <div className="shrink-0 hidden sm:flex flex-col items-end gap-1">
-                  <span className="text-xs text-orange-600/70 dark:text-orange-400/60 font-medium">Analiz ediliyor...</span>
+                  <span className="text-xs text-orange-600/70 dark:text-orange-400/60 font-medium">
+                    {lang === "en" ? "Analyzing..." : "Analiz ediliyor..."}
+                  </span>
                   <div className="flex gap-0.5">
                     {[0, 1, 2, 3].map(i => (
                       <div
@@ -2715,14 +2728,15 @@ export default function DomainScanPage() {
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                  Domain taraması bir başlangıç
+                  {lang === "en" ? "Domain scan is just the start" : "Domain taraması bir başlangıç"}
                 </p>
                 <p className="text-base font-bold text-foreground mb-1">
-                  Şirketinizin tüm siber risk tablosunu görün
+                  {lang === "en" ? "See your company's full cyber risk picture" : "Şirketinizin tüm siber risk tablosunu görün"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Bu tarama alan adı güvenliğini ölçer. Çalışan farkındalığı, cihaz koruması, erişim yönetimi ve KVKK
-                  uyumu için 20 dakikalık ücretsiz değerlendirmeye geçin.
+                  {lang === "en"
+                    ? "This scan measures domain security. Move to the free 20-minute assessment for employee awareness, device protection, access management and KVKK compliance."
+                    : "Bu tarama alan adı güvenliğini ölçer. Çalışan farkındalığı, cihaz koruması, erişim yönetimi ve KVKK uyumu için 20 dakikalık ücretsiz değerlendirmeye geçin."}
                 </p>
               </div>
               <div className="flex flex-col gap-2 shrink-0">
@@ -2730,14 +2744,14 @@ export default function DomainScanPage() {
                   href="/assessment/start"
                   className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg text-sm"
                 >
-                  Ücretsiz Değerlendirme Başlat
+                  {lang === "en" ? "Start Free Assessment" : "Ücretsiz Değerlendirme Başlat"}
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                 </a>
                 <a
                   href="/assessment/full/start"
                   className="inline-flex items-center justify-center gap-2 border border-primary/40 text-primary hover:bg-primary/5 font-medium px-5 py-2 rounded-lg text-xs"
                 >
-                  Tam Değerlendirme — 5.990 TL
+                  {lang === "en" ? "Full Assessment — 5,990 TL" : "Tam Değerlendirme — 5.990 TL"}
                 </a>
               </div>
             </div>
@@ -2751,9 +2765,9 @@ export default function DomainScanPage() {
           <CardContent className="p-8 text-center">
             <Globe className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              Alan adınızı girin ve taramayı başlatın.
-              <br />
-              SPF, DMARC, DKIM, MX, SSL, veri sızıntısı ve kara liste durumu kontrol edilir.
+              {lang === "en"
+                ? <>Enter your domain and start the scan.<br />SPF, DMARC, DKIM, MX, SSL, data breach and blacklist status are checked.</>
+                : <>Alan adınızı girin ve taramayı başlatın.<br />SPF, DMARC, DKIM, MX, SSL, veri sızıntısı ve kara liste durumu kontrol edilir.</>}
             </p>
           </CardContent>
         </Card>

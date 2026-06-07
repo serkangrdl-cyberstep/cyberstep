@@ -2,6 +2,7 @@ import { Shield, Download, Chrome, Star, Zap, Eye, Lock, Globe, ArrowRight, Chec
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/language-context";
 
 const FEATURES = [
   {
@@ -35,6 +36,7 @@ const STEPS = [
 ];
 
 export default function ExtensionDownload() {
+  const { lang } = useLanguage();
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
@@ -56,10 +58,10 @@ export default function ExtensionDownload() {
         <section className="text-center space-y-6">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 px-3 py-1">
             <Chrome className="h-3.5 w-3.5 mr-1.5" />
-            Chrome & Edge Eklentisi — Ücretsiz
+            {lang === "en" ? "Chrome & Edge Extension — Free" : "Chrome & Edge Eklentisi — Ücretsiz"}
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-black text-foreground leading-tight">
-            Her web sitesinin güvenlik<br />skorunu anında görün
+            {lang === "en" ? <>See the security score of<br />every website instantly</> : <>Her web sitesinin güvenlik<br />skorunu anında görün</>}
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             CyberStep eklentisi tarayıcınızda arka planda çalışır. Bir siteye girdiğinizde o domain'in

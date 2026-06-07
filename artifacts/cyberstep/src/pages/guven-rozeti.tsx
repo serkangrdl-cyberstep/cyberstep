@@ -10,6 +10,7 @@ import {
   Shield, CheckCircle2, XCircle, Loader2, Copy, Check,
   Globe, Code2, ChevronRight, AlertTriangle, ExternalLink,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 interface ScanResult {
   domain: string;
@@ -34,6 +35,7 @@ function Check2({ pass, label }: { pass: boolean; label: string }) {
 }
 
 export default function GuvenRozeti() {
+  const { lang } = useLanguage();
   usePageMeta({
     title: "AI Güven Rozeti — Canlı Güvenlik Skoru | CyberStep.io",
     description: "Web sitenize gömülebilir, canlı güvenlik rozeti. Müşterilerinize siber güvenlik durumunuzu şeffaf şekilde gösterin.",
@@ -109,10 +111,10 @@ export default function GuvenRozeti() {
         <div className="container mx-auto px-4 py-14 max-w-4xl text-center">
           <Badge variant="outline" className="mb-4 border-emerald-500/40 text-emerald-400 bg-emerald-500/5">
             <Shield className="h-3 w-3 mr-1" />
-            AI Güven Rozeti
+            {lang === "en" ? "AI Trust Badge" : "AI Güven Rozeti"}
           </Badge>
           <h1 className="text-4xl font-bold mb-4">
-            Güvenlik Durumunuzu Müşterilerinize Gösterin
+            {lang === "en" ? "Show Your Security Status to Your Customers" : "Güvenlik Durumunuzu Müşterilerinize Gösterin"}
           </h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
             Web sitenize ekleyebileceğiniz, canlı güncellenen güvenlik skoru rozeti. SSL sertifikası

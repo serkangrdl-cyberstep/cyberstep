@@ -291,6 +291,7 @@ export default function AdminLeadDiscovery() {
 
   // ─── Results pagination ──────────────────────────────────────────────────
   const [page, setPage] = useState(1);
+  const [qualifiedPage, setQualifiedPage] = useState(1);
   const [filterQualified, setFilterQualified] = useState(false);
   const [filterHasContact, setFilterHasContact] = useState(false);
   const [filterNotSent, setFilterNotSent] = useState(false);
@@ -313,6 +314,17 @@ export default function AdminLeadDiscovery() {
   const { data: shodanQueries } = useQuery<ShodanQuery[]>({
     queryKey: ["shodan-queries"],
     queryFn: () => fetch(`${BASE}/lead-discovery/shodan/queries`).then((r) => r.json()),
+  });
+
+  const { data: qualifiedData, isLoading: qualifiedLoading } = useQuery<{
+    rows: LeadCandidate[]; total: number;
+  }>({
+    queryKey: ["lead-qualified", qualifiedPage],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(qualifiedPage), pageSize: "20" });
+      return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
+    },
+    refetchInterval: 20_000,
   });
 
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
@@ -483,14 +495,14 @@ export default function AdminLeadDiscovery() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Toplam Aday", value: stats?.total ?? 0 },
-          { label: "Bekliyor", value: stats?.pending ?? 0 },
-          { label: "Kalifikasyon Geçti", value: stats?.qualified ?? 0 },
-          { label: "Teaser Hazır", value: stats?.teaserReady ?? 0 },
+          { label: "Toplam Aday", value: stats?.total ?? 0, color: "" },
+          { label: "Qualified", value: stats?.qualified ?? 0, color: "text-green-600" },
+          { label: "Contact Bulunan", value: stats?.withContact ?? 0, color: "text-blue-600" },
+          { label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-3">
-              <div className="text-2xl font-bold">{s.value}</div>
+              <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
               <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
             </CardContent>
           </Card>
@@ -504,6 +516,14 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="crtsh">crt.sh</TabsTrigger>
             <TabsTrigger value="shodan">Shodan</TabsTrigger>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+            <TabsTrigger value="qualified">
+              Qualified
+              {(stats?.qualified ?? 0) > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-green-100 text-green-700 text-[10px] font-bold w-4 h-4">
+                  {stats!.qualified}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="results">Sonuclar</TabsTrigger>
             <TabsTrigger value="history">Gecmis</TabsTrigger>
           </TabsList>
@@ -706,6 +726,164 @@ export default function AdminLeadDiscovery() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ── QUALIFIED TAB ────────────────────────────────────────────── */}
+        <TabsContent value="qualified">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle>Qualified Leadler</CardTitle>
+                  <CardDescription>
+                    Kalifikasyonu geçmiş {qualifiedData?.total ?? 0} aday —
+                    {" "}{stats?.withContact ?? 0} contact bulundu,
+                    {" "}{stats?.teaserSent ?? 0} teaser gönderildi
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => startQualify.mutate()}
+                  disabled={startQualify.isPending}
+                >
+                  {startQualify.isPending ? "Çalışıyor..." : "Kalifikasyonu Çalıştır"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {qualifiedLoading ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">Yükleniyor...</div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto -mx-1">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Domain</TableHead>
+                          <TableHead className="text-right">Risk</TableHead>
+                          <TableHead>Contact Email</TableHead>
+                          <TableHead>Contact Adı</TableHead>
+                          <TableHead>Teaser</TableHead>
+                          <TableHead>İşlemler</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(qualifiedData?.rows ?? []).map((c) => (
+                          <TableRow key={c.id}>
+                            <TableCell>
+                              <div className="font-medium text-sm font-mono">{c.domain}</div>
+                              {c.companyName && (
+                                <div className="text-xs text-muted-foreground truncate max-w-[160px]">{c.companyName}</div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {c.riskScore != null ? (
+                                <div className="text-right">
+                                  <span className={`font-bold text-sm ${c.riskScore >= 70 ? "text-red-600" : c.riskScore >= 40 ? "text-orange-500" : "text-gray-500"}`}>
+                                    {c.riskScore}
+                                  </span>
+                                  {c.criticalFindings > 0 && (
+                                    <div className="text-[10px] text-red-500">{c.criticalFindings} kritik</div>
+                                  )}
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {c.contactEmail ? (
+                                <span className="text-xs font-mono">{c.contactEmail}</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200 font-medium">
+                                  ⚠ Bulunamadı
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs">{c.contactName ?? <span className="text-muted-foreground">—</span>}</div>
+                              {c.contactTitle && (
+                                <div className="text-[10px] text-muted-foreground">{c.contactTitle}</div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {c.teaserSentAt ? (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 font-medium">
+                                  ✓ Gönderildi
+                                </span>
+                              ) : c.teaserSubject ? (
+                                <button
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors"
+                                  onClick={() => setTeaserPreview(c)}
+                                >
+                                  Hazır — Önizle
+                                </button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1 min-w-[100px]">
+                                {!c.teaserSubject && c.contactEmail && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 w-full"
+                                    onClick={() => generateTeaser.mutate(c.id)}
+                                    disabled={generateTeaser.isPending}
+                                  >
+                                    Teaser Üret
+                                  </Button>
+                                )}
+                                {c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
+                                  <Button
+                                    size="sm"
+                                    className="text-xs h-7 w-full"
+                                    onClick={() => sendTeaser.mutate(c.id)}
+                                    disabled={sendTeaser.isPending}
+                                  >
+                                    Gönderildi İşaretle
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs h-7 w-full"
+                                  onClick={() => setDetailCandidate(c)}
+                                >
+                                  Detay
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {!(qualifiedData?.rows?.length) && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8 text-sm">
+                              Henüz qualified lead yok. Pipeline veya kalifikasyonu çalıştırın.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {(qualifiedData?.total ?? 0) > 20 && (
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-sm text-muted-foreground">
+                        {((qualifiedPage - 1) * 20) + 1}–{Math.min(qualifiedPage * 20, qualifiedData?.total ?? 0)} / {qualifiedData?.total ?? 0}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setQualifiedPage((p) => Math.max(1, p - 1))} disabled={qualifiedPage === 1}>
+                          Önceki
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setQualifiedPage((p) => p + 1)} disabled={qualifiedPage * 20 >= (qualifiedData?.total ?? 0)}>
+                          Sonraki
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── RESULTS TAB ──────────────────────────────────────────────── */}

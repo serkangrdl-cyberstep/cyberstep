@@ -54,3 +54,9 @@ id = "pOXCS7XJ5XPedHg3TDs7o"
 uri = "file://cyberstep-servis-katalogu.md"
 type = "text"
 title = "CyberStep.io — Servis Kataloğu (46 Servis)"
+
+[[outputs]]
+id = "zKxjuGwjFWHiNWWEm-oYG"
+uri = "file://docs/cron-jobs-ozeti.md"
+type = "text"
+title = "CyberStep.io — Otomatik Görevler Özeti"

@@ -1264,9 +1264,15 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{tool.why}</p>
                       </div>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs text-primary mt-3 group-hover:gap-2 transition-all font-medium">
-                      {lang === "en" ? "Launch tool" : "Aracı Aç"} <ChevronRight className="h-3 w-3" />
-                    </span>
+                    {"price" in tool && tool.price ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 mt-3 group-hover:gap-2.5 transition-all">
+                        {lang === "en" ? "Buy / Get Started" : "Satın Al / Başvur"} <ChevronRight className="h-3 w-3" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-primary mt-3 group-hover:gap-2 transition-all font-medium">
+                        {lang === "en" ? "Launch tool" : "Aracı Aç"} <ChevronRight className="h-3 w-3" />
+                      </span>
+                    )}
                   </div>
                 </div>
               </a>

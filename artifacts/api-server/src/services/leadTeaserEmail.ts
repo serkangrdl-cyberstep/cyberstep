@@ -19,38 +19,52 @@ export async function generateLeadTeaserEmail(
   const highs = scanResult.findings.filter((f) => f.severity === "high").slice(0, 2);
   const topFindings = [...criticals, ...highs].map((f) => `- ${f.title}`).join("\n");
 
+  const contactLabel = candidate.contactName
+    ? `${candidate.contactName}${candidate.contactTitle ? ` (${candidate.contactTitle})` : ""}`
+    : null;
+
   const prompt = `## Türkiye Siber Güvenlik Pazar Verileri (Fortinet/DORinsight 2025)
 - Türkiye'deki kurumların %65,2'si son 12 ayda en az bir siber saldırıya uğradı
 - Saldırıya maruz kalanlar ortalama 14,6 farklı saldırıyla karşılaştı
 - Kurumların %40,9'u mevcut güvenlik altyapısının yetersiz olduğunu düşünüyor
 - %53,3'ü nitelikli uzman eksikliği nedeniyle güvenlik seviyesini artıramıyor
-- %44,3'ü OT güvenlik seviyesini "yetersiz" veya "gelişmekte" olarak değerlendiriyor
 - %88'i AI tabanlı güvenlik çözümlerini kullanıyor veya kullanmayı planlıyor
-- %68,7'si önümüzdeki dönemde düzenlemelerin artacağını öngörüyor
 Kaynak: Fortinet Türkiye / DORinsight 2025 Türkiye Siber Güvenlik Araştırması.
-Bu istatistiklere (özellikle "%65 saldırı oranı", "uzman eksikliği", "AI güvenlik ilgisi") teaser e-postada atıf yapabilirsin.
 
 Sen CyberStep.io adına yazıyorsun. Türk işletmelere siber güvenlik hizmeti sunuyoruz.
 Aşağıdaki şirket için kısa, profesyonel bir teaser e-posta yaz.
 
 Şirket: ${candidate.domain}
 ${candidate.companyName ? `Şirket Adı: ${candidate.companyName}` : ""}
-${candidate.contactName ? `İletişim: ${candidate.contactName}${candidate.contactTitle ? ` (${candidate.contactTitle})` : ""}` : ""}
+${contactLabel ? `İletişim: ${contactLabel}` : ""}
 ${candidate.city ? `Şehir: ${candidate.city}` : ""}
+${candidate.sector ? `Sektör: ${candidate.sector}` : ""}
 Siber Risk Skoru: ${scanResult.overallScore}/100
 ${candidate.hasFortigate ? "Not: Fortinet/FortiGate cihazı tespit edildi." : ""}
 
 Tespit edilen güvenlik açıkları:
 ${topFindings || "- Çeşitli güvenlik zafiyetleri tespit edildi"}
 
-Kurallar:
-1. E-posta 3 paragraf olsun (max 150 kelime)
-2. İlk paragraf: Kısa tanıtım ve neden yazdığımız (spesifik bulgu)
-3. İkinci paragraf: CyberStep'in ücretsiz değerlendirmesi
-4. Üçüncü paragraf: Tek CTA — "cyberstep.io'dan ücretsiz değerlendirmenizi başlatın"
-5. Kesinlikle emoji kullanma
-6. Abartılı satış dili kullanma
-7. JSON formatında döndür: { "subject": "...", "body": "..." }`;
+## Kurallar
+1. E-posta gövdesi tam olarak 3 paragraf olsun (max 150 kelime).
+2. İlk paragraf: Pazar istatistiklerinden biri + tespit edilen bulgular + kuruma özgü risk.
+3. İkinci paragraf: CyberStep'in bu şirket için değeri — abartısız, somut.
+4. Üçüncü paragraf: Tek CTA — "cyberstep.io'dan ücretsiz değerlendirmenizi başlatın."
+5. Emoji kullanma. Abartılı satış dili kullanma.
+6. Hitap satırı BODY'ye dahil ETME; ayrı "salutation" alanında ver.
+7. Yazım kuralları — MUTLAKA uy:
+   - "siber güvenlik" (siyer değil, siper değil)
+   - "değerlendirme" (değerlendirme)
+   - Türkçe özel isimler doğru yazılsın
+8. JSON formatında döndür:
+{
+  "subject": "...",
+  "salutation": "Sayın [Kişi Adı veya unvan],",
+  "body": "paragraf1\\n\\nparagraf2\\n\\nparagraf3"
+}
+
+salutation için: kişi adı biliniyorsa "Sayın [Ad Soyad]," — bilinmiyorsa "Sayın ${candidate.companyName ? candidate.companyName + " Yöneticisi," : "Yetkili,"}"
+`;
 
   try {
     const message = await anthropic.messages.create({
@@ -60,10 +74,13 @@ Kurallar:
     });
 
     const raw = message.content[0]?.type === "text" ? message.content[0].text : "";
-    const jsonMatch = raw.match(/\{[\s\S]*"subject"[\s\S]*"body"[\s\S]*\}/);
+    const jsonMatch = raw.match(/\{[\s\S]*"subject"[\s\S]*\}/);
     if (!jsonMatch) throw new Error("JSON parse edilemedi");
 
-    const parsed = JSON.parse(jsonMatch[0]) as { subject?: string; body?: string };
+    const parsed = JSON.parse(jsonMatch[0]) as { subject?: string; salutation?: string; body?: string };
+
+    const salutation = parsed.salutation?.trim()
+      ?? `Sayın ${candidate.companyName ? candidate.companyName + " Yöneticisi," : "Yetkili,"}`;
 
     const corporateIntro = `CyberStep.io; Türkiye'deki işletmelere yönelik siber güvenlik risk analizi ve danışmanlık hizmetleri sunan Türkiye merkezli bir platformdur. Kurumların dijital varlıklarını korumak amacıyla sürekli olarak pasif keşif ve açık kaynak istihbarat (OSINT) taramaları gerçekleştirmekteyiz.
 
@@ -73,7 +90,8 @@ Rutin tarama hizmetlerimiz sırasında ${candidate.domain} alan adınıza ilişk
 
 `;
 
-    const fullBody = corporateIntro + (parsed.body ?? raw);
+    // Sıralama: hitap → kurumsal giriş → AI gövdesi → imza
+    const fullBody = `${salutation}\n\n${corporateIntro}${parsed.body ?? raw}\n\nSaygılarımızla,\nCyberStep.io Ekibi`;
 
     await db.update(leadCandidatesTable).set({
       teaserSubject: parsed.subject ?? `${candidate.domain} — Siber Güvenlik Değerlendirmesi`,

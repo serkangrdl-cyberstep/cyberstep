@@ -160,7 +160,7 @@ function AdminCard({
               {isSelf && <Badge variant="outline" className="text-xs px-1.5 py-0 border-slate-600 text-slate-400">Siz</Badge>}
               {admin.isSuperadmin && (
                 <Badge variant="outline" className="text-xs px-1.5 py-0 border-amber-700 text-amber-400 bg-amber-500/10">
-                  Supe Admin
+                  Süper Admin
                 </Badge>
               )}
             </div>

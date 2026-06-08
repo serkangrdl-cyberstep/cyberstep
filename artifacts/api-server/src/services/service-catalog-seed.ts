@@ -331,7 +331,8 @@ const SEED_DATA = [
       "Tüm şirket büyüklükleri"
     ],
     "is_self_service": true,
-    "requires_admin_approval": false
+    "requires_admin_approval": false,
+    "is_free": true
   },
   {
     "slug": "servicenow",
@@ -541,7 +542,8 @@ const SEED_DATA = [
       "Tüm şirket büyüklükleri"
     ],
     "is_self_service": true,
-    "requires_admin_approval": false
+    "requires_admin_approval": false,
+    "is_free": true
   },
   {
     "slug": "full-assessment",

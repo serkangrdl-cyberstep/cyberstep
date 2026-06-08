@@ -35,6 +35,7 @@ export const serviceCatalogTable = pgTable("service_catalog", {
   passiveReason: text("passive_reason"),
   passiveSince: timestamp("passive_since"),
   roadmapQuarter: varchar("roadmap_quarter", { length: 10 }),
+  isFree: boolean("is_free").notNull().default(false),
 });
 
 export type ServiceCatalog = typeof serviceCatalogTable.$inferSelect;

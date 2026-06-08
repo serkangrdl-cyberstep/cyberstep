@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Wrench } from "lucide-react";
+import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Wrench, Unlock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Footer } from "./footer";
 import { useWhiteLabel } from "@/contexts/white-label-context";
@@ -37,6 +37,15 @@ const ARACLAR_ITEMS = (lang: "tr" | "en") => [
   { href: "/araclar", label: lang === "en" ? "All Tools" : "Tüm Araçlar" },
 ];
 
+const FREE_ARACLAR_ITEMS = (lang: "tr" | "en") => [
+  { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
+  { href: "/araclar/dmarc-kontrol", label: lang === "en" ? "DMARC Check" : "DMARC Kontrol" },
+  { href: "/araclar/ssl-kontrol", label: lang === "en" ? "SSL Check" : "SSL Kontrol" },
+  { href: "/araclar/dark-web-sorgulama", label: lang === "en" ? "Dark Web Lookup" : "Dark Web Sorgulama" },
+  { href: "/araclar/kvkk-ceza-hesaplayici", label: lang === "en" ? "KVKK Penalty Calculator" : "KVKK Ceza Hesaplayıcı" },
+  { href: "/assessment/start", label: lang === "en" ? "Mini Risk Assessment" : "Mini Risk Değerlendirmesi" },
+];
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const wl = useWhiteLabel();
@@ -48,8 +57,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [freeOpen, setFreeOpen] = useState(false);
+  const [mobileFreeOpen, setMobileFreeOpen] = useState(false);
   const aiRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
+  const freeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -58,6 +70,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       }
       if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) {
         setToolsOpen(false);
+      }
+      if (freeRef.current && !freeRef.current.contains(e.target as Node)) {
+        setFreeOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -146,6 +161,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         {!available && (
                           <span className="ml-auto text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">{lang === "en" ? "Soon" : "Yakında"}</span>
                         )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {!wl && (
+              <div ref={freeRef} className="relative">
+                <button
+                  onClick={() => setFreeOpen(v => !v)}
+                  className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
+                    freeOpen ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  {lang === "en" ? "Free Tools" : "Ücretsiz Araçlar"}
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${freeOpen ? "rotate-180" : ""}`} />
+                </button>
+                {freeOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-60 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden">
+                    {FREE_ARACLAR_ITEMS(lang).map(({ href, label }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setFreeOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        {label}
                       </Link>
                     ))}
                   </div>
@@ -286,6 +329,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         >
                           {label}
                           {!available && <span className="text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">{lang === "en" ? "Soon" : "Yakında"}</span>}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Ücretsiz Araçlar accordion */}
+              {!wl && (
+                <div>
+                  <button
+                    onClick={() => setMobileFreeOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors text-foreground hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2"><Unlock className="h-4 w-4" />{lang === "en" ? "Free Tools" : "Ücretsiz Araçlar"}</span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileFreeOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {mobileFreeOpen && (
+                    <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3">
+                      {FREE_ARACLAR_ITEMS(lang).map(({ href, label }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => { setMobileOpen(false); setMobileFreeOpen(false); }}
+                          className="flex items-center w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+                        >
+                          {label}
                         </Link>
                       ))}
                     </div>

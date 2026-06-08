@@ -2123,6 +2123,7 @@ export default function DomainScanPage() {
                       Risk Maliyeti Hesapla →
                     </a>
                   </div>
+                  {hasFullAccess && (
                   <div className="mt-3 flex gap-2 flex-wrap">
                     <Button
                       size="sm"
@@ -2141,6 +2142,7 @@ export default function DomainScanPage() {
                       )}
                     </Button>
                   </div>
+                  )}
                 </div>
               </div>
             </CardContent>

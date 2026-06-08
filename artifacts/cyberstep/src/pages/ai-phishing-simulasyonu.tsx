@@ -7,16 +7,22 @@ import { ChevronRight, Search, Mail, Shield, AlertTriangle, Clock, CheckCircle2,
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useLanguage } from "@/contexts/language-context";
 
-const SECTORS = [
+const SECTORS_TR = [
   "Finans / Bankacılık", "Saglik", "Perakende / E-ticaret",
   "Bilisim / Yazilim", "Imalat / Uretim", "Hizmet", "Diger",
+];
+const SECTORS_EN = [
+  "Finance / Banking", "Healthcare", "Retail / E-commerce",
+  "IT / Software", "Manufacturing", "Services", "Other",
 ];
 
 function LandingPage({ onStart }: { onStart: () => void }) {
   const { lang } = useLanguage();
   const { data: prices } = useServicePrices();
   const p = prices?.["ai-phishing"];
-  const priceLabel = p ? `${formatPrice(p.amount, p.unit)} + KDV` : "1.990 TL + KDV · Tek Seferlik";
+  const priceLabel = p
+    ? `${formatPrice(p.amount, p.unit, "Ücretsiz", lang)} ${lang === "en" ? "+ VAT · One-time" : "+ KDV · Tek Seferlik"}`
+    : lang === "en" ? "1.990 TL + VAT · One-time" : "1.990 TL + KDV · Tek Seferlik";
   return (
     <>
       <section className="py-20 bg-secondary relative overflow-hidden">
@@ -111,9 +117,13 @@ interface SimForm {
 
 function ConsentForm({ onCreated: _onCreated }: { onCreated: (id: number) => void }) {
   const [, navigate] = useLocation();
+  const { lang } = useLanguage();
   const { data: prices } = useServicePrices();
   const _p = prices?.["ai-phishing"];
-  const submitLabel = _p ? `Simülasyonu Başlat — ${formatPrice(_p.amount, _p.unit)} + KDV` : "Simülasyonu Başlat — 1.990 TL + KDV";
+  const submitLabel = _p
+    ? `${lang === "en" ? "Start Simulation" : "Simülasyonu Başlat"} — ${formatPrice(_p.amount, _p.unit, "Ücretsiz", lang)} ${lang === "en" ? "+ VAT" : "+ KDV"}`
+    : lang === "en" ? "Start Simulation — 1.990 TL + VAT" : "Simülasyonu Başlat — 1.990 TL + KDV";
+  const SECTORS = lang === "en" ? SECTORS_EN : SECTORS_TR;
   const [form, setForm] = useState<SimForm>({ companyName: "", domain: "", contactEmail: "", sector: "", employeeCount: "", consentAccepted: false });
   const [error, setError] = useState("");
 
@@ -128,36 +138,38 @@ function ConsentForm({ onCreated: _onCreated }: { onCreated: (id: number) => voi
   return (
     <div className="container mx-auto px-4 max-w-xl py-12">
       <div className="mb-6">
-        <Badge variant="outline" className="mb-3">Simülasyon Bilgileri</Badge>
-        <h2 className="text-2xl font-bold mb-1">Şirket Bilgilerini Girin</h2>
-        <p className="text-muted-foreground text-sm">Kamuya açık veriler bu bilgiler kullanılarak toplanacak.</p>
+        <Badge variant="outline" className="mb-3">{lang === "en" ? "Simulation Details" : "Simülasyon Bilgileri"}</Badge>
+        <h2 className="text-2xl font-bold mb-1">{lang === "en" ? "Enter Company Details" : "Şirket Bilgilerini Girin"}</h2>
+        <p className="text-muted-foreground text-sm">
+          {lang === "en" ? "Public data will be gathered using this information." : "Kamuya açık veriler bu bilgiler kullanılarak toplanacak."}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1.5">Şirket Adı *</label>
-          <input value={form.companyName} onChange={set("companyName")} required placeholder="Örnek A.Ş." className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none" />
+          <label className="block text-sm font-medium mb-1.5">{lang === "en" ? "Company Name *" : "Şirket Adı *"}</label>
+          <input value={form.companyName} onChange={set("companyName")} required placeholder={lang === "en" ? "Example Ltd." : "Örnek A.Ş."} className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none" />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1.5">Domain (alan adı) *</label>
-          <input value={form.domain} onChange={set("domain")} required placeholder="ornek.com.tr" className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none" />
+          <label className="block text-sm font-medium mb-1.5">{lang === "en" ? "Domain *" : "Domain (alan adı) *"}</label>
+          <input value={form.domain} onChange={set("domain")} required placeholder="example.com" className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none" />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1.5">İletişim E-postası</label>
-          <input value={form.contactEmail} onChange={set("contactEmail")} type="email" placeholder="bilgi@ornek.com.tr" className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none" />
+          <label className="block text-sm font-medium mb-1.5">{lang === "en" ? "Contact Email" : "İletişim E-postası"}</label>
+          <input value={form.contactEmail} onChange={set("contactEmail")} type="email" placeholder="info@example.com" className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium mb-1.5">Sektör</label>
+            <label className="block text-sm font-medium mb-1.5">{lang === "en" ? "Sector" : "Sektör"}</label>
             <select value={form.sector} onChange={set("sector")} className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none">
-              <option value="">Seçin</option>
+              <option value="">{lang === "en" ? "Select..." : "Seçin"}</option>
               {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5">Çalışan Sayısı</label>
+            <label className="block text-sm font-medium mb-1.5">{lang === "en" ? "Employee Count" : "Çalışan Sayısı"}</label>
             <select value={form.employeeCount} onChange={set("employeeCount")} className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-primary/30 outline-none">
-              <option value="">Seçin</option>
+              <option value="">{lang === "en" ? "Select..." : "Seçin"}</option>
               {["1-10", "11-50", "51-200", "201-500", "500+"].map(v => <option key={v}>{v}</option>)}
             </select>
           </div>
@@ -167,7 +179,9 @@ function ConsentForm({ onCreated: _onCreated }: { onCreated: (id: number) => voi
           <label className="flex gap-3 cursor-pointer">
             <input type="checkbox" checked={form.consentAccepted} onChange={e => setForm(p => ({ ...p, consentAccepted: e.target.checked }))} className="mt-0.5 h-4 w-4 rounded" />
             <span className="text-sm text-amber-800 dark:text-amber-200">
-              Bu simülasyonun yalnızca farkındalık amaçlı olduğunu ve hiçbir gerçek saldırı veya e-posta gönderimi yapılmayacağını anlıyorum. Simülasyonda kullanılan veriler kamuya açık kaynaklardan alınacak.
+              {lang === "en"
+                ? "I understand that this simulation is for awareness purposes only and no real attacks or emails will be sent. Data used in the simulation comes from publicly available sources."
+                : "Bu simülasyonun yalnızca farkındalık amaçlı olduğunu ve hiçbir gerçek saldırı veya e-posta gönderimi yapılmayacağını anlıyorum. Simülasyonda kullanılan veriler kamuya açık kaynaklardan alınacak."}
             </span>
           </label>
         </div>

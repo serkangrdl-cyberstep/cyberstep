@@ -35,7 +35,20 @@ function LandingView() {
   const { lang } = useLanguage();
   const { data: prices } = useServicePrices();
   const p = prices?.["ai-arac-izleme"];
-  const priceLabel = p ? `${formatPrice(p.amount, p.unit)} + KDV` : "490 TL / ay + KDV";
+  const priceLabel = p
+    ? `${formatPrice(p.amount, p.unit, "Ücretsiz", lang)} ${lang === "en" ? "+ VAT" : "+ KDV"}`
+    : lang === "en" ? "490 TL / mo + VAT" : "490 TL / ay + KDV";
+  const steps = lang === "en"
+    ? [
+        { step: "1", title: "Select Your Tools", desc: "Choose the tools your employees use — ChatGPT, Gemini, Copilot and more." },
+        { step: "2", title: "Weekly Scan", desc: "CyberStep checks the policy pages of 20+ AI tools every Sunday." },
+        { step: "3", title: "Instant Alert", desc: "When a change is detected you receive an email alert and decide on action." },
+      ]
+    : [
+        { step: "1", title: "Araçlarınızı Seçin", desc: "ChatGPT, Gemini, Copilot gibi çalışanlarınızın kullandığı araçları seçin." },
+        { step: "2", title: "Haftalık Tarama", desc: "CyberStep her Pazar 20+ AI aracının politika sayfasını kontrol eder." },
+        { step: "3", title: "Anında Bildirim", desc: "Değişiklik tespit edildiğinde e-posta ile uyarı alır, aksiyon kararı verirsiniz." },
+      ];
   return (
     <>
       <section className="py-20 bg-secondary relative overflow-hidden">
@@ -43,23 +56,27 @@ function LandingView() {
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">{lang === "en" ? "AI Tool Monitoring" : "AI Araç İzleme"}</h1>
-          <p className="text-xl text-white/80 mb-2">ChatGPT, Gemini, Copilot... Gizlilik politikaları sürekli değişiyor.</p>
-          <p className="text-lg text-primary font-semibold mb-8">Değişikliği siz öğrenmeden önce CyberStep size bildiriyor.</p>
+          <p className="text-xl text-white/80 mb-2">
+            {lang === "en"
+              ? "ChatGPT, Gemini, Copilot... Privacy policies keep changing."
+              : "ChatGPT, Gemini, Copilot... Gizlilik politikaları sürekli değişiyor."}
+          </p>
+          <p className="text-lg text-primary font-semibold mb-8">
+            {lang === "en"
+              ? "CyberStep notifies you before you find out on your own."
+              : "Değişikliği siz öğrenmeden önce CyberStep size bildiriyor."}
+          </p>
           <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
-            İzlemeyi Başlat <ChevronRight className="h-5 w-5" />
+            {lang === "en" ? "Start Monitoring" : "İzlemeyi Başlat"} <ChevronRight className="h-5 w-5" />
           </Link>
         </div>
       </section>
 
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 max-w-4xl">
-          <h2 className="text-2xl font-bold text-center mb-10">Nasıl Çalışır?</h2>
+          <h2 className="text-2xl font-bold text-center mb-10">{lang === "en" ? "How It Works" : "Nasıl Çalışır?"}</h2>
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            {[
-              { step: "1", title: "Araçlarınızı Seçin", desc: "ChatGPT, Gemini, Copilot gibi çalışanlarınızın kullandığı araçları seçin." },
-              { step: "2", title: "Haftalık Tarama", desc: "CyberStep her Pazar 20+ AI aracının politika sayfasını kontrol eder." },
-              { step: "3", title: "Anında Bildirim", desc: "Değişiklik tespit edildiğinde e-posta ile uyarı alır, aksiyon kararı verirsiniz." },
-            ].map(s => (
+            {steps.map(s => (
               <div key={s.step} className="text-center p-6 rounded-xl border bg-card">
                 <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground font-bold text-lg flex items-center justify-center mx-auto mb-3">{s.step}</div>
                 <h3 className="font-semibold mb-2">{s.title}</h3>
@@ -69,10 +86,15 @@ function LandingView() {
           </div>
 
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center">
-            <p className="text-3xl font-bold text-primary mb-1">490 TL / ay <span className="text-sm font-normal text-muted-foreground">+ KDV</span></p>
-            <p className="text-muted-foreground mb-6">Tüm kullandığınız AI araçları için</p>
+            <p className="text-3xl font-bold text-primary mb-1">
+              490 TL / {lang === "en" ? "mo" : "ay"}{" "}
+              <span className="text-sm font-normal text-muted-foreground">{lang === "en" ? "+ VAT" : "+ KDV"}</span>
+            </p>
+            <p className="text-muted-foreground mb-6">
+              {lang === "en" ? "For all AI tools your team uses" : "Tüm kullandığınız AI araçları için"}
+            </p>
             <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
-              Hemen Başla <ChevronRight className="h-4 w-4" />
+              {lang === "en" ? "Get Started" : "Hemen Başla"} <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -149,7 +171,7 @@ function DashboardView({ customerId }: { customerId: number }) {
         <p className="text-muted-foreground mb-8">Haftalık otomatik kontrol ile AI araçlarındaki politika değişikliklerinden anında haberdar olun.</p>
         <button onClick={() => subscribeMutation.mutate()} disabled={subscribeMutation.isPending}
           className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {subscribeMutation.isPending ? "Başlatılıyor..." : "İzlemeyi Başlat — 490 TL/ay + KDV"}
+          {subscribeMutation.isPending ? (lang === "en" ? "Starting..." : "Başlatılıyor...") : lang === "en" ? "Start Monitoring — 490 TL/mo + VAT" : "İzlemeyi Başlat — 490 TL/ay + KDV"}
         </button>
       </div>
     );
@@ -240,7 +262,7 @@ function DashboardView({ customerId }: { customerId: number }) {
         <p className="font-semibold mb-1">Araç değişikliklerinde politikanız otomatik güncellensin mi?</p>
         <p className="text-sm text-muted-foreground mb-3">AI Politika Otogüncelleme servisiyle her büyük değişiklikte KVKK politikanız otomatik yeniden üretilir.</p>
         <Link href="/ai-politika" className="inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline">
-          AI Politika Servisi — 990 TL/yıl + KDV <ChevronRight className="h-4 w-4" />
+          {lang === "en" ? "AI Policy Service — 990 TL/yr + VAT" : "AI Politika Servisi — 990 TL/yıl + KDV"} <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
 

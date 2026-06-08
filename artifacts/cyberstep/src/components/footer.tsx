@@ -85,6 +85,56 @@ export function Footer() {
   const tagline = settings?.["footer.tagline"] ?? (lang === "en" ? "Cybersecurity risk analysis for SMEs" : "KOBİ'ler için siber güvenlik risk analizi");
   const email = settings?.["contact.email"] ?? "info@cyberstep.io";
 
+  const toolLinks = lang === "en"
+    ? [
+        { label: "Data Leak Monitor",            href: "/sizinti-izleyici" },
+        { label: "KVKK VERBİS Check",            href: "/kvkk-verbis" },
+        { label: "M365 Security Audit",           href: "/m365-denetim" },
+        { label: "Cyber Insurance Calculator",    href: "/siber-sigorta" },
+        { label: "KEP Requirement Guide",         href: "/kep-rehberi" },
+        { label: "ERP Security Scan",             href: "/erp-tarama" },
+        { label: "Sector Benchmarking",           href: "/sektorel-kiyaslama" },
+        { label: "KVKK Penalty Simulator",        href: "/kvkk-ceza-sim" },
+        { label: "Phishing Test",                 href: "/phishing-sim" },
+        { label: "Attack Simulation",             href: "/saldiri-simulasyonu" },
+        { label: "Cyber Loss Calculator",         href: "/finansal-kayip" },
+        { label: "Brand & Domain Protection",     href: "/marka-koruma" },
+        { label: "Supply Chain Scorecard",        href: "/tedarik-zinciri" },
+        { label: "AI Trust Badge",                href: "/guven-rozeti" },
+        { label: "Regulatory Compliance Analysis",href: "/dora-bddk-uyum" },
+      ]
+    : [
+        { label: "Sızıntı İzleyici",             href: "/sizinti-izleyici" },
+        { label: "KVKK VERBİS Kontrol",          href: "/kvkk-verbis" },
+        { label: "M365 Güvenlik Denetimi",        href: "/m365-denetim" },
+        { label: "Siber Sigorta Hesaplayıcı",    href: "/siber-sigorta" },
+        { label: "KEP İhtiyaç Rehberi",          href: "/kep-rehberi" },
+        { label: "ERP Güvenlik Tarama",           href: "/erp-tarama" },
+        { label: "Sektörel Kıyaslama",           href: "/sektorel-kiyaslama" },
+        { label: "KVKK Ceza Simülatörü",         href: "/kvkk-ceza-sim" },
+        { label: "Phishing Testi",               href: "/phishing-sim" },
+        { label: "Saldırı Simülasyonu",          href: "/saldiri-simulasyonu" },
+        { label: "Siber Kayıp Hesaplayıcı",      href: "/finansal-kayip" },
+        { label: "Marka ve Domain Koruma",        href: "/marka-koruma" },
+        { label: "Tedarik Zinciri Skorkart",      href: "/tedarik-zinciri" },
+        { label: "AI Güven Rozeti",              href: "/guven-rozeti" },
+        { label: "Regülasyonlara Uyum Analizi",  href: "/dora-bddk-uyum" },
+      ];
+
+  const whyLinks = lang === "en"
+    ? [
+        { label: "Our Story",          href: "/neden-cyberstep" },
+        { label: "Our Team",           href: "/neden-cyberstep#ekibimiz" },
+        { label: "How It Works",       href: "/neden-cyberstep#nasil-calisir" },
+        { label: "Platform Evolution", href: "/hakkimizda#platform-evrimi" },
+      ]
+    : [
+        { label: "İsmin Hikayesi",     href: "/neden-cyberstep" },
+        { label: "Ekibimiz",           href: "/neden-cyberstep#ekibimiz" },
+        { label: "Nasıl Çalışır?",    href: "/neden-cyberstep#nasil-calisir" },
+        { label: "Platform Evrimi",    href: "/hakkimizda#platform-evrimi" },
+      ];
+
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-auto">
       <div className="container mx-auto px-4 py-12 max-w-6xl">
@@ -98,7 +148,6 @@ export function Footer() {
             <p className="text-slate-400 text-sm leading-relaxed mb-4">{tagline}</p>
             <a href={`mailto:${email}`} className="text-emerald-400 text-sm hover:text-emerald-300 transition-colors">{email}</a>
 
-            {/* Social media icons */}
             {socialLinks && socialLinks.length > 0 && (
               <div className="flex items-center gap-3 mt-5">
                 {socialLinks.map(link => (
@@ -129,9 +178,9 @@ export function Footer() {
                 { label: t(T.footer.pricing, lang), href: "/fiyatlar" },
                 { label: t(T.footer.dashboard, lang), href: "/dashboard" },
                 { label: t(T.footer.blog, lang), href: "/blog" },
-                { label: "Alan Adı Güvenlik Taraması", href: "/domain-tarama" },
-                { label: "KVKK DPA Sözleşme Taslağı", href: "/kvkk-dpa-olustur" },
-                { label: "Siber Panik Butonu", href: "/siber-panik" },
+                { label: lang === "en" ? "Domain Security Scan"       : "Alan Adı Güvenlik Taraması",  href: "/domain-tarama" },
+                { label: lang === "en" ? "KVKK DPA Contract Draft"    : "KVKK DPA Sözleşme Taslağı",  href: "/kvkk-dpa-olustur" },
+                { label: lang === "en" ? "Cyber Panic Button"         : "Siber Panik Butonu",           href: "/siber-panik" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
@@ -140,27 +189,13 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Araçlar */}
+          {/* Security Tools */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Ücretsiz Araçlar</h4>
+            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">
+              {lang === "en" ? "Security Tools" : "Güvenlik Araçları"}
+            </h4>
             <ul className="space-y-2.5">
-              {[
-                { label: "Sızıntı İzleyici", href: "/sizinti-izleyici" },
-                { label: "KVKK VERBİS Kontrol", href: "/kvkk-verbis" },
-                { label: "M365 Güvenlik Denetimi", href: "/m365-denetim" },
-                { label: "Siber Sigorta Hesaplayıcı", href: "/siber-sigorta" },
-                { label: "KEP İhtiyaç Rehberi", href: "/kep-rehberi" },
-                { label: "ERP Güvenlik Tarama", href: "/erp-tarama" },
-                { label: "Sektörel Kıyaslama", href: "/sektorel-kiyaslama" },
-                { label: "KVKK Ceza Simülatörü", href: "/kvkk-ceza-sim" },
-                { label: "Phishing Testi", href: "/phishing-sim" },
-                { label: "Saldırı Simülasyonu", href: "/saldiri-simulasyonu" },
-                { label: "Siber Kayıp Hesaplayıcı", href: "/finansal-kayip" },
-                { label: "Marka ve Domain Koruma", href: "/marka-koruma" },
-                { label: "Tedarik Zinciri Skorkart", href: "/tedarik-zinciri" },
-                { label: "AI Güven Rozeti", href: "/guven-rozeti" },
-                { label: "Regülasyonlara Uyum Analizi", href: "/dora-bddk-uyum" },
-              ].map(({ label, href }) => (
+              {toolLinks.map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
                 </li>
@@ -168,9 +203,8 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Kurumsal + Neden CyberStep? */}
+          {/* Corporate + Why CyberStep */}
           <div className="space-y-8">
-            {/* Kurumsal */}
             <div>
               <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.corporate, lang)}</h4>
               <ul className="space-y-2.5">
@@ -186,18 +220,14 @@ export function Footer() {
               </ul>
             </div>
 
-            {/* Neden CyberStep? */}
             <div>
               <Link href="/neden-cyberstep">
-                <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer">Neden CyberStep?</h4>
+                <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer">
+                  {lang === "en" ? "Why CyberStep?" : "Neden CyberStep?"}
+                </h4>
               </Link>
               <ul className="space-y-2.5">
-                {[
-                  { label: "İsmin Hikayesi", href: "/neden-cyberstep" },
-                  { label: "Ekibimiz", href: "/neden-cyberstep#ekibimiz" },
-                  { label: "Nasıl Çalışır?", href: "/neden-cyberstep#nasil-calisir" },
-                  { label: "Platform Evrimi", href: "/hakkimizda#platform-evrimi" },
-                ].map(item => (
+                {whyLinks.map(item => (
                   <li key={item.label}>
                     <a
                       href={item.href}

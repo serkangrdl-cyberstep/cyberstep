@@ -343,7 +343,7 @@ export default function Pricing() {
   const serviceCatalog: ServiceCatalogItem[] = Array.isArray(serviceCatalogRaw) ? serviceCatalogRaw : [];
   const dbPlans = Array.isArray(dbPlansRaw) ? dbPlansRaw : [];
   const fullDbPlan = dbPlans.find(p => p.slug === "full");
-  const fullPriceLabel = fullDbPlan ? (new Intl.NumberFormat("tr-TR").format(parseFloat(String(fullDbPlan.price))) + " TL + KDV") : PRICING_PLANS[1].priceLabel;
+  const fullPriceLabel = fullDbPlan ? (new Intl.NumberFormat("tr-TR").format(parseFloat(String(fullDbPlan.price))) + (lang === "en" ? " TL + VAT" : " TL + KDV")) : PRICING_PLANS[1].priceLabel;
 
   const plans = PRICING_PLANS.map(p =>
     p.id === "full" && fullDbPlan

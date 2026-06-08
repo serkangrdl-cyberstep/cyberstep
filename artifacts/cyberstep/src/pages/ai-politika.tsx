@@ -25,7 +25,22 @@ function LandingView() {
   const { lang } = useLanguage();
   const { data: prices } = useServicePrices();
   const p = prices?.["ai-politika"];
-  const priceLabel = p ? `${formatPrice(p.amount, p.unit)} + KDV` : "990 TL / yıl + KDV";
+  const priceLabel = p
+    ? `${formatPrice(p.amount, p.unit, "Ücretsiz", lang)} ${lang === "en" ? "+ VAT" : "+ KDV"}`
+    : lang === "en" ? "990 TL / yr + VAT" : "990 TL / yıl + KDV";
+  const features = lang === "en"
+    ? [
+        { icon: FileText, title: "Custom policy on first setup", desc: "Tailored to your sector, employee count, and the AI tools you use." },
+        { icon: RotateCcw, title: "Auto-update when AI tools change", desc: "If ChatGPT or Gemini changes its privacy policy, your policy updates too." },
+        { icon: Download, title: "PDF + Word download", desc: "All versions are archived. Download any time you need." },
+        { icon: Shield, title: "KVKK Article 9 & 12 compliant", desc: "Covers cross-border transfer, explicit consent, and data processing obligations." },
+      ]
+    : [
+        { icon: FileText, title: "İlk kurulumda şirketinize özel politika", desc: "Sektörünüz, çalışan sayısı ve kullandığınız AI araçlarına göre hazırlanır." },
+        { icon: RotateCcw, title: "AI araçları değişince otomatik güncelleme", desc: "ChatGPT veya Gemini gizlilik politikasını değiştirirse politikanız da güncellenir." },
+        { icon: Download, title: "PDF + Word formatında indirme", desc: "Tüm versiyonlar arşivlenir. İstediğiniz zaman indirebilirsiniz." },
+        { icon: Shield, title: "KVKK Madde 9 ve 12 uyumlu", desc: "Yurt dışı aktarım, açık rıza ve veri işleme yükümlülükleri dahil edilir." },
+      ];
   return (
     <>
       <section className="py-20 bg-secondary relative overflow-hidden">
@@ -33,24 +48,27 @@ function LandingView() {
         <div className="container mx-auto px-4 relative z-10 text-center max-w-3xl">
           <Badge className="bg-primary/20 text-primary border-primary/40 mb-4">{priceLabel}</Badge>
           <h1 className="text-4xl font-bold text-white mb-4">{lang === "en" ? "AI Policy Auto-Update" : "AI Politika Otomatik Güncelleme"}</h1>
-          <p className="text-xl text-white/80 mb-2">KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor.</p>
-          <p className="text-lg text-primary font-semibold mb-8">Siz sadece imzalayın.</p>
+          <p className="text-xl text-white/80 mb-2">
+            {lang === "en"
+              ? "Your KVKK-compliant AI policy updates automatically every quarter."
+              : "KVKK uyumlu yapay zeka politikanız her çeyrek otomatik güncelleniyor."}
+          </p>
+          <p className="text-lg text-primary font-semibold mb-8">
+            {lang === "en" ? "You just sign it." : "Siz sadece imzalayın."}
+          </p>
           <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors">
-            Politikamı Oluştur <ChevronRight className="h-5 w-5" />
+            {lang === "en" ? "Create My Policy" : "Politikamı Oluştur"} <ChevronRight className="h-5 w-5" />
           </Link>
-          <p className="text-sm text-white/70 mt-4">Normal danışmanlık maliyeti: 3.000–8.000 TL/yıl</p>
+          <p className="text-sm text-white/70 mt-4">
+            {lang === "en" ? "Standard consulting cost: 3,000–8,000 TL/yr" : "Normal danışmanlık maliyeti: 3.000–8.000 TL/yıl"}
+          </p>
         </div>
       </section>
 
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="grid md:grid-cols-2 gap-6 mb-12">
-            {[
-              { icon: FileText, title: "İlk kurulumda şirketinize özel politika", desc: "Sektörünüz, çalışan sayısı ve kullandığınız AI araçlarına göre hazırlanır." },
-              { icon: RotateCcw, title: "AI araçları değişince otomatik güncelleme", desc: "ChatGPT veya Gemini gizlilik politikasını değiştirirse politikanız da güncellenir." },
-              { icon: Download, title: "PDF + Word formatında indirme", desc: "Tüm versiyonlar arşivlenir. İstediğiniz zaman indirebilirsiniz." },
-              { icon: Shield, title: "KVKK Madde 9 ve 12 uyumlu", desc: "Yurt dışı aktarım, açık rıza ve veri işleme yükümlülükleri dahil edilir." },
-            ].map(f => (
+            {features.map(f => (
               <div key={f.title} className="flex gap-4 p-5 rounded-xl border bg-card">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <f.icon className="h-5 w-5 text-primary" />
@@ -64,10 +82,15 @@ function LandingView() {
           </div>
 
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center">
-            <p className="text-3xl font-bold text-primary mb-1">990 TL / yıl <span className="text-sm font-normal text-muted-foreground">+ KDV</span></p>
-            <p className="text-muted-foreground mb-6">4 otomatik güncelleme — yılda bir kez faturalama</p>
+            <p className="text-3xl font-bold text-primary mb-1">
+              990 TL / {lang === "en" ? "yr" : "yıl"}{" "}
+              <span className="text-sm font-normal text-muted-foreground">{lang === "en" ? "+ VAT" : "+ KDV"}</span>
+            </p>
+            <p className="text-muted-foreground mb-6">
+              {lang === "en" ? "4 automatic updates — billed annually" : "4 otomatik güncelleme — yılda bir kez faturalama"}
+            </p>
             <Link href="/kayit" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
-              Şimdi Başla <ChevronRight className="h-4 w-4" />
+              {lang === "en" ? "Get Started" : "Şimdi Başla"} <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -115,7 +138,7 @@ function ManagementView({ customerId }: { customerId: number }) {
         <p className="text-muted-foreground mb-8">Şirketinize özel KVKK uyumlu AI kullanım politikası oluşturun. Her çeyrek otomatik güncellenir.</p>
         <button onClick={() => subscribeMutation.mutate()} disabled={subscribeMutation.isPending}
           className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {subscribeMutation.isPending ? "Başlatılıyor..." : "Aboneliği Başlat — 990 TL/yıl + KDV"}
+          {subscribeMutation.isPending ? (lang === "en" ? "Starting..." : "Başlatılıyor...") : lang === "en" ? "Start Subscription — 990 TL/yr + VAT" : "Aboneliği Başlat — 990 TL/yıl + KDV"}
         </button>
       </div>
     );
@@ -236,7 +259,7 @@ function ManagementView({ customerId }: { customerId: number }) {
         <div className="rounded-xl border bg-card p-6">
           <h3 className="font-semibold mb-4">Abonelik Bilgileri</h3>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Plan</span><span className="font-medium">990 TL / yıl + KDV</span></div>
+            <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Plan</span><span className="font-medium">990 TL / {lang === "en" ? "yr + VAT" : "yıl + KDV"}</span></div>
             <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Durum</span><span className={`font-medium ${sub.status === "active" ? "text-green-600" : "text-red-500"}`}>{sub.status === "active" ? "Aktif" : "Pasif"}</span></div>
             <div className="flex justify-between py-2 border-b"><span className="text-muted-foreground">Sonraki fatura</span><span>{sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString("tr-TR") : "—"}</span></div>
             <div className="flex justify-between py-2"><span className="text-muted-foreground">Otomatik güncelleme</span><span>{sub.autoGenerate ? "Açık" : "Kapalı"}</span></div>

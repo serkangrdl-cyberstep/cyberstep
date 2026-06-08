@@ -1,0 +1,83 @@
+CyberStep'te şu değişiklikleri yap:
+
+Ücretsiz (kayıt gerektirmez, herkese açık) kalacak servisler:
+1. Domain scan — özet skor + maksimum 3 bulgu göster, PDF rapor ve MITRE senaryoları kilitli
+2. 20 soruluk mini assessment — özet skor göster, detaylı rapor kilitli
+3. /araçlar/dmarc-kontrol micro-tool
+4. /araçlar/ssl-kontrol micro-tool
+5. /araçlar/veri-sizintisi-kontrol micro-tool
+6. /araçlar/guvenlik-baslik-skoru micro-tool
+
+Geri kalan her şey ücretli — kayıt + ödeme gerektirir:
+- Domain scan tam rapor (PDF, MITRE ATT&CK, CVE detayları, tüm bulgular)
+- Assessment detaylı rapor
+- Breach monitor aboneliği
+- DNS monitor
+- AI Phishing simülasyonu
+- KVKK değerlendirmesi
+- Tüm diğer servisler
+
+Yapılacak değişiklikler:
+
+── 1. Domain scan sonuç sayfası ──────────────────
+
+artifacts/cyberstep/src/ içinde domain scan sonuç sayfasını bul.
+
+Ücretsiz kullanıcıya göster:
+- Genel skor (sayı + renk + seviye etiketi)
+- İlk 3 bulgu (başlık + severity badge)
+- Kısa açıklama metni
+
+Kilitle (blur overlay + kilit ikonu + CTA):
+- 4. bulgu ve sonrası
+- MITRE ATT&CK senaryoları bölümü
+- CVE detayları
+- PDF indirme butonu
+- Tam aksiyon listesi
+
+Kilit overlay metni:
+"Tam raporu görmek için kayıt olun
+✓ Tüm güvenlik bulgular  ✓ MITRE ATT&CK senaryoları
+✓ KVKK risk analizi  ✓ PDF rapor
+[Ücretsiz Kayıt Ol →]"
+
+── 2. Assessment sonuç sayfası ───────────────────
+
+Assessment tamamlandıktan sonra gösterilen sonuç sayfasını bul.
+
+Ücretsiz göster:
+- Genel olgunluk skoru
+- 3 kategorinin özet skoru
+- "Güçlü" ve "Zayıf" tek cümlelik özet
+
+Kilitle:
+- Kategori bazlı detaylı analiz
+- Öncelikli aksiyon listesi
+- PDF rapor
+- Uzman görüşmesi CTA (ücretli servis)
+
+── 3. Service catalog'da pricing flag ────────────
+
+artifacts/api-server/src/ içinde service_catalog seed veya config dosyasını bul.
+
+Her servis için is_free flag'i ayarla:
+- domain-scan-summary: is_free = true
+- mini-assessment-summary: is_free = true
+- domain-scan-full: is_free = false
+- assessment-full-report: is_free = false
+- breach-monitor: is_free = false
+- dns-monitor: is_free = false
+- ai-phishing-simulation: is_free = false
+- kvkk-assessment: is_free = false
+- phishing-sim: is_free = false
+
+── 4. Navigasyon güncelleme ──────────────────────
+
+Ana header navigasyonuna "Ücretsiz Araçlar" menüsü ekle (giriş yapmadan görünsün):
+- Domain Tarama (ücretsiz özet)
+- DMARC Kontrol
+- SSL Kontrol
+- Veri Sızıntısı Kontrol
+- Güvenlik Başlık Skoru
+
+Build et ve test et.

@@ -893,6 +893,19 @@ function startScanLeadDripCron() {
   logger.info("Scan lead drip cron scheduled (hourly)");
 }
 
+function startFreeScanFollowupCron() {
+  // ─── Ücretsiz tarama takip e-postası — her saat ──────────────────────────
+  cron.schedule(
+    "0 * * * *",
+    wrapCron("free_scan_followup", "0 * * * *", async () => {
+      const { runFreeScanFollowup } = await import("./services/free-scan-followup");
+      return await runFreeScanFollowup();
+    }),
+    { timezone: "Europe/Istanbul" },
+  );
+  logger.info("Free scan followup cron scheduled (hourly)");
+}
+
 async function ensureAssessmentsColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS tenant_id INTEGER`);
 }
@@ -1826,6 +1839,13 @@ function startInflationReminderCron() {
     return 0;
   }), { timezone: "Europe/Istanbul" });
   logger.info("Inflation reminder cron scheduled (every Monday 09:30)");
+
+  // ─── Otomatik TÜFE Fiyat Güncelleme — Her yıl 1 Ocak 09:00 Istanbul ──────
+  cron.schedule("0 9 1 1 *", wrapCron("price_auto_update", "0 9 1 1 *", async () => {
+    const { runPriceAutoUpdate } = await import("./services/price-auto-update");
+    return await runPriceAutoUpdate();
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("Price auto-update cron scheduled (1 Jan 09:00 Istanbul)");
 }
 
 // ─── Digest Cron ─────────────────────────────────────────────────────────────
@@ -1962,6 +1982,7 @@ startup()
   .then(() => {
     startReminderCron();
     startScanLeadDripCron();
+    startFreeScanFollowupCron();
     startIsrImapCron();
     startInflationReminderCron();
     startBlogAutopilotCron();
@@ -2426,6 +2447,13 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CVE feed check cron scheduled (every 2 hours)");
 
+    // ─── Kritik CVE müşteri bildirimi (CVSS 9+) — her 4 saatte ──────────────
+    cron.schedule("0 */4 * * *", wrapCron("cve_customer_notification", "0 */4 * * *", async () => {
+      const { runCveCustomerNotification } = await import("./services/cve/cveHighCvssNotifier");
+      return await runCveCustomerNotification();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("CVE customer notification sweep cron scheduled (every 4 hours)");
+
     // Her Cuma 08:00 Istanbul — haftalık bülten üret
     cron.schedule("0 8 * * 5", wrapCron("haftalik_bulten", "0 8 * * 5", async () => {
       const { collectWeeklyData } = await import("./services/bulletin/weeklyDataCollector");
@@ -2610,6 +2638,8 @@ startup()
         { name: "intel_feeds",              thresholdHours: 7   },
         { name: "attack_path_analysis",     thresholdHours: 25  },
         { name: "cve_feed_check",           thresholdHours: 3   },
+        { name: "cve_customer_notification", thresholdHours: 5  },
+        { name: "free_scan_followup",        thresholdHours: 2  },
         { name: "cloud_cspm",               thresholdHours: 25  },
         { name: "fabric_fm_health",         thresholdHours: 25  },
         { name: "fabric_block_verify",      thresholdHours: 7   },
@@ -2660,6 +2690,7 @@ startup()
         { name: "digest_weekly_generate",   thresholdHours: 169 },
         { name: "growth_port_change",       thresholdHours: 169 },
         { name: "inflation_reminder",       thresholdHours: 169 },
+        { name: "price_auto_update",        thresholdHours: 8785 },
         { name: "nps_send",                 thresholdHours: 169 },
         { name: "social_media_weekly",      thresholdHours: 169 },
         { name: "weekly_db_backup",         thresholdHours: 169 },

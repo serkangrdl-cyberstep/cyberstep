@@ -32,6 +32,7 @@
 | CISA Tehdit Veritabanı Güncelleme | Her gece 01:00 | ABD Siber Güvenlik Ajansı'nın (CISA) aktif istismar edilen zafiyet listesini indirir | En güncel tehdit bilgisiyle müşteri sistemlerini karşılaştırır |
 | Siber İstihbarat Akışları | Her 6 saatte | 9 farklı tehdit istihbaratı kaynağını tarar, yeni IOC (tehdit göstergesi) ekler | Bilinen zararlı IP, domain ve dosyalar için uyarı verebilir |
 | CVE Güvenlik Açığı Takibi | Her 2 saatte | Yeni açıklanan CVE'leri çeker, müşteri teknoloji stackiyle eşleştirir | Müşteriye özgü kritik açıkları otomatik tespit eder |
+| **Kritik CVE Müşteri Bildirimi** | **Her 4 saatte** | **CVSS 9.0+ olan ve henüz bildirilmemiş eşleşmeleri tarar; etkilenen müşterilere otomatik acil e-posta gönderir** | **Kritik açıkları müşteriye insan müdahalesi olmadan anında iletir** |
 | Piyasa ve Tehdit Trendi İzleme | Her 4 saatte | Siber güvenlik haberlerini ve sektör trendlerini takip eder | İçerik üretimi ve tehdit raporları için güncel veri sağlar |
 | SSL Sertifika Keşfi | Her gece 01:00 | Yeni kurulan Türk şirketlerinin SSL sertifikalarını izler | Potansiyel satış adayı (lead) tespit eder |
 | CVE Tehdit Eşleştirme | Her gece 02:30 | Yeni CVE'leri mevcut müşteri profilleriyle eşleştirir | Kime hangi açık mail atılacağını otomatik belirler |
@@ -47,6 +48,7 @@
 | Lead Damlatma Kampanyası | Her saatte | Yeni lead adaylarına önceden hazırlanmış e-posta serisini zamanında gönderir | Potansiyel müşteriyi düzenli dokunuşlarla ısıtır |
 | Lead Puanlama & Nitelendirme | Her saatte | Lead adaylarını şirket büyüklüğü, sektör ve davranışa göre puanlar | Satış ekibinin zamanını en değerli adaylara harcamasını sağlar |
 | Alan Adı Keşfi (crt.sh) | Her gece 03:00 | SSL sertifika kayıtlarından yeni Türk şirketlerini bulur | Henüz siber güvenlik hizmeti almayan şirketleri erken keşfeder |
+| **Ücretsiz Tarama Takip E-postası** | **Her saat** | **Ücretsiz tarama yapan anonim kullanıcıları 24-72 saat sonra tespit eder; skor ve öne çıkan bulgularla kişiselleştirilmiş e-posta gönderir, kayıt CTA'sı ekler** | **Ücretsiz kullanıcıları ücretli aboneliğe dönüştürme fırsatını otomatik değerlendirir** |
 | Shodan Lead Tarama | Her gece 04:00 | Shodan üzerinden açık servis/port bulunduran şirketleri tespit eder | Güvenlik açığı olan potansiyel müşterileri otomatik bulur |
 
 ---
@@ -135,6 +137,7 @@
 |---|---|---|---|
 | IOC Kredi Sıfırlama | Her ayın 1'i 08:30 | Her müşterinin aylık IOC (tehdit göstergesi sorgulama) hakkını sıfırlar | Adil kullanım kotasını otomatik yönetir, abonelik değerini koruyan önemli bir gelir parametresi |
 | Enflasyon Fiyat Hatırlatma | Her Pazartesi 09:30 | Enflasyon oranına göre fiyat güncelleme önerisini iç ekibe iletir | Fiyatların piyasa maliyetiyle uyumlu kalmasını hatırlatır |
+| **Otomatik TÜFE Fiyat Güncelleme** | **Her yıl 1 Ocak 09:00** | **TUFE_ANNUAL_RATE env değişkenindeki yıllık oran kadar tüm servis fiyatlarını otomatik artırır; admin'e önce/sonra tablo içeren e-posta gönderir** | **Fiyatları manuel takip etmeden enflasyonla uyumlu tutar** |
 | SLA İhlal Raporu | Her gün 08:00 | Önceki gün SLA'sı ihlal edilen müşteri vakalarını listeler | Hizmet kalitesini nesnel olarak takip etmeyi sağlar |
 | Otomatik Etiketleme | Her gece 03:30 | Müşteri davranışına göre segment etiketleri (aktif, pasif, risk altında vb.) atar | CRM ve kampanyaların doğru segmente ulaşmasını sağlar |
 | Görev Hatırlatmaları | Her gün 08:30 | Vadesi yaklaşan iç görevleri ekibe hatırlatır | Operasyonel görevlerin gözden kaçmasını önler |
@@ -146,12 +149,12 @@
 | Kategori | Cron Sayısı |
 |---|---|
 | Güvenlik İzleme | 13 |
-| Tehdit İstihbaratı | 7 |
-| Lead Üretimi & Satış | 5 |
+| Tehdit İstihbaratı | 8 |
+| Lead Üretimi & Satış | 6 |
 | Müşteri İletişimi & Onboarding | 9 |
 | Raporlama & Analitik | 11 |
 | Sistem & Altyapı | 12 |
 | AI & İçerik Üretimi | 9 |
 | Yasal Uyumluluk (KVKK) | 3 |
-| Büyüme & Fiyatlandırma | 5 |
-| **TOPLAM** | **74** |
+| Büyüme & Fiyatlandırma | 6 |
+| **TOPLAM** | **77** |

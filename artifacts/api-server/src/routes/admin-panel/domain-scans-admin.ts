@@ -165,6 +165,22 @@ router.get("/admin-panel/domain-scans/scheduled", requireAdmin, async (_req: Req
   res.json({ overdue, upcoming, completed: completed.slice(0, 20) });
 });
 
+// ─── By Domain (latest scan) — MUST be before /:id ───────────────────────────
+router.get("/admin-panel/domain-scans/by-domain/:domain", requireAdmin, async (req: Request, res: Response) => {
+  const domain = String(req.params.domain).toLowerCase().trim();
+  if (!domain) { res.status(400).json({ error: "Geçersiz domain" }); return; }
+
+  const [scan] = await db
+    .select()
+    .from(domainScansTable)
+    .where(eq(domainScansTable.domain, domain))
+    .orderBy(desc(domainScansTable.createdAt))
+    .limit(1);
+
+  if (!scan) { res.status(404).json({ error: "Bu domain için tarama bulunamadı" }); return; }
+  res.json(scan);
+});
+
 // ─── Detail ───────────────────────────────────────────────────────────────────
 router.get("/admin-panel/domain-scans/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);

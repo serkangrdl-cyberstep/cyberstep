@@ -97,6 +97,46 @@ interface LeadCandidate {
   createdAt: string;
 }
 
+interface DomainScan {
+  id: number;
+  domain: string;
+  overallScore: number;
+  spfPass: boolean;
+  spfRecord: string | null;
+  dmarcPass: boolean;
+  dmarcRecord: string | null;
+  dkimPass: boolean;
+  dkimSelectors: string[];
+  mxPass: boolean;
+  mxRecords: Array<{ exchange: string; priority: number }>;
+  sslPass: boolean;
+  sslExpiry: string | null;
+  sslIssuer: string | null;
+  sslDaysUntilExpiry: number | null;
+  hibpBreachCount: number;
+  hibpBreaches: Array<{ name: string; breachDate: string; pwnCount: number; dataClasses: string[] }>;
+  blacklisted: boolean;
+  blacklistCount: number;
+  shadowItServices: Array<{ name: string; category: string; risk: string; description: string; version?: string }>;
+  httpHeadersScore: number;
+  httpHeadersDetails: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean } | null;
+  urlhausListed: boolean;
+  urlhausThreat: string | null;
+  usomListed: boolean;
+  cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
+  shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  shodanVulnCount: number;
+  virusTotalMalicious: number;
+  virusTotalSuspicious: number;
+  safeBrowsingFlagged: boolean | null;
+  wafDetected: boolean | null;
+  wafProvider: string | null;
+  ctSubdomainCount: number;
+  ctSubdomains: string[];
+  sslLabsGrade: string | null;
+  createdAt: string;
+}
+
 const CVE_DESCS: Record<string, string> = {
   "CVE-2007-6013": "Eski Wordpress gizli anahtar ifşası — güncelleme gerekli",
   "CVE-2016-1209": "Crypt_Blowfish sabit zamanlı karşılaştırma bypass — kimlik doğrulama riski",
@@ -331,7 +371,17 @@ export default function AdminLeadDiscovery() {
 
   const { data: candidateTechStack } = useQuery<TechStackItem[]>({
     queryKey: ["candidate-tech-stack", detailCandidate?.id],
-    queryFn: () => fetch(`${BASE}/lead-discovery/candidates/${detailCandidate!.id}/tech-stack`).then((r) => r.json()),
+    queryFn: () => fetch(`${BASE}/lead-discovery/candidates/${detailCandidate!.id}/tech-stack`, { credentials: "include" }).then((r) => r.json()),
+    enabled: !!detailCandidate,
+  });
+
+  const { data: candidateDomainScan } = useQuery<DomainScan | null>({
+    queryKey: ["candidate-domain-scan", detailCandidate?.domain],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/domain-scans/by-domain/${encodeURIComponent(detailCandidate!.domain)}`, { credentials: "include" });
+      if (r.status === 404) return null;
+      return r.json();
+    },
     enabled: !!detailCandidate,
   });
 
@@ -1483,6 +1533,218 @@ export default function AdminLeadDiscovery() {
                         ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Domain Tarama Sonuçları */}
+              {candidateDomainScan && (
+                <div className="border border-slate-200 rounded-md overflow-hidden">
+                  <div className="bg-slate-100 px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Domain Tarama Sonuçları</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${candidateDomainScan.overallScore >= 70 ? "text-green-700" : candidateDomainScan.overallScore >= 40 ? "text-yellow-700" : "text-red-700"}`}>
+                        {candidateDomainScan.overallScore}/100
+                      </span>
+                      {candidateDomainScan.sslLabsGrade && (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          candidateDomainScan.sslLabsGrade.startsWith("A") ? "bg-green-100 text-green-700" :
+                          candidateDomainScan.sslLabsGrade.startsWith("B") ? "bg-yellow-100 text-yellow-700" :
+                          "bg-red-100 text-red-700"
+                        }`}>SSL: {candidateDomainScan.sslLabsGrade}</span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(candidateDomainScan.createdAt).toLocaleDateString("tr-TR")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-3 space-y-3 text-xs">
+
+                    {/* E-posta Güvenliği */}
+                    <div>
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">E-posta Güvenliği</div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { label: "SPF", pass: candidateDomainScan.spfPass, detail: candidateDomainScan.spfRecord },
+                          { label: "DMARC", pass: candidateDomainScan.dmarcPass, detail: candidateDomainScan.dmarcRecord },
+                          { label: "DKIM", pass: candidateDomainScan.dkimPass, detail: candidateDomainScan.dkimSelectors?.length > 0 ? `selector: ${candidateDomainScan.dkimSelectors.join(", ")}` : null },
+                          { label: "MX", pass: candidateDomainScan.mxPass, detail: candidateDomainScan.mxRecords?.[0]?.exchange ?? null },
+                        ].map(({ label, pass, detail }) => (
+                          <div key={label} className="flex items-start gap-1.5">
+                            <span className={`mt-0.5 shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${pass ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                              {pass ? "✓" : "✗"}
+                            </span>
+                            <div>
+                              <span className="font-semibold">{label}</span>
+                              {detail && <div className="text-muted-foreground font-mono text-[10px] truncate max-w-[160px]" title={detail}>{detail}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* SSL */}
+                    <div>
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">SSL Sertifikası</div>
+                      <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center gap-1">
+                          <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${candidateDomainScan.sslPass ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                            {candidateDomainScan.sslPass ? "✓" : "✗"}
+                          </span>
+                          <span>{candidateDomainScan.sslPass ? "Geçerli" : "Geçersiz/Eksik"}</span>
+                        </div>
+                        {candidateDomainScan.sslDaysUntilExpiry !== null && (
+                          <span className={candidateDomainScan.sslDaysUntilExpiry < 30 ? "text-orange-600 font-semibold" : "text-muted-foreground"}>
+                            {candidateDomainScan.sslDaysUntilExpiry} gün kaldı
+                          </span>
+                        )}
+                        {candidateDomainScan.sslIssuer && (
+                          <span className="text-muted-foreground">{candidateDomainScan.sslIssuer}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* HTTP Başlıkları */}
+                    {candidateDomainScan.httpHeadersDetails && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">HTTP Güvenlik Başlıkları</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: "HSTS", pass: candidateDomainScan.httpHeadersDetails.hsts },
+                            { label: "X-Frame", pass: candidateDomainScan.httpHeadersDetails.xFrameOptions },
+                            { label: "X-Content-Type", pass: candidateDomainScan.httpHeadersDetails.xContentTypeOptions },
+                            { label: "CSP", pass: candidateDomainScan.httpHeadersDetails.csp },
+                            { label: "Referrer", pass: candidateDomainScan.httpHeadersDetails.referrerPolicy },
+                          ].map(({ label, pass }) => (
+                            <span key={label} className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${pass ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+                              {pass ? "✓" : "✗"} {label}
+                            </span>
+                          ))}
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${candidateDomainScan.httpHeadersScore >= 70 ? "bg-green-50 text-green-700 border-green-200" : candidateDomainScan.httpHeadersScore >= 40 ? "bg-yellow-50 text-yellow-700 border-yellow-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+                            Skor: {candidateDomainScan.httpHeadersScore}/100
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tehdit İstihbaratı */}
+                    <div>
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Tehdit İstihbaratı</div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${candidateDomainScan.blacklisted ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+                          {candidateDomainScan.blacklisted ? `Kara Liste: ${candidateDomainScan.blacklistCount} liste` : "Kara Liste: Temiz"}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${candidateDomainScan.hibpBreachCount > 0 ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+                          {candidateDomainScan.hibpBreachCount > 0 ? `HIBP: ${candidateDomainScan.hibpBreachCount} ihlal` : "HIBP: İhlal Yok"}
+                        </span>
+                        {candidateDomainScan.urlhausListed && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-red-50 text-red-700 border-red-200">
+                            URLhaus: {candidateDomainScan.urlhausThreat ?? "Listelendi"}
+                          </span>
+                        )}
+                        {candidateDomainScan.usomListed && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-red-50 text-red-700 border-red-200">USOM Listesi</span>
+                        )}
+                        {candidateDomainScan.safeBrowsingFlagged && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-red-50 text-red-700 border-red-200">Google Safe Browsing</span>
+                        )}
+                        {candidateDomainScan.virusTotalMalicious > 0 && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-red-50 text-red-700 border-red-200">
+                            VT: {candidateDomainScan.virusTotalMalicious} zararlı
+                          </span>
+                        )}
+                        {candidateDomainScan.wafDetected && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-blue-50 text-blue-700 border-blue-200">
+                            WAF: {candidateDomainScan.wafProvider ?? "Tespit Edildi"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Açık Portlar (Shodan) */}
+                    {candidateDomainScan.shodanOpenPorts && candidateDomainScan.shodanOpenPorts.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                          Açık Portlar ({candidateDomainScan.shodanOpenPorts.length})
+                          {candidateDomainScan.shodanVulnCount > 0 && (
+                            <span className="ml-2 text-red-600">{candidateDomainScan.shodanVulnCount} CVE</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {candidateDomainScan.shodanOpenPorts.slice(0, 12).map((p, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono" title={`${p.service}${p.product ? ` (${p.product})` : ""}`}>
+                              {p.port}/{p.protocol}
+                            </span>
+                          ))}
+                          {candidateDomainScan.shodanOpenPorts.length > 12 && (
+                            <span className="text-[10px] text-muted-foreground">+{candidateDomainScan.shodanOpenPorts.length - 12}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CVE Özeti */}
+                    {candidateDomainScan.cveSummary && candidateDomainScan.cveSummary.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">CVE Bulguları ({candidateDomainScan.cveSummary.length})</div>
+                        <div className="space-y-1">
+                          {candidateDomainScan.cveSummary.slice(0, 5).map((c, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${c.cvssScore >= 9 ? "bg-red-100 text-red-700" : c.cvssScore >= 7 ? "bg-orange-100 text-orange-700" : "bg-yellow-100 text-yellow-700"}`}>
+                                {c.cvssScore.toFixed(1)}
+                              </span>
+                              <span className="font-mono text-[10px] text-blue-700 shrink-0">{c.cveId}</span>
+                              <span className="text-muted-foreground truncate text-[10px]">{c.service}</span>
+                            </div>
+                          ))}
+                          {candidateDomainScan.cveSummary.length > 5 && (
+                            <div className="text-[10px] text-muted-foreground">+{candidateDomainScan.cveSummary.length - 5} daha</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Shadow IT */}
+                    {candidateDomainScan.shadowItServices && candidateDomainScan.shadowItServices.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Shadow IT ({candidateDomainScan.shadowItServices.length})</div>
+                        <div className="flex flex-wrap gap-1">
+                          {candidateDomainScan.shadowItServices.map((s, i) => (
+                            <span key={i} className={`px-1.5 py-0.5 rounded text-[10px] border ${s.risk === "Yüksek" ? "bg-red-50 text-red-700 border-red-200" : s.risk === "Orta" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : "bg-slate-50 text-slate-600 border-slate-200"}`}
+                              title={s.description}>
+                              {s.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CT Subdomains */}
+                    {candidateDomainScan.ctSubdomainCount > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">CT Log Alt Domainleri ({candidateDomainScan.ctSubdomainCount})</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">{candidateDomainScan.ctSubdomains.slice(0, 6).join(", ")}{candidateDomainScan.ctSubdomainCount > 6 ? ` +${candidateDomainScan.ctSubdomainCount - 6}` : ""}</div>
+                      </div>
+                    )}
+
+                    {/* HIBP İhlaleleri */}
+                    {candidateDomainScan.hibpBreaches && candidateDomainScan.hibpBreaches.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Veri İhlali Geçmişi</div>
+                        <div className="space-y-1">
+                          {candidateDomainScan.hibpBreaches.slice(0, 3).map((b, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[10px]">
+                              <span className="font-semibold shrink-0">{b.name}</span>
+                              <span className="text-muted-foreground">{b.breachDate}</span>
+                              <span className="text-orange-600">{b.pwnCount.toLocaleString("tr-TR")} hesap</span>
+                            </div>
+                          ))}
+                          {candidateDomainScan.hibpBreaches.length > 3 && (
+                            <div className="text-[10px] text-muted-foreground">+{candidateDomainScan.hibpBreaches.length - 3} daha</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

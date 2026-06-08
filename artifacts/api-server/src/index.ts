@@ -2646,6 +2646,14 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("HITL approval expire cron kayıtlandı (her 15 dakika)");
 
+    // ─── TPRM Vendor Nightly Rescan: Her gece 02:00 ──────────────────────────
+    cron.schedule("0 2 * * *", wrapCron("tprm_vendor_rescan", "0 2 * * *", async () => {
+      const { runVendorRescanCron } = await import("./routes/tprm/index");
+      await runVendorRescanCron();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("TPRM vendor rescan cron kayıtlandı (gece 02:00 Istanbul)");
+
     // ─── Startup: Stale "running" kayıtları temizle ─────────────────────────
     // Server restart sırasında tamamlanamayan "running" durumundaki cron kayıtlarını düzelt.
     void cleanupStaleRunningJobs();

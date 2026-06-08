@@ -179,6 +179,7 @@ import AdminIocKontroller from "./pages/admin-panel/ioc-kontroller";
 import AdminApprovals from "./pages/admin-panel/approvals";
 import IocSorgu from "./pages/ioc-sorgu";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
+import TedarikciPortfoyu from "./pages/hesabim/tedarikci-portfoyu";
 import HesabimWhitelist from "./pages/hesabim/whitelist";
 import HesabimIocLog from "./pages/hesabim/ioc-log";
 import SocDashboard from "./pages/hesabim/soc";
@@ -290,6 +291,7 @@ function Router() {
       <Route path="/hesabim/cloud-guvenlik" component={CloudGuvenlik} />
       <Route path="/hesabim/entegrasyonlarim" component={EntegrasyonlarimPage} />
       <Route path="/hesabim/dns-izleme" component={DnsIzleme} />
+      <Route path="/hesabim/tedarikci-portfoyu" component={TedarikciPortfoyu} />
       <Route path="/hesabim/whitelist" component={HesabimWhitelist} />
       <Route path="/hesabim/ioc-log" component={HesabimIocLog} />
       <Route path="/hesabim/ioc-sorgu" component={IocSorgu} />

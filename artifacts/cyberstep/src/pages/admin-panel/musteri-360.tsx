@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag, Ban, Settings2 } from "lucide-react";
+import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag, Ban, Settings2, ChevronDown, ChevronUp, Package } from "lucide-react";
 
 interface ServiceSubscription {
   id: number;
@@ -47,6 +47,7 @@ interface Customer360 {
 }
 
 interface Tag { id: number; name: string; color: string; }
+interface CatalogEntry { id: number; slug: string; label: string; category: string; monthlyPriceTl: string; isActive: boolean; }
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Aktif", variant: "default" }, paused: { label: "Duraklatıldı", variant: "secondary" },
@@ -133,6 +134,27 @@ export default function Musteri360() {
       toast({ title: "Abonelik yenilendi", description: "Yenileme makbuzu müşteriye e-posta ile gönderildi." });
     },
     onError: (err: Error) => { toast({ title: "Ödeme Hatası", description: err.message, variant: "destructive" }); },
+  });
+
+  const [showAssignPanel, setShowAssignPanel] = useState(false);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [assignNotes, setAssignNotes] = useState("");
+  const { data: serviceCatalog = [] } = useQuery<CatalogEntry[]>({
+    queryKey: ["admin-service-catalog"],
+    queryFn: () => fetch("/api/public/service-catalog").then(r => r.json()),
+    enabled: showAssignPanel,
+  });
+  const assignServices = useMutation({
+    mutationFn: () => fetch(`/api/admin-panel/customers/${id}/assign-services`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serviceIds: selectedServiceIds, notes: assignNotes || undefined }),
+    }).then(async r => { const d = await r.json() as { activated: number; total: number; error?: string }; if (!r.ok) throw new Error(d.error ?? "Hata"); return d; }),
+    onSuccess: (data) => {
+      setSelectedServiceIds([]); setAssignNotes(""); setShowAssignPanel(false);
+      toast({ title: `${data.activated} servis müşteriye atandı` });
+    },
+    onError: (err: Error) => toast({ title: "Hata", description: err.message, variant: "destructive" }),
   });
 
   if (isLoading) return <AdminLayout title="Müşteri 360"><div className="text-slate-400 text-center py-20">Yükleniyor...</div></AdminLayout>;
@@ -352,6 +374,69 @@ export default function Musteri360() {
 
         {/* Aktif Servisler */}
         <TabsContent value="servisler">
+          {/* Katalogdan Manuel Servis Ata */}
+          <Card className="bg-slate-900 border-slate-800 mb-4">
+            <CardHeader className="pb-3 cursor-pointer select-none" onClick={() => setShowAssignPanel(s => !s)}>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-slate-200 text-sm flex items-center gap-2">
+                  <Package className="h-4 w-4 text-emerald-400" />
+                  Katalogdan Manuel Servis Ata
+                </CardTitle>
+                {showAssignPanel ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+              </div>
+            </CardHeader>
+            {showAssignPanel && (
+              <CardContent className="pt-0 space-y-4">
+                {serviceCatalog.filter(s => s.isActive).length === 0 ? (
+                  <p className="text-slate-500 text-sm">Katalog yükleniyor...</p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                      {serviceCatalog.filter(s => s.isActive).map(svc => {
+                        const checked = selectedServiceIds.includes(svc.id);
+                        return (
+                          <div
+                            key={svc.id}
+                            onClick={() => setSelectedServiceIds(p => checked ? p.filter(x => x !== svc.id) : [...p, svc.id])}
+                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${checked ? "bg-emerald-500/10 border-emerald-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-600"}`}
+                          >
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center mt-0.5 shrink-0 ${checked ? "bg-emerald-500 border-emerald-500" : "border-slate-500"}`}>
+                              {checked && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-white text-xs font-medium leading-snug">{svc.label}</p>
+                              <p className="text-slate-500 text-[10px] mt-0.5">{Number(svc.monthlyPriceTl).toLocaleString("tr-TR")} TL/ay</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400">Not (opsiyonel)</label>
+                      <Input
+                        value={assignNotes}
+                        onChange={e => setAssignNotes(e.target.value)}
+                        placeholder="Örn: Pilot proje kapsamında atandı"
+                        className="mt-1 bg-slate-800 border-slate-700 text-white h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">{selectedServiceIds.length} servis seçildi</span>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        disabled={selectedServiceIds.length === 0 || assignServices.isPending}
+                        onClick={() => assignServices.mutate()}
+                      >
+                        {assignServices.isPending ? "Atanıyor..." : `${selectedServiceIds.length} Servisi Ata`}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            )}
+          </Card>
+
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">

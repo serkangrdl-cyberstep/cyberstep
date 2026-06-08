@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { customersTable, assessmentsTable, paymentsTable, customerServicesTable, serviceCatalogTable } from "@workspace/db";
-import { count, eq, sql, desc } from "drizzle-orm";
+import { count, eq, sql, desc, inArray } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import bcrypt from "bcryptjs";
@@ -144,6 +144,47 @@ router.post("/admin-panel/customers/:id/test-mode-activate", requireAdmin, async
 
   logger.info({ customerId: id, activated, total: allServices.length }, "Test mode: all services activated");
   res.json({ success: true, activated, total: allServices.length });
+});
+
+// POST /api/admin-panel/customers/:id/assign-services
+// Admin seçili servis ID'lerini müşteriye manuel olarak atar
+router.post("/admin-panel/customers/:id/assign-services", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const { serviceIds, notes } = req.body as { serviceIds?: number[]; notes?: string };
+  if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
+    res.status(400).json({ error: "serviceIds dizisi zorunlu" }); return;
+  }
+
+  const [customer] = await db.select({ id: customersTable.id })
+    .from(customersTable).where(eq(customersTable.id, id)).limit(1);
+  if (!customer) { res.status(404).json({ error: "Müşteri bulunamadı" }); return; }
+
+  const services = await db.select().from(serviceCatalogTable)
+    .where(inArray(serviceCatalogTable.id, serviceIds));
+
+  const expiresAt = new Date();
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+  let activated = 0;
+  for (const svc of services) {
+    try {
+      await db.insert(customerServicesTable).values({
+        customerId: id,
+        serviceCatalogId: svc.id,
+        status: "active",
+        activatedAt: new Date(),
+        expiresAt,
+        activatedBy: "admin",
+        notes: notes ?? null,
+      }).onConflictDoNothing();
+      activated++;
+    } catch { /* çakışmayı atla */ }
+  }
+
+  logger.info({ customerId: id, activated, total: services.length }, "Admin manually assigned services");
+  res.json({ success: true, activated, total: services.length });
 });
 
 // ONE-TIME SETUP: production test user fix — DELETE AFTER USE

@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
+import { useCart } from "@/contexts/cart-context";
 
 interface OnboardingStep {
   key: string;
@@ -444,6 +445,7 @@ interface RenewalCard {
 
 export default function ServislerimPage() {
   const { data: customer, isLoading: authLoading } = useRequireCustomer();
+  const { addItem: cartAdd, removeItem: cartRemove, isInCart: cartIsInCart, itemCount: cartItemCount } = useCart();
   const [, navigate] = useLocation();
   const [selectedItem, setSelectedItem] = useState<MyServiceItem | null>(null);
   const { toast } = useToast();
@@ -792,13 +794,14 @@ export default function ServislerimPage() {
               {availableServices.map(svc => {
                 const price = svc.priceTl ? Number(svc.priceTl) : Number(svc.monthlyPriceTl);
                 const catLabel = CATEGORY_LABELS[svc.category] ?? svc.category;
+                const inCart = cartIsInCart(svc.slug);
                 return (
-                  <Card key={svc.id} className="bg-slate-900 border-slate-800 hover:border-sky-800/50 transition-all cursor-pointer"
+                  <Card key={svc.id} className={`bg-slate-900 border-slate-800 hover:border-sky-800/50 transition-all cursor-pointer ${inCart ? "border-sky-700/50" : ""}`}
                     onClick={() => navigate(`/satin-al/${svc.slug}`)}>
                     <CardContent className="py-4">
                       <div className="flex items-start justify-between mb-2">
                         <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">{catLabel}</Badge>
-                        <Lock className="w-3.5 h-3.5 text-slate-600" />
+                        {inCart ? <ShoppingCart className="w-3.5 h-3.5 text-sky-400" /> : <Lock className="w-3.5 h-3.5 text-slate-600" />}
                       </div>
                       <h3 className="font-semibold text-white text-sm mb-1 leading-snug">{svc.label}</h3>
                       <p className="text-xs text-slate-400 mb-3 line-clamp-2">{svc.shortDescription}</p>
@@ -809,10 +812,20 @@ export default function ServislerimPage() {
                             {svc.serviceType === "one_time" ? "tek sefer" : svc.serviceType === "annual" ? "/yil" : "/ay"}
                           </span>
                         </div>
-                        <Button size="sm" className="text-xs bg-sky-600 hover:bg-sky-500 gap-1"
-                          onClick={e => { e.stopPropagation(); navigate(`/satin-al/${svc.slug}`); }}>
-                          Satin Al <ArrowRight className="w-3 h-3" />
-                        </Button>
+                        {inCart ? (
+                          <Button size="sm" variant="outline" className="text-xs border-sky-500/40 text-sky-400 gap-1"
+                            onClick={e => { e.stopPropagation(); cartRemove(svc.slug); }}>
+                            <X className="w-3 h-3" /> Cikar
+                          </Button>
+                        ) : (
+                          <Button size="sm" className="text-xs bg-sky-600 hover:bg-sky-500 gap-1"
+                            onClick={e => {
+                              e.stopPropagation();
+                              cartAdd({ id: svc.id, slug: svc.slug, label: svc.label, monthlyPriceTl: Number(svc.monthlyPriceTl), serviceType: svc.serviceType ?? null });
+                            }}>
+                            <ShoppingCart className="w-3 h-3" /> Sepete Ekle
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -865,6 +878,24 @@ export default function ServislerimPage() {
           </section>
         )}
       </div>
+
+      {/* Sticky sepet çubuğu — sepette ürün varsa görünür */}
+      {cartItemCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-sky-900/95 backdrop-blur border-t border-sky-700/50 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-sky-200">
+              <ShoppingCart className="h-4 w-4 text-sky-400" />
+              <span><span className="font-bold text-white">{cartItemCount} servis</span> sepetinizde</span>
+            </div>
+            <button
+              onClick={() => navigate("/hesabim/sepet")}
+              className="bg-sky-500 hover:bg-sky-400 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
+              Sepete Git <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

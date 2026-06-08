@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe, ShoppingCart } from "lucide-react";
+import { useCart } from "@/contexts/cart-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,7 @@ export default function CustomerAccount() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: customer } = useRequireCustomer();
+  const { itemCount: cartItemCount } = useCart();
 
   const [totpStep, setTotpStep] = useState<"idle" | "setup" | "done">("idle");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -156,6 +158,10 @@ export default function CustomerAccount() {
               <span className="text-slate-700">|</span>
               <Link href="/hesabim" className="text-white text-sm font-medium">Hesabım</Link>
               <Link href="/hesabim/servislerim" className="text-slate-400 hover:text-white text-sm transition-colors">Servislerim</Link>
+              <Link href="/hesabim/sepet" className="text-slate-400 hover:text-white text-sm transition-colors flex items-center gap-1">
+                <ShoppingCart className="h-3.5 w-3.5" />
+                {cartItemCount > 0 && <span className="bg-sky-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{cartItemCount}</span>}
+              </Link>
               <Link href="/raporlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Raporlarım</Link>
               <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
               <Link href="/hesabim/fortinet-entegrasyonu" className="text-slate-400 hover:text-white text-sm transition-colors">Fortinet</Link>

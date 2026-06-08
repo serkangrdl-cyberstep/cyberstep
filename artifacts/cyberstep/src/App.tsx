@@ -191,6 +191,7 @@ import Bulgularim from "./pages/hesabim/bulgularim";
 import CloudGuvenlik from "./pages/hesabim/cloud-guvenlik";
 import EntegrasyonlarimPage from "./pages/hesabim/entegrasyonlarim";
 import ServislerimPage from "./pages/hesabim/servislerim";
+import SepetPage from "./pages/hesabim/sepet";
 import YenilePage from "./pages/yenile";
 import NpsPage from "./pages/nps";
 import StatusPage from "./pages/status";
@@ -213,6 +214,7 @@ import { WhiteLabelProvider } from "./contexts/white-label-context";
 import { LanguageProvider } from "./contexts/language-context";
 import { ThemeProvider } from "next-themes";
 import { TenantProvider } from "./contexts/tenant-context";
+import { CartProvider } from "./contexts/cart-context";
 
 const queryClient = new QueryClient();
 
@@ -292,6 +294,7 @@ function Router() {
       <Route path="/hesabim/ioc-log" component={HesabimIocLog} />
       <Route path="/hesabim/ioc-sorgu" component={IocSorgu} />
       <Route path="/hesabim/servislerim" component={ServislerimPage} />
+      <Route path="/hesabim/sepet" component={SepetPage} />
       <Route path="/hesabim/ciso-asistan" component={CisoAsistanPortal} />
       <Route path="/yenile" component={YenilePage} />
       <Route path="/pentest-lite" component={PentestLite} />
@@ -498,8 +501,10 @@ function App() {
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <TenantProvider>
-                <ScrollToTop />
-                <Router />
+                <CartProvider>
+                  <ScrollToTop />
+                  <Router />
+                </CartProvider>
               </TenantProvider>
             </WouterRouter>
             <CookieBanner />

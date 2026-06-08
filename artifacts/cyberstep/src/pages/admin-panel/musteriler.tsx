@@ -205,15 +205,22 @@ export default function AdminMusteriler() {
                       <td className="px-4 py-3 text-center text-slate-300">{c.assessmentCount}</td>
                       <td className="px-4 py-3 text-slate-500 text-xs">{new Date(c.createdAt).toLocaleDateString("tr-TR")}</td>
                       <td className="px-4 py-3 text-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-slate-600 text-slate-300 hover:bg-slate-700 h-7 px-2 text-xs"
-                          onClick={() => setEditing(editing === c.id ? null : c.id)}
-                        >
-                          <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${editing === c.id ? "rotate-180" : ""}`} />
-                          Düzenle
-                        </Button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <a href={`/panel/musteriler/${c.id}`}>
+                            <Button size="sm" variant="outline" className="border-cyan-600/40 text-cyan-300 hover:bg-cyan-500/10 h-7 px-2 text-xs">
+                              360
+                            </Button>
+                          </a>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700 h-7 px-2 text-xs"
+                            onClick={() => setEditing(editing === c.id ? null : c.id)}
+                          >
+                            <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${editing === c.id ? "rotate-180" : ""}`} />
+                            Plan
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                     {editing === c.id && (

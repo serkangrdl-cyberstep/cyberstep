@@ -2,7 +2,7 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 import { createPayment, createPaymentWithStoredCard, checkPayment } from "../../services/iyzico";
 import { sendMail, sendSubscriptionCancellationEmail } from "../../services/email";
 import { requireAdmin } from "../../middleware/auth";
@@ -231,6 +231,147 @@ router.post("/payments/service-checkout", async (req: Request, res: Response) =>
   });
 
   res.json({ success: true, subscriptionId: subscription?.id });
+});
+
+// POST /api/payments/cart-checkout
+// Sepetteki birden fazla servisi tek Iyzico ödemesiyle satın alma.
+router.post("/payments/cart-checkout", async (req: Request, res: Response) => {
+  const {
+    items,
+    companyName = "", contactName, email, phone,
+    cardHolderName, cardNumber, expireMonth, expireYear, cvc,
+  } = req.body as {
+    items: Array<{ serviceSlug: string; billingCycle: "monthly" | "annual" }>;
+    companyName?: string;
+    contactName: string;
+    email: string;
+    phone?: string;
+    cardHolderName: string;
+    cardNumber: string;
+    expireMonth: string;
+    expireYear: string;
+    cvc: string;
+  };
+
+  if (!Array.isArray(items) || items.length === 0) {
+    res.status(400).json({ error: "Sepet boş" }); return;
+  }
+  if (!contactName || !email || !cardNumber || !cardHolderName) {
+    res.status(400).json({ error: "Eksik ödeme bilgileri" }); return;
+  }
+
+  const slugs = [...new Set(items.map(i => i.serviceSlug))];
+  const services = await db.select().from(serviceCatalogTable)
+    .where(inArray(serviceCatalogTable.slug, slugs));
+
+  type EnrichedItem = {
+    service: typeof services[number];
+    billingCycle: "monthly" | "annual";
+    base: number; kdv: number; total: number;
+  };
+
+  let totalBase = 0, totalKdv = 0, totalAmount = 0;
+  const enrichedItems: EnrichedItem[] = [];
+
+  for (const item of items) {
+    const service = services.find(s => s.slug === item.serviceSlug);
+    if (!service || !service.isActive) continue;
+    const { base, kdv, total } = calcPrices(Number(service.monthlyPriceTl), item.billingCycle);
+    totalBase += base; totalKdv += kdv; totalAmount += total;
+    enrichedItems.push({ service, billingCycle: item.billingCycle, base, kdv, total });
+  }
+
+  if (enrichedItems.length === 0) {
+    res.status(400).json({ error: "Geçerli servis bulunamadı" }); return;
+  }
+
+  totalBase = +totalBase.toFixed(2);
+  totalKdv = +totalKdv.toFixed(2);
+  totalAmount = +totalAmount.toFixed(2);
+
+  const conversationId = `cart-${Date.now()}`;
+  const nameParts = contactName.trim().split(" ");
+  const firstName = nameParts[0] ?? contactName;
+  const lastName = nameParts.slice(1).join(" ") || "-";
+
+  const result = await createPayment({
+    price: String(totalBase),
+    paidPrice: String(totalAmount),
+    currency: "TRY",
+    installment: 1,
+    paymentCard: {
+      cardHolderName,
+      cardNumber: cardNumber.replace(/\s/g, ""),
+      expireYear, expireMonth, cvc,
+      registerCard: 1,
+    },
+    buyer: {
+      id: email, name: firstName, surname: lastName, email,
+      identityNumber: process.env.IYZICO_IDENTITY_NUMBER ?? "11111111111",
+      registrationAddress: "Türkiye", city: "İstanbul", country: "Turkey",
+      ip: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "127.0.0.1",
+    },
+    shippingAddress: { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName },
+    billingAddress: { address: "Türkiye", city: "İstanbul", country: "Turkey", contactName },
+    basketItems: enrichedItems.map(ei => ({
+      id: ei.service.slug,
+      name: ei.service.label,
+      category1: "Siber Güvenlik Hizmetleri",
+      itemType: "VIRTUAL",
+      price: String(ei.base),
+    })),
+    conversationId,
+  });
+
+  if (!result.success) {
+    logger.warn({ error: result.errorMessage, itemCount: enrichedItems.length }, "Cart checkout payment failed");
+    res.status(402).json({ success: false, error: result.errorMessage ?? "Ödeme başarısız" });
+    return;
+  }
+
+  const now = new Date();
+  const session = req.session as unknown as Record<string, unknown>;
+  const customerId = session["customerId"] as number | undefined;
+  const subscriptionIds: number[] = [];
+
+  for (const ei of enrichedItems) {
+    const expiresAt = ei.billingCycle === "annual"
+      ? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
+      : new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const [sub] = await db.insert(customerServiceSubscriptionsTable).values({
+      customerId: customerId ?? null,
+      serviceSlug: ei.service.slug,
+      serviceLabel: ei.service.label,
+      status: "active",
+      billingCycle: ei.billingCycle,
+      contactName, companyName, email,
+      phone: phone ?? null,
+      amountPaid: String(ei.total),
+      currency: "TRY",
+      paymentRef: result.paymentId ?? null,
+      iyzicoConversationId: conversationId,
+      startedAt: now, expiresAt,
+      iyzicoCardUserKey: result.cardUserKey ?? null,
+      iyzicoCardToken: result.cardToken ?? null,
+    }).returning();
+    if (sub) subscriptionIds.push(sub.id);
+  }
+
+  logger.info({ customerId, subscriptionIds, email, itemCount: enrichedItems.length }, "Cart checkout successful");
+
+  setImmediate(() => {
+    sendReceiptEmail({
+      email, contactName, companyName,
+      serviceLabel: enrichedItems.map(ei => ei.service.label).join(", "),
+      billingCycle: enrichedItems[0]!.billingCycle,
+      amountPaid: totalBase, kdv: totalKdv, total: totalAmount,
+      expiresAt: new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()),
+      paymentRef: result.paymentId,
+    }).catch(err => logger.warn({ err, email }, "Cart receipt email failed"));
+  });
+
+  res.json({ success: true, subscriptionIds });
 });
 
 // POST /api/payments/service-callback

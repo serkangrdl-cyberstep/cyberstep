@@ -53,12 +53,35 @@ function getReplyToEmail(tenant?: TenantMailConfig) {
   return tenant?.imapUser ?? process.env["ISR_IMAP_USER"] ?? getSenderEmail(tenant);
 }
 
+const IMAP_TENANT_TIMEOUT_MS = 40_000;
+
 async function runImapForTenant(tenantId: number, tenantConfig: TenantMailConfig): Promise<void> {
   const imapConfig = getImapConfig(tenantConfig);
   if (!imapConfig) return;
 
-  const client = new ImapFlow({ ...imapConfig, logger: false });
+  const client = new ImapFlow({
+    ...imapConfig,
+    logger: false,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 30_000,
+  });
 
+  // Force-close the connection if the entire tenant run exceeds 40s.
+  // client.close() causes the inner await to throw, which the inner try/catch handles.
+  const timeoutHandle = setTimeout(() => {
+    logger.warn({ tenantId }, "isr_imap: 40s timeout — force-closing IMAP connection");
+    try { client.close(); } catch { /* ignore */ }
+  }, IMAP_TENANT_TIMEOUT_MS);
+
+  try {
+    await _runImapForTenantInner(tenantId, client, tenantConfig);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+async function _runImapForTenantInner(tenantId: number, client: ImapFlow, tenantConfig: TenantMailConfig): Promise<void> {
   try {
     await client.connect();
     await client.mailboxOpen("INBOX");

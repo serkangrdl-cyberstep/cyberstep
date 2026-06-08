@@ -1,6 +1,7 @@
 import { db, serviceCatalogTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { sendMail } from "./email";
+import { fetchTufeAnnualRate } from "./tufe-fetcher";
 import { logger } from "../lib/logger";
 
 const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
@@ -18,13 +19,24 @@ function fmtTl(v: string | null | undefined): string {
 }
 
 export async function runPriceAutoUpdate(): Promise<number> {
-  const rate = parseFloat(process.env["TUFE_ANNUAL_RATE"] ?? "");
-  if (isNaN(rate) || rate <= 0 || rate > 200) {
-    logger.warn({ rate }, "price_auto_update: TUFE_ANNUAL_RATE geçersiz veya ayarlanmamış — atlandı");
-    return 0;
+  // 1. TCMB EVDS'den canlı oran çek
+  let rate = await fetchTufeAnnualRate();
+  let rateSource = "TCMB EVDS (otomatik)";
+
+  // 2. Çekemediyse TUFE_ANNUAL_RATE env var'a düş
+  if (rate === null) {
+    const envRate = parseFloat(process.env["TUFE_ANNUAL_RATE"] ?? "");
+    if (!isNaN(envRate) && envRate > 0 && envRate <= 200) {
+      rate = envRate;
+      rateSource = "TUFE_ANNUAL_RATE env (yedek)";
+      logger.warn({ rate }, "price_auto_update: EVDS alınamadı, env var kullanılıyor");
+    } else {
+      logger.warn("price_auto_update: ne EVDS ne env var mevcut — atlandı");
+      return 0;
+    }
   }
 
-  logger.info({ rate }, "price_auto_update: fiyat güncelleme başladı");
+  logger.info({ rate, rateSource }, "price_auto_update: fiyat güncelleme başladı");
 
   const services = await db
     .select()
@@ -73,14 +85,15 @@ export async function runPriceAutoUpdate(): Promise<number> {
   try {
     await sendMail({
       to: ADMIN_EMAIL,
-      subject: `CyberStep Otomatik Fiyat Güncelleme — TÜFE %${rate}`,
+      subject: `CyberStep Otomatik Fiyat Güncelleme — TÜFE %${rate.toFixed(2)}`,
       html: `
 <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;background:#060D1A;color:#E8EDF5;padding:32px;border-radius:12px">
   <div style="margin-bottom:24px">
     <span style="color:#E8EDF5;font-weight:bold;font-size:22px">Cyber</span><span style="color:#00C8FF;font-weight:bold;font-size:22px">Step</span><span style="color:#7B8FAF;font-size:14px">.io</span>
   </div>
   <h2 style="color:#00C8FF;margin:0 0 8px">Yıllık TÜFE Fiyat Güncellemesi</h2>
-  <p style="color:#A8B8D0">Uygulanan oran: <strong style="color:#E8EDF5">%${rate}</strong></p>
+  <p style="color:#A8B8D0">Uygulanan oran: <strong style="color:#E8EDF5">%${rate.toFixed(2)}</strong></p>
+  <p style="color:#5A6A80;font-size:13px;margin:0 0 16px">Kaynak: ${rateSource}</p>
   <table style="width:100%;border-collapse:collapse;margin-top:24px">
     <thead>
       <tr style="background:rgba(0,200,255,0.08)">
@@ -92,8 +105,9 @@ export async function runPriceAutoUpdate(): Promise<number> {
     <tbody>${tableRows}</tbody>
   </table>
   <p style="font-size:12px;color:#5A6A80;margin-top:24px">
-    Yanlış bir oran uygulandıysa admin panelinden fiyatları manuel düzeltebilirsiniz.
-    TUFE_ANNUAL_RATE env değişkenini yıl başında güncel TÜFE oranıyla ayarlamayı unutmayın.
+    Oran TCMB EVDS'den otomatik çekilmiştir. Yanlış bir oran uygulandıysa admin panelinden
+    fiyatları manuel düzeltebilirsiniz. EVDS çalışmıyorsa yedek olarak TUFE_ANNUAL_RATE
+    env değişkeni kullanılır.
   </p>
 </div>`.trim(),
     });

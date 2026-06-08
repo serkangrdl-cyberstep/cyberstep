@@ -196,6 +196,41 @@ function calcScore(
   return { spf: spfScore, dmarc: dmarcScore, dkim: dkimScore, mx: mxScore, ssl: sslScore, portDeduction, total };
 }
 
+function computeConfidenceScore(
+  wafResult: { detected: boolean; confidenceLevel: string | null; hasCdn: boolean },
+  bypassPossible: boolean,
+  osintResult: { wafBypassRisk: "low" | "medium" | "high" } | null,
+): number {
+  if (!wafResult.detected && !wafResult.hasCdn) return 95;
+  if (bypassPossible) return 55;
+  if (osintResult?.wafBypassRisk === "high") return 60;
+  if (wafResult.confidenceLevel === "high") return 72;
+  if (wafResult.confidenceLevel === "medium") return 78;
+  if (wafResult.hasCdn && !wafResult.detected) return 85;
+  return 75;
+}
+
+function computeConfidenceNote(
+  wafResult: { detected: boolean; provider: string | null; confidenceLevel: string | null; hasCdn: boolean; detectionMethods: string[] },
+  bypassPossible: boolean,
+  osintResult: { wafBypassRisk: "low" | "medium" | "high"; bypassNote: string | null } | null,
+): string | null {
+  if (!wafResult.detected && !wafResult.hasCdn) return null;
+  const parts: string[] = [];
+  if (wafResult.detected && wafResult.provider) {
+    const names: Record<string, string> = {
+      cloudflare: "Cloudflare", f5: "F5 BIG-IP", akamai: "Akamai",
+      imperva: "Imperva", sucuri: "Sucuri", aws_waf: "AWS WAF", fortinet: "Fortinet FortiWeb",
+    };
+    const name = names[wafResult.provider] ?? wafResult.provider;
+    const methods = wafResult.detectionMethods.join(", ");
+    parts.push(`${name} WAF tespit edildi (yöntem: ${methods}).`);
+  }
+  if (bypassPossible) parts.push("Kaynak sunucuya doğrudan IP erişimi mümkün — WAF bypass riski kritik.");
+  if (osintResult?.bypassNote) parts.push(osintResult.bypassNote);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
 // ─── Shadow IT katalog ───────────────────────────────────────────────────────
 
 interface ShadowItService {
@@ -1385,13 +1420,22 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       checkThreatFox(domain),
       checkFeodoTracker(domain),
       checkMozillaObservatory(domain),
-      detectWAF(domain).catch(() => ({ detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[], indirectCdnProvider: null, indirectCdnNote: null })),
+      detectWAF(domain).catch(() => ({ detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[], indirectCdnProvider: null, indirectCdnNote: null, hasCdn: false, cdnProvider: null, confidenceLevel: null, detectionMethods: [] as string[] })),
     ]);
 
     // WAF tespit edildiyse bypass kontrolü yap
     const bypassResult = wafResult.detected
       ? await checkDirectIPAccess(domain).catch(() => ({ originIp: null, bypassPossible: false }))
       : { originIp: null, bypassPossible: false };
+
+    // WAF/CDN varsa OSINT ile zenginleştir (bypass risk analizi)
+    const { enrichWithOsint } = await import("../../services/osintEnrichment");
+    const osintResult = (wafResult.detected || wafResult.hasCdn)
+      ? await enrichWithOsint(domain).catch(() => null)
+      : null;
+
+    const confidenceScore = computeConfidenceScore(wafResult, bypassResult.bypassPossible, osintResult);
+    const confidenceNote  = computeConfidenceNote(wafResult, bypassResult.bypassPossible, osintResult);
 
     // CVE risklerini WAF bağlamında ayarla
     const cveSummary = adjustCvesForWAF({
@@ -1461,6 +1505,10 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         originIp: bypassResult.originIp,
         wafHeadersAdded: wafResult.headersAddedByWAF,
         wafConfidence: wafResult.confidence,
+        hasCdn: wafResult.hasCdn,
+        cdnProvider: wafResult.cdnProvider,
+        confidenceScore,
+        confidenceNote,
         tenantId: sessionTenantId,
       })
       .returning();
@@ -1691,6 +1739,9 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       abuseIpdbIsp: scan.abuseIpdbIsp,
       createdAt: scan.createdAt.toISOString(),
       wafNote: pdfWafNote,
+      confidenceScore: scan.confidenceScore ?? undefined,
+      wafDetected: scan.wafDetected ?? false,
+      wafProvider: scan.wafProvider ?? undefined,
       attackScenarios: isFreeReport ? null : attackScenariosData,
       scoreBreakdown: pdfScoreBreakdown,
       isFreeReport,

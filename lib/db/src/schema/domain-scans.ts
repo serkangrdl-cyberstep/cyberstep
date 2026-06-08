@@ -82,6 +82,8 @@ export const domainScansTable = pgTable("domain_scans", {
   originIp: text("origin_ip"),
   wafHeadersAdded: jsonb("waf_headers_added").$type<string[]>().notNull().default([]),
   wafConfidence: integer("waf_confidence"),
+  confidenceScore: integer("confidence_score"),
+  confidenceNote: text("confidence_note"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   notifiedAt: timestamp("notified_at"),
   // Endeks alanları

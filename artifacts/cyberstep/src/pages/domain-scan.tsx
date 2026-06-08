@@ -92,6 +92,10 @@ interface ScanResult {
   wafBypassPossible?: boolean | null;
   originIp?: string | null;
   wafConfidence?: number | null;
+  confidenceScore?: number | null;
+  confidenceNote?: string | null;
+  hasCdn?: boolean | null;
+  cdnProvider?: string | null;
   virusTotalReputation: number | null;
   virusTotalMalicious: number;
   virusTotalSuspicious: number;
@@ -2095,6 +2099,22 @@ export default function DomainScanPage() {
                     {result.hibpBreachCount > 0 && (
                       <Badge variant="outline" className="font-bold border bg-orange-100 text-orange-700 border-orange-200">
                         {result.hibpBreachCount} Sızıntı
+                      </Badge>
+                    )}
+                    {result.confidenceScore != null && (result.wafDetected || result.hasCdn) && (
+                      <Badge
+                        variant="outline"
+                        className={`font-medium border text-xs ${
+                          result.confidenceScore >= 80
+                            ? "bg-sky-50 text-sky-700 border-sky-200"
+                            : result.confidenceScore >= 65
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }`}
+                        title={result.confidenceNote ?? undefined}
+                      >
+                        Güvenilirlik %{result.confidenceScore}
+                        {result.wafDetected && result.wafProvider && ` · WAF`}
                       </Badge>
                     )}
                   </div>

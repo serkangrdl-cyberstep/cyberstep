@@ -724,4 +724,36 @@ SADECE aşağıdaki JSON formatında yanıt ver:
   }
 });
 
+// ─── WAF CHECK ────────────────────────────────────────────────────────────────
+
+// GET /api/waf-check?domain=example.com
+router.get("/waf-check", async (req: Request, res: Response): Promise<void> => {
+  const raw = ((req.query.domain as string) ?? "").toLowerCase().trim()
+    .replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  if (!raw || raw.length < 3 || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(raw)) {
+    res.status(400).json({ error: "Geçerli bir alan adı girin (örnek: example.com)" });
+    return;
+  }
+  try {
+    const { detectWAF: wafDetect } = await import("../../services/wafDetector");
+    const result = await wafDetect(raw);
+    res.json({
+      domain: raw,
+      wafDetected: result.detected,
+      provider: result.provider,
+      confidence: result.confidence,
+      confidenceLevel: result.confidenceLevel,
+      detectionMethods: result.detectionMethods,
+      hasCdn: result.hasCdn,
+      cdnProvider: result.cdnProvider,
+      headersAddedByWAF: result.headersAddedByWAF,
+      indirectCdnProvider: result.indirectCdnProvider,
+      indirectCdnNote: result.indirectCdnNote,
+    });
+  } catch (err) {
+    logger.error({ err, domain: raw }, "WAF check failed");
+    res.status(500).json({ error: "WAF kontrolü başarısız" });
+  }
+});
+
 export default router;

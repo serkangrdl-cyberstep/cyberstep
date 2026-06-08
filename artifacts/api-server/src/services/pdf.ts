@@ -259,6 +259,9 @@ interface DomainScanData {
   abuseIpdbIsp: string | null;
   createdAt: string;
   wafNote?: string | null;
+  confidenceScore?: number | null;
+  wafDetected?: boolean | null;
+  wafProvider?: string | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;
@@ -476,6 +479,29 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
       .text(`Siz ${data.overallScore}`, MARGIN + CBAR_W + 8, BAR_Y + 11);
 
+    // Güvenilirlik göstergesi
+    if (data.confidenceScore != null) {
+      const confY = BAR_Y + 36;
+      const confColor: [number, number, number] =
+        data.confidenceScore >= 80 ? [22, 163, 74] :
+        data.confidenceScore >= 60 ? [217, 119, 6] : [220, 38, 38];
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7).text("Tarama Güvenilirliği", MARGIN, confY);
+      const CBAR_W2 = 130;
+      doc.rect(MARGIN, confY + 13, CBAR_W2, 4).fill(CS_CARD);
+      doc.rect(MARGIN, confY + 13, CBAR_W2 * (data.confidenceScore / 100), 4).fill(confColor);
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
+        .text(`%${data.confidenceScore}`, MARGIN + CBAR_W2 + 8, confY + 11);
+      if (data.wafDetected && data.wafProvider) {
+        const wafLabels: Record<string, string> = {
+          cloudflare: "Cloudflare", f5: "F5 BIG-IP", akamai: "Akamai",
+          imperva: "Imperva", sucuri: "Sucuri", aws_waf: "AWS WAF", fortinet: "Fortinet FortiWeb",
+        };
+        const wafName = wafLabels[data.wafProvider] ?? data.wafProvider;
+        doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(6.5)
+          .text(`${wafName} WAF tespit edildi`, MARGIN, confY + 24);
+      }
+    }
+
     // Kapak alt bilgi çizgisi
     const CVR_FOOT_Y = H - 50;
     doc.rect(MARGIN, CVR_FOOT_Y, CONTENT_W, 0.5).fill(CS_CARD);
@@ -491,6 +517,34 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     // flag = true → bundan sonraki her addPage() (checkPageBreak dahil) header çizer
     headerListenerActive = true;
     doc.addPage(); // pageAdded tetiklenir → header + doc.y = 52
+
+    // ── WAF/CDN Durumu Bilgi Kutusu ──────────────────────────────────────────
+    if (data.wafDetected && data.wafProvider) {
+      const wafLabels: Record<string, string> = {
+        cloudflare: "Cloudflare", f5: "F5 BIG-IP", akamai: "Akamai",
+        imperva: "Imperva", sucuri: "Sucuri", aws_waf: "AWS WAF", fortinet: "Fortinet FortiWeb",
+      };
+      const wafName = wafLabels[data.wafProvider] ?? data.wafProvider;
+      const confPct = data.confidenceScore ?? null;
+      const isLowConf = confPct != null && confPct < 70;
+      const boxBg: [number, number, number]     = isLowConf ? [254, 240, 240] : [235, 245, 255];
+      const boxBorder: [number, number, number] = isLowConf ? [220, 38, 38]   : [59, 130, 246];
+      const wbY = doc.y;
+      doc.rect(MARGIN, wbY, CONTENT_W, 42).fill(boxBg);
+      doc.rect(MARGIN, wbY, 3, 42).fill(boxBorder);
+      doc.fillColor(boxBorder).fontSize(9).font(FONT_BOLD)
+        .text(
+          `${wafName} WAF Aktif${confPct != null ? `  —  Tarama Güvenilirliği %${confPct}` : ""}`,
+          MARGIN + 12, wbY + 6, { width: CONTENT_W - 18, lineBreak: false }
+        );
+      doc.fillColor([50, 70, 90]).fontSize(8).font(FONT_REGULAR)
+        .text(
+          "Tam güvenilir: E-posta güvenliği (SPF/DMARC/DKIM), SSL sertifikası, veri sızıntısı, kara liste. " +
+          "Doğrulama önerilir: HTTP başlıkları ve CVE/port bulguları (WAF etkili).",
+          MARGIN + 12, wbY + 22, { width: CONTENT_W - 18 }
+        );
+      doc.y = wbY + 50;
+    }
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
     if (data.scoreBreakdown) {

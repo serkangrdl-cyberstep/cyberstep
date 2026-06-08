@@ -1759,7 +1759,7 @@ async function ensureDomainScanPurchasesTable() {
 
 // ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:00'da) ────
 function startInflationReminderCron() {
-  cron.schedule("0 9 * * 1", async () => {
+  cron.schedule("0 9 * * 1", wrapCron("inflation_reminder", "0 9 * * 1", async () => {
     try {
       const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
       const plans = await db.select().from(pricingPlansTable).orderBy(pricingPlansTable.updatedAt);
@@ -1807,10 +1807,12 @@ function startInflationReminderCron() {
           </div>`,
       });
       logger.info({ monthsOld, adminEmail }, "Inflation reminder email sent");
+      return 1;
     } catch (err) {
       logger.warn({ err }, "Inflation reminder cron failed");
     }
-  });
+    return 0;
+  }));
   logger.info("Inflation reminder cron scheduled (every Monday 09:00)");
 }
 
@@ -1966,29 +1968,34 @@ startup()
       refreshUsomList().catch((err) => logger.warn({ err }, "USOM daily refresh failed"));
     });
     // Müşteri sağlık skoru — her gece 02:00'de hesapla
-    cron.schedule("0 2 * * *", () => {
-      calculateAllHealthScores().catch((err) => logger.warn({ err }, "Health score cron failed"));
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 2 * * *", wrapCron("health_score", "0 2 * * *", async () => {
+      await calculateAllHealthScores();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Health score cron scheduled (02:00 Istanbul)");
     // Tahsilat hatırlatıcı — her gün 10:00'da vadesi geçen faturaları kontrol et
-    cron.schedule("0 10 * * *", () => {
-      runCollectionReminderCron(sendMail).catch((err) => logger.warn({ err }, "Collection reminder cron failed"));
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 10 * * *", wrapCron("collection_reminder", "0 10 * * *", async () => {
+      await runCollectionReminderCron(sendMail);
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Collection reminder cron scheduled (10:00 Istanbul)");
     // Otomatik CRM etiketleme — her gece 03:30'da
-    cron.schedule("30 3 * * *", () => {
-      runAutoTagCron().catch((err) => logger.warn({ err }, "Auto-tag cron failed"));
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("30 3 * * *", wrapCron("auto_tag", "30 3 * * *", async () => {
+      await runAutoTagCron();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Auto-tag cron scheduled (03:30 Istanbul)");
     // Görev hatırlatıcı — her gün 08:30'da
-    cron.schedule("30 8 * * *", () => {
-      runTaskReminderCron().catch((err) => logger.warn({ err }, "Task reminder cron failed"));
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("30 8 * * *", wrapCron("task_reminder", "30 8 * * *", async () => {
+      await runTaskReminderCron();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Task reminder cron scheduled (08:30 Istanbul)");
     // NPS otomatik gönderim — her Salı 11:00'da
-    cron.schedule("0 11 * * 2", () => {
-      runNpsCron().catch((err) => logger.warn({ err }, "NPS cron failed"));
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 11 * * 2", wrapCron("nps_send", "0 11 * * 2", async () => {
+      await runNpsCron();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("NPS cron scheduled (Tuesday 11:00 Istanbul)");
     startFabricCrons();
     startSOCCrons();
@@ -1996,67 +2003,63 @@ startup()
     startCertstreamClient();
 
     // ─── Microsoft 365 Graph API poller — her 15 dakikada ────────────────────
-    cron.schedule("*/15 * * * *", async () => {
-      try {
-        const { pollAllMs365Integrations } = await import("./services/ms365Graph");
-        await pollAllMs365Integrations();
-      } catch (err) {
-        logger.error({ err }, "MS365 poll cron failed");
-      }
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("*/15 * * * *", wrapCron("ms365_poller", "*/15 * * * *", async () => {
+      const { pollAllMs365Integrations } = await import("./services/ms365Graph");
+      await pollAllMs365Integrations();
+    }), { timezone: "Europe/Istanbul" });
     logger.info("MS365 Graph API poller scheduled (every 15 min)");
 
     // ─── Onboarding email serisi — Her gün 10:30 (D+3 ve D+7) ───────────────
-    cron.schedule("30 10 * * *", async () => {
+    cron.schedule("30 10 * * *", wrapCron("onboarding_d3d7", "30 10 * * *", async () => {
       logger.info("Running onboarding email cron (D+3, D+7)");
-      try {
-        const { sendOnboardingD3Email, sendOnboardingD7Email } = await import("./services/email");
-        const base = process.env["REPLIT_DOMAINS"]
-          ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
-          : "http://localhost:80";
+      const { sendOnboardingD3Email, sendOnboardingD7Email } = await import("./services/email");
+      const base = process.env["REPLIT_DOMAINS"]
+        ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+        : "http://localhost:80";
 
-        // D+3: kayıt 3-4 gün önce, d3 emaili henüz gönderilmemiş
-        const d3Due = await db.execute<{ id: number; email: string; full_name: string; company_name: string | null }>(sql`
-          SELECT id, email, full_name, company_name
-          FROM customers
-          WHERE created_at >= NOW() - INTERVAL '4 days'
-            AND created_at < NOW() - INTERVAL '3 days'
-            AND onboarding_d3_sent_at IS NULL
-          LIMIT 50
-        `);
-        for (const c of (d3Due as unknown as { rows: { id: number; email: string; full_name: string; company_name: string | null }[] }).rows) {
-          await sendOnboardingD3Email({
-            email: c.email, fullName: c.full_name,
-            companyName: c.company_name ?? undefined,
-            assessmentUrl: `${base}/assessment/start`,
-          }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+3 email failed"));
-          await db.execute(sql`UPDATE customers SET onboarding_d3_sent_at = NOW() WHERE id = ${c.id}`);
-          logger.info({ customerId: c.id }, "Onboarding D+3 email sent");
-        }
-
-        // D+7: kayıt 7-8 gün önce, d7 emaili henüz gönderilmemiş
-        const d7Due = await db.execute<{ id: number; email: string; full_name: string; company_name: string | null }>(sql`
-          SELECT id, email, full_name, company_name
-          FROM customers
-          WHERE created_at >= NOW() - INTERVAL '8 days'
-            AND created_at < NOW() - INTERVAL '7 days'
-            AND onboarding_d7_sent_at IS NULL
-          LIMIT 50
-        `);
-        for (const c of (d7Due as unknown as { rows: { id: number; email: string; full_name: string; company_name: string | null }[] }).rows) {
-          await sendOnboardingD7Email({
-            email: c.email, fullName: c.full_name,
-            companyName: c.company_name ?? undefined,
-            fullAssessmentUrl: `${base}/assessment/full/start`,
-            assessmentUrl: `${base}/assessment/start`,
-          }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+7 email failed"));
-          await db.execute(sql`UPDATE customers SET onboarding_d7_sent_at = NOW() WHERE id = ${c.id}`);
-          logger.info({ customerId: c.id }, "Onboarding D+7 email sent");
-        }
-      } catch (err) {
-        logger.error({ err }, "Onboarding email cron failed");
+      let sent = 0;
+      // D+3: kayıt 3-4 gün önce, d3 emaili henüz gönderilmemiş
+      const d3Due = await db.execute<{ id: number; email: string; full_name: string; company_name: string | null }>(sql`
+        SELECT id, email, full_name, company_name
+        FROM customers
+        WHERE created_at >= NOW() - INTERVAL '4 days'
+          AND created_at < NOW() - INTERVAL '3 days'
+          AND onboarding_d3_sent_at IS NULL
+        LIMIT 50
+      `);
+      for (const c of (d3Due as unknown as { rows: { id: number; email: string; full_name: string; company_name: string | null }[] }).rows) {
+        await sendOnboardingD3Email({
+          email: c.email, fullName: c.full_name,
+          companyName: c.company_name ?? undefined,
+          assessmentUrl: `${base}/assessment/start`,
+        }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+3 email failed"));
+        await db.execute(sql`UPDATE customers SET onboarding_d3_sent_at = NOW() WHERE id = ${c.id}`);
+        logger.info({ customerId: c.id }, "Onboarding D+3 email sent");
+        sent++;
       }
-    }, { timezone: "Europe/Istanbul" });
+
+      // D+7: kayıt 7-8 gün önce, d7 emaili henüz gönderilmemiş
+      const d7Due = await db.execute<{ id: number; email: string; full_name: string; company_name: string | null }>(sql`
+        SELECT id, email, full_name, company_name
+        FROM customers
+        WHERE created_at >= NOW() - INTERVAL '8 days'
+          AND created_at < NOW() - INTERVAL '7 days'
+          AND onboarding_d7_sent_at IS NULL
+        LIMIT 50
+      `);
+      for (const c of (d7Due as unknown as { rows: { id: number; email: string; full_name: string; company_name: string | null }[] }).rows) {
+        await sendOnboardingD7Email({
+          email: c.email, fullName: c.full_name,
+          companyName: c.company_name ?? undefined,
+          fullAssessmentUrl: `${base}/assessment/full/start`,
+          assessmentUrl: `${base}/assessment/start`,
+        }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+7 email failed"));
+        await db.execute(sql`UPDATE customers SET onboarding_d7_sent_at = NOW() WHERE id = ${c.id}`);
+        logger.info({ customerId: c.id }, "Onboarding D+7 email sent");
+        sent++;
+      }
+      return sent;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Onboarding email cron scheduled (10:30 Istanbul, D+3 & D+7)");
 
     // ─── Günlük Yönetici Özeti — Her sabah 08:00 ─────────────────────────────
@@ -2388,50 +2391,48 @@ startup()
     logger.info("Subscription expiry reminder cron scheduled (daily 10:00 Istanbul)");
 
     // ─── CVE feed check — her 2 saatte bir ───────────────────────────────────
-    cron.schedule("0 */2 * * *", async () => {
-      try {
-        await runCVEFeedCheck();
-      } catch (err) { logger.warn({ err }, "CVE feed check cron failed"); }
-    });
+    cron.schedule("0 */2 * * *", wrapCron("cve_feed_check", "0 */2 * * *", async () => {
+      await runCVEFeedCheck();
+      return 0;
+    }));
     logger.info("CVE feed check cron scheduled (every 2 hours)");
 
     // Her Cuma 08:00 Istanbul — haftalık bülten üret
-    cron.schedule("0 8 * * 5", async () => {
-      try {
-        const { collectWeeklyData } = await import("./services/bulletin/weeklyDataCollector");
-        const { generateBulletinContent } = await import("./services/bulletin/bulletinWriter");
-        const { weeklyBulletinsTable } = await import("@workspace/db");
-        const { eq } = await import("drizzle-orm");
-        const { getISOWeek } = await import("./services/discoveryPipeline");
-        const now = new Date();
-        const weekNumber = getISOWeek(now);
-        const year = now.getFullYear();
-        const slug = `tr-${year}-w${weekNumber}`;
-        const existing = await db.select({ id: weeklyBulletinsTable.id })
-          .from(weeklyBulletinsTable).where(eq(weeklyBulletinsTable.weekSlug, slug)).limit(1);
-        if (existing[0]) { logger.info({ weekNumber }, "Haftalik bulten zaten mevcut"); return; }
-        const weekEnd = now;
-        const weekStart = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
-        const data = await collectWeeklyData(weekStart, weekEnd);
-        const content = await generateBulletinContent(data, weekNumber, year);
-        await db.insert(weeklyBulletinsTable).values({
-          countryCode: "TR", weekNumber, year, weekSlug: slug,
-          dateRangeStart: weekStart.toISOString().slice(0, 10),
-          dateRangeEnd: weekEnd.toISOString().slice(0, 10),
-          totalScansThisWeek: data.totalScans,
-          newCriticalCves: data.newCriticalCVEs.length,
-          topFindingType: data.topFindingType,
-          notableSector: data.topSector ?? undefined,
-          headline: content.headline, introText: content.introText,
-          threatRadar: content.threatRadar, turkeyData: content.turkeyData,
-          regulationSection: content.regulationSection, weeklyTip: content.weeklyTip,
-          toolResource: content.toolResource, emailSubject: content.emailSubject,
-          emailPreview: content.emailPreview, emailHtml: content.emailHtml,
-          linkedinMiniPost: content.linkedinMiniPost, status: "review",
-        });
-        logger.info({ weekNumber, year }, "Haftalık bülten cron tamamlandı");
-      } catch (err) { logger.error({ err }, "Haftalık bülten cron hatası"); }
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 8 * * 5", wrapCron("haftalik_bulten", "0 8 * * 5", async () => {
+      const { collectWeeklyData } = await import("./services/bulletin/weeklyDataCollector");
+      const { generateBulletinContent } = await import("./services/bulletin/bulletinWriter");
+      const { weeklyBulletinsTable } = await import("@workspace/db");
+      const { eq } = await import("drizzle-orm");
+      const { getISOWeek } = await import("./services/discoveryPipeline");
+      const now = new Date();
+      const weekNumber = getISOWeek(now);
+      const year = now.getFullYear();
+      const slug = `tr-${year}-w${weekNumber}`;
+      const existing = await db.select({ id: weeklyBulletinsTable.id })
+        .from(weeklyBulletinsTable).where(eq(weeklyBulletinsTable.weekSlug, slug)).limit(1);
+      if (existing[0]) { logger.info({ weekNumber }, "Haftalik bulten zaten mevcut"); return 0; }
+      const weekEnd = now;
+      const weekStart = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      const data = await collectWeeklyData(weekStart, weekEnd);
+      const content = await generateBulletinContent(data, weekNumber, year);
+      await db.insert(weeklyBulletinsTable).values({
+        countryCode: "TR", weekNumber, year, weekSlug: slug,
+        dateRangeStart: weekStart.toISOString().slice(0, 10),
+        dateRangeEnd: weekEnd.toISOString().slice(0, 10),
+        totalScansThisWeek: data.totalScans,
+        newCriticalCves: data.newCriticalCVEs.length,
+        topFindingType: data.topFindingType,
+        notableSector: data.topSector ?? undefined,
+        headline: content.headline, introText: content.introText,
+        threatRadar: content.threatRadar, turkeyData: content.turkeyData,
+        regulationSection: content.regulationSection, weeklyTip: content.weeklyTip,
+        toolResource: content.toolResource, emailSubject: content.emailSubject,
+        emailPreview: content.emailPreview, emailHtml: content.emailHtml,
+        linkedinMiniPost: content.linkedinMiniPost, status: "review",
+      });
+      logger.info({ weekNumber, year }, "Haftalık bülten cron tamamlandı");
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Haftalık bülten cron kayıtlandı (Cuma 08:00 Istanbul)");
 
     // ─── Haftalık DB Yedeği — Her Pazar 04:00 Istanbul ──────────────────────
@@ -2543,13 +2544,42 @@ startup()
     // Her cron için son çalışma DB'den okunur; >25 saat geçmişse 30s delay ile çalıştırılır.
     setImmediate(async () => {
       const CATCH_UP_CRONS = [
-        { name: "crtsh",                thresholdHours: 25 },
-        { name: "shodan",               thresholdHours: 25 },
-        { name: "upsell_engine",        thresholdHours: 25 },
-        { name: "platform_cost_check",  thresholdHours: 25 },
-        { name: "lead_qual",            thresholdHours: 25 },
-        { name: "vulncheck_kev",        thresholdHours: 25 },
-        { name: "intel_feeds",          thresholdHours: 7 },
+        // External scan / enrichment — missed = stale threat intel
+        { name: "crtsh",                   thresholdHours: 25 },
+        { name: "shodan",                   thresholdHours: 25 },
+        { name: "vulncheck_kev",            thresholdHours: 25 },
+        { name: "intel_feeds",              thresholdHours: 7  },
+        { name: "attack_path_analysis",     thresholdHours: 25 },
+        { name: "cve_feed_check",           thresholdHours: 3  },
+        // Lead & pipeline
+        { name: "lead_qual",                thresholdHours: 25 },
+        { name: "growth_ssl_expiry",        thresholdHours: 25 },
+        { name: "growth_cve_alert",         thresholdHours: 25 },
+        // Revenue / customer lifecycle
+        { name: "upsell_engine",            thresholdHours: 25 },
+        { name: "platform_cost_check",      thresholdHours: 25 },
+        { name: "dunning_check",            thresholdHours: 25 },
+        { name: "subscription_reminders",   thresholdHours: 25 },
+        { name: "collection_reminder",      thresholdHours: 25 },
+        { name: "health_score",             thresholdHours: 25 },
+        // Customer comms
+        { name: "reminder_30day",           thresholdHours: 25 },
+        { name: "onboarding_day1_email",    thresholdHours: 25 },
+        { name: "domain_rescan",            thresholdHours: 25 },
+        // Internal / data
+        { name: "daily_summary",            thresholdHours: 25 },
+        { name: "market_watcher",           thresholdHours: 5  },
+        { name: "digest_rss_collect",       thresholdHours: 25 },
+        { name: "digest_enrich",            thresholdHours: 25 },
+        { name: "kvkk_scheduled_deletion",  thresholdHours: 25 },
+        { name: "auto_tag",                 thresholdHours: 25 },
+        { name: "task_reminder",            thresholdHours: 25 },
+        // Weekly (169h ≈ 7 days + 1h buffer)
+        { name: "weekly_delta",             thresholdHours: 169 },
+        { name: "haftalik_bulten",          thresholdHours: 169 },
+        { name: "market_weekly_summary",    thresholdHours: 169 },
+        { name: "soc_weekly_report",        thresholdHours: 169 },
+        { name: "fabric_weekly_report",     thresholdHours: 169 },
       ];
       try {
         const { rows } = await pool.query<{ job_name: string; last_run: string }>(

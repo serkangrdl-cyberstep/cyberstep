@@ -18,6 +18,7 @@ import {
 
 function originIpSourceLabel(source: string): string {
   const labels: Record<string, string> = {
+    http_header: "HTTP yanıt başlığı ifşası",
     spf: "SPF ip4 kaydı",
     mx_record: "MX kaydı A çözümlemesi",
     subdomain_bypass: "CDN kapsamı dışı subdomain",

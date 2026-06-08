@@ -7,7 +7,7 @@ import dns from "dns/promises";
 import https from "https";
 import http from "http";
 
-export type OriginSource = "spf" | "mx_record" | "subdomain_bypass";
+export type OriginSource = "spf" | "mx_record" | "subdomain_bypass" | "http_header";
 
 export interface OriginIpResult {
   found: boolean;
@@ -150,6 +150,72 @@ async function trySubdomainBypass(
   return null;
 }
 
+// ─── Yöntem 4: HTTP yanıt başlıklarında IP ifşası ──────────────────────────
+// Yanlış yapılandırılmış WAF/CDN kurulumlarında X-Forwarded-For, X-Real-IP gibi
+// başlıklar origin sunucunun gerçek IP adresini sızdırabilir.
+const LEAK_HEADERS = [
+  "x-forwarded-for", "x-real-ip", "x-origin-ip", "x-backend-server",
+  "x-origin", "x-upstream", "x-served-by", "x-server", "via",
+  "x-forwarded-host", "x-host",
+];
+const PUBLIC_IP_RE = /\b((?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))\b/g;
+
+function extractPublicIps(str: string): string[] {
+  return [...str.matchAll(PUBLIC_IP_RE)]
+    .map(m => m[1]!)
+    .filter(ip => !isPrivateIp(ip));
+}
+
+async function tryHttpHeaderLeakage(
+  domain: string,
+  cdnIps: Set<string>,
+): Promise<{ ip: string; detail: string } | null> {
+  const checkHeaders = (headers: Record<string, string | string[] | undefined>): { ip: string; detail: string } | null => {
+    for (const hName of LEAK_HEADERS) {
+      const val = headers[hName];
+      if (!val) continue;
+      const raw = Array.isArray(val) ? val.join(", ") : val;
+      for (const ip of extractPublicIps(raw)) {
+        if (cdnIps.has(ip)) continue;
+        return { ip, detail: `HTTP başlığı ${hName}: ${ip}` };
+      }
+    }
+    return null;
+  };
+
+  return new Promise((resolve) => {
+    const opts = {
+      hostname: domain, port: 443, method: "GET", timeout: 7000,
+      rejectUnauthorized: false,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; CyberStep.io Scanner/1.0)",
+        "Accept": "text/html",
+      },
+    };
+    const req = https.request(opts, (res) => {
+      const found = checkHeaders(res.headers as Record<string, string | string[] | undefined>);
+      res.destroy();
+      resolve(found);
+    });
+    req.on("error", () => {
+      const req2 = http.request(
+        { hostname: domain, port: 80, method: "GET", timeout: 6000,
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberStep.io Scanner/1.0)", "Accept": "text/html" } },
+        (res2) => {
+          const found = checkHeaders(res2.headers as Record<string, string | string[] | undefined>);
+          res2.destroy();
+          resolve(found);
+        },
+      );
+      req2.on("error", () => resolve(null));
+      req2.on("timeout", () => { req2.destroy(); resolve(null); });
+      req2.end();
+    });
+    req.on("timeout", () => { req.destroy(); });
+    req.end();
+  });
+}
+
 // ─── Erişilebilirlik doğrulama (best-effort, timeout'lu) ───────────────────
 async function verifyReachable(ip: string, domain: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -181,31 +247,39 @@ export async function discoverOriginIp(domain: string): Promise<OriginIpResult> 
   try {
     const cdnIps = await getCurrentARecords(domain);
 
-    // Üç yöntemi paralel çalıştır, ilk bulunan yeterli
-    const [spfResult, mxResult, subResult] = await Promise.all([
+    // Dört yöntemi paralel çalıştır
+    const [spfResult, mxResult, subResult, headerResult] = await Promise.all([
       trySpfOriginIp(domain, cdnIps).catch(() => null),
       tryMxOriginIp(domain, cdnIps).catch(() => null),
       trySubdomainBypass(domain, cdnIps).catch(() => null),
+      tryHttpHeaderLeakage(domain, cdnIps).catch(() => null),
     ]);
 
-    const candidate = spfResult ?? mxResult ?? subResult;
+    // Öncelik: HTTP header (doğrudan ifşa) > SPF (çok güvenilir) > MX > subdomain
+    const candidate = headerResult ?? spfResult ?? mxResult ?? subResult;
     if (!candidate) return EMPTY;
 
     const source: OriginSource =
+      headerResult ? "http_header" :
       spfResult ? "spf" :
       mxResult ? "mx_record" : "subdomain_bypass";
 
-    const confidence: OriginIpResult["confidence"] =
+    const baseConfidence: OriginIpResult["confidence"] =
+      source === "http_header" ? "high" :
       source === "spf" ? "high" :
       source === "mx_record" ? "medium" : "low";
 
-    // Erişilebilirlik doğrulama (güven skorunu artırır ama sonucu engellemez)
-    const reachable = await verifyReachable(candidate.ip, domain).catch(() => false);
+    // Erişilebilirlik doğrulama (DNS tabanlı yöntemlerde güven skorunu artırır)
+    const needsVerify = source !== "http_header";
+    const reachable = needsVerify
+      ? await verifyReachable(candidate.ip, domain).catch(() => false)
+      : true;
     const finalConfidence: OriginIpResult["confidence"] =
       reachable && source === "subdomain_bypass" ? "medium" :
-      reachable ? "high" : confidence;
+      reachable ? "high" : baseConfidence;
 
     const sourceLabel: Record<OriginSource, string> = {
+      http_header: "HTTP yanıt başlığı",
       spf: "SPF kaydı",
       mx_record: "MX kaydı A çözümlemesi",
       subdomain_bypass: "CDN kapsamı dışı subdomain",

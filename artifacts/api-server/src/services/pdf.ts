@@ -553,6 +553,7 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       const oY = doc.y;
       if (data.originIp) {
         const srcLabels: Record<string, string> = {
+          http_header: "HTTP yanıt başlığı ifşası",
           spf: "SPF ip4 kaydı",
           mx_record: "MX kaydı A çözümlemesi",
           subdomain_bypass: "CDN kapsamı dışı subdomain",

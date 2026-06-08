@@ -1294,7 +1294,7 @@ export async function performDomainScan(domain: string): Promise<{
         referralSource: "discovery_pipeline",
         kepConfigured: false, kepRelays: [], kepSecure: false,
         wafDetected: false, wafProvider: null, wafBypassPossible: false,
-        originIp: null, wafHeadersAdded: [], wafConfidence: 0,
+        originIp: null, originIpSource: null, wafHeadersAdded: [], wafConfidence: 0,
       })
       .returning();
 
@@ -1430,9 +1430,19 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
 
     // WAF/CDN varsa OSINT ile zenginleştir (bypass risk analizi)
     const { enrichWithOsint } = await import("../../services/osintEnrichment");
-    const osintResult = (wafResult.detected || wafResult.hasCdn)
-      ? await enrichWithOsint(domain).catch(() => null)
-      : null;
+    const { discoverOriginIp } = await import("../../services/originIpDiscovery");
+    const [osintResult, originDiscovery] = await Promise.all([
+      (wafResult.detected || wafResult.hasCdn)
+        ? enrichWithOsint(domain).catch(() => null)
+        : Promise.resolve(null),
+      (wafResult.detected || wafResult.hasCdn)
+        ? discoverOriginIp(domain).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    // Pasif keşif öncelikli; fallback: doğrudan IP erişim kontrolü
+    const finalOriginIp     = originDiscovery?.originIp ?? bypassResult.originIp;
+    const finalOriginIpSource = originDiscovery?.source ?? null;
 
     const confidenceScore = computeConfidenceScore(wafResult, bypassResult.bypassPossible, osintResult);
     const confidenceNote  = computeConfidenceNote(wafResult, bypassResult.bypassPossible, osintResult);
@@ -1502,7 +1512,8 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         wafDetected: wafResult.detected,
         wafProvider: wafResult.provider,
         wafBypassPossible: bypassResult.bypassPossible,
-        originIp: bypassResult.originIp,
+        originIp: finalOriginIp,
+        originIpSource: finalOriginIpSource,
         wafHeadersAdded: wafResult.headersAddedByWAF,
         wafConfidence: wafResult.confidence,
         hasCdn: wafResult.hasCdn,
@@ -1742,6 +1753,8 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       confidenceScore: scan.confidenceScore ?? undefined,
       wafDetected: scan.wafDetected ?? false,
       wafProvider: scan.wafProvider ?? undefined,
+      originIp: scan.originIp ?? undefined,
+      originIpSource: scan.originIpSource ?? undefined,
       attackScenarios: isFreeReport ? null : attackScenariosData,
       scoreBreakdown: pdfScoreBreakdown,
       isFreeReport,

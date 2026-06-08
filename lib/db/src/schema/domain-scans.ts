@@ -80,6 +80,7 @@ export const domainScansTable = pgTable("domain_scans", {
   wafProvider: text("waf_provider"),
   wafBypassPossible: boolean("waf_bypass_possible"),
   originIp: text("origin_ip"),
+  originIpSource: text("origin_ip_source"),
   wafHeadersAdded: jsonb("waf_headers_added").$type<string[]>().notNull().default([]),
   wafConfidence: integer("waf_confidence"),
   confidenceScore: integer("confidence_score"),

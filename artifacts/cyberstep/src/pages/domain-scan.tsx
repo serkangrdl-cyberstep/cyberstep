@@ -13,8 +13,17 @@ import {
   Shield, CheckCircle2, XCircle, AlertTriangle, Globe,
   Mail, Lock, Server, Loader2, ArrowRight, Info, FileText,
   DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network, Wifi, Flag,
-  Swords, ChevronDown, ChevronUp, Target, Zap, AlertOctagon,
+  Swords, ChevronDown, ChevronUp, Target, Zap, AlertOctagon, MapPin,
 } from "lucide-react";
+
+function originIpSourceLabel(source: string): string {
+  const labels: Record<string, string> = {
+    spf: "SPF ip4 kaydı",
+    mx_record: "MX kaydı A çözümlemesi",
+    subdomain_bypass: "CDN kapsamı dışı subdomain",
+  };
+  return labels[source] ?? source;
+}
 
 interface HibpBreach {
   name: string;
@@ -91,6 +100,7 @@ interface ScanResult {
   wafProvider?: string | null;
   wafBypassPossible?: boolean | null;
   originIp?: string | null;
+  originIpSource?: string | null;
   wafConfidence?: number | null;
   confidenceScore?: number | null;
   confidenceNote?: string | null;
@@ -2076,6 +2086,43 @@ export default function DomainScanPage() {
               </div>
             );
           })()}
+
+          {/* ── ORIGIN IP DISCOVERY CARD ────────────────────────────────── */}
+          {result.wafDetected && (
+            result.originIp ? (
+              <div className="mb-4 rounded-xl border-2 border-red-500/60 bg-red-50 dark:bg-red-950/30 dark:border-red-500/40 overflow-hidden">
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <MapPin className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-sm text-red-800 dark:text-red-300">
+                      Kritik — Gerçek Sunucu IP Adresi Tespit Edildi
+                    </p>
+                    <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
+                      IP: <code className="font-mono bg-red-100 dark:bg-red-900/40 px-1 rounded">{result.originIp}</code>
+                      {result.originIpSource && (
+                        <span> · Kaynak: {originIpSourceLabel(result.originIpSource)}</span>
+                      )}
+                      {" "}— WAF/CDN koruması bypass edilebilir. Gerçek sunucu IP'sini doğrudan internet erişimine kapatmanız önerilir.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4 rounded-xl border border-green-300/60 bg-green-50 dark:bg-green-950/30 dark:border-green-500/40 overflow-hidden">
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <ShieldCheck className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-sm text-green-800 dark:text-green-300">
+                      Gerçek Sunucu IP Adresi Gizlenmiş
+                    </p>
+                    <p className="text-xs text-green-700/80 dark:text-green-400/80 mt-0.5">
+                      SPF kayıtları, MX çözümlemesi ve subdomain bypass testlerinde CDN/WAF dışı IP tespit edilemedi. IP gizleme koruması etkin görünüyor.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
 
           {/* Overall score */}
           <Card className={`shadow-sm mb-6 border ${scoreInfo.bg}`}>

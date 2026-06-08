@@ -262,6 +262,8 @@ interface DomainScanData {
   confidenceScore?: number | null;
   wafDetected?: boolean | null;
   wafProvider?: string | null;
+  originIp?: string | null;
+  originIpSource?: string | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;
@@ -544,6 +546,40 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
           MARGIN + 12, wbY + 22, { width: CONTENT_W - 18 }
         );
       doc.y = wbY + 50;
+    }
+
+    // ── Origin IP Keşif Durumu ────────────────────────────────────────────────
+    if (data.wafDetected) {
+      const oY = doc.y;
+      if (data.originIp) {
+        const srcLabels: Record<string, string> = {
+          spf: "SPF ip4 kaydı",
+          mx_record: "MX kaydı A çözümlemesi",
+          subdomain_bypass: "CDN kapsamı dışı subdomain",
+        };
+        const srcLabel = (data.originIpSource && srcLabels[data.originIpSource]) ?? "pasif DNS keşfi";
+        doc.rect(MARGIN, oY, CONTENT_W, 50).fill([255, 241, 242] as [number,number,number]);
+        doc.rect(MARGIN, oY, 3, 50).fill([220, 38, 38] as [number,number,number]);
+        doc.fillColor([220, 38, 38] as [number,number,number]).fontSize(9).font(FONT_BOLD)
+          .text(`KRİTİK — Gerçek Sunucu IP Tespit Edildi: ${data.originIp}`,
+            MARGIN + 12, oY + 7, { width: CONTENT_W - 18, lineBreak: false });
+        doc.fillColor([60, 60, 80] as [number,number,number]).fontSize(8).font(FONT_REGULAR)
+          .text(
+            `Kaynak: ${srcLabel}. WAF/CDN koruması bypass edilebilir durumdadır. ` +
+            `Gerçek sunucu IP'sini doğrudan internet erişimine kapatın ve CDN güvenlik duvarı kurallarını güncelleyin.`,
+            MARGIN + 12, oY + 22, { width: CONTENT_W - 18 }
+          );
+        doc.y = oY + 58;
+      } else {
+        doc.rect(MARGIN, oY, CONTENT_W, 30).fill([240, 253, 244] as [number,number,number]);
+        doc.rect(MARGIN, oY, 3, 30).fill([22, 163, 74] as [number,number,number]);
+        doc.fillColor([22, 163, 74] as [number,number,number]).fontSize(8).font(FONT_BOLD)
+          .text(
+            "Gerçek sunucu IP adresi tespit edilemedi — WAF/CDN IP gizleme koruması etkin görünüyor.",
+            MARGIN + 12, oY + 9, { width: CONTENT_W - 18, lineBreak: false }
+          );
+        doc.y = oY + 38;
+      }
     }
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────

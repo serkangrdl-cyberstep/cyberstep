@@ -1854,15 +1854,12 @@ function startDigestCron() {
 // Pazartesi + Perşembe 09:00 İstanbul (UTC+3 = 06:00 UTC)
 function startBlogAutopilotCron() {
   const runJob = async () => {
-    try {
-      logger.info("Blog autopilot: yazı üretimi başlıyor");
-      await generateAndPublishBlogPost();
-    } catch (err) {
-      logger.error({ err }, "Blog autopilot: yazı üretimi başarısız");
-    }
+    logger.info("Blog autopilot: yazı üretimi başlıyor");
+    await generateAndPublishBlogPost();
+    // Hataları yutma — wrapCron yakalar, DB'ye hata kaydeder ve mail atar
   };
-  cron.schedule("0 6 * * 1", wrapCron("blog_autopilot_mon", "0 6 * * 1", runJob)); // Her Pazartesi 09:00 İstanbul
-  cron.schedule("0 6 * * 4", wrapCron("blog_autopilot_thu", "0 6 * * 4", runJob)); // Her Perşembe 09:00 İstanbul
+  cron.schedule("0 6 * * 1", wrapCron("blog_autopilot_mon", "0 6 * * 1", runJob), { timezone: "Europe/Istanbul" }); // Her Pazartesi 09:00 İstanbul
+  cron.schedule("0 6 * * 4", wrapCron("blog_autopilot_thu", "0 6 * * 4", runJob), { timezone: "Europe/Istanbul" }); // Her Perşembe 09:00 İstanbul
   logger.info("Blog autopilot cron scheduled (Mon & Thu 09:00 Istanbul)");
 }
 

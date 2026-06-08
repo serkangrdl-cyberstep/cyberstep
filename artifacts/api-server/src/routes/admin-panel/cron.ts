@@ -66,6 +66,28 @@ export const CRON_DEFS = [
     requiresApiKey: null as string | null,
     category: "lead-gen",
   },
+  {
+    name: "blog_autopilot_mon",
+    label: "Blog Otopilot (Pazartesi)",
+    description: "Pazartesi 09:00'da içerik takviminden AI blog yazısı üretir ve yayınlar",
+    defaultSchedule: "0 6 * * 1",
+    scheduleLabel: "Pazartesi 09:00",
+    defaultEnabled: true,
+    defaultLimit: 1,
+    requiresApiKey: null as string | null,
+    category: "other",
+  },
+  {
+    name: "blog_autopilot_thu",
+    label: "Blog Otopilot (Perşembe)",
+    description: "Perşembe 09:00'da içerik takviminden AI blog yazısı üretir ve yayınlar",
+    defaultSchedule: "0 6 * * 4",
+    scheduleLabel: "Perşembe 09:00",
+    defaultEnabled: true,
+    defaultLimit: 1,
+    requiresApiKey: null as string | null,
+    category: "other",
+  },
 ];
 
 // All monitored night jobs (read-only display — not manually triggerable unless in CRON_DEFS)

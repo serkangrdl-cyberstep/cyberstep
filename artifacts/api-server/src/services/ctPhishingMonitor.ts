@@ -14,7 +14,7 @@ interface WatchedDomainRow {
   id: number;
   customer_id: number;
   domain: string;
-  contact_email: string | null;
+  email: string | null;
 }
 
 interface CrtShCert {
@@ -99,7 +99,7 @@ async function fetchCrtshForDomain(domain: string): Promise<CrtShCert[]> {
 
 export async function checkPhishingCertificates(): Promise<number> {
   const rows = await db.execute(sql`
-    SELECT d.id, d.customer_id, d.domain, c.contact_email
+    SELECT d.id, d.customer_id, d.domain, c.email
     FROM dns_watched_domains d
     JOIN customers c ON c.id = d.customer_id
     WHERE d.is_active = true
@@ -154,10 +154,10 @@ export async function checkPhishingCertificates(): Promise<number> {
           totalSuspicious++;
           logger.info({ domain: row.domain, certDomain, reason }, "ctPhishingMonitor: şüpheli sertifika tespit edildi");
 
-          if (row.contact_email) {
+          if (row.email) {
             const validUntil = notAfter ? notAfter.toLocaleDateString("tr-TR") : "Bilinmiyor";
             await sendMail({
-              to: row.contact_email,
+              to: row.email!,
               subject: `Uyari: Supheli SSL Sertifikasi Tespit Edildi — ${row.domain}`,
               html: `
                 <p>Merhaba,</p>

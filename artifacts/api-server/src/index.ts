@@ -2340,15 +2340,15 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul, 2 queries/night, limit:300 each)");
 
-    // ─── Lead Discovery: Kalifikasyon — Günde 6 kez 02:00/06:00/10:00/14:00/18:00/22:00 ──
-    // Limit 25/çalışma: 6×25=150 aday/gün. Her aday max 25s tarama + 15 dk circuit breaker.
-    cron.schedule("0 2,6,10,14,18,22 * * *", wrapCron("lead_qual", "0 2,6,10,14,18,22 * * *", async () => {
+    // ─── Lead Discovery: Kalifikasyon — Saatte bir (0 * * * *) ──────────────────
+    // Limit 25/çalışma: 24×25=600 aday/gün. Her aday max 25s tarama + 15 dk circuit breaker.
+    cron.schedule("0 * * * *", wrapCron("lead_qual", "0 * * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("lead_qual", 25);
       const result = await qualifyPendingCandidates(limit);
       return result.qualified;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Lead qualification cron scheduled (02:00/06:00/10:00/14:00/18:00/22:00 Istanbul, limit 25)");
+    logger.info("Lead qualification cron scheduled (saatte bir, limit 25)");
 
     // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
     cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {
@@ -2552,7 +2552,7 @@ startup()
         { name: "attack_path_analysis",     thresholdHours: 25 },
         { name: "cve_feed_check",           thresholdHours: 3  },
         // Lead & pipeline
-        { name: "lead_qual",                thresholdHours: 25 },
+        { name: "lead_qual",                thresholdHours: 2  },
         { name: "growth_ssl_expiry",        thresholdHours: 25 },
         { name: "growth_cve_alert",         thresholdHours: 25 },
         // Revenue / customer lifecycle

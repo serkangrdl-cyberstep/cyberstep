@@ -22,7 +22,7 @@ router.get("/public/badges", async (_req, res: Response) => {
 
 // Customer: GET /api/portal/badges/my — benim rozetlerim
 router.get("/portal/badges/my", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as any).customerId as number;
+  const customerId = (req.session as unknown as Record<string, unknown>)["customerId"] as number;
   try {
     const rows = await db
       .select({

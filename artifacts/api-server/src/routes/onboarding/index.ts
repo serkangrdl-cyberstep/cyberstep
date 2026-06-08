@@ -11,7 +11,7 @@ const router = Router();
 
 // GET /api/portal/onboarding — onboarding durumunu getir
 router.get("/portal/onboarding", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as any).customerId as number;
+  const customerId = (req.session as unknown as Record<string, unknown>)["customerId"] as number;
   try {
     let [progress] = await db.select().from(onboardingProgressTable)
       .where(eq(onboardingProgressTable.customerId, customerId));
@@ -30,7 +30,7 @@ router.get("/portal/onboarding", requireCustomer, async (req: Request, res: Resp
 
 // POST /api/portal/onboarding/step — adım tamamla
 router.post("/portal/onboarding/step", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as any).customerId as number;
+  const customerId = (req.session as unknown as Record<string, unknown>)["customerId"] as number;
   const { step } = req.body as { step: string };
 
   const validSteps = [

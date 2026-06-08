@@ -11,7 +11,7 @@ const router = Router();
 
 // GET /api/admin/review/:token
 router.get("/admin/review/:token", requireAdmin, async (req, res) => {
-  const { token } = req.params;
+  const token = String(req.params["token"] ?? "");
 
   const [report] = await db
     .select()
@@ -38,7 +38,7 @@ router.get("/admin/review/:token", requireAdmin, async (req, res) => {
 
 // PUT /api/admin/review/:token
 router.put("/admin/review/:token", requireAdmin, async (req, res) => {
-  const { token } = req.params;
+  const token = String(req.params["token"] ?? "");
   const { aiAnalysis, recommendations, adminNotes } = req.body as {
     aiAnalysis?: string;
     recommendations?: string[];
@@ -76,8 +76,8 @@ router.put("/admin/review/:token", requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/review/:token/approve
-router.post("/admin/review/:token/approve", async (req, res) => {
-  const { token } = req.params;
+router.post("/admin/review/:token/approve", requireAdmin, async (req, res) => {
+  const token = String(req.params["token"] ?? "");
   // Accept current editor state from frontend so nothing is lost even if not saved
   const { aiAnalysis, recommendations, adminNotes } = req.body as {
     aiAnalysis?: string;

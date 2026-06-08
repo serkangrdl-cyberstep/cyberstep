@@ -48,7 +48,7 @@ export async function collectOSINT(domain: string): Promise<OSINTData> {
     result.metaDescription = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i)?.[1]?.trim().substring(0, 300) ?? "";
     result.technologyStack = detectTechStack(html, headers);
 
-    const emailMatches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? [];
+    const emailMatches = (html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? []) as string[];
     result.emailPatterns = [...new Set(emailMatches.filter(e => e.includes(domain)).slice(0, 5))];
     result.namedExecutives = extractNamedPeople(html);
 

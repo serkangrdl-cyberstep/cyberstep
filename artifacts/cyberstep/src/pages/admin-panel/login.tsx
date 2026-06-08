@@ -17,6 +17,22 @@ export default function AdminLogin() {
   const [totpCode, setTotpCode] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const returnTo = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("returnTo");
+      if (p && p.startsWith("/")) return p;
+    } catch { /* ignore */ }
+    return "/panel";
+  })();
+
+  function goAfterLogin() {
+    if (returnTo.startsWith("/panel")) {
+      navigate(returnTo);
+    } else {
+      window.location.href = returnTo;
+    }
+  }
+
   async function handleCredentials(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -30,7 +46,7 @@ export default function AdminLogin() {
       const d = await r.json();
       if (!r.ok) { toast({ title: "Hata", description: d.error, variant: "destructive" }); return; }
       if (d.requiresTotp) { setStep("totp"); }
-      else { navigate("/panel"); }
+      else { goAfterLogin(); }
     } finally { setLoading(false); }
   }
 
@@ -46,7 +62,7 @@ export default function AdminLogin() {
       });
       const d = await r.json();
       if (!r.ok) { toast({ title: "Hata", description: d.error, variant: "destructive" }); return; }
-      navigate("/panel");
+      goAfterLogin();
     } finally { setLoading(false); }
   }
 

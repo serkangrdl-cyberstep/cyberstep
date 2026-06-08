@@ -156,16 +156,11 @@ function AppLayout() {
   }
 
   if (isError || !me || !hasDigestAccess(me)) {
-    window.location.href = "/panel/giris";
+    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/panel/giris?returnTo=${returnTo}`;
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground text-sm">Yonlendiriliyor...</p>
-        <p className="text-xs text-muted-foreground/60">
-          Bu panel icin <b>digest</b> veya <b>pazarlama</b> departmanina atanmis olmaniz gerekiyor.
-        </p>
-        <a href="/panel/giris" className="text-sm underline text-primary">
-          Admin girisi icin tiklayin
-        </a>
       </div>
     );
   }

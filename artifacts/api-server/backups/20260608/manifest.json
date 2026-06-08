@@ -1,0 +1,49 @@
+{
+  "backup_date": "20260608",
+  "created_at": "2026-06-08T07:26:31.403Z",
+  "tables": [
+    {
+      "table": "customers",
+      "rows": 5,
+      "bytes": 6571
+    },
+    {
+      "table": "domain_scans",
+      "rows": 117,
+      "bytes": 656663
+    },
+    {
+      "table": "lead_candidates",
+      "rows": 113,
+      "bytes": 141618
+    },
+    {
+      "table": "ioc_entries",
+      "rows": 0,
+      "bytes": 2
+    },
+    {
+      "table": "reports",
+      "rows": 3,
+      "bytes": 27733
+    },
+    {
+      "table": "board_reports",
+      "rows": 0,
+      "bytes": 2
+    },
+    {
+      "table": "assessments",
+      "rows": 12,
+      "bytes": 6559
+    },
+    {
+      "table": "customer_service_subscriptions",
+      "rows": 0,
+      "bytes": 2
+    }
+  ],
+  "total_rows": 250,
+  "total_bytes": 839150,
+  "total_size": "819.5 KB"
+}

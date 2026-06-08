@@ -17,6 +17,7 @@ import portalIocRouter from "./routes/portal/ioc-query";
 import adminApprovalsRouter from "./routes/admin-panel/approvals";
 import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import seoRouter from "./routes/public/seo";
+import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -332,6 +333,22 @@ app.use("/api", portalAccountRouter);
 app.use("/api/portal/ioc", portalIocRouter);
 app.use("/api/admin-panel/approvals", adminApprovalsRouter);
 app.use("/api", monitoringUptimeRouter);
+
+// ─── Internal: secret-token ile blog yazısı tetikleme (production catch-up) ───
+// ENCRYPTION_KEY ile korunur; session auth gerektirmez.
+app.post("/api/internal/trigger-blog", async (req: Request, res: Response) => {
+  const secret = process.env["ENCRYPTION_KEY"];
+  const provided = req.headers["x-internal-secret"] as string | undefined;
+  if (!secret || !provided || provided !== secret) {
+    res.status(403).json({ error: "Yetkisiz" });
+    return;
+  }
+  logger.info("internal/trigger-blog: blog yazısı üretimi tetiklendi");
+  generateAndPublishBlogPost()
+    .then(() => logger.info("internal/trigger-blog: tamamlandı"))
+    .catch((err: unknown) => logger.error({ err }, "internal/trigger-blog: hata"));
+  res.json({ ok: true, message: "Blog yazısı üretimi arka planda başlatıldı" });
+});
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {

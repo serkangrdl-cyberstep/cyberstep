@@ -80,12 +80,15 @@ export function nextCronDate(expr: string): Date | null {
 // from a previous process that died without finalising the record.
 export async function cleanupStaleRunningJobs(): Promise<void> {
   try {
+    // On startup ALL "running" records are stale — this is a single-process app,
+    // so any in-flight run from the previous process is definitively dead.
+    // No time guard: even a 30-second-old "running" record is unreachable.
     const result = await pool.query(
       `UPDATE cron_job_runs
        SET ended_at = NOW(), status = 'error',
            error_message = 'Sunucu yeniden başlatıldı (stale running)',
            duration_ms = EXTRACT(EPOCH FROM (NOW() - started_at)) * 1000
-       WHERE status = 'running' AND started_at < NOW() - INTERVAL '2 hours'`,
+       WHERE status = 'running'`,
     );
     const count = (result as { rowCount?: number }).rowCount ?? 0;
     if (count > 0) {

@@ -2566,12 +2566,19 @@ startup()
         { name: "attack_path_analysis",     thresholdHours: 25  },
         { name: "cve_feed_check",           thresholdHours: 3   },
         { name: "cloud_cspm",               thresholdHours: 25  },
-        // Lead & pipeline
+        { name: "fabric_fm_health",         thresholdHours: 25  },
+        { name: "fabric_block_verify",      thresholdHours: 7   },
+        // Hourly (2h threshold)
         { name: "lead_qual",                thresholdHours: 2   },
         { name: "verification_queue",       thresholdHours: 2   },
+        { name: "certstream_proc",          thresholdHours: 2   },
+        { name: "scan_lead_drip",           thresholdHours: 2   },
+        { name: "servicenow_health",        thresholdHours: 2   },
+        { name: "noc_baseline",             thresholdHours: 2   },
+        // Lead & pipeline (daily)
         { name: "growth_ssl_expiry",        thresholdHours: 25  },
         { name: "growth_cve_alert",         thresholdHours: 25  },
-        // Revenue / customer lifecycle
+        // Revenue / customer lifecycle (daily)
         { name: "upsell_engine",            thresholdHours: 25  },
         { name: "platform_cost_check",      thresholdHours: 25  },
         { name: "dunning_check",            thresholdHours: 25  },
@@ -2579,13 +2586,13 @@ startup()
         { name: "subscription_reminders",   thresholdHours: 25  },
         { name: "collection_reminder",      thresholdHours: 25  },
         { name: "health_score",             thresholdHours: 25  },
-        // Customer comms
+        // Customer comms (daily)
         { name: "reminder_30day",           thresholdHours: 25  },
         { name: "onboarding_day1_email",    thresholdHours: 25  },
         { name: "onboarding_d3d7",          thresholdHours: 25  },
         { name: "domain_rescan",            thresholdHours: 25  },
         { name: "sla_breach_check",         thresholdHours: 25  },
-        // Internal / data
+        // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
         { name: "market_watcher",           thresholdHours: 5   },
         { name: "digest_rss_collect",       thresholdHours: 25  },
@@ -2593,7 +2600,6 @@ startup()
         { name: "kvkk_scheduled_deletion",  thresholdHours: 25  },
         { name: "auto_tag",                 thresholdHours: 25  },
         { name: "task_reminder",            thresholdHours: 25  },
-        { name: "noc_baseline",             thresholdHours: 2   },
         // Weekly (169h ≈ 7 days + 1h buffer)
         { name: "weekly_delta",             thresholdHours: 169 },
         { name: "haftalik_bulten",          thresholdHours: 169 },
@@ -2601,6 +2607,26 @@ startup()
         { name: "soc_weekly_report",        thresholdHours: 169 },
         { name: "fabric_weekly_report",     thresholdHours: 169 },
         { name: "github_secrets_scan",      thresholdHours: 169 },
+        { name: "ai_tool_monitor",          thresholdHours: 169 },
+        { name: "blog_autopilot_mon",       thresholdHours: 169 },
+        { name: "blog_autopilot_thu",       thresholdHours: 169 },
+        { name: "ciso_weekly_threat",       thresholdHours: 169 },
+        { name: "digest_weekly_generate",   thresholdHours: 169 },
+        { name: "growth_port_change",       thresholdHours: 169 },
+        { name: "inflation_reminder",       thresholdHours: 169 },
+        { name: "nps_send",                 thresholdHours: 169 },
+        { name: "social_media_weekly",      thresholdHours: 169 },
+        { name: "weekly_db_backup",         thresholdHours: 169 },
+        // Monthly (745h ≈ 31 days + 1h buffer)
+        { name: "annual_report_reminder",   thresholdHours: 745 },
+        { name: "ciso_board_report",        thresholdHours: 745 },
+        { name: "ciso_compliance_monthly",  thresholdHours: 745 },
+        { name: "demo_report_refresh",      thresholdHours: 745 },
+        { name: "ioc_credit_reset",         thresholdHours: 745 },
+        { name: "kvkk_data_retention",      thresholdHours: 745 },
+        { name: "soc_monthly_ai_cost",      thresholdHours: 745 },
+        // Quarterly (2200h ≈ 90 days + 1h buffer)
+        { name: "quarterly_policy_update",  thresholdHours: 2200 },
       ];
       try {
         const { rows } = await pool.query<{ job_name: string; last_run: string }>(

@@ -31,11 +31,11 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   // Saatlik
   { name: "lead_qual",            intervalMinutes: 60,    label: "Lead Kalifikasyon" },
   { name: "scan_lead_drip",       intervalMinutes: 60,    label: "Scan Lead Drip" },
-  { name: "certstream_proc",      intervalMinutes: 60,    label: "Certstream İşle" },
   { name: "servicenow_health",    intervalMinutes: 60,    label: "ServiceNow Sağlık" },
   { name: "verification_queue",   intervalMinutes: 60,    label: "Doğrulama Kuyruğu" },
   { name: "noc_baseline",         intervalMinutes: 60,    label: "NOC Baseline" },
   // 4-6 saatlik
+  { name: "ct_phishing_monitor",  intervalMinutes: 240,   label: "CT Log Phishing İzleme" },
   { name: "intel_feeds",          intervalMinutes: 360,   label: "Intel Feeds" },
   { name: "market_watcher",       intervalMinutes: 240,   label: "Market İzleme" },
   { name: "cve_feed_check",       intervalMinutes: 120,   label: "CVE Feed" },

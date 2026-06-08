@@ -2247,6 +2247,48 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("SLA breach cron scheduled (08:00 Istanbul)");
 
+    // ─── Churn otomatik müdahale — Her gün 08:30 ─────────────────────────────
+    cron.schedule("30 8 * * *", wrapCron("churn_auto_intervention", "30 8 * * *", async () => {
+      const { runChurnIntervention } = await import("./services/churn-intervention");
+      return await runChurnIntervention();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Churn auto intervention cron scheduled (08:30 Istanbul)");
+
+    // ─── Müşteri aktivasyon izleyici — Her gün 11:00 ─────────────────────────
+    cron.schedule("0 11 * * *", wrapCron("customer_activation_monitor", "0 11 * * *", async () => {
+      const { runCustomerActivationMonitor } = await import("./services/customer-activation-monitor");
+      return await runCustomerActivationMonitor();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Customer activation monitor cron scheduled (11:00 Istanbul)");
+
+    // ─── AI çıktı kalite izleme — Her gün 09:30 ──────────────────────────────
+    cron.schedule("30 9 * * *", wrapCron("ai_quality_monitor", "30 9 * * *", async () => {
+      const { runAiQualityMonitor } = await import("./services/ai-quality-monitor");
+      return await runAiQualityMonitor();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("AI quality monitor cron scheduled (09:30 Istanbul)");
+
+    // ─── Platform smoke test — Her saat 05. dakika ───────────────────────────
+    cron.schedule("5 * * * *", wrapCron("platform_smoke_test", "5 * * * *", async () => {
+      const { runPlatformSmokeTest } = await import("./services/platform-smoke-test");
+      return await runPlatformSmokeTest();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Platform smoke test cron scheduled (every hour :05)");
+
+    // ─── SLA proaktif uyarı — Her 30 dakika ──────────────────────────────────
+    cron.schedule("*/30 * * * *", wrapCron("sla_proactive_warning", "*/30 * * * *", async () => {
+      const { runSlaProactiveWarning } = await import("./services/soc/sla-proactive-warning");
+      return await runSlaProactiveWarning();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("SLA proactive warning cron scheduled (every 30 min)");
+
+    // ─── Otomatik fatura oluşturma — Her gün 06:00 ───────────────────────────
+    cron.schedule("0 6 * * *", wrapCron("auto_invoice_generate", "0 6 * * *", async () => {
+      const { runAutoInvoiceGenerate } = await import("./services/auto-invoice");
+      return await runAutoInvoiceGenerate();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Auto invoice generate cron scheduled (06:00 Istanbul)");
+
     // ─── CASM: Cloud CSPM taraması — Her gece 03:45 ──────────────────────────
     cron.schedule("45 3 * * *", wrapCron("cloud_cspm", "45 3 * * *", async () => {
       const { db: dbI } = await import("@workspace/db");
@@ -2646,6 +2688,8 @@ startup()
         // Hourly (2h threshold)
         { name: "lead_qual",                thresholdHours: 2   },
         { name: "verification_queue",       thresholdHours: 2   },
+        { name: "platform_smoke_test",      thresholdHours: 2   },
+        { name: "sla_proactive_warning",    thresholdHours: 1   },
         { name: "ct_phishing_monitor",      thresholdHours: 5   },
         { name: "scan_lead_drip",           thresholdHours: 2   },
         { name: "servicenow_health",        thresholdHours: 2   },
@@ -2666,7 +2710,11 @@ startup()
         { name: "onboarding_day1_email",    thresholdHours: 25  },
         { name: "onboarding_d3d7",          thresholdHours: 25  },
         { name: "domain_rescan",            thresholdHours: 25  },
-        { name: "sla_breach_check",         thresholdHours: 25  },
+        { name: "sla_breach_check",           thresholdHours: 25  },
+        { name: "churn_auto_intervention",     thresholdHours: 25  },
+        { name: "customer_activation_monitor", thresholdHours: 25  },
+        { name: "ai_quality_monitor",          thresholdHours: 25  },
+        { name: "auto_invoice_generate",       thresholdHours: 25  },
         // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
         { name: "daily_cron_report",        thresholdHours: 25  },

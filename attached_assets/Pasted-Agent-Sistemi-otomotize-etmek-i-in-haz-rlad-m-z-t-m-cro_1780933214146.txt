@@ -1,0 +1,123 @@
+Agent
+Sistemi otomotize etmek için hazırladığımız tüm cron job ları teknik olmayan bir dille özetle. Hangisi ne zaman, ne amaçla çalışıyor, ne faydası var şeklinde bir tablo istiyorum. Aynı zamanda bunu dosya olarak da kaydedelim.
+
+1 hour ago
+# CyberStep.io — Otomatik Görevler (Cron Jobs) Özeti > **Son güncelleme:** 8 Haziran 2026 ...
+Files altında yok dosya
+
+1 hour ago
+Abonelik yenileme cron'u yok — subscription_renewal listede görünmüyor
+Cron sağlık raporu cronHealthMonitor var ama "daily_cron_report" (07:00 e-posta) listede yok
+ct_phishing_monitor listede yok (az önce ekledik)
+attack_surface_scan orchestrator cron yok (yeni eklenen servis)
+IOC kredi sıfırlama KVKK altında ama büyüme/fiyatlandırmaya daha uygun
+Yedekleme günlük değil haftalık — kritik sistem için riskli
+
+1 hour ago
+Abonelik yenileme cron'u yok — subscription_renewal listede görünmüyor
+Cron sağlık raporu cronHealthMonitor var ama "daily_cron_report" (07:00 e-posta) listede yok
+ct_phishing_monitor listede yok
+IOC kredi sıfırlama KVKK altında ama büyüme/fiyatlandırmaya daha uygun
+Yedekleme günlük değil haftalık — kritik sistem için riskli
+
+1 hour ago
+Files altında dosyası bulamıyorum
+
+58 minutes ago
+# CyberStep.io — Otomatik Görevler (Cron Jobs) Özeti > **Son güncelleme:** 8 Haziran 2026 ...
+Dosya aynı — güncellenmemiş. Eksikler hâlâ geçerli. Şimdi daha detaylı sayım yapıyorum:
+Satır sayım kontrolü:
+Güvenlik İzleme: 13 ✅ (satır 12-24, 13 madde)
+Tehdit İstihbaratı: 7 ✅
+Lead Üretimi: 5 ✅
+Müşteri İletişimi: 8 ✅
+Raporlama: 11 ❌ — özette 12 yazıyor ama SLA İhlal Raporu bölüm 9'da, buraya yazılmamış. Gerçek sayı 11.
+Sistem & Altyapı: 11 ❌ — özette 12 yazıyor ama sayıyorum: satır 91-101 = 11 madde
+AI & İçerik: 9 ✅
+KVKK: 4 ✅
+Büyüme: 4 ✅
+Toplam gerçek: 72, özette 74 yazıyor — 2 madde sayım hatası var.
+Ayrıca eksikler devam ediyor:
+Eksik
+Kritiklik
+subscription_renewal yok
+🔴 Kritik — ödeme sistemi
+daily_cron_report yok
+🟡 Önemli
+ct_phishing_monitor yok
+🟡 Önemli
+DB yedek haftalık — günlük olmalı
+🔴 Kritik
+Raporlama sayısı 12 değil 11
+🟢 Küçük hata
+Altyapı sayısı 12 değil 11
+🟢
+
+56 minutes ago
+# CyberStep.io — Otomatik Görevler (Cron Jobs) Özeti > **Son güncelleme:** 8 Haziran 2026 ...
+artifacts/api-server/src/index.ts dosyasında haftalık DB yedekleme cron'unu bul ("0 4 * * 0" schedule).
+
+Şu değişikliği yap:
+
+Mevcut haftalık cron'u koru — değiştirme
+Yanına günlük yedek cron ekle:
+cron.schedule(
+"0 3 * * *",
+wrapCron("daily_db_backup", "0 3 * * *", async () => {
+const { runDbBackup } = await import("./services/dbBackup");
+return await runDbBackup();
+}),
+{ timezone: "Europe/Istanbul" }
+);
+
+EXPECTED_JOBS listesine ekle (cronHealthMonitor.ts):
+{ name: "daily_db_backup", intervalMinutes: 1440 }
+
+cron-jobs-ozeti.md'deki "Haftalık Veritabanı Yedeği" satırını güncelle:
+
+Satır: "Günlük + Haftalık Veritabanı Yedeği"
+Zaman: "Her gece 03:00 (günlük) + Her Pazar 04:00 (haftalık tam yedek)"
+Faydası: "Günlük yedekle maksimum 24 saatlik veri kaybı penceresi; haftalık tam yedek ek güvenlik katmanı"
+Toplam cron sayısını özet tablosunda 73 → 74 olarak güncelle.
+
+53 minutes ago
+Önce lokasyonları bulayım:
+
+Lokasyonlar tamam. Üç düzenlemeyi paralel yapıyorum:
+
+3 düzenlemeyi aynı anda yapıyorum:
+
+Özet tablosunu da güncelliyorum (73 → 74, Altyapı 11 → 12) ve risk bölümünü kaldırıyorum:
+
+daily_db_backup'ı cronHealthMonitor'da yanlış yere (Haftalık başlığı altına) koydum — düzeltiyorum ve typecheck yapıyorum:
+
+Typecheck temiz. Tamamlanan 4 değişiklik:
+
+Dosya	Değişiklik
+index.ts	daily_db_backup cron eklendi — Her gece 03:00 Istanbul, mevcut haftalık cron dokunulmadı
+cronHealthMonitor.ts	{ name: "daily_db_backup", intervalMinutes: 1440, label: "Günlük DB Yedek" } Günlük gruba eklendi
+cron-jobs-ozeti.md	Satır "Günlük + Haftalık Veritabanı Yedeği" olarak güncellendi
+cron-jobs-ozeti.md	Altyapı 11→12, Toplam 73→74, ⚠️ risk bölümü kaldırıldı
+Sence %90 otomasyon, AI Yönetimi, %10 insan müdahelesi için eklenmesi gereken başka cron job var mı?
+
+19 minutes ago
+Mevcut 74 cron'u değerlendirdim. %90 otomasyon hedefi için 6 kritik boşluk var:
+
+1. Churn Otomatik Müdahale 🔴 En kritik
+Sağlık skoru hesaplanıyor ama düşünce otomatik aksiyon tetiklenmiyor. Health score belirli eşiğin altına düşünce → kişiselleştirilmiş "sizi kaybetmek istemiyoruz" e-postası + satış ekibi bildirimi otomatik gitmeli. Şu an insan izleyip manuel aksiyon alıyor.
+
+2. Müşteri Aktivasyon İzleyici 🔴 Kritik
+Kayıt var, onboarding e-postaları var ama müşteri ilk taramayı yapıp yapmadığını, dashboard'a girip girmediğini izleyen bir cron yok. "5 gün geçti, henüz ilk tarama yapılmadı" durumu tespit edilip otomatik nudge + CS bildirimi gitmeli.
+
+3. AI Çıktı Kalite İzleme 🟡 Önemli
+Claude/Gemini raporları üretiyor ama raporların kalitesi izlenmiyor. Günde bir kez: çok kısa rapor (<500 token), JSON parse hatası oranı, boş bölüm sayısı kontrol edilip eşik aşılınca alarm vermeli.
+
+4. Platform Smoke Test 🟡 Önemli
+Cron'ların çalışıp çalışmadığı izleniyor ama asıl iş akışları test edilmiyor. Saatte bir: /api/healthz + örnek assessment tamamlanabilir mi + Gemini erişilebilir mi → hata varsa anında alarm. Şu an production bozulunca kullanıcı şikayetiyle öğreniyorsunuz.
+
+5. SLA Proaktif Uyarısı 🟡 Önemli
+SLA ihlal raporu var ama ihlal gerçekleştikten sonra. SLA süresinin %80'i dolmuş vakaları tespit edip 30 dakikada bir SOC ekibini uyarmalı. İhlali önleyici değil şu an belgeleyici.
+
+6. Otomatik Fatura Oluşturma 🟢 Tamamlayıcı
+Dunning (tahsilat takibi) var ama fatura oluşturma yok. Abonelik dönemi sonunda otomatik fatura üretip müşteriye gönderilmeli, ödeme sistemine bağlanmalı.
+

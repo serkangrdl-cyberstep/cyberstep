@@ -66,6 +66,9 @@
 | E-posta Serisi İşleyici | Her 30 dakikada | Zamanı gelen drip kampanya e-postalarını kuyruğa alır ve gönderir | Tüm müşteri iletişimini otomatik ve zamanında yönetir |
 | Geciken Ödeme Takibi (Dunning) | Her gün 10:15 | Vadesi geçmiş ödemeler için art arda hatırlatma e-postası gönderir | Tahsilatı otomatik yönetir, kayıp geliri geri kazanır |
 | Müşteri Memnuniyeti Anketi (NPS) | Her Salı 11:00 | Belirli müşterilere NPS anketi gönderir | Memnuniyetsizliği erken fark etmeyi sağlar |
+| **Churn Otomatik Müdahale** | **Her gün 08:30** | **Sağlık skoru 40'ın altına düşen ve henüz müdahale edilmemiş aktif müşterileri tespit eder; kişiselleştirilmiş "sizi kaybetmek istemiyoruz" e-postası gönderir, admin'e özet bildirim yapar** | **Churn riskini erken müdahaleyle otomatik azaltır; satış ekibinin manuel takibine gerek kalmaz** |
+| **Müşteri Aktivasyon İzleyici** | **Her gün 11:00** | **Kayıttan 5-14 gün geçmiş ama henüz ilk taramasını yapmamış müşterilere otomatik "ilk taramayı dene" hatırlatması gönderir; nudge1SentAt flag ile tekrar gönderimi engeller** | **İlk aktivasyonu hızlandırır, kurulum aşamasında kaybedilen müşteri oranını düşürür** |
+| **Otomatik Fatura Oluşturma** | **Her gün 06:00** | **Son 24 saatte aktif olan yeni abonelikleri tarar; müşteriye fatura numaralı HTML makbuz e-postası gönderir, invoices tablosuna kaydeder, tekrar gönderimini engeller** | **Manuel fatura takibini tamamen ortadan kaldırır, muhasebe kaydını otomatikleştirir** |
 
 ---
 
@@ -102,6 +105,8 @@
 | Doğrulama Kuyruğu | Her saatte | Bekleyen doğrulama görevlerini işler | Kullanıcı ve veri doğrulamalarının gecikmeden tamamlanmasını sağlar |
 | Günlük + Haftalık Veritabanı Yedeği | Her gece 03:00 (günlük) + Her Pazar 04:00 (haftalık tam yedek) | Tüm veritabanının yedeğini alır; günlük yedek maksimum 24 saatlik kayıp penceresini sağlar, haftalık ek güvenlik katmanı oluşturur | Günlük yedekle maksimum 24 saatlik veri kaybı penceresi; haftalık tam yedek ek güvenlik katmanı |
 | Alan Adı Yeniden Tarama | Her gün 09:30 | Müşteri alan adlarını güncel tehdit imzalarıyla yeniden tarar | Önceden temiz görünen domain'lerdeki yeni tehditleri yakalar |
+| **AI Çıktı Kalite İzleme** | **Her gün 09:30** | **Son 24 saatte oluşturulan raporları kontrol eder: çok kısa aiAnalysis (<400 karakter), boş rapor ve yüksek hata oranı varsa admin'e e-posta alarmı gönderir; ai_cost_log'dan servis bazlı hata oranını da denetler** | **AI raporlama kalitesi düşmeden proaktif müdahaleye olanak tanır; kullanıcı şikayeti gelmeden sistemi yakalar** |
+| **Platform Smoke Test** | **Her saat :05** | **API /healthz, PostgreSQL bağlantısı ve Gemini API erişimini test eder; herhangi biri başarısız olursa anında Telegram + e-posta alarmı gönderir** | **Production bozulmaları kullanıcı şikayetiyle değil, otomatik izlemeyle tespit edilir** |
 
 ---
 
@@ -141,6 +146,7 @@
 | SLA İhlal Raporu | Her gün 08:00 | Önceki gün SLA'sı ihlal edilen müşteri vakalarını listeler | Hizmet kalitesini nesnel olarak takip etmeyi sağlar |
 | Otomatik Etiketleme | Her gece 03:30 | Müşteri davranışına göre segment etiketleri (aktif, pasif, risk altında vb.) atar | CRM ve kampanyaların doğru segmente ulaşmasını sağlar |
 | Görev Hatırlatmaları | Her gün 08:30 | Vadesi yaklaşan iç görevleri ekibe hatırlatır | Operasyonel görevlerin gözden kaçmasını önler |
+| **SLA Proaktif Uyarı** | **Her 30 dakika** | **Açık veya inceleme aşamasındaki SOC vakalarında SLA süresinin %80'i geçmişse SOC adminine Telegram + e-posta uyarısı gönderir; kaç dakika kaldığını gösterir** | **SLA ihlalini belgelemek yerine önler; SOC ekibi ihlal gerçekleşmeden müdahale eder** |
 
 ---
 
@@ -151,10 +157,10 @@
 | Güvenlik İzleme | 13 |
 | Tehdit İstihbaratı | 8 |
 | Lead Üretimi & Satış | 6 |
-| Müşteri İletişimi & Onboarding | 9 |
+| Müşteri İletişimi & Onboarding | 12 |
 | Raporlama & Analitik | 11 |
-| Sistem & Altyapı | 12 |
+| Sistem & Altyapı | 14 |
 | AI & İçerik Üretimi | 9 |
 | Yasal Uyumluluk (KVKK) | 3 |
-| Büyüme & Fiyatlandırma | 6 |
-| **TOPLAM** | **77** |
+| Büyüme & Fiyatlandırma | 7 |
+| **TOPLAM** | **83** |

@@ -55,8 +55,14 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "onboarding_d3d7",      intervalMinutes: 1440,  label: "Onboarding D+3/D+7" },
   { name: "growth_ssl_expiry",    intervalMinutes: 1440,  label: "SSL Expiry Alert" },
   { name: "daily_db_backup",      intervalMinutes: 1440,  label: "Günlük DB Yedek" },
-  { name: "free_scan_followup",   intervalMinutes: 60,    label: "Ücretsiz Tarama Takip" },
-  { name: "cve_customer_notification", intervalMinutes: 240, label: "Kritik CVE Müşteri Bildirim" },
+  { name: "free_scan_followup",          intervalMinutes: 60,   label: "Ücretsiz Tarama Takip" },
+  { name: "cve_customer_notification",   intervalMinutes: 240,  label: "Kritik CVE Müşteri Bildirim" },
+  { name: "churn_auto_intervention",     intervalMinutes: 1440, label: "Churn Otomatik Müdahale" },
+  { name: "customer_activation_monitor", intervalMinutes: 1440, label: "Müşteri Aktivasyon İzleyici" },
+  { name: "ai_quality_monitor",          intervalMinutes: 1440, label: "AI Kalite İzleme" },
+  { name: "platform_smoke_test",         intervalMinutes: 60,   label: "Platform Smoke Test" },
+  { name: "sla_proactive_warning",       intervalMinutes: 30,   label: "SLA Proaktif Uyarı" },
+  { name: "auto_invoice_generate",       intervalMinutes: 1440, label: "Otomatik Fatura Oluştur" },
   // Haftalık
   { name: "haftalik_bulten",      intervalMinutes: 10080, label: "Haftalık Bülten" },
   // Yıllık (525600 dk = 365 gün)

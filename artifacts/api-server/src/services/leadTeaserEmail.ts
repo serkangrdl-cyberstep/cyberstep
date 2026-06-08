@@ -65,9 +65,19 @@ Kurallar:
 
     const parsed = JSON.parse(jsonMatch[0]) as { subject?: string; body?: string };
 
+    const corporateIntro = `CyberStep.io; küçük ve orta ölçekli işletmelere yönelik siber güvenlik risk analizi ve danışmanlık hizmetleri sunan Türkiye merkezli bir platformdur. Kurumların dijital varlıklarını korumak amacıyla sürekli olarak pasif keşif ve açık kaynak istihbarat (OSINT) taramaları gerçekleştirmekteyiz.
+
+Rutin tarama hizmetlerimiz sırasında ${candidate.domain} alan adınıza ilişkin bazı önemli güvenlik bulgularına ulaştık. Tespit edilen bu bulgular, kötü niyetli kişilerin hedefleyebileceği açıklar içerdiğinden kurumunuzu bilgilendirme amacıyla bu mesajı iletmekteyiz.
+
+---
+
+`;
+
+    const fullBody = corporateIntro + (parsed.body ?? raw);
+
     await db.update(leadCandidatesTable).set({
       teaserSubject: parsed.subject ?? `${candidate.domain} — Siber Güvenlik Değerlendirmesi`,
-      teaserBody: parsed.body ?? raw,
+      teaserBody: fullBody,
       teaserGeneratedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(leadCandidatesTable.id, candidateId));

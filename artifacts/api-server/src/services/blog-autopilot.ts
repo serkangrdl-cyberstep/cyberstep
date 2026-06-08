@@ -285,7 +285,7 @@ interface GeneratedContent {
   visualPromptsTr: VisualPrompts;
 }
 
-async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
+export async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
   const categoryCode = getCategoryCode(topic.category);
   const categoryVariant = CATEGORY_VARIANTS[categoryCode];
   const focusKeyword = topic.keywords.split(",")[0].trim();

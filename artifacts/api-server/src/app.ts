@@ -17,7 +17,7 @@ import portalIocRouter from "./routes/portal/ioc-query";
 import adminApprovalsRouter from "./routes/admin-panel/approvals";
 import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import seoRouter from "./routes/public/seo";
-import { generateAndPublishBlogPost } from "./services/blog-autopilot";
+import { generateAndPublishBlogPost, generateBlogPostContent, BLOG_PLAN } from "./services/blog-autopilot";
 import { logger } from "./lib/logger";
 import { db, blogPostsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -385,6 +385,49 @@ app.post("/api/internal/fix-blog-placeholders", async (req: Request, res: Respon
   } catch (err) {
     logger.error({ err }, "fix-blog-placeholders: hata");
     res.status(500).json({ error: "Güncelleme başarısız" });
+  }
+});
+
+// Belirli bir blog yazısını başlığından eşleşen BLOG_PLAN konusuyla yeniden üretir
+app.post("/api/internal/regenerate-blog-post", async (req: Request, res: Response) => {
+  const secret = process.env["ENCRYPTION_KEY"];
+  const provided = req.headers["x-internal-secret"] as string | undefined;
+  if (!secret || !provided || provided !== secret) {
+    res.status(403).json({ error: "Yetkisiz" });
+    return;
+  }
+  const { id, category, title, keywords, angle } = req.body as {
+    id: number; category: string; title: string; keywords: string; angle: string;
+  };
+  if (!id || !title) { res.status(400).json({ error: "id ve title zorunlu" }); return; }
+
+  try {
+    const topic = { category: category ?? "KOBİ Stratejisi", title, keywords: keywords ?? title, angle: angle ?? title };
+    const generated = await generateBlogPostContent(topic);
+
+    await db.execute(sql`
+      UPDATE blog_posts SET
+        title               = ${generated.title},
+        excerpt             = ${generated.excerpt},
+        content             = ${generated.content},
+        seo_title           = ${generated.seoTitle},
+        meta_description    = ${generated.metaDescription},
+        focus_keyword       = ${generated.focusKeyword},
+        seo_tags            = ${JSON.stringify(generated.seoTags)}::jsonb,
+        linkedin_post_tr    = ${generated.linkedinPostTr},
+        instagram_caption_tr= ${generated.instagramCaptionTr},
+        instagram_carousel_tr = ${JSON.stringify(generated.instagramCarouselTr)}::jsonb,
+        social_text_tr      = ${generated.socialTextTr},
+        visual_prompts_tr   = ${JSON.stringify(generated.visualPromptsTr)}::jsonb,
+        updated_at          = NOW()
+      WHERE id = ${id}
+    `);
+
+    logger.info({ id, title: generated.title }, "regenerate-blog-post: tamamlandı");
+    res.json({ ok: true, title: generated.title });
+  } catch (err) {
+    logger.error({ err }, "regenerate-blog-post: hata");
+    res.status(500).json({ error: "Yeniden üretim başarısız" });
   }
 });
 

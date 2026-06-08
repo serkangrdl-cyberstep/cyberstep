@@ -20,6 +20,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((res) => setTimeout(() => res(fallback), ms)),
+  ]);
+}
+
 function getSalesSignal(vendorName: string): string | null {
   const n = vendorName.toLowerCase();
   if (n.includes("cloudflare")) return "cdn_user";
@@ -115,7 +122,7 @@ export async function runFullDiscoveryAndQualify(config: PipelineConfig = {}): P
   logger.info("=== Pipeline Tamamlandı ===");
 }
 
-export async function qualifyPendingCandidates(limit: number = 20): Promise<void> {
+export async function qualifyPendingCandidates(limit: number = 20): Promise<{ processed: number; qualified: number }> {
   const pending = await db.select().from(leadCandidatesTable)
     .where(eq(leadCandidatesTable.scanStatus, "pending"))
     .orderBy(
@@ -127,7 +134,19 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
 
   logger.info({ count: pending.length }, "Aday kalifikasyonu başlıyor");
 
+  const MAX_RUNTIME_MS = 15 * 60 * 1000; // 15 dakika circuit breaker
+  const SCAN_TIMEOUT_MS = 25_000;         // tek domain taraması max 25s
+  const batchStart = Date.now();
+  let processedCount = 0;
+  let qualifiedCount = 0;
+
   for (const candidate of pending) {
+    // Circuit breaker: 15 dakika geçtiyse dur
+    if (Date.now() - batchStart > MAX_RUNTIME_MS) {
+      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (15 dk) aşıldı, batch sonlandırılıyor");
+      break;
+    }
+
     try {
       // Eleme kontrolü — kamu TLD'leri ve kurum tiplerini atla
       const sourceOrg = (candidate.sourceData as Record<string, unknown> | null)?.["org"] as string | null ?? null;
@@ -136,24 +155,26 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
         logger.info({ domain: candidate.domain, reason: exclusion.reason }, "Kalifikasyon: domain eleme listesinde, atlanıyor");
         await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
           .where(eq(leadCandidatesTable.id, candidate.id));
-        await sleep(500);
+        processedCount++;
+        await sleep(300);
         continue;
       }
 
       await db.update(leadCandidatesTable).set({ scanStatus: "scanning" })
         .where(eq(leadCandidatesTable.id, candidate.id));
 
-      const scanResult = await runDomainScanInternal(candidate.domain);
+      // Domain taraması — max 25s timeout
+      const scanResult = await withTimeout(runDomainScanInternal(candidate.domain), SCAN_TIMEOUT_MS, null);
 
       if (!scanResult) {
         await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
           .where(eq(leadCandidatesTable.id, candidate.id));
-        await sleep(2000);
+        processedCount++;
+        await sleep(1000);
         continue;
       }
 
       const criticals = scanResult.findings.filter((f) => f.severity === "critical");
-      // Düzeltme 2: sadece gerçekten düşük skorlu (yüksek riskli) domainler lead olarak kalifikasyon alır
       const isQualified = scanResult.overallScore < 60;
 
       // CVE breakdown hesapla ve sourceData'ya ekle
@@ -214,11 +235,13 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
         logger.warn({ domain: candidate.domain, err: String(e) }, "Shadow IT tech_stack aktarımı başarısız");
       }
 
+      processedCount++;
       if (!isQualified) {
         logger.info({ domain: candidate.domain, score: scanResult.overallScore }, "Kalifikasyon reddedildi");
         await sleep(1000);
         continue;
       }
+      qualifiedCount++;
 
       // İletişim bul: Apollo → Hunter → WHOIS → Web scraping
       if (!candidate.contactEmail) {
@@ -298,10 +321,14 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<void
       logger.error({ domain: candidate.domain, err: String(e) }, "Kalifikasyon hatası");
       await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
         .where(eq(leadCandidatesTable.id, candidate.id));
+      processedCount++;
     }
 
-    await sleep(3000);
+    await sleep(1500);
   }
+
+  logger.info({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon batch tamamlandı");
+  return { processed: processedCount, qualified: qualifiedCount };
 }
 
 export { getISOWeek };

@@ -75,6 +75,27 @@ export function nextCronDate(expr: string): Date | null {
   return null;
 }
 
+// ─── Startup: stale "running" entries cleanup ────────────────────────────────
+// Call once on server start. Any entry stuck in "running" for >2h was left over
+// from a previous process that died without finalising the record.
+export async function cleanupStaleRunningJobs(): Promise<void> {
+  try {
+    const result = await pool.query(
+      `UPDATE cron_job_runs
+       SET ended_at = NOW(), status = 'error',
+           error_message = 'Sunucu yeniden başlatıldı (stale running)',
+           duration_ms = EXTRACT(EPOCH FROM (NOW() - started_at)) * 1000
+       WHERE status = 'running' AND started_at < NOW() - INTERVAL '2 hours'`,
+    );
+    const count = (result as { rowCount?: number }).rowCount ?? 0;
+    if (count > 0) {
+      logger.warn({ count }, "Startup: stale running cron entries cleaned up");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Startup: stale cron cleanup failed");
+  }
+}
+
 // ─── Core: wrapCron ───────────────────────────────────────────────────────────
 // Returns a zero-arg async fn suitable for cron.schedule().
 // Handles: overlap prevention, DB persistence, failure alerting, count tracking.

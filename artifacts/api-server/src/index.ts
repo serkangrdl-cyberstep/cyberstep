@@ -13,7 +13,7 @@ import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
-import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn } from "./services/cronRegistry";
+import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn, cleanupStaleRunningJobs } from "./services/cronRegistry";
 import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
@@ -2292,18 +2292,31 @@ startup()
     logger.info("NOC baseline check cron scheduled (every hour)");
 
     // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
-    // daysBack:7 → haftalık pencere; 502 retry zaten fetchCrtsh içinde (4 deneme, üstel geri çekilme)
+    // Her TLD ayrı try/catch içinde — biri 502 alsa diğerleri devam eder.
+    // fetchCrtsh zaten 4 deneme + üstel geri çekilme yapıyor.
     cron.schedule("0 3 * * *", wrapCron("crtsh", "0 3 * * *", async () => {
       if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("crtsh", 500);
-      const r1 = await scanCRTSH("%.com.tr", { daysBack: 7, minCorporateScore: 10, limit });
-      await new Promise((r) => setTimeout(r, 5000));
-      const r2 = await scanCRTSH("%.net.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit * 0.4) });
-      await new Promise((r) => setTimeout(r, 3000));
-      const r3 = await scanCRTSH("%.org.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit * 0.2) });
-      await new Promise((r) => setTimeout(r, 3000));
-      const r4 = await scanCRTSH("%.web.tr", { daysBack: 7, minCorporateScore: 10, limit: Math.floor(limit * 0.1) });
-      return (r1.addedToLeads ?? 0) + (r2.addedToLeads ?? 0) + (r3.addedToLeads ?? 0) + (r4.addedToLeads ?? 0);
+      let totalAdded = 0;
+
+      const TLD_QUERIES: Array<{ query: string; limitFactor: number }> = [
+        { query: "%.com.tr", limitFactor: 1.0 },
+        { query: "%.net.tr", limitFactor: 0.4 },
+        { query: "%.org.tr", limitFactor: 0.2 },
+        { query: "%.web.tr", limitFactor: 0.1 },
+      ];
+
+      for (const { query, limitFactor } of TLD_QUERIES) {
+        try {
+          const r = await scanCRTSH(query, { daysBack: 7, minCorporateScore: 10, limit: Math.max(1, Math.floor(limit * limitFactor)) });
+          totalAdded += r.addedToLeads ?? 0;
+        } catch (err) {
+          logger.warn({ query, err: String(err) }, "crt.sh TLD taraması başarısız, diğerleriyle devam ediliyor");
+        }
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+
+      return totalAdded;
     }), { timezone: "Europe/Istanbul" });
     logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul, daysBack:7, limit:500)");
 
@@ -2325,13 +2338,14 @@ startup()
     logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul, 2 queries/night, limit:300 each)");
 
     // ─── Lead Discovery: Kalifikasyon — Günde 6 kez 02:00/06:00/10:00/14:00/18:00/22:00 ──
+    // Limit 25/çalışma: 6×25=150 aday/gün. Her aday max 25s tarama + 15 dk circuit breaker.
     cron.schedule("0 2,6,10,14,18,22 * * *", wrapCron("lead_qual", "0 2,6,10,14,18,22 * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("lead_qual", 100);
-      await qualifyPendingCandidates(limit);
-      return limit;
+      const limit = await cronGetLimit("lead_qual", 25);
+      const result = await qualifyPendingCandidates(limit);
+      return result.qualified;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Lead qualification cron scheduled (02:00/06:00/10:00/14:00/18:00/22:00 Istanbul, limit 100)");
+    logger.info("Lead qualification cron scheduled (02:00/06:00/10:00/14:00/18:00/22:00 Istanbul, limit 25)");
 
     // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
     cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {
@@ -2519,6 +2533,10 @@ startup()
       }
     });
     logger.info("HITL approval expire cron kayıtlandı (her 15 dakika)");
+
+    // ─── Startup: Stale "running" kayıtları temizle ─────────────────────────
+    // Server restart sırasında tamamlanamayan "running" durumundaki cron kayıtlarını düzelt.
+    void cleanupStaleRunningJobs();
 
     // ─── Startup Catch-up: Kaçırılan Gece Cron'larını Çalıştır ──────────────
     // Deployment restart sırasında pencereyi kaçıran gece cron'larını telafi eder.

@@ -99,6 +99,17 @@ export const domainScansTable = pgTable("domain_scans", {
   highCveCount: integer("high_cve_count").notNull().default(0),
   includedInIndex: boolean("included_in_index").notNull().default(true),
   excludedReason: text("excluded_reason"),
+  asnNumber: text("asn_number"),
+  asnName: text("asn_name"),
+  orphanedAssets: jsonb("orphaned_assets").$type<Array<{
+    subdomain: string;
+    ip: string;
+    isWafProtected: boolean;
+    httpAccessible: boolean;
+    httpsAccessible: boolean;
+    risk: "high" | "medium" | "low";
+    reason: string;
+  }>>(),
 });
 
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });

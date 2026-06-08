@@ -1431,13 +1431,15 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     // WAF/CDN varsa OSINT ile zenginleştir (bypass risk analizi)
     const { enrichWithOsint } = await import("../../services/osintEnrichment");
     const { discoverOriginIp } = await import("../../services/originIpDiscovery");
-    const [osintResult, originDiscovery] = await Promise.all([
+    const { discoverAsnAssets } = await import("../../services/asnAssetDiscovery");
+    const [osintResult, originDiscovery, asnDiscovery] = await Promise.all([
       (wafResult.detected || wafResult.hasCdn)
         ? enrichWithOsint(domain).catch(() => null)
         : Promise.resolve(null),
       (wafResult.detected || wafResult.hasCdn)
         ? discoverOriginIp(domain).catch(() => null)
         : Promise.resolve(null),
+      discoverAsnAssets(domain, certTrans.subdomains).catch(() => null),
     ]);
 
     // Pasif keşif öncelikli; fallback: doğrudan IP erişim kontrolü
@@ -1521,6 +1523,9 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         confidenceScore,
         confidenceNote,
         tenantId: sessionTenantId,
+        asnNumber: asnDiscovery?.asnNumber ?? null,
+        asnName: asnDiscovery?.asnName ?? null,
+        orphanedAssets: asnDiscovery?.orphanedAssets ?? null,
       })
       .returning();
 
@@ -1757,6 +1762,9 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       originIpSource: scan.originIpSource ?? undefined,
       attackScenarios: isFreeReport ? null : attackScenariosData,
       scoreBreakdown: pdfScoreBreakdown,
+      asnNumber: scan.asnNumber,
+      asnName: scan.asnName,
+      orphanedAssets: isFreeReport ? null : (scan.orphanedAssets as Array<{ subdomain: string; ip: string; isWafProtected: boolean; risk: "high" | "medium" | "low"; reason: string }> | null),
       isFreeReport,
     });
     const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");

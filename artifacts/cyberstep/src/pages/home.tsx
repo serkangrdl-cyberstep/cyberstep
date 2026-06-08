@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SpecialDayBanner } from "@/components/special-day-banner";
-import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2, Globe, Search, XCircle, CheckCircle2, AlertCircle, Lock, AtSign, Mail } from "lucide-react";
+import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2, Globe, Search, XCircle, CheckCircle2, AlertCircle, Lock, AtSign, Mail, Zap, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,172 @@ interface ConsultingService { id: number; title: string; description: string; ic
 interface TechPartner { id: number; name: string; logoUrl: string; websiteUrl: string | null; isActive: boolean; }
 interface Advisory { id: number; title: string; source: string; link: string | null; summary: string | null; severity: string; published_at: string; }
 
+interface CriticalCve {
+  cveId: string;
+  cvssScore: number;
+  severity: string;
+  title: string | null;
+  exploitPublic: boolean;
+  cisaKev: boolean;
+  patchAvailable: boolean;
+  detectedAt: string;
+}
+
+interface CveDomainCheckResult {
+  domain: string;
+  isTracked: boolean;
+  affectedCVECount: number;
+  affectedCVEs: Array<{ cveId: string; matchedProduct: string; cvss: number; severity: string; patchAvailable: boolean }>;
+  message: string;
+}
+
 interface BadgeAdvantageItem {
   id: number; title: string; partnerName: string; description: string;
   discountPercent: number | null; badgeText: string | null;
+}
+
+function CveRadarSection({ lang }: { lang: string }) {
+  const [domainInput, setDomainInput] = useState("");
+  const [checkResult, setCheckResult] = useState<CveDomainCheckResult | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const { data: criticalCves } = useQuery<CriticalCve[]>({
+    queryKey: ["cve-latest-critical"],
+    queryFn: () => fetch("/api/cve/latest-critical").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const cves = Array.isArray(criticalCves) ? criticalCves : [];
+
+  const handleCheck = async () => {
+    if (!domainInput.trim()) return;
+    setChecking(true);
+    try {
+      const r = await fetch("/api/cve/domain-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domainInput.trim() }),
+      });
+      setCheckResult(await r.json() as CveDomainCheckResult);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <section className="py-16 bg-slate-950 border-y border-slate-800 text-white">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+              <Zap className="h-5 w-5 text-red-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-red-400 uppercase tracking-widest mb-0.5">
+                {lang === "en" ? "Live Threat Feed" : "Canlı Tehdit Akışı"}
+              </p>
+              <h2 className="text-xl font-bold">
+                {lang === "en" ? "Critical Vulnerability Radar" : "Kritik Zafiyet Radarı"}
+              </h2>
+            </div>
+          </div>
+
+          {cves.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+              {cves.map((cve) => (
+                <a
+                  key={cve.cveId}
+                  href={`/zafiyet-haberleri/${cve.cveId}`}
+                  className="group rounded-xl border border-slate-700 bg-slate-900/60 p-4 hover:border-red-500/50 hover:bg-slate-900 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="font-mono text-xs font-bold text-red-400">{cve.cveId}</span>
+                    <span className="shrink-0 text-xs font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
+                      {cve.cvssScore.toFixed(1)}
+                    </span>
+                  </div>
+                  {cve.title && (
+                    <p className="text-xs text-slate-300 line-clamp-2 mb-2 leading-relaxed">{cve.title}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {cve.exploitPublic && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 border border-red-700/50">Exploit mevcut</span>
+                    )}
+                    {cve.cisaKev && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/60 text-orange-300 border border-orange-700/50">CISA KEV</span>
+                    )}
+                    {!cve.patchAvailable && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Yama yok</span>
+                    )}
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-slate-600 group-hover:text-slate-400 mt-2 transition-colors" />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="mb-8 rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center">
+              <p className="text-sm text-slate-500">
+                {lang === "en" ? "No critical CVEs published at the moment." : "Henüz yayında kritik CVE bulunmuyor."}
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
+            <p className="text-sm font-semibold mb-1">
+              {lang === "en" ? "Is your domain affected?" : "Domain'iniz etkileniyor mu?"}
+            </p>
+            <p className="text-xs text-slate-400 mb-4">
+              {lang === "en"
+                ? "Enter your domain to check it against active CVEs in our database."
+                : "Alan adınızı girin — CVE veritabanımızdaki aktif zafiyetlerle eşleşip eşleşmediğini kontrol edelim."}
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={domainInput}
+                onChange={(e) => setDomainInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCheck()}
+                placeholder="sirketiniz.com.tr"
+                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 flex-1"
+              />
+              <Button
+                onClick={handleCheck}
+                disabled={checking || !domainInput.trim()}
+                className="bg-red-600 hover:bg-red-700 text-white shrink-0"
+              >
+                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : (lang === "en" ? "Check" : "Kontrol Et")}
+              </Button>
+            </div>
+            {checkResult && (
+              <div className={`mt-4 rounded-lg p-4 border text-sm ${checkResult.affectedCVECount > 0 ? "bg-red-950/40 border-red-700/60" : checkResult.isTracked ? "bg-green-950/40 border-green-700/60" : "bg-slate-800/60 border-slate-700"}`}>
+                <p className={`font-medium mb-1 ${checkResult.affectedCVECount > 0 ? "text-red-300" : checkResult.isTracked ? "text-green-300" : "text-slate-300"}`}>
+                  {checkResult.message}
+                </p>
+                {checkResult.affectedCVEs.length > 0 && (
+                  <div className="space-y-1.5 mt-2">
+                    {checkResult.affectedCVEs.map((cve) => (
+                      <div key={cve.cveId} className="flex items-center gap-2 text-xs">
+                        <span className="font-bold bg-red-600 text-white px-1.5 py-0.5 rounded font-mono">
+                          {typeof cve.cvss === "number" ? cve.cvss.toFixed(1) : "?"}
+                        </span>
+                        <span className="font-mono text-red-400">{cve.cveId}</span>
+                        <span className="text-slate-400">{cve.matchedProduct}</span>
+                        {!cve.patchAvailable && <span className="text-orange-400 text-[10px]">Yama yok</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!checkResult.isTracked && (
+                  <a href="/domain-tarama" className="inline-flex items-center gap-1 text-xs text-primary mt-2 hover:underline">
+                    <Search className="h-3 w-3" />
+                    {lang === "en" ? "Run full domain scan" : "Ücretsiz domain taraması başlat"}
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function BadgeAdvantagesSection({ lang }: { lang: string }) {
@@ -1035,6 +1198,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <CveRadarSection lang={lang} />
 
       {/* Ücretsiz Güvenlik Araçları */}
       <section className="py-20 bg-background border-t">

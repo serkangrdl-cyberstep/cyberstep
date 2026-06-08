@@ -116,6 +116,17 @@ interface ScanResult {
   abuseIpdbIsp: string | null;
   cisaKevMatches?: Array<{ cveID: string; vendorProject: string; product: string; vulnerabilityName: string; dateAdded: string; shortDescription: string; requiredAction: string }>;
   otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
+  asnNumber?: string | null;
+  asnName?: string | null;
+  orphanedAssets?: Array<{
+    subdomain: string;
+    ip: string;
+    isWafProtected: boolean;
+    httpAccessible: boolean;
+    httpsAccessible: boolean;
+    risk: "high" | "medium" | "low";
+    reason: string;
+  }> | null;
   createdAt: string;
 }
 
@@ -1050,6 +1061,79 @@ function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: s
         </div>
         <div className="shrink-0">
           <XCircle className="h-5 w-5 text-red-500" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrphanedAssetsCard({ asnNumber, asnName, orphanedAssets }: {
+  asnNumber?: string | null;
+  asnName?: string | null;
+  orphanedAssets?: Array<{
+    subdomain: string;
+    ip: string;
+    isWafProtected: boolean;
+    httpAccessible: boolean;
+    httpsAccessible: boolean;
+    risk: "high" | "medium" | "low";
+    reason: string;
+  }> | null;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!orphanedAssets || orphanedAssets.length === 0) return null;
+  const highCount = orphanedAssets.filter(a => a.risk === "high").length;
+  return (
+    <div className="rounded-xl border p-4 bg-orange-50/50 border-orange-200">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg shrink-0 bg-orange-100">
+          <Globe className="h-4 w-4 text-orange-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="font-semibold text-sm">Gölge IT / ASN Varlık Keşfi</span>
+            <Badge variant="outline" className="text-xs px-2 py-0 bg-orange-100 text-orange-700 border-orange-200">
+              {orphanedAssets.length} varlık
+            </Badge>
+            {highCount > 0 && (
+              <Badge variant="outline" className="text-xs px-2 py-0 bg-red-100 text-red-700 border-red-200">
+                {highCount} yüksek risk
+              </Badge>
+            )}
+          </div>
+          {asnNumber && (
+            <p className="text-xs text-muted-foreground mb-1">
+              ASN: <span className="font-mono">{asnNumber}</span>{asnName && ` · ${asnName}`}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mb-2">
+            Sertifika kayıtlarından tespit edilen, aynı ASN bloğundaki erişilebilir alt alanlar. WAF/CDN koruması olmayan sunucular gölge IT riski oluşturur.
+          </p>
+          <button onClick={() => setOpen(!open)} className="text-xs font-medium text-orange-700 hover:underline mb-2 flex items-center gap-1">
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {open ? "Gizle" : `${orphanedAssets.length} varlığı göster`}
+          </button>
+          {open && (
+            <div className="space-y-2 mt-1">
+              {orphanedAssets.map((asset, i) => (
+                <div key={i} className={`text-xs rounded-lg p-2 border ${asset.risk === "high" ? "bg-red-50/80 border-red-200" : "bg-amber-50/80 border-amber-200"}`}>
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span className={`font-mono font-bold ${asset.risk === "high" ? "text-red-700" : "text-amber-700"}`}>{asset.subdomain}</span>
+                    <Badge variant="outline" className={`text-xs px-1.5 py-0 ${asset.risk === "high" ? "border-red-300 text-red-700" : "border-amber-300 text-amber-700"}`}>
+                      {asset.risk === "high" ? "Yüksek" : "Orta"}
+                    </Badge>
+                    {!asset.isWafProtected && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-slate-300 text-slate-600">WAF yok</Badge>
+                    )}
+                  </div>
+                  <span className="text-slate-500">IP: {asset.ip} · {asset.reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          <AlertTriangle className="h-5 w-5 text-orange-500" />
         </div>
       </div>
     </div>
@@ -2414,6 +2498,33 @@ export default function DomainScanPage() {
                       {result.shadowItServices.map((svc, i) => (
                         <span key={i} className={`text-xs px-2 py-0.5 rounded-full border ${svc.risk === "yüksek" ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800/40 dark:text-red-400" : svc.risk === "orta" ? "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800/40 dark:text-amber-400" : "bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400"}`}>
                           {svc.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Gölge IT / ASN Orphaned Asset Keşfi */}
+                {result.orphanedAssets && result.orphanedAssets.length > 0 && (
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Globe className="h-4 w-4 text-orange-500" />
+                      <p className="text-sm font-semibold">Gölge IT / ASN Varlık Keşfi ({result.orphanedAssets.length} varlık)</p>
+                      {result.orphanedAssets.filter(a => a.risk === "high").length > 0 && (
+                        <span className="ml-auto text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                          {result.orphanedAssets.filter(a => a.risk === "high").length} WAF korumasız
+                        </span>
+                      )}
+                    </div>
+                    {result.asnNumber && (
+                      <p className="text-xs text-muted-foreground mb-2">
+                        ASN: <span className="font-mono">{result.asnNumber}</span>{result.asnName ? ` · ${result.asnName}` : ""}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.orphanedAssets.map((asset, i) => (
+                        <span key={i} className={`text-xs px-2 py-0.5 rounded-full border font-mono ${asset.risk === "high" ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`} title={asset.reason}>
+                          {asset.subdomain}
                         </span>
                       ))}
                     </div>

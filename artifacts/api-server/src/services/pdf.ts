@@ -264,6 +264,15 @@ interface DomainScanData {
   wafProvider?: string | null;
   originIp?: string | null;
   originIpSource?: string | null;
+  asnNumber?: string | null;
+  asnName?: string | null;
+  orphanedAssets?: Array<{
+    subdomain: string;
+    ip: string;
+    isWafProtected: boolean;
+    risk: "high" | "medium" | "low";
+    reason: string;
+  }> | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;
@@ -581,6 +590,45 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
           );
         doc.y = oY + 38;
       }
+    }
+
+    // ── Gölge IT / ASN Varlık Keşfi ──────────────────────────────────────────
+    if (data.orphanedAssets && data.orphanedAssets.length > 0) {
+      checkPageBreak(doc, 40);
+      sectionTitle("Gölge IT / ASN Varlık Keşfi");
+      checkPageBreak(doc, 32);
+      const highCount = data.orphanedAssets.filter(a => a.risk === "high").length;
+      const oaHeaderY = doc.y;
+      doc.rect(MARGIN, oaHeaderY, CONTENT_W, 30).fill([255, 251, 235] as [number, number, number]);
+      doc.rect(MARGIN, oaHeaderY, 3, 30).fill([217, 119, 6] as [number, number, number]);
+      doc.fillColor([120, 53, 15] as [number, number, number]).fontSize(8).font(FONT_BOLD)
+        .text(
+          `${data.orphanedAssets.length} erişilebilir varlık tespit edildi` +
+          (data.asnNumber ? ` (${data.asnNumber}${data.asnName ? ` · ${data.asnName}` : ""})` : "") + ".",
+          MARGIN + 12, oaHeaderY + 6, { width: CONTENT_W - 18, lineBreak: false },
+        );
+      doc.fillColor([92, 45, 3] as [number, number, number]).fontSize(7).font(FONT_REGULAR)
+        .text(
+          highCount > 0
+            ? `${highCount} varlık WAF/CDN koruması olmadan doğrudan internete açık — gölge IT riski.`
+            : "Tüm varlıklar WAF/CDN arkasında; bağımsız güvenlik izlemesi önerilir.",
+          MARGIN + 12, oaHeaderY + 18, { width: CONTENT_W - 18, lineBreak: false },
+        );
+      doc.y = oaHeaderY + 36;
+      data.orphanedAssets.slice(0, 10).forEach((asset) => {
+        checkPageBreak(doc, 18);
+        const rowY2 = doc.y;
+        const riskColor: [number, number, number] = asset.risk === "high" ? [220, 38, 38] : [217, 119, 6];
+        doc.rect(MARGIN, rowY2, CONTENT_W, 16).fill(LIGHT);
+        doc.fillColor(riskColor).fontSize(7).font(FONT_BOLD)
+          .text(asset.risk === "high" ? "[YÜK]" : "[ORT]", MARGIN + 4, rowY2 + 4, { width: 28 });
+        doc.fillColor(DARK).fontSize(7).font(FONT_REGULAR)
+          .text(`${asset.subdomain}  (${asset.ip})`, MARGIN + 36, rowY2 + 4, { width: CONTENT_W - 80 });
+        doc.fillColor(GRAY).fontSize(6).font(FONT_REGULAR)
+          .text(asset.isWafProtected ? "WAF var" : "WAF YOK", MARGIN + CONTENT_W - 40, rowY2 + 5, { width: 36, align: "right" });
+        doc.y = rowY2 + 18;
+      });
+      doc.y += 4;
     }
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import {
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Network, ShieldAlert, ScrollText,
-  ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft,
+  ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, Newspaper,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -90,6 +90,7 @@ const NAV_SECTIONS = [
     title: "İçerik & İletişim",
     dept: "icerik",
     items: [
+      { icon: Newspaper,       label: "Digest Paneli",         href: "/digest/" },
       { icon: Bell,            label: "Bildirim Merkezi",      href: "/panel/bildirimler" },
       { icon: Mail,            label: "E-posta Şablonları",    href: "/panel/email-sablonlari" },
       { icon: Users,           label: "Soru Yönetimi",         href: "/panel/sorular" },
@@ -173,8 +174,12 @@ export function AdminLayout({ title, description, children }: AdminLayoutProps) 
   });
 
   const handleNav = (href: string) => {
-    navigate(href);
     setSidebarOpen(false);
+    if (href.startsWith("/panel")) {
+      navigate(href);
+    } else {
+      window.location.href = href;
+    }
   };
 
   const sidebarContent = (

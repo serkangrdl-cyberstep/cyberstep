@@ -320,13 +320,11 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
 }
 
 export function startRenewalCron() {
-  cron.schedule("0 9 * * *", async () => {
-    try {
-      await processSubscriptionRenewals();
-    } catch (err) {
-      logger.error({ err }, "Subscription renewal cron error");
-    }
-  }, { timezone: "Europe/Istanbul" });
+  const { wrapCron } = require("./cronRegistry") as typeof import("./cronRegistry");
+  cron.schedule("0 9 * * *", wrapCron("subscription_renewal", "0 9 * * *", async () => {
+    await processSubscriptionRenewals();
+    return 0;
+  }), { timezone: "Europe/Istanbul" });
 
   logger.info("Subscription renewal cron registered (09:00 Istanbul)");
 }

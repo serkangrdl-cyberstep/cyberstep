@@ -1964,9 +1964,10 @@ startup()
     seedDefaultSources().catch((err) => logger.warn({ err }, "Digest: default sources seed failed"));
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));
-    cron.schedule("0 3 * * *", () => {
-      refreshUsomList().catch((err) => logger.warn({ err }, "USOM daily refresh failed"));
-    });
+    cron.schedule("0 3 * * *", wrapCron("usom_refresh", "0 3 * * *", async () => {
+      await refreshUsomList();
+      return 0;
+    }));
     // Müşteri sağlık skoru — her gece 02:00'de hesapla
     cron.schedule("0 2 * * *", wrapCron("health_score", "0 2 * * *", async () => {
       await calculateAllHealthScores();
@@ -2180,74 +2181,66 @@ startup()
     logger.info("Attack path analysis cron scheduled (02:30 Istanbul)");
 
     // ─── CASM: Remediation doğrulama kuyruğu — Her saat ─────────────────────
-    cron.schedule("0 * * * *", async () => {
-      try {
-        const { processVerificationQueue } = await import("./services/verificationScanner");
-        await processVerificationQueue();
-      } catch (err) {
-        logger.error({ err }, "Verification queue cron failed");
-      }
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 * * * *", wrapCron("verification_queue", "0 * * * *", async () => {
+      const { processVerificationQueue } = await import("./services/verificationScanner");
+      await processVerificationQueue();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Verification queue cron scheduled (hourly)");
 
     // ─── CASM: SLA ihlal kontrolü — Her gün 08:00 ────────────────────────────
-    cron.schedule("0 8 * * *", async () => {
-      try {
-        const { checkRemediationSLABreaches } = await import("./services/verificationScanner");
-        await checkRemediationSLABreaches();
-      } catch (err) {
-        logger.error({ err }, "SLA breach check cron failed");
-      }
-    }, { timezone: "Europe/Istanbul" });
+    cron.schedule("0 8 * * *", wrapCron("sla_breach_check", "0 8 * * *", async () => {
+      const { checkRemediationSLABreaches } = await import("./services/verificationScanner");
+      await checkRemediationSLABreaches();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("SLA breach cron scheduled (08:00 Istanbul)");
 
     // ─── CASM: Cloud CSPM taraması — Her gece 03:45 ──────────────────────────
-    cron.schedule("45 3 * * *", async () => {
-      try {
-        const { db: dbI } = await import("@workspace/db");
-        const { cloudConnectionsTable } = await import("@workspace/db");
-        const { eq } = await import("drizzle-orm");
-        const { runCloudScan } = await import("./routes/cloud-cspm/index");
-        const conns = await dbI.select().from(cloudConnectionsTable).where(eq(cloudConnectionsTable.isActive, true));
-        for (const conn of conns) {
-          await runCloudScan(conn, conn.customerId!);
-          await new Promise(r => setTimeout(r, 5000));
-        }
-      } catch (err) {
-        logger.error({ err }, "Cloud CSPM cron failed");
+    cron.schedule("45 3 * * *", wrapCron("cloud_cspm", "45 3 * * *", async () => {
+      const { db: dbI } = await import("@workspace/db");
+      const { cloudConnectionsTable } = await import("@workspace/db");
+      const { eq } = await import("drizzle-orm");
+      const { runCloudScan } = await import("./routes/cloud-cspm/index");
+      const conns = await dbI.select().from(cloudConnectionsTable).where(eq(cloudConnectionsTable.isActive, true));
+      for (const conn of conns) {
+        await runCloudScan(conn, conn.customerId!);
+        await new Promise(r => setTimeout(r, 5000));
       }
-    }, { timezone: "Europe/Istanbul" });
-    logger.info("Cloud CSPM cron scheduled (03:00 Istanbul)");
+      return conns.length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Cloud CSPM cron scheduled (03:45 Istanbul)");
 
     // ─── CASM: GitHub secrets tarama — Her Pazar 04:00 ───────────────────────
-    cron.schedule("0 4 * * 0", async () => {
-      try {
-        const { getCustomersWithGitHub, scanGitHubOrg } = await import("./services/githubScanner");
-        const { db: dbI } = await import("@workspace/db");
-        const { codeSecretsFindingsTable } = await import("@workspace/db");
-        const customers = await getCustomersWithGitHub();
-        for (const c of customers) {
-          if (!c.githubOrg) continue;
-          const findings = await scanGitHubOrg(c.githubOrg, c.id);
-          for (const f of findings) {
-            await dbI.insert(codeSecretsFindingsTable).values(f).onConflictDoNothing();
-          }
-          await new Promise(r => setTimeout(r, 10000));
+    cron.schedule("0 4 * * 0", wrapCron("github_secrets_scan", "0 4 * * 0", async () => {
+      const { getCustomersWithGitHub, scanGitHubOrg } = await import("./services/githubScanner");
+      const { db: dbI } = await import("@workspace/db");
+      const { codeSecretsFindingsTable } = await import("@workspace/db");
+      const customers = await getCustomersWithGitHub();
+      let findingsCount = 0;
+      for (const c of customers) {
+        if (!c.githubOrg) continue;
+        const findings = await scanGitHubOrg(c.githubOrg, c.id);
+        for (const f of findings) {
+          await dbI.insert(codeSecretsFindingsTable).values(f).onConflictDoNothing();
         }
-      } catch (err) {
-        logger.error({ err }, "GitHub secrets cron failed");
+        findingsCount += findings.length;
+        await new Promise(r => setTimeout(r, 10000));
       }
-    }, { timezone: "Europe/Istanbul" });
+      return findingsCount;
+    }), { timezone: "Europe/Istanbul" });
     logger.info("GitHub secrets scan cron scheduled (Sunday 04:00 Istanbul)");
 
-    cron.schedule("*/30 * * * *", async () => {
-      try { await checkKvkkDeadlines(); } catch (err) { logger.error({ err }, "KVKK deadline cron failed"); }
-    });
+    cron.schedule("*/30 * * * *", wrapCron("kvkk_deadline", "*/30 * * * *", async () => {
+      await checkKvkkDeadlines();
+      return 0;
+    }));
     logger.info("KVKK 72h deadline cron scheduled (every 30 min)");
 
-    cron.schedule("*/15 * * * *", async () => {
-      try { await syncServiceNowIncidents(); } catch (err) { logger.error({ err }, "ServiceNow sync cron failed"); }
-    });
+    cron.schedule("*/15 * * * *", wrapCron("servicenow_sync", "*/15 * * * *", async () => {
+      await syncServiceNowIncidents();
+      return 0;
+    }));
     logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
 
     // ─── ServiceNow bağlantı sağlık kontrolü — Her saat ──────────────────────
@@ -2257,41 +2250,47 @@ startup()
     }));
     logger.info("ServiceNow connection health check cron scheduled (every hour)");
 
-    cron.schedule("*/10 * * * *", async () => {
-      try { await retryFailedWebhooks(); } catch (err) { logger.error({ err }, "Webhook retry cron failed"); }
-    });
+    cron.schedule("*/10 * * * *", wrapCron("webhook_retry", "*/10 * * * *", async () => {
+      await retryFailedWebhooks();
+      return 0;
+    }));
     logger.info("Webhook retry cron scheduled (every 10 min)");
 
     startRenewalCron();
 
     // ─── E-posta dizi kuyruğu — her 30 dakika ─────────────────────────────────
-    cron.schedule("*/30 * * * *", async () => {
-      try { await processEmailQueue(); } catch (err) { logger.warn({ err }, "Email sequence cron failed"); }
-    });
+    cron.schedule("*/30 * * * *", wrapCron("email_sequence", "*/30 * * * *", async () => {
+      await processEmailQueue();
+      return 0;
+    }));
     logger.info("Email sequence cron scheduled (every 30 min)");
 
     // ─── NOC: FortiGate polling — her 5 dakika ────────────────────────────────
-    cron.schedule("*/5 * * * *", async () => {
-      try { await runFortiGatePollCron(); } catch (err) { logger.warn({ err }, "NOC FortiGate poll cron failed"); }
-    });
+    cron.schedule("*/5 * * * *", wrapCron("noc_poll", "*/5 * * * *", async () => {
+      await runFortiGatePollCron();
+      return 0;
+    }));
     logger.info("NOC FortiGate poll cron scheduled (every 5 min)");
 
     // ─── NOC: Availability monitor — her 5 dakika ─────────────────────────────
-    cron.schedule("*/5 * * * *", async () => {
-      try { await runAvailabilityCron(); } catch (err) { logger.warn({ err }, "NOC availability cron failed"); }
-    });
+    cron.schedule("*/5 * * * *", wrapCron("noc_availability", "*/5 * * * *", async () => {
+      await runAvailabilityCron();
+      return 0;
+    }));
     logger.info("NOC availability cron scheduled (every 5 min)");
 
     // ─── NOC: Claude triage — her 15 dakika ───────────────────────────────────
-    cron.schedule("*/15 * * * *", async () => {
-      try { await runNOCTriageCron(); } catch (err) { logger.warn({ err }, "NOC triage cron failed"); }
-    });
+    cron.schedule("*/15 * * * *", wrapCron("noc_triage", "*/15 * * * *", async () => {
+      await runNOCTriageCron();
+      return 0;
+    }));
     logger.info("NOC triage cron scheduled (every 15 min)");
 
     // ─── NOC: Baseline tamamlama — her saat ──────────────────────────────────
-    cron.schedule("0 * * * *", async () => {
-      try { await checkAndCompleteBaselines(); } catch (err) { logger.warn({ err }, "NOC baseline cron failed"); }
-    });
+    cron.schedule("0 * * * *", wrapCron("noc_baseline", "0 * * * *", async () => {
+      await checkAndCompleteBaselines();
+      return 0;
+    }));
     logger.info("NOC baseline check cron scheduled (every hour)");
 
     // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
@@ -2525,14 +2524,11 @@ startup()
     logger.info("Demo rapor yenileme cron kayıtlandı (ayın 1'i 10:00 Istanbul)");
 
     // ─── HITL Approval Queue: Süresi Dolmuş Onayları İşle — Her 15 dakika ──
-    cron.schedule("*/15 * * * *", async () => {
-      try {
-        const { processExpiredApprovals } = await import("./services/approvalQueue");
-        await processExpiredApprovals();
-      } catch (err) {
-        logger.error({ err }, "processExpiredApprovals cron hatası");
-      }
-    });
+    cron.schedule("*/15 * * * *", wrapCron("hitl_expire", "*/15 * * * *", async () => {
+      const { processExpiredApprovals } = await import("./services/approvalQueue");
+      await processExpiredApprovals();
+      return 0;
+    }));
     logger.info("HITL approval expire cron kayıtlandı (her 15 dakika)");
 
     // ─── Startup: Stale "running" kayıtları temizle ─────────────────────────
@@ -2562,41 +2558,49 @@ startup()
     setImmediate(async () => {
       const CATCH_UP_CRONS = [
         // External scan / enrichment — missed = stale threat intel
-        { name: "crtsh",                   thresholdHours: 25 },
-        { name: "shodan",                   thresholdHours: 25 },
-        { name: "vulncheck_kev",            thresholdHours: 25 },
-        { name: "intel_feeds",              thresholdHours: 7  },
-        { name: "attack_path_analysis",     thresholdHours: 25 },
-        { name: "cve_feed_check",           thresholdHours: 3  },
+        { name: "crtsh",                   thresholdHours: 25  },
+        { name: "shodan",                   thresholdHours: 25  },
+        { name: "usom_refresh",             thresholdHours: 25  },
+        { name: "vulncheck_kev",            thresholdHours: 25  },
+        { name: "intel_feeds",              thresholdHours: 7   },
+        { name: "attack_path_analysis",     thresholdHours: 25  },
+        { name: "cve_feed_check",           thresholdHours: 3   },
+        { name: "cloud_cspm",               thresholdHours: 25  },
         // Lead & pipeline
-        { name: "lead_qual",                thresholdHours: 2  },
-        { name: "growth_ssl_expiry",        thresholdHours: 25 },
-        { name: "growth_cve_alert",         thresholdHours: 25 },
+        { name: "lead_qual",                thresholdHours: 2   },
+        { name: "verification_queue",       thresholdHours: 2   },
+        { name: "growth_ssl_expiry",        thresholdHours: 25  },
+        { name: "growth_cve_alert",         thresholdHours: 25  },
         // Revenue / customer lifecycle
-        { name: "upsell_engine",            thresholdHours: 25 },
-        { name: "platform_cost_check",      thresholdHours: 25 },
-        { name: "dunning_check",            thresholdHours: 25 },
-        { name: "subscription_reminders",   thresholdHours: 25 },
-        { name: "collection_reminder",      thresholdHours: 25 },
-        { name: "health_score",             thresholdHours: 25 },
+        { name: "upsell_engine",            thresholdHours: 25  },
+        { name: "platform_cost_check",      thresholdHours: 25  },
+        { name: "dunning_check",            thresholdHours: 25  },
+        { name: "subscription_renewal",     thresholdHours: 25  },
+        { name: "subscription_reminders",   thresholdHours: 25  },
+        { name: "collection_reminder",      thresholdHours: 25  },
+        { name: "health_score",             thresholdHours: 25  },
         // Customer comms
-        { name: "reminder_30day",           thresholdHours: 25 },
-        { name: "onboarding_day1_email",    thresholdHours: 25 },
-        { name: "domain_rescan",            thresholdHours: 25 },
+        { name: "reminder_30day",           thresholdHours: 25  },
+        { name: "onboarding_day1_email",    thresholdHours: 25  },
+        { name: "onboarding_d3d7",          thresholdHours: 25  },
+        { name: "domain_rescan",            thresholdHours: 25  },
+        { name: "sla_breach_check",         thresholdHours: 25  },
         // Internal / data
-        { name: "daily_summary",            thresholdHours: 25 },
-        { name: "market_watcher",           thresholdHours: 5  },
-        { name: "digest_rss_collect",       thresholdHours: 25 },
-        { name: "digest_enrich",            thresholdHours: 25 },
-        { name: "kvkk_scheduled_deletion",  thresholdHours: 25 },
-        { name: "auto_tag",                 thresholdHours: 25 },
-        { name: "task_reminder",            thresholdHours: 25 },
+        { name: "daily_summary",            thresholdHours: 25  },
+        { name: "market_watcher",           thresholdHours: 5   },
+        { name: "digest_rss_collect",       thresholdHours: 25  },
+        { name: "digest_enrich",            thresholdHours: 25  },
+        { name: "kvkk_scheduled_deletion",  thresholdHours: 25  },
+        { name: "auto_tag",                 thresholdHours: 25  },
+        { name: "task_reminder",            thresholdHours: 25  },
+        { name: "noc_baseline",             thresholdHours: 2   },
         // Weekly (169h ≈ 7 days + 1h buffer)
         { name: "weekly_delta",             thresholdHours: 169 },
         { name: "haftalik_bulten",          thresholdHours: 169 },
         { name: "market_weekly_summary",    thresholdHours: 169 },
         { name: "soc_weekly_report",        thresholdHours: 169 },
         { name: "fabric_weekly_report",     thresholdHours: 169 },
+        { name: "github_secrets_scan",      thresholdHours: 169 },
       ];
       try {
         const { rows } = await pool.query<{ job_name: string; last_run: string }>(

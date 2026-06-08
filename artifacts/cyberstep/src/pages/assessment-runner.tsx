@@ -131,7 +131,7 @@ export default function AssessmentRunner() {
                 }`}
               >
                 {secDone && !isCurrent && <CheckCircle2 className="h-3 w-3" />}
-                <span>{sec.id}. {sec.title}</span>
+                <span>{sec.id}. {lang === "en" ? sec.enTitle : sec.title}</span>
                 <span className={`ml-1 ${isCurrent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                   {secAnswered}/{sec.questions.length}
                 </span>
@@ -167,7 +167,7 @@ export default function AssessmentRunner() {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
                 {section.id}
               </span>
-              {section.title}
+              {lang === "en" ? section.enTitle : section.title}
               {sectionComplete && (
                 <Badge className="ml-auto bg-green-100 text-green-700 border-green-200 text-xs">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -196,7 +196,7 @@ export default function AssessmentRunner() {
                         <span className="font-semibold text-muted-foreground mt-0.5 shrink-0">{q.id}.</span>
                         <div className="flex-1">
                           <div className="flex items-start gap-2 flex-wrap">
-                            <h3 className="text-base font-medium leading-snug flex-1">{q.text}</h3>
+                            <h3 className="text-base font-medium leading-snug flex-1">{lang === "en" ? q.enText : q.text}</h3>
                             {q.weight === 3 && (
                               <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium shrink-0 mt-0.5">
                                 <AlertTriangle className="h-3 w-3" />
@@ -207,7 +207,7 @@ export default function AssessmentRunner() {
                           {q.helpText && (
                             <div className="mt-2 p-3 bg-gray-50 rounded-lg border-l-2 border-gray-300">
                               <p className="text-sm text-gray-600 leading-relaxed">
-                                {q.helpText}
+                                {lang === "en" ? q.enHelpText : q.helpText}
                               </p>
                             </div>
                           )}

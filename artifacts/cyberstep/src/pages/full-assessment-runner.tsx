@@ -13,19 +13,19 @@ import { useLanguage } from "@/contexts/language-context";
 
 type AnswerType = "evet" | "kismen" | "bilmiyorum" | "hayir";
 
-const ANSWER_OPTIONS: { value: AnswerType; label: string; sublabel: string; activeClass: string; hoverClass: string }[] = [
-  { value: "evet",       label: "Evet",       sublabel: "Tam anlamıyla uygulanıyor",  activeClass: "border-green-500 bg-green-50 text-green-700",   hoverClass: "hover:bg-green-50 hover:text-green-700 hover:border-green-300" },
-  { value: "kismen",     label: "Kısmen",     sublabel: "Kısmen uygulanıyor",         activeClass: "border-yellow-500 bg-yellow-50 text-yellow-700", hoverClass: "hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300" },
-  { value: "hayir",      label: "Hayır",      sublabel: "Henüz uygulanmıyor",         activeClass: "border-red-500 bg-red-50 text-red-700",          hoverClass: "hover:bg-red-50 hover:text-red-700 hover:border-red-300" },
-  { value: "bilmiyorum", label: "Bilmiyorum", sublabel: "Bu konuda bilgim yok",       activeClass: "border-orange-500 bg-orange-50 text-orange-700", hoverClass: "hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300" },
-];
-
 export default function FullAssessmentRunner() {
   const { lang } = useLanguage();
   const [, params] = useRoute("/assessment/full/:id");
   const id = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const ANSWER_OPTIONS: { value: AnswerType; label: string; sublabel: string; activeClass: string; hoverClass: string }[] = [
+    { value: "evet",       label: lang === "en" ? "Yes"       : "Evet",       sublabel: lang === "en" ? "Fully implemented"     : "Tam anlamıyla uygulanıyor",  activeClass: "border-green-500 bg-green-50 text-green-700",   hoverClass: "hover:bg-green-50 hover:text-green-700 hover:border-green-300" },
+    { value: "kismen",     label: lang === "en" ? "Partially" : "Kısmen",     sublabel: lang === "en" ? "Partially implemented"  : "Kısmen uygulanıyor",         activeClass: "border-yellow-500 bg-yellow-50 text-yellow-700", hoverClass: "hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300" },
+    { value: "hayir",      label: lang === "en" ? "No"        : "Hayır",      sublabel: lang === "en" ? "Not implemented yet"   : "Henüz uygulanmıyor",         activeClass: "border-red-500 bg-red-50 text-red-700",          hoverClass: "hover:bg-red-50 hover:text-red-700 hover:border-red-300" },
+    { value: "bilmiyorum", label: lang === "en" ? "Don't know": "Bilmiyorum", sublabel: lang === "en" ? "No information on this": "Bu konuda bilgim yok",       activeClass: "border-orange-500 bg-orange-50 text-orange-700", hoverClass: "hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300" },
+  ];
 
   const { data: assessment, isLoading } = useGetAssessment(id, {
     query: { queryKey: ["assessment", id], enabled: !!id }
@@ -81,7 +81,11 @@ export default function FullAssessmentRunner() {
 
   const handleSubmit = async () => {
     if (answeredCount < totalQuestions) {
-      toast({ title: "Eksik Cevaplar", description: "Lütfen tüm soruları cevaplayınız.", variant: "destructive" });
+      toast({
+        title: lang === "en" ? "Missing Answers" : "Eksik Cevaplar",
+        description: lang === "en" ? "Please answer all questions." : "Lütfen tüm soruları cevaplayınız.",
+        variant: "destructive",
+      });
       return;
     }
     try {
@@ -93,7 +97,11 @@ export default function FullAssessmentRunner() {
       await completeAssessment.mutateAsync({ id });
       setLocation(`/assessment/${id}/report`);
     } catch {
-      toast({ title: "Hata", description: "Sonuçlar kaydedilirken bir hata oluştu.", variant: "destructive" });
+      toast({
+        title: lang === "en" ? "Error" : "Hata",
+        description: lang === "en" ? "An error occurred while saving results." : "Sonuçlar kaydedilirken bir hata oluştu.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -108,11 +116,12 @@ export default function FullAssessmentRunner() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">{lang === "en" ? "Full Assessment" : "Tam Değerlendirme"}</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
+            {lang === "en" ? "Full Assessment" : "Tam Değerlendirme"}
+          </Badge>
           <span className="text-lg font-bold">{assessment.companyName}</span>
         </div>
 
-        {/* Domain tabs — scrollable on mobile */}
         <div className="flex flex-wrap gap-2 mb-4">
           {FULL_ASSESSMENT_SECTIONS.map((sec, idx) => {
             const secAnswered = sec.questions.filter(q => answers[q.id] !== undefined).length;
@@ -131,7 +140,7 @@ export default function FullAssessmentRunner() {
                 }`}
               >
                 {secDone && !isCurrent && <CheckCircle2 className="h-3 w-3" />}
-                <span>{sec.id}. {sec.title}</span>
+                <span>{sec.id}. {lang === "en" ? sec.enTitle : sec.title}</span>
                 <span className="opacity-60 ml-0.5">({secAnswered}/{sec.questions.length})</span>
               </button>
             );
@@ -145,11 +154,13 @@ export default function FullAssessmentRunner() {
           </span>
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{Math.round(progress)}% tamamlandı</span>
+          <span>{Math.round(progress)}% {lang === "en" ? "completed" : "tamamlandı"}</span>
           {remainingQuestions > 0 && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              Tahminen ~{estimatedMinutes} dakika kaldı
+              {lang === "en"
+                ? `Approx. ~${estimatedMinutes} min remaining`
+                : `Tahminen ~${estimatedMinutes} dakika kaldı`}
             </span>
           )}
         </div>
@@ -162,15 +173,18 @@ export default function FullAssessmentRunner() {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
                 {section.id}
               </span>
-              {section.title}
+              {lang === "en" ? section.enTitle : section.title}
               {sectionComplete && (
                 <Badge className="ml-auto bg-green-100 text-green-700 border-green-200 text-xs">
-                  <CheckCircle2 className="h-3 w-3 mr-1" /> Tamamlandı
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {lang === "en" ? "Completed" : "Tamamlandı"}
                 </Badge>
               )}
             </CardTitle>
             <CardDescription>
-              Bu bölümdeki soruları şirketinizin mevcut durumuna en uygun şekilde yanıtlayın.
+              {lang === "en"
+                ? "Answer the questions in this section to best reflect your company's current situation."
+                : "Bu bölümdeki soruları şirketinizin mevcut durumuna en uygun şekilde yanıtlayın."}
             </CardDescription>
           </CardHeader>
 
@@ -187,17 +201,20 @@ export default function FullAssessmentRunner() {
                       <span className="font-semibold text-muted-foreground mt-0.5 shrink-0">{q.id}.</span>
                       <div className="flex-1">
                         <div className="flex items-start gap-2 flex-wrap">
-                          <h3 className="text-base font-medium leading-snug flex-1">{q.text}</h3>
+                          <h3 className="text-base font-medium leading-snug flex-1">
+                            {lang === "en" ? q.enText : q.text}
+                          </h3>
                           {q.weight === 3 && (
                             <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium shrink-0 mt-0.5">
-                              <AlertTriangle className="h-3 w-3" /> Kritik kontrol
+                              <AlertTriangle className="h-3 w-3" />
+                              {lang === "en" ? "Critical control" : "Kritik kontrol"}
                             </span>
                           )}
                         </div>
                         {q.helpText && (
                           <div className="mt-2 p-3 bg-gray-50 rounded-lg border-l-2 border-gray-300">
                             <p className="text-sm text-gray-600 leading-relaxed">
-                              {q.helpText}
+                              {lang === "en" ? q.enHelpText : q.helpText}
                             </p>
                           </div>
                         )}
@@ -225,7 +242,9 @@ export default function FullAssessmentRunner() {
 
                     {answered === "bilmiyorum" && (
                       <p className="text-xs text-amber-600 mt-2 ml-6">
-                        "Bilmiyorum" yanıtı, güvenlik değerlendirmesinde "Hayır" ile aynı etkiye sahiptir.
+                        {lang === "en"
+                          ? '"Don\'t know" has the same effect as "No" in the security assessment.'
+                          : '"Bilmiyorum" yanıtı, güvenlik değerlendirmesinde "Hayır" ile aynı etkiye sahiptir.'}
                       </p>
                     )}
                   </div>
@@ -236,7 +255,8 @@ export default function FullAssessmentRunner() {
 
           <CardFooter className="flex justify-between p-6 bg-muted/20 border-t">
             <Button variant="outline" onClick={() => switchSection(currentSectionIndex - 1)} disabled={isFirstSection}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Önceki Bölüm
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {lang === "en" ? "Previous Section" : "Önceki Bölüm"}
             </Button>
 
             {isLastSection ? (
@@ -250,14 +270,17 @@ export default function FullAssessmentRunner() {
                 ) : (
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                 )}
-                Tamamla ve Gönder
+                {lang === "en" ? "Complete & Submit" : "Tamamla ve Gönder"}
                 {answeredCount < totalQuestions && (
-                  <span className="ml-2 text-xs opacity-70">({totalQuestions - answeredCount} eksik)</span>
+                  <span className="ml-2 text-xs opacity-70">
+                    ({totalQuestions - answeredCount} {lang === "en" ? "missing" : "eksik"})
+                  </span>
                 )}
               </Button>
             ) : (
               <Button onClick={() => switchSection(currentSectionIndex + 1)}>
-                Sonraki Bölüm <ArrowRight className="ml-2 h-4 w-4" />
+                {lang === "en" ? "Next Section" : "Sonraki Bölüm"}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
           </CardFooter>

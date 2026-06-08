@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 const PLAN_LABELS: Record<string, string> = {
   mini: "Mini Değerlendirme",
   tam: "Tam Değerlendirme",
-  premium: "Premium Danışmanlık",
 };
 
 const SERVICE_LABELS: Record<string, string> = {

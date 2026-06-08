@@ -1042,15 +1042,15 @@ export default function Home() {
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">
               <Shield className="h-3 w-3 mr-1" />
-              {lang === "en" ? "Free Tools" : "Ücretsiz Araçlar"}
+              {lang === "en" ? "Security Tools" : "Güvenlik Araçları"}
             </Badge>
             <h2 className="text-3xl font-bold">
-              {lang === "en" ? "Free Security Analysis Tools" : "Ücretsiz Siber Güvenlik Analiz Araçları"}
+              {lang === "en" ? "Cybersecurity Analysis Tools" : "Siber Güvenlik Analiz Araçları"}
             </h2>
             <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
               {lang === "en"
-                ? "10 free tools developed specifically for Turkish SMEs. No registration required — assess your risks instantly."
-                : "Türk şirketleri için özel geliştirilen ücretsiz araçlar. Kayıt gerektirmez — risklerinizi anında ölçün."}
+                ? "Tools developed specifically for Turkish SMEs. No registration required for free tools — assess your risks instantly."
+                : "Türk şirketleri için özel geliştirilen araçlar. Ücretsiz araçlarda kayıt gerektirmez — risklerinizi anında ölçün."}
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
@@ -1061,7 +1061,7 @@ export default function Home() {
                 title: lang === "en" ? "Dark Web Leak Monitor" : "Karanlık Web Sızıntı İzleyici",
                 what: lang === "en" ? "Checks if your corporate domain or email addresses have appeared in dark web data dumps." : "Şirket alan adınızın veya e-postalarınızın karanlık web veri ihlali listelerinde yer alıp almadığını kontrol eder.",
                 why: lang === "en" ? "Leaked credentials are used in 80% of cyberattacks. Early detection prevents account takeovers." : "Sızdırılan kimlik bilgileri siber saldırıların %80'inde kullanılır. Erken tespit hesap ele geçirilmesini önler.",
-                price: "2.900 TL/yıl + KDV",
+                price: lang === "en" ? "2,900 TL/yr + VAT" : "2.900 TL/yıl + KDV",
               },
               {
                 href: "/kvkk-verbis",
@@ -1213,7 +1213,7 @@ export default function Home() {
                 title: lang === "en" ? "AI Tool Monitoring" : "AI Araç İzleme",
                 what: lang === "en" ? "Get instant email notifications when ChatGPT, Gemini, or Copilot privacy policies change. Weekly checks for 20+ AI tools, KVKK compliance score updates." : "ChatGPT, Gemini, Copilot gizlilik politikası değişince anında e-posta bildirimi alın. 20+ AI aracı haftalık kontrol, KVKK uyum puanı güncelleme.",
                 why: lang === "en" ? "AI tool policies change silently. Data belonging to your company can suddenly start being processed in a different country." : "AI araç politikaları sessiz sedasız değişiyor. Şirketinize ait veri aniden farklı bir ülkede işlenmeye başlayabilir.",
-                price: "490 TL/ay + KDV",
+                price: lang === "en" ? "490 TL/mo + VAT" : "490 TL/ay + KDV",
               },
               {
                 href: "/ai-politika",
@@ -1221,7 +1221,7 @@ export default function Home() {
                 title: lang === "en" ? "AI Policy Auto-Update" : "AI Politika Otogüncelleme",
                 what: lang === "en" ? "A live document that automatically updates your company's AI usage policy in line with legal changes. Tracks KVKK, EU AI Act, and sector regulations." : "Şirketinizin yapay zeka kullanım politikasını yasal değişikliklere göre otomatik güncelleyen canlı belge. KVKK, EU AI Act ve sektörel düzenlemeler takip edilir.",
                 why: lang === "en" ? "Manual policy updates are time-consuming and error-prone. Policy gaps can lead to KVKK violations and EU AI Act penalties." : "Manuel politika güncelleme hem zaman alır hem hatalara açıktır. Politika boşlukları KVKK ihlali ve EU AI Act cezasına yol açabilir.",
-                price: "990 TL/yıl + KDV",
+                price: lang === "en" ? "990 TL/yr + VAT" : "990 TL/yıl + KDV",
               },
               {
                 href: "/ciso-asistan-paketi",
@@ -1229,7 +1229,7 @@ export default function Home() {
                 title: lang === "en" ? "CISO Assistant Package" : "CISO Asistan Paketi",
                 what: lang === "en" ? "Automates your CISO's routine tasks: monthly board report, weekly threat digest, 7545+KVKK compliance score, 7 policy templates." : "CISO'nuzun rutin işlerini otomatikleştirir: aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545+KVKK uyum skoru, 7 politika şablonu.",
                 why: lang === "en" ? "Preparing board reports and tracking compliance takes up the bulk of a CISO's time. Automate this package so your CISO can focus on strategy." : "Board raporu hazırlamak, uyum takibi yapmak CISO'nun zamanının büyük kısmını alıyor. Bu paketi otomatikleştirin, CISO strateji odaklanabilsin.",
-                price: "2.500 TL/ay + KDV",
+                price: lang === "en" ? "2,500 TL/mo + VAT" : "2.500 TL/ay + KDV",
               },
             ].map((tool) => (
               <a
@@ -1334,7 +1334,7 @@ export default function Home() {
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="text-center mb-1">
                   <p className="text-xs text-muted-foreground">{lang === "en" ? "Monthly subscription" : "Aylık abonelik"}</p>
-                  <p className="text-3xl font-black text-primary">2.500 TL<span className="text-sm font-normal text-muted-foreground">/ay + KDV</span></p>
+                  <p className="text-3xl font-black text-primary">2.500 TL<span className="text-sm font-normal text-muted-foreground">{lang === "en" ? "/mo + VAT" : "/ay + KDV"}</span></p>
                 </div>
                 <Link
                   href="/ciso-asistan-paketi"

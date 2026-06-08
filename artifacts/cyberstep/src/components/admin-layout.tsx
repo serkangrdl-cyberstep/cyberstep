@@ -4,12 +4,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, LayoutDashboard, Settings, CreditCard,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
-  BookOpen, Share2, CalendarHeart, Menu, X, Globe, UserSquare2, Bot,
-  Mail, Bell, Package, BadgeCheck, Plug, Heart,
+  Menu, X, Globe, UserSquare2, Bot,
+  Mail, Bell, Package, Plug, Heart,
   Telescope, Handshake, ListTodo, Target,
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
-  Play, Tag, UserCheck, Activity, Trophy, Network, ShieldAlert, ScrollText,
-  ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, FileDown,
+  Play, Tag, UserCheck, Activity, Network, ShieldAlert, ScrollText,
+  ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -53,19 +53,6 @@ const NAV_SECTIONS = [
       { icon: Receipt,         label: "Fatura Yönetimi",       href: "/panel/faturalar" },
       { icon: TrendingUp,      label: "Gelir / MRR",           href: "/panel/gelir" },
       { icon: Calculator,      label: "Muhasebe Entegrasyonu", href: "/panel/muhasebe" },
-    ],
-  },
-  {
-    title: "Pazarlama & Büyüme",
-    dept: "pazarlama",
-    items: [
-      { icon: BookOpen,        label: "Blog",                  href: "/panel/blog" },
-      { icon: Share2,          label: "Sosyal Medya",          href: "/panel/sosyal-medya" },
-      { icon: CalendarHeart,   label: "Özel Gün Mesajları",    href: "/panel/ozel-gunler" },
-      { icon: Share2,          label: "Referral Programı",     href: "/panel/referrallar" },
-      { icon: BadgeCheck,      label: "Rozet Avantajları",     href: "/panel/rozet-avantajlari" },
-      { icon: Trophy,          label: "Rozet Yönetimi",        href: "/panel/rozetler" },
-      { icon: FileDown,        label: "Demo Raporlar",         href: "/panel/demo-raporlar" },
     ],
   },
   {

@@ -11,6 +11,10 @@ import Sources from "@/pages/Sources";
 import BlogYonetimi from "@/pages/BlogYonetimi";
 import SosyalMedya from "@/pages/SosyalMedya";
 import IletisimBilgileri from "@/pages/IletisimBilgileri";
+import OzelGunler from "@/pages/OzelGunler";
+import Rozetler from "@/pages/Rozetler";
+import DemoRaporlar from "@/pages/DemoRaporlar";
+import Referrallar from "@/pages/Referrallar";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,10 +36,24 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Pazarlama",
+    label: "Icerik & Blog",
     items: [
       { href: "/blog", label: "Blog Yonetimi" },
       { href: "/sosyal-medya", label: "Sosyal Medya" },
+      { href: "/ozel-gunler", label: "Ozel Gun Mesajlari" },
+    ],
+  },
+  {
+    label: "Buyume & CRM",
+    items: [
+      { href: "/referrallar", label: "Referral Programi" },
+      { href: "/rozetler", label: "Rozet Yonetimi" },
+      { href: "/demo-raporlar", label: "Demo Raporlar" },
+    ],
+  },
+  {
+    label: "Site Ayarlari",
+    items: [
       { href: "/iletisim", label: "Iletisim Bilgileri" },
     ],
   },
@@ -69,7 +87,7 @@ function hasDigestAccess(me: AdminMe | undefined): boolean {
   return me.isSuperadmin || me.departments.includes("digest") || me.departments.includes("pazarlama");
 }
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function Sidebar({ adminEmail }: { adminEmail?: string }) {
   const [location] = useLocation();
@@ -87,9 +105,9 @@ function Sidebar({ adminEmail }: { adminEmail?: string }) {
         )}
       </div>
 
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4">
         {NAV_SECTIONS.map((section) => (
-          <div key={section.label} className="mb-4">
+          <div key={section.label}>
             <p className="text-xs text-sidebar-foreground/40 uppercase tracking-widest font-semibold px-3 mb-1">
               {section.label}
             </p>
@@ -113,22 +131,18 @@ function Sidebar({ adminEmail }: { adminEmail?: string }) {
       </nav>
 
       <div className="px-5 py-4 border-t border-sidebar-border space-y-2">
-        <a
-          href="/panel"
-          className="block text-xs text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
-        >
+        <a href="/panel" className="block text-xs text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
           Ana Admin Panel
         </a>
-        <a
-          href="/panel/giris"
-          className="block text-xs text-sidebar-foreground/30 hover:text-sidebar-foreground transition-colors"
-        >
+        <a href="/panel/giris" className="block text-xs text-sidebar-foreground/30 hover:text-sidebar-foreground transition-colors">
           Cikis
         </a>
       </div>
     </aside>
   );
 }
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 function AppLayout() {
   const { data: me, isLoading, isError } = useDigestAuth();
@@ -170,6 +184,10 @@ function AppLayout() {
             <Route path="/blog" component={BlogYonetimi} />
             <Route path="/sosyal-medya" component={SosyalMedya} />
             <Route path="/iletisim" component={IletisimBilgileri} />
+            <Route path="/ozel-gunler" component={OzelGunler} />
+            <Route path="/rozetler" component={Rozetler} />
+            <Route path="/demo-raporlar" component={DemoRaporlar} />
+            <Route path="/referrallar" component={Referrallar} />
             <Route component={NotFound} />
           </Switch>
         </div>

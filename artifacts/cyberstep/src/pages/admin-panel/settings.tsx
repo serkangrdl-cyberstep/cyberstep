@@ -261,16 +261,22 @@ export default function AdminSettings() {
 
           <TabsContent value="contact">
             <Card className="bg-slate-800 border-slate-700">
-              <CardHeader><CardTitle className="text-white flex items-center gap-2"><Phone className="h-5 w-5 text-emerald-400" /> İletişim Bilgileri</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-white flex items-center gap-2"><Phone className="h-5 w-5 text-emerald-400" /> İletişim Bilgileri</CardTitle>
+                <p className="text-slate-400 text-sm mt-1">Bu bilgiler web sitesinin /iletisim sayfasında otomatik görünür.</p>
+              </CardHeader>
               <CardContent className="space-y-4">
                 {[
-                  { key: "contact.email",   label: "E-posta", icon: Mail },
-                  { key: "contact.phone",   label: "Telefon", icon: Phone },
-                  { key: "contact.address", label: "Adres",   icon: MapPin },
-                ].map(({ key, label, icon: Icon }) => (
+                  { key: "contact.email",    label: "E-posta",         icon: Mail,    maxLen: 100, placeholder: "info@cyberstep.io" },
+                  { key: "contact.phone",    label: "Telefon",         icon: Phone,   maxLen: 30,  placeholder: "+90 212 000 00 00" },
+                  { key: "contact.address",  label: "Adres",           icon: MapPin,  maxLen: 300, placeholder: "İstanbul, Türkiye" },
+                  { key: "contact.website",  label: "Web Sitesi URL",  icon: Globe,   maxLen: 150, placeholder: "https://cyberstep.io" },
+                  { key: "contact.linkedin", label: "LinkedIn URL",    icon: Phone,   maxLen: 200, placeholder: "https://linkedin.com/company/cyberstep" },
+                  { key: "contact.twitter",  label: "X (Twitter) URL", icon: Phone,   maxLen: 200, placeholder: "https://x.com/cyberstep" },
+                ].map(({ key, label, icon: Icon, maxLen, placeholder }) => (
                   <div key={key} className="space-y-2">
                     <Label className="text-slate-300 flex items-center gap-2"><Icon className="h-4 w-4" /> {label}</Label>
-                    <Input maxLength={key === "contact.email" ? 100 : key === "contact.phone" ? 30 : 200} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} className="bg-slate-700 border-slate-600 text-white" />
+                    <Input maxLength={maxLen} value={form[key] ?? ""} onChange={e => set(key, e.target.value)}
+                      placeholder={placeholder} className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" />
                   </div>
                 ))}
               </CardContent>

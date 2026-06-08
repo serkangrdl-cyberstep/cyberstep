@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Mail, Send } from "lucide-react";
+import { Mail, Send, Phone, MapPin, Linkedin, Twitter, Globe } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,21 @@ export default function Iletisim() {
     }
   };
 
-  const email = settings?.["contact.email"] ?? "info@cyberstep.io";
+  const email   = settings?.["contact.email"]   ?? "info@cyberstep.io";
+  const phone   = settings?.["contact.phone"]   ?? "";
+  const address = settings?.["contact.address"] ?? "";
+  const linkedin = settings?.["contact.linkedin"] ?? "";
+  const twitter  = settings?.["contact.twitter"]  ?? "";
+  const website  = settings?.["contact.website"]  ?? "";
+
+  const contactItems = [
+    { icon: Mail,     label: lang === "en" ? "Email" : "E-posta", value: email,    href: `mailto:${email}`,   show: !!email },
+    { icon: Phone,    label: lang === "en" ? "Phone" : "Telefon", value: phone,    href: `tel:${phone}`,      show: !!phone },
+    { icon: MapPin,   label: lang === "en" ? "Address" : "Adres", value: address,  href: null,                show: !!address },
+    { icon: Globe,    label: "Web",                               value: website,   href: website,             show: !!website },
+    { icon: Linkedin, label: "LinkedIn",                          value: "LinkedIn", href: linkedin,           show: !!linkedin },
+    { icon: Twitter,  label: "X (Twitter)",                       value: "X",       href: twitter,            show: !!twitter },
+  ].filter(i => i.show);
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,16 +95,34 @@ export default function Iletisim() {
             <h2 className="text-2xl font-bold mb-6">
               {lang === "en" ? "Contact Information" : "İletişim Bilgileri"}
             </h2>
-            <div className="flex items-start gap-4 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                <Mail className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">
-                  {lang === "en" ? "Email" : "E-posta"}
+            <div className="space-y-4 mb-8">
+              {contactItems.map(({ icon: Icon, label, value, href }) => (
+                <div key={label} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">{label}</div>
+                    {href ? (
+                      <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer"
+                        className="font-medium hover:text-primary transition-colors">{value}</a>
+                    ) : (
+                      <span className="font-medium">{value}</span>
+                    )}
+                  </div>
                 </div>
-                <a href={`mailto:${email}`} className="font-medium hover:text-primary transition-colors">{email}</a>
-              </div>
+              ))}
+              {contactItems.length === 0 && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Mail className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">{lang === "en" ? "Email" : "E-posta"}</div>
+                    <a href="mailto:info@cyberstep.io" className="font-medium hover:text-primary transition-colors">info@cyberstep.io</a>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-6 bg-primary/5 border border-primary/20 rounded-xl">

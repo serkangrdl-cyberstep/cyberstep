@@ -2539,6 +2539,23 @@ startup()
     // Server restart sırasında tamamlanamayan "running" durumundaki cron kayıtlarını düzelt.
     void cleanupStaleRunningJobs();
 
+    // ─── Startup: Yarım kalan "scanning" lead adaylarını sıfırla ────────────
+    // Server restart sırasında scan başlamış ama tamamlanamamış adaylar "scanning"
+    // durumunda takılı kalır; lead_qual sorgusu yalnızca "pending" çektiğinden
+    // bunlar hiç işlenmez. Restart'ta hepsini "pending"e döndür.
+    void (async () => {
+      try {
+        const { rowCount } = await db.execute(
+          sql`UPDATE lead_candidates SET scan_status = 'pending', updated_at = now() WHERE scan_status = 'scanning'`
+        );
+        if ((rowCount ?? 0) > 0) {
+          logger.warn({ count: rowCount }, "Startup: stale 'scanning' lead adayları 'pending'e döndürüldü");
+        }
+      } catch (e) {
+        logger.error({ err: String(e) }, "Startup: stale scanning lead cleanup başarısız");
+      }
+    })();
+
     // ─── Startup Catch-up: Kaçırılan Gece Cron'larını Çalıştır ──────────────
     // Deployment restart sırasında pencereyi kaçıran gece cron'larını telafi eder.
     // Her cron için son çalışma DB'den okunur; >25 saat geçmişse 30s delay ile çalıştırılır.

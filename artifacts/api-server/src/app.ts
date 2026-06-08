@@ -20,6 +20,7 @@ import seoRouter from "./routes/public/seo";
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
+import { blogPostsTable } from "@workspace/db/schema/blog";
 import { sql } from "drizzle-orm";
 
 const app: Express = express();
@@ -348,6 +349,44 @@ app.post("/api/internal/trigger-blog", async (req: Request, res: Response) => {
     .then(() => logger.info("internal/trigger-blog: tamamlandı"))
     .catch((err: unknown) => logger.error({ err }, "internal/trigger-blog: hata"));
   res.json({ ok: true, message: "Blog yazısı üretimi arka planda başlatıldı" });
+});
+
+app.post("/api/internal/fix-blog-placeholders", async (req: Request, res: Response) => {
+  const secret = process.env["ENCRYPTION_KEY"];
+  const provided = req.headers["x-internal-secret"] as string | undefined;
+  if (!secret || !provided || provided !== secret) {
+    res.status(403).json({ error: "Yetkisiz" });
+    return;
+  }
+  try {
+    // Tüm blog yazılarını çek, JS'de temizle, geri yaz
+    const posts = await db.select({ id: blogPostsTable.id, content: blogPostsTable.content, excerpt: blogPostsTable.excerpt })
+      .from(blogPostsTable);
+
+    // Kapanmış [DOĞRULA: ...] ve kapanmamış [DOĞRULA: ... satır sonu kalıplarını sil
+    const clean = (text: string | null): string =>
+      (text ?? "")
+        .replace(/\[DO\u011eRULA:[^\]]*\]/gi, "")   // kapanmış [DOĞRULA: ...]
+        .replace(/\[DO\u011eRULA:[^\]]*$/gim, "")    // kapanmamış — satır sonuna kadar
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+    let updated = 0;
+    for (const post of posts) {
+      const newContent = clean(post.content);
+      const newExcerpt = clean(post.excerpt);
+      if (newContent !== (post.content ?? "") || newExcerpt !== (post.excerpt ?? "")) {
+        await db.execute(sql`UPDATE blog_posts SET content = ${newContent}, excerpt = ${newExcerpt} WHERE id = ${post.id}`);
+        updated++;
+      }
+    }
+
+    logger.info({ updated }, "fix-blog-placeholders: tamamlandı");
+    res.json({ ok: true, updated });
+  } catch (err) {
+    logger.error({ err }, "fix-blog-placeholders: hata");
+    res.status(500).json({ error: "Güncelleme başarısız" });
+  }
 });
 
 // ─── Global error handler ─────────────────────────────────────────────────────

@@ -45,13 +45,28 @@ export function nextCronDate(expr: string): Date | null {
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5) return null;
   const [rawMin, rawHour, , , rawDow] = parts;
-  const now = new Date();
-  const tz = "Europe/Istanbul";
 
   // Iterate minute-by-minute for up to 1 week (10080 min)
-  const candidate = new Date(now);
+  const candidate = new Date();
   candidate.setSeconds(0, 0);
+  candidate.setMilliseconds(0);
   candidate.setMinutes(candidate.getMinutes() + 1);
+
+  // Extract time components in Istanbul timezone (crons run in Europe/Istanbul)
+  const TZ = "Europe/Istanbul";
+  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const getIstanbulParts = (d: Date): { h: number; m: number; dow: number } => {
+    const fmtParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ,
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "short",
+      hour12: false,
+    }).formatToParts(d);
+    const get = (type: string) => parseInt(fmtParts.find(p => p.type === type)?.value ?? "0", 10);
+    const wdStr = fmtParts.find(p => p.type === "weekday")?.value ?? "Sun";
+    return { h: get("hour") % 24, m: get("minute"), dow: WEEKDAYS.indexOf(wdStr) };
+  };
 
   const matchField = (field: string, value: number): boolean => {
     if (field === "*") return true;
@@ -59,15 +74,15 @@ export function nextCronDate(expr: string): Date | null {
       const step = parseInt(field.slice(2), 10);
       return step > 0 && value % step === 0;
     }
+    if (field.includes(",")) {
+      return field.split(",").some(f => parseInt(f.trim(), 10) === value);
+    }
     return parseInt(field, 10) === value;
   };
 
   for (let i = 0; i < 10080; i++) {
-    const m = candidate.getMinutes();
-    const h = candidate.getHours();
-    const d = candidate.getDay(); // 0=Sunday
-
-    if (matchField(rawMin!, m) && matchField(rawHour!, h) && matchField(rawDow!, d)) {
+    const { h, m, dow } = getIstanbulParts(candidate);
+    if (matchField(rawMin!, m) && matchField(rawHour!, h) && matchField(rawDow!, dow)) {
       return new Date(candidate);
     }
     candidate.setMinutes(candidate.getMinutes() + 1);

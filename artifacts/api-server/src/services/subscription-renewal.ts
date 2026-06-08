@@ -5,6 +5,7 @@ import { customerServicesTable, serviceCatalogTable, customersTable, customerSer
 import { eq, and, lte, gte, isNull, between } from "drizzle-orm";
 import { sendMail, sendSubscriptionExpiryReminder } from "./email";
 import { logger } from "../lib/logger";
+import { wrapCron } from "./cronRegistry";
 
 function generateRenewalToken(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -320,7 +321,6 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
 }
 
 export function startRenewalCron() {
-  const { wrapCron } = require("./cronRegistry") as typeof import("./cronRegistry");
   cron.schedule("0 9 * * *", wrapCron("subscription_renewal", "0 9 * * *", async () => {
     await processSubscriptionRenewals();
     return 0;

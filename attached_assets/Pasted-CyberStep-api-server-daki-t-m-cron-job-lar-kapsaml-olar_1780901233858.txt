@@ -1,0 +1,205 @@
+CyberStep api-server'daki tüm cron job'ları kapsamlı olarak denetle ve düzelt. Bu sistem için kritik altyapı — sıfır sessiz hata toleransı.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 1 — TESPİT: TÜM CRON'LARI HARITALANDIR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Şu dosyaları tara:
+- src/index.ts
+- src/services/cronRegistry.ts
+- src/services/dns-cron.ts
+- src/services/fabric-cron.ts
+- src/services/soc/soc-cron.ts
+- src/services/subscription-renewal.ts
+- src/services/platform-health.ts
+- src/services/growth-engine.ts
+- src/services/blog-autopilot.ts
+- src/routes/social-media/index.ts
+
+Her cron için şunu tespit et ve tablo olarak listele:
+| job_name | schedule | timezone var mı | wrapCron ile sarılmış mı | try/catch var mı | overlap koruması var mı | dosya:satır |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 2 — WRAPCRON KAPSAMI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+wrapCron olmayan tüm cron.schedule çağrılarını wrapCron'a geçir.
+
+wrapCron pattern'i:
+cron.schedule(
+  "SCHEDULE_EXPR",
+  wrapCron("job_name", "SCHEDULE_EXPR", async () => {
+    await işlev();
+  }),
+  { timezone: "Europe/Istanbul" }
+);
+
+Kurallar:
+- job_name: snake_case, açıklayıcı (örn: "weekly_bulletin_send", "dns_monitor", "lead_qual")
+- Her job_name unique olmalı — aynı isim iki kez kullanılmamalı
+- Tüm job'larda timezone: "Europe/Istanbul" zorunlu (yoksa ekle)
+- wrapCron zaten DB'ye run kaydı yazıyor, overlap kilidi yapıyor, hata logluyor
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 3 — SCHEDULE ÇAKIŞMA KONTROLÜ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Tüm cron schedule'larını listele ve şunları kontrol et:
+
+1. Aynı anda çalışan (aynı schedule string) birden fazla iş var mı?
+   - Varsa birini 15-30 dakika kaydır
+   - Özellikle "0 3 * * *", "0 4 * * *", "30 3 * * *" çakışmalarına dikkat
+
+2. Çok sık çalışan ama ağır olan iş var mı?
+   - Her 5 dakikada çalışan job'lar hafif olmalı (< 30sn)
+   - Ağır job'lar (AI çağrısı, toplu e-posta) saatlik veya günlük olmalı
+
+3. Gece yarısı yoğunluğu: 00:00-06:00 arası kaç job çalışıyor?
+   - Bu saatlerde max 2-3 job aynı anda çalışmalı
+   - Gerekirse dağıt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 4 — HATA YÖNETİMİ STANDARDI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+wrapCron içindeki her job fonksiyonunda şu standardı uygula:
+
+async () => {
+  try {
+    logger.info({ job: "job_name" }, "Cron başladı");
+    const result = await işlev();
+    logger.info({ job: "job_name", result }, "Cron tamamlandı");
+    return result;
+  } catch (err) {
+    logger.error({ job: "job_name", err }, "Cron hatası");
+    throw err; // wrapCron hata durumunu DB'ye yazsın
+  }
+}
+
+Eksik olan try/catch bloklarını ekle.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 5 — KRİTİK CRON'LAR İÇİN ÖZEL KONTROLLER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Şu kritik cron'lar için ekstra doğrulama ekle:
+
+── subscription_renewal ──────────────────────────
+- Çalışmadan önce DB bağlantısı canlı mı kontrol et
+- İşlenen abonelik sayısını log'a yaz
+- Hata durumunda: işlemi rollback et, bir sonraki çalışmada tekrar dene
+- Iyzico API'si cevap vermezse: job'u atla, "iyzico_unavailable" olarak logla
+
+── lead_qual (qualifyPendingCandidates) ──────────
+- Kaç lead qualify edildiğini log'a yaz
+- Kaç lead hata verdiğini log'a yaz
+- processedCount'u wrapCron'a return et (DB'ye yazılsın)
+
+── crt_discovery / shodan_discovery ──────────────
+- total_found ve total_added'ı log'a yaz
+- Rate limit hatası (429) gelirse: job'u gracefully bitir, bir sonraki gece devam et
+- processedCount return et
+
+── weekly_bulletin_send ──────────────────────────
+- Göndermeden önce: kaç subscriber var, e-posta servisi canlı mı kontrol et
+- Gönderilen/başarısız sayısını log'a yaz
+- Partial failure durumunda (bazıları gitti, bazıları gitmedi) ne yapacağını tanımla
+
+── db_backup ─────────────────────────────────────
+- Backup tamamlandıktan sonra dosya boyutunu kontrol et (0 byte ise hata)
+- Başarılı backup'ı admin'e bildir (e-posta veya log)
+- Son 3 backup'ın listesini tut
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 6 — CRON SAĞLIK MONİTÖRÜ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/services/cronHealthMonitor.ts adında yeni bir servis oluştur:
+
+Export edilen tek fonksiyon: checkCronHealth()
+
+Bu fonksiyon şunu yapacak:
+1. cron_job_runs tablosundan son 24 saatteki tüm job'ları çek
+2. Beklenen job'lardan hangisi hiç çalışmamış tespit et
+3. Son çalışmada hata veren job'ları tespit et
+4. Sonucu şu formatta döndür:
+
+{
+  healthy: boolean,
+  summary: {
+    total_jobs: number,
+    successful: number,
+    failed: number,
+    missing: number   // beklenen ama hiç çalışmamış
+  },
+  alerts: Array<{
+    job_name: string,
+    issue: "not_run" | "failed" | "slow",
+    last_run: string | null,
+    details: string
+  }>
+}
+
+Beklenen job listesi (her birinin beklenen çalışma sıklığı):
+const EXPECTED_JOBS = [
+  { name: "dns_monitor", intervalMinutes: 5 },
+  { name: "soc_triage", intervalMinutes: 5 },
+  { name: "lead_qual", intervalMinutes: 60 },
+  { name: "scan_lead_drip", intervalMinutes: 60 },
+  { name: "subscription_renewal", intervalMinutes: 60 },
+  { name: "crt_discovery", intervalMinutes: 1440 },   // günlük
+  { name: "shodan_discovery", intervalMinutes: 1440 },
+  { name: "weekly_bulletin", intervalMinutes: 10080 }, // haftalık
+  { name: "db_backup", intervalMinutes: 10080 },
+  { name: "rss_collect", intervalMinutes: 1440 },
+  { name: "digest_enrich", intervalMinutes: 1440 },
+];
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 7 — ADMIN PANEL: CRON SAĞLIK SAYFASI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+artifacts/cyberstep/src/pages/admin-panel/cron-ayarlari.tsx sayfasını bul ve güncelle (veya yoksa oluştur).
+
+GET /api/admin-panel/cron/health endpoint'i ekle (backend):
+- checkCronHealth() çağır ve sonucu döndür
+
+Frontend'de göster:
+- Genel sağlık durumu: yeşil ✓ / kırmızı ✗
+- Her job için satır: job_name | son çalışma | durum | süre (ms)
+- Alert'ler: kırmızı kutu ile "X job 24 saatte çalışmadı"
+- Manuel tetikleme butonu: kritik job'lar için "Şimdi Çalıştır"
+- 60 saniyede bir otomatik yenileme
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 8 — GÜNLÜK CRON RAPORU E-POSTASI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Her sabah 07:00'de (Europe/Istanbul) çalışacak yeni bir cron ekle:
+
+job_name: "daily_cron_report"
+schedule: "0 7 * * *"
+
+Bu job şunu yapacak:
+1. checkCronHealth() çağır
+2. Sadece alerts varsa (healthy=false) admin'e e-posta gönder
+3. E-posta içeriği:
+   Konu: "⚠ CyberStep Cron Uyarısı — X job sorunlu"
+   İçerik: Sorunlu job'ların listesi, son çalışma zamanı, hata mesajı
+
+Admin e-posta adresi: process.env.ADMIN_EMAIL
+
+Sağlıklıysa (healthy=true) e-posta gönderme — gereksiz bildirim olmasın.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 9 — BUILD & DOĞRULAMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. pnpm --filter @workspace/api-server run build
+2. Build hatasız tamamlanmalı
+3. Tüm değişiklikleri özetle:
+   - Kaç cron wrapCron'a alındı
+   - Kaç schedule düzeltildi
+   - Hangi kritik job'lara özel kontrol eklendi
+   - Yeni eklenen servisler ve endpoint'ler
+4. cron_job_runs tablosunda hangi job_name'lerin artık görünmesi bekleniyor listele

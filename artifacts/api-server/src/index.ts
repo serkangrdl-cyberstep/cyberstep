@@ -221,9 +221,9 @@ async function maybeSeedQuestions() {
   logger.info("Mini assessment questions seeded (table was empty)");
 }
 
-// ─── Cron: 30-günlük hatırlatıcı e-postası (her gün 09:00'da çalışır) ─────────
+// ─── Cron: 30-günlük hatırlatıcı e-postası (her gün 09:45'de çalışır) ─────────
 function startReminderCron() {
-  cron.schedule("0 9 * * *", wrapCron("reminder_30day", "0 9 * * *", async () => {
+  cron.schedule("45 9 * * *", wrapCron("reminder_30day", "45 9 * * *", async () => {
     logger.info("Running 30-day reminder cron job");
     try {
       const thirtyDaysAgo = new Date();
@@ -284,7 +284,7 @@ function startReminderCron() {
     }
   }), { timezone: "Europe/Istanbul" });
 
-  logger.info("30-day reminder cron scheduled (09:00 Istanbul)");
+  logger.info("30-day reminder cron scheduled (09:45 Istanbul)");
 
   // Domain re-tarama: e-postası olan ve 30+ gün önce taranan kayıtları yeniden tara
   cron.schedule("30 9 * * *", wrapCron("domain_rescan", "30 9 * * *", async () => {
@@ -878,7 +878,7 @@ function startIsrImapCron() {
     } catch (err) {
       logger.error({ err }, "ISR IMAP cron error");
     }
-  }));
+  }), { timezone: "Europe/Istanbul" });
   logger.info("ISR IMAP poller scheduled (every 5 minutes)");
 }
 
@@ -1770,9 +1770,9 @@ async function ensureDomainScanPurchasesTable() {
   `);
 }
 
-// ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:00'da) ────
+// ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:30'da) ────
 function startInflationReminderCron() {
-  cron.schedule("0 9 * * 1", wrapCron("inflation_reminder", "0 9 * * 1", async () => {
+  cron.schedule("30 9 * * 1", wrapCron("inflation_reminder", "30 9 * * 1", async () => {
     try {
       const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
       const plans = await db.select().from(pricingPlansTable).orderBy(pricingPlansTable.updatedAt);
@@ -1825,8 +1825,8 @@ function startInflationReminderCron() {
       logger.warn({ err }, "Inflation reminder cron failed");
     }
     return 0;
-  }));
-  logger.info("Inflation reminder cron scheduled (every Monday 09:00)");
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("Inflation reminder cron scheduled (every Monday 09:30)");
 }
 
 // ─── Digest Cron ─────────────────────────────────────────────────────────────
@@ -1977,7 +1977,7 @@ startup()
     cron.schedule("15 3 * * *", wrapCron("usom_refresh", "15 3 * * *", async () => {
       await refreshUsomList();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     // Müşteri sağlık skoru — her gece 02:00'de hesapla
     cron.schedule("0 2 * * *", wrapCron("health_score", "0 2 * * *", async () => {
       await calculateAllHealthScores();
@@ -2094,8 +2094,7 @@ startup()
       await sendMail({
         to: adminEmail,
         subject: `CyberStep Cron Uyarisi — ${result.alerts.length} job sorunlu`,
-        text: `CyberStep Cron Saglik Raporu — ${new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}\n\n${alertLines}\n\nToplam: ${result.summary.total_jobs} job | Basarili: ${result.summary.successful} | Hatali: ${result.summary.failed} | Eksik: ${result.summary.missing}`,
-        html: `<h2>CyberStep Cron Uyarisi</h2><p><strong>${result.alerts.length} job sorunlu</strong> — ${new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}</p><ul>${result.alerts.map((a) => `<li><strong>[${a.issue}] ${a.label}</strong><br>Son: ${a.last_run ?? "hic"}<br>${a.details}</li>`).join("")}</ul><hr><small>Toplam: ${result.summary.total_jobs} | Basarili: ${result.summary.successful} | Hatali: ${result.summary.failed} | Eksik: ${result.summary.missing}</small>`,
+        html: `<h2>CyberStep Cron Uyarisi</h2><p><strong>${result.alerts.length} job sorunlu</strong> — ${new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}</p><ul>${result.alerts.map((a) => `<li><strong>[${a.issue}] ${a.label}</strong><br>Son: ${a.last_run ?? "hic"}<br>${a.details}</li>`).join("")}</ul><hr><small>Toplam: ${result.summary.total_jobs} | Basarili: ${result.summary.successful} | Hatali: ${result.summary.failed} | Eksik: ${result.summary.missing}</small><pre style="font-size:11px;margin-top:12px;color:#555">${alertLines}</pre>`,
       });
       logger.info({ alertCount: result.alerts.length }, "daily_cron_report: saglik uyari e-postasi gonderildi");
       return result.alerts.length;
@@ -2244,7 +2243,7 @@ startup()
     logger.info("Cloud CSPM cron scheduled (03:45 Istanbul)");
 
     // ─── CASM: GitHub secrets tarama — Her Pazar 04:00 ───────────────────────
-    cron.schedule("0 4 * * 0", wrapCron("github_secrets_scan", "0 4 * * 0", async () => {
+    cron.schedule("0 5 * * 0", wrapCron("github_secrets_scan", "0 5 * * 0", async () => {
       const { getCustomersWithGitHub, scanGitHubOrg } = await import("./services/githubScanner");
       const { db: dbI } = await import("@workspace/db");
       const { codeSecretsFindingsTable } = await import("@workspace/db");
@@ -2261,31 +2260,31 @@ startup()
       }
       return findingsCount;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("GitHub secrets scan cron scheduled (Sunday 04:00 Istanbul)");
+    logger.info("GitHub secrets scan cron scheduled (Sunday 05:00 Istanbul)");
 
     cron.schedule("*/30 * * * *", wrapCron("kvkk_deadline", "*/30 * * * *", async () => {
       await checkKvkkDeadlines();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("KVKK 72h deadline cron scheduled (every 30 min)");
 
     cron.schedule("*/15 * * * *", wrapCron("servicenow_sync", "*/15 * * * *", async () => {
       await syncServiceNowIncidents();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
 
     // ─── ServiceNow bağlantı sağlık kontrolü — Her saat ──────────────────────
     cron.schedule("0 * * * *", wrapCron("servicenow_health", "0 * * * *", async () => {
       await checkServiceNowConnections();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("ServiceNow connection health check cron scheduled (every hour)");
 
     cron.schedule("*/10 * * * *", wrapCron("webhook_retry", "*/10 * * * *", async () => {
       await retryFailedWebhooks();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Webhook retry cron scheduled (every 10 min)");
 
     startRenewalCron();
@@ -2294,35 +2293,35 @@ startup()
     cron.schedule("*/30 * * * *", wrapCron("email_sequence", "*/30 * * * *", async () => {
       await processEmailQueue();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Email sequence cron scheduled (every 30 min)");
 
     // ─── NOC: FortiGate polling — her 5 dakika ────────────────────────────────
     cron.schedule("*/5 * * * *", wrapCron("noc_poll", "*/5 * * * *", async () => {
       await runFortiGatePollCron();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("NOC FortiGate poll cron scheduled (every 5 min)");
 
     // ─── NOC: Availability monitor — her 5 dakika ─────────────────────────────
     cron.schedule("*/5 * * * *", wrapCron("noc_availability", "*/5 * * * *", async () => {
       await runAvailabilityCron();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("NOC availability cron scheduled (every 5 min)");
 
     // ─── NOC: Claude triage — her 15 dakika ───────────────────────────────────
     cron.schedule("*/15 * * * *", wrapCron("noc_triage", "*/15 * * * *", async () => {
       await runNOCTriageCron();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("NOC triage cron scheduled (every 15 min)");
 
     // ─── NOC: Baseline tamamlama — her saat ──────────────────────────────────
     cron.schedule("0 * * * *", wrapCron("noc_baseline", "0 * * * *", async () => {
       await checkAndCompleteBaselines();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("NOC baseline check cron scheduled (every hour)");
 
     // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
@@ -2394,7 +2393,7 @@ startup()
       if (!await cronIsEnabled("intel_feeds")) { logger.info("Intel feeds cron devre dışı, atlanıyor"); return 0; }
       const result = await checkIntelFeeds();
       return result.newItems;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Intel feeds cron kayıtlandı (her 6 saatte bir)");
 
     // ─── Yıllık rapor takvim hatırlatması — her ayın 1'i 09:00 Istanbul ──────
@@ -2411,7 +2410,7 @@ startup()
       const result = await processCertstreamQueue(limit);
       if (result.added > 0) logger.info(result, "Certstream queue: yeni leadler eklendi");
       return result.added ?? 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("Certstream queue processor cron scheduled (hourly)");
 
     // ─── Abonelik bitiş hatırlatmaları — her gün 10:00 İstanbul ──────────────
@@ -2425,16 +2424,24 @@ startup()
     cron.schedule("0 */2 * * *", wrapCron("cve_feed_check", "0 */2 * * *", async () => {
       await runCVEFeedCheck();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("CVE feed check cron scheduled (every 2 hours)");
 
     // Her Cuma 08:00 Istanbul — haftalık bülten üret
     cron.schedule("0 8 * * 5", wrapCron("haftalik_bulten", "0 8 * * 5", async () => {
       const { collectWeeklyData } = await import("./services/bulletin/weeklyDataCollector");
       const { generateBulletinContent } = await import("./services/bulletin/bulletinWriter");
-      const { weeklyBulletinsTable } = await import("@workspace/db");
+      const { weeklyBulletinsTable, bulletinSubscribersTable } = await import("@workspace/db");
       const { eq } = await import("drizzle-orm");
       const { getISOWeek } = await import("./services/discoveryPipeline");
+
+      // Abone kontrolü — sıfır abone varsa içerik üretmeye değmez
+      const subRows = await db.select({ id: bulletinSubscribersTable.id }).from(bulletinSubscribersTable).limit(1);
+      if (subRows.length === 0) {
+        logger.info("Haftalık bülten atlandı: hiç abone yok");
+        return 0;
+      }
+
       const now = new Date();
       const weekNumber = getISOWeek(now);
       const year = now.getFullYear();
@@ -2489,8 +2496,8 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CISO board raporu cron kayıtlandı (ayın 25'i 09:00 Istanbul)");
 
-    // ─── CISO Asistan: Haftalık Tehdit Özeti — Her Cuma 09:00 Istanbul ───────
-    cron.schedule("0 9 * * 5", wrapCron("ciso_weekly_threat", "0 9 * * 5", async () => {
+    // ─── CISO Asistan: Haftalık Tehdit Özeti — Her Cuma 09:30 Istanbul (09:00'da market_weekly_summary var) ───
+    cron.schedule("30 9 * * 5", wrapCron("ciso_weekly_threat", "30 9 * * 5", async () => {
       const { db: cisoDb } = await import("@workspace/db");
       const { cisoAssistantSubscriptionsTable: cisoSubsTable, customersTable: custTable, domainScansTable: scanTable, weeklyBulletinsTable } = await import("@workspace/db");
       const { eq: eqFn, desc: descFn } = await import("drizzle-orm");
@@ -2523,7 +2530,7 @@ startup()
       }
       return subs.length;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("CISO haftalık tehdit cron kayıtlandı (Cuma 09:00 Istanbul)");
+    logger.info("CISO haftalık tehdit cron kayıtlandı (Cuma 09:30 Istanbul)");
 
     // ─── CISO Asistan: Aylık Uyum Skoru — Her ayın 1'i 08:00 Istanbul ────────
     cron.schedule("0 8 1 * *", wrapCron("ciso_compliance_monthly", "0 8 1 * *", async () => {
@@ -2541,12 +2548,12 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CISO uyum skoru cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
 
-    // ─── IOC Sorgu: Aylık Kredi Sıfırlama — Her ayın 1'i 08:00 Istanbul ─────
-    cron.schedule("0 8 1 * *", wrapCron("ioc_credit_reset", "0 8 1 * *", async () => {
+    // ─── IOC Sorgu: Aylık Kredi Sıfırlama — Her ayın 1'i 08:30 Istanbul (08:00'da ciso_compliance_monthly var) ─────
+    cron.schedule("30 8 1 * *", wrapCron("ioc_credit_reset", "30 8 1 * *", async () => {
       const { resetMonthlyCredits } = await import("./services/iocCreditManager");
       return await resetMonthlyCredits();
     }), { timezone: "Europe/Istanbul" });
-    logger.info("IOC kredi sıfırlama cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
+    logger.info("IOC kredi sıfırlama cron kayıtlandı (ayın 1'i 08:30 Istanbul)");
 
     // ─── Demo Rapor Yenileme — Her ayın 1'i 10:00 Istanbul ──────────────────
     cron.schedule("0 10 1 * *", wrapCron("demo_report_refresh", "0 10 1 * *", async () => {
@@ -2560,7 +2567,7 @@ startup()
       const { processExpiredApprovals } = await import("./services/approvalQueue");
       await processExpiredApprovals();
       return 0;
-    }));
+    }), { timezone: "Europe/Istanbul" });
     logger.info("HITL approval expire cron kayıtlandı (her 15 dakika)");
 
     // ─── Startup: Stale "running" kayıtları temizle ─────────────────────────

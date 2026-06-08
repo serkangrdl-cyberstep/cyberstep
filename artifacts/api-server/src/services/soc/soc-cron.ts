@@ -79,10 +79,10 @@ export function startSOCCrons(): void {
   }), TZ);
   logger.info("SOC weekly report cron scheduled (Mon 09:00 Istanbul)");
 
-  // Monthly AI cost report — 1st of month 08:00 Istanbul
-  cron.schedule("0 8 1 * *", wrapCron("soc_monthly_ai_cost", "0 8 1 * *", async () => {
+  // Monthly AI cost report — 1st of month 09:00 Istanbul (shifted from 08:00 to avoid ciso_compliance_monthly conflict)
+  cron.schedule("0 9 1 * *", wrapCron("soc_monthly_ai_cost", "0 9 1 * *", async () => {
     await sendMonthlyAICostReport();
     return 0;
   }), TZ);
-  logger.info("SOC monthly AI cost cron scheduled (1st 08:00 Istanbul)");
+  logger.info("SOC monthly AI cost cron scheduled (1st 09:00 Istanbul)");
 }

@@ -1,0 +1,367 @@
+CyberStep'e "AI Saldırı Yüzeyi Analizi" servisi eklenecek. Bu mevcut domain scan'in derinleştirilmiş, ücretli, 24-48 saat içinde teslim edilen pasif pentest raporudur. Aktif saldırı YOK — sadece pasif keşif, CVE eşleştirme ve AI saldırı simülasyonu.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 1 — VERİTABANI ŞEMASI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+lib/db/src/schema/ altında attack-surface.ts oluştur:
+
+export const attackSurfaceScans = pgTable("attack_surface_scans", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").references(() => customers.id),
+  domain: text("domain").notNull(),
+  status: text("status").notNull().default("pending"),
+  // pending → discovering → analyzing → generating → completed | failed
+  priceTl: integer("price_tl").notNull().default(4990),
+  paymentStatus: text("payment_status").default("unpaid"),
+  paymentRef: text("payment_ref"),
+
+  // Keşif sonuçları
+  subdomains: jsonb("subdomains").default([]),
+  openPorts: jsonb("open_ports").default([]),
+  technologies: jsonb("technologies").default([]),
+  sslAnalysis: jsonb("ssl_analysis"),
+  emailSecurity: jsonb("email_security"),
+  osintFindings: jsonb("osint_findings").default([]),
+  cveMatches: jsonb("cve_matches").default([]),
+
+  // AI rapor
+  riskScore: integer("risk_score"),
+  attackChains: jsonb("attack_chains").default([]),
+  criticalFindings: jsonb("critical_findings").default([]),
+  remediation: jsonb("remediation").default([]),
+  executiveSummary: text("executive_summary"),
+
+  // PDF
+  reportUrl: text("report_url"),
+  reportGeneratedAt: timestamp("report_generated_at"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+Migration çalıştır: pnpm --filter @workspace/db push
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 2 — BACKEND: KEŞİF SERVİSİ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/services/attackSurface/ klasörü oluştur. 5 modül:
+
+── 2.1 subdomainDiscovery.ts ─────────────────────
+
+export async function discoverSubdomains(domain: string): Promise<string[]>
+
+Şu kaynakları paralel sorgula (Promise.all):
+1. crt.sh: GET https://crt.sh/?q=%.{domain}&output=json
+   → unique subdomain listesi çıkar, wildcard'ları filtrele
+2. DNS brute force: yaygın prefix listesi dene (www, mail, ftp, api, admin, app, portal, vpn, remote, webmail, smtp, pop, imap, ns1, ns2, dev, staging, test)
+   → dns.resolve4 ile her birini çözümle, çözümlenenler listeye gir
+3. VirusTotal subdomain API (key varsa):
+   GET https://www.virustotal.com/api/v3/domains/{domain}/subdomains
+
+Max 50 subdomain döndür, unique ve doğrulanmış (DNS'te çözümlenen).
+Timeout: tüm işlem max 30 saniye.
+
+── 2.2 serviceFingerprint.ts ────────────────────
+
+export async function fingerprintServices(domain: string, subdomains: string[]): Promise<ServiceInfo[]>
+
+Her subdomain + ana domain için:
+1. HTTP/HTTPS HEAD isteği at (timeout: 5sn)
+2. Response headers'dan teknoloji tespit et:
+   - Server header → nginx, Apache, IIS, Caddy
+   - X-Powered-By → PHP, ASP.NET, Express
+   - Set-Cookie patterns → WordPress, Laravel, Django
+   - Via header → CDN tespiti (Cloudflare, Fastly, Akamai)
+3. Shodan API'den IP bilgisi çek (SHODAN_API_KEY varsa):
+   → açık portlar, servis banner'ları, işletim sistemi
+
+Döndür: Array<{
+  host: string,
+  ip: string | null,
+  technologies: string[],
+  openPorts: number[],
+  server: string | null,
+  cdn: string | null,
+  responseCode: number | null
+}>
+
+── 2.3 sslAnalyzer.ts ───────────────────────────
+
+export async function analyzeSsl(domain: string): Promise<SslAnalysis>
+
+tls.connect ile bağlan, şunları analiz et:
+1. Sertifika: issuer, validFrom, validTo, daysRemaining, SANs
+2. Protokol versiyonu: TLS 1.0/1.1 hâlâ aktif mi? (güvenlik riski)
+3. Self-signed mı?
+4. Chain complete mi?
+5. Wildcard sertifika mı?
+
+Döndür: {
+  valid: boolean,
+  issuer: string,
+  daysRemaining: number,
+  protocol: string,
+  weakProtocols: string[],  // TLS 1.0, TLS 1.1 varsa
+  isSelfSigned: boolean,
+  isWildcard: boolean,
+  sans: string[],
+  riskLevel: "low" | "medium" | "high"
+}
+
+── 2.4 cveMapper.ts ─────────────────────────────
+
+export async function mapCves(technologies: string[]): Promise<CveMatch[]>
+
+Tespit edilen teknoloji listesini al, her biri için:
+1. Versiyon varsa: NVD API sorgula
+   GET https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={tech}&resultsPerPage=5
+2. Versiyon yoksa: bilinen yüksek riskli CVE'leri eşleştir (local mapping)
+3. CVSS skoru 7.0+ olanları "critical" olarak işaretle
+
+Döndür: Array<{
+  technology: string,
+  cveId: string,
+  cvssScore: number,
+  severity: "critical" | "high" | "medium",
+  description: string,
+  publishedDate: string
+}>
+
+Max 10 CVE döndür, CVSS skoru yüksekten düşüğe sıralı.
+
+── 2.5 aiAttackChainGenerator.ts ────────────────
+
+export async function generateAttackChains(scanData: AttackSurfaceScanData): Promise<AttackChainResult>
+
+Claude claude-haiku-4-5-20251001 ile çağır.
+
+System prompt:
+"Sen bir siber güvenlik uzmanısın. Pasif keşif bulgularına dayanarak gerçekçi saldırı zincirleri oluşturuyorsun. Aktif saldırı önerisi yapma — sadece mevcut açıkların nasıl istismar edilebileceğini MITRE ATT&CK framework ile modelleştir. JSON formatında yanıt ver."
+
+User prompt içeriği:
+- Domain ve subdomain listesi
+- Tespit edilen teknolojiler ve versiyonlar
+- Açık portlar
+- SSL analizi
+- E-posta güvenlik durumu (SPF/DMARC/DKIM)
+- CVE eşleşmeleri
+
+Üretilecek JSON:
+{
+  riskScore: number,  // 0-100
+  riskLevel: "critical" | "high" | "medium" | "low",
+  executiveSummary: string,  // max 200 kelime, teknik olmayan dil
+  attackChains: Array<{
+    name: string,
+    likelihood: "high" | "medium" | "low",
+    impact: "critical" | "high" | "medium",
+    entryPoint: string,
+    steps: string[],
+    mitreTechniques: string[],
+    kvkkRisk: string | null
+  }>,
+  criticalFindings: Array<{
+    title: string,
+    severity: "critical" | "high" | "medium",
+    description: string,
+    affectedAsset: string
+  }>,
+  remediation: Array<{
+    priority: number,
+    action: string,
+    effort: "low" | "medium" | "high",
+    impact: string
+  }>
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 3 — ORKESTRASYON SERVİSİ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/services/attackSurface/orchestrator.ts oluştur:
+
+export async function runAttackSurfaceScan(scanId: number): Promise<void>
+
+Sıralı akış:
+1. status = "discovering" yaz
+   → discoverSubdomains() çalıştır → DB'ye yaz
+   → fingerprintServices() çalıştır → DB'ye yaz
+
+2. status = "analyzing" yaz
+   → analyzeSsl() çalıştır → DB'ye yaz
+   → mevcut domain scan verilerini çek (SPF/DMARC/DKIM)
+   → mapCves() çalıştır → DB'ye yaz
+
+3. status = "generating" yaz
+   → generateAttackChains() çalıştır → DB'ye yaz
+   → generateAttackSurfacePDF() çalıştır → report_url DB'ye yaz
+
+4. status = "completed", completedAt = now() yaz
+
+Her adımda hata olursa:
+- status = "failed" yaz
+- error_message DB'ye yaz
+- logger.error ile logla
+- throw etme — sessizce tamamla
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 4 — PDF RAPORU
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/services/pdf.ts dosyasına generateAttackSurfacePDF() fonksiyonu ekle.
+
+Mevcut generateDomainScanPDF() pattern'ini kullan (bufferPages: true, autoFirstPage: false, pageAdded event).
+
+Rapor yapısı (5-8 sayfa):
+1. Kapak: domain, tarih, risk skoru gauge, risk seviyesi
+2. Yönetici Özeti: executiveSummary, kritik bulgu sayıları
+3. Keşfedilen Varlıklar: subdomain haritası, açık portlar, teknoloji envanteri
+4. SSL/TLS Analizi: sertifika detayları, zayıf protokoller
+5. CVE Güvenlik Açıkları: CVSS skoru yüksekten düşüğe
+6. Saldırı Zincirleri: her zincir için giriş noktası + adımlar + MITRE teknikleri + KVKK riski
+7. Öncelikli Aksiyon Listesi: öncelik sıralı düzeltmeler
+8. Hakkında + Yasal Uyarı (mevcut pdf.ts'deki bloğu kullan)
+
+Marka renkleri: #060D1A, #00C8FF, #F5A623, #E8EDF5
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 5 — API ENDPOINTLERİ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/routes/attack-surface/index.ts oluştur:
+
+── POST /api/attack-surface/start ───────────────
+requireCustomer middleware.
+Body: { domain: string }
+
+1. Domain validasyonu (geçerli TLD, kara liste kontrolü)
+2. Müşterinin aktif ödemesi var mı kontrol et (paymentStatus = "paid")
+3. Aynı domain için son 7 günde tamamlanmış tarama var mı? → 429 döndür
+4. DB'ye yeni kayıt ekle (status: "pending")
+5. Response: { scanId, message: "Tarama başlatıldı, 24-48 saat içinde rapor hazır" }
+6. setImmediate ile runAttackSurfaceScan(scanId) başlat
+
+── GET /api/attack-surface/:id/status ───────────
+requireCustomer middleware.
+DB'den scan çek, status + progress döndür.
+
+── GET /api/attack-surface/:id/report ───────────
+requireCustomer middleware.
+Status "completed" değilse 404 döndür.
+Tüm rapor verisini JSON döndür.
+
+── GET /api/attack-surface/:id/pdf ──────────────
+requireCustomer middleware.
+PDF buffer döndür (Content-Disposition: attachment).
+
+── GET /api/attack-surface/my-scans ─────────────
+requireCustomer middleware.
+Müşterinin tüm taramalarını listele.
+
+── POST /api/attack-surface/start-payment ───────
+requireCustomer middleware.
+Iyzico ile 4990 TL ödeme başlat (mevcut payments pattern'ini kullan).
+Ödeme tamamlanınca scan'i başlat.
+
+app.ts'e mount et:
+import attackSurfaceRouter from "./routes/attack-surface";
+app.use("/api/attack-surface", attackSurfaceRouter);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 6 — FRONTEND SAYFALAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── Landing sayfası: /ai-pentest ─────────────────
+artifacts/cyberstep/src/pages/ai-pentest.tsx
+
+Hero section:
+- Başlık: "AI Saldırı Yüzeyi Analizi"
+- Alt başlık: "Bir saldırgan dışarıdan bakınca şirketinizde ne görür?"
+- Fiyat: 4.990 TL + KDV
+- CTA: "Analizi Başlat"
+
+6 özellik kartı:
+1. Subdomain Keşfi — "Bilmediğiniz alt domainler ve açık servisler"
+2. Teknoloji Parmak İzi — "Hangi yazılımlar, hangi versiyonlar"
+3. CVE Eşleştirme — "Tespit edilen yazılımlardaki bilinen açıklar"
+4. SSL/TLS Analizi — "Sertifika ve şifreleme protokolü güvenliği"
+5. AI Saldırı Zincirleri — "MITRE ATT&CK ile gerçekçi senaryo modelleme"
+6. Yönetici Raporu — "PDF, 5-8 sayfa, IT ekibine iletebilirsiniz"
+
+Önemli not (küçük yazı, footer'da):
+"Bu analiz tamamen pasif keşif yöntemleriyle gerçekleştirilir.
+Hedef sisteme aktif saldırı, exploit veya zarar verme işlemi yapılmaz.
+Yalnızca kamuya açık bilgiler kullanılır."
+
+Stat şeridi (Fortinet araştırması):
+%65 TR şirketi saldırıya uğradı | %53 uzman eksikliği | 24-48 saat rapor
+
+── Tarama durumu sayfası: /ai-pentest/:id ───────
+artifacts/cyberstep/src/pages/ai-pentest-status.tsx
+
+4 adımlı progress:
+1. 🔍 Keşif (subdomain + servis)
+2. 🔬 Analiz (SSL + CVE)
+3. 🤖 AI Modelleme (saldırı zincirleri)
+4. 📄 Rapor Hazırlanıyor
+
+Her 10 saniyede bir GET /api/attack-surface/:id/status polling.
+Tamamlanınca rapor sayfasına yönlendir.
+
+── Rapor sayfası: /ai-pentest/:id/rapor ─────────
+artifacts/cyberstep/src/pages/ai-pentest-rapor.tsx
+
+Bölümler:
+1. Risk skoru (büyük gauge)
+2. Yönetici özeti
+3. Keşfedilen varlıklar (subdomain tablosu + port listesi)
+4. Teknoloji envanteri (badge'ler)
+5. CVE kartları (CVSS renk kodlu)
+6. Saldırı zincirleri (accordion)
+7. Aksiyon listesi (öncelik sıralı)
+8. PDF indirme butonu
+
+App.tsx'e ekle:
+/ai-pentest → AiPentest
+/ai-pentest/:id → AiPentestStatus
+/ai-pentest/:id/rapor → AiPentestRapor
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 7 — SERVİS KATALOĞU
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+service_catalog tablosuna ekle (seed veya SQL ile):
+{
+  slug: "attack-surface-analysis",
+  label: "AI Saldırı Yüzeyi Analizi",
+  description: "Pasif keşif + CVE eşleştirme + AI saldırı simülasyonu raporu",
+  price_tl: 4990,
+  service_type: "one_time",
+  category: "ai_service",
+  is_active: true,
+  is_free: false
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 8 — NAVİGASYON
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ana navigasyona "AI Pentest" linkini ekle:
+- Ücretli servisler dropdown'ına /ai-pentest ekle
+- Landing sayfasında fiyat ve CTA görünsün
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 9 — BUILD & TEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. pnpm --filter @workspace/db push
+2. pnpm --filter @workspace/api-server run build
+3. pnpm --filter @workspace/cyberstep run build
+4. Test:
+   curl -X POST https://cyberstepio-cyber-risk-analyzer.replit.app/api/attack-surface/start \
+     -H "Content-Type: application/json" \
+     -d '{"domain":"diktas.com.tr"}'
+5. Özet: kaç dosya oluşturuldu, kaç endpoint eklendi, migration başarılı mı

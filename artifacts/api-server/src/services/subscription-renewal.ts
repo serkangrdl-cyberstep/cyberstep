@@ -62,7 +62,7 @@ async function processRenewalFailure(cs: typeof customerServicesTable.$inferSele
   });
 }
 
-export async function processSubscriptionRenewals() {
+export async function processSubscriptionRenewals(): Promise<number> {
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const renewals = await db
@@ -180,6 +180,7 @@ export async function processSubscriptionRenewals() {
       logger.error({ err, csId: cs.id }, "Renewal processing error");
     }
   }
+  return renewals.length;
 }
 
 export async function checkSubscriptionExpiryReminders(): Promise<void> {
@@ -322,8 +323,7 @@ export async function checkSubscriptionExpiryReminders(): Promise<void> {
 
 export function startRenewalCron() {
   cron.schedule("0 9 * * *", wrapCron("subscription_renewal", "0 9 * * *", async () => {
-    await processSubscriptionRenewals();
-    return 0;
+    return await processSubscriptionRenewals();
   }), { timezone: "Europe/Istanbul" });
 
   logger.info("Subscription renewal cron registered (09:00 Istanbul)");

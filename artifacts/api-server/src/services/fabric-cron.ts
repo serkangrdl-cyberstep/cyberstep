@@ -50,12 +50,12 @@ export function startFabricCrons(): void {
   }), TZ);
   logger.info("Fabric FortiManager health cron scheduled (02:45 Istanbul)");
 
-  // Weekly fabric summary report — Mondays 08:00 Istanbul
-  cron.schedule("0 8 * * 1", wrapCron("fabric_weekly_report", "0 8 * * 1", async () => {
+  // Weekly fabric summary report — Mondays 08:30 Istanbul (shifted to avoid weekly_delta at 08:00)
+  cron.schedule("30 8 * * 1", wrapCron("fabric_weekly_report", "30 8 * * 1", async () => {
     await runWeeklyFabricReport();
     return 0;
   }), TZ);
-  logger.info("Fabric weekly report cron scheduled (Mon 08:00 Istanbul)");
+  logger.info("Fabric weekly report cron scheduled (Mon 08:30 Istanbul)");
 
   // Verify pending/success blocks still present — every 6 hours
   cron.schedule("20 */6 * * *", wrapCron("fabric_block_verify", "20 */6 * * *", async () => {

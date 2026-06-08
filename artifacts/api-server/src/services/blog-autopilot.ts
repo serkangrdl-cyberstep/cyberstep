@@ -260,7 +260,7 @@ const CATEGORY_VARIANTS: Record<"FA" | "RE" | "SE" | "DU" | "CO", string> = {
 - CyberStep sektörel kıyaslama sayfasına (/sektorel-kiyaslama) yönlendirme ekle.`,
 
   DU: `KATEGORİ MODU — DÜZENLEYİCİ/UYUM (DU):
-- Ceza, mevzuat, zorunluluk odaklı yaz. Somut TL ceza miktarları ver (mümkünse gerçek KVK Kurulu kararlarından [DOĞRULA]).
+- Ceza, mevzuat, zorunluluk odaklı yaz. Somut TL ceza miktarları ver (emin olduklarını; belirsizse "KVKK kapsamında yüksek idari para cezaları uygulanabilir" gibi çerçevele).
 - "Bu uyumu sağlamazsanız ne olur?" bölümü zorunlu.
 - Aciliyet hissi yarat ama paniğe sevk etme.
 - Başlık formatı: Rakam veya acil soru formatı.
@@ -318,8 +318,8 @@ TON VE DİL:
 - Emoji kullanma.
 
 RAKAMLAR VE İSTATİSTİKLER:
-- İstatistik kullandığında MUTLAKA [DOĞRULA: kaynak adı] etiketi ekle.
-  Örnek: "Türkiye'de her 3 KOBİ'den 1'i siber saldırıya uğruyor [DOĞRULA: IAMRC 2025]"
+- Yalnızca emin olduğun istatistikleri kullan. Belirsizsen "araştırmalara göre", "küresel verilere göre" gibi çerçevele.
+- [DOĞRULA: ...] gibi placeholder veya editör notu ASLA ekleme — çıktı doğrudan yayına gidiyor.
 - TL bazında maliyet örnekleri ver. Dolar değil, TL önce.
 - Türkiye verisi varsa önce Türkiye; yoksa "Dünya genelinde..." bağla.
 
@@ -420,11 +420,16 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
     visualPromptX: string;
   };
 
+  // Prompt placeholder'larını temizle: [DOĞRULA: ...] ve benzeri editör notları
+  // yayına gitmeden önce çıktıdan ayıklanır.
+  const stripPlaceholders = (text: string): string =>
+    text.replace(/\[DOĞRULA:[^\]]*\]/gi, "").replace(/\[VERIFY:[^\]]*\]/gi, "").replace(/\[KAYNAK:[^\]]*\]/gi, "").trim();
+
   return {
-    title: parsed.title,
+    title: stripPlaceholders(parsed.title),
     slug: await toSlugUnique(parsed.title || topic.title),
-    excerpt: parsed.excerpt,
-    content: parsed.content,
+    excerpt: stripPlaceholders(parsed.excerpt),
+    content: stripPlaceholders(parsed.content),
     seoTitle: parsed.seoTitle,
     metaDescription: parsed.metaDescription,
     focusKeyword: parsed.focusKeyword,

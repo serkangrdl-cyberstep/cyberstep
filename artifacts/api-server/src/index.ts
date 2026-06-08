@@ -916,6 +916,19 @@ async function ensureBlogContentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS visual_prompts_tr JSONB`);
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS visual_prompts_en JSONB`);
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS refs_json JSONB DEFAULT '[]'`);
+
+  // Mevcut yayınlanmış yazılardaki [DOĞRULA: ...] placeholder'larını temizle
+  await db.execute(sql`
+    UPDATE blog_posts
+    SET
+      content         = regexp_replace(content,         '\[DOĞRULA:[^\]]*\]', '', 'gi'),
+      excerpt         = regexp_replace(excerpt,         '\[DOĞRULA:[^\]]*\]', '', 'gi'),
+      meta_description= regexp_replace(COALESCE(meta_description, ''), '\[DOĞRULA:[^\]]*\]', '', 'gi')
+    WHERE
+      content          ILIKE '%[DOĞRULA:%'
+      OR excerpt       ILIKE '%[DOĞRULA:%'
+      OR meta_description ILIKE '%[DOĞRULA:%'
+  `);
 }
 
 async function ensureDomainScanEnrichmentColumns() {

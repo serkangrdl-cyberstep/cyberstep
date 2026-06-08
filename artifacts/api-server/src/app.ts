@@ -19,8 +19,7 @@ import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import seoRouter from "./routes/public/seo";
 import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { logger } from "./lib/logger";
-import { db } from "@workspace/db";
-import { blogPostsTable } from "@workspace/db/schema/blog";
+import { db, blogPostsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
 const app: Express = express();

@@ -98,7 +98,7 @@
 | FortiManager Bağlantı Sağlığı | Her gece 02:45 | FortiManager API bağlantısının çalıştığını kontrol eder | Güvenlik cihazı entegrasyonunun sürekliliğini sağlar |
 | Onay Görevleri Temizleme (HITL) | Her 15 dakikada | Süresi dolan insan onayı bekleyen görevleri kapatır | Askıda kalan onay taleplerinin sistemi tıkamasını önler |
 | Doğrulama Kuyruğu | Her saatte | Bekleyen doğrulama görevlerini işler | Kullanıcı ve veri doğrulamalarının gecikmeden tamamlanmasını sağlar |
-| Haftalık Veritabanı Yedeği ⚠️ | Her Pazar 04:00 | Tüm veritabanının yedeğini alır | Veri kaybına karşı güvenlik ağı — **ancak haftalık frekans kritik üretim veritabanı için yetersiz; günlük veya anlık yedekleme (WAL/streaming) değerlendirilmeli** |
+| Günlük + Haftalık Veritabanı Yedeği | Her gece 03:00 (günlük) + Her Pazar 04:00 (haftalık tam yedek) | Tüm veritabanının yedeğini alır; günlük yedek maksimum 24 saatlik kayıp penceresini sağlar, haftalık ek güvenlik katmanı oluşturur | Günlük yedekle maksimum 24 saatlik veri kaybı penceresi; haftalık tam yedek ek güvenlik katmanı |
 | Alan Adı Yeniden Tarama | Her gün 09:30 | Müşteri alan adlarını güncel tehdit imzalarıyla yeniden tarar | Önceden temiz görünen domain'lerdeki yeni tehditleri yakalar |
 
 ---
@@ -150,16 +150,8 @@
 | Lead Üretimi & Satış | 5 |
 | Müşteri İletişimi & Onboarding | 9 |
 | Raporlama & Analitik | 11 |
-| Sistem & Altyapı | 11 |
+| Sistem & Altyapı | 12 |
 | AI & İçerik Üretimi | 9 |
 | Yasal Uyumluluk (KVKK) | 3 |
 | Büyüme & Fiyatlandırma | 5 |
-| **TOPLAM** | **73** |
-
----
-
-## Açık Risk: Veritabanı Yedekleme Sıklığı
-
-> ⚠️ **Mevcut durum:** Yedek haftada bir (Pazar 04:00) alınıyor.  
-> **Risk:** Hafta içinde yaşanacak bir veri kaybında en fazla 7 günlük veri geri dönülemez biçimde silinebilir.  
-> **Öneri:** Günlük tam yedek + anlık WAL (Write-Ahead Log) streaming ile bu pencereyi dakikalara indirmek mümkün. Üretim ortamı için değerlendirilmesi önerilir.
+| **TOPLAM** | **74** |

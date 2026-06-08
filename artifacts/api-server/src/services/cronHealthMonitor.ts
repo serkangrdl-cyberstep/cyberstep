@@ -54,9 +54,10 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "domain_rescan",        intervalMinutes: 1440,  label: "Domain Yeniden Tarama" },
   { name: "onboarding_d3d7",      intervalMinutes: 1440,  label: "Onboarding D+3/D+7" },
   { name: "growth_ssl_expiry",    intervalMinutes: 1440,  label: "SSL Expiry Alert" },
+  { name: "daily_db_backup",      intervalMinutes: 1440,  label: "Günlük DB Yedek" },
   // Haftalık
   { name: "haftalik_bulten",      intervalMinutes: 10080, label: "Haftalık Bülten" },
-  { name: "weekly_db_backup",     intervalMinutes: 10080, label: "DB Yedek" },
+  { name: "weekly_db_backup",     intervalMinutes: 10080, label: "Haftalık DB Yedek" },
   { name: "github_secrets_scan",  intervalMinutes: 10080, label: "GitHub Secrets Tarama" },
 ];
 

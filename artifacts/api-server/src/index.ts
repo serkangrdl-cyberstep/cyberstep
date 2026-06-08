@@ -2472,6 +2472,13 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Haftalık bülten cron kayıtlandı (Cuma 08:00 Istanbul)");
 
+    // ─── Günlük DB Yedeği — Her gece 03:00 Istanbul ─────────────────────────
+    cron.schedule("0 3 * * *", wrapCron("daily_db_backup", "0 3 * * *", async () => {
+      const { runDbBackup } = await import("./services/dbBackup");
+      return await runDbBackup();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Günlük DB yedek cron kayıtlandı (Her gece 03:00 Istanbul)");
+
     // ─── Haftalık DB Yedeği — Her Pazar 04:00 Istanbul ──────────────────────
     cron.schedule("0 4 * * 0", wrapCron("weekly_db_backup", "0 4 * * 0", async () => {
       const { runDbBackup } = await import("./services/dbBackup");

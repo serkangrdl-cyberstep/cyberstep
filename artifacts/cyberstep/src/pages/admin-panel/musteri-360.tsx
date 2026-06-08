@@ -114,6 +114,14 @@ export default function Musteri360() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/payments/service-subscriptions", customer?.email] }); setCancelConfirmId(null); toast({ title: "Abonelik iptal edildi", description: "İptal onay e-postası müşteriye gönderildi." }); },
     onError: (err: Error) => { toast({ title: "Hata", description: err.message, variant: "destructive" }); },
   });
+  const activateAllForTest = useMutation({
+    mutationFn: () => fetch(`/api/admin-panel/customers/${id}/test-mode-activate`, { method: "POST", credentials: "include" }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "Hata"); return d; }),
+    onSuccess: (data: { activated: number; total: number }) => {
+      qc.invalidateQueries({ queryKey: ["/api/payments/service-subscriptions", customer?.email] });
+      toast({ title: `Test modu aktif: ${data.activated}/${data.total} servis etkinleştirildi` });
+    },
+    onError: (err: Error) => toast({ title: "Hata", description: err.message, variant: "destructive" }),
+  });
   const renewSubscription = useMutation({
     mutationFn: ({ subId, body }: { subId: number; body: Record<string, string> }) =>
       fetch(`/api/payments/service-subscriptions/${subId}/renew`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
@@ -346,10 +354,24 @@ export default function Musteri360() {
         <TabsContent value="servisler">
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader className="pb-3">
-              <CardTitle className="text-slate-200 text-sm flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-cyan-400" />
-                Satın Alınan Servisler
-              </CardTitle>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="text-slate-200 text-sm flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-cyan-400" />
+                  Satın Alınan Servisler
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-amber-600/50 text-amber-400 hover:bg-amber-500/10"
+                  disabled={activateAllForTest.isPending}
+                  onClick={() => {
+                    if (!confirm("Tüm aktif katalog servisleri bu müşteriye 1 yıllık olarak atansın mı? (Test amaçlı)")) return;
+                    activateAllForTest.mutate();
+                  }}
+                >
+                  {activateAllForTest.isPending ? "Atanıyor..." : "Test: Tüm Servisleri Etkinleştir"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {serviceSubscriptions.length === 0 ? (

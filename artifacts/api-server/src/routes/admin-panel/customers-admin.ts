@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { customersTable, assessmentsTable, paymentsTable } from "@workspace/db";
+import { customersTable, assessmentsTable, paymentsTable, customerServicesTable, serviceCatalogTable } from "@workspace/db";
 import { count, eq, sql, desc } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
@@ -105,6 +105,45 @@ router.patch("/admin-panel/customers/:id/reset-password", requireAdmin, async (r
   if (!updated) { res.status(404).json({ error: "Müşteri bulunamadı" }); return; }
   logger.info({ customerId: id, email: updated.email }, "Customer password reset by admin");
   res.json({ success: true });
+});
+
+// POST /api/admin-panel/customers/:id/test-mode-activate
+// Tüm aktif servis kataloğunu müşteriye bulk olarak atar (test amacıyla)
+router.post("/admin-panel/customers/:id/test-mode-activate", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const [customer] = await db.select({ id: customersTable.id, email: customersTable.email })
+    .from(customersTable).where(eq(customersTable.id, id)).limit(1);
+  if (!customer) { res.status(404).json({ error: "Müşteri bulunamadı" }); return; }
+
+  const allServices = await db.select({ id: serviceCatalogTable.id, slug: serviceCatalogTable.slug })
+    .from(serviceCatalogTable)
+    .where(eq(serviceCatalogTable.isActive, true));
+
+  const expiresAt = new Date();
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+  let activated = 0;
+  for (const svc of allServices) {
+    try {
+      await db.insert(customerServicesTable).values({
+        customerId: id,
+        serviceCatalogId: svc.id,
+        status: "active",
+        activatedAt: new Date(),
+        expiresAt,
+        activatedBy: "admin-test-mode",
+        notes: "Test modu — admin tarafından etkinleştirildi",
+      }).onConflictDoNothing();
+      activated++;
+    } catch {
+      // Çakışmayı atla
+    }
+  }
+
+  logger.info({ customerId: id, activated, total: allServices.length }, "Test mode: all services activated");
+  res.json({ success: true, activated, total: allServices.length });
 });
 
 // ONE-TIME SETUP: production test user fix — DELETE AFTER USE

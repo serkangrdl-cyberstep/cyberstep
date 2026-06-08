@@ -56,21 +56,21 @@ export function startSOCCrons(): void {
   // Seed playbooks + SLA matrix on startup (idempotent)
   void seedSOC();
 
-  // Triage queue — every 5 minutes (DB-backed overlap protection via wrapCron)
+  // Triage queue — every 5 minutes, offset +1 min to stagger with dns_monitor
   cron.schedule(
-    "*/5 * * * *",
-    wrapCron("soc_triage", "*/5 * * * *", async () => {
+    "1,6,11,16,21,26,31,36,41,46,51,56 * * * *",
+    wrapCron("soc_triage", "1,6,11,16,21,26,31,36,41,46,51,56 * * * *", async () => {
       await processTriageQueue();
     }),
     TZ
   );
-  logger.info("SOC triage cron scheduled (every 5 min)");
+  logger.info("SOC triage cron scheduled (every 5 min, offset +1)");
 
-  // SLA breach check — every 5 minutes
-  cron.schedule("*/5 * * * *", wrapCron("soc_sla", "*/5 * * * *", async () => {
+  // SLA breach check — every 5 minutes, offset +2 min to stagger
+  cron.schedule("2,7,12,17,22,27,32,37,42,47,52,57 * * * *", wrapCron("soc_sla", "2,7,12,17,22,27,32,37,42,47,52,57 * * * *", async () => {
     await checkSLABreaches();
   }), TZ);
-  logger.info("SOC SLA cron scheduled (every 5 min)");
+  logger.info("SOC SLA cron scheduled (every 5 min, offset +2)");
 
   // Weekly customer reports — Mondays 09:00 Istanbul
   cron.schedule("0 9 * * 1", wrapCron("soc_weekly_report", "0 9 * * 1", async () => {

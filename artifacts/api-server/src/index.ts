@@ -2295,19 +2295,19 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Email sequence cron scheduled (every 30 min)");
 
-    // ─── NOC: FortiGate polling — her 5 dakika ────────────────────────────────
-    cron.schedule("*/5 * * * *", wrapCron("noc_poll", "*/5 * * * *", async () => {
+    // ─── NOC: FortiGate polling — her 5 dakika, offset +3 dk ─────────────────
+    cron.schedule("3,8,13,18,23,28,33,38,43,48,53,58 * * * *", wrapCron("noc_poll", "3,8,13,18,23,28,33,38,43,48,53,58 * * * *", async () => {
       await runFortiGatePollCron();
       return 0;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("NOC FortiGate poll cron scheduled (every 5 min)");
+    logger.info("NOC FortiGate poll cron scheduled (every 5 min, offset +3)");
 
-    // ─── NOC: Availability monitor — her 5 dakika ─────────────────────────────
-    cron.schedule("*/5 * * * *", wrapCron("noc_availability", "*/5 * * * *", async () => {
+    // ─── NOC: Availability monitor — her 5 dakika, offset +4 dk ──────────────
+    cron.schedule("4,9,14,19,24,29,34,39,44,49,54,59 * * * *", wrapCron("noc_availability", "4,9,14,19,24,29,34,39,44,49,54,59 * * * *", async () => {
       await runAvailabilityCron();
       return 0;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("NOC availability cron scheduled (every 5 min)");
+    logger.info("NOC availability cron scheduled (every 5 min, offset +4)");
 
     // ─── NOC: Claude triage — her 15 dakika ───────────────────────────────────
     cron.schedule("*/15 * * * *", wrapCron("noc_triage", "*/15 * * * *", async () => {

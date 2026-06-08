@@ -65,7 +65,7 @@ Kurallar:
 
     const parsed = JSON.parse(jsonMatch[0]) as { subject?: string; body?: string };
 
-    const corporateIntro = `CyberStep.io; küçük ve orta ölçekli işletmelere yönelik siber güvenlik risk analizi ve danışmanlık hizmetleri sunan Türkiye merkezli bir platformdur. Kurumların dijital varlıklarını korumak amacıyla sürekli olarak pasif keşif ve açık kaynak istihbarat (OSINT) taramaları gerçekleştirmekteyiz.
+    const corporateIntro = `CyberStep.io; Türkiye'deki işletmelere yönelik siber güvenlik risk analizi ve danışmanlık hizmetleri sunan Türkiye merkezli bir platformdur. Kurumların dijital varlıklarını korumak amacıyla sürekli olarak pasif keşif ve açık kaynak istihbarat (OSINT) taramaları gerçekleştirmekteyiz.
 
 Rutin tarama hizmetlerimiz sırasında ${candidate.domain} alan adınıza ilişkin bazı önemli güvenlik bulgularına ulaştık. Tespit edilen bu bulgular, kötü niyetli kişilerin hedefleyebileceği açıklar içerdiğinden kurumunuzu bilgilendirme amacıyla bu mesajı iletmekteyiz.
 

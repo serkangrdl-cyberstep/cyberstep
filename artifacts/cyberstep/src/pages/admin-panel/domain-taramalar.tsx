@@ -73,6 +73,8 @@ interface DomainScanDetail extends DomainScanRow {
   safeBrowsingFlagged: boolean | null;
   safeBrowsingThreats: string[];
   sslLabsGrade: string | null;
+  ctSubdomainCount: number;
+  ctSubdomains: string[];
 }
 
 interface SmartCheck {
@@ -408,6 +410,181 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* HTTP Güvenlik Başlıkları */}
+            {scan.httpHeadersDetails && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  HTTP Güvenlik Başlıkları
+                  <span className={`ml-2 text-xs font-bold ${scan.httpHeadersScore >= 70 ? "text-emerald-400" : scan.httpHeadersScore >= 40 ? "text-amber-400" : "text-red-400"}`}>
+                    {scan.httpHeadersScore}/100
+                  </span>
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "HSTS (HTTPS zorunlu)", pass: scan.httpHeadersDetails.hsts },
+                    { label: "X-Frame-Options (Clickjacking)", pass: scan.httpHeadersDetails.xFrameOptions },
+                    { label: "X-Content-Type-Options", pass: scan.httpHeadersDetails.xContentTypeOptions },
+                    { label: "Content-Security-Policy", pass: scan.httpHeadersDetails.csp },
+                    { label: "Referrer-Policy", pass: scan.httpHeadersDetails.referrerPolicy },
+                  ].map(({ label, pass }) => (
+                    <div key={label} className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${pass ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+                      {pass
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        : <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />}
+                      <span className={pass ? "text-emerald-300" : "text-red-300"}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Açık Portlar — Shodan */}
+            {scan.shodanOpenPorts && scan.shodanOpenPorts.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  Açık Portlar — Shodan ({scan.shodanOpenPorts.length})
+                  {scan.shodanVulnCount > 0 && (
+                    <span className="ml-2 text-red-400 font-bold">{scan.shodanVulnCount} CVE</span>
+                  )}
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-slate-500 border-b border-slate-700">
+                        <th className="text-left pb-1.5 font-medium">Port</th>
+                        <th className="text-left pb-1.5 font-medium">Protokol</th>
+                        <th className="text-left pb-1.5 font-medium">Servis</th>
+                        <th className="text-left pb-1.5 font-medium">Ürün</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {scan.shodanOpenPorts.map((p, i) => (
+                        <tr key={i} className="text-slate-300">
+                          <td className="py-1.5 font-mono text-amber-400">{p.port}</td>
+                          <td className="py-1.5 text-slate-500">{p.protocol}</td>
+                          <td className="py-1.5">{p.service}</td>
+                          <td className="py-1.5 text-slate-400">{p.product}{p.version ? ` ${p.version}` : ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* CVE Özeti */}
+            {(scan.cveSummary ?? []).length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  CVE Bulguları ({(scan.cveSummary ?? []).length})
+                </h3>
+                <div className="space-y-2">
+                  {(scan.cveSummary ?? []).map((c, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800 border border-slate-700">
+                      <span className={`shrink-0 text-xs font-bold px-2 py-1 rounded ${c.cvssScore >= 9 ? "bg-red-500/20 text-red-400" : c.cvssScore >= 7 ? "bg-orange-500/20 text-orange-400" : "bg-amber-500/20 text-amber-400"}`}>
+                        {c.cvssScore.toFixed(1)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono text-blue-400">{c.cveId}</span>
+                          <span className="text-xs text-slate-500">{c.service}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{c.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* VirusTotal */}
+            {scan.virusTotalReputation !== null && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">VirusTotal</h3>
+                <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-slate-800">
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${scan.virusTotalMalicious > 0 ? "text-red-400" : "text-emerald-400"}`}>{scan.virusTotalMalicious}</div>
+                    <div className="text-xs text-slate-500">Zararlı</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${scan.virusTotalSuspicious > 0 ? "text-amber-400" : "text-slate-400"}`}>{scan.virusTotalSuspicious}</div>
+                    <div className="text-xs text-slate-500">Şüpheli</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${(scan.virusTotalReputation ?? 0) < 0 ? "text-red-400" : "text-emerald-400"}`}>{scan.virusTotalReputation}</div>
+                    <div className="text-xs text-slate-500">İtibar Puanı</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AbuseIPDB */}
+            {scan.abuseIpdbScore !== null && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">AbuseIPDB</h3>
+                <div className="flex items-center gap-4 p-3 rounded-lg bg-slate-800">
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${(scan.abuseIpdbScore ?? 0) >= 50 ? "text-red-400" : (scan.abuseIpdbScore ?? 0) >= 25 ? "text-amber-400" : "text-emerald-400"}`}>
+                      {scan.abuseIpdbScore}
+                    </div>
+                    <div className="text-xs text-slate-500">Kötüye Kullanım Skoru</div>
+                  </div>
+                  {scan.abuseIpdbTotalReports > 0 && (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-400">{scan.abuseIpdbTotalReports}</div>
+                      <div className="text-xs text-slate-500">Toplam Rapor</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* CT Log Alt Domainleri */}
+            {scan.ctSubdomainCount > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  CT Log Alt Domainleri ({scan.ctSubdomainCount})
+                </h3>
+                <div className="p-3 rounded-lg bg-slate-800">
+                  <div className="flex flex-wrap gap-1.5">
+                    {(scan.ctSubdomains ?? []).slice(0, 20).map(sd => (
+                      <span key={sd} className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded font-mono">{sd}</span>
+                    ))}
+                    {scan.ctSubdomainCount > 20 && (
+                      <span className="text-xs text-slate-500 self-center">+{scan.ctSubdomainCount - 20} daha</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* URLhaus / USOM */}
+            {(scan.urlhausListed || scan.usomListed) && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  <AlertTriangle className="h-3.5 w-3.5 inline mr-1 text-red-400" />
+                  Tehdit Listeleri
+                </h3>
+                <div className="space-y-2">
+                  {scan.urlhausListed && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <XCircle className="h-4 w-4 text-red-400 shrink-0" />
+                      <div>
+                        <div className="text-sm font-medium text-red-300">URLhaus — Zararlı URL Listesi</div>
+                        {scan.urlhausThreat && <p className="text-xs text-slate-400 mt-0.5">{scan.urlhausThreat}</p>}
+                      </div>
+                    </div>
+                  )}
+                  {scan.usomListed && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <XCircle className="h-4 w-4 text-red-400 shrink-0" />
+                      <div className="text-sm font-medium text-red-300">USOM — Türkiye Ulusal Siber Olaylara Müdahale Listesi</div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

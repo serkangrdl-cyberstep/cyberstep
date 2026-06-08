@@ -65,6 +65,11 @@ interface SourceData {
   shodanQuery?: string;
   product?: string;
   cveBreakdown?: CVEBreakdown;
+  registeredDomain?: string;
+  tld?: string;
+  subdomains?: string[];
+  issuer?: string;
+  notBefore?: string;
   [key: string]: unknown;
 }
 
@@ -305,6 +310,7 @@ export default function AdminLeadDiscovery() {
   const [filterNotSent, setFilterNotSent] = useState(false);
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
+  const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
   const [contactEditTarget, setContactEditTarget] = useState<LeadCandidate | null>(null);
   const [editEmail, setEditEmail] = useState("");
   const [editName, setEditName] = useState("");
@@ -521,14 +527,21 @@ export default function AdminLeadDiscovery() {
     mutationFn: (domain: string) =>
       fetch(`${BASE}/tech-stack/fingerprint`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain }),
       }).then(async (r) => {
-        const j = await r.json() as { error?: string };
+        const j = await r.json() as { error?: string; stack?: TechStackItem[]; stackCount?: number; maturity?: { score: number; level: string } };
         if (!r.ok) throw new Error(j.error ?? "Hata");
         return j;
       }),
-    onSuccess: () => toast({ description: "Tech fingerprint başlatıldı." }),
+    onSuccess: (data) => {
+      setFingerprintResult({
+        stack: data.stack ?? [],
+        stackCount: data.stackCount ?? 0,
+        maturity: data.maturity ?? null,
+      });
+    },
     onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
   });
 
@@ -916,9 +929,9 @@ export default function AdminLeadDiscovery() {
                                 )}
                                 <Button
                                   size="sm"
-                                  variant="ghost"
+                                  variant="outline"
                                   className="text-xs h-7 w-full"
-                                  onClick={() => setDetailCandidate(c)}
+                                  onClick={() => { setFingerprintResult(null); setDetailCandidate(c); }}
                                 >
                                   Detay
                                 </Button>
@@ -1085,7 +1098,7 @@ export default function AdminLeadDiscovery() {
                                 size="sm"
                                 variant="outline"
                                 className="text-xs h-7 w-full"
-                                onClick={() => setDetailCandidate(c)}
+                                onClick={() => { setFingerprintResult(null); setDetailCandidate(c); }}
                               >
                                 Detay
                               </Button>
@@ -1222,7 +1235,7 @@ export default function AdminLeadDiscovery() {
 
       {/* Lead Detail Dialog */}
       {!!detailCandidate && (
-        <Dialog open={!!detailCandidate} onOpenChange={() => setDetailCandidate(null)}>
+        <Dialog open={!!detailCandidate} onOpenChange={() => { setDetailCandidate(null); setFingerprintResult(null); }}>
           <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle className="font-mono text-base">{detailCandidate.domain}</DialogTitle>
@@ -1236,11 +1249,14 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
 
-              {/* Shodan kaynak bilgisi */}
+              {/* Kaynak tespit detayı */}
               {detailCandidate.sourceData && (
                 <div className="bg-slate-50 border rounded-md p-3 space-y-2">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shodan Tespit Detayı</div>
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {detailCandidate.source === "crtsh" ? "crt.sh Tespit Detayı" : "Shodan Tespit Detayı"}
+                  </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
+                    {/* Shodan alanları */}
                     {detailCandidate.sourceData.ip && (
                       <div>
                         <span className="text-muted-foreground">IP Adresi: </span>
@@ -1255,7 +1271,7 @@ export default function AdminLeadDiscovery() {
                     )}
                     {detailCandidate.sourceData.product && (
                       <div>
-                        <span className="text-muted-foreground">Ürün: </span>
+                        <span className="text-muted-foreground">Ürün/Yazılım: </span>
                         <span className="font-medium">{detailCandidate.sourceData.product}</span>
                       </div>
                     )}
@@ -1275,6 +1291,37 @@ export default function AdminLeadDiscovery() {
                       <div className="col-span-2">
                         <span className="text-muted-foreground">Tetikleyen Shodan Sorgusu: </span>
                         <span className="font-mono text-blue-600">{detailCandidate.sourceData.shodanQuery}</span>
+                      </div>
+                    )}
+                    {/* crt.sh alanları */}
+                    {detailCandidate.sourceData.registeredDomain && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Kayıtlı Domain: </span>
+                        <span className="font-mono font-medium">{detailCandidate.sourceData.registeredDomain}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.tld && (
+                      <div>
+                        <span className="text-muted-foreground">TLD: </span>
+                        <span className="font-mono">{detailCandidate.sourceData.tld}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.subdomains && (detailCandidate.sourceData.subdomains as string[]).length > 0 && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Alt Domainler: </span>
+                        <span className="font-mono text-xs">{(detailCandidate.sourceData.subdomains as string[]).slice(0, 8).join(", ")}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.issuer && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Sertifika Veren: </span>
+                        <span>{detailCandidate.sourceData.issuer}</span>
+                      </div>
+                    )}
+                    {detailCandidate.sourceData.notBefore && (
+                      <div>
+                        <span className="text-muted-foreground">Sertifika Tarihi: </span>
+                        <span>{new Date(detailCandidate.sourceData.notBefore as string).toLocaleDateString("tr-TR")}</span>
                       </div>
                     )}
                   </div>
@@ -1390,6 +1437,55 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
 
+              {/* Tech Fingerprint Sonuçları */}
+              {fingerprintLead.isPending && (
+                <div className="bg-cyan-50 border border-cyan-200 rounded-md p-3 text-xs text-cyan-700 animate-pulse">
+                  Tech fingerprint taraması çalışıyor...
+                </div>
+              )}
+              {fingerprintResult && (
+                <div className="border border-cyan-200 bg-cyan-50/50 rounded-md p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-cyan-800 uppercase tracking-wide">Tech Fingerprint Sonuçları</div>
+                    <div className="flex gap-3 text-xs">
+                      <span className="text-muted-foreground">{fingerprintResult.stackCount} teknoloji</span>
+                      {fingerprintResult.maturity && (
+                        <span className={`font-semibold ${
+                          fingerprintResult.maturity.score >= 70 ? "text-green-700" :
+                          fingerprintResult.maturity.score >= 40 ? "text-yellow-700" : "text-red-700"
+                        }`}>{fingerprintResult.maturity.level} ({fingerprintResult.maturity.score}/100)</span>
+                      )}
+                    </div>
+                  </div>
+                  {fingerprintResult.stack.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Teknoloji tespit edilemedi.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {[...fingerprintResult.stack]
+                        .sort((a, b) => (b.securityRisk === "Yüksek" ? 1 : 0) - (a.securityRisk === "Yüksek" ? 1 : 0))
+                        .map((t, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <span className="flex-1 font-medium truncate">{t.vendor}</span>
+                            <span className="text-muted-foreground text-[10px]">{t.category}</span>
+                            {t.salesSignal && (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                t.salesSignal === "fortinet_customer" ? "bg-red-100 text-red-700" :
+                                t.salesSignal === "cms_wordpress" ? "bg-orange-100 text-orange-700" :
+                                t.salesSignal === "cdn_user" ? "bg-blue-100 text-blue-700" :
+                                t.salesSignal === "microsoft_shop" ? "bg-purple-100 text-purple-700" :
+                                "bg-slate-100 text-slate-600"
+                              }`}>{t.salesSignal}</span>
+                            )}
+                            {t.securityRisk === "Yüksek" && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">risk</span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Aksiyonlar */}
               <div className="flex gap-2 pt-2 border-t flex-wrap">
                 {detailCandidate.isQualified && !detailCandidate.teaserSubject && (
@@ -1404,10 +1500,11 @@ export default function AdminLeadDiscovery() {
                   </Button>
                 )}
                 <Button size="sm" variant="outline" className="text-cyan-600 border-cyan-200"
-                  onClick={() => { fingerprintLead.mutate(detailCandidate.domain); setDetailCandidate(null); }}>
-                  Tech Fingerprint
+                  onClick={() => { setFingerprintResult(null); fingerprintLead.mutate(detailCandidate.domain); }}
+                  disabled={fingerprintLead.isPending}>
+                  {fingerprintLead.isPending ? "Taranıyor..." : "Tech Fingerprint"}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDetailCandidate(null)}>Kapat</Button>
+                <Button size="sm" variant="ghost" onClick={() => { setDetailCandidate(null); setFingerprintResult(null); }}>Kapat</Button>
               </div>
             </div>
           </DialogContent>

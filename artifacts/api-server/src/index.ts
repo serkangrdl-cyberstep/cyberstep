@@ -870,7 +870,7 @@ async function ensureIsrTables() {
 }
 
 function startIsrImapCron() {
-  cron.schedule("*/5 * * * *", wrapCron("isr_imap", "*/5 * * * *", async () => {
+  cron.schedule("*/10 * * * *", wrapCron("isr_imap", "*/10 * * * *", async () => {
     try {
       const { processInbox } = await import("./services/isr-imap");
       await processInbox();
@@ -878,7 +878,7 @@ function startIsrImapCron() {
       logger.error({ err }, "ISR IMAP cron error");
     }
   }), { timezone: "Europe/Istanbul" });
-  logger.info("ISR IMAP poller scheduled (every 5 minutes)");
+  logger.info("ISR IMAP poller scheduled (every 10 minutes)");
 }
 
 // ─── Cron: Scan lead e-posta aktivasyon dizisi (her saat bir kez) ─────────────

@@ -19,7 +19,7 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   // Yüksek frekans — her 5-15 dk
   { name: "dns_monitor",          intervalMinutes: 5,     label: "DNS Monitor" },
   { name: "soc_triage",           intervalMinutes: 5,     label: "SOC Triage" },
-  { name: "isr_imap",             intervalMinutes: 5,     label: "ISR IMAP" },
+  { name: "isr_imap",             intervalMinutes: 10,    label: "ISR IMAP" },
   { name: "noc_poll",             intervalMinutes: 5,     label: "NOC Poll" },
   { name: "noc_availability",     intervalMinutes: 5,     label: "NOC Availability" },
   { name: "servicenow_sync",      intervalMinutes: 15,    label: "ServiceNow Sync" },

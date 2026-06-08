@@ -10,7 +10,7 @@
 | Görev | Ne Zaman Çalışır | Ne Yapar | Faydası |
 |---|---|---|---|
 | DNS İzleyici | Her 5 dakikada (+0 dk) | Müşteri alan adlarının DNS kayıtlarını kontrol eder, değişiklik olursa alarm verir | Domain ele geçirme ve kayıt değişikliklerini anında yakalar |
-| Oltalama Alan Adı Tespiti | Her 4 saatte | İnternetteki SSL sertifika kayıtlarını tarar, müşteri adını taklit eden sahte site ararır | Müşteriye yönelik phishing hazırlıklarını erken fark eder |
+| CT Phishing Tespiti | Her 4 saatte | İnternetteki SSL sertifika kayıtlarını (Certificate Transparency) tarar, müşteri adını taklit eden sahte siteleri arar; tespit edilince e-posta + SOC vakası açar | Müşteriye yönelik phishing hazırlıklarını sahte site yayına girmeden önce fark eder |
 | SOC Olay Önceliklendirme | Her 5 dakikada (+1 dk) | Güvenlik cihazlarından gelen olayları değerlendirir, ciddi olanları vakaya dönüştürür | Güvenlik ekibinin önce en kritik olaylara bakmasını sağlar |
 | SOC Yanıt Süresi Takibi | Her 5 dakikada (+2 dk) | Açık güvenlik vakalarının yanıt sürelerini kontrol eder, gecikenleri bildirir | SLA taahhütlerine uyulmasını güvence altına alır |
 | Güvenlik Olay Korelasyonu | Her 15 dakikada | Farklı güvenlik cihazlarından (FortiGate, QRadar vb.) gelen olayları birleştirip bağlantı kurar | Tek başına anlamsız görünen olayların bir saldırı zincirinin parçası olduğunu ortaya çıkarır |
@@ -32,7 +32,7 @@
 | CISA Tehdit Veritabanı Güncelleme | Her gece 01:00 | ABD Siber Güvenlik Ajansı'nın (CISA) aktif istismar edilen zafiyet listesini indirir | En güncel tehdit bilgisiyle müşteri sistemlerini karşılaştırır |
 | Siber İstihbarat Akışları | Her 6 saatte | 9 farklı tehdit istihbaratı kaynağını tarar, yeni IOC (tehdit göstergesi) ekler | Bilinen zararlı IP, domain ve dosyalar için uyarı verebilir |
 | CVE Güvenlik Açığı Takibi | Her 2 saatte | Yeni açıklanan CVE'leri çeker, müşteri teknoloji stackiyle eşleştirir | Müşteriye özgü kritik açıkları otomatik tespit eder |
-| Piyasa ve Tehdit Trendi İzleme | Her 4 saatte | Siber güvenlik haberlerini ve sektor trendlerini takip eder | İçerik üretimi ve tehdit raporları için güncel veri sağlar |
+| Piyasa ve Tehdit Trendi İzleme | Her 4 saatte | Siber güvenlik haberlerini ve sektör trendlerini takip eder | İçerik üretimi ve tehdit raporları için güncel veri sağlar |
 | SSL Sertifika Keşfi | Her gece 01:00 | Yeni kurulan Türk şirketlerinin SSL sertifikalarını izler | Potansiyel satış adayı (lead) tespit eder |
 | CVE Tehdit Eşleştirme | Her gece 02:30 | Yeni CVE'leri mevcut müşteri profilleriyle eşleştirir | Kime hangi açık mail atılacağını otomatik belirler |
 | Port Tarama | Her Pazar 04:00 | İnternet üzerinde açık port/servis tespiti yapar | Yeni potansiyel müşteri adayı keşfeder |
@@ -59,6 +59,7 @@
 | Aktivasyon E-postaları (Gün 3 & 7) | Her gün 10:30 | Kayıt sonrası 3. ve 7. günde teşvik edici e-posta gönderir | Kullanıcının platforma alışmasını hızlandırır |
 | Ödeme Hatırlatma | Her gün 10:00 | Ödeme yapılmamış faturalar için kibarca hatırlatma gönderir | Sessiz churn ve ödeme kayıplarını azaltır |
 | 30 Gün Öncesi Yenileme Hatırlatma | Her gün 09:45 | Aboneliği 30 gün içinde dolacak müşterilere hatırlatma gönderir | Yenileme kararını erkenden almalarını sağlar |
+| **Abonelik Otomatik Yenileme** | **Her gün 09:00** | **Aboneliği dolan müşterilerin yenileme işlemini otomatik başlatır; ödeme alınamazsa dunning kuyruğuna ekler** | **Abonelik sürekliliğini sağlar, manuel takip ihtiyacını ortadan kaldırır** |
 | Abonelik Bitiş Bildirimi | Her gün 10:00 | Aboneliği sona eren müşterilere bildirim gönderir | Farkında olmadan hizmet kesintisi yaşanmasını önler |
 | E-posta Serisi İşleyici | Her 30 dakikada | Zamanı gelen drip kampanya e-postalarını kuyruğa alır ve gönderir | Tüm müşteri iletişimini otomatik ve zamanında yönetir |
 | Geciken Ödeme Takibi (Dunning) | Her gün 10:15 | Vadesi geçmiş ödemeler için art arda hatırlatma e-postası gönderir | Tahsilatı otomatik yönetir, kayıp geliri geri kazanır |
@@ -88,7 +89,7 @@
 
 | Görev | Ne Zaman Çalışır | Ne Yapar | Faydası |
 |---|---|---|---|
-| Cron Sağlık Raporu | Her gün 07:00 | Tüm otomatik görevlerin çalışıp çalışmadığını kontrol eder, sorunluysa alarm verir | Sessizce duran bir cron'un haftalarca fark edilmeden kalmasını önler |
+| Günlük Cron Sağlık E-postası | Her gün 07:00 | Tüm otomatik görevlerin çalışıp çalışmadığını kontrol eder; sorunlu veya durmuş cron varsa admin'e e-posta ile alarm gönderir | Sessizce duran bir cron'un haftalarca fark edilmeden kalmasını önler |
 | Platform Maliyet Kontrolü | Her gece 23:30 | AI API maliyetlerini ve platform giderlerini hesaplar | Bütçe aşımlarını erkenden yakalar |
 | Webhook Yeniden Deneme | Her 10 dakikada | Başarısız olan dış sistem bildirimlerini yeniden gönderir | Entegrasyon hatalarında veri kaybı olmaz |
 | ServiceNow Ticket Senkronizasyonu | Her 15 dakikada | SOC vakalarını ServiceNow IT sistemiyle çift yönlü senkronize eder | Müşterinin kendi ITSM sistemiyle otomatik uyum sağlar |
@@ -97,7 +98,7 @@
 | FortiManager Bağlantı Sağlığı | Her gece 02:45 | FortiManager API bağlantısının çalıştığını kontrol eder | Güvenlik cihazı entegrasyonunun sürekliliğini sağlar |
 | Onay Görevleri Temizleme (HITL) | Her 15 dakikada | Süresi dolan insan onayı bekleyen görevleri kapatır | Askıda kalan onay taleplerinin sistemi tıkamasını önler |
 | Doğrulama Kuyruğu | Her saatte | Bekleyen doğrulama görevlerini işler | Kullanıcı ve veri doğrulamalarının gecikmeden tamamlanmasını sağlar |
-| Haftalık Veritabanı Yedeği | Her Pazar 04:00 | Tüm veritabanının yedeğini alır | Veri kaybına karşı güvenlik ağı |
+| Haftalık Veritabanı Yedeği ⚠️ | Her Pazar 04:00 | Tüm veritabanının yedeğini alır | Veri kaybına karşı güvenlik ağı — **ancak haftalık frekans kritik üretim veritabanı için yetersiz; günlük veya anlık yedekleme (WAL/streaming) değerlendirilmeli** |
 | Alan Adı Yeniden Tarama | Her gün 09:30 | Müşteri alan adlarını güncel tehdit imzalarıyla yeniden tarar | Önceden temiz görünen domain'lerdeki yeni tehditleri yakalar |
 
 ---
@@ -125,7 +126,6 @@
 | Veri Saklama Politikası | Her ayın 1'i 03:00 | Saklama süresi dolmuş kişisel verileri işaretler | KVKK'nın zorunlu kıldığı veri minimizasyonunu otomatik uygular |
 | Zamanlanmış Veri Silme | Her gece 04:00 | İşaretlenmiş verileri sistemden güvenli şekilde kaldırır | KVKK'ya yasal uyumu sağlar, elle müdahaleye gerek kalmaz |
 | 72 Saatlik Bildirim Takibi | Her 30 dakikada | Veri ihlali oluştuğunda KVKK'nın 72 saatlik bildirim yükümlülüğünü sayar ve hatırlatır | Yasal bildirim süresinin kaçırılması riskini ortadan kaldırır |
-| IOC Kredi Sıfırlama | Her ayın 1'i 08:30 | Her müşterinin aylık IOC sorgu hakkını sıfırlar | Adil kullanım kotasını otomatik yönetir |
 
 ---
 
@@ -133,6 +133,7 @@
 
 | Görev | Ne Zaman Çalışır | Ne Yapar | Faydası |
 |---|---|---|---|
+| IOC Kredi Sıfırlama | Her ayın 1'i 08:30 | Her müşterinin aylık IOC (tehdit göstergesi sorgulama) hakkını sıfırlar | Adil kullanım kotasını otomatik yönetir, abonelik değerini koruyan önemli bir gelir parametresi |
 | Enflasyon Fiyat Hatırlatma | Her Pazartesi 09:30 | Enflasyon oranına göre fiyat güncelleme önerisini iç ekibe iletir | Fiyatların piyasa maliyetiyle uyumlu kalmasını hatırlatır |
 | SLA İhlal Raporu | Her gün 08:00 | Önceki gün SLA'sı ihlal edilen müşteri vakalarını listeler | Hizmet kalitesini nesnel olarak takip etmeyi sağlar |
 | Otomatik Etiketleme | Her gece 03:30 | Müşteri davranışına göre segment etiketleri (aktif, pasif, risk altında vb.) atar | CRM ve kampanyaların doğru segmente ulaşmasını sağlar |
@@ -147,10 +148,18 @@
 | Güvenlik İzleme | 13 |
 | Tehdit İstihbaratı | 7 |
 | Lead Üretimi & Satış | 5 |
-| Müşteri İletişimi & Onboarding | 8 |
-| Raporlama & Analitik | 12 |
-| Sistem & Altyapı | 12 |
+| Müşteri İletişimi & Onboarding | 9 |
+| Raporlama & Analitik | 11 |
+| Sistem & Altyapı | 11 |
 | AI & İçerik Üretimi | 9 |
-| Yasal Uyumluluk (KVKK) | 4 |
-| Büyüme & Fiyatlandırma | 4 |
-| **TOPLAM** | **74** |
+| Yasal Uyumluluk (KVKK) | 3 |
+| Büyüme & Fiyatlandırma | 5 |
+| **TOPLAM** | **73** |
+
+---
+
+## Açık Risk: Veritabanı Yedekleme Sıklığı
+
+> ⚠️ **Mevcut durum:** Yedek haftada bir (Pazar 04:00) alınıyor.  
+> **Risk:** Hafta içinde yaşanacak bir veri kaybında en fazla 7 günlük veri geri dönülemez biçimde silinebilir.  
+> **Öneri:** Günlük tam yedek + anlık WAL (Write-Ahead Log) streaming ile bu pencereyi dakikalara indirmek mümkün. Üretim ortamı için değerlendirilmesi önerilir.

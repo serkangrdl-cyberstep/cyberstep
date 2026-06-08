@@ -401,34 +401,37 @@ app.post("/api/internal/regenerate-blog-post", async (req: Request, res: Respons
   };
   if (!id || !title) { res.status(400).json({ error: "id ve title zorunlu" }); return; }
 
-  try {
-    const topic = { category: category ?? "KOBİ Stratejisi", title, keywords: keywords ?? title, angle: angle ?? title };
-    const generated = await generateBlogPostContent(topic);
+  // Fire-and-forget: proxy timeout'u aşmamak için hemen yanıt ver
+  res.json({ ok: true, message: "Yeniden üretim arka planda başlatıldı", postId: id });
 
-    await db.execute(sql`
-      UPDATE blog_posts SET
-        title               = ${generated.title},
-        excerpt             = ${generated.excerpt},
-        content             = ${generated.content},
-        seo_title           = ${generated.seoTitle},
-        meta_description    = ${generated.metaDescription},
-        focus_keyword       = ${generated.focusKeyword},
-        seo_tags            = ${JSON.stringify(generated.seoTags)}::jsonb,
-        linkedin_post_tr    = ${generated.linkedinPostTr},
-        instagram_caption_tr= ${generated.instagramCaptionTr},
-        instagram_carousel_tr = ${JSON.stringify(generated.instagramCarouselTr)}::jsonb,
-        social_text_tr      = ${generated.socialTextTr},
-        visual_prompts_tr   = ${JSON.stringify(generated.visualPromptsTr)}::jsonb,
-        updated_at          = NOW()
-      WHERE id = ${id}
-    `);
+  setImmediate(async () => {
+    try {
+      const topic = { category: category ?? "KOBİ Stratejisi", title, keywords: keywords ?? title, angle: angle ?? title };
+      const generated = await generateBlogPostContent(topic);
 
-    logger.info({ id, title: generated.title }, "regenerate-blog-post: tamamlandı");
-    res.json({ ok: true, title: generated.title });
-  } catch (err) {
-    logger.error({ err }, "regenerate-blog-post: hata");
-    res.status(500).json({ error: "Yeniden üretim başarısız" });
-  }
+      await db.execute(sql`
+        UPDATE blog_posts SET
+          title               = ${generated.title},
+          excerpt             = ${generated.excerpt},
+          content             = ${generated.content},
+          seo_title           = ${generated.seoTitle},
+          meta_description    = ${generated.metaDescription},
+          focus_keyword       = ${generated.focusKeyword},
+          seo_tags            = ${JSON.stringify(generated.seoTags)}::jsonb,
+          linkedin_post_tr    = ${generated.linkedinPostTr},
+          instagram_caption_tr= ${generated.instagramCaptionTr},
+          instagram_carousel_tr = ${JSON.stringify(generated.instagramCarouselTr)}::jsonb,
+          social_text_tr      = ${generated.socialTextTr},
+          visual_prompts_tr   = ${JSON.stringify(generated.visualPromptsTr)}::jsonb,
+          updated_at          = NOW()
+        WHERE id = ${id}
+      `);
+
+      logger.info({ id, title: generated.title }, "regenerate-blog-post: tamamlandı");
+    } catch (err) {
+      logger.error({ err }, "regenerate-blog-post: hata");
+    }
+  });
 });
 
 // ─── Global error handler ─────────────────────────────────────────────────────

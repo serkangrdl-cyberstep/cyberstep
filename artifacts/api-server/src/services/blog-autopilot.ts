@@ -371,6 +371,11 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
 ÇIKTI FORMATI — Sadece bu JSON'u döndür, başka hiçbir şey yazma:
 ═══════════════════════════════════════════
 
+KRİTİK JSON KURALLARI:
+- Tüm string değerlerde gerçek satır sonu (newline) KULLANMA — bunun yerine \\n yaz.
+- HTML içeriğinde çift tırnak karakteri geçiyorsa \\\" olarak escape et.
+- Geçerli JSON üret; tarayıcıda JSON.parse() başarısız olmamalı.
+
 {
   "title": "Türkçe başlık (max 60 karakter)",
   "excerpt": "160 karakterlik özet",
@@ -407,7 +412,24 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
   const raw = block?.type === "text" ? block.text.trim() : "";
 
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-  const parsed = JSON.parse(jsonStr) as {
+
+  // JSON onarım: Claude zaman zaman string içinde gerçek newline bırakıyor,
+  // bu JSON.parse'ı patlatıyor. String değerlerdeki kontrol karakterlerini escape et.
+  function repairJson(s: string): string {
+    // String literalleri içindeki gerçek newline/tab/CR'ları escape'le.
+    // Regex: tırnak açılışından kapanışa kadar olan segmentleri bul,
+    // içlerindeki ham kontrol karakterlerini \\n / \\t olarak değiştir.
+    return s.replace(/"((?:[^"\\]|\\.)*)"/g, (_match, inner: string) => {
+      const fixed = inner
+        .replace(/\r\n/g, "\\n")
+        .replace(/\r/g, "\\n")
+        .replace(/\n/g, "\\n")
+        .replace(/\t/g, "\\t");
+      return `"${fixed}"`;
+    });
+  }
+
+  let parsed: {
     title: string; excerpt: string; content: string;
     seoTitle: string; metaDescription: string; focusKeyword: string; seoTags: string[];
     linkedinPost: string;
@@ -419,6 +441,14 @@ Her görsel için: Koyu lacivert arka plan (#0A1628), beyaz/turuncu metin, Cyber
     visualPromptInstagram: string;
     visualPromptX: string;
   };
+
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    // İlk deneme başarısız — onar ve tekrar dene
+    parsed = JSON.parse(repairJson(jsonStr));
+  }
+
 
   // Prompt placeholder'larını temizle: [DOĞRULA: ...] ve benzeri editör notları
   // yayına gitmeden önce çıktıdan ayıklanır.

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,10 @@ export default function CustomerAccount() {
               <span className="font-bold text-lg text-white">CyberStep.io</span>
             </Link>
             <nav className="hidden sm:flex items-center gap-4">
+              <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-emerald-400 text-sm transition-colors">
+                <Home className="h-3.5 w-3.5" /> Anasayfa
+              </Link>
+              <span className="text-slate-700">|</span>
               <Link href="/hesabim" className="text-white text-sm font-medium">Hesabım</Link>
               <Link href="/hesabim/servislerim" className="text-slate-400 hover:text-white text-sm transition-colors">Servislerim</Link>
               <Link href="/raporlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Raporlarım</Link>
@@ -176,6 +180,34 @@ export default function CustomerAccount() {
         <div>
           <h1 className="text-2xl font-bold text-white">Hesabım</h1>
           <p className="text-slate-400 mt-1">Profil ve güvenlik ayarlarınızı yönetin</p>
+        </div>
+
+        {/* Quick Start Actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Link href="/assessment/start">
+            <Card className="border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center gap-3">
+                <ShieldCheck className="h-7 w-7 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-white text-sm font-semibold">Yeni Değerlendirme Başlat</p>
+                  <p className="text-slate-400 text-xs">20 soruluk ücretsiz risk analizi</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-500 ml-auto shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/domain-tarama">
+            <Card className="border border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center gap-3">
+                <Globe className="h-7 w-7 text-sky-400 shrink-0" />
+                <div>
+                  <p className="text-white text-sm font-semibold">Domain Taraması</p>
+                  <p className="text-slate-400 text-xs">Alan adı güvenliğini ücretsiz kontrol et</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-500 ml-auto shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Health Score Widget */}

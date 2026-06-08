@@ -1244,9 +1244,13 @@ export default function Home() {
                       <h3 className="font-semibold text-sm group-hover:text-primary transition-colors leading-snug">
                         {tool.title}
                       </h3>
-                      {"price" in tool && tool.price && (
+                      {"price" in tool && tool.price ? (
                         <span className="shrink-0 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {tool.price}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {lang === "en" ? "Free" : "Ücretsiz"}
                         </span>
                       )}
                     </div>

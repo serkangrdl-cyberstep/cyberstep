@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Copy,
   ExternalLink, Loader2, ArrowRight, Shield, Wifi, Cloud,
   Globe, Database, Server, Settings, BookOpen, AlertTriangle,
-  X,
+  X, FlaskConical,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
@@ -63,6 +63,15 @@ interface GuideData {
   salesNote?: string;
 }
 
+const VERIFIABLE_STEPS = new Set([
+  "notification_email_verified",
+  "domains_entered",
+  "domains_added",
+  "webhook_url_configured",
+  "configure",
+  "azure_ad_oauth_completed",
+]);
+
 const SERVICE_ICONS: Record<string, React.ElementType> = {
   "fortinet-fabric": Shield, "soc-operasyon": Shield, "noc": Wifi,
   "ms365": Cloud, "microsoft-365": Cloud, "dns-izleme": Globe,
@@ -97,10 +106,37 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 function ServiceCard({ entry }: { entry: ServiceEntry }) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [verifyingKey, setVerifyingKey] = useState<string | null>(null);
   const slug = entry.subscription.serviceSlug;
   const hasGuide = GUIDE_SLUGS.has(slug);
+
+  const verifyMutation = useMutation({
+    mutationFn: async ({ stepKey }: { stepKey: string }) => {
+      const res = await fetch("/api/customer/onboarding/verify-step", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceSlug: slug, stepKey }),
+      });
+      return res.json() as Promise<{ verified: boolean; message: string; error?: string }>;
+    },
+    onMutate: ({ stepKey }) => setVerifyingKey(stepKey),
+    onSettled: () => setVerifyingKey(null),
+    onSuccess: (data) => {
+      if (data.verified) {
+        toast({ title: "Adım doğrulandı", description: data.message });
+        qc.invalidateQueries({ queryKey: ["/api/customer/kurulum-durumu"] });
+        qc.invalidateQueries({ queryKey: ["kurulum-durumu"] });
+      } else {
+        toast({ title: "Doğrulanamadı", description: data.message, variant: "destructive" });
+      }
+    },
+    onError: () => toast({ title: "Hata", description: "Doğrulama başarısız", variant: "destructive" }),
+  });
 
   const { data: guideData, isLoading: guideLoading } = useQuery<GuideData>({
     queryKey: [`/api/portal/integrations/${slug}/guide`],
@@ -284,9 +320,21 @@ function ServiceCard({ entry }: { entry: ServiceEntry }) {
                   ) : (
                     <Circle className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0" />
                   )}
-                  <span className={`text-sm ${step.status === "done" ? "text-slate-400 line-through" : "text-slate-800 dark:text-slate-200"}`}>
+                  <span className={`text-sm flex-1 ${step.status === "done" ? "text-slate-400 line-through" : "text-slate-800 dark:text-slate-200"}`}>
                     {step.label}
                   </span>
+                  {step.status !== "done" && VERIFIABLE_STEPS.has(step.key) && (
+                    <button
+                      onClick={() => verifyMutation.mutate({ stepKey: step.key })}
+                      disabled={verifyingKey === step.key}
+                      className="inline-flex items-center gap-1 text-[10px] font-medium text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      {verifyingKey === step.key
+                        ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        : <FlaskConical className="h-2.5 w-2.5" />}
+                      Test Et
+                    </button>
+                  )}
                 </div>
               ))}
               <Button size="sm" variant={fullyActive ? "default" : "outline"} className={`mt-2 h-8 text-xs ${fullyActive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}

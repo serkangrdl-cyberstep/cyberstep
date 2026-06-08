@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe, ShoppingCart } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe, ShoppingCart, Wrench } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
 import { useQuery } from "@tanstack/react-query";
@@ -134,6 +135,20 @@ export default function CustomerAccount() {
     staleTime: 1000 * 60 * 10,
   });
 
+  const { data: kurulumData } = useQuery<{
+    totalCustomerSteps: number; doneCustomerSteps: number; overallProgress: number;
+  }>({
+    queryKey: ["kurulum-durumu"],
+    queryFn: () => fetch("/api/customer/kurulum-durumu", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const kurulumTotal = kurulumData?.totalCustomerSteps ?? 0;
+  const kurulumDone = kurulumData?.doneCustomerSteps ?? 0;
+  const kurulumPct = kurulumData?.overallProgress ?? 0;
+  const kurulumPending = kurulumTotal - kurulumDone;
+
   if (!customer) return null;
 
   const subscriptionLabel: Record<string, string> = {
@@ -158,6 +173,13 @@ export default function CustomerAccount() {
               <span className="text-slate-700">|</span>
               <Link href="/hesabim" className="text-white text-sm font-medium">Hesabım</Link>
               <Link href="/hesabim/servislerim" className="text-slate-400 hover:text-white text-sm transition-colors">Servislerim</Link>
+              <Link href="/hesabim/kurulum" className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition-colors">
+                <Wrench className="h-3.5 w-3.5" />
+                Kurulum
+                {kurulumPending > 0 && (
+                  <span className="bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ml-0.5">{kurulumPending}</span>
+                )}
+              </Link>
               <Link href="/hesabim/sepet" className="text-slate-400 hover:text-white text-sm transition-colors flex items-center gap-1">
                 <ShoppingCart className="h-3.5 w-3.5" />
                 {cartItemCount > 0 && <span className="bg-sky-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{cartItemCount}</span>}
@@ -192,6 +214,10 @@ export default function CustomerAccount() {
           <Link href="/raporlarim" className="px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors shrink-0">Raporlarım</Link>
           <Link href="/domain-tarama" className="px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors shrink-0">Domain Tara</Link>
           <Link href="/hesabim/servislerim" className="px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors shrink-0">Servislerim</Link>
+          <Link href="/hesabim/kurulum" className="flex items-center gap-1 px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors shrink-0">
+            <Wrench className="h-3 w-3" />Kurulum
+            {kurulumPending > 0 && <span className="bg-amber-500 text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">{kurulumPending}</span>}
+          </Link>
           <Link href="/hesabim/davet" className="px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors shrink-0">Davet</Link>
         </div>
       </div>
@@ -241,6 +267,29 @@ export default function CustomerAccount() {
             </Card>
           </Link>
         </div>
+
+        {/* Kurulum Durumu Widget */}
+        {kurulumTotal > 0 && (
+          <Link href="/hesabim/kurulum">
+            <Card className="border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-amber-400" />
+                    <span className="text-white text-sm font-medium">Kurulum Durumu</span>
+                  </div>
+                  {kurulumPending > 0 ? (
+                    <Badge className="text-[10px] bg-amber-500/15 text-amber-400 border-amber-500/30">{kurulumPending} bekleyen adım</Badge>
+                  ) : (
+                    <Badge className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30">Tamamlandi</Badge>
+                  )}
+                </div>
+                <Progress value={kurulumPct} className="h-1.5" />
+                <p className="text-slate-400 text-xs mt-1.5">{kurulumDone}/{kurulumTotal} adım tamamlandı — Kurulum Merkezi'ne git</p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         {/* Health Score Widget */}
         {healthScore && (

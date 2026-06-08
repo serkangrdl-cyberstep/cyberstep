@@ -885,4 +885,98 @@ router.get("/customer/kurulum-durumu", requireCustomer, async (req: Request, res
   });
 });
 
+// ─── POST /api/customer/onboarding/verify-step ───────────────────────────────
+// Auto-verifies a customer-side onboarding step via DB check, marks done if verified.
+const VERIFIABLE_STEPS: Record<string, string> = {
+  notification_email_verified: "notif-email",
+  domains_entered: "domains",
+  domains_added: "domains",
+  webhook_url_configured: "webhook",
+  configure: "config",
+  azure_ad_oauth_completed: "ms365",
+};
+
+router.post("/customer/onboarding/verify-step", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req) as number;
+  const { serviceSlug, stepKey } = req.body as { serviceSlug: string; stepKey: string };
+
+  if (!serviceSlug || !stepKey) {
+    res.status(400).json({ error: "serviceSlug ve stepKey zorunludur" });
+    return;
+  }
+
+  if (!VERIFIABLE_STEPS[stepKey]) {
+    res.status(400).json({ verified: false, message: "Bu adım otomatik doğrulanamıyor" });
+    return;
+  }
+
+  try {
+    const [cfg] = await db
+      .select({ config: customerServiceConfigsTable.config })
+      .from(customerServiceConfigsTable)
+      .where(
+        and(
+          eq(customerServiceConfigsTable.customerId, customerId),
+          eq(customerServiceConfigsTable.serviceSlug, serviceSlug)
+        )
+      );
+
+    const config = (cfg?.config ?? {}) as Record<string, unknown>;
+    let verified = false;
+    let message = "";
+
+    switch (VERIFIABLE_STEPS[stepKey]) {
+      case "notif-email":
+        verified = !!(config["notificationEmail"] || config["alertEmail"] || config["email"]);
+        message = verified
+          ? "Bildirim e-postasi dogrulandi"
+          : "Once servis yapilandirmasinda bildirim e-postasini girin";
+        break;
+      case "domains":
+        verified =
+          (Array.isArray(config["domains"]) && (config["domains"] as unknown[]).length > 0) ||
+          (typeof config["domain"] === "string" && config["domain"].length > 0);
+        message = verified
+          ? "Domain girisleri dogrulandi"
+          : "Once servis yapilandirmasinda domain ekleyin";
+        break;
+      case "webhook":
+        verified = !!(config["webhookUrl"] || config["instanceUrl"]);
+        message = verified
+          ? "Webhook URL yapilandirmasi dogrulandi"
+          : "Once servis yapilandirmasinda webhook URL girin";
+        break;
+      case "config":
+        verified = Object.keys(config).length > 0;
+        message = verified
+          ? "Yapilandirma tamamlandigi dogrulandi"
+          : "Once servis yapilandirma sayfasindan ayarlari kaydedin";
+        break;
+      case "ms365": {
+        const ms365Row = await pool.query(
+          `SELECT id FROM ms365_integrations WHERE customer_id = $1 LIMIT 1`,
+          [customerId]
+        );
+        verified = (ms365Row.rows?.length ?? 0) > 0;
+        message = verified
+          ? "Azure AD OAuth baglantisi dogrulandi"
+          : "Henuz Microsoft 365 OAuth baglantisi kurulmamis";
+        break;
+      }
+      default:
+        res.status(400).json({ verified: false, message: "Bu adim otomatik dogrulanamıyor" });
+        return;
+    }
+
+    if (verified) {
+      await markOnboardingStepDone(customerId, serviceSlug, stepKey, "system");
+    }
+
+    res.json({ verified, message });
+  } catch (err) {
+    logger.error({ err }, "verify-step failed");
+    res.status(500).json({ error: "Sunucu hatasi" });
+  }
+});
+
 export default router;

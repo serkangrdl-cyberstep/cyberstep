@@ -150,6 +150,7 @@ export interface CRTSHScanResult {
   certsScanned: number;
   domainsFound: number;
   addedToLeads: number;
+  skipped: number;
 }
 
 export async function scanCRTSH(
@@ -186,16 +187,28 @@ async function _scanCRTSHInner(
       name_value?: string;
       entry_timestamp?: string;
       issuer_name?: string;
+      not_before?: string;
+      not_after?: string;
     }>;
 
     const cutoff = new Date(Date.now() - daysBack * 86_400_000);
     const qualifiedDomains = new Map<string, { triggerSubdomain: string; subdomainType: string; score: number; certIssuer: string }>();
+    let skipped = 0;
 
     for (const cert of certs) {
       if (qualifiedDomains.size >= limit) break;
-      if (cert.entry_timestamp && new Date(cert.entry_timestamp) < cutoff) continue;
+      if (cert.entry_timestamp && new Date(cert.entry_timestamp) < cutoff) { skipped++; continue; }
 
-      for (const domain of extractDomainsFromCert(cert)) {
+      // Skip short-lived certs (< 30 days) — test/staging certs, low value for lead discovery
+      if (cert.not_before && cert.not_after) {
+        const validityDays = (new Date(cert.not_after).getTime() - new Date(cert.not_before).getTime()) / 86_400_000;
+        if (validityDays < 30) { skipped++; continue; }
+      }
+
+      const domains = extractDomainsFromCert(cert);
+      if (domains.length === 0) { skipped++; continue; }
+
+      for (const domain of domains) {
         if (isExcluded(domain) || !isTurkishDomain(domain)) continue;
         const analysis = analyzeSubdomain(domain);
         if (!analysis.rootDomain || analysis.corporateScore < minCorporateScore) continue;
@@ -235,8 +248,8 @@ async function _scanCRTSHInner(
       completedAt: new Date(),
     }).where(eq(discoveryRunsTable.id, run.id));
 
-    logger.info({ runId: run.id, certsScanned: certs.length, domainsFound: qualifiedDomains.size, added }, "crt.sh scan done");
-    return { runId: run.id, certsScanned: certs.length, domainsFound: qualifiedDomains.size, addedToLeads: added };
+    logger.info({ runId: run.id, certsScanned: certs.length, domainsFound: qualifiedDomains.size, added, skipped }, "crt.sh scan done");
+    return { runId: run.id, certsScanned: certs.length, domainsFound: qualifiedDomains.size, addedToLeads: added, skipped };
   } catch (err) {
     await db.update(discoveryRunsTable).set({ status: "failed", errorMessage: String(err) })
       .where(eq(discoveryRunsTable.id, run.id));

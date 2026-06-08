@@ -19,8 +19,6 @@ import type { CronState } from "../../services/cronRegistry";
 import { qualifyPendingCandidates, getISOWeek } from "../../services/discoveryPipeline";
 import { scanCRTSH } from "../../services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "../../services/shodanDiscovery";
-import { processCertstreamQueue } from "../../services/certstreamLeadProcessor";
-
 export const CRON_DEFS = [
   {
     name: "crtsh",
@@ -56,17 +54,6 @@ export const CRON_DEFS = [
     category: "lead-gen",
   },
   {
-    name: "certstream_proc",
-    label: "Certstream Kuyruk İşleyici",
-    description: "Gerçek zamanlı SSL sertifika akışından gelen domainleri kuyruğa alır",
-    defaultSchedule: "0 * * * *",
-    scheduleLabel: "Her saat",
-    defaultEnabled: true,
-    defaultLimit: 100,
-    requiresApiKey: null as string | null,
-    category: "lead-gen",
-  },
-  {
     name: "blog_autopilot_mon",
     label: "Blog Otopilot (Pazartesi)",
     description: "Pazartesi 09:00'da içerik takviminden AI blog yazısı üretir ve yayınlar",
@@ -95,7 +82,7 @@ export const ALL_NIGHT_JOBS = [
   { name: "crtsh",                   label: "crt.sh Domain Keşfi",              scheduleLabel: "Her gece 03:00",    scheduleExpr: "0 3 * * *", category: "lead-gen"     },
   { name: "shodan",                   label: "Shodan Pasif Keşif",               scheduleLabel: "Her gece 03:00",    scheduleExpr: "0 3 * * *", category: "lead-gen"     },
   { name: "lead_qual",                label: "Lead Kalifikasyon",                 scheduleLabel: "Her gece 04:00",    scheduleExpr: "0 4 * * *", category: "lead-gen"     },
-  { name: "certstream_proc",          label: "Certstream İşleyici",               scheduleLabel: "Her saat",          scheduleExpr: "0 * * * *", category: "lead-gen"     },
+  { name: "ct_phishing_monitor",       label: "CT Log Phishing İzleme",            scheduleLabel: "Her 4 saatte",      scheduleExpr: "0 */4 * * *", category: "security"   },
   { name: "attack_path_analysis",     label: "Attack Path Analizi",              scheduleLabel: "Her gece 02:00",    scheduleExpr: "0 2 * * *", category: "security"     },
   { name: "servicenow_health",        label: "ServiceNow Sağlık Kontrolü",       scheduleLabel: "Her saat",          scheduleExpr: "0 * * * *", category: "integrations" },
   { name: "subscription_reminders",   label: "Abonelik Bitiş Hatırlatıcı",      scheduleLabel: "Her gün 10:00",     scheduleExpr: "0 10 * * *", category: "billing"     },
@@ -313,9 +300,6 @@ router.post("/admin-panel/cron/trigger/:name", requireAdmin, async (req: Request
         await scanShodanFree(queryIdx, limit);
       } else if (name === "lead_qual") {
         await qualifyPendingCandidates(limit);
-      } else if (name === "certstream_proc") {
-        const result = await processCertstreamQueue(limit);
-        return result.added ?? 0;
       }
       return limit;
     });

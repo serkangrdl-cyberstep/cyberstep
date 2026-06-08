@@ -1,0 +1,110 @@
+Certstream WebSocket entegrasyonu Replit'te çalışmıyor (network kısıtlaması). Kalıcı olarak kaldırıp crt.sh tabanlı alternatifle değiştir.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 1 — CERTSTREAM KODUNU TEMİZLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Şu dosyaları bul ve işlem yap:
+
+1. Certstream WebSocket bağlantısı kuran kodu bul:
+   grep -rn "certstream\|calidog\|fly.dev" src --include="*.ts" -l
+
+2. Her dosyada:
+   - WebSocket bağlantı döngüsünü kaldır
+   - certstreamLeadFilter ve certstreamLeadProcessor import'larını kaldır
+   - Certstream ile ilgili cron.schedule veya wrapCron çağrısını kaldır
+   - certstream_queue ve certstream_status tablosuna yazma kodunu kaldır
+
+3. src/index.ts'deki certstream başlatma çağrısını kaldır
+
+4. Silinen kodun yerine şu log satırını bırak:
+   logger.info("Certstream devre dışı — crt.sh polling kullanılıyor");
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 2 — PHISHING TESPİTİ İÇİN CRT.SH POLLING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/services/ctPhishingMonitor.ts oluştur:
+
+export async function checkPhishingCertificates(): Promise<number>
+
+Şu adımları uygula:
+
+1. dns_watched_domains tablosundan is_active=true olan tüm domainleri çek
+   (müşterilerin izlemek istediği domainler)
+
+2. Her domain için crt.sh'ı sorgula:
+   GET https://crt.sh/?q=%.{domain}&output=json
+   Son 4 saatte yayınlanan sertifikaları filtrele (not_before > now - 4 hours)
+
+3. Her yeni sertifika için şüpheli domain kontrolü yap:
+   - Ana domain ile %80+ benzerlik (levenshtein distance)
+   - Typosquatting pattern'leri: ekleme, çıkarma, harf değiştirme, homoglyph
+   - Şüpheli keyword'ler: "login", "secure", "account", "bank", "verify", "-tr"
+   
+4. Şüpheli bulunursa:
+   a. ct_certificate_events tablosuna kaydet:
+      { domain, suspiciousDomain, certIssuer, notBefore, matchType, severity }
+   
+   b. Müşteriye e-posta gönder (sendMail):
+      Konu: "⚠ Şüpheli Sertifika Tespit Edildi — {domain}"
+      İçerik: hangi domain, ne zaman, nasıl benziyor, ne yapmalı
+   
+   c. SOC vakası aç (createCaseWithNumber) — severity "high"
+
+5. İşlenen sertifika sayısını return et
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 3 — CRON ZAMANLAMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/index.ts'e yeni cron ekle:
+
+// Phishing sertifika izleme — her 4 saatte
+cron.schedule(
+  "0 */4 * * *",
+  wrapCron("ct_phishing_monitor", "0 */4 * * *", async () => {
+    const count = await checkPhishingCertificates();
+    logger.info({ count }, "CT phishing monitor tamamlandı");
+    return count;
+  }),
+  { timezone: "Europe/Istanbul" }
+);
+
+EXPECTED_JOBS listesine ekle (cronHealthMonitor.ts):
+{ name: "ct_phishing_monitor", intervalMinutes: 240 }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 4 — LEAD KEŞFİ: CRT.SH'I GÜÇLENDİR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Mevcut scanCRTSH fonksiyonunu bul (crtshScanner.ts veya benzeri).
+
+Şu iyileştirmeleri yap:
+
+1. daysBack parametresini 2'den 1'e düşür — günlük cron yeterli, gereksiz veri çekme
+
+2. Sorgulanan TLD listesini genişlet:
+   Mevcut: .com.tr, .net.tr, .org.tr, .web.tr
+   Ekle: .biz.tr, .info.tr, .k12.tr filtrele (exclusion listesine ekle)
+
+3. Kalite filtresi ekle — şunları atla:
+   - let's encrypt wildcard (*.domain.com.tr) — çok sayıda, düşük değer
+   - 30 günden kısa geçerli sertifikalar — test/geçici domainler
+   - Daha önce seen_domains setinde olanlar (duplicate önleme)
+
+4. discovery_runs tablosuna şunu ekle:
+   - source: "crtsh"
+   - query_params: { tlds: [...], daysBack: 1 }
+   - total_found, total_added, total_skipped
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 5 — BUILD & TEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. pnpm --filter @workspace/api-server run build
+2. Certstream loglarının artık görünmediğini doğrula
+3. ctPhishingMonitor'ı manuel test et:
+   psql $DATABASE_URL -c "SELECT COUNT(*) FROM dns_watched_domains WHERE is_active = true;"
+   (aktif domain varsa checkPhishingCertificates() çağrısı test edilebilir)
+4. Özet: kaç satır silindi, kaç satır eklendi, yeni cron job_name'i ne

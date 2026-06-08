@@ -4,12 +4,10 @@ import { db } from "@workspace/db";
 import {
   leadCandidatesTable,
   discoveryRunsTable,
-  certstreamQueueTable,
-  certstreamStatusTable,
   customerTechStackTable,
 } from "@workspace/db";
 import {
-  eq, desc, sql, and, count, isNull, isNotNull, gte, asc,
+  eq, desc, sql, and, count, isNull, isNotNull, asc,
 } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { scanCRTSH } from "../../services/crtshScanner";
@@ -18,7 +16,6 @@ import { runFullDiscoveryAndQualify, qualifyPendingCandidates } from "../../serv
 import { generateLeadTeaserEmail } from "../../services/leadTeaserEmail";
 import { whoisLookup } from "../../services/whoisService";
 import { scrapeContactEmail } from "../../services/webContactScraper";
-import { processCertstreamQueue } from "../../services/certstreamLeadProcessor";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -312,18 +309,6 @@ router.delete("/admin-panel/lead-discovery/candidates/:id", requireAdmin, async 
   res.json({ message: "Aday silindi." });
 });
 
-// ─── GET /api/admin-panel/lead-discovery/certstream/status ───────────────────
-router.get("/admin-panel/lead-discovery/certstream/status", requireAdmin, async (_req: Request, res: Response) => {
-  const [status] = await db.select().from(certstreamStatusTable).limit(1);
-  const [{ pending }] = await db.select({ pending: count() }).from(certstreamQueueTable)
-    .where(eq(certstreamQueueTable.processed, false));
-  const [{ last24h }] = await db.select({ last24h: count() }).from(certstreamQueueTable)
-    .where(gte(certstreamQueueTable.receivedAt, new Date(Date.now() - 24 * 3600 * 1000)));
-  const [{ totalAll }] = await db.select({ totalAll: count() }).from(certstreamQueueTable);
-
-  res.json({ ...status, queuePending: pending, last24hReceived: last24h, totalQueued: totalAll });
-});
-
 // ─── GET /api/admin-panel/lead-discovery/candidates/:id/tech-stack ───────────
 router.get("/admin-panel/lead-discovery/candidates/:id/tech-stack", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
@@ -338,19 +323,6 @@ router.get("/admin-panel/lead-discovery/candidates/:id/tech-stack", requireAdmin
     .where(eq(customerTechStackTable.leadCandidateId, id))
     .orderBy(asc(customerTechStackTable.category));
   res.json(stack);
-});
-
-// ─── POST /api/admin-panel/lead-discovery/certstream/process ─────────────────
-router.post("/admin-panel/lead-discovery/certstream/process", requireAdmin, async (_req: Request, res: Response) => {
-  res.json({ message: "Queue işleme başlatıldı." });
-  setImmediate(async () => {
-    try {
-      const result = await processCertstreamQueue(200);
-      logger.info(result, "Manuel certstream queue işleme tamamlandı");
-    } catch (e) {
-      logger.error({ err: String(e) }, "Manuel certstream queue işleme başarısız");
-    }
-  });
 });
 
 export default router;

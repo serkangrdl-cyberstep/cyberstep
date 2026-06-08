@@ -12,13 +12,12 @@ import { startFabricCrons } from "./services/fabric-cron";
 import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
-import { processCertstreamQueue } from "./services/certstreamLeadProcessor";
+import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
 import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn, cleanupStaleRunningJobs } from "./services/cronRegistry";
 import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
-import { startCertstreamClient } from "./services/certstream-client";
 import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
 import { ensureCustomerServiceConfigsTable } from "./routes/customer/index";
@@ -2011,7 +2010,7 @@ startup()
     startFabricCrons();
     startSOCCrons();
     startDnsCrons();
-    startCertstreamClient();
+    logger.info("Certstream devre dışı — crt.sh polling kullanılıyor");
 
     // ─── Microsoft 365 Graph API poller — her 15 dakikada ────────────────────
     cron.schedule("*/15 * * * *", wrapCron("ms365_poller", "*/15 * * * *", async () => {
@@ -2333,15 +2332,17 @@ startup()
       let totalAdded = 0;
 
       const TLD_QUERIES: Array<{ query: string; limitFactor: number }> = [
-        { query: "%.com.tr", limitFactor: 1.0 },
-        { query: "%.net.tr", limitFactor: 0.4 },
-        { query: "%.org.tr", limitFactor: 0.2 },
-        { query: "%.web.tr", limitFactor: 0.1 },
+        { query: "%.com.tr",  limitFactor: 1.0 },
+        { query: "%.net.tr",  limitFactor: 0.4 },
+        { query: "%.org.tr",  limitFactor: 0.2 },
+        { query: "%.web.tr",  limitFactor: 0.1 },
+        { query: "%.biz.tr",  limitFactor: 0.1 },
+        { query: "%.info.tr", limitFactor: 0.1 },
       ];
 
       for (const { query, limitFactor } of TLD_QUERIES) {
         try {
-          const r = await scanCRTSH(query, { daysBack: 7, minCorporateScore: 10, limit: Math.max(1, Math.floor(limit * limitFactor)) });
+          const r = await scanCRTSH(query, { daysBack: 1, minCorporateScore: 10, limit: Math.max(1, Math.floor(limit * limitFactor)) });
           totalAdded += r.addedToLeads ?? 0;
         } catch (err) {
           logger.warn({ query, err: String(err) }, "crt.sh TLD taraması başarısız, diğerleriyle devam ediliyor");
@@ -2403,15 +2404,13 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Yıllık rapor hatırlatma cron kayıtlandı (ayın 1'i 09:00 Istanbul)");
 
-    // ─── Certstream queue işleyici — her saat ─────────────────────────────────
-    cron.schedule("0 * * * *", wrapCron("certstream_proc", "0 * * * *", async () => {
-      if (!await cronIsEnabled("certstream_proc")) { logger.info("Certstream cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("certstream_proc", 100);
-      const result = await processCertstreamQueue(limit);
-      if (result.added > 0) logger.info(result, "Certstream queue: yeni leadler eklendi");
-      return result.added ?? 0;
+    // ─── CT Log phishing izleme — her 4 saatte ────────────────────────────────
+    cron.schedule("0 */4 * * *", wrapCron("ct_phishing_monitor", "0 */4 * * *", async () => {
+      const count = await checkPhishingCertificates();
+      logger.info({ count }, "CT phishing monitor tamamlandı");
+      return count;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Certstream queue processor cron scheduled (hourly)");
+    logger.info("CT phishing monitor cron scheduled (every 4h Istanbul)");
 
     // ─── Abonelik bitiş hatırlatmaları — her gün 10:00 İstanbul ──────────────
     cron.schedule("40 10 * * *", wrapCron("subscription_reminders", "40 10 * * *", async () => {
@@ -2610,7 +2609,7 @@ startup()
         // Hourly (2h threshold)
         { name: "lead_qual",                thresholdHours: 2   },
         { name: "verification_queue",       thresholdHours: 2   },
-        { name: "certstream_proc",          thresholdHours: 2   },
+        { name: "ct_phishing_monitor",      thresholdHours: 5   },
         { name: "scan_lead_drip",           thresholdHours: 2   },
         { name: "servicenow_health",        thresholdHours: 2   },
         { name: "noc_baseline",             thresholdHours: 2   },

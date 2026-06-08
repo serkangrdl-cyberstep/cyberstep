@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { db, siteSettingsTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
+import { checkCronHealth } from "../../services/cronHealthMonitor";
 import {
   cronGetState,
   cronGetAll,
@@ -208,6 +209,17 @@ router.get("/admin-panel/cron/all-jobs", requireAdmin, async (req: Request, res:
   } catch (e) {
     req.log.error({ err: e }, "All-jobs hatası");
     res.status(500).json({ error: "Job listesi alınamadı" });
+  }
+});
+
+// GET /api/admin-panel/cron/health
+router.get("/admin-panel/cron/health", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await checkCronHealth();
+    res.json(result);
+  } catch (e) {
+    req.log.error({ err: e }, "Cron health hatası");
+    res.status(500).json({ error: "Sağlık durumu alınamadı" });
   }
 });
 

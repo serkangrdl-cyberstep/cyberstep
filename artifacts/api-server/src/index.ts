@@ -1964,7 +1964,7 @@ startup()
     seedDefaultSources().catch((err) => logger.warn({ err }, "Digest: default sources seed failed"));
     // USOM zararlı alan listesini arka planda yükle ve günlük yenile
     refreshUsomList().catch((err) => logger.warn({ err }, "USOM initial fetch failed"));
-    cron.schedule("0 3 * * *", wrapCron("usom_refresh", "0 3 * * *", async () => {
+    cron.schedule("15 3 * * *", wrapCron("usom_refresh", "15 3 * * *", async () => {
       await refreshUsomList();
       return 0;
     }));
@@ -1981,7 +1981,7 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Collection reminder cron scheduled (10:00 Istanbul)");
     // Otomatik CRM etiketleme — her gece 03:30'da
-    cron.schedule("30 3 * * *", wrapCron("auto_tag", "30 3 * * *", async () => {
+    cron.schedule("50 3 * * *", wrapCron("auto_tag", "50 3 * * *", async () => {
       await runAutoTagCron();
       return 0;
     }), { timezone: "Europe/Istanbul" });
@@ -2070,6 +2070,28 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Daily summary cron scheduled (08:00 Istanbul)");
 
+    // ─── Günlük Cron Sağlık Raporu — Her sabah 07:00 ──────────────────────────
+    cron.schedule("0 7 * * *", wrapCron("daily_cron_report", "0 7 * * *", async () => {
+      const { checkCronHealth } = await import("./services/cronHealthMonitor");
+      const { sendMail } = await import("./services/email");
+      const result = await checkCronHealth();
+      if (result.healthy) return 0;
+      const adminEmail = process.env["SOC_ADMIN_EMAIL"] ?? process.env["SMTP_USER"];
+      if (!adminEmail) { logger.warn("daily_cron_report: ADMIN_EMAIL ayarlı değil, e-posta atlandı"); return 0; }
+      const alertLines = result.alerts.map((a) =>
+        `• [${a.issue.toUpperCase()}] ${a.label} (${a.job_name})\n  Son çalışma: ${a.last_run ?? "hiç"}\n  ${a.details}`
+      ).join("\n\n");
+      await sendMail({
+        to: adminEmail,
+        subject: `CyberStep Cron Uyarisi — ${result.alerts.length} job sorunlu`,
+        text: `CyberStep Cron Saglik Raporu — ${new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}\n\n${alertLines}\n\nToplam: ${result.summary.total_jobs} job | Basarili: ${result.summary.successful} | Hatali: ${result.summary.failed} | Eksik: ${result.summary.missing}`,
+        html: `<h2>CyberStep Cron Uyarisi</h2><p><strong>${result.alerts.length} job sorunlu</strong> — ${new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}</p><ul>${result.alerts.map((a) => `<li><strong>[${a.issue}] ${a.label}</strong><br>Son: ${a.last_run ?? "hic"}<br>${a.details}</li>`).join("")}</ul><hr><small>Toplam: ${result.summary.total_jobs} | Basarili: ${result.summary.successful} | Hatali: ${result.summary.failed} | Eksik: ${result.summary.missing}</small>`,
+      });
+      logger.info({ alertCount: result.alerts.length }, "daily_cron_report: saglik uyari e-postasi gonderildi");
+      return result.alerts.length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Daily cron health report cron scheduled (07:00 Istanbul)");
+
     // ─── Dunning (başarısız ödeme takibi) — Her gün 10:15 ────────────────────
     cron.schedule("15 10 * * *", wrapCron("dunning_check", "15 10 * * *", async () => {
       return runDunningCron();
@@ -2096,14 +2118,14 @@ startup()
     logger.info("Market weekly summary cron scheduled (Friday 09:00 Istanbul)");
 
     // ─── Platform maliyet kontrolü — Her gece 23:30 ───────────────────────────
-    cron.schedule("30 23 * * *", wrapCron("platform_cost_check", "30 23 * * *", async () => {
+    cron.schedule("45 23 * * *", wrapCron("platform_cost_check", "45 23 * * *", async () => {
       await checkPlatformCosts();
       return 1;
     }), { timezone: "Europe/Istanbul" });
     logger.info("Platform cost check cron scheduled (23:30 Istanbul)");
 
     // ─── Onboarding D+1 emaili — Her gün 10:00 ───────────────────────────────
-    cron.schedule("0 10 * * *", wrapCron("onboarding_day1_email", "0 10 * * *", async () => {
+    cron.schedule("5 10 * * *", wrapCron("onboarding_day1_email", "5 10 * * *", async () => {
       return runDay1EmailCron();
     }), { timezone: "Europe/Istanbul" });
     logger.info("Onboarding D+1 email cron scheduled (10:00 Istanbul)");
@@ -2138,7 +2160,7 @@ startup()
     logger.info("KVKK data retention cron scheduled (1st of month 03:00 Istanbul)");
 
     // ─── KVKK zamanlanmış hesap silimi — Her gün 04:00 ───────────────────────
-    cron.schedule("0 4 * * *", wrapCron("kvkk_scheduled_deletion", "0 4 * * *", async () => {
+    cron.schedule("30 4 * * *", wrapCron("kvkk_scheduled_deletion", "30 4 * * *", async () => {
       if (process.env["DATA_RETENTION_ENABLED"] !== "true") return 0;
       const { db: dbInst } = await import("@workspace/db");
       const { customersTable: ct } = await import("@workspace/db");
@@ -2189,7 +2211,7 @@ startup()
     logger.info("Verification queue cron scheduled (hourly)");
 
     // ─── CASM: SLA ihlal kontrolü — Her gün 08:00 ────────────────────────────
-    cron.schedule("0 8 * * *", wrapCron("sla_breach_check", "0 8 * * *", async () => {
+    cron.schedule("20 8 * * *", wrapCron("sla_breach_check", "20 8 * * *", async () => {
       const { checkRemediationSLABreaches } = await import("./services/verificationScanner");
       await checkRemediationSLABreaches();
       return 0;
@@ -2324,7 +2346,7 @@ startup()
 
     // ─── Lead Discovery: Shodan — Her gece 04:00 (2 sorgu/gece, tam rotasyon) ──
     // epoch-day bazlı rotasyon: 8 sorgunun hepsi sırayla çalışır (getDay() 0-6 olduğundan index 7 hiç çalışmıyordu)
-    cron.schedule("0 4 * * *", wrapCron("shodan", "0 4 * * *", async () => {
+    cron.schedule("15 4 * * *", wrapCron("shodan", "15 4 * * *", async () => {
       if (!process.env["SHODAN_API_KEY"]) return 0;
       if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("shodan", 300);
@@ -2383,7 +2405,7 @@ startup()
     logger.info("Certstream queue processor cron scheduled (hourly)");
 
     // ─── Abonelik bitiş hatırlatmaları — her gün 10:00 İstanbul ──────────────
-    cron.schedule("0 10 * * *", wrapCron("subscription_reminders", "0 10 * * *", async () => {
+    cron.schedule("40 10 * * *", wrapCron("subscription_reminders", "40 10 * * *", async () => {
       await checkSubscriptionExpiryReminders();
       return 0;
     }), { timezone: "Europe/Istanbul" });
@@ -2594,6 +2616,7 @@ startup()
         { name: "sla_breach_check",         thresholdHours: 25  },
         // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
+        { name: "daily_cron_report",        thresholdHours: 25  },
         { name: "market_watcher",           thresholdHours: 5   },
         { name: "digest_rss_collect",       thresholdHours: 25  },
         { name: "digest_enrich",            thresholdHours: 25  },

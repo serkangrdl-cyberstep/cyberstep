@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   Clock, Play, CheckCircle, XCircle, AlertCircle, Loader2,
-  RefreshCw, ChevronDown, ChevronUp, History, BarChart2,
+  RefreshCw, ChevronDown, ChevronUp, History, BarChart2, ShieldCheck,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@ function NightJobCard({ job, triggering, onTrigger }: {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-type Tab = "configured" | "all-jobs" | "history";
+type Tab = "configured" | "all-jobs" | "history" | "health";
 
 export default function CronAyarlariPage() {
   const { toast } = useToast();
@@ -462,6 +462,19 @@ export default function CronAyarlariPage() {
     queryFn: () => adminFetchJson("/api/admin-panel/cron/history?limit=50"),
     refetchInterval: 15000,
     enabled: tab === "history",
+  });
+
+  const { data: healthData, isLoading: healthLoading, refetch: refetchHealth } = useQuery<{
+    healthy: boolean;
+    checked_at: string;
+    summary: { total_jobs: number; successful: number; failed: number; missing: number; slow: number };
+    alerts: Array<{ job_name: string; label: string; issue: "not_run" | "failed" | "slow"; last_run: string | null; details: string }>;
+    job_details: Array<{ name: string; label: string; last_run: string | null; last_status: string | null; last_error: string | null; avg_duration_ms: number | null; total_runs: number; ok_runs: number; error_runs: number }>;
+  }>({
+    queryKey: ["cron-health"],
+    queryFn: () => adminFetchJson("/api/admin-panel/cron/health"),
+    refetchInterval: 60000,
+    enabled: tab === "health",
   });
 
   const settingsMut = useMutation({
@@ -553,8 +566,19 @@ export default function CronAyarlariPage() {
               <History className="h-3.5 w-3.5 inline mr-1" />
               Geçmiş
             </button>
+            <button className={`${TAB_CLASSES} ${tab === "health" ? ACTIVE : INACTIVE} relative`} onClick={() => setTab("health")}>
+              <ShieldCheck className="h-3.5 w-3.5 inline mr-1" />
+              Sağlık
+              {healthData && !healthData.healthy && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
+              )}
+            </button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["cron-all-jobs"] }); }} className="border-slate-700 text-slate-400 hover:text-white">
+          <Button variant="outline" size="sm" onClick={() => {
+            refetch();
+            queryClient.invalidateQueries({ queryKey: ["cron-all-jobs"] });
+            if (tab === "health") refetchHealth();
+          }} className="border-slate-700 text-slate-400 hover:text-white">
             <RefreshCw className="h-4 w-4 mr-1" />Yenile
           </Button>
         </div>
@@ -656,6 +680,120 @@ export default function CronAyarlariPage() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Cron Sağlık Monitörü */}
+        {tab === "health" && (
+          <div className="space-y-4">
+            {healthLoading ? (
+              <div className="flex items-center justify-center h-40 text-slate-500"><Loader2 className="h-5 w-5 animate-spin mr-2" />Sağlık durumu kontrol ediliyor...</div>
+            ) : !healthData ? (
+              <div className="text-center text-slate-500 py-12">Veri alınamadı.</div>
+            ) : (
+              <>
+                {/* Genel durum */}
+                <div className={`flex items-center gap-3 rounded-lg border px-5 py-4 ${healthData.healthy ? "border-green-700/40 bg-green-950/20" : "border-red-700/40 bg-red-950/20"}`}>
+                  {healthData.healthy
+                    ? <CheckCircle className="h-6 w-6 text-green-400 shrink-0" />
+                    : <XCircle className="h-6 w-6 text-red-400 shrink-0" />}
+                  <div>
+                    <div className={`font-semibold text-base ${healthData.healthy ? "text-green-300" : "text-red-300"}`}>
+                      {healthData.healthy ? "Tüm job'lar normal çalışıyor" : `${healthData.alerts.length} job sorunlu`}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Kontrol: {formatDate(healthData.checked_at)} · 60 saniyede otomatik yenilenir
+                    </div>
+                  </div>
+                  <div className="ml-auto flex gap-5 text-sm text-right">
+                    <div><div className="text-slate-500 text-xs">Toplam</div><div className="font-bold text-white">{healthData.summary.total_jobs}</div></div>
+                    <div><div className="text-slate-500 text-xs">Basarili</div><div className="font-bold text-green-400">{healthData.summary.successful}</div></div>
+                    <div><div className="text-slate-500 text-xs">Hatali</div><div className={`font-bold ${healthData.summary.failed > 0 ? "text-red-400" : "text-slate-400"}`}>{healthData.summary.failed}</div></div>
+                    <div><div className="text-slate-500 text-xs">Eksik</div><div className={`font-bold ${healthData.summary.missing > 0 ? "text-yellow-400" : "text-slate-400"}`}>{healthData.summary.missing}</div></div>
+                    {healthData.summary.slow > 0 && (
+                      <div><div className="text-slate-500 text-xs">Yavas</div><div className="font-bold text-orange-400">{healthData.summary.slow}</div></div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Alert'ler */}
+                {healthData.alerts.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Uyarilar</div>
+                    {healthData.alerts.map((alert) => (
+                      <div key={alert.job_name} className={`rounded-lg border px-4 py-3 text-sm ${
+                        alert.issue === "failed" ? "border-red-800/50 bg-red-950/20" :
+                        alert.issue === "not_run" ? "border-yellow-800/40 bg-yellow-950/10" :
+                        "border-orange-800/40 bg-orange-950/10"
+                      }`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {alert.issue === "failed" && <XCircle className="h-4 w-4 text-red-400 shrink-0" />}
+                          {alert.issue === "not_run" && <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />}
+                          {alert.issue === "slow" && <Clock className="h-4 w-4 text-orange-400 shrink-0" />}
+                          <span className="font-medium text-white">{alert.label}</span>
+                          <span className="text-slate-500 font-mono text-xs">({alert.job_name})</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                            alert.issue === "failed" ? "bg-red-900/50 text-red-300" :
+                            alert.issue === "not_run" ? "bg-yellow-900/50 text-yellow-300" :
+                            "bg-orange-900/50 text-orange-300"
+                          }`}>
+                            {alert.issue === "failed" ? "HATA" : alert.issue === "not_run" ? "EKSIK" : "YAVAS"}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-slate-400 text-xs">{alert.details}</div>
+                        {alert.last_run && (
+                          <div className="mt-0.5 text-slate-600 text-xs">Son: {formatDate(alert.last_run)}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Tüm job detayları */}
+                <div>
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tüm Beklenen Job'lar</div>
+                  <div className="border border-slate-800 rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-slate-600 border-b border-slate-800 bg-slate-800/40">
+                          <th className="text-left px-4 py-2">Job</th>
+                          <th className="text-left px-4 py-2">Son Çalışma</th>
+                          <th className="text-left px-4 py-2">Durum</th>
+                          <th className="text-right px-4 py-2">Ort. Süre</th>
+                          <th className="text-right px-4 py-2">Toplam</th>
+                          <th className="text-right px-4 py-2">Hatalı</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {healthData.job_details.map((j) => (
+                          <tr key={j.name} className="border-b border-slate-800/40 hover:bg-slate-800/20">
+                            <td className="px-4 py-2">
+                              <div className="text-slate-300">{j.label}</div>
+                              <div className="font-mono text-slate-600">{j.name}</div>
+                            </td>
+                            <td className="px-4 py-2 text-slate-400">{j.last_run ? formatDate(j.last_run) : <span className="text-yellow-600">Hiç çalışmadı</span>}</td>
+                            <td className="px-4 py-2">
+                              {!j.last_status ? (
+                                <span className="text-slate-600">—</span>
+                              ) : j.last_status === "ok" ? (
+                                <span className="flex items-center gap-1 text-green-400"><CheckCircle className="h-3 w-3" />ok</span>
+                              ) : j.last_status === "error" ? (
+                                <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />hata</span>
+                              ) : (
+                                <span className="text-slate-500">{j.last_status}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right text-slate-500">{j.avg_duration_ms != null ? formatDuration(j.avg_duration_ms) : "—"}</td>
+                            <td className="px-4 py-2 text-right text-slate-400">{j.total_runs}</td>
+                            <td className="px-4 py-2 text-right">{j.error_runs > 0 ? <span className="text-red-400">{j.error_runs}</span> : <span className="text-slate-600">0</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}

@@ -1,0 +1,16 @@
+API Güvenliği ve "Gölge API" (Shadow API) Keşfi
+​Günümüzde WAF'lerin en çok zorlandığı ve en büyük veri sızıntılarının yaşandığı yer klasik web sayfaları değil, mobil uygulamaların ve entegrasyonların arkasında çalışan API'lerdir.
+​Teknik Hamle: Sadece port veya subdomain taramak yerine, hedefin Swagger/OpenAPI dosyalarını (genellikle  /api/v1/docs, swagger.json gibi dizinlerde unutulur) otomatik olarak parse eden ve bu API uç noktalarına yetkilendirme testleri (Broken Object Level Authorization - BOLA) yapan bir modül geliştirin.
+​Değer: Bir e-ticaret veya bankacılık müşterisine "Mobil uygulamanızın arkasındaki API'de kimlik doğrulama bypass edilebiliyor" dediğinizde, bu bulgu klasik bir XSS veya SQLi'den çok daha kritik bir etki yaratır.
+​3. Saldırı Zinciri Haritalama (Attack Path Mapping)
+​Zafiyetleri alt alta listelemek artık yöneticiler için "gürültü" (alert fatigue) anlamına geliyor. Önemli olan bu zafiyetlerin nasıl birleştiğidir.
+​Teknik Hamle: Arka planda bir Graph Database (örneğin Neo4j) kullanarak zafiyetleri birbirine bağlayın. Rapor çıktısı düz bir liste değil, bir "Saldırı Ağacı" (Attack Tree) olsun.
+​Değer: Rapor şunu demeli: "Açık bırakılan bir RDP portu (Zafiyet 1) var. Bu sunucunun içinde GitHub erişim token'ı (Zafiyet 2) sızmış durumda. Bu token kullanılarak bulut altyapısına girilip müşteri veri tabanı indirilebilir." Bu görselleştirme, yönetim kurulunun riski anında anlamasını sağlar.
+​4. Tedarik Zinciri ve 3. Parti Risk Yönetimi (TPRM)
+​Türkiye'deki büyük holdingler veya bankalar (BDDK regülasyonları gereği) sadece kendi güvenliklerinden değil, hizmet aldıkları yüzlerce tedarikçinin güvenliğinden de sorumludur (Örn: Yemekhane firmasının hacklenip bankaya sızılması).
+​Teknik Hamle: CyberStep platformuna bir "Vendor Risk Portal" (Tedarikçi Risk Ekranı) ekleyin. Büyük kurum, 100 farklı tedarikçisinin domain adresini bu portala girsin. CyberStep tüm tedarikçileri sürekli tarayıp ana firmaya "A tedarikçinizin güvenliği C seviyesine düştü, sizin ağınıza bağlılarsa tehlike altındasınız" uyarısı üretsin.
+​Değer: Bu, 1 lisans satarak 100 farklı firmayı dolaylı olarak taramanızı ve o 100 firmaya da "CyberStep skorunuzu düzeltmek için ürünü alın" şeklinde çapraz satış yapmanızı sağlayacak muazzam bir viral büyüme motorudur.
+​5. Yerel Bulut ve KVKK Altyapı Postür Taraması (CSPM)
+​Global araçlar (AWS, Azure, GCP) için harika çözümler var. Ancak Türkiye'de veri yerelleştirme kanunları (KVKK) nedeniyle kurumlar Turkcell, Vodafone, KoçSistem, Bulutistan gibi yerel veri merkezlerini kullanıyor.
+​Teknik Hamle: Türkiye'deki yerel veri merkezlerinde barındırılan sistemlerin yapılandırma hatalarını (açık bırakılmış S3/MinIO bucket'lar, şifresiz veritabanı yedekleri vb.) tespit etmeye yönelik özel modüller (CSPM - Cloud Security Posture Management) geliştirin.
+​Değer: "Yerel bulut altyapınızın KVKK uyumluluğunu dışarıdan doğruluyoruz" demek, hukuki bir zorunluluğu teknik bir araçla çözmek demektir.

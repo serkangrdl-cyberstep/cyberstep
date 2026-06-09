@@ -131,6 +131,45 @@ export const GetServiceSubscriptionsResponse = zod.array(GetServiceSubscriptions
 
 
 /**
+ * @summary Son 3 kritik CVE (CVSS >= 9.0, yayında) — landing widget için
+ */
+export const GetCveLatestCriticalResponseItem = zod.object({
+  "cveId": zod.string(),
+  "cvssScore": zod.number().nullish(),
+  "severity": zod.string().nullish(),
+  "title": zod.string().nullish(),
+  "exploitPublic": zod.boolean().nullish(),
+  "cisaKev": zod.boolean().nullish(),
+  "patchAvailable": zod.boolean().nullish(),
+  "detectedAt": zod.coerce.date().nullish()
+})
+export const GetCveLatestCriticalResponse = zod.array(GetCveLatestCriticalResponseItem)
+
+
+/**
+ * @summary Domain'in aktif CVE'lerle eşleşip eşleşmediğini kontrol et
+ */
+export const CheckCveDomainBody = zod.object({
+  "domain": zod.string()
+})
+
+export const CheckCveDomainResponse = zod.object({
+  "domain": zod.string(),
+  "isTracked": zod.boolean(),
+  "techStackCount": zod.number().optional(),
+  "affectedCVECount": zod.number(),
+  "affectedCVEs": zod.array(zod.object({
+  "cveId": zod.string().optional(),
+  "matchedProduct": zod.string().nullish(),
+  "cvss": zod.number().nullish(),
+  "severity": zod.string().nullish(),
+  "patchAvailable": zod.boolean().nullish()
+})).optional(),
+  "message": zod.string()
+})
+
+
+/**
  * Kimlik doğrulama gerektirmez. Sadece aktif servisleri döner.
  * @summary Aktif kurumsal servis kataloğunu getir
  */

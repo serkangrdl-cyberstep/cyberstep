@@ -24,6 +24,9 @@ import type {
   Assessment,
   AssessmentInput,
   AssessmentWithAnswers,
+  CheckCveDomainBody,
+  CriticalCve,
+  CveDomainCheckResult,
   ErrorResponse,
   GeminiConversation,
   GeminiConversationInput,
@@ -437,6 +440,154 @@ export function useGetServiceSubscriptions<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getGetCveLatestCriticalUrl = () => {
+
+
+
+
+  return `/api/cve/latest-critical`
+}
+
+/**
+ * @summary Son 3 kritik CVE (CVSS >= 9.0, yayında) — landing widget için
+ */
+export const getCveLatestCritical = async ( options?: RequestInit): Promise<CriticalCve[]> => {
+
+  return customFetch<CriticalCve[]>(getGetCveLatestCriticalUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCveLatestCriticalQueryKey = () => {
+    return [
+    `/api/cve/latest-critical`
+    ] as const;
+    }
+
+
+export const getGetCveLatestCriticalQueryOptions = <TData = Awaited<ReturnType<typeof getCveLatestCritical>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCveLatestCritical>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCveLatestCriticalQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCveLatestCritical>>> = ({ signal }) => getCveLatestCritical({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCveLatestCritical>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCveLatestCriticalQueryResult = NonNullable<Awaited<ReturnType<typeof getCveLatestCritical>>>
+export type GetCveLatestCriticalQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Son 3 kritik CVE (CVSS >= 9.0, yayında) — landing widget için
+ */
+
+export function useGetCveLatestCritical<TData = Awaited<ReturnType<typeof getCveLatestCritical>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCveLatestCritical>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCveLatestCriticalQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCheckCveDomainUrl = () => {
+
+
+
+
+  return `/api/cve/domain-check`
+}
+
+/**
+ * @summary Domain'in aktif CVE'lerle eşleşip eşleşmediğini kontrol et
+ */
+export const checkCveDomain = async (checkCveDomainBody: CheckCveDomainBody, options?: RequestInit): Promise<CveDomainCheckResult> => {
+
+  return customFetch<CveDomainCheckResult>(getCheckCveDomainUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      checkCveDomainBody,)
+  }
+);}
+
+
+
+
+export const getCheckCveDomainMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkCveDomain>>, TError,{data: BodyType<CheckCveDomainBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkCveDomain>>, TError,{data: BodyType<CheckCveDomainBody>}, TContext> => {
+
+const mutationKey = ['checkCveDomain'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkCveDomain>>, {data: BodyType<CheckCveDomainBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  checkCveDomain(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckCveDomainMutationResult = NonNullable<Awaited<ReturnType<typeof checkCveDomain>>>
+    export type CheckCveDomainMutationBody = BodyType<CheckCveDomainBody>
+    export type CheckCveDomainMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Domain'in aktif CVE'lerle eşleşip eşleşmediğini kontrol et
+ */
+export const useCheckCveDomain = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkCveDomain>>, TError,{data: BodyType<CheckCveDomainBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkCveDomain>>,
+        TError,
+        {data: BodyType<CheckCveDomainBody>},
+        TContext
+      > => {
+      return useMutation(getCheckCveDomainMutationOptions(options));
+    }
 
 export const getGetPublicServiceCatalogUrl = () => {
 

@@ -157,6 +157,45 @@ paths:
                 items:
                   $ref: "#/components/schemas/ServiceSubscription"
 
+  /cve/latest-critical:
+    get:
+      operationId: getCveLatestCritical
+      tags: [health]
+      summary: Son 3 kritik CVE (CVSS >= 9.0, yayında) — landing widget için
+      responses:
+        "200":
+          description: Kritik CVE listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CriticalCve"
+
+  /cve/domain-check:
+    post:
+      operationId: checkCveDomain
+      tags: [health]
+      summary: Domain'in aktif CVE'lerle eşleşip eşleşmediğini kontrol et
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain:
+                  type: string
+              required:
+                - domain
+      responses:
+        "200":
+          description: Domain CVE kontrol sonucu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CveDomainCheckResult"
+
   /public/service-catalog:
     get:
       operationId: getPublicServiceCatalog
@@ -1392,3 +1431,71 @@ components:
           type: boolean
         sortOrder:
           type: integer
+
+    CriticalCve:
+      type: object
+      properties:
+        cveId:
+          type: string
+        cvssScore:
+          type: number
+          nullable: true
+        severity:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        exploitPublic:
+          type: boolean
+          nullable: true
+        cisaKev:
+          type: boolean
+          nullable: true
+        patchAvailable:
+          type: boolean
+          nullable: true
+        detectedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - cveId
+
+    CveDomainCheckResult:
+      type: object
+      properties:
+        domain:
+          type: string
+        isTracked:
+          type: boolean
+        techStackCount:
+          type: integer
+        affectedCVECount:
+          type: integer
+        affectedCVEs:
+          type: array
+          items:
+            type: object
+            properties:
+              cveId:
+                type: string
+              matchedProduct:
+                type: string
+                nullable: true
+              cvss:
+                type: number
+                nullable: true
+              severity:
+                type: string
+                nullable: true
+              patchAvailable:
+                type: boolean
+                nullable: true
+        message:
+          type: string
+      required:
+        - domain
+        - isTracked
+        - affectedCVECount
+        - message

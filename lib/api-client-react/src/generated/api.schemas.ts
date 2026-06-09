@@ -458,6 +458,34 @@ export interface ServiceCatalogUpdate {
   sortOrder?: number;
 }
 
+export interface CriticalCve {
+  cveId: string;
+  cvssScore?: number | null;
+  severity?: string | null;
+  title?: string | null;
+  exploitPublic?: boolean | null;
+  cisaKev?: boolean | null;
+  patchAvailable?: boolean | null;
+  detectedAt?: string | null;
+}
+
+export type CveDomainCheckResultAffectedCVEsItem = {
+  cveId?: string;
+  matchedProduct?: string | null;
+  cvss?: number | null;
+  severity?: string | null;
+  patchAvailable?: boolean | null;
+};
+
+export interface CveDomainCheckResult {
+  domain: string;
+  isTracked: boolean;
+  techStackCount?: number;
+  affectedCVECount: number;
+  affectedCVEs?: CveDomainCheckResultAffectedCVEsItem[];
+  message: string;
+}
+
 export type ServicePaymentCallback200 = {
   ok: boolean;
   /** @nullable */
@@ -475,5 +503,9 @@ export type SaveServiceConfig200 = {
 export type GetServiceSubscriptionsParams = {
 email?: string;
 customerId?: number;
+};
+
+export type CheckCveDomainBody = {
+  domain: string;
 };
 

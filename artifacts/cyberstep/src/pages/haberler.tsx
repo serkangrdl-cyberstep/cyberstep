@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ExternalLink, Calendar, Globe, Sparkles } from "lucide-react";
+import { ExternalLink, Calendar, Globe, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 interface NewsItem {
@@ -49,6 +49,85 @@ function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function NewsCard({ item }: { item: NewsItem }) {
+  const [expanded, setExpanded] = useState(false);
+  const displaySummary = item.aiSummary || item.summary;
+  const isEnriched = !!item.aiSummary;
+  const isLong = (displaySummary?.length ?? 0) > 120;
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground hover:text-primary transition-colors leading-snug block mb-1.5"
+          >
+            {item.title}
+          </a>
+
+          {displaySummary && (
+            <div>
+              <p className={`text-muted-foreground text-sm leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
+                {displaySummary}
+              </p>
+              {isLong && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline"
+                >
+                  {expanded ? (
+                    <><ChevronUp size={12} /> Daha az göster</>
+                  ) : (
+                    <><ChevronDown size={12} /> Devamını gör</>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {item.publishedAt && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
+                <Calendar size={11} />
+                {formatDate(item.publishedAt)}
+              </span>
+            )}
+            {item.category && CATEGORY_LABELS[item.category] && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                {CATEGORY_LABELS[item.category]}
+              </span>
+            )}
+            {item.isTurkeyRelated && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                Türkiye
+              </span>
+            )}
+            {isEnriched && (
+              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20">
+                <Sparkles size={10} />
+                AI özet
+              </span>
+            )}
+          </div>
+        </div>
+
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 p-1.5 rounded-lg text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors mt-0.5"
+          title="Habere git"
+        >
+          <ExternalLink size={15} />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 export default function Haberler() {
@@ -132,57 +211,9 @@ export default function Haberler() {
           </div>
         ) : (
           <div className="space-y-4">
-            {data.items.map((item) => {
-              const displaySummary = item.aiSummary || item.summary;
-              const isEnriched = !!item.aiSummary;
-              return (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:bg-card/80 transition-colors group"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h2 className="font-semibold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
-                        {item.title}
-                      </h2>
-                      {displaySummary && (
-                        <p className="text-muted-foreground text-sm mt-1.5 line-clamp-2 leading-relaxed">
-                          {displaySummary}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-3 mt-3 flex-wrap">
-                        {item.publishedAt && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
-                            <Calendar size={11} />
-                            {formatDate(item.publishedAt)}
-                          </span>
-                        )}
-                        {item.category && CATEGORY_LABELS[item.category] && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
-                            {CATEGORY_LABELS[item.category]}
-                          </span>
-                        )}
-                        {item.isTurkeyRelated && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                            Türkiye
-                          </span>
-                        )}
-                        {isEnriched && (
-                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20">
-                            <Sparkles size={10} />
-                            AI özet
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <ExternalLink size={16} className="shrink-0 text-muted-foreground/40 group-hover:text-primary/60 transition-colors mt-1" />
-                  </div>
-                </a>
-              );
-            })}
+            {data.items.map((item) => (
+              <NewsCard key={item.id} item={item} />
+            ))}
           </div>
         )}
 

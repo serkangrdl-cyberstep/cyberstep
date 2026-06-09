@@ -18,9 +18,11 @@ import adminApprovalsRouter from "./routes/admin-panel/approvals";
 import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import seoRouter from "./routes/public/seo";
 import { generateAndPublishBlogPost, generateBlogPostContent, BLOG_PLAN } from "./services/blog-autopilot";
+import { createAdminUser } from "./services/auth";
 import { logger } from "./lib/logger";
-import { db, blogPostsTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, blogPostsTable, adminUsersTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 const app: Express = express();
 
@@ -432,6 +434,51 @@ app.post("/api/internal/regenerate-blog-post", async (req: Request, res: Respons
       logger.error({ err }, "regenerate-blog-post: hata");
     }
   });
+});
+
+// ─── Internal: admin kullanıcı oluştur / güncelle ────────────────────────────
+app.post("/api/internal/upsert-admin", async (req: Request, res: Response) => {
+  const secret = process.env["ENCRYPTION_KEY"];
+  const provided = req.headers["x-internal-secret"] as string | undefined;
+  if (!secret || !provided || provided !== secret) {
+    res.status(403).json({ error: "Yetkisiz" });
+    return;
+  }
+  const { email, password, departments, isSuperadmin } = req.body as {
+    email: string;
+    password?: string;
+    departments?: string[];
+    isSuperadmin?: boolean;
+  };
+  if (!email) { res.status(400).json({ error: "email zorunlu" }); return; }
+
+  try {
+    const [existing] = await db.select({ id: adminUsersTable.id })
+      .from(adminUsersTable).where(eq(adminUsersTable.email, email));
+
+    if (existing) {
+      // Güncelle
+      const updates: Record<string, unknown> = {};
+      if (password) updates["passwordHash"] = await bcrypt.hash(password, 12);
+      if (departments !== undefined) updates["departments"] = departments;
+      if (isSuperadmin !== undefined) updates["isSuperadmin"] = isSuperadmin;
+      await db.update(adminUsersTable).set(updates).where(eq(adminUsersTable.id, existing.id));
+      logger.info({ email, id: existing.id }, "internal/upsert-admin: güncellendi");
+      res.json({ ok: true, action: "updated", id: existing.id });
+    } else {
+      // Yeni oluştur
+      if (!password) { res.status(400).json({ error: "Yeni kullanıcı için password zorunlu" }); return; }
+      const hash = await bcrypt.hash(password, 12);
+      const [created] = await db.insert(adminUsersTable)
+        .values({ email, passwordHash: hash, departments: departments ?? [], isSuperadmin: isSuperadmin ?? false })
+        .returning({ id: adminUsersTable.id });
+      logger.info({ email, id: created?.id }, "internal/upsert-admin: oluşturuldu");
+      res.json({ ok: true, action: "created", id: created?.id });
+    }
+  } catch (err) {
+    logger.error({ err }, "internal/upsert-admin: hata");
+    res.status(500).json({ error: "Hata oluştu" });
+  }
 });
 
 // ─── Internal: blog post'larını doğrudan seed et (production catch-up) ──────

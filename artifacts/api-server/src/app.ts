@@ -452,12 +452,15 @@ app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) =>
       focusKeyword?: string; focusKeywordEn?: string; seoTags?: string[];
     }>;
     deleteIds?: number[];
+    updates?: Array<{ id: number; content?: string; title?: string; excerpt?: string; status?: string }>;
   };
   // Support top-level array (legacy) or structured body
   const posts = Array.isArray(req.body) ? req.body : (body.posts ?? []);
   const deleteIds: number[] = Array.isArray(body.deleteIds) ? body.deleteIds : [];
-  if (posts.length === 0 && deleteIds.length === 0) {
-    res.status(400).json({ error: "posts dizisi veya deleteIds zorunlu" });
+  const updates: Array<{ id: number; content?: string; title?: string; excerpt?: string; status?: string }> =
+    Array.isArray(body.updates) ? body.updates : [];
+  if (posts.length === 0 && deleteIds.length === 0 && updates.length === 0) {
+    res.status(400).json({ error: "posts, deleteIds veya updates zorunlu" });
     return;
   }
   try {
@@ -488,6 +491,23 @@ app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) =>
       `);
       inserted++;
     }
+    let updated = 0;
+    for (const u of updates) {
+      if (!u.id) continue;
+      if (u.content !== undefined) {
+        await db.execute(sql`UPDATE blog_posts SET content = ${u.content}, updated_at = NOW() WHERE id = ${u.id}`);
+      }
+      if (u.title !== undefined) {
+        await db.execute(sql`UPDATE blog_posts SET title = ${u.title}, updated_at = NOW() WHERE id = ${u.id}`);
+      }
+      if (u.excerpt !== undefined) {
+        await db.execute(sql`UPDATE blog_posts SET excerpt = ${u.excerpt}, updated_at = NOW() WHERE id = ${u.id}`);
+      }
+      if (u.status !== undefined) {
+        await db.execute(sql`UPDATE blog_posts SET status = ${u.status}, updated_at = NOW() WHERE id = ${u.id}`);
+      }
+      updated++;
+    }
     let deleted = 0;
     if (deleteIds.length > 0) {
       for (const id of deleteIds) {
@@ -495,8 +515,8 @@ app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) =>
       }
       deleted = deleteIds.length;
     }
-    logger.info({ inserted, skipped, deleted }, "seed-blog-posts: tamamlandı");
-    res.json({ ok: true, inserted, skipped, deleted });
+    logger.info({ inserted, skipped, updated, deleted }, "seed-blog-posts: tamamlandı");
+    res.json({ ok: true, inserted, skipped, updated, deleted });
   } catch (err) {
     logger.error({ err }, "seed-blog-posts: hata");
     res.status(500).json({ error: "Hata oluştu" });

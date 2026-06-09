@@ -434,6 +434,62 @@ app.post("/api/internal/regenerate-blog-post", async (req: Request, res: Respons
   });
 });
 
+// ─── Internal: blog post'larını doğrudan seed et (production catch-up) ──────
+// Accepts an array of blog post objects and upserts by slug.
+app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) => {
+  const secret = process.env["ENCRYPTION_KEY"];
+  const provided = req.headers["x-internal-secret"] as string | undefined;
+  if (!secret || !provided || provided !== secret) {
+    res.status(403).json({ error: "Yetkisiz" });
+    return;
+  }
+  const posts = req.body as Array<{
+    title: string; slug: string; excerpt: string; content: string;
+    titleEn?: string; excerptEn?: string; contentEn?: string;
+    authorName?: string; publishedAt?: string;
+    seoTitle?: string; seoTitleEn?: string; metaDescription?: string; metaDescriptionEn?: string;
+    focusKeyword?: string; focusKeywordEn?: string; seoTags?: string[];
+  }>;
+  if (!Array.isArray(posts) || posts.length === 0) {
+    res.status(400).json({ error: "posts dizisi zorunlu" });
+    return;
+  }
+  try {
+    let inserted = 0;
+    let skipped = 0;
+    for (const p of posts) {
+      const existing = await db.execute(sql`SELECT id FROM blog_posts WHERE slug = ${p.slug} LIMIT 1`);
+      if (existing.rows.length > 0) { skipped++; continue; }
+      await db.execute(sql`
+        INSERT INTO blog_posts (
+          title, slug, excerpt, content,
+          title_en, excerpt_en, content_en,
+          author_name, status, published_at,
+          seo_title, seo_title_en, meta_description, meta_description_en,
+          focus_keyword, focus_keyword_en, seo_tags,
+          created_at, updated_at
+        ) VALUES (
+          ${p.title}, ${p.slug}, ${p.excerpt}, ${p.content},
+          ${p.titleEn ?? null}, ${p.excerptEn ?? null}, ${p.contentEn ?? null},
+          ${p.authorName ?? "CyberStep.io"}, 'published',
+          ${p.publishedAt ? new Date(p.publishedAt).toISOString() : new Date().toISOString()},
+          ${p.seoTitle ?? null}, ${p.seoTitleEn ?? null},
+          ${p.metaDescription ?? null}, ${p.metaDescriptionEn ?? null},
+          ${p.focusKeyword ?? null}, ${p.focusKeywordEn ?? null},
+          ${JSON.stringify(p.seoTags ?? [])}::jsonb,
+          NOW(), NOW()
+        )
+      `);
+      inserted++;
+    }
+    logger.info({ inserted, skipped }, "seed-blog-posts: tamamlandı");
+    res.json({ ok: true, inserted, skipped });
+  } catch (err) {
+    logger.error({ err }, "seed-blog-posts: hata");
+    res.status(500).json({ error: "Hata oluştu" });
+  }
+});
+
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {
   // Payload too large

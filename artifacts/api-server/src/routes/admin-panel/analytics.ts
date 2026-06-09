@@ -336,13 +336,20 @@ router.get("/admin-panel/analytics/ops-center", requireAdmin, async (_req: Reque
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 7);
+  const prevWeekStart = new Date(weekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
 
   const [
     leadTotal, leadQualified, leadWithContact, leadTeaserSent,
     queueStats,
     cronStats,
     lastBulletin, lastIntelReport, lastDailySummary,
-    todayScans,
+    todayScans, yesterdayScansRes, thisWeekLeadsRes, lastWeekLeadsRes,
+    sevenDayScanTrendRes,
   ] = await Promise.all([
     db.select({ count: count() }).from(leadCandidatesTable),
     db.select({ count: count() }).from(leadCandidatesTable)
@@ -364,24 +371,42 @@ router.get("/admin-panel/analytics/ops-center", requireAdmin, async (_req: Reque
       .from(dailySummariesTable).orderBy(desc(dailySummariesTable.generatedAt)).limit(1),
     db.select({ count: count() }).from(domainScansTable)
       .where(gte(domainScansTable.createdAt, todayStart)),
+    // yesterday comparison
+    db.select({ count: count() }).from(domainScansTable)
+      .where(and(gte(domainScansTable.createdAt, yesterdayStart), sql`${domainScansTable.createdAt} < ${todayStart}`)),
+    // this week leads
+    db.select({ count: count() }).from(leadCandidatesTable)
+      .where(gte(leadCandidatesTable.createdAt, weekStart)),
+    // last week leads
+    db.select({ count: count() }).from(leadCandidatesTable)
+      .where(and(gte(leadCandidatesTable.createdAt, prevWeekStart), sql`${leadCandidatesTable.createdAt} < ${weekStart}`)),
+    // 7-day daily scan trend
+    db.execute(sql`
+      SELECT TO_CHAR(DATE_TRUNC('day', created_at AT TIME ZONE 'Europe/Istanbul'), 'DD.MM') AS day,
+             COUNT(*)::int AS cnt
+      FROM domain_scans
+      WHERE created_at >= NOW() - INTERVAL '8 days'
+      GROUP BY DATE_TRUNC('day', created_at AT TIME ZONE 'Europe/Istanbul')
+      ORDER BY 1 ASC
+      LIMIT 7
+    `),
   ]);
 
-  const CRITICAL_CRONS: { name: string; label: string }[] = [
-    { name: "crtsh",          label: "Sertifika İzleme"   },
-    { name: "domain_rescan",  label: "Domain Rescan"      },
-    { name: "lead_qual",      label: "Lead Nitelendirme"  },
-    { name: "dns_monitor",    label: "DNS İzleme"         },
-    { name: "cve_feed_check", label: "CVE Besleme"        },
-    { name: "health_score",   label: "Müşteri Sağlık"     },
-    { name: "haftalik_bulten",label: "Haftalık Bülten"    },
-    { name: "daily_summary",  label: "Günlük Özet"        },
+  const CRITICAL_CRONS: { name: string; label: string; category: string }[] = [
+    { name: "crtsh",          label: "Sertifika İzleme",  category: "lead"   },
+    { name: "domain_rescan",  label: "Domain Rescan",     category: "scan"   },
+    { name: "lead_qual",      label: "Lead Nitelendirme", category: "lead"   },
+    { name: "dns_monitor",    label: "DNS İzleme",        category: "scan"   },
+    { name: "cve_feed_check", label: "CVE Besleme",       category: "intel"  },
+    { name: "health_score",   label: "Müşteri Sağlık",    category: "crm"    },
+    { name: "haftalik_bulten",label: "Haftalık Bülten",   category: "report" },
+    { name: "daily_summary",  label: "Günlük Özet",       category: "report" },
   ];
   const cronMap = Object.fromEntries(cronStats.map(s => [s.job_name, s]));
-  const criticalCronHealth = CRITICAL_CRONS.map(({ name, label }) => {
+  const criticalCronHealth = CRITICAL_CRONS.map(({ name, label, category }) => {
     const s = cronMap[name];
     return {
-      name,
-      label,
+      name, label, category,
       lastRunAt:  s?.last_run_at  ?? null,
       lastStatus: s?.last_status  ?? null,
       lastError:  s?.last_error   ?? null,
@@ -393,22 +418,40 @@ router.get("/admin-panel/analytics/ops-center", requireAdmin, async (_req: Reque
   const queueByStatus: Record<string, number> = {};
   for (const r of queueStats) queueByStatus[r.scanStatus ?? "unknown"] = Number(r.cnt);
 
+  const todayN      = Number(todayScans[0]?.count      ?? 0);
+  const yesterdayN  = Number(yesterdayScansRes[0]?.count ?? 0);
+  const thisWeekN   = Number(thisWeekLeadsRes[0]?.count  ?? 0);
+  const lastWeekN   = Number(lastWeekLeadsRes[0]?.count  ?? 0);
+
+  const cronOk    = criticalCronHealth.filter(c => c.lastStatus === "ok").length;
+  const cronErr   = criticalCronHealth.filter(c => c.lastStatus === "error").length;
+  const cronNever = criticalCronHealth.filter(c => !c.lastRunAt).length;
+
   res.json({
     leadFunnel: {
-      discovered:  Number(leadTotal[0]?.count    ?? 0),
-      qualified:   Number(leadQualified[0]?.count ?? 0),
+      discovered:  Number(leadTotal[0]?.count      ?? 0),
+      qualified:   Number(leadQualified[0]?.count   ?? 0),
       withContact: Number(leadWithContact[0]?.count ?? 0),
-      teaserSent:  Number(leadTeaserSent[0]?.count ?? 0),
+      teaserSent:  Number(leadTeaserSent[0]?.count  ?? 0),
       contacted:   queueByStatus["contacted"] ?? 0,
       converted:   queueByStatus["converted"] ?? 0,
     },
     criticalCronHealth,
+    cronSummary: { ok: cronOk, error: cronErr, neverRan: cronNever,
+                   total: CRITICAL_CRONS.length },
     reports: {
-      bulletin:     lastBulletin[0]    ?? null,
-      intelligence: lastIntelReport[0] ?? null,
+      bulletin:     lastBulletin[0]     ?? null,
+      intelligence: lastIntelReport[0]  ?? null,
       dailySummary: lastDailySummary[0] ?? null,
     },
-    todayScans: Number(todayScans[0]?.count ?? 0),
+    todayScans: todayN,
+    sevenDayScans: (sevenDayScanTrendRes.rows as Array<{ day: string; cnt: number }>)
+      .map(r => ({ day: String(r.day), count: Number(r.cnt) })),
+    comparisons: {
+      yesterdayScans: yesterdayN,
+      thisWeekLeads:  thisWeekN,
+      lastWeekLeads:  lastWeekN,
+    },
   });
 });
 

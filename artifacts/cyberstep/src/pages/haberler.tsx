@@ -1,0 +1,182 @@
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { ExternalLink, Calendar, Globe } from "lucide-react";
+import { usePageMeta } from "@/hooks/use-page-meta";
+
+interface NewsItem {
+  id: number;
+  title: string;
+  url: string;
+  summary: string | null;
+  publishedAt: string | null;
+  isTurkeyRelated: boolean;
+  weekYear: number | null;
+  weekNumber: number | null;
+}
+
+interface NewsPage {
+  items: NewsItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+function getISOWeek(date: Date): { weekYear: number; weekNumber: number } {
+  const d = new Date(date.getTime());
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNumber =
+    1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return { weekYear: d.getFullYear(), weekNumber };
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+export default function Haberler() {
+  usePageMeta({
+    title: "Siber Guvenlik Haberleri | CyberStep.io",
+    description: "Guncel siber guvenlik haberleri. Turkiye ve dunya genelindeki tehditler, zafiyet duyurulari ve sektorel gelismeler.",
+  });
+
+  const [page, setPage] = useState(1);
+  const { weekYear, weekNumber } = getISOWeek(new Date());
+  const [filterWeek, setFilterWeek] = useState(`${weekYear}-${weekNumber}`);
+  const [showAll, setShowAll] = useState(false);
+
+  const [selYear, selWeek] = filterWeek.split("-").map(Number) as [number, number];
+
+  const weekParams = showAll
+    ? "turkeyOnly=false"
+    : `weekYear=${selYear}&weekNumber=${selWeek}&turkeyOnly=false`;
+
+  const { data, isLoading } = useQuery<NewsPage>({
+    queryKey: ["public-news", selYear, selWeek, page, showAll],
+    queryFn: () =>
+      fetch(`/api/digest/news?${weekParams}&page=${page}&limit=20`).then((r) => r.json()),
+  });
+
+  const weekOptions = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i * 7);
+    const w = getISOWeek(d);
+    return { label: `${w.weekYear} / Hafta ${w.weekNumber}`, value: `${w.weekYear}-${w.weekNumber}` };
+  });
+
+  const totalPages = data ? Math.ceil(data.total / 20) : 1;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-10">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Siber Guvenlik Haberleri</h1>
+          <p className="text-muted-foreground">
+            Guncel tehditler, zafiyet duyurulari ve sektorel gelismeler
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mb-8">
+          <select
+            value={filterWeek}
+            onChange={(e) => { setFilterWeek(e.target.value); setPage(1); setShowAll(false); }}
+            className="px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground"
+          >
+            {weekOptions.map((w) => (
+              <option key={w.value} value={w.value}>{w.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => { setShowAll(!showAll); setPage(1); }}
+            className={`px-3 py-2 rounded-md text-sm border transition-colors ${
+              showAll
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+            }`}
+          >
+            {showAll ? "Haftalik filtre" : "Tum haberler"}
+          </button>
+          {data && (
+            <span className="text-sm text-muted-foreground ml-auto">{data.total} haber</span>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-28 bg-card border border-border rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : !data?.items.length ? (
+          <div className="text-center py-20 text-muted-foreground">
+            <Globe className="mx-auto mb-4 opacity-30" size={40} />
+            <p className="text-lg font-medium">Bu hafta haber bulunamadi</p>
+            <p className="text-sm mt-1">Farkli bir hafta secin veya tum haberler filtresini deneyin</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {data.items.map((item) => (
+              <a
+                key={item.id}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:bg-card/80 transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-semibold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
+                      {item.title}
+                    </h2>
+                    {item.summary && (
+                      <p className="text-muted-foreground text-sm mt-1.5 line-clamp-2 leading-relaxed">
+                        {item.summary}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 mt-3">
+                      {item.publishedAt && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
+                          <Calendar size={11} />
+                          {formatDate(item.publishedAt)}
+                        </span>
+                      )}
+                      {item.isTurkeyRelated && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                          Turkiye
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ExternalLink size={16} className="shrink-0 text-muted-foreground/40 group-hover:text-primary/60 transition-colors mt-1" />
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              className="px-4 py-2 rounded-lg border border-border text-sm disabled:opacity-40 hover:bg-card transition-colors"
+            >
+              Onceki
+            </button>
+            <span className="text-sm text-muted-foreground px-2">{page} / {totalPages}</span>
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+              className="px-4 py-2 rounded-lg border border-border text-sm disabled:opacity-40 hover:bg-card transition-colors"
+            >
+              Sonraki
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

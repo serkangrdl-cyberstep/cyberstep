@@ -116,7 +116,7 @@ function PostCard({ post, onRefresh }: { post: SocialPost; onRefresh: () => void
       )}
 
       {post.caption && (
-        <p className="text-foreground text-sm whitespace-pre-line leading-relaxed line-clamp-4">{post.caption}</p>
+        <p className="text-foreground text-sm whitespace-pre-line leading-relaxed">{post.caption}</p>
       )}
       {post.hashtags && post.hashtags.length > 0 && (
         <p className="text-primary/70 text-xs">{post.hashtags.join(" ")}</p>

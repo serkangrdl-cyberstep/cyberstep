@@ -205,9 +205,7 @@ function buildVisualSVG(platform: string, caption: string): string {
   <rect width="${w}" height="${h}" fill="url(#glow)"/>
   <rect x="0" y="0" width="${w}" height="6" fill="#00C8FF" opacity="0.8"/>
   <rect x="0" y="0" width="6" height="${h}" fill="#00C8FF" opacity="0.5"/>
-  <text x="${w * 0.08}" y="${h * 0.12}" font-family="Arial,sans-serif" font-size="${w * 0.04}" font-weight="900" fill="#E8EDF5">Cyber</text>
-  <text x="${w * 0.08 + w * 0.165}" y="${h * 0.12}" font-family="Arial,sans-serif" font-size="${w * 0.04}" font-weight="900" fill="#00C8FF">Step</text>
-  <text x="${w * 0.08 + w * 0.285}" y="${h * 0.12}" font-family="Arial,sans-serif" font-size="${w * 0.022}" fill="#7B8FAF">.io</text>
+  <text x="${w * 0.08}" y="${h * 0.12}" font-family="Arial,sans-serif" font-size="${w * 0.04}" font-weight="900"><tspan fill="#E8EDF5">Cyber</tspan><tspan fill="#00C8FF">Step</tspan><tspan dx="0.25em" font-size="${w * 0.022}" fill="#7B8FAF" font-weight="400">.io</tspan></text>
   <text x="${w * 0.08}" y="${h * 0.48}" font-family="Arial,sans-serif" font-size="${Math.min(w * 0.045, 48)}" font-weight="700" fill="#E8EDF5">${firstLine.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text>
   <rect x="0" y="${h * 0.88}" width="${w}" height="${h * 0.12}" fill="#111F35" opacity="0.8"/>
   <text x="${w * 0.08}" y="${h * 0.955}" font-family="Arial,sans-serif" font-size="${w * 0.022}" fill="#7B8FAF">Turkiye'nin Siber Guvenlik Risk Platformu</text>

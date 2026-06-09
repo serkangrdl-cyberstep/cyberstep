@@ -103,6 +103,7 @@ import PartnerDashboard from "./pages/partner/dashboard";
 import { AdminLayout } from "./components/admin-layout";
 import BlogList from "./pages/blog";
 import BlogPost from "./pages/blog-post";
+import Haberler from "./pages/haberler";
 
 import VerifyPage from "./pages/verify";
 import ServislerPage from "./pages/servisler";
@@ -425,6 +426,7 @@ function Router() {
             <Route path="/cerez-politikasi" component={CerezPolitikasi} />
             <Route path="/blog/:slug" component={BlogPost} />
             <Route path="/blog" component={BlogList} />
+            <Route path="/haberler" component={Haberler} />
             <Route path="/assessment/start" component={AssessmentStart} />
             <Route path="/assessment/full/start" component={FullAssessmentStart} />
             <Route path="/assessment/full/:id" component={FullAssessmentRunner} />

@@ -60,3 +60,9 @@ id = "zKxjuGwjFWHiNWWEm-oYG"
 uri = "file://docs/cron-jobs-ozeti.md"
 type = "text"
 title = "CyberStep Cron Jobs Özeti (Güncel)"
+
+[[outputs]]
+id = "BcjIa5cJ6N1kX7-7BQjyi"
+uri = "file://docs/cyberstep-servis-katalogu.md"
+type = "text"
+title = "CyberStep.io — Kapsamlı Servis Kataloğu"

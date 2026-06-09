@@ -7,7 +7,18 @@ import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
 import { getBlogAutopilotStatus, generateAndPublishBlogPost, generateAndSaveDraft, BLOG_PLAN } from "../../services/blog-autopilot";
+import { generateImage } from "@workspace/integrations-gemini-ai/image";
 import crypto from "crypto";
+
+function buildCoverImagePrompt(title: string, excerpt: string | null): string {
+  return [
+    "Professional cybersecurity blog article cover image.",
+    "Modern, dark blue and teal color scheme, abstract digital security visualization.",
+    `Theme: "${title}".`,
+    excerpt ? `Context: ${excerpt.slice(0, 120)}.` : "",
+    "No text, no letters, no words. Clean, high-quality, cinematic lighting. 16:9 landscape format.",
+  ].filter(Boolean).join(" ");
+}
 
 const router = Router();
 
@@ -221,6 +232,23 @@ router.post("/admin-panel/blog/:id/publish", requireAdmin, async (req: Request, 
       logger.error({ err, postId: id }, "Newsletter send failed");
     }
   })();
+
+  // Auto-generate cover image if none exists
+  if (!post.coverImageBase64) {
+    void (async () => {
+      try {
+        const prompt = buildCoverImagePrompt(post.title, post.excerpt);
+        const { b64_json, mimeType } = await generateImage(prompt);
+        const dataUrl = `data:${mimeType};base64,${b64_json}`;
+        await db.update(blogPostsTable)
+          .set({ coverImageBase64: dataUrl })
+          .where(eq(blogPostsTable.id, id));
+        logger.info({ postId: id }, "Auto-generated cover image on publish");
+      } catch (err) {
+        logger.warn({ err, postId: id }, "Auto cover image generation failed");
+      }
+    })();
+  }
 
   res.json({ success: true, post });
 });

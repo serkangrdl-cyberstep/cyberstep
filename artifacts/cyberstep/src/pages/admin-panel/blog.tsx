@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Plus, Pencil, Trash2, Globe, EyeOff, Users, ArrowLeft, ImagePlus, X,
-  Bot, Play, ChevronRight, CalendarCheck2, Zap, BookOpen, Filter,
+  Bot, Play, ChevronRight, CalendarCheck2, Zap, BookOpen, Filter, Loader2, Wand2,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -304,6 +304,7 @@ function PostForm({
   onCancel: () => void;
   isSaving: boolean;
 }) {
+  const { toast } = useToast();
   const [sectionTab, setSectionTab] = useState<SectionTab>("icerik");
   const [langTab, setLangTab] = useState<"tr" | "en">("tr");
 
@@ -351,7 +352,36 @@ function PostForm({
   // Meta
   const [authorName, setAuthorName] = useState(initial?.authorName ?? "CyberStep.io");
   const [coverImageBase64, setCoverImageBase64] = useState<string | null>(initial?.coverImageBase64 ?? null);
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const coverRef = useRef<HTMLInputElement>(null);
+
+  const handleGenerateCover = async () => {
+    if (!title) { toast({ title: "Önce başlık girin", variant: "destructive" }); return; }
+    setIsGeneratingCover(true);
+    try {
+      const prompt = [
+        "Professional cybersecurity blog article cover image.",
+        "Modern, dark blue and teal color scheme, abstract digital security visualization.",
+        `Theme: "${title}".`,
+        excerpt ? `Context: ${excerpt.slice(0, 120)}.` : "",
+        "No text, no letters, no words. Clean, high-quality, cinematic lighting. 16:9 landscape format.",
+      ].filter(Boolean).join(" ");
+      const r = await fetch("/api/gemini/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const { b64_json, mimeType } = await r.json() as { b64_json: string; mimeType: string };
+      setCoverImageBase64(`data:${mimeType};base64,${b64_json}`);
+      toast({ title: "Görsel üretildi" });
+    } catch (e) {
+      toast({ title: "Görsel üretilemedi", description: String(e), variant: "destructive" });
+    } finally {
+      setIsGeneratingCover(false);
+    }
+  };
 
   const handleCoverImage = (file: File) => {
     if (file.size > 2 * 1024 * 1024) { alert("Kapak gorseli 2MB'dan kucuk olmalidir"); return; }
@@ -419,11 +449,23 @@ function PostForm({
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={() => coverRef.current?.click()}
-                className="w-full h-28 border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-emerald-500 hover:text-emerald-400 transition-colors">
-                <ImagePlus className="h-5 w-5" />
-                <span className="text-xs">Gorsel yukle (max 2MB)</span>
-              </button>
+              <div className="space-y-2">
+                <button type="button" onClick={() => coverRef.current?.click()}
+                  className="w-full h-20 border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:border-emerald-500 hover:text-emerald-400 transition-colors">
+                  <ImagePlus className="h-4 w-4" />
+                  <span className="text-xs">Gorsel yukle (max 2MB)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateCover}
+                  disabled={isGeneratingCover}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400/60 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingCover
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Üretiliyor...</>
+                    : <><Wand2 className="h-3.5 w-3.5" /> AI ile Görsel Üret</>}
+                </button>
+              </div>
             )}
             <input ref={coverRef} type="file" accept="image/*" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverImage(f); e.target.value = ""; }} />

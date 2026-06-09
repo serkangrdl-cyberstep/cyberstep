@@ -40,9 +40,9 @@ function DomainScanEmbed() {
     try {
       const clean = domain.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]!;
       const r = await fetch(`/api/public/domain-score/${encodeURIComponent(clean)}`);
-      if (!r.ok) { setErr("Domain bulunamadi veya hata olustu."); return; }
+      if (!r.ok) { setErr("Domain bulunamadı veya hata oluştu."); return; }
       setResult(await r.json());
-    } catch { setErr("Baglanti hatasi."); }
+    } catch { setErr("Bağlantı hatası."); }
     finally { setLoading(false); }
   };
 
@@ -54,7 +54,7 @@ function DomainScanEmbed() {
           onKeyDown={e => e.key === "Enter" && check()} />
         <button onClick={check} disabled={loading || !domain}
           className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {loading ? "Taraniyor..." : "Tara"}
+          {loading ? "Taranıyor..." : "Tara"}
         </button>
       </div>
       {err && <p className="text-red-400 text-sm">{err}</p>}
@@ -109,7 +109,7 @@ function SSLCheckerEmbed() {
           onKeyDown={e => e.key === "Enter" && check()} />
         <button onClick={check} disabled={loading || !domain}
           className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {loading ? "Kontrol..." : "Kontrol Et"}
+          {loading ? "Kontrol ediliyor..." : "Kontrol Et"}
         </button>
       </div>
       {result && (
@@ -118,16 +118,16 @@ function SSLCheckerEmbed() {
           {(result["details"] as any)?.ssl ? (
             <div className={`rounded-lg border p-3 ${(result["details"] as any).ssl.valid ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"}`}>
               <p className={`font-semibold ${(result["details"] as any).ssl.valid ? "text-emerald-400" : "text-red-400"}`}>
-                SSL: {(result["details"] as any).ssl.valid ? "Gecerli" : "Gecersiz veya Eksik"}
+                SSL: {(result["details"] as any).ssl.valid ? "Geçerli" : "Geçersiz veya Eksik"}
               </p>
               {(result["details"] as any).ssl.expiresAt && (
                 <p className="text-xs text-slate-400 mt-1">
-                  Bitis: {new Date((result["details"] as any).ssl.expiresAt).toLocaleDateString("tr-TR")}
+                  Bitiş: {new Date((result["details"] as any).ssl.expiresAt).toLocaleDateString("tr-TR")}
                 </p>
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-400">SSL detayi alinamadi.</p>
+            <p className="text-sm text-slate-400">SSL detayı alınamadı.</p>
           )}
         </div>
       )}
@@ -147,8 +147,8 @@ function KVKKCalcEmbed() {
   };
   const VIOLATION_LABELS: Record<string, string> = {
     kvkk_breach: "Veri ihlali bildirmeme (md. 12)",
-    no_dpa:      "DPA sozlesmesi yok (md. 11)",
-    no_verbis:   "VERBIS kaydi yok (md. 8)",
+    no_dpa:      "DPA sözleşmesi yok (md. 11)",
+    no_verbis:   "VERBİS kaydı yok (md. 8)",
   };
 
   const toggle = (v: string) => setViolations(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v]);
@@ -156,9 +156,9 @@ function KVKKCalcEmbed() {
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-6 space-y-5">
       <div>
-        <label className="block text-sm font-medium text-white mb-2">Sirket Buyuklugu</label>
+        <label className="block text-sm font-medium text-white mb-2">Şirket Büyüklüğü</label>
         <div className="flex flex-wrap gap-3">
-          {[{ v: "small", l: "Kucuk (1-50)" }, { v: "medium", l: "Orta (51-250)" }, { v: "large", l: "Buyuk (250+)" }].map(o => (
+          {[{ v: "small", l: "Küçük (1-50)" }, { v: "medium", l: "Orta (51-250)" }, { v: "large", l: "Büyük (250+)" }].map(o => (
             <button key={o.v} onClick={() => setSize(o.v as "small" | "medium" | "large")}
               className={`px-4 py-2 rounded-xl border text-sm font-medium transition-colors ${size === o.v ? "border-primary bg-primary/20 text-primary" : "border-slate-600 text-slate-400 hover:border-slate-500"}`}>
               {o.l}
@@ -167,7 +167,7 @@ function KVKKCalcEmbed() {
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-white mb-2">Tespit Edilen Ihlaller</label>
+        <label className="block text-sm font-medium text-white mb-2">Tespit Edilen İhlaller</label>
         <div className="space-y-2">
           {Object.entries(VIOLATION_LABELS).map(([k, l]) => (
             <label key={k} className="flex items-center gap-3 cursor-pointer">
@@ -187,7 +187,7 @@ function KVKKCalcEmbed() {
         <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 text-center">
           <p className="text-slate-400 text-sm">Tahmini ceza riski</p>
           <p className="text-3xl font-bold text-orange-400 mt-1">{result.toLocaleString("tr-TR")} TL</p>
-          <p className="text-xs text-slate-500 mt-2">2026 KVKK ceza skalasina gore hesaplanmistir.</p>
+          <p className="text-xs text-slate-500 mt-2">2026 KVKK ceza skalasına göre hesaplanmıştır.</p>
         </div>
       )}
     </div>
@@ -245,13 +245,13 @@ function DarkWebEmbed() {
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-8 text-center space-y-4">
       <div className="h-16 w-16 rounded-2xl bg-slate-700/50 flex items-center justify-center mx-auto text-3xl">🔍</div>
-      <p className="text-white font-semibold">Dark Web Sizinti Sorgulama</p>
+      <p className="text-white font-semibold">Dark Web Sızıntı Sorgulama</p>
       <p className="text-sm text-slate-400 max-w-md mx-auto">
-        Sirket e-postanizin veya domain'inizin dark web'de satisa sunulup sunulmadigini kontrol edin.
+        Şirket e-postanızın veya domain'inizin dark web'de satışa sunulup sunulmadığını kontrol edin.
       </p>
       <Link href="/sizinti-izleyici"
         className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
-        Sizinti Kontrolu Basla <ChevronRight className="h-4 w-4" />
+        Sızıntı Kontrolü Başla <ChevronRight className="h-4 w-4" />
       </Link>
     </div>
   );
@@ -261,9 +261,9 @@ function RoiCalcEmbed() {
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-8 text-center space-y-4">
       <div className="h-16 w-16 rounded-2xl bg-slate-700/50 flex items-center justify-center mx-auto text-3xl">📊</div>
-      <p className="text-white font-semibold">Siber Guvenlik Yatirim ROI Hesaplayici</p>
+      <p className="text-white font-semibold">Siber Güvenlik Yatırım ROI Hesaplayıcı</p>
       <p className="text-sm text-slate-400 max-w-md mx-auto">
-        Siber guvenlik yatiriminin sirketinize net katkisini ve geri donus suresini hesaplayin.
+        Siber güvenlik yatırımının şirketinize net katkısını ve geri dönüş süresini hesaplayın.
       </p>
       <Link href="/roi-hesaplayici"
         className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
@@ -353,7 +353,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10 max-w-4xl">
           <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
-            <Link href="/araclar" className="hover:text-white transition-colors">Araclar</Link>
+            <Link href="/araclar" className="hover:text-white transition-colors">Araçlar</Link>
             <ChevronRight className="h-4 w-4" />
             <span className="text-white">{config.h1}</span>
           </div>
@@ -373,11 +373,11 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       {/* What is it */}
       <section className="py-12 bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4 max-w-3xl space-y-5">
-          <h2 className="text-2xl font-bold text-secondary-foreground">Bu Arac Ne Ise Yarar?</h2>
+          <h2 className="text-2xl font-bold text-secondary-foreground">Bu Araç Ne İşe Yarar?</h2>
           <p className="text-secondary-foreground/80 leading-relaxed">{config.whatIsIt}</p>
           {config.howItWorks.length > 0 && (
             <>
-              <h3 className="font-semibold text-secondary-foreground">Nasil Calisir?</h3>
+              <h3 className="font-semibold text-secondary-foreground">Nasıl Çalışır?</h3>
               <ol className="space-y-2">
                 {config.howItWorks.map((step, i) => (
                   <li key={i} className="flex gap-3">
@@ -410,7 +410,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       {relatedTools.length > 0 && (
         <section className="py-10 bg-secondary text-secondary-foreground">
           <div className="container mx-auto px-4 max-w-3xl space-y-4">
-            <h2 className="text-xl font-bold text-secondary-foreground">Ilgili Araclar</h2>
+            <h2 className="text-xl font-bold text-secondary-foreground">İlgili Araçlar</h2>
             <div className="flex flex-wrap gap-3">
               {relatedTools.map(t => (
                 <Link key={t.slug} href={`/araclar/${t.slug}`}
@@ -427,13 +427,13 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       <section className="py-14 bg-background">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center">
-            <h3 className="text-xl font-bold text-foreground mb-2">Tam Guvenlik Raporunuzu Alin</h3>
+            <h3 className="text-xl font-bold text-foreground mb-2">Tam Güvenlik Raporunuzu Alın</h3>
             <p className="text-muted-foreground mb-6">
-              20 soruda sirketinizin guvenlik durumunu ogrenin. Ucretsiz, aninda sonuc.
+              20 soruda şirketinizin güvenlik durumunu öğrenin. Ücretsiz, anında sonuç.
             </p>
             <Link href="/degerlendirme/baslat"
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
-              Ucretsiz Degerlendirme Basla <ChevronRight className="h-4 w-4" />
+              Ücretsiz Değerlendirme Başla <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

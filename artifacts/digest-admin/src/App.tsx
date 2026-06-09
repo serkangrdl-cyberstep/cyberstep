@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, Link } from "wouter";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
@@ -90,18 +92,62 @@ function hasDigestAccess(me: AdminMe | undefined): boolean {
 
 function Sidebar({ adminEmail }: { adminEmail?: string }) {
   const [location] = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" || location === "" : location.startsWith(href);
 
+  if (collapsed) {
+    return (
+      <aside className="w-10 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0">
+        <div className="flex justify-center py-4 border-b border-sidebar-border">
+          <button
+            onClick={() => setCollapsed(false)}
+            className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+            title="Menuyu ac"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <nav className="flex-1 py-3 flex flex-col items-center gap-1">
+          {NAV_SECTIONS.flatMap(s => s.items).map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={item.label}
+              className={`w-8 h-8 flex items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                isActive(item.href)
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}
+            >
+              {item.label.slice(0, 1)}
+            </Link>
+          ))}
+        </nav>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="w-56 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0">
-      <div className="px-5 py-4 border-b border-sidebar-border">
-        <p className="text-xs text-sidebar-foreground/50 uppercase tracking-widest font-semibold">CyberStep</p>
-        <h1 className="text-sm font-bold text-sidebar-foreground mt-0.5">Pazarlama Paneli</h1>
-        {adminEmail && (
-          <p className="text-xs text-sidebar-foreground/40 mt-0.5 truncate">{adminEmail}</p>
-        )}
+    <aside className="w-48 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0">
+      <div className="px-4 py-4 border-b border-sidebar-border">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs text-sidebar-foreground/50 uppercase tracking-widest font-semibold">CyberStep</p>
+            <h1 className="text-sm font-bold text-sidebar-foreground mt-0.5">Pazarlama Paneli</h1>
+            {adminEmail && (
+              <p className="text-xs text-sidebar-foreground/40 mt-0.5 truncate">{adminEmail}</p>
+            )}
+          </div>
+          <button
+            onClick={() => setCollapsed(true)}
+            className="mt-0.5 shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+            title="Menuyu kapat"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4">
@@ -129,7 +175,7 @@ function Sidebar({ adminEmail }: { adminEmail?: string }) {
         ))}
       </nav>
 
-      <div className="px-5 py-4 border-t border-sidebar-border space-y-2">
+      <div className="px-4 py-4 border-t border-sidebar-border space-y-2">
         <a href="/panel" className="block text-xs text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
           Ana Admin Panel
         </a>

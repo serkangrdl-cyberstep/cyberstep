@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { Wand2, Loader2, ImageOff } from "lucide-react";
 
 interface BlogPost {
   id: number;
@@ -39,6 +40,7 @@ export default function BlogYonetimi() {
   const [editForm, setEditForm] = useState({ title: "", excerpt: "" });
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [msg, setMsg] = useState("");
+  const [generatingIds, setGeneratingIds] = useState<Set<number>>(new Set());
 
   const { data: posts = [], isLoading } = useQuery<BlogPost[]>({
     queryKey: ["digest-blog-posts"],
@@ -73,6 +75,32 @@ export default function BlogYonetimi() {
     setEditPost(post);
     setEditForm({ title: post.title, excerpt: post.excerpt });
   };
+
+  async function handleGenerateCover(post: BlogPost) {
+    setGeneratingIds(prev => new Set(prev).add(post.id));
+    try {
+      const prompt = `Professional cybersecurity blog cover image for article titled "${post.title}". ${post.excerpt ? post.excerpt.slice(0, 120) : ""} Dark blue and teal color scheme, abstract digital security theme, no text, 16:9 aspect ratio.`;
+      const res = await fetch("/api/gemini/generate-image", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { b64_json, mimeType } = await res.json() as { b64_json: string; mimeType: string };
+      const dataUrl = `data:${mimeType};base64,${b64_json}`;
+      await adminFetch(`/api/admin-panel/blog/${post.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ coverImageBase64: dataUrl }),
+      });
+      qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
+      setMsg("Gorsel uretildi ve kaydedildi.");
+    } catch {
+      setMsg("Gorsel uretme basarisiz.");
+    } finally {
+      setGeneratingIds(prev => { const s = new Set(prev); s.delete(post.id); return s; });
+    }
+  }
 
   const filtered = posts.filter(p =>
     filter === "all" ? true : p.status === filter
@@ -121,46 +149,69 @@ export default function BlogYonetimi() {
         <div className="space-y-3">
           {filtered.map(post => (
             <div key={post.id}
-              className="border border-border rounded-xl bg-card p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    {statusBadge(post.status)}
-                    <span className="text-xs text-muted-foreground">
-                      {post.publishedAt
-                        ? format(new Date(post.publishedAt), "d MMM yyyy", { locale: tr })
-                        : format(new Date(post.createdAt), "d MMM yyyy", { locale: tr }) + " (olusturuldu)"}
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-foreground text-sm leading-snug">{post.title}</h3>
-                  <p className="text-muted-foreground text-xs mt-1 line-clamp-2">{post.excerpt}</p>
+              className="border border-border rounded-xl bg-card overflow-hidden">
+              {post.coverImageBase64 && (
+                <div className="relative">
+                  <img
+                    src={post.coverImageBase64}
+                    alt="Kapak"
+                    className="w-full h-32 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
-              </div>
+              )}
+              <div className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {statusBadge(post.status)}
+                      <span className="text-xs text-muted-foreground">
+                        {post.publishedAt
+                          ? format(new Date(post.publishedAt), "d MMM yyyy", { locale: tr })
+                          : format(new Date(post.createdAt), "d MMM yyyy", { locale: tr }) + " (olusturuldu)"}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground text-sm leading-snug">{post.title}</h3>
+                    <p className="text-muted-foreground text-xs mt-1 line-clamp-2">{post.excerpt}</p>
+                  </div>
+                </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => openEdit(post)}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
-                  Duzenle
-                </button>
-                {post.status === "draft" ? (
-                  <button onClick={() => publishMut.mutate(post.id)} disabled={publishMut.isPending}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50">
-                    Yayimla
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => openEdit(post)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
+                    Duzenle
                   </button>
-                ) : (
-                  <button onClick={() => unpublishMut.mutate(post.id)} disabled={unpublishMut.isPending}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-muted-foreground transition-colors disabled:opacity-50">
-                    Yayindan Kaldir
+                  {post.status === "draft" ? (
+                    <button onClick={() => publishMut.mutate(post.id)} disabled={publishMut.isPending}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50">
+                      Yayimla
+                    </button>
+                  ) : (
+                    <button onClick={() => unpublishMut.mutate(post.id)} disabled={unpublishMut.isPending}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-muted-foreground transition-colors disabled:opacity-50">
+                      Yayindan Kaldir
+                    </button>
+                  )}
+                  <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
+                    Goruntule
+                  </a>
+                  <a href={`/panel/blog`} target="_blank" rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors">
+                    Tam Editor
+                  </a>
+                  <button
+                    onClick={() => handleGenerateCover(post)}
+                    disabled={generatingIds.has(post.id)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {generatingIds.has(post.id)
+                      ? <><Loader2 className="h-3 w-3 animate-spin" /> Uretiliyor...</>
+                      : post.coverImageBase64
+                        ? <><Wand2 className="h-3 w-3" /> Gorseli Yenile</>
+                        : <><ImageOff className="h-3 w-3" /> Gorsel Uret</>}
                   </button>
-                )}
-                <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
-                  Goruntule
-                </a>
-                <a href={`/panel/blog`} target="_blank" rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors">
-                  Tam Editor
-                </a>
+                </div>
               </div>
             </div>
           ))}

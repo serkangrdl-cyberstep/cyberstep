@@ -16,6 +16,62 @@ function readingTime(html: string, lang: "tr" | "en"): string {
   return lang === "en" ? `${mins} min read` : `${mins} dk okuma`;
 }
 
+// Yazı içindeki düz metin URL'leri tıklanabilir link'e çevirir.
+// cyberstep.io/... linkleri site-içi göreli yola dönüştürülür (SPA içinde kalır).
+function linkifyContent(html: string): string {
+  if (typeof window === "undefined") return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const urlRe = /((?:https?:\/\/)?(?:www\.)?cyberstep\.io\/[^\s<]+)|(https?:\/\/[^\s<]+)/gi;
+
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const targets: Text[] = [];
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const parent = (node as Text).parentElement;
+    if (!parent) continue;
+    const tag = parent.tagName.toLowerCase();
+    if (tag === "a" || tag === "code" || tag === "pre") continue;
+    urlRe.lastIndex = 0;
+    if (urlRe.test(node.nodeValue ?? "")) targets.push(node as Text);
+  }
+
+  for (const textNode of targets) {
+    const text = textNode.nodeValue ?? "";
+    const frag = doc.createDocumentFragment();
+    let lastIdx = 0;
+    let m: RegExpExecArray | null;
+    urlRe.lastIndex = 0;
+    while ((m = urlRe.exec(text))) {
+      const raw = m[0];
+      if (m.index > lastIdx) frag.appendChild(doc.createTextNode(text.slice(lastIdx, m.index)));
+
+      // Sondaki noktalama işaretlerini link dışında bırak
+      let url = raw;
+      let trailing = "";
+      const tm = url.match(/[.,;:!?)\]'"»]+$/);
+      if (tm) { trailing = tm[0]; url = url.slice(0, url.length - trailing.length); }
+
+      const isInternal = /^(?:https?:\/\/)?(?:www\.)?cyberstep\.io\//i.test(url);
+      const a = doc.createElement("a");
+      if (isInternal) {
+        const path = url.replace(/^https?:\/\//i, "").replace(/^(?:www\.)?cyberstep\.io/i, "");
+        a.setAttribute("href", path.startsWith("/") ? path : `/${path}`);
+      } else {
+        a.setAttribute("href", /^https?:\/\//i.test(url) ? url : `https://${url}`);
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener noreferrer");
+      }
+      a.textContent = url;
+      frag.appendChild(a);
+      if (trailing) frag.appendChild(doc.createTextNode(trailing));
+      lastIdx = m.index + raw.length;
+    }
+    if (lastIdx < text.length) frag.appendChild(doc.createTextNode(text.slice(lastIdx)));
+    textNode.parentNode?.replaceChild(frag, textNode);
+  }
+  return doc.body.innerHTML;
+}
+
 interface BlogPost {
   id: number;
   title: string;
@@ -220,7 +276,7 @@ export default function BlogPost() {
   const noEnTranslation = lang === "en" && !post.contentEn;
 
   const clean = typeof window !== "undefined"
-    ? DOMPurify.sanitize(displayContent)
+    ? linkifyContent(DOMPurify.sanitize(displayContent))
     : displayContent;
 
   const dateLocale = lang === "en" ? enUS : tr;
@@ -269,12 +325,13 @@ export default function BlogPost() {
       )}
 
       <div
-        className="prose prose-slate dark:prose-invert prose-lg max-w-none
+        className="prose prose-slate dark:prose-invert prose-lg max-w-none break-words [overflow-wrap:anywhere]
           prose-headings:font-bold
           prose-p:leading-relaxed
-          prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+          prose-a:text-primary prose-a:underline prose-a:break-words
           prose-img:rounded-xl prose-img:shadow-md
           prose-blockquote:border-primary
+          prose-pre:overflow-x-auto prose-pre:max-w-full
           prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded"
         dangerouslySetInnerHTML={{ __html: clean }}
       />

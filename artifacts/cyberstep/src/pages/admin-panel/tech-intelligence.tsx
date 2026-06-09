@@ -262,7 +262,7 @@ export default function TechIntelligencePage() {
                               <span className="text-slate-600 text-xs">%{item.confidence}</span>
                             </div>
                             <div className="text-slate-500 text-xs capitalize">
-                              {item.category} · {item.detectedVia ?? item.vendor}
+                              {item.category}{item.vendor !== "none" ? ` · ${item.detectedVia ?? item.vendor}` : ""}
                             </div>
                             {item.securityNote && (
                               <div className={`text-xs mt-1 px-2 py-0.5 rounded border inline-block ${RISK_COLOR[item.securityRisk || "low"]}`}>
@@ -390,7 +390,7 @@ export default function TechIntelligencePage() {
                   <div key={i} className="flex items-center justify-between p-2 rounded bg-slate-800/50 border border-slate-700/50">
                     <div>
                       <div className="text-xs text-slate-500 capitalize">{item.category}</div>
-                      <div className="text-sm text-white">{item.vendor}</div>
+                      <div className="text-sm text-white">{item.vendor !== "none" ? item.vendor : "—"}</div>
                     </div>
                     <Badge variant="outline" className="border-slate-700 text-slate-300 text-xs">{Number(item.cnt)}</Badge>
                   </div>

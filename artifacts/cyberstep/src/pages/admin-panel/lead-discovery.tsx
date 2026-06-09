@@ -201,6 +201,7 @@ function runStatusBadge(status: string) {
 
 interface TechStackItem {
   vendor: string;
+  product?: string;
   category: string;
   salesSignal: string | null;
   securityRisk: string | null;
@@ -1466,7 +1467,7 @@ export default function AdminLeadDiscovery() {
                       .sort((a, b) => (b.securityRisk === "Yüksek" ? 1 : 0) - (a.securityRisk === "Yüksek" ? 1 : 0))
                       .map((t, i) => (
                         <div key={i} className="flex items-center gap-2 text-xs">
-                          <span className="flex-1 font-medium truncate">{t.vendor}</span>
+                          <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category)}</span>
                           <span className="text-muted-foreground text-[10px]">{t.category}</span>
                           {t.salesSignal && (
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
@@ -1515,7 +1516,7 @@ export default function AdminLeadDiscovery() {
                         .sort((a, b) => (b.securityRisk === "Yüksek" ? 1 : 0) - (a.securityRisk === "Yüksek" ? 1 : 0))
                         .map((t, i) => (
                           <div key={i} className="flex items-center gap-2 text-xs">
-                            <span className="flex-1 font-medium truncate">{t.vendor}</span>
+                            <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category)}</span>
                             <span className="text-muted-foreground text-[10px]">{t.category}</span>
                             {t.salesSignal && (
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${

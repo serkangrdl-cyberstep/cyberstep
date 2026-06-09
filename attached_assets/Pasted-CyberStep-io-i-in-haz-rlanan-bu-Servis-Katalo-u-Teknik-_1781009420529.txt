@@ -1,0 +1,25 @@
+CyberStep.io için hazırlanan bu "Servis Kataloğu & Teknik Açıklama Dokümantasyonu" oldukça kapsamlı, profesyonelce yapılandırılmış ve teknik derinliği yüksek bir doküman. Satış, teknik pre-sales ve operasyonel ekipler için mükemmel bir rehber niteliğinde.
+​Aşağıda dokümana dair detaylı değerlendirmem, eleştirilerim ve geliştirme önerilerim yer almaktadır.
+​1. Genel Değerlendirme
+​Güçlü Yönler: Doküman, karmaşık teknik süreçleri (AI triage pipeline, ASN-based keşif, entegrasyon akışları) çok net bir şekilde görselleştirmiş. Kullanılan teknoloji yığını (stack) güncel ve verimli seçilmiş.
+​Kullanıcı Odaklılık: Ücretsiz araçların lead generation (müşteri kazanımı) mekanizması olarak konumlandırılması ve "patron dili" (C-level focus) vurgusu, ticari başarınız için kritik bir avantaj.
+​Yapı: İçindekiler kısmı mantıklı, akış takip edilebilir ve tablo kullanımı veriyi hızlı tüketilebilir kılıyor.
+​2. Kritik Eleştiriler & Eksikler
+​Veri Gizliliği ve KVKK Çelişkisi: Dokümanda yoğun bir şekilde dış API (Shodan, HIBP, VirusTotal vb.) kullanımı var. Müşteriye "tam güvenlik" sözü verirken, verinin bu üçüncü taraf platformlara gönderilmesi (özellikle IP/domain üzerinden) bir risk yönetimi konusu. Eleştiri: Bu veri transferinin GDPR/KVKK uyumu (veri işleme sözleşmeleri) açısından müşteriye nasıl açıklandığına dair bir "Güvenlik & Uyumluluk" başlığı eksik.
+​Fiyatlandırma Stratejisi: Aylık paketlerin kurulum ücretleri var ancak "Full Protection Bundle" gibi paketlerin içinde nelerin olduğu (hangi modüller dahil?) net değil. Fiyat karmaşası yaratabilir.
+​AI Bağımlılığı (Vendor Lock-in): AI katmanında Gemini ve Claude'a çok sıkı bağlanmışsınız. API maliyetleri aniden artarsa veya bu modellerde servis kesintisi yaşanırsa, SOC Triage ve Raporlama mekanizması durabilir. Eleştiri: Bir "Failover" (yedekleme) mekanizması tanımlanmamış.
+​Güncellik: "Haziran 2026" notu ile güncel görünse de, bazı servisler (örn: Pentest Lite) ₺990/ay mı yoksa tek seferlik mi, dokümanda çelişkili ifadeler var (Section 5.1).
+​3. Geliştirme Önerileri
+​A. Stratejik Öneriler
+​"CyberStep Trust Center" sayfası: Müşterilerin, CyberStep’in kendi altyapısını nasıl koruduğunu ve verilerini nasıl işlediğini görebileceği şeffaf bir portal ekleyin.
+​SLA Detayları: SOC hizmetlerinde SLA'leri tanımlamışsınız ancak bu SLA'lerin ihlali durumunda "penaltı/iade" mekanizması var mı? (Kurumsal müşteriler bunu mutlaka sorar).
+​Hibrit AI Modeli: Tüm yükü tek bir modele bindirmek yerine, yerel (local) çalıştırılan daha küçük bir "triage" modeli (Llama 3 vb.) ekleyerek hem maliyeti düşürebilir hem de daha hızlı yanıt alabilirsiniz.
+​B. Doküman İyileştirmeleri
+​Kısaltma Sözlüğü: Teknik terimler ve kısaltmalar (EPSS, KEV, DPA, DMARC, vb.) için dokümanın sonuna kısa bir sözlük eklemek, teknik olmayan C-level okuyucular için faydalı olur.
+​Entegrasyon Tablosu: 7. Bölümdeki entegrasyonlar için bir matris (Örn: Hangi entegrasyon hangi ürünle çalışır?) ekleyerek satış ekibinin hızlıca "çapraz satış" (cross-sell) yapmasını kolaylaştırın.
+​Versiyon Geçmişi: Dokümanın en başına bir "Revizyon Geçmişi" tablosu ekleyin. Hangi tarihte hangi fiyatın değiştiği veya hangi yeni servisin eklendiği takip edilebilir olmalı.
+​C. Teknik Detayda Küçük Bir Dokunuş
+​Section 11 (Veri Akışı): Bu diyagramı Mermaid.js formatında dokümana gömerseniz (eğer destekleyen bir tool kullanıyorsanız), dokümanı güncellediğinizde görsel otomatik güncellenir ve kalitesi artar.
+​4. Sonuç
+​Doküman, pazardaki "siber güvenlik karmaşıktır" algısını yıkarak, "CyberStep bunu senin yerine otomatik yapar" mesajını çok güçlü veriyor. Özellikle Shadow IT keşfi ve Saldırı Senaryosu Analizi (Claude AI) kısımları, CyberStep'i klasik bir tarama aracından çıkarıp bir "Güvenlik Danışmanı" seviyesine taşıyor.
+​Soru: Satış ekibinizin elindeki bu dokümanın, müşteri ile yapılan ilk toplantıdan sonra "İhtiyaç Analizi" sürecini ne kadar kısalttığına dair bir metrik (süre ölçümü) takip ediyor musunuz?

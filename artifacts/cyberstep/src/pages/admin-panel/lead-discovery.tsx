@@ -1286,11 +1286,11 @@ export default function AdminLeadDiscovery() {
       {/* Lead Detail Dialog */}
       {!!detailCandidate && (
         <Dialog open={!!detailCandidate} onOpenChange={() => { setDetailCandidate(null); setFingerprintResult(null); }}>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
+          <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+            <DialogHeader className="px-4 pt-4 pb-2 shrink-0 border-b">
               <DialogTitle className="font-mono text-base">{detailCandidate.domain}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 text-sm">
+            <div className="space-y-4 text-sm overflow-y-auto flex-1 px-4 py-4">
               {/* Şirket bilgisi */}
               {detailCandidate.companyName && (
                 <div>
@@ -1748,26 +1748,26 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
 
-              {/* Aksiyonlar */}
-              <div className="flex gap-2 pt-2 border-t flex-wrap">
-                {detailCandidate.isQualified && !detailCandidate.teaserSubject && (
-                  <Button size="sm" variant="outline" onClick={() => { generateTeaser.mutate(detailCandidate.id); setDetailCandidate(null); }}>
-                    Teaser Üret
-                  </Button>
-                )}
-                {detailCandidate.isQualified && (
-                  <Button size="sm" variant="outline" className="text-purple-600 border-purple-200"
-                    onClick={() => { pushToQueue.mutate(detailCandidate); setDetailCandidate(null); }}>
-                    ISR Kuyruğuna Ekle
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" className="text-cyan-600 border-cyan-200"
-                  onClick={() => { setFingerprintResult(null); fingerprintLead.mutate(detailCandidate.domain); }}
-                  disabled={fingerprintLead.isPending}>
-                  {fingerprintLead.isPending ? "Taranıyor..." : "Tech Fingerprint"}
+            </div>
+            {/* Aksiyonlar — sabit alt bar */}
+            <div className="flex gap-2 px-4 py-3 border-t shrink-0 flex-wrap bg-background">
+              {detailCandidate.isQualified && !detailCandidate.teaserSubject && (
+                <Button size="sm" variant="outline" onClick={() => { generateTeaser.mutate(detailCandidate.id); setDetailCandidate(null); }}>
+                  Teaser Üret
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setDetailCandidate(null); setFingerprintResult(null); }}>Kapat</Button>
-              </div>
+              )}
+              {detailCandidate.isQualified && (
+                <Button size="sm" variant="outline" className="text-purple-600 border-purple-200"
+                  onClick={() => { pushToQueue.mutate(detailCandidate); setDetailCandidate(null); }}>
+                  ISR Kuyruğuna Ekle
+                </Button>
+              )}
+              <Button size="sm" variant="outline" className="text-cyan-600 border-cyan-200"
+                onClick={() => { setFingerprintResult(null); fingerprintLead.mutate(detailCandidate.domain); }}
+                disabled={fingerprintLead.isPending}>
+                {fingerprintLead.isPending ? "Taranıyor..." : "Tech Fingerprint"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setDetailCandidate(null); setFingerprintResult(null); }}>Kapat</Button>
             </div>
           </DialogContent>
         </Dialog>

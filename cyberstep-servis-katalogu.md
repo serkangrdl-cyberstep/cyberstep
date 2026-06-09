@@ -1,6 +1,34 @@
 # CyberStep.io — Servis Kataloğu
 
-**Toplam:** 46 aktif servis | **Güncelleme:** Haziran 2026
+**Toplam:** 46+ aktif servis | **Güncelleme:** Haziran 2026
+
+---
+
+## Abonelik Paketleri (Yeni — Haziran 2026)
+
+Bireysel servisler yerine kapsamlı paket tercih edenler için 3 hazır seviye.
+
+| Paket | Kapsam | Fiyat | Alım Tipi |
+|---|---|---|---|
+| **CyberStep Kalkan** | Domain Güvenlik Taraması, DNS İzleme, Sahte Domain Erken Uyarı, CVE Etki Uyarıları, Mini Değerlendirme + AI Rapor | 2.990 TL/ay | Teklif Al |
+| **CyberStep Zırh** ⭐ | Kalkan'daki her şey + Tehdit İstihbaratı (Starter), Yönetim Kurulu Raporu (aylık), KVKK Bildirim Sistemi, Dark Web İzleme, Saldırı Yüzeyi Analizi | 5.990 TL/ay | Teklif Al |
+| **CyberStep vCISO** | Zırh'taki her şey + aylık/çeyreklik uzman görüşmeleri, Risk Kaydı ve güvenlik yol haritası, yönetim kurulu sunum desteği, uyum denetimi hazırlığı. 3 alt seviye (aşağıda). | 4.990 TL/ay'dan | Teklif Al |
+
+> ⭐ En Çok Tercih Edilen. Tüm paketler KDV hariçtir. 14 gün ücretsiz deneme. Kurumsal fiyatlandırma için teklif alın.
+
+---
+
+## Platform-led vCISO — Seviyeler
+
+**Model:** CyberStep platformu işin %80'ini otomatik yapar (raporlar, izleme, skorlar). Güvenilen uzman iş ortağı kalanı yönetir (yorumlar, yönlendirir, yönetim kuruluna anlatır). Tam zamanlı CISO maliyetinin %10'uyla kurumsal yönetişim.
+
+| Seviye | Hedef Kitle | Platform | Uzman | Fiyat |
+|---|---|---|---|---|
+| **vCISO Temel** | 50–100 çalışan | Güvenlik Skoru, Aylık Board Raporu, CVE & Dark Web İzleme, DNS Erken Uyarı, KVKK Uyum Skoru | **1 saat/ay** — Çeyreklik risk önceliklendirme | 4.990 TL/ay |
+| **vCISO Profesyonel** ⭐ | 100–500 çalışan | Temel'deki her şey + Tehdit İstihbaratı, EASM, Haftalık Tehdit Özeti, SOC Lite AI triage | **4 saat/ay** — Aylık Yönlendirme Komitesi, Risk Kaydı, tedarikçi risk değerlendirme | 9.990 TL/ay |
+| **vCISO Lider** | Kurumsal KOBİ | Profesyonel'deki her şey + Tam Değerlendirme (55 soru), AI Politika Üretimi, Olgunluk Raporu | **8 saat/ay** — Yönetim Kurulu katılımı (çeyreklik), denetim hazırlığı, KVKK süreç yönetimi, güvenlik yol haritası | 19.990 TL/ay |
+
+> **Nasıl çalışır:** Platform ihtiyacı olan tüm raporları, skorları ve uyarıları otomatik üretir. Uzman iş ortağı bunları yorumlar ve şirkete özgü stratejik kararlar alınmasına destek olur. 1 uzman 20–30 KOBİ yönetebilir — klasik vCISO modelinin 5–6 katı verimlilik.
 
 ---
 
@@ -30,7 +58,7 @@
 | Servis | Açıklama | Fiyat | Alım Tipi |
 |---|---|---|---|
 | **DNS İzleme** | Alan adlarınızdaki değişiklikleri 5 dakikada bir denetleyin; yetkisiz subdomain, NS veya MX değişikliklerinde anında uyarı alın. | 990 TL/ay | Satın Al |
-| **CT Log İzleme** | Alan adınız için dünyada verilen tüm SSL sertifikalarını izleyin; sahte sertifika tespitinde anında bildirim alın. | 490 TL/ay | Satın Al |
+| **Sahte Domain Erken Uyarı** | Markanızı taklit eden sahte alan adlarını ve sertifikaları anında tespit edin. Saldırganlar harekete geçmeden önce uyarı alın. (eski adı: CT Log İzleme) | 490 TL/ay | Satın Al |
 | **Microsoft 365 Entegrasyonu** | Azure AD riskli giriş olaylarını, şüpheli kullanıcı aktivitelerini ve Microsoft 365 güvenlik uyarılarını otomatik olarak izleyin. | 1.490 TL/ay | Satın Al |
 | **Gözlemlenebilirlik & İzleme** | Log kaynaklarınızı merkezi bir noktada toplayın; AI destekli anomali tespiti ve öngörülü uyarılarla güvenlik görünürlüğünüzü artırın. Kurulum: 1.500 TL | 2.990 TL/ay | Satın Al |
 | **AI Araç İzleme Servisi** | Kullandığınız AI araçlarının politika değişikliklerini izleyin | 490 TL/ay | Satın Al |
@@ -39,16 +67,18 @@
 
 ---
 
-## Değerlendirme & Pentest
+## Değerlendirme & Saldırı Yüzeyi Analizi
 
 | Servis | Açıklama | Fiyat | Alım Tipi |
 |---|---|---|---|
-| **Ücretsiz Domain Güvenlik Taraması** | Domain güvenlik açıklarını 30 saniyede tespit edin | Ücretsiz | Satın Al |
-| **Mini Güvenlik Değerlendirmesi** | 20 soruda siber güvenlik risk seviyenizi ölçün | Ücretsiz | Satın Al |
+| **Ücretsiz Domain Güvenlik Taraması** | Domain güvenlik açıklarını 30 saniyede tespit edin. Sisteminize hiçbir şey kurulmaz — pasif tarama. | Ücretsiz | Satın Al |
+| **Mini Güvenlik Değerlendirmesi** | 20 soruda siber güvenlik risk seviyenizi ölçün, AI destekli rapor alın | Ücretsiz | Satın Al |
 | **Tam Güvenlik Değerlendirmesi** | 60 soruda kapsamlı güvenlik analizi, uzman doğrulamalı | 5.990 TL (tek seferlik) | Satın Al |
-| **Pentest Lite — 1 Domain** | Pasif keşif tabanlı pentest: Shodan, crt.sh, CVE/EPSS, GreyNoise, MITRE ATT&CK saldırı zinciri senaryosu. Sisteme dokunulmaz. | 7.500 TL (tek seferlik) | Satın Al |
-| **Pentest Lite — 5 Domain** | 5 domain için pasif pentest değerlendirmesi. Çapraz domain saldırı yolu analizi ve konsolide risk raporu. | 15.000 TL (tek seferlik) | Satın Al |
-| **Pentest Lite Yıllık Abonelik** | Yılda 4 kez (çeyreklik) pasif pentest. Saldırı yüzeyi değişikliklerini düzenli takip edin. | 24.000 TL/yıl | Satın Al |
+| **Saldırı Yüzeyi Analizi — 1 Domain** | Pasif keşif tabanlı analiz: Shodan, crt.sh, CVE/EPSS, GreyNoise, MITRE ATT&CK saldırı zinciri senaryosu. Sisteme dokunulmaz, hukuki bir risk içermez. (eski adı: Pentest Lite) | 7.500 TL (tek seferlik) | Satın Al |
+| **Saldırı Yüzeyi Analizi — 5 Domain** | 5 domain için pasif saldırı yüzeyi değerlendirmesi. Çapraz domain saldırı yolu analizi ve konsolide risk raporu. | 15.000 TL (tek seferlik) | Satın Al |
+| **Saldırı Yüzeyi Analizi Yıllık** | Yılda 4 kez (çeyreklik) pasif analiz. Saldırı yüzeyi değişikliklerini düzenli takip edin. | 24.000 TL/yıl | Satın Al |
+
+> **Önemli Not:** Bu servisler yalnızca pasif OSINT yöntemleri kullanır (Shodan, crt.sh, NVD vb.). Sisteme aktif bağlantı kurulmaz, açık istismar edilmez. Sonuçlar tahmini niteliktedir; hukuki pentest belgesi yerine geçmez.
 
 ---
 
@@ -123,7 +153,7 @@
 
 ---
 
-## Paket Teklifler
+## Paket Teklifler (Kombine)
 
 | Servis | Açıklama | Fiyat | Alım Tipi |
 |---|---|---|---|
@@ -136,13 +166,24 @@
 
 ## Özet — Fiyat Aralığı
 
-| Kategori | Min | Max |
-|---|---|---|
-| Ücretsiz | — | 2 servis |
-| 0–500 TL | Sahte Doküman (49 TL/işlem), AI Politika Otogüncelleme (83 TL/ay), CT Log İzleme (490 TL/ay) | — |
-| 500–2.000 TL | DNS İzleme, AI Araç İzleme, E-posta İzleme, Sızıntı İzleyici, KVKK vb. | — |
-| 2.000–5.000 TL | SOC Lite, NOC Lite, EASM, Tehdit İstihbarat, CVE İzleme vb. | — |
-| 5.000–10.000 TL | SOC Standart, Fortinet Fabric, SOC Operasyon, Pentest Lite vb. | — |
-| 10.000+ TL | NOC Pro, SOC+NOC Pro, Pentest Lite 5 Domain | — |
+| Kategori | Örnekler |
+|---|---|
+| **Ücretsiz** | Domain Güvenlik Taraması, Mini Değerlendirme |
+| **0–500 TL** | Sahte Doküman Tespiti (49 TL/işlem), AI Politika Otogüncelleme (83 TL/ay), Sahte Domain Erken Uyarı (490 TL/ay), AI Araç İzleme (490 TL/ay) |
+| **500–2.000 TL** | DNS İzleme, E-posta İzleme, Sızıntı İzleyici, KVKK Bildirim, CVE İzleme Lite |
+| **2.000–5.000 TL** | SOC Lite, NOC Lite, EASM, Tehdit İstihbarat Starter/Standart, CyberStep Kalkan (2.990), vCISO Temel (4.990) |
+| **5.000–10.000 TL** | SOC Standart, Fortinet Fabric, SOC Operasyon, Saldırı Yüzeyi Analizi, CyberStep Zırh (5.990), vCISO Profesyonel (9.990) |
+| **10.000+ TL** | NOC Pro, SOC+NOC Pro, vCISO Lider (19.990), Saldırı Yüzeyi Analizi 5 Domain |
 
-> **Not:** Teklif Al işaretli servisler (NOC Pro, SOC+NOC Pro) kurumsal kapasite gerektirdiğinden satış ekibiyle görüşme süreciyle satılmaktadır. KDV dahil değildir.
+---
+
+## Değişiklik Geçmişi
+
+| Tarih | Değişiklik |
+|---|---|
+| Haziran 2026 | "CT Log İzleme" → "Sahte Domain Erken Uyarı" olarak yeniden adlandırıldı |
+| Haziran 2026 | "Pentest Lite" → "Saldırı Yüzeyi Analizi" olarak yeniden adlandırıldı; pasif tarama niteliği güçlendirildi |
+| Haziran 2026 | 3 yeni abonelik paketi eklendi: CyberStep Kalkan / Zırh / vCISO |
+| Haziran 2026 | Platform-led vCISO modeli eklendi: Temel / Profesyonel / Lider (4.990–19.990 TL/ay) |
+
+> **Not:** Teklif Al işaretli servisler (NOC Pro, SOC+NOC Pro, vCISO paketleri) satış ekibiyle görüşme süreciyle satılmaktadır. KDV dahil değildir.

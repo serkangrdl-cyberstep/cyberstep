@@ -15,6 +15,9 @@ const CONFIGURABLE_API_KEYS = new Set([
   "WHOISXML_API_KEY",
   "OTX_API_KEY",
   "GREYNOISE_API_KEY",
+  // Censys
+  "CENSYS_API_ID",
+  "CENSYS_API_SECRET",
   // E-Fatura (Paraşüt)
   "PARASUT_API_KEY",
   "PARASUT_CLIENT_ID",
@@ -172,6 +175,7 @@ router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: 
     { id: "greynoise",     name: "GreyNoise",             category: "İtibar & Kötücül Yazılım", always: false, active: !!env["GREYNOISE_API_KEY"],   cost: "freemium", costLabel: "Freemium",   envKey: "GREYNOISE_API_KEY",           desc: "İnternet genelinde port tarama yapan botları gerçek saldırganlardan ayıran IP niyeti platformu", why: "'Bu IP bizi hedef alıyor mu yoksa genel internet taraması mı yapıyor?' sorusunu yanıtlar", how: "Açık portlara bağlanan IP'lerin niyeti sınıflandırılır, raporda gösterilir", setup: "greynoise.io → ücretsiz Community hesabı → API Keys.", docs: "https://docs.greynoise.io/", costNote: "Community: Ücretsiz 1.000/gün | Teams: $99/ay" },
     // ─── Altyapı & Açık Yönetimi ──────────────────────────────────────────
     { id: "shodan",        name: "Shodan",                category: "Altyapı & Açık Yönetimi", always: false, active: !!env["SHODAN_API_KEY"],       cost: "paid",     costLabel: "Ücretli",    envKey: "SHODAN_API_KEY",              desc: "Tüm internetin port ve servis haritası — açık portlar, çalışan yazılımlar, banner bilgileri", why: "Müşterinin bilmediği açık portları (RDP:3389, MongoDB:27017) ve donanım parmak izini ortaya çıkarır", how: "Domain IP'si Shodan'da sorgulanır, açık port listesi ve vuln sayısı rapora eklenir", setup: "shodan.io → hesap açın → Account → API Key. Member plan ($49/ay) tam erişim.", docs: "https://developer.shodan.io/api", costNote: "Free (çok sınırlı) | Member: $49/ay" },
+    { id: "censys",        name: "Censys",                category: "Altyapı & Açık Yönetimi", always: false, active: !!(env["CENSYS_API_ID"] && env["CENSYS_API_SECRET"]), cost: "freemium", costLabel: "Freemium", envKey: "CENSYS_API_ID", desc: "SSL sertifika parmak izi araması — aynı sertifikayı kullanan tüm IP'leri bulur; gizli altyapı ve shadow IT tespiti", why: "Bir domain'in sertifikasını taşıyan DNS'de görünmeyen gizli sunucuları, paylaşımlı hosting ve shadow IT varlıklarını ortaya çıkarır", how: "Domain'e ait SSL sertifika isimleri Censys Search API'siyle sorgulanır, eşleşen IP ve açık portlar tarama raporuna eklenir", setup: "censys.io'da hesap açın → Account → API → ID ve Secret kopyalayın → CENSYS_API_ID ve CENSYS_API_SECRET ekleyin.", docs: "https://search.censys.io/api", costNote: "Ücretsiz: 250 sorgu/ay | Starter: $99/ay" },
     { id: "whoisxml",      name: "WhoisXML API",          category: "Altyapı & Açık Yönetimi", always: false, active: !!env["WHOISXML_API_KEY"],     cost: "freemium", costLabel: "Freemium",   envKey: "WHOISXML_API_KEY",            desc: "Domain kayıt geçmişi, sahiplik değişiklikleri, DNS geçmişi — Domain Hijacking tespiti", why: "Domain'in el değiştirip değiştirmediğini veya DNS'in manipüle edilip edilmediğini tespit eder", how: "WHOIS geçmişi sorgulanır, sahiplik değişikliği uyarısı rapora eklenir", setup: "whoisxmlapi.com → ücretsiz hesap (1.000 sorgu/ay) → API Key.", docs: "https://whois.whoisxmlapi.com/documentation/making-queries", costNote: "Ücretsiz: 1.000/ay | Basic: $29/ay" },
     // ─── Protokol & Sertifika Güvenliği — Ücretsiz ───────────────────────
     { id: "ssllabs",       name: "Qualys SSL Labs",       category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "TLS protokol versiyonu, şifre zayıflığı, sertifika zinciri ve HSTS kontrolü — endüstri standardı", why: "A+ ile F arasında bağımsız harf notu verir; PCI-DSS uyumluluk için SSL notunun A olması zorunlu", how: "Önbellekten hızlı not alınır (24 saatlik cache), 'SSLLabs Notu' olarak gösterilir", setup: "Kurulum gerekmez. api.ssllabs.com açık API'si kullanılır.", docs: "https://github.com/ssllabs/ssllabs-scan/blob/master/ssllabs-api-docs-v3.md" },
@@ -190,6 +194,17 @@ router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: 
     { id: "isr-imap",      name: "ISR IMAP (AI Satış)",   category: "İletişim",                always: false, active: !!env["ISR_IMAP_PASS"],            cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "AI Satış Asistanı'nın gelen kutusunu okuyarak müşteri e-postalarına otomatik yanıt vermesi", why: "7/24 çalışan AI satış temsilcisi — potansiyel müşteri e-postalarını kaçırmadan yanıtlar", how: "5 dakikada bir IMAP'ten e-posta okunur, Gemini AI ile yanıt oluşturulur", setup: "Replit Secrets'a ISR_IMAP_HOST, ISR_IMAP_USER, ISR_IMAP_PASS ekleyin.", docs: "" },
   ];
   res.json(services);
+});
+
+// POST /api/admin-panel/settings/apikeys/test-censys — bağlantı ve kota bilgisi döner
+router.post("/admin-panel/settings/apikeys/test-censys", requireAdmin, async (_req: Request, res: Response) => {
+  const { testCensysConnection } = await import("../../services/censysEnrichment");
+  const result = await testCensysConnection();
+  if (!result.ok) {
+    res.status(400).json(result);
+    return;
+  }
+  res.json(result);
 });
 
 // POST /api/admin-panel/settings/apikeys/test-shodan — plan ve kredi bilgisi döner

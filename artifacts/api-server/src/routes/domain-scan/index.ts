@@ -1432,7 +1432,8 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     const { enrichWithOsint } = await import("../../services/osintEnrichment");
     const { discoverOriginIp } = await import("../../services/originIpDiscovery");
     const { discoverAsnAssets } = await import("../../services/asnAssetDiscovery");
-    const [osintResult, originDiscovery, asnDiscovery] = await Promise.all([
+    const { enrichWithCensys } = await import("../../services/censysEnrichment");
+    const [osintResult, originDiscovery, asnDiscovery, censysResult] = await Promise.all([
       (wafResult.detected || wafResult.hasCdn)
         ? enrichWithOsint(domain).catch(() => null)
         : Promise.resolve(null),
@@ -1440,6 +1441,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         ? discoverOriginIp(domain).catch(() => null)
         : Promise.resolve(null),
       discoverAsnAssets(domain, certTrans.subdomains).catch(() => null),
+      enrichWithCensys(domain, null).catch(() => null),
     ]);
 
     // Pasif keşif öncelikli; fallback: doğrudan IP erişim kontrolü
@@ -1526,6 +1528,8 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         asnNumber: asnDiscovery?.asnNumber ?? null,
         asnName: asnDiscovery?.asnName ?? null,
         orphanedAssets: asnDiscovery?.orphanedAssets ?? null,
+        censysRelatedHosts: censysResult?.relatedHosts ?? null,
+        censysTotalFound: censysResult?.totalFound ?? null,
       })
       .returning();
 
@@ -1765,6 +1769,8 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       asnNumber: scan.asnNumber,
       asnName: scan.asnName,
       orphanedAssets: isFreeReport ? null : (scan.orphanedAssets as Array<{ subdomain: string; ip: string; isWafProtected: boolean; risk: "high" | "medium" | "low"; reason: string }> | null),
+      censysRelatedHosts: isFreeReport ? null : (scan.censysRelatedHosts as Array<{ ip: string; ports: number[]; services: string[]; countryCode: string | null; city: string | null; isSameAsKnown: boolean }> | null),
+      censysTotalFound: isFreeReport ? null : (scan.censysTotalFound ?? null),
       isFreeReport,
     });
     const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");

@@ -273,6 +273,15 @@ interface DomainScanData {
     risk: "high" | "medium" | "low";
     reason: string;
   }> | null;
+  censysRelatedHosts?: Array<{
+    ip: string;
+    ports: number[];
+    services: string[];
+    countryCode: string | null;
+    city: string | null;
+    isSameAsKnown: boolean;
+  }> | null;
+  censysTotalFound?: number | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;

@@ -110,6 +110,15 @@ export const domainScansTable = pgTable("domain_scans", {
     risk: "high" | "medium" | "low";
     reason: string;
   }>>(),
+  censysRelatedHosts: jsonb("censys_related_hosts").$type<Array<{
+    ip: string;
+    ports: number[];
+    services: string[];
+    countryCode: string | null;
+    city: string | null;
+    isSameAsKnown: boolean;
+  }>>(),
+  censysTotalFound: integer("censys_total_found"),
 });
 
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });

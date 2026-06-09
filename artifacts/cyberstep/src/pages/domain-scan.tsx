@@ -127,6 +127,15 @@ interface ScanResult {
     risk: "high" | "medium" | "low";
     reason: string;
   }> | null;
+  censysRelatedHosts?: Array<{
+    ip: string;
+    ports: number[];
+    services: string[];
+    countryCode: string | null;
+    city: string | null;
+    isSameAsKnown: boolean;
+  }> | null;
+  censysTotalFound?: number | null;
   createdAt: string;
 }
 
@@ -2526,6 +2535,39 @@ export default function DomainScanPage() {
                         <span key={i} className={`text-xs px-2 py-0.5 rounded-full border font-mono ${asset.risk === "high" ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`} title={asset.reason}>
                           {asset.subdomain}
                         </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Censys SSL Parmak İzi Zenginleştirme */}
+                {result.censysRelatedHosts && result.censysRelatedHosts.length > 0 && (
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="h-4 w-4 text-violet-500" />
+                      <p className="text-sm font-semibold">Censys SSL Parmak İzi Analizi</p>
+                      <span className="ml-auto text-xs font-medium text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">
+                        {result.censysTotalFound ?? result.censysRelatedHosts.length} IP bulundu
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Bu domain'in SSL sertifikasını kullanan tüm IP'ler Censys üzerinden tespit edildi.
+                      Bilinmeyen IP'ler gizli altyapı veya shadow IT varlığına işaret edebilir.
+                    </p>
+                    <div className="space-y-1.5">
+                      {result.censysRelatedHosts.map((host, i) => (
+                        <div key={i} className={`flex items-center gap-2 text-xs rounded-lg px-3 py-1.5 border ${host.isSameAsKnown ? "bg-green-50 border-green-200 text-green-800" : "bg-violet-50 border-violet-200 text-violet-800"}`}>
+                          <span className="font-mono font-semibold">{host.ip}</span>
+                          {host.countryCode && (
+                            <span className="text-muted-foreground">{host.countryCode}{host.city ? ` · ${host.city}` : ""}</span>
+                          )}
+                          {host.ports.length > 0 && (
+                            <span className="ml-auto text-muted-foreground font-mono">{host.ports.slice(0, 5).join(", ")}</span>
+                          )}
+                          {host.isSameAsKnown && (
+                            <span className="text-green-600 font-medium">Bilinen IP</span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>

@@ -1,0 +1,26 @@
+Satış ve pazarlamayı tamamen bir kenara bırakıp, Cyberstep.io'nun "Core Tech" (çekirdek teknoloji) tarafında, mimariyi ve tarama yeteneklerini bambaşka bir boyuta taşıyacak saf teknik özellik ve entegrasyonlara odaklanalım:
+​1. Certificate Transparency (CT) Stream Entegrasyonu (Sıfır Gecikmeli Keşif)
+​Geleneksel araçlar günlük veya haftalık "cron" bazlı subdomain taraması yapar. Bunu gerçek zamanlı (real-time) bir yapıya geçirmelisiniz.
+​Nasıl Çalışır: certstream gibi WebSocket tabanlı ağlara entegre olun. Dünyada herhangi bir şirket (örneğin hedefiniz) test-api.sirket.com için Let's Encrypt veya başka bir CA'dan SSL sertifikası ürettiği milisaniye içinde bu log size düşer.
+​Teknik Değer: Hedef kurumun yazılımcısı test sunucusunu ayağa kaldırıp sertifikasını aldığı an (daha DNS tam oturmadan veya arama motorlarına düşmeden), Cyberstep taramayı tetikler ve geliştirici daha kahvesini bitirmeden "Açık port bıraktın" uyarısını basar.
+​2. Cloud Native "Read-Only" IAM Entegrasyonları
+​Dışarıdan OSINT yöntemleriyle (brute-force, wordlist) subdomain aramak yerine, hedefin doğrudan bulut altyapısına API seviyesinde entegre olun.
+​Nasıl Çalışır: Müşteriden AWS, Azure veya GCP üzerinde sadece okuma yetkisi (Read-Only IAM Role) olan bir Cross-Account Access veya Service Principal isteyin.
+​Teknik Değer: Cyberstep doğrudan AWS Route53, API Gateway, Elastic Load Balancer (ELB) ve CloudFront yapılandırmalarını API üzerinden çeker. Böylece WAF arkasında kalsa bile arkadaki EC2 instance'larının gerçek iç/dış IP'lerini (%100 doğrulukla) saniyeler içinde haritalarsınız.
+​3. CI/CD Pipeline CLI (Shift-Left Dynamic Scanning)
+​Platformu sadece bir web arayüzü olmaktan çıkarıp, yazılım geliştirme döngüsünün (SDLC) içine sokun.
+​Nasıl Çalışır: Go veya Rust ile yazılmış, cyberstep-cli adında hafif bir binary oluşturun. Bu araç GitHub Actions, GitLab CI veya Jenkins pipeline'larına eklenebilsin.
+​Teknik Değer: Yazılımcı kodu staging ortamına deploy ettiğinde, pipeline Cyberstep API'sini tetikler, sadece yeni kurulan o sunucuyu/container'ı hızlıca tarar. Eğer kritik bir zafiyet (örneğin dışa açık Redis/MongoDB) bulursa, exit 1 döndürerek derlemeyi (build) patlatır ve kodun canlıya çıkmasını engeller.
+​4. Custom YAML / Nuclei Engine (Kullanıcı Tanımlı Exploit)
+​Siber güvenlik ekipleri sizin yazdığınız kurallarla yetinmek istemez, kendi 0-day zafiyetlerini (veya tehdit istihbaratından aldıkları IOC'leri) taramak isterler.
+​Nasıl Çalışır: Arka planda ProjectDiscovery (Nuclei) benzeri bir YAML tabanlı motor kurgulayın. Kullanıcılara platform üzerinde kendi .yaml tarama şablonlarını yazabilecekleri (syntax highlighting destekli) bir editör sunun.
+​Teknik Değer: Müşterideki güvenlik analisti, "Şu spesifik HTTP Header'ı gönder, dönen yanıtta 'root:x' varsa alert üret" diyebileceği kendi kuralını yazar ve Cyberstep'in dağıtık tarama altyapısını kullanarak 500 sunucusunda aynı anda çalıştırır.
+​5. LLM Destekli Dinamik Payload Mutasyonu
+​WAF'leri atlatmak için statik payload listeleri (örneğin bilinen SQLi veya XSS stringleri) kullanmak artık işe yaramıyor. Bu kısmı yapay zeka ile dinamikleştirin. Zaten Claude Pro gibi gelişmiş LLM'leri kullandığınızı biliyorum, bu mantığı API seviyesinde platforma taşıyabilirsiniz.
+​Nasıl Çalışır: Tarama motoru bir WAF (örneğin FortiWeb veya Cloudflare) tespit ettiğinde ve standart <script>alert(1)</script> payload'u "403 Forbidden" yediğinde, sistem durmaz.
+​Teknik Değer: API üzerinden Claude 3 (veya kendi eğiteceğiniz bir model), hedefin WAF kurallarını tahmin ederek payload'u anında mutate eder (örn: Double URL encoding, Unicode normalization bypass, HTTP Request Smuggling varyasyonları) ve WAF'i aşana kadar iteratif olarak yeni istekler üretir.
+​6. Out-of-Band (OOB) Zafiyet Doğrulama Altyapısı (Collaborator)
+​Birçok kritik zafiyet (Blind SQLi, SSRF, Log4j, RCE) ekrana hata basmaz, sadece dışarıya bir ağ isteği (ping/DNS query) atar.
+​Nasıl Çalışır: oob.cyberstep.io adında özel bir DNS/HTTP dinleyici sunucusu kurun. Platform tarama yaparken, payload'ların içine dinamik alt alan adları gömsün (örneğin curl http://[rastgele-hash].oob.cyberstep.io).
+​Teknik Değer: Hedef sunucu ekrana hiçbir şey yansıtmasa bile, arka planda o komutu çalıştırıp Cyberstep OOB sunucusuna DNS isteği yaparsa, zafiyeti %100 "False Positive" olmadan, kanıtıyla birlikte yakalarsınız.
+​Bu mimari eklemelerden özellikle OOB (Out-of-Band) dinleyici altyapısı veya CT Log Stream entegrasyonu, mevcut tarama motorunuza ne kadar hızlı entegre edilebilir durumda?

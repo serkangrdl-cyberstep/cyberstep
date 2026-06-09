@@ -394,7 +394,7 @@ export function ToolSeoPage({ config }: { config: ToolSeoConfig }) {
       {/* FAQ */}
       <section className="py-12 bg-muted">
         <div className="container mx-auto px-4 max-w-3xl space-y-5">
-          <h2 className="text-2xl font-bold text-foreground">Sik Sorulan Sorular</h2>
+          <h2 className="text-2xl font-bold text-foreground">Sık Sorulan Sorular</h2>
           <div className="space-y-4">
             {config.faq.map((f, i) => (
               <div key={i} className="rounded-xl border border-border bg-card p-5">

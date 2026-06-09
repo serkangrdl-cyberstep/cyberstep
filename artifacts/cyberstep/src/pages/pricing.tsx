@@ -459,26 +459,32 @@ export default function Pricing() {
               </Link>
             </div>
 
-            {/* Tier 3 — Danışman */}
+            {/* Tier 3 — vCISO */}
             <div className="rounded-2xl border bg-card p-7 flex flex-col gap-4">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  {lang === "en" ? "Advisory" : "Danışmanlık"}
+                  {lang === "en" ? "Platform + Expert" : "Platform + Uzman"}
                 </p>
-                <h3 className="text-xl font-bold mb-1">CyberStep Danışman</h3>
+                <h3 className="text-xl font-bold mb-1">CyberStep vCISO</h3>
                 <p className="text-sm text-muted-foreground">
                   {lang === "en"
-                    ? "Virtual CISO service. Strategy, roadmap, board presentations, quarterly reviews."
-                    : "Sanal CISO hizmeti. Strateji, yol haritası, yönetim sunumu, çeyreklik inceleme."}
+                    ? "Platform automates 80%. Trusted expert partner handles the rest. Enterprise governance at 10% of a full-time CISO's cost."
+                    : "Platform %80'ini otomatikleştirir. Güvendiğiniz uzman iş ortağı kalanı yönetir. Tam zamanlı CISO maliyetinin %10'uyla kurumsal yönetişim."}
                 </p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-primary">₺9.990 <span className="text-base font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+                <p className="text-3xl font-bold text-primary">
+                  ₺4.990
+                  <span className="text-base font-normal text-muted-foreground"> {lang === "en" ? "/ mo — from" : "/ ay'dan"}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {lang === "en" ? "Essential / Professional / Executive tiers" : "Essential / Professional / Executive seviyeleri"}
+                </p>
               </div>
               <ul className="space-y-2 flex-1 text-sm">
                 {(lang === "en"
-                  ? ["Everything in Zırh", "Full Assessment + Security Roadmap", "Quarterly Expert Review", "Board Presentation (quarterly)", "SOC Lite (AI triage)", "Priority support"]
-                  : ["Zırh'taki her şey", "Tam Değerlendirme + Güvenlik Yol Haritası", "Çeyreklik Uzman İncelemesi", "Yönetim Kurulu Sunumu (çeyreklik)", "SOC Lite (AI triage)", "Öncelikli destek"]
+                  ? ["Everything in Zırh", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation", "Partner expert: interprets, guides, decides"]
+                  : ["Zırh'taki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Register & güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı", "Uzman iş ortağı: yorumlar, yönlendirir, kararlandırır"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
@@ -486,7 +492,7 @@ export default function Pricing() {
                 ))}
               </ul>
               <Link href="/ciso-asistan-paketi" className="block w-full text-center border-2 border-primary text-primary py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
-                {lang === "en" ? "Learn More" : "Paketi İncele"}
+                {lang === "en" ? "See All Tiers" : "Tüm Seviyeleri Gör"}
               </Link>
             </div>
           </div>

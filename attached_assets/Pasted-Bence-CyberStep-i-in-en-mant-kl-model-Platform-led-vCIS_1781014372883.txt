@@ -1,0 +1,140 @@
+Bence CyberStep için en mantıklı model "Platform-led vCISO" modeli.
+Yani:
+CyberStep danışman satmaz.
+CyberStep sürekli ölçer, izler, raporlar.
+İnsan vCISO ise sadece yorumlar, yönlendirir ve kararları hızlandırır.
+Bu çok önemli bir ayrım.
+Çünkü Türkiye'de birçok danışmanlık şirketi vCISO satmaya çalışıyor ama ölçeklenemiyor.
+Senin avantajın:
+Assessment
+EASM
+DNS Monitoring
+CVE Monitoring
+Board Report
+AI Risk Assessment
+zaten platformda olacak.
+Bu durumda insan kaynağı sadece %10-20'lik katma değer üretir.
+Önerdiğim Model
+Katman 1: CyberStep Platform
+Otomatik çalışan kısım.
+Sürekli
+Security Score
+Risk Trendleri
+CVE Etkileri
+DNS Değişiklikleri
+Dark Web İzleme
+AI Riskleri
+Shadow IT
+EASM
+takip edilir.
+Aylık
+Otomatik:
+Board Report
+Executive Summary
+Risk Heatmap
+Top 10 Risk
+üretilir.
+Bunların tamamı platform işi.
+İnsan gerekmez.
+Katman 2: Partner vCISO
+İş ortağının uzmanı.
+Ayda:
+2 saat
+4 saat
+8 saat
+müşteriyle çalışır.
+Görevi:
+Rapor hazırlamak değil
+Platform hazırlıyor.
+Risk bulmak değil
+Platform buluyor.
+Yöneticiye anlatmak
+Evet.
+Yol haritası oluşturmak
+Evet.
+Bütçe önceliklendirmek
+Evet.
+Tedarikçi seçiminde yardımcı olmak
+Evet.
+Bu ayrım çok kritik.
+Paket Yapısı
+CyberStep vCISO Essential
+₺4.990/ay
+Platform + 1 saat uzman
+İçerik:
+Security Score
+Board Report
+CVE Monitoring
+Quarterly Review
+Hedef:
+50-100 çalışanlı şirketler
+CyberStep vCISO Professional
+₺9.990/ay
+Platform + 4 saat uzman
+İçerik:
+Monthly Steering Committee
+Risk Register
+Yönetim Sunumu
+Vendor Risk Review
+Hedef:
+100-500 çalışan
+CyberStep vCISO Executive
+₺19.990+/ay
+Platform + 8 saat uzman
+İçerik:
+Yönetim Kurulu Katılımı
+Denetim Hazırlığı
+KVKK Süreç Yönetimi
+Siber Güvenlik Yol Haritası
+Hedef:
+Kurumsal KOBİ
+Gelir Paylaşım Modeli
+Bence en ilginç kısmı burası.
+Model 1 (Önerdiğim)
+Platform senin.
+Uzman partnerin.
+Örnek:
+Müşteri:
+₺9.990 ödüyor.
+Dağılım:
+CyberStep → ₺6.000
+Partner → ₺4.000
+gibi.
+Çünkü:
+Lead'i getiren CyberStep.
+Platformu sağlayan CyberStep.
+Raporu hazırlayan CyberStep.
+Skoru hesaplayan CyberStep.
+Uzman ise yorumluyor.
+Daha da Güçlü Model
+Marketplace
+Uzun vadede.
+Müşteri:
+vCISO istiyorum
+der.
+CyberStep:
+3 danışman önerir.
+Örneğin:
+15 yıllık CISO
+KVKK uzmanı
+Fortinet uzmanı
+Müşteri seçer.
+CyberStep komisyon alır.
+Tıpkı Uber modeli.
+CyberStep İçin Asıl Altın Fırsat
+Bence vCISO servisini şu şekilde satmamalısın:
+Ayda 4 saat danışman.
+Bu herkesin yaptığı şey.
+Şöyle satmalısın:
+"Kurumsal seviyede siber güvenlik yönetişimi, tam zamanlı CISO maliyetinin %10'u ile."
+Çünkü müşteri danışman satın almıyor.
+Müşteri:
+yönetim raporu
+önceliklendirme
+bütçe rehberliği
+risk görünürlüğü
+satın alıyor.
+Bunların %80'ini zaten CyberStep platformu üretiyor.
+Bu nedenle ideal model:
+Platform (%80 değer) + Partner vCISO (%20 insan dokunuşu)
+olur. Bu model hem ölçeklenebilir hem de her yeni müşteri için yeni tam zamanlı uzman işe alma zorunluluğu yaratmaz.

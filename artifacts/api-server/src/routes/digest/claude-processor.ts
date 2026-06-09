@@ -70,8 +70,7 @@ export async function generateWeeklyDigest(
     .where(
       and(
         eq(newsItemsTable.weekYear, week.weekYear),
-        eq(newsItemsTable.weekNumber, week.weekNumber),
-        eq(newsItemsTable.isTurkeyRelated, true)
+        eq(newsItemsTable.weekNumber, week.weekNumber)
       )
     )
     .orderBy(desc(newsItemsTable.publishedAt))
@@ -94,8 +93,7 @@ export async function generateWeeklyDigest(
     .where(
       and(
         eq(newsItemsTable.weekYear, week.weekYear),
-        eq(newsItemsTable.weekNumber, week.weekNumber),
-        eq(newsItemsTable.isTurkeyRelated, true)
+        eq(newsItemsTable.weekNumber, week.weekNumber)
       )
     )
     .orderBy(desc(newsItemsTable.relevanceScore), desc(newsItemsTable.publishedAt))

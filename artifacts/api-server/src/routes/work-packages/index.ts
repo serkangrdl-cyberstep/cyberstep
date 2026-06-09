@@ -190,7 +190,7 @@ router.delete("/work-packages/:id", requireAdmin, async (req: Request, res: Resp
 // ─── PARTNER ROUTES ───────────────────────────────────────────────────────────
 
 // GET /api/partner-portal/work-packages
-router.get("/partner-portal/work-packages", requirePartner as any, async (req: Request, res: Response) => {
+router.get("/partner-portal/work-packages", requirePartner, async (req: Request, res: Response) => {
   const partnerId = getSession(req)["partnerId"] as number;
 
   const rows = await db.select().from(workPackagesTable)
@@ -201,7 +201,7 @@ router.get("/partner-portal/work-packages", requirePartner as any, async (req: R
 });
 
 // POST /api/partner-portal/work-packages/:id/complete
-router.post("/partner-portal/work-packages/:id/complete", requirePartner as any, async (req: Request, res: Response) => {
+router.post("/partner-portal/work-packages/:id/complete", requirePartner, async (req: Request, res: Response) => {
   const id = Number(req.params["id"]);
   const partnerId = getSession(req)["partnerId"] as number;
   const { completionNote } = req.body as { completionNote?: string };
@@ -226,7 +226,7 @@ router.post("/partner-portal/work-packages/:id/complete", requirePartner as any,
 });
 
 // POST /api/partner-portal/work-packages/:id/start
-router.post("/partner-portal/work-packages/:id/start", requirePartner as any, async (req: Request, res: Response) => {
+router.post("/partner-portal/work-packages/:id/start", requirePartner, async (req: Request, res: Response) => {
   const id = Number(req.params["id"]);
   const partnerId = getSession(req)["partnerId"] as number;
 
@@ -242,7 +242,7 @@ router.post("/partner-portal/work-packages/:id/start", requirePartner as any, as
 });
 
 // GET /api/partner-portal/referral-stats
-router.get("/partner-portal/referral-stats", requirePartner as any, async (req: Request, res: Response) => {
+router.get("/partner-portal/referral-stats", requirePartner, async (req: Request, res: Response) => {
   const partnerId = getSession(req)["partnerId"] as number;
 
   const [partner] = await db.select({ referralCode: partnersTable.referralCode })

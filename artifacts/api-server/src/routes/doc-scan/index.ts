@@ -12,9 +12,28 @@ const claudeFn = getClaudeAiFn();
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+// IP-based rate limit: max 5 document scans per IP per hour (prevents AI credit abuse)
+const scanRateMap = new Map<string, { count: number; resetAt: number }>();
+function checkDocScanLimit(req: Request): boolean {
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+  const now = Date.now();
+  const entry = scanRateMap.get(ip);
+  if (!entry || entry.resetAt < now) {
+    scanRateMap.set(ip, { count: 1, resetAt: now + 3600_000 });
+    return true;
+  }
+  if (entry.count >= 5) return false;
+  entry.count++;
+  return true;
+}
+
 // ─── POST /api/document-scan/scan ─────────────────────────────────────────────
 
 router.post("/api/document-scan/scan", async (req: Request, res: Response): Promise<void> => {
+  if (!checkDocScanLimit(req)) {
+    res.status(429).json({ error: "Saatlik tarama limitine ulaştınız. Lütfen daha sonra tekrar deneyin." });
+    return;
+  }
   try {
     const contentType = req.headers["content-type"] ?? "";
     if (!contentType.includes("application/json")) {

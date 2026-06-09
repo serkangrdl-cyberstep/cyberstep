@@ -320,7 +320,7 @@ export default function BlogPost() {
 
       {noEnTranslation && (
         <div className="mb-6 px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm border border-border">
-          This article has not been translated to English yet. Showing Turkish version.
+          {t(T.blog.noEnglish, lang)}
         </div>
       )}
 

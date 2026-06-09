@@ -195,8 +195,8 @@ export const TRANSLATIONS = {
     notFoundTitle: { tr: "Yazı bulunamadı", en: "Post not found" },
     notFoundBack: { tr: "Bloga dön", en: "Back to blog" },
     noEnglish: {
-      tr: "",
-      en: "This article has not been translated to English yet.",
+      tr: "Bu makale henüz Türkçe'ye çevrilmedi.",
+      en: "This article has not been translated to English yet. Showing Turkish version.",
     },
   },
 

@@ -206,7 +206,8 @@ export async function createInvoice(data: InvoiceData): Promise<Record<string, u
       ${generateSecureToken()}
     ) RETURNING *
   `);
-  const inv = (result as { rows: Record<string, unknown>[] }).rows[0]!;
+  const inv = (result as { rows: Record<string, unknown>[] }).rows[0];
+  if (!inv) throw new Error("Invoice insert returned no rows — this should never happen");
   logger.info({ invoiceId: inv["id"], fullNumber }, "Invoice created");
   return inv;
 }

@@ -22,8 +22,7 @@ interface NewsPage {
 }
 
 function apiFetch(path: string) {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return fetch(`${base}${path}`).then((r) => r.json());
+  return fetch(path).then((r) => r.json());
 }
 
 function getISOWeek(date: Date): { weekYear: number; weekNumber: number } {

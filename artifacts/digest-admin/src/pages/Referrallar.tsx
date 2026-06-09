@@ -14,10 +14,9 @@ interface ReferralCode {
   createdAt: string; customerName?: string; customerEmail?: string;
 }
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function adminFetch(path: string) {
-  const res = await fetch(`${BASE()}${path}`, { credentials: "include" });
+  const res = await fetch(path, { credentials: "include" });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

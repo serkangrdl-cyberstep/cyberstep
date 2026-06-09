@@ -13,8 +13,7 @@ interface NewsSource {
 }
 
 function apiFetch(path: string, opts?: RequestInit) {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return fetch(`${base}${path}`, {
+  return fetch(path, {
     headers: { "Content-Type": "application/json" },
     ...opts,
   }).then((r) => r.json());
@@ -51,8 +50,7 @@ export default function Sources() {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => {
-      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      return fetch(`${base}/api/digest/sources/${id}`, { method: "DELETE" });
+      return fetch(`/api/digest/sources/${id}`, { method: "DELETE" });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["digest-sources"] }),
   });

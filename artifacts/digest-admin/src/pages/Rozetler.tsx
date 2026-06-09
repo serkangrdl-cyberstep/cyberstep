@@ -21,10 +21,9 @@ interface BadgeAdvantage {
   createdAt: string;
 }
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function adminFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(`${BASE()}${path}`, {
+  const res = await fetch(path, {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     ...opts,

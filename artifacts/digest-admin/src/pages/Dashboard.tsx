@@ -15,8 +15,7 @@ interface Stats {
 }
 
 async function apiFetch(path: string, opts?: RequestInit) {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  const res = await fetch(`${base}${path}`, {
+  const res = await fetch(path, {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });

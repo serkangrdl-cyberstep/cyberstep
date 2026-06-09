@@ -26,8 +26,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 function apiFetch(path: string, opts?: RequestInit) {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return fetch(`${base}${path}`, {
+  return fetch(path, {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });

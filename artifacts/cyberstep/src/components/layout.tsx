@@ -10,6 +10,7 @@ import { TRANSLATIONS as T, t } from "@/lib/translations";
 
 const NAV_LINKS = (lang: "tr" | "en") => [
   { href: "/blog", label: t(T.nav.blog, lang) },
+  { href: "/haberler", label: lang === "en" ? "News" : "Haberler" },
   { href: "/fiyatlar", label: t(T.nav.pricing, lang) },
   { href: "/hakkimizda", label: t(T.nav.about, lang) },
   { href: "/neden-cyberstep", label: lang === "en" ? "Why CyberStep?" : "Neden CyberStep?" },

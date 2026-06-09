@@ -4,6 +4,7 @@ import {
   Globe, CheckCircle2, XCircle, Download, Search, AlertTriangle,
   BarChart3, Shield, Loader2, ChevronLeft, ChevronRight,
   Play, Trash2, FileDown, Eye, FileCheck, Clock, RefreshCw,
+  TrendingUp, TrendingDown, CalendarDays, Hash,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 
 interface DomainScanStats {
@@ -28,6 +29,21 @@ interface DomainScanStats {
     cleanBlacklist: number; cleanHibp: number;
   };
   monthly: Array<{ month: string; scan_count: number; avg_score: number }>;
+}
+
+interface ExtendedStats {
+  totalCount: number;
+  todayCount: number;
+  weekCount: number;
+  monthCount: number;
+  avgScoreAll: number;
+  avgScoreWeek: number | null;
+  avgScoreMonth: number | null;
+  uniqueDomainCount: number;
+  scoreDistribution: Array<{ bucket: string; count: number }>;
+  dailyTrend: Array<{ day: string; count: number }>;
+  topRiskDomains: Array<{ domain: string; email: string | null; score: number; scannedAt: string }>;
+  topSafeDomains: Array<{ domain: string; email: string | null; score: number; scannedAt: string }>;
 }
 
 interface DomainScanRow {
@@ -614,6 +630,12 @@ export default function AdminDomainTaramalar() {
     queryFn: () => fetch("/api/admin-panel/domain-scans/stats", { credentials: "include" }).then(r => r.json()),
   });
 
+  const { data: ext } = useQuery<ExtendedStats>({
+    queryKey: ["admin-domain-stats-ext"],
+    queryFn: () => fetch("/api/admin-panel/domain-scans/stats/extended", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
   interface ScheduledScanRow {
     id: number; domain: string; email: string | null;
     overall_score: number; created_at: string; notified_at: string | null;
@@ -713,38 +735,137 @@ export default function AdminDomainTaramalar() {
     <AdminLayout title="Alan Adı Taramaları" description="Tüm domain güvenlik taramalarını yönetin">
       <div className="space-y-6 max-w-6xl">
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {/* ── KPI Kartları ────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: "Bugün",          value: ext?.todayCount  ?? 0, icon: CalendarDays, color: "text-sky-400"     },
+            { label: "Bu Hafta",       value: ext?.weekCount   ?? 0, icon: TrendingUp,   color: "text-violet-400"  },
+            { label: "Bu Ay",          value: ext?.monthCount  ?? 0, icon: BarChart3,    color: "text-amber-400"   },
+            { label: "Toplam Tarama",  value: ext?.totalCount  ?? stats?.total ?? 0, icon: Globe,        color: "text-emerald-400" },
+            { label: "Benzersiz Alan", value: ext?.uniqueDomainCount ?? 0, icon: Hash, color: "text-teal-400"    },
+            { label: "Ort. Skor",      value: ext?.avgScoreAll ?? stats?.avgScore ?? 0, icon: Shield,       color: scoreColor(ext?.avgScoreAll ?? stats?.avgScore ?? 0) },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <Card key={label} className="bg-slate-800 border-slate-700">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-slate-500 text-xs">{label}</span>
+                  <Icon className={`h-3.5 w-3.5 ${color}`} />
+                </div>
+                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* ── Trend + Dağılım ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="bg-slate-800 border-slate-700">
-            <CardContent className="p-4 flex items-center gap-3">
-              <Globe className="h-6 w-6 text-emerald-400 shrink-0" />
-              <div>
-                <p className="text-slate-400 text-xs">Toplam Tarama</p>
-                <p className="text-3xl font-bold text-white">{stats?.total ?? 0}</p>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+                Son 30 Günlük Tarama Trendi
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(ext?.dailyTrend ?? []).length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={ext!.dailyTrend.map(d => ({ gün: d.day, Tarama: d.count }))} margin={{ top: 2, right: 4, left: -24, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="gün" tick={{ fill: "#475569", fontSize: 10 }} interval={4} />
+                    <YAxis tick={{ fill: "#475569", fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px" }} labelStyle={{ color: "#e2e8f0" }} itemStyle={{ color: "#10b981" }} />
+                    <Bar dataKey="Tarama" fill="#10b981" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[180px] flex items-center justify-center text-slate-600 text-sm">Henüz veri yok</div>
+              )}
             </CardContent>
           </Card>
+
           <Card className="bg-slate-800 border-slate-700">
-            <CardContent className="p-4 flex items-center gap-3">
-              <BarChart3 className="h-6 w-6 text-emerald-400 shrink-0" />
-              <div>
-                <p className="text-slate-400 text-xs">Ortalama Güvenlik Skoru</p>
-                <p className={`text-3xl font-bold ${scoreColor(stats?.avgScore ?? 0)}`}>{stats?.avgScore ?? 0}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-800 border-slate-700">
-            <CardContent className="p-4 flex items-center gap-3">
-              <Shield className="h-6 w-6 text-sky-400 shrink-0" />
-              <div>
-                <p className="text-slate-400 text-xs">SSL Geçiş Oranı</p>
-                <p className={`text-3xl font-bold ${scoreColor(stats?.passRates?.ssl ?? 0)}`}>%{stats?.passRates?.ssl ?? 0}</p>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-violet-400" />
+                Skor Dağılımı
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(ext?.scoreDistribution ?? []).length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={ext!.scoreDistribution.map(d => ({ aralık: d.bucket, Adet: d.count }))} margin={{ top: 2, right: 4, left: -24, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="aralık" tick={{ fill: "#475569", fontSize: 11 }} />
+                    <YAxis tick={{ fill: "#475569", fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px" }} labelStyle={{ color: "#e2e8f0" }} itemStyle={{ color: "#a78bfa" }} />
+                    <Bar dataKey="Adet" radius={[2, 2, 0, 0]}>
+                      {(ext?.scoreDistribution ?? []).map((d) => (
+                        <Cell key={d.bucket} fill={d.bucket === "0-20" ? "#dc2626" : d.bucket === "21-40" ? "#ea580c" : d.bucket === "41-60" ? "#d97706" : d.bucket === "61-80" ? "#65a30d" : "#16a34a"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[180px] flex items-center justify-center text-slate-600 text-sm">Henüz veri yok</div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts */}
+        {/* ── En Riskli / En Güvenli ──────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-red-400" />
+                En Riskli 5 Domain
+                <span className="text-slate-500 font-normal text-xs">(son 90 gün, benzersiz)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(ext?.topRiskDomains ?? []).length === 0 && <p className="text-slate-600 text-sm">Veri yok</p>}
+              {(ext?.topRiskDomains ?? []).map((d) => (
+                <div key={d.domain} className="flex items-center justify-between gap-2 rounded-lg bg-slate-900 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-white text-xs font-mono truncate">{d.domain}</p>
+                    {d.email && <p className="text-slate-500 text-[10px] truncate">{d.email}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-base font-bold ${scoreColor(d.score)}`}>{d.score}</span>
+                    <span className="text-slate-600 text-[10px]">{new Date(d.scannedAt).toLocaleDateString("tr-TR")}</span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+                En Güvenli 5 Domain
+                <span className="text-slate-500 font-normal text-xs">(son 90 gün, benzersiz)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(ext?.topSafeDomains ?? []).length === 0 && <p className="text-slate-600 text-sm">Veri yok</p>}
+              {(ext?.topSafeDomains ?? []).map((d) => (
+                <div key={d.domain} className="flex items-center justify-between gap-2 rounded-lg bg-slate-900 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-white text-xs font-mono truncate">{d.domain}</p>
+                    {d.email && <p className="text-slate-500 text-[10px] truncate">{d.email}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-base font-bold ${scoreColor(d.score)}`}>{d.score}</span>
+                    <span className="text-slate-600 text-[10px]">{new Date(d.scannedAt).toLocaleDateString("tr-TR")}</span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ── Kontrol Geçiş Oranları + Aylık Aktivite ────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-2">

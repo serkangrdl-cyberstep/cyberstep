@@ -54,6 +54,77 @@ router.get("/admin-panel/domain-scans/stats", requireAdmin, async (_req: Request
   });
 });
 
+// ─── Extended Stats (günlük/haftalık/aylık + trend + dağılım + en riskli) ──────
+router.get("/admin-panel/domain-scans/stats/extended", requireAdmin, async (_req: Request, res: Response) => {
+  const [periods] = await db.execute(sql`
+    SELECT
+      COUNT(*)::int                                                                   AS total_count,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')::int           AS today_count,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int          AS week_count,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int         AS month_count,
+      ROUND(AVG(overall_score))                                                       AS avg_score_all,
+      ROUND(AVG(overall_score) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days'))  AS avg_score_week,
+      ROUND(AVG(overall_score) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')) AS avg_score_month,
+      COUNT(DISTINCT domain)::int                                                     AS unique_domain_count
+    FROM domain_scans
+  `).then(r => r.rows) as Record<string, unknown>[];
+
+  const row = (periods[0] ?? {}) as Record<string, unknown>;
+
+  const distRows = await db.execute(sql`
+    SELECT
+      CASE
+        WHEN overall_score BETWEEN 0  AND 20  THEN '0-20'
+        WHEN overall_score BETWEEN 21 AND 40  THEN '21-40'
+        WHEN overall_score BETWEEN 41 AND 60  THEN '41-60'
+        WHEN overall_score BETWEEN 61 AND 80  THEN '61-80'
+        ELSE '81-100'
+      END AS bucket,
+      COUNT(*)::int AS cnt
+    FROM domain_scans
+    GROUP BY 1
+    ORDER BY 1
+  `).then(r => r.rows) as Array<{ bucket: string; cnt: number }>;
+
+  const dailyTrend = await db.execute(sql`
+    SELECT
+      TO_CHAR(created_at AT TIME ZONE 'Europe/Istanbul', 'MM-DD') AS day,
+      COUNT(*)::int AS cnt
+    FROM domain_scans
+    WHERE created_at >= NOW() - INTERVAL '30 days'
+    GROUP BY TO_CHAR(created_at AT TIME ZONE 'Europe/Istanbul', 'MM-DD')
+    ORDER BY day ASC
+  `).then(r => r.rows) as Array<{ day: string; cnt: number }>;
+
+  const topRisk = await db.execute(sql`
+    SELECT DISTINCT ON (domain)
+      domain, email, overall_score, created_at
+    FROM domain_scans
+    WHERE created_at >= NOW() - INTERVAL '90 days'
+    ORDER BY domain, created_at DESC
+  `).then(r => r.rows) as Array<{ domain: string; email: string | null; overall_score: number; created_at: string }>;
+
+  topRisk.sort((a, b) => Number(a.overall_score) - Number(b.overall_score));
+  const bottomFive = topRisk.slice(0, 5);
+
+  const topFive = [...topRisk].sort((a, b) => Number(b.overall_score) - Number(a.overall_score)).slice(0, 5);
+
+  res.json({
+    totalCount:        Number(row.total_count ?? 0),
+    todayCount:        Number(row.today_count ?? 0),
+    weekCount:         Number(row.week_count ?? 0),
+    monthCount:        Number(row.month_count ?? 0),
+    avgScoreAll:       Number(row.avg_score_all ?? 0),
+    avgScoreWeek:      row.avg_score_week != null ? Number(row.avg_score_week) : null,
+    avgScoreMonth:     row.avg_score_month != null ? Number(row.avg_score_month) : null,
+    uniqueDomainCount: Number(row.unique_domain_count ?? 0),
+    scoreDistribution: distRows.map(r => ({ bucket: r.bucket, count: Number(r.cnt) })),
+    dailyTrend:        dailyTrend.map(r => ({ day: r.day, count: Number(r.cnt) })),
+    topRiskDomains:    bottomFive.map(r => ({ domain: r.domain, email: r.email, score: Number(r.overall_score), scannedAt: r.created_at })),
+    topSafeDomains:    topFive.map(r => ({ domain: r.domain, email: r.email, score: Number(r.overall_score), scannedAt: r.created_at })),
+  });
+});
+
 // ─── CSV Export ────────────────────────────────────────────────────────────────
 router.get("/admin-panel/domain-scans/export", requireAdmin, async (_req: Request, res: Response) => {
   const rows = await db

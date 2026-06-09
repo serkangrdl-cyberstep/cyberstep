@@ -48,7 +48,7 @@ export default function NewsFeed() {
   const { data, isLoading } = useQuery<NewsPage>({
     queryKey: ["news", selYear, selWeek, page],
     queryFn: () =>
-      apiFetch(`/api/digest/news?weekYear=${selYear}&weekNumber=${selWeek}&page=${page}&limit=30`),
+      apiFetch(`/api/digest/news?weekYear=${selYear}&weekNumber=${selWeek}&page=${page}&limit=30&turkeyOnly=false`),
   });
 
   const weekOptions = Array.from({ length: 12 }, (_, i) => {

@@ -16,7 +16,7 @@ const router = Router();
 
 // ─── Takvim ───────────────────────────────────────────────────────────────────
 
-router.get("/api/admin/social/calendar", requireAdmin, async (req, res) => {
+router.get("/admin/social/calendar", requireAdmin, async (req, res) => {
   const calendars = await db.select()
     .from(contentCalendarTable)
     .orderBy(desc(contentCalendarTable.weekStart))
@@ -24,7 +24,7 @@ router.get("/api/admin/social/calendar", requireAdmin, async (req, res) => {
   res.json(calendars);
 });
 
-router.post("/api/admin/social/generate-week", requireAdmin, async (req, res) => {
+router.post("/admin/social/generate-week", requireAdmin, async (req, res) => {
   const { weekStart } = req.body as { weekStart?: string };
   if (!weekStart) { res.status(400).json({ error: "weekStart zorunlu" }); return; }
 
@@ -50,7 +50,7 @@ router.post("/api/admin/social/generate-week", requireAdmin, async (req, res) =>
 
 // ─── Postlar ──────────────────────────────────────────────────────────────────
 
-router.get("/api/admin/social/posts", requireAdmin, async (req, res) => {
+router.get("/admin/social/posts", requireAdmin, async (req, res) => {
   const { platform, status, calendarId } = req.query as Record<string, string>;
 
   let query = db.select().from(socialMediaPostsTable).$dynamic();
@@ -68,7 +68,7 @@ router.get("/api/admin/social/posts", requireAdmin, async (req, res) => {
   res.json(posts);
 });
 
-router.get("/api/admin/social/posts/pending", requireAdmin, async (req, res) => {
+router.get("/admin/social/posts/pending", requireAdmin, async (req, res) => {
   const posts = await db.select()
     .from(socialMediaPostsTable)
     .where(eq(socialMediaPostsTable.status, "draft"))
@@ -77,7 +77,7 @@ router.get("/api/admin/social/posts/pending", requireAdmin, async (req, res) => 
   res.json(posts);
 });
 
-router.get("/api/admin/social/posts/:id", requireAdmin, async (req, res) => {
+router.get("/admin/social/posts/:id", requireAdmin, async (req, res) => {
   const [post] = await db.select()
     .from(socialMediaPostsTable)
     .where(eq(socialMediaPostsTable.id, Number(req.params["id"])));
@@ -85,7 +85,7 @@ router.get("/api/admin/social/posts/:id", requireAdmin, async (req, res) => {
   res.json(post);
 });
 
-router.put("/api/admin/social/posts/:id", requireAdmin, async (req, res) => {
+router.put("/admin/social/posts/:id", requireAdmin, async (req, res) => {
   const { caption, hashtags } = req.body as { caption?: string; hashtags?: string[] };
   await db.update(socialMediaPostsTable).set({
     caption,
@@ -95,7 +95,7 @@ router.put("/api/admin/social/posts/:id", requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post("/api/admin/social/posts/:id/approve", requireAdmin, async (req, res) => {
+router.post("/admin/social/posts/:id/approve", requireAdmin, async (req, res) => {
   await db.update(socialMediaPostsTable).set({
     status: "approved",
     approvedAt: new Date(),
@@ -114,7 +114,7 @@ router.post("/api/admin/social/posts/:id/approve", requireAdmin, async (req, res
   res.json({ ok: true });
 });
 
-router.post("/api/admin/social/posts/:id/reject", requireAdmin, async (req, res) => {
+router.post("/admin/social/posts/:id/reject", requireAdmin, async (req, res) => {
   await db.update(socialMediaPostsTable).set({
     status: "rejected",
     updatedAt: new Date(),
@@ -122,7 +122,7 @@ router.post("/api/admin/social/posts/:id/reject", requireAdmin, async (req, res)
   res.json({ ok: true });
 });
 
-router.post("/api/admin/social/posts/:id/revise", requireAdmin, async (req, res) => {
+router.post("/admin/social/posts/:id/revise", requireAdmin, async (req, res) => {
   const { revisionNote } = req.body as { revisionNote?: string };
   if (!revisionNote?.trim()) { res.status(400).json({ error: "revisionNote zorunlu" }); return; }
 
@@ -139,7 +139,7 @@ router.post("/api/admin/social/posts/:id/revise", requireAdmin, async (req, res)
   });
 });
 
-router.post("/api/admin/social/posts/:id/publish", requireAdmin, async (req, res) => {
+router.post("/admin/social/posts/:id/publish", requireAdmin, async (req, res) => {
   await db.update(socialMediaPostsTable).set({
     status: "published",
     publishedAt: new Date(),
@@ -160,7 +160,7 @@ router.post("/api/admin/social/posts/:id/publish", requireAdmin, async (req, res
 
 // ─── Spontane İçerik ──────────────────────────────────────────────────────────
 
-router.post("/api/admin/social/generate", requireAdmin, async (req, res) => {
+router.post("/admin/social/generate", requireAdmin, async (req, res) => {
   const { platform, topic, notes } = req.body as {
     platform?: "linkedin" | "instagram" | "x";
     topic?: string;
@@ -183,12 +183,12 @@ router.post("/api/admin/social/generate", requireAdmin, async (req, res) => {
 
 // ─── Özel Günler ──────────────────────────────────────────────────────────────
 
-router.get("/api/admin/social/special-days", requireAdmin, async (_req, res) => {
+router.get("/admin/social/special-days", requireAdmin, async (_req, res) => {
   const days = await db.select().from(specialDaysTable).orderBy(specialDaysTable.month, specialDaysTable.day);
   res.json(days);
 });
 
-router.post("/api/admin/social/special-days", requireAdmin, async (req, res) => {
+router.post("/admin/social/special-days", requireAdmin, async (req, res) => {
   const body = req.body as {
     name: string;
     day?: number;
@@ -201,7 +201,7 @@ router.post("/api/admin/social/special-days", requireAdmin, async (req, res) => 
   res.json(day);
 });
 
-router.put("/api/admin/social/special-days/:id", requireAdmin, async (req, res) => {
+router.put("/admin/social/special-days/:id", requireAdmin, async (req, res) => {
   await db.update(specialDaysTable).set(req.body as Partial<typeof specialDaysTable.$inferInsert>)
     .where(eq(specialDaysTable.id, Number(req.params["id"])));
   res.json({ ok: true });
@@ -209,14 +209,14 @@ router.put("/api/admin/social/special-days/:id", requireAdmin, async (req, res) 
 
 // ─── Hesap Durumu ──────────────────────────────────────────────────────────────
 
-router.get("/api/admin/social/accounts", requireAdmin, async (_req, res) => {
+router.get("/admin/social/accounts", requireAdmin, async (_req, res) => {
   const accounts = await db.select().from(socialMediaAccountsTable);
   res.json(accounts);
 });
 
 // ─── Özet İstatistik ──────────────────────────────────────────────────────────
 
-router.get("/api/admin/social/stats", requireAdmin, async (_req, res) => {
+router.get("/admin/social/stats", requireAdmin, async (_req, res) => {
   const [total, pending, approved, published] = await Promise.all([
     db.execute(sql`SELECT COUNT(*) FROM social_media_posts`),
     db.execute(sql`SELECT COUNT(*) FROM social_media_posts WHERE status = 'draft'`),

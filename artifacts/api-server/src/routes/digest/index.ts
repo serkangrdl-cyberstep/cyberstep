@@ -82,7 +82,9 @@ router.get("/news", async (req, res) => {
   const limit = Math.min(parseInt((req.query["limit"] as string) ?? "50", 10), 100);
   const offset = (page - 1) * limit;
 
-  const conditions = [eq(newsItemsTable.isTurkeyRelated, true)];
+  const turkeyOnly = req.query["turkeyOnly"] !== "false";
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (turkeyOnly) conditions.push(eq(newsItemsTable.isTurkeyRelated, true));
   if (weekYear) conditions.push(eq(newsItemsTable.weekYear, weekYear));
   if (weekNumber) conditions.push(eq(newsItemsTable.weekNumber, weekNumber));
 

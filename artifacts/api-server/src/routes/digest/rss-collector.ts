@@ -57,10 +57,6 @@ export async function collectRSSFeeds(): Promise<void> {
         const snippet = content.slice(0, 200);
 
         const turkeyRelated = source.language === "tr" || isTurkeyRelated(title, snippet);
-        if (!turkeyRelated) {
-          skipped++;
-          continue;
-        }
 
         const publishedAt = item.pubDate ? new Date(item.pubDate) : new Date();
         const { weekYear, weekNumber } = getISOWeek(publishedAt);

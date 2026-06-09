@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   CheckCircle2, XCircle, ChevronRight, Shield, Users, Clock, Award, UserCheck,
-  Eye, FileText, Zap, Network, Globe, ScrollText, Building2, Activity, Server,
-  Search, Crosshair, AlertTriangle, Mail, BarChart2, Layers, Target, ShieldAlert,
-  Cpu, Lock, Radio, GitBranch, TrendingUp, PlayCircle,
+  Eye, FileText, Zap, Network, Mail, Layers, Cpu, Plus, Minus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PRICING_PLANS } from "@/lib/constants";
@@ -13,183 +11,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/language-context";
 
 interface DbPlan { id: number; slug: string; name: string; price: string; currency: string; isActive: boolean; }
-
-interface ServiceCatalogItem {
-  id: number;
-  slug: string;
-  label: string;
-  shortDescription: string;
-  features: string[];
-  monthlyPriceTl: string;
-  category: string;
-  icon: string;
-  isActive: boolean;
-  serviceType?: string;
-  priceTl?: string;
-  isSelfService?: boolean;
-}
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  Network, Globe, FileText, Building2, ScrollText, Activity, Server, Shield,
-  AlertTriangle, Mail, BarChart2, Layers, Target, ShieldAlert, Cpu, Lock,
-  Radio, GitBranch, TrendingUp, Eye, Zap, Search, Crosshair, UserCheck,
-};
-
-function getIcon(slug: string): React.ElementType {
-  const m: Record<string, React.ElementType> = {
-    "fortinet-fabric": Network,
-    "dns-izleme": Globe,
-    "ct-log-izleme": ScrollText,
-    "microsoft-365": Building2,
-    "kvkk-bildirim": FileText,
-    "servicenow": Activity,
-    "soc-operasyon": Shield,
-    "observability": Server,
-    "soc-lite": ShieldAlert,
-    "soc-standart": Shield,
-    "soc-pro": Shield,
-    "noc-lite": Radio,
-    "noc-standart": Radio,
-    "noc-pro": Radio,
-    "tehdit-istihbarat-starter": AlertTriangle,
-    "tehdit-istihbarat-standart": AlertTriangle,
-    "tehdit-istihbarat-pro": AlertTriangle,
-    "cve-izleme-lite": Lock,
-    "cve-izleme-standart": Lock,
-    "cve-izleme-pro": Lock,
-    "easm-tek": Target,
-    "easm-ceyreklik": Target,
-    "easm-yillik": Target,
-    "tprm-5": Layers,
-    "tprm-10": Layers,
-    "tprm-20": Layers,
-    "pentest-lite-tek": Cpu,
-    "pentest-lite-5domain": Cpu,
-    "pentest-lite-yillik": Cpu,
-    "eposta-guvenligi-tek": Mail,
-    "eposta-guvenligi-izleme": Mail,
-    "ai-security-assessment": Zap,
-    "phishing-simulation": Zap,
-    "eu-ai-act": FileText,
-    "ai-red-team": ShieldAlert,
-    "ai-tool-monitoring": Eye,
-    "ai-policy-autoupdate": FileText,
-    "leak-monitor": AlertTriangle,
-    "bundle-full-protection": Layers,
-    "bundle-enterprise-soc": Shield,
-    "bundle-soc-noc-lite": Radio,
-    "bundle-soc-noc-standart": Radio,
-    "bundle-soc-noc-pro": Radio,
-  };
-  return m[slug] ?? Shield;
-}
-
-const DEMO_SLUG_MAP: Record<string, string> = {
-  "easm-tek": "easm",
-  "easm-ceyreklik": "easm",
-  "easm-yillik": "easm",
-  "pentest-lite-tek": "easm",
-  "pentest-lite-5domain": "easm",
-  "pentest-lite-yillik": "easm",
-  "eposta-guvenligi-tek": "email_security",
-  "eposta-guvenligi-izleme": "email_security",
-  "cve-izleme-lite": "cve_alert",
-  "cve-izleme-standart": "cve_alert",
-  "cve-izleme-pro": "cve_alert",
-  "tprm-5": "tprm",
-  "tprm-10": "tprm",
-  "tprm-20": "tprm",
-  "tehdit-istihbarat-starter": "threat_intel",
-  "tehdit-istihbarat-standart": "threat_intel",
-  "tehdit-istihbarat-pro": "threat_intel",
-  "soc-lite": "board_report",
-  "soc-standart": "board_report",
-  "soc-operasyon": "board_report",
-  "soc-pro": "board_report",
-  "ai-security-assessment": "board_report",
-  "phishing-simulation": "email_security",
-  "eu-ai-act": "board_report",
-  "ai-red-team": "threat_intel",
-  "ai-tool-monitoring": "threat_intel",
-  "ai-policy-autoupdate": "board_report",
-  "domain-scan": "easm",
-  "noc-lite": "board_report",
-  "noc-standart": "board_report",
-  "noc-pro": "board_report",
-};
-
-function ServiceCard({ svc }: { svc: ServiceCatalogItem }) {
-  const { lang } = useLanguage();
-  const Icon = getIcon(svc.slug);
-  const freeLabel = lang === "en" ? "Free" : "Ücretsiz";
-  const n = parseFloat(String(svc.monthlyPriceTl ?? "0"));
-  const price = !n ? freeLabel : new Intl.NumberFormat("tr-TR").format(n);
-  const features: string[] = Array.isArray(svc.features) ? svc.features.slice(0, 3) : [];
-  const isBundle = svc.category === "bundle";
-  const suffix = svc.serviceType === "one_time"
-    ? (lang === "en" ? "· one-time + VAT" : "· tek seferlik + KDV")
-    : svc.serviceType === "annual"
-    ? (lang === "en" ? "/ yr + VAT" : "/ yıl + KDV")
-    : (lang === "en" ? "/ mo + VAT" : "/ ay + KDV");
-  const demoType = DEMO_SLUG_MAP[svc.slug];
-
-  return (
-    <div className={`rounded-xl border bg-card p-5 flex flex-col gap-3 hover:border-primary/40 transition-colors ${isBundle ? "border-primary/30 bg-primary/3" : ""}`}>
-      {isBundle && (
-        <div className="text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-300/50 dark:border-green-700/50 px-2 py-0.5 rounded-full w-fit">
-          {lang === "en" ? "Bundle" : "Paket"}
-        </div>
-      )}
-      <div className="flex items-start justify-between gap-2">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Icon className="h-5 w-5 text-primary" />
-        </div>
-        {demoType && (
-          <Link
-            href={`/demo?rapor=${demoType}`}
-            className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded-full transition-colors whitespace-nowrap"
-          >
-            <PlayCircle className="h-3 w-3" />
-            {lang === "en" ? "Demo" : "Demo Gör"}
-          </Link>
-        )}
-      </div>
-      <div>
-        <p className="font-semibold text-sm mb-1">{svc.label}</p>
-        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{svc.shortDescription}</p>
-      </div>
-      {features.length > 0 && (
-        <ul className="space-y-1 flex-1">
-          {features.map((f, i) => (
-            <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />{f}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="pt-2 border-t mt-auto">
-        <p className="text-base font-bold text-primary mb-2">
-          {price} {price !== freeLabel && <span className="text-xs font-normal text-muted-foreground">{suffix}</span>}
-        </p>
-        {svc.isActive && svc.isSelfService !== false ? (
-          <Link
-            href={`/satin-al/${svc.slug}`}
-            className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-          >
-            {lang === "en" ? "Buy Now" : "Satın Al"}
-          </Link>
-        ) : (
-          <Link
-            href="/iletisim"
-            className="block w-full text-center text-xs bg-primary text-primary-foreground py-1.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-          >
-            {lang === "en" ? "Get a Quote" : "Teklif Al"}
-          </Link>
-        )}
-      </div>
-    </div>
-  );
-}
 
 type CompRow =
   | { header: true; label: string }
@@ -207,7 +28,7 @@ export default function Pricing() {
     canonicalPath: "/fiyatlar",
   });
 
-  const [activeGroup, setActiveGroup] = useState<string>("soc-noc");
+  const [openAddon, setOpenAddon] = useState<string | null>(null);
 
   useEffect(() => {
     const id = "ld-json-service";
@@ -279,68 +100,12 @@ export default function Pricing() {
     { label: lang === "en" ? "Domain Security Quick Scan"                  : "Alan Adı Güvenlik Hızlı Tarama",              mini: true,                                full: true },
   ];
 
-  interface ServiceGroup {
-    key: string;
-    label: string;
-    slugs: string[];
-    desc?: string;
-    badge?: string;
-    comingSoon?: boolean;
-  }
-
-  const SERVICE_GROUPS: ServiceGroup[] = [
-    {
-      key: "soc-noc",
-      label: "SOC & NOC",
-      desc: lang === "en" ? "24/7 security operations and network operations center services." : "7/24 güvenlik operasyonları ve ağ operasyon merkezi hizmetleri.",
-      slugs: ["soc-lite","soc-standart","soc-operasyon","noc-lite","noc-standart","noc-pro","bundle-soc-noc-lite","bundle-soc-noc-standart"],
-    },
-    {
-      key: "tehdit-istihbarat",
-      label: lang === "en" ? "Threat Intel & CVE" : "Tehdit İstihbarat & CVE",
-      desc: lang === "en" ? "Real-time threat intelligence, CVE monitoring and dark web tracking." : "Gerçek zamanlı tehdit zekası, CVE izleme ve dark web takibi.",
-      slugs: ["tehdit-istihbarat-starter","tehdit-istihbarat-standart","tehdit-istihbarat-pro","cve-izleme-lite","cve-izleme-standart","cve-izleme-pro","leak-monitor"],
-    },
-    {
-      key: "easm-pentest",
-      label: lang === "en" ? "EASM & Attack Surface Analysis" : "EASM & Saldırı Yüzeyi Analizi",
-      desc: lang === "en" ? "External attack surface management and AI-powered attack chain analysis from an attacker's perspective." : "Saldırgan bakış açısıyla dış saldırı yüzeyi yönetimi ve AI destekli saldırı zinciri analizi.",
-      slugs: ["easm-tek","easm-ceyreklik","easm-yillik","pentest-lite-tek","pentest-lite-5domain","pentest-lite-yillik"],
-    },
-    {
-      key: "ai-guvenlik",
-      label: lang === "en" ? "AI Security" : "AI Güvenlik",
-      desc: lang === "en" ? "AI tools, policy management and AI simulation services." : "Yapay zeka araçları, politika yönetimi ve AI simülasyon servisleri.",
-      badge: lang === "en" ? "New" : "Yeni",
-      slugs: ["ai-security-assessment","ai-tool-monitoring","ai-policy-autoupdate","phishing-simulation","ai-red-team","eu-ai-act"],
-    },
-    {
-      key: "entegrasyon-izleme",
-      label: lang === "en" ? "Integrations & Monitoring" : "Entegrasyon & İzleme",
-      desc: lang === "en" ? "Fortinet, Microsoft 365, DNS monitoring, fake domain alerts, ServiceNow and observability." : "Fortinet, Microsoft 365, DNS İzleme, Sahte Domain Erken Uyarı, ServiceNow ve gözlemlenebilirlik.",
-      slugs: ["fortinet-fabric","microsoft-365","servicenow","observability","dns-izleme","ct-log-izleme","kvkk-bildirim"],
-    },
-    {
-      key: "tprm-eposta",
-      label: lang === "en" ? "TPRM & Email" : "TPRM & E-posta",
-      desc: lang === "en" ? "Supplier risk management and email security auditing." : "Tedarikçi risk yönetimi ve e-posta güvenlik denetimi.",
-      slugs: ["tprm-5","tprm-10","tprm-20","eposta-guvenligi-tek","eposta-guvenligi-izleme"],
-    },
-  ];
-
-  const { data: serviceCatalogRaw = [] } = useQuery<ServiceCatalogItem[]>({
-    queryKey: ["public-service-catalog"],
-    queryFn: () => fetch("/api/public/service-catalog").then(r => r.json()),
-    staleTime: 5 * 60 * 1000,
-  });
-
   const { data: dbPlansRaw } = useQuery<DbPlan[]>({
     queryKey: ["public-pricing"],
     queryFn: () => fetch("/api/public/pricing").then(r => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  const serviceCatalog: ServiceCatalogItem[] = Array.isArray(serviceCatalogRaw) ? serviceCatalogRaw : [];
   const dbPlans = Array.isArray(dbPlansRaw) ? dbPlansRaw : [];
   const fullDbPlan = dbPlans.find(p => p.slug === "full");
   const fullPriceLabel = fullDbPlan ? (new Intl.NumberFormat("tr-TR").format(parseFloat(String(fullDbPlan.price))) + (lang === "en" ? " TL + VAT" : " TL + KDV")) : PRICING_PLANS[1].priceLabel;
@@ -350,9 +115,6 @@ export default function Pricing() {
       ? { ...p, priceLabel: fullPriceLabel }
       : p
   );
-
-  const currentGroup = SERVICE_GROUPS.find(g => g.key === activeGroup) ?? SERVICE_GROUPS[0];
-  const currentServices = serviceCatalog.filter(s => currentGroup.slugs.includes(s.slug));
 
   return (
     <div className="flex flex-col flex-1">
@@ -374,15 +136,15 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* 3 Paket Tier — Karar Kolaylaştırıcı */}
+      {/* 4 Tier — Karar Kolaylaştırıcı */}
       <section className="py-16 bg-background border-b">
-        <div className="container mx-auto px-4 max-w-5xl">
+        <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-10">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               {lang === "en" ? "Choose your protection level" : "Koruma seviyenizi seçin"}
             </p>
             <h2 className="text-3xl font-bold mb-3">
-              {lang === "en" ? "3 Options. Everything else runs in the background." : "3 Seçenek. Geri kalanı perde arkasında çalışır."}
+              {lang === "en" ? "4 Packages. Everything runs in the background." : "4 Paket. Her şey perde arkasında çalışır."}
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-sm">
               {lang === "en"
@@ -391,40 +153,41 @@ export default function Pricing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Tier 1 — Kalkan */}
-            <div className="rounded-2xl border bg-card p-7 flex flex-col gap-4">
+            <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
                   {lang === "en" ? "Starter" : "Başlangıç"}
                 </p>
-                <h3 className="text-xl font-bold mb-1">CyberStep Kalkan</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-bold mb-1">CyberStep Kalkan</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {lang === "en"
                     ? "Know your security posture. Get alerted when something changes."
                     : "Güvenlik durumunuzu öğrenin. Bir şey değişince haberdar olun."}
                 </p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-primary">₺2.990 <span className="text-base font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+                <p className="text-2xl font-bold text-primary">₺2.990 <span className="text-sm font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+                <p className="text-xs text-muted-foreground mt-0.5">{lang === "en" ? "1–50 employees" : "1–50 çalışan"}</p>
               </div>
-              <ul className="space-y-2 flex-1 text-sm">
+              <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
                   ? ["Domain Security Scan", "DNS Monitoring", "Fake Domain Early Alert", "CVE Impact Alerts", "Mini Assessment + AI Report"]
                   : ["Domain Güvenlik Taraması", "DNS İzleme", "Sahte Domain Erken Uyarı", "CVE Etki Uyarıları", "Mini Değerlendirme + AI Rapor"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
                   </li>
                 ))}
               </ul>
-              <Link href="/iletisim" className="block w-full text-center border-2 border-primary text-primary py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
+              <Link href="/iletisim" className="block w-full text-center border-2 border-primary text-primary py-2 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
                 {lang === "en" ? "Get a Quote" : "Teklif Al"}
               </Link>
             </div>
 
             {/* Tier 2 — Zırh (recommended) */}
-            <div className="rounded-2xl border-2 border-primary bg-primary/5 p-7 flex flex-col gap-4 relative shadow-md">
+            <div className="rounded-2xl border-2 border-primary bg-primary/5 p-6 flex flex-col gap-4 relative shadow-md">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                 <Badge className="bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold">
                   {lang === "en" ? "Most Popular" : "En Çok Tercih Edilen"}
@@ -434,65 +197,102 @@ export default function Pricing() {
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
                   {lang === "en" ? "Protection" : "Koruma"}
                 </p>
-                <h3 className="text-xl font-bold mb-1">CyberStep Zırh</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-bold mb-1">CyberStep Zırh</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {lang === "en"
                     ? "Full protection with Threat Intel, Board Reports, and KVKK tracking."
                     : "Tehdit İstihbaratı, Yönetim Kurulu Raporu ve KVKK takibiyle tam koruma."}
                 </p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-primary">₺5.990 <span className="text-base font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+                <p className="text-2xl font-bold text-primary">₺5.990 <span className="text-sm font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+                <p className="text-xs text-muted-foreground mt-0.5">{lang === "en" ? "50–250 employees" : "50–250 çalışan"}</p>
               </div>
-              <ul className="space-y-2 flex-1 text-sm">
+              <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
                   ? ["Everything in Kalkan", "Threat Intelligence (Starter)", "Board Report (monthly)", "KVKK Notification System", "Dark Web Monitoring", "Attack Surface Analysis"]
                   : ["Kalkan'daki her şey", "Tehdit İstihbaratı (Starter)", "Yönetim Kurulu Raporu (aylık)", "KVKK Bildirim Sistemi", "Dark Web İzleme", "Saldırı Yüzeyi Analizi"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
                   </li>
                 ))}
               </ul>
-              <Link href="/iletisim" className="block w-full text-center bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors">
+              <Link href="/iletisim" className="block w-full text-center bg-primary text-primary-foreground py-2 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors">
                 {lang === "en" ? "Get a Quote" : "Teklif Al"}
               </Link>
             </div>
 
             {/* Tier 3 — vCISO */}
-            <div className="rounded-2xl border bg-card p-7 flex flex-col gap-4">
+            <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
                   {lang === "en" ? "Platform + Expert" : "Platform + Uzman"}
                 </p>
-                <h3 className="text-xl font-bold mb-1">CyberStep vCISO</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-bold mb-1">CyberStep vCISO</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {lang === "en"
-                    ? "Platform automates 80%. Trusted expert partner handles the rest. Enterprise governance at 10% of a full-time CISO's cost."
-                    : "Platform %80'ini otomatikleştirir. Güvendiğiniz uzman iş ortağı kalanı yönetir. Tam zamanlı CISO maliyetinin %10'uyla kurumsal yönetişim."}
+                    ? "Platform automates 80%. Trusted expert partner handles the rest."
+                    : "Platform %80'ini otomatikleştirir. Uzman iş ortağı kalanı yönetir."}
                 </p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-primary">
+                <p className="text-2xl font-bold text-primary">
                   ₺4.990
-                  <span className="text-base font-normal text-muted-foreground"> {lang === "en" ? "/ mo — from" : "/ ay'dan"}</span>
+                  <span className="text-sm font-normal text-muted-foreground"> {lang === "en" ? "/ mo — from" : "/ ay'dan"}</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {lang === "en" ? "Temel / Profesyonel / Lider tiers" : "Temel / Profesyonel / Lider seviyeleri"}
+                  {lang === "en" ? "100–500 employees · 3 tiers" : "100–500 çalışan · 3 seviye"}
                 </p>
               </div>
-              <ul className="space-y-2 flex-1 text-sm">
+              <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in Zırh", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation", "Partner expert: interprets, guides, decides"]
-                  : ["Zırh'taki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Register & güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı", "Uzman iş ortağı: yorumlar, yönlendirir, kararlandırır"]
+                  ? ["Everything in Zırh", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation"]
+                  : ["Zırh'taki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Kaydı ve güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
                   </li>
                 ))}
               </ul>
-              <Link href="/ciso-asistan-paketi" className="block w-full text-center border-2 border-primary text-primary py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
+              <Link href="/ciso-asistan-paketi" className="block w-full text-center border-2 border-primary text-primary py-2 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
                 {lang === "en" ? "See All Tiers" : "Tüm Seviyeleri Gör"}
+              </Link>
+            </div>
+
+            {/* Tier 4 — Tam Yönetilen */}
+            <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 dark:bg-slate-900/80 p-6 flex flex-col gap-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  {lang === "en" ? "Fully Managed" : "Tam Yönetilen"}
+                </p>
+                <h3 className="text-lg font-bold text-white mb-1">
+                  {lang === "en" ? "SOC/NOC Managed Service" : "SOC/NOC Yönetilen Servis"}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {lang === "en"
+                    ? "24/7 SOC + NOC operations center. Threat triage, playbooks, escalation and network management — all in one."
+                    : "7/24 SOC + NOC operasyon merkezi. Tehdit triage, playbook, eskalasyon ve ağ yönetimi — tek çatı altında."}
+                </p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-white">
+                  {lang === "en" ? "Custom" : "Teklif Bazlı"}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">{lang === "en" ? "500+ employees" : "500+ çalışan"}</p>
+              </div>
+              <ul className="space-y-1.5 flex-1 text-xs">
+                {(lang === "en"
+                  ? ["Everything in vCISO Lider", "24/7 SOC — triage + playbook + escalation", "NOC — uptime, anomaly detection, capacity", "Fortinet / ServiceNow integrations", "Dedicated security operations team"]
+                  : ["vCISO Lider'deki her şey", "7/24 SOC — triage + playbook + eskalasyon", "NOC — uptime, anomali tespiti, kapasite", "Fortinet / ServiceNow entegrasyonları", "Adanmış güvenlik operasyonları ekibi"]
+                ).map(f => (
+                  <li key={f} className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/iletisim" className="block w-full text-center bg-white text-slate-900 py-2 rounded-xl text-sm font-semibold hover:bg-slate-100 transition-colors">
+                {lang === "en" ? "Contact Sales" : "Satış Ekibiyle Görüş"}
               </Link>
             </div>
           </div>
@@ -501,6 +301,140 @@ export default function Pricing() {
             {lang === "en"
               ? "All packages include a 14-day free trial. Prices are excl. VAT. Enterprise pricing on request."
               : "Tüm paketlerde 14 gün ücretsiz deneme. Fiyatlar KDV hariçtir. Kurumsal fiyatlandırma için teklif alın."}
+          </p>
+        </div>
+      </section>
+
+      {/* Add-on Menüsü */}
+      <section className="py-14 bg-muted/30 border-b">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="text-center mb-8">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              {lang === "en" ? "Customize your package" : "Paketinizi özelleştirin"}
+            </p>
+            <h2 className="text-2xl font-bold mb-2">
+              {lang === "en" ? "Add-on Services" : "Ek Servisler"}
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+              {lang === "en"
+                ? "Each add-on group can be added to any package. One-time or subscription — your choice."
+                : "Her ek servis grubu herhangi bir pakete eklenebilir. Tek seferlik veya abonelik — sizin tercihiniz."}
+            </p>
+          </div>
+
+          {(() => {
+            const ADDON_GROUPS = [
+              {
+                key: "saldiri-yuzeyi",
+                icon: Cpu,
+                label: lang === "en" ? "Attack Surface Analysis" : "Saldırı Yüzeyi Analizi",
+                desc: lang === "en"
+                  ? "Passive OSINT-based analysis: Shodan, crt.sh, CVE/EPSS, MITRE ATT&CK. No active connection to your systems."
+                  : "Pasif OSINT tabanlı analiz: Shodan, crt.sh, CVE/EPSS, MITRE ATT&CK. Sisteme aktif bağlantı yok.",
+                items: lang === "en"
+                  ? [["1 Domain (one-time)", "7.500 TL"], ["5 Domains (one-time)", "15.000 TL"], ["Annual (4x quarterly)", "24.000 TL / yr"]]
+                  : [["1 Domain (tek seferlik)", "7.500 TL"], ["5 Domain (tek seferlik)", "15.000 TL"], ["Yıllık (4x çeyreklik)", "24.000 TL / yıl"]],
+              },
+              {
+                key: "tprm",
+                icon: Layers,
+                label: lang === "en" ? "Supplier Risk Management (TPRM)" : "Tedarikçi Risk Yönetimi (TPRM)",
+                desc: lang === "en"
+                  ? "Scan supplier domains with EASM + HIBP + DMARC. A–F risk matrix, PDF report."
+                  : "Tedarikçi domainlerini EASM + HIBP + DMARC ile tarayın. A–F risk matrisi, PDF rapor.",
+                items: lang === "en"
+                  ? [["5 Suppliers (one-time)", "2.500 TL"], ["10 Suppliers (one-time)", "4.000 TL"], ["20 Suppliers (one-time)", "6.500 TL"]]
+                  : [["5 Tedarikçi (tek seferlik)", "2.500 TL"], ["10 Tedarikçi (tek seferlik)", "4.000 TL"], ["20 Tedarikçi (tek seferlik)", "6.500 TL"]],
+              },
+              {
+                key: "eposta-uyumluluk",
+                icon: Mail,
+                label: lang === "en" ? "Email & Compliance" : "E-posta & Uyumluluk",
+                desc: lang === "en"
+                  ? "Email security audit (SPF/DMARC/DKIM + 15 blacklists), continuous monitoring, KVKK notification system."
+                  : "E-posta güvenlik denetimi (SPF/DMARC/DKIM + 15 kara liste), sürekli izleme, KVKK bildirim sistemi.",
+                items: lang === "en"
+                  ? [["Email Security Audit (one-time)", "2.500 TL"], ["Email Monitoring", "990 TL / mo"], ["KVKK Notification System", "1.990 TL / mo"]]
+                  : [["E-posta Güvenlik Denetimi (tek seferlik)", "2.500 TL"], ["E-posta İzleme", "990 TL / ay"], ["KVKK Bildirim Sistemi", "1.990 TL / ay"]],
+              },
+              {
+                key: "ai-guvenlik",
+                icon: Zap,
+                label: lang === "en" ? "AI Security" : "AI Güvenlik",
+                desc: lang === "en"
+                  ? "AI tools risk assessment, KVKK-compliant policy auto-update, tool monitoring, phishing simulation."
+                  : "Yapay zeka araçları risk değerlendirmesi, KVKK uyumlu politika otogüncelleme, araç izleme, oltalama simülasyonu.",
+                items: lang === "en"
+                  ? [["AI Security Assessment (one-time)", "2.900 TL"], ["AI Policy Auto-Update", "990 TL / yr"], ["AI Tool Monitoring", "490 TL / mo"], ["AI Phishing Simulation (one-time)", "1.990 TL"]]
+                  : [["AI Güvenlik Değerlendirmesi (tek seferlik)", "2.900 TL"], ["AI Politika Otogüncelleme", "990 TL / yıl"], ["AI Araç İzleme", "490 TL / ay"], ["AI Oltalama Simülasyonu (tek seferlik)", "1.990 TL"]],
+              },
+              {
+                key: "entegrasyonlar",
+                icon: Network,
+                label: lang === "en" ? "Integrations" : "Entegrasyonlar",
+                desc: lang === "en"
+                  ? "Fortinet Security Fabric, Microsoft 365 Azure AD, ServiceNow SOC sync."
+                  : "Fortinet Security Fabric, Microsoft 365 Azure AD, ServiceNow SOC senkronizasyonu.",
+                items: lang === "en"
+                  ? [["Fortinet Security Fabric", "4.990 TL / mo (setup: 2.500 TL)"], ["Microsoft 365 Integration", "1.490 TL / mo"], ["ServiceNow Integration", "2.490 TL / mo (setup: 1.000 TL)"]]
+                  : [["Fortinet Security Fabric", "4.990 TL / ay (kurulum: 2.500 TL)"], ["Microsoft 365 Entegrasyonu", "1.490 TL / ay"], ["ServiceNow Entegrasyonu", "2.490 TL / ay (kurulum: 1.000 TL)"]],
+              },
+            ];
+
+            return (
+              <div className="space-y-3">
+                {ADDON_GROUPS.map(group => {
+                  const Icon = group.icon;
+                  const isOpen = openAddon === group.key;
+                  return (
+                    <div key={group.key} className="rounded-xl border bg-card overflow-hidden">
+                      <button
+                        onClick={() => setOpenAddon(isOpen ? null : group.key)}
+                        className="w-full flex items-center gap-4 p-5 text-left hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Icon className="h-4.5 w-4.5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm">{group.label}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{group.desc}</p>
+                        </div>
+                        <div className="shrink-0 text-muted-foreground">
+                          {isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="border-t px-5 pb-5 pt-4 bg-muted/20">
+                          <p className="text-xs text-muted-foreground mb-4">{group.desc}</p>
+                          <div className="space-y-2">
+                            {group.items.map(([name, price]) => (
+                              <div key={name} className="flex items-center justify-between gap-4 py-2 border-b last:border-0">
+                                <span className="text-sm">{name}</span>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-sm font-bold text-primary">{price}</span>
+                                  <Link
+                                    href="/iletisim"
+                                    className="text-xs border border-primary/40 text-primary px-3 py-1 rounded-lg hover:bg-primary/10 transition-colors"
+                                  >
+                                    {lang === "en" ? "Add" : "Ekle"}
+                                  </Link>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            {lang === "en"
+              ? "Add-ons can be combined with any package. Prices are excl. VAT."
+              : "Ek servisler herhangi bir paket ile kombinlenebilir. Fiyatlar KDV hariçtir."}
           </p>
         </div>
       </section>
@@ -809,182 +743,6 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* All Enterprise Services — tabbed */}
-      <section id="kurumsal-servisler" className="pb-16 bg-muted/20">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <div className="text-center mb-10 pt-10">
-            <Badge className="bg-primary/20 text-primary border-primary/40 mb-3">
-              {lang === "en" ? "Enterprise" : "Kurumsal"}
-            </Badge>
-            <h2 className="text-2xl font-bold mb-2">
-              {lang === "en" ? "All Enterprise Services" : "Tüm Kurumsal Servisler"}
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-              {lang === "en"
-                ? "SOC, NOC, EASM, threat intelligence, pentest, TPRM and more. Every service can be purchased separately or as a bundle."
-                : "SOC, NOC, EASM, tehdit istihbaratı, pentest, TPRM ve daha fazlası. Her servis bağımsız satın alınabilir veya paket halinde alınabilir."}
-            </p>
-          </div>
-
-          {/* Tab navigation */}
-          <div className="flex flex-wrap gap-2 justify-center mb-8">
-            {SERVICE_GROUPS.map(g => (
-              <button
-                key={g.key}
-                onClick={() => setActiveGroup(g.key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                  activeGroup === g.key
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
-                }`}
-              >
-                {g.label}
-                {g.badge && (
-                  <span className="ml-1.5 text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold">
-                    {g.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {currentGroup.desc && (
-            <p className="text-center text-sm text-muted-foreground mb-6">{currentGroup.desc}</p>
-          )}
-
-          {currentServices.length > 0 ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-              {currentServices.map(svc => (
-                <ServiceCard key={svc.slug} svc={svc} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 text-muted-foreground text-sm">
-              {lang === "en" ? "Loading services..." : "Servisler yükleniyor..."}
-            </div>
-          )}
-
-          {/* Coming soon tiles */}
-          <div className="grid sm:grid-cols-2 gap-4 mt-4">
-            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-background p-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Search className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-semibold text-sm text-foreground/70">
-                    {lang === "en" ? "Dark Web Monitoring" : "Dark Web İzleme"}
-                  </p>
-                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                    {lang === "en" ? "Soon" : "Yakında"}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {lang === "en"
-                    ? "Credential leak detection and dark web forum tracking — 2026 Q4"
-                    : "Credential sızıntı tespiti ve dark web forum takibi — 2026 Q4"}
-                </p>
-              </div>
-              <Link href="/roadmap" className="shrink-0 text-xs border border-muted-foreground/30 text-muted-foreground px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
-                {lang === "en" ? "Early Access" : "Erken Erişim"}
-              </Link>
-            </div>
-            <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-background p-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Crosshair className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-semibold text-sm text-foreground/70">
-                    {lang === "en" ? "APT Group Monitoring" : "APT Grup İzleme"}
-                  </p>
-                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                    {lang === "en" ? "Soon" : "Yakında"}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {lang === "en"
-                    ? "Threat actor profiles targeting Turkey and MITRE ATT&CK mapping — 2026 Q4"
-                    : "Türkiye'yi hedefleyen tehdit aktörü profilleri ve MITRE ATT&CK haritalama — 2026 Q4"}
-                </p>
-              </div>
-              <Link href="/roadmap" className="shrink-0 text-xs border border-muted-foreground/30 text-muted-foreground px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
-                {lang === "en" ? "Early Access" : "Erken Erişim"}
-              </Link>
-            </div>
-          </div>
-
-          <p className="text-center text-xs text-muted-foreground mt-8">
-            {lang === "en"
-              ? <>For more details on any service, <Link href="/iletisim" className="text-primary hover:underline">contact us</Link>.</>
-              : <>Her servis için ayrıntılı bilgi almak isterseniz{" "}<Link href="/iletisim" className="text-primary hover:underline">bizimle iletişime geçin</Link>.</>}
-          </p>
-        </div>
-      </section>
-
-      {/* CISO Assistant upsell card */}
-      <section className="pb-12 bg-background">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
-            <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
-              <UserCheck className="h-7 w-7 text-primary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-lg font-bold text-foreground">
-                  {lang === "en" ? "CISO Assistant Package" : "CISO Asistan Paketi"}
-                </h3>
-                <span className="text-xs font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {lang === "en" ? "Automation" : "Otomasyon"}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                {lang === "en"
-                  ? <>We take on your CISO's routine reporting burden. Monthly board report, weekly threat summary, 7545 and KVKK compliance score, 7 security policy templates — <strong className="text-foreground">2,500 TL/mo + VAT</strong>.</>
-                  : <>CISO'nuzun rutin raporlama yükünü üstleniyoruz. Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 güvenlik politikası şablonu — <strong className="text-foreground">2.500 TL/ay + KDV</strong>.</>}
-              </p>
-            </div>
-            <Link
-              href="/ciso-asistan-paketi"
-              className="inline-flex items-center justify-center rounded-xl text-sm font-semibold h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
-            >
-              {lang === "en" ? "Explore Package" : "Paketi İncele"} <ChevronRight className="ml-1.5 h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* vCISO Coming Soon 2027 card */}
-      <section className="pb-16 bg-background">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/20 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
-              <UserCheck className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-base font-semibold text-foreground/70">
-                  {lang === "en" ? "Virtual CISO Service" : "Sanal CISO Hizmeti"}
-                </h3>
-                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full tracking-wide">
-                  {lang === "en" ? "Soon" : "Yakında"}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {lang === "en"
-                  ? "Monthly sessions with certified partner CISOs, security strategy and incident response coordination. On the 2027 roadmap."
-                  : "Sertifikalı partner CISO'lardan aylık görüşme, güvenlik stratejisi ve olay müdahalesi koordinasyonu. 2027 yol haritasında."}
-              </p>
-            </div>
-            <Link
-              href="/roadmap"
-              className="inline-flex items-center justify-center rounded-xl text-sm font-medium h-10 px-5 border border-muted-foreground/30 text-muted-foreground hover:bg-muted/50 transition-colors shrink-0"
-            >
-              {lang === "en" ? "Early Access List" : "Erken Erişim Listesi"} <ChevronRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Trust bar */}
       <section className="py-10 border-t bg-muted/30">

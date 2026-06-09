@@ -1,0 +1,21 @@
+CyberStep servis mimarinizi, satış hunisi (sales funnel) ve ticari ölçeklenebilirlik açısından incelediğimde, ürün-pazar uyumunun (product-market fit) yüksek olduğunu söyleyebilirim.
+​Özellikle "pasif tarama" ve "otomatik AI triage" ile KOBİ'lerin yaşadığı "alert fatigue" (uyarı yorgunluğu) sorununu çözmeniz, en güçlü satış argümanınızdır.
+​İşte servis önerileriniz üzerine detaylı değerlendirmem:
+​1. Servis Önerilerinin Değerlendirilmesi
+​Segmentasyon Başarılı: "Ücretsiz Araçlar" ile "Premium Danışmanlık" arasındaki geçiş çok iyi kurgulanmış. Ücretsiz araçların (özellikle KVKK risk hesaplayıcı ve domain tarama) "lead magnet" olarak kullanımı, satış ekibinin soğuk arama yapma ihtiyacını ciddi oranda azaltacaktır.
+​AI Rolünün Tanımlanması: Claude ve Gemini’ın kullanım alanlarını (SOC triage, raporlama, içerik üretimi) netleştirmiş olmanız, müşteride "otomasyon sayesinde maliyetim düşecek" algısını güçlendirir.
+​Gölge IT ve ASN Keşfi: KOBİ seviyesinde nadir sunulan ancak yüksek değer katan bir servis. Bu, teknik satış sunumlarında "göremediğiniz şeyleri biz buluyoruz" diyerek masadaki en güçlü kozunuz olabilir.
+​2. Eleştiriler
+​"Kendi Kendini Yiyen" Servisler: SOC Lite ile NOC Lite ayrı satılırken, bundle olarak da sunulması stratejik ancak Pentest Lite veya AI Phishing Simülasyonu gibi servislerin "tek seferlik" mi yoksa "abonelik" mi olduğu konusundaki belirsizlik, satışçıların fiyat teklifi hazırlarken hata yapmasına neden olabilir.
+​Karmaşıklık Riski: Toplamda 30'dan fazla servis/modül var. Müşteri (KOBİ sahibi) karşısında bu kataloğun tamamını açarsanız "seçim felci" (analysis paralysis) yaşayacaktır.
+​Entegrasyon Yükü: Fortinet, ServiceNow, Jira gibi entegrasyonların kurulum ücretleri makul ancak müşteri tarafındaki "hazır olma" (readiness) kriterleri belirtilmemiş. Müşteri altyapısı entegrasyona uygun değilse satış sonrası destek operasyonunuz kilitlenebilir.
+​3. Öneriler
+​Satış İçin "Paket" Stratejisi: Sunumlarınızda 30+ servisi tek tek listelemeyin. Bunun yerine 3 ana paket oluşturun:
+​CyberStep Essentials: (Domain + DNS İzleme + Mini Değerlendirme + CVE Radar) - "Başlangıç için olmazsa olmazlar".
+​CyberStep Growth (Recommended): (Full Protection Bundle + Pentest Lite + KVKK Modülü) - "KOBİ'ler için en popüler".
+​CyberStep Enterprise: (SOC Pro + NOC Pro + Entegrasyonlar + Yönetim Kurulu Raporu) - "Tam gönül rahatlığı".
+​"Tehlike Anı" Senaryoları: Satış sunumlarınızda teknik özelliklerden ziyade, KVKK ceza tutarları veya "aktif istismar edilen bir CVE'nin KOBİ'yi neden batırabileceği" gibi korku/fayda (fear/gain) dengesini kullanan senaryoları öne çıkarın.
+​Referans Modeli: Referral programınızı, sadece "abonelik uzatma" değil, "bir ay ücretsiz SOC desteği" gibi daha somut ve değerli bir ödül ile güçlendirin.
+​Otomatik "Next Best Action": Gemini'ın satışçılarınıza önerdiği "Sonraki En İyi Aksiyon" (Next Best Action) sistemini, dokümanınızda belirttiğiniz üzere daha da merkezileştirin. Satış temsilciniz, hangi müşteriye hangi servisi zamanında önereceğini bilirse dönüşüm oranınız (conversion rate) ciddi oranda artacaktır.
+​Bu servis kataloğunu kullanarak satış sunumlarınızı oluştururken, "teknik bir ürün mü satıyoruz, yoksa bir iş riskini mi sigortalıyoruz?" sorusunu her zaman ön planda tutmanızı öneririm. Müşteri, teknik bir ürün almayı reddedebilir ama iş riskini azaltmayı reddetmesi çok daha zordur.
+​Sizce satış ekibinizin şu anki en büyük zorluğu; müşteriyi "ikna etmek mi" (farkındalık yaratmak), yoksa "fiyatı doğrulamak mı"?

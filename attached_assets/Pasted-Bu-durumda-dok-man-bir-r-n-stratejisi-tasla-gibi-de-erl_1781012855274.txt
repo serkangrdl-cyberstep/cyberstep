@@ -1,0 +1,174 @@
+Bu durumda dokümanı bir "ürün stratejisi taslağı" gibi değerlendiriyorum. Teknik mimariyi, fiyatları veya sunum dilini değil, CyberStep'in servis portföyünü eleştireceğim.
+Genel görüşüm:
+CyberStep şu an bir EASM + Security Posture + vCISO + Managed Security Services hibriti olmaya çalışıyor.
+Bu iyi bir şey olabilir ama bazı servisler çok güçlü, bazıları ise ya satılması zor ya da operasyonel yükü yüksek.
+En Güçlü Servisler
+1. Mini Assessment + AI Rapor
+Bence ürünün merkezi burası.
+Aslında müşteri:
+SOC almak istemiyor
+Pentest almak istemiyor
+DNS monitoring almak istemiyor
+Müşteri şunu istiyor:
+"Bana durumumu söyle."
+Assessment bunu çözüyor.
+Ben olsam zamanla bunu geliştiririm:
+CyberStep Security Score
+0-100
+ve
+CyberStep Maturity Score
+0-5
+oluştururum.
+Sonraki bütün servisler bunun üzerine oturur.
+2. Board Report
+Bu servis düşündüğünden daha değerli.
+Türkiye'de:
+IT Müdürü
+Sistem Yöneticisi
+Bilgi İşlem Müdürü
+yönetimi ikna etmekte zorlanıyor.
+Board Report aslında:
+"IT yöneticisinin patrona sunacağı PDF"
+ürünü.
+Bence ayrı satılabilir.
+Hatta ileride:
+Board Pack
+olabilir.
+Güvenlik
+KVKK
+AI Riskleri
+Bütçe önerileri
+tek raporda.
+3. CVE Türkiye Etki Sistemi
+Bu çok ilginç.
+Çünkü çoğu ürün:
+"Yeni CVE çıktı"
+diyor.
+Sen:
+"Bu CVE Türkiye'de seni etkiliyor."
+demeye çalışıyorsun.
+Burada ciddi farklılaşma potansiyeli var.
+Ben bunu daha da büyütürdüm.
+Örneğin:
+sektör bazlı
+şehir bazlı
+teknoloji bazlı
+risk haritaları.
+Bu servis uzun vadede bağımsız ürün olabilir.
+4. AI Güvenlik Değerlendirmesi
+Bence 2026 sonrası için en güçlü servislerden biri.
+Türkiye'de herkes:
+ChatGPT
+Gemini
+Copilot
+kullanıyor.
+Kimse yönetmiyor.
+Şu anda rekabet çok az.
+Bu nedenle iyi düşünülmüş.
+Zayıf Bulduğum Servisler
+1. AI Politika Servisi
+Ben bunu ayrı ürün yapmazdım.
+Çünkü:
+₺990/yıl
+için müşteri satın alma kararı vermeyecek.
+Satış maliyeti gelirden yüksek.
+Bunu şu servisin içine koyardım:
+AI Assessment
+vCISO
+Premium Assessment
+2. CT Log İzleme
+Tek başına satılması zor.
+Çok teknik.
+KOBİ anlamıyor.
+Müşteri:
+CT Log Monitoring almak istiyorum
+demez.
+Ama şunu anlar:
+Marka Takibi
+veya
+Sahte Domain Erken Uyarı
+Servisi korur, ismini değiştiririm.
+3. DNS Monitoring
+Yine aynı problem.
+Tek başına satmak zor.
+Müşteri:
+DNS Monitoring istiyorum
+demez.
+Ama:
+Web sitemin ele geçirilmesini önlemek istiyorum
+der.
+Bu servis Protect paketinin içinde görünmez çalışmalı.
+4. KVKK Bildirim Sistemi
+Fikir güzel ama tek başına değer önerisi zayıf.
+Çünkü müşteri:
+ihlal yaşamadan
+KVKK bildirimi düşünmüyor.
+Bunu Incident Response Kit içine koyardım.
+Riskli Bulduğum Servisler
+1. Pentest Lite
+En büyük risk bu.
+Sebebi teknik değil.
+Beklenti yönetimi.
+Pentest kelimesi Türkiye'de şu demek:
+aktif test
+exploit
+zafiyet doğrulama
+rapor
+CyberStep'in yaptığı ise:
+exposure analysis
+attack path simulation
+threat modeling
+Müşteri ile kavga çıkarabilecek servis bu.
+İsmi değişmeli.
+2. SOC Lite
+SOC Lite'ın değeri net değil.
+Şu an:
+AI tabanlı triage
+yazıyor.
+Müşteri şunu soracak:
+Neyi izliyorsun?
+Hangi logları alıyorsun?
+SIEM var mı?
+Kim müdahale ediyor?
+Burada servis tanımı daha netleşmeli.
+Eklenmesini Önerdiğim Servisler
+1. Vendor Risk Assessment
+Bence eksik.
+Türkiye'de:
+muhasebe firmaları
+yazılım firmaları
+çağrı merkezleri
+outsource ekipler
+çok büyük risk.
+Assessment modeli hazır.
+Kolay eklenebilir.
+2. M&A / Yatırım Due Diligence
+KOBİ satılacak.
+Yatırım alacak.
+Fon gelecek.
+CyberStep:
+Siber Güvenlik Durum Tespiti
+raporu verebilir.
+Marjı yüksek.
+Operasyon yükü düşük.
+3. CyberStep Trust Badge
+Bence uzun vadede en ilginç fikir.
+Assessment'ten geçen müşteriye:
+CyberStep Verified
+rozeti.
+Web sitesine koyar.
+Tedarikçilerine gösterir.
+Tekliflerinde kullanır.
+Bu zamanla network etkisi yaratabilir.
+Benim Gözümde Gelecekte En Çok Para Kazandırabilecek 5 Servis
+Sıralarsam:
+AI Güvenlik Değerlendirmesi
+Assessment + Security Score
+Board Report / vCISO
+CVE Türkiye Etki Sistemi
+EASM
+Buna karşılık en zayıf üç servis:
+AI Politika Servisi
+CT Log İzleme (tek başına)
+DNS Monitoring (tek başına)
+Çünkü bunlar müşterinin satın aldığı ürün değil, satın aldığı ürünün içinde çalışması gereken özellikler gibi görünüyor. CyberStep'in en güçlü tarafı bana göre "araç satması" değil, karmaşık siber güvenlik problemlerini yönetici diline çevirmesi. Servis portföyünde de en yüksek değer üreten kısım tam olarak bu.

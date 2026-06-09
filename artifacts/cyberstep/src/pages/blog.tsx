@@ -182,9 +182,9 @@ export default function Blog() {
           <div className="space-y-6">
             {posts?.map(post => (
               <Link key={post.id} href={`/blog/${post.slug}`}>
-                <article className="group border border-border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 hover:border-primary/30 cursor-pointer flex">
-                  {/* Cover image */}
-                  <div className="w-48 shrink-0 bg-gradient-to-br from-slate-800 to-emerald-900 relative overflow-hidden">
+                <article className="group border border-border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 hover:border-primary/30 cursor-pointer flex flex-col sm:flex-row">
+                  {/* Cover image — masaüstünde sol sütun, mobilde üst şerit */}
+                  <div className="sm:w-44 sm:shrink-0 h-36 sm:h-auto bg-gradient-to-br from-slate-800 to-emerald-900 relative overflow-hidden">
                     {post.coverImageBase64 ? (
                       <img
                         src={post.coverImageBase64}
@@ -193,13 +193,13 @@ export default function Blog() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-4xl font-bold text-emerald-400/30">CS</span>
+                        <span className="text-2xl font-bold text-emerald-400/20">CS</span>
                       </div>
                     )}
                   </div>
 
                   {/* Content */}
-                  <div className="p-5 flex flex-col justify-between flex-1 min-h-[144px] bg-card">
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 min-w-0 bg-card">
                     <div>
                       <h2 className="font-bold text-foreground text-lg leading-tight mb-2 group-hover:text-primary transition-colors line-clamp-2">
                         {getTitle(post)}

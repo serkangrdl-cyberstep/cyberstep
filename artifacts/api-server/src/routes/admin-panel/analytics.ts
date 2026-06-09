@@ -1,8 +1,8 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable, leadCandidatesTable, discoveryRunsTable } from "@workspace/db";
-import { count, sum, avg, sql, desc, gte, and, eq, asc } from "drizzle-orm";
+import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable, leadCandidatesTable, discoveryRunsTable, leadScanQueueTable, weeklyBulletinsTable, intelligenceReportsTable, dailySummariesTable } from "@workspace/db";
+import { count, sum, avg, sql, desc, gte, and, eq, asc, isNotNull } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 
 const router = Router();
@@ -328,6 +328,88 @@ router.get("/admin-panel/analytics/pending-registrations", requireAdmin, async (
     .limit(20);
 
   res.json({ count: rows.length, recent: rows });
+});
+
+// GET /api/admin-panel/analytics/ops-center — single-call operational overview
+router.get("/admin-panel/analytics/ops-center", requireAdmin, async (_req: Request, res: Response) => {
+  const { cronGetStats } = await import("../../services/cronRegistry");
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [
+    leadTotal, leadQualified, leadWithContact, leadTeaserSent,
+    queueStats,
+    cronStats,
+    lastBulletin, lastIntelReport, lastDailySummary,
+    todayScans,
+  ] = await Promise.all([
+    db.select({ count: count() }).from(leadCandidatesTable),
+    db.select({ count: count() }).from(leadCandidatesTable)
+      .where(eq(leadCandidatesTable.isQualified, true)),
+    db.select({ count: count() }).from(leadCandidatesTable)
+      .where(and(eq(leadCandidatesTable.isQualified, true), isNotNull(leadCandidatesTable.contactEmail))),
+    db.select({ count: count() }).from(leadCandidatesTable)
+      .where(isNotNull(leadCandidatesTable.teaserSentAt)),
+    db.select({ scanStatus: leadScanQueueTable.scanStatus, cnt: count() })
+      .from(leadScanQueueTable).groupBy(leadScanQueueTable.scanStatus),
+    cronGetStats(),
+    db.select({ sentAt: weeklyBulletinsTable.sentAt, createdAt: weeklyBulletinsTable.createdAt })
+      .from(weeklyBulletinsTable).where(isNotNull(weeklyBulletinsTable.sentAt))
+      .orderBy(desc(weeklyBulletinsTable.sentAt)).limit(1),
+    db.select({ createdAt: intelligenceReportsTable.createdAt })
+      .from(intelligenceReportsTable).where(eq(intelligenceReportsTable.status, "published"))
+      .orderBy(desc(intelligenceReportsTable.createdAt)).limit(1),
+    db.select({ generatedAt: dailySummariesTable.generatedAt })
+      .from(dailySummariesTable).orderBy(desc(dailySummariesTable.generatedAt)).limit(1),
+    db.select({ count: count() }).from(domainScansTable)
+      .where(gte(domainScansTable.createdAt, todayStart)),
+  ]);
+
+  const CRITICAL_CRONS: { name: string; label: string }[] = [
+    { name: "crtsh",          label: "Sertifika İzleme"   },
+    { name: "domain_rescan",  label: "Domain Rescan"      },
+    { name: "lead_qual",      label: "Lead Nitelendirme"  },
+    { name: "dns_monitor",    label: "DNS İzleme"         },
+    { name: "cve_feed_check", label: "CVE Besleme"        },
+    { name: "health_score",   label: "Müşteri Sağlık"     },
+    { name: "haftalik_bulten",label: "Haftalık Bülten"    },
+    { name: "daily_summary",  label: "Günlük Özet"        },
+  ];
+  const cronMap = Object.fromEntries(cronStats.map(s => [s.job_name, s]));
+  const criticalCronHealth = CRITICAL_CRONS.map(({ name, label }) => {
+    const s = cronMap[name];
+    return {
+      name,
+      label,
+      lastRunAt:  s?.last_run_at  ?? null,
+      lastStatus: s?.last_status  ?? null,
+      lastError:  s?.last_error   ?? null,
+      okRuns:     Number(s?.ok_runs    ?? 0),
+      errorRuns:  Number(s?.error_runs ?? 0),
+    };
+  });
+
+  const queueByStatus: Record<string, number> = {};
+  for (const r of queueStats) queueByStatus[r.scanStatus ?? "unknown"] = Number(r.cnt);
+
+  res.json({
+    leadFunnel: {
+      discovered:  Number(leadTotal[0]?.count    ?? 0),
+      qualified:   Number(leadQualified[0]?.count ?? 0),
+      withContact: Number(leadWithContact[0]?.count ?? 0),
+      teaserSent:  Number(leadTeaserSent[0]?.count ?? 0),
+      contacted:   queueByStatus["contacted"] ?? 0,
+      converted:   queueByStatus["converted"] ?? 0,
+    },
+    criticalCronHealth,
+    reports: {
+      bulletin:     lastBulletin[0]    ?? null,
+      intelligence: lastIntelReport[0] ?? null,
+      dailySummary: lastDailySummary[0] ?? null,
+    },
+    todayScans: Number(todayScans[0]?.count ?? 0),
+  });
 });
 
 export default router;

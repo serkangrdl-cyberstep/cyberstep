@@ -490,7 +490,9 @@ app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) =>
     }
     let deleted = 0;
     if (deleteIds.length > 0) {
-      await db.execute(sql`DELETE FROM blog_posts WHERE id = ANY(${deleteIds}::int[])`);
+      for (const id of deleteIds) {
+        await db.execute(sql`DELETE FROM blog_posts WHERE id = ${id}`);
+      }
       deleted = deleteIds.length;
     }
     logger.info({ inserted, skipped, deleted }, "seed-blog-posts: tamamlandı");

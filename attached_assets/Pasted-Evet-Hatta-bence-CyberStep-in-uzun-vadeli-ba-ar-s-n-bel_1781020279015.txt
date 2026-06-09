@@ -1,0 +1,193 @@
+Evet. Hatta bence CyberStep'in uzun vadeli başarısını belirleyecek kritik konu bu.
+Şu anda CyberStep'in güçlü olduğu alan:
+Outside-In Security (dışarıdan görünen riskler)
+Yani:
+Domain
+DNS
+SSL
+Dark Web
+CVE
+EASM
+CT Log
+Reputation
+Ama gerçek bir vCISO'nun çalıştığı alanın belki %70'i:
+Inside-Out Security
+Yani:
+Hangi firewall var?
+Hangi switch'ler var?
+Hangi sunucular var?
+M365 mi Google Workspace mi?
+EDR kullanılıyor mu?
+Backup çözümü ne?
+Kritik uygulamalar neler?
+ERP ne?
+Kimlik yönetimi nasıl?
+Üçüncü taraflar kimler?
+Bunları bilmeden gerçek risk önceliklendirmesi yapmak zor.
+Ben olsam bunu 4 aşamalı tasarlarım
+Faz 1 — NDA
+İlk adım kesinlikle NDA.
+Ama klasik PDF NDA değil.
+Tamamen dijital.
+Müşteri:
+NDA okur
+e-imza veya checkbox ile kabul eder
+Sonra portal açılır.
+Faz 2 — Technology Baseline Survey
+Bu kısmı en kritik yer.
+Ama burada büyük hata yapılabilir.
+Müşteriye Excel doldurtursan ölür.
+Kimse doldurmaz.
+Ben bunu 10 bölüm halinde wizard yapardım.
+Bölüm 1
+Kimlik ve E-posta
+Örnek:
+Microsoft 365
+Google Workspace
+Exchange On-Prem
+Bölüm 2
+Firewall
+Örnek:
+Fortinet
+Palo Alto
+Sophos
+Check Point
+SonicWall
+Model
+Versiyon
+HA var mı
+Bölüm 3
+Endpoint
+Örnek:
+Defender
+CrowdStrike
+SentinelOne
+Trend Micro
+Bölüm 4
+Sunucu
+Fiziksel
+VMware
+Hyper-V
+Nutanix
+Azure
+AWS
+Bölüm 5
+Backup
+Veeam
+Commvault
+Acronis
+Bölüm 6
+ERP
+SAP
+Logo
+Mikro
+Netsis
+Oracle
+Bölüm 7
+Kritik SaaS
+Salesforce
+Hubspot
+Jira
+GitHub
+Bölüm 8
+OT/SCADA
+Üretim müşterileri için.
+Bölüm 9
+AI Kullanımı
+ChatGPT
+Gemini
+Claude
+Copilot
+Bölüm 10
+Uyumluluk
+KVKK
+ISO27001
+PCI DSS
+NIS2
+TISAX
+Faz 3 — Discovery Workshop
+Burada senin önerin olan 1 saatlik toplantı giriyor.
+Bence çok doğru.
+Ama amacı farklı olmalı.
+Amaç veri toplamak değil.
+Amaç doğrulamak.
+Önceden:
+AI
+müşterinin doldurduğu verileri analiz eder.
+Sonra toplantıda:
+"FortiGate 100F kullanıyorsunuz."
+"Firmware 7.0.13 doğru mu?"
+"Backup Veeam üzerinde mi?"
+şeklinde ilerlenir.
+Toplantı sonunda:
+Technology Baseline Freeze edilir.
+Faz 4 — CyberStep CMDB
+Bence asıl altın burada.
+CyberStep içinde her müşteri için:
+Technology Register
+oluştur.
+Örnek:
+Kategori
+Ürün
+Firewall
+FortiGate 100F
+Firmware
+7.0.13
+EDR
+Defender
+Email
+M365
+Backup
+Veeam
+ERP
+SAP B1
+Bu artık vCISO'nun hafızası olur.
+Sonraki Büyük Adım
+Bu teknoloji envanterini CVE sistemiyle ilişkilendir.
+Örneğin:
+Müşteri:
+FortiGate 100F FortiOS 7.0.13
+giriyor.
+CyberStep biliyor:
+FortiOS 7.0.13
+Yeni kritik açık çıktı.
+Sistem otomatik:
+"Bu CVE sizin ortamınızı etkiliyor."
+diyor.
+Bu noktada CyberStep sıradan assessment platformundan çıkıp gerçek vCISO platformuna dönüşüyor.
+Daha da Güçlü Model
+Ben sadece müşteri beyanına güvenmezdim.
+Her kayıt için:
+Confidence Score
+oluştururdum.
+Örnek:
+FortiGate 100F
+Kaynak:
+Müşteri beyanı (%60)
+SSL banner (%20)
+Shodan (%20)
+Confidence:
+%100
+Bu çok profesyonel görünür.
+Bence Eksik Olan Bir Servis
+CyberStep Technology Discovery
+Tek seferlik:
+9.900 – 14.900 TL
+İçeriği:
+NDA
+Teknoloji envanteri
+1 saat workshop
+AI analiz
+CMDB oluşturulması
+Risk haritası
+12 aylık roadmap
+Bu servis sonrasında:
+vCISO
+SOC
+NOC
+EASM
+satışı çok daha kolay olur.
+Benim önerim, CyberStep'i "Assessment → SOC" akışından çıkarmak.
+Şu akış çok daha güçlü:
+Assessment → Technology Discovery → Technology Register (CMDB) → vCISO → SOC/NOC → Continuous Improvement
+Çünkü gerçek vCISO değeri dış taramalardan değil, dış tarama sonuçlarını müşterinin gerçek teknoloji envanteriyle ilişkilendirebilmesinden doğuyor. Bu ilişkilendirme katmanı rakiplerin çoğunda yok ve CyberStep'in en savunulabilir varlığı haline gelebilir.

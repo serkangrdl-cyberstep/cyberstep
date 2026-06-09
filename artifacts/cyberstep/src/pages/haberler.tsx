@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ExternalLink, Calendar, Globe } from "lucide-react";
+import { ExternalLink, Calendar, Globe, Sparkles } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 interface NewsItem {
@@ -8,6 +8,9 @@ interface NewsItem {
   title: string;
   url: string;
   summary: string | null;
+  aiSummary: string | null;
+  enrichedAt: string | null;
+  category: string | null;
   publishedAt: string | null;
   isTurkeyRelated: boolean;
   weekYear: number | null;
@@ -20,6 +23,17 @@ interface NewsPage {
   page: number;
   limit: number;
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  cve_vulnerability: "CVE Zafiyeti",
+  threat_intel: "Tehdit İstihbaratı",
+  data_breach: "Veri İhlali",
+  regulation_kvkk: "KVKK / Mevzuat",
+  vendor_security: "Vendor Güvenlik",
+  turkey_news: "Türkiye",
+  sector_news: "Sektör",
+  general: "Genel",
+};
 
 function getISOWeek(date: Date): { weekYear: number; weekNumber: number } {
   const d = new Date(date.getTime());
@@ -39,8 +53,8 @@ function formatDate(dateStr: string | null): string {
 
 export default function Haberler() {
   usePageMeta({
-    title: "Siber Guvenlik Haberleri | CyberStep.io",
-    description: "Guncel siber guvenlik haberleri. Turkiye ve dunya genelindeki tehditler, zafiyet duyurulari ve sektorel gelismeler.",
+    title: "Siber Güvenlik Haberleri | CyberStep.io",
+    description: "Güncel siber güvenlik haberleri. Türkiye ve dünya genelindeki tehditler, zafiyet duyuruları ve sektörel gelişmeler.",
   });
 
   const [page, setPage] = useState(1);
@@ -73,9 +87,9 @@ export default function Haberler() {
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Siber Guvenlik Haberleri</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Siber Güvenlik Haberleri</h1>
           <p className="text-muted-foreground">
-            Guncel tehditler, zafiyet duyurulari ve sektorel gelismeler
+            Güncel tehditler, zafiyet duyuruları ve sektörel gelişmeler
           </p>
         </div>
 
@@ -97,7 +111,7 @@ export default function Haberler() {
                 : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
             }`}
           >
-            {showAll ? "Haftalik filtre" : "Tum haberler"}
+            {showAll ? "Haftalık filtre" : "Tüm haberler"}
           </button>
           {data && (
             <span className="text-sm text-muted-foreground ml-auto">{data.total} haber</span>
@@ -113,47 +127,62 @@ export default function Haberler() {
         ) : !data?.items.length ? (
           <div className="text-center py-20 text-muted-foreground">
             <Globe className="mx-auto mb-4 opacity-30" size={40} />
-            <p className="text-lg font-medium">Bu hafta haber bulunamadi</p>
-            <p className="text-sm mt-1">Farkli bir hafta secin veya tum haberler filtresini deneyin</p>
+            <p className="text-lg font-medium">Bu hafta haber bulunamadı</p>
+            <p className="text-sm mt-1">Farklı bir hafta seçin veya tüm haberler filtresini deneyin</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {data.items.map((item) => (
-              <a
-                key={item.id}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:bg-card/80 transition-colors group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
-                      {item.title}
-                    </h2>
-                    {item.summary && (
-                      <p className="text-muted-foreground text-sm mt-1.5 line-clamp-2 leading-relaxed">
-                        {item.summary}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 mt-3">
-                      {item.publishedAt && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
-                          <Calendar size={11} />
-                          {formatDate(item.publishedAt)}
-                        </span>
+            {data.items.map((item) => {
+              const displaySummary = item.aiSummary || item.summary;
+              const isEnriched = !!item.aiSummary;
+              return (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:bg-card/80 transition-colors group"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="font-semibold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
+                        {item.title}
+                      </h2>
+                      {displaySummary && (
+                        <p className="text-muted-foreground text-sm mt-1.5 line-clamp-2 leading-relaxed">
+                          {displaySummary}
+                        </p>
                       )}
-                      {item.isTurkeyRelated && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                          Turkiye
-                        </span>
-                      )}
+                      <div className="flex items-center gap-3 mt-3 flex-wrap">
+                        {item.publishedAt && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
+                            <Calendar size={11} />
+                            {formatDate(item.publishedAt)}
+                          </span>
+                        )}
+                        {item.category && CATEGORY_LABELS[item.category] && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                            {CATEGORY_LABELS[item.category]}
+                          </span>
+                        )}
+                        {item.isTurkeyRelated && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                            Türkiye
+                          </span>
+                        )}
+                        {isEnriched && (
+                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20">
+                            <Sparkles size={10} />
+                            AI özet
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <ExternalLink size={16} className="shrink-0 text-muted-foreground/40 group-hover:text-primary/60 transition-colors mt-1" />
                   </div>
-                  <ExternalLink size={16} className="shrink-0 text-muted-foreground/40 group-hover:text-primary/60 transition-colors mt-1" />
-                </div>
-              </a>
-            ))}
+                </a>
+              );
+            })}
           </div>
         )}
 
@@ -164,7 +193,7 @@ export default function Haberler() {
               onClick={() => setPage(page - 1)}
               className="px-4 py-2 rounded-lg border border-border text-sm disabled:opacity-40 hover:bg-card transition-colors"
             >
-              Onceki
+              Önceki
             </button>
             <span className="text-sm text-muted-foreground px-2">{page} / {totalPages}</span>
             <button

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, numeric, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, numeric, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { newsSourcesTable } from "./news-sources";
@@ -17,6 +17,9 @@ export const newsItemsTable = pgTable("news_items", {
   weekYear: integer("week_year"),
   weekNumber: integer("week_number"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  aiSummary: text("ai_summary"),
+  enrichedAt: timestamp("enriched_at"),
+  category: varchar("category", { length: 50 }),
 });
 
 export const insertNewsItemSchema = createInsertSchema(newsItemsTable).omit({

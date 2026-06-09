@@ -187,7 +187,7 @@ export default function CustomerAccount() {
               <Link href="/raporlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Raporlarım</Link>
               <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
               <Link href="/hesabim/fortinet-entegrasyonu" className="text-slate-400 hover:text-white text-sm transition-colors">Fortinet</Link>
-              <Link href="/pentest-lite" className="text-slate-400 hover:text-white text-sm transition-colors">Pentest Lite</Link>
+              <Link href="/pentest-lite" className="text-slate-400 hover:text-white text-sm transition-colors">Saldırı Yüzeyi</Link>
               <Link href="/hesabim/yonetim-raporu" className="text-slate-400 hover:text-white text-sm transition-colors">YK Raporu</Link>
               <Link href="/hesabim/davet" className="text-slate-400 hover:text-white text-sm transition-colors">Davet</Link>
               <Link href="/hesabim/enterprise" className="text-slate-400 hover:text-white text-sm transition-colors">Enterprise</Link>
@@ -317,7 +317,7 @@ export default function CustomerAccount() {
               <Card className="border border-slate-700 bg-slate-900 hover:border-slate-600 transition-colors cursor-pointer h-full">
                 <CardContent className="pt-4 pb-4 flex flex-col items-center justify-center text-center gap-1">
                   <Search className="h-5 w-5 text-emerald-400" />
-                  <p className="text-xs text-slate-300 font-medium">Pentest Lite</p>
+                  <p className="text-xs text-slate-300 font-medium">Saldırı Yüzeyi</p>
                 </CardContent>
               </Card>
             </Link>

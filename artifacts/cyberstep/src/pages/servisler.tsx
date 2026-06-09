@@ -56,9 +56,9 @@ const STATIC_SERVICES: ServiceCatalogItem[] = [
     monthlyPriceTl: "990.00", setupFeeTl: "0.00", isActive: true,
   },
   {
-    id: 0, slug: "ct-log-izleme", label: "CT Log İzleme", category: "monitoring", icon: "ScrollText",
-    shortDescription: "Alan adınız için dünyada verilen tüm SSL sertifikalarını izleyin; sahte sertifika tespitinde anında bildirim alın.",
-    longDescription: "Certificate Transparency logları, tüm SSL/TLS sertifikalarının kamuya açık kaydedildiği sistemlerdir. Saldırganlar markanızı taklit etmek için sahte sertifikalar alabilir. CyberStep CT Log İzleme servisi bunu anında tespit eder.",
+    id: 0, slug: "ct-log-izleme", label: "Sahte Domain Erken Uyarı", category: "monitoring", icon: "ScrollText",
+    shortDescription: "Markanızı taklit eden sahte alan adlarını ve sertifikaları anında tespit edin. Saldırganlar harekete geçmeden önce uyarı alın.",
+    longDescription: "Saldırganlar markanızı taklit etmek için sahte sertifikalar alır ve benzer domain'ler kaydeder. CyberStep, dünya genelindeki tüm sertifika otoritesi loglarını (Certificate Transparency) sürekli tarayarak markanıza ait şüpheli yeni sertifikaları anında tespit eder ve sizi bildirir.",
     features: ["crt.sh entegrasyonu","Sahte sertifika tespiti","Anlık uyarı sistemi","Wildcard sertifika izleme","Marka koruma desteği"],
     howItWorks: [{step:"Domain Tanımlama",desc:"İzlemek istediğiniz domain adlarını ve alt domainleri sisteme eklersiniz."},{step:"CT Log Tarama",desc:"Dünya genelindeki tüm sertifika otoritelerinin logları sürekli taranır."},{step:"Tespit ve Uyarı",desc:"Alan adınıza ait yeni sertifika verildiğinde anında bildirim alırsınız."}],
     faq: [{q:"CT logları nedir?",a:"Evet. CT log standartlarına uyan tüm sertifika otoritelerinin kayıtları izlenir."},{q:"Neden önemli?",a:"Saldırganlar markanızı taklit ederek sahte sertifika alabilir; bu servis bunu anında tespit eder."},{q:"Hangi sertifika türleri izleniyor?",a:"DV, OV ve EV dahil tüm SSL/TLS sertifikaları izlenir."}],

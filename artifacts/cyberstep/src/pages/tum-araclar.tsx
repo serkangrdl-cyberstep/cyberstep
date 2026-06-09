@@ -71,7 +71,7 @@ export default function TumAraclar() {
         { href: "/zero-day-uyari", label: lang === "en" ? "Zero-Day Alert" : "Zero-Day Uyarı", icon: AlertCircle, desc: lang === "en" ? "Receive instant critical security vulnerability notifications." : "Kritik güvenlik açığı bildirimlerini anlık alın.", badge: null },
         { href: "/tedarik-zinciri", label: lang === "en" ? "Supply Chain Security" : "Tedarik Zinciri Güvenliği", icon: Layers, desc: lang === "en" ? "Assess supplier security risks." : "Tedarikçi güvenlik risklerini değerlendirin.", badge: null },
         { href: "/saldiri-simulasyonu", label: lang === "en" ? "Attack Scenario Analysis" : "Saldırı Senaryosu Analizi", icon: Target, desc: lang === "en" ? "MITRE ATT&CK-based attack chain analysis." : "MITRE ATT&CK bazlı saldırı zinciri analizi.", badge: null },
-        { href: "/pentest-lite", label: lang === "en" ? "Pentest Lite" : "Pentest Lite", icon: Shield, desc: lang === "en" ? "AI-powered automated penetration testing." : "AI destekli otomatik penetrasyon testi.", badge: null },
+        { href: "/pentest-lite", label: lang === "en" ? "Attack Surface Analysis" : "Saldırı Yüzeyi Analizi", icon: Shield, desc: lang === "en" ? "AI-powered MITRE ATT&CK attack chain analysis. Passive — no agent, no system access." : "AI destekli MITRE ATT&CK saldırı zinciri analizi. Pasif — sisteminize dokunmaz.", badge: null },
       ],
     },
   ];

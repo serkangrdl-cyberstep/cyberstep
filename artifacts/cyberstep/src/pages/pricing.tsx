@@ -303,8 +303,8 @@ export default function Pricing() {
     },
     {
       key: "easm-pentest",
-      label: lang === "en" ? "EASM & Pentest Lite" : "EASM & Pentest Lite",
-      desc: lang === "en" ? "External attack surface management and pentesting from an attacker's perspective." : "Saldırgan bakış açısıyla dış saldırı yüzeyi yönetimi ve pentest.",
+      label: lang === "en" ? "EASM & Attack Surface Analysis" : "EASM & Saldırı Yüzeyi Analizi",
+      desc: lang === "en" ? "External attack surface management and AI-powered attack chain analysis from an attacker's perspective." : "Saldırgan bakış açısıyla dış saldırı yüzeyi yönetimi ve AI destekli saldırı zinciri analizi.",
       slugs: ["easm-tek","easm-ceyreklik","easm-yillik","pentest-lite-tek","pentest-lite-5domain","pentest-lite-yillik"],
     },
     {
@@ -317,7 +317,7 @@ export default function Pricing() {
     {
       key: "entegrasyon-izleme",
       label: lang === "en" ? "Integrations & Monitoring" : "Entegrasyon & İzleme",
-      desc: lang === "en" ? "Fortinet, Microsoft 365, DNS, CT Log, ServiceNow and observability." : "Fortinet, Microsoft 365, DNS, CT Log, ServiceNow ve gözlemlenebilirlik.",
+      desc: lang === "en" ? "Fortinet, Microsoft 365, DNS monitoring, fake domain alerts, ServiceNow and observability." : "Fortinet, Microsoft 365, DNS İzleme, Sahte Domain Erken Uyarı, ServiceNow ve gözlemlenebilirlik.",
       slugs: ["fortinet-fabric","microsoft-365","servicenow","observability","dns-izleme","ct-log-izleme","kvkk-bildirim"],
     },
     {
@@ -370,6 +370,131 @@ export default function Pricing() {
             {lang === "en"
               ? "Mini assessment is free. Explore the service catalog below for SOC, EASM, TPRM and more."
               : "Mini değerlendirme ücretsiz. SOC, EASM, TPRM ve daha fazlası için aşağıdaki hizmet kataloğunu inceleyin."}
+          </p>
+        </div>
+      </section>
+
+      {/* 3 Paket Tier — Karar Kolaylaştırıcı */}
+      <section className="py-16 bg-background border-b">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-10">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              {lang === "en" ? "Choose your protection level" : "Koruma seviyenizi seçin"}
+            </p>
+            <h2 className="text-3xl font-bold mb-3">
+              {lang === "en" ? "3 Options. Everything else runs in the background." : "3 Seçenek. Geri kalanı perde arkasında çalışır."}
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+              {lang === "en"
+                ? "No agent to install, no IT hassle. Just enter your domain — we handle the rest."
+                : "Sisteminize hiçbir şey kurulmaz, IT'niz rahatsız edilmez. Sadece domain adınızı girin — gerisini biz hallederiz."}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Tier 1 — Kalkan */}
+            <div className="rounded-2xl border bg-card p-7 flex flex-col gap-4">
+              <div>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  {lang === "en" ? "Starter" : "Başlangıç"}
+                </p>
+                <h3 className="text-xl font-bold mb-1">CyberStep Kalkan</h3>
+                <p className="text-sm text-muted-foreground">
+                  {lang === "en"
+                    ? "Know your security posture. Get alerted when something changes."
+                    : "Güvenlik durumunuzu öğrenin. Bir şey değişince haberdar olun."}
+                </p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-primary">₺2.990 <span className="text-base font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+              </div>
+              <ul className="space-y-2 flex-1 text-sm">
+                {(lang === "en"
+                  ? ["Domain Security Scan", "DNS Monitoring", "Fake Domain Early Alert", "CVE Impact Alerts", "Mini Assessment + AI Report"]
+                  : ["Domain Güvenlik Taraması", "DNS İzleme", "Sahte Domain Erken Uyarı", "CVE Etki Uyarıları", "Mini Değerlendirme + AI Rapor"]
+                ).map(f => (
+                  <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/iletisim" className="block w-full text-center border-2 border-primary text-primary py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
+                {lang === "en" ? "Get a Quote" : "Teklif Al"}
+              </Link>
+            </div>
+
+            {/* Tier 2 — Zırh (recommended) */}
+            <div className="rounded-2xl border-2 border-primary bg-primary/5 p-7 flex flex-col gap-4 relative shadow-md">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <Badge className="bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold">
+                  {lang === "en" ? "Most Popular" : "En Çok Tercih Edilen"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  {lang === "en" ? "Protection" : "Koruma"}
+                </p>
+                <h3 className="text-xl font-bold mb-1">CyberStep Zırh</h3>
+                <p className="text-sm text-muted-foreground">
+                  {lang === "en"
+                    ? "Full protection with Threat Intel, Board Reports, and KVKK tracking."
+                    : "Tehdit İstihbaratı, Yönetim Kurulu Raporu ve KVKK takibiyle tam koruma."}
+                </p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-primary">₺5.990 <span className="text-base font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+              </div>
+              <ul className="space-y-2 flex-1 text-sm">
+                {(lang === "en"
+                  ? ["Everything in Kalkan", "Threat Intelligence (Starter)", "Board Report (monthly)", "KVKK Notification System", "Dark Web Monitoring", "Attack Surface Analysis"]
+                  : ["Kalkan'daki her şey", "Tehdit İstihbaratı (Starter)", "Yönetim Kurulu Raporu (aylık)", "KVKK Bildirim Sistemi", "Dark Web İzleme", "Saldırı Yüzeyi Analizi"]
+                ).map(f => (
+                  <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/iletisim" className="block w-full text-center bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors">
+                {lang === "en" ? "Get a Quote" : "Teklif Al"}
+              </Link>
+            </div>
+
+            {/* Tier 3 — Danışman */}
+            <div className="rounded-2xl border bg-card p-7 flex flex-col gap-4">
+              <div>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  {lang === "en" ? "Advisory" : "Danışmanlık"}
+                </p>
+                <h3 className="text-xl font-bold mb-1">CyberStep Danışman</h3>
+                <p className="text-sm text-muted-foreground">
+                  {lang === "en"
+                    ? "Virtual CISO service. Strategy, roadmap, board presentations, quarterly reviews."
+                    : "Sanal CISO hizmeti. Strateji, yol haritası, yönetim sunumu, çeyreklik inceleme."}
+                </p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-primary">₺9.990 <span className="text-base font-normal text-muted-foreground">/ {lang === "en" ? "mo" : "ay"}</span></p>
+              </div>
+              <ul className="space-y-2 flex-1 text-sm">
+                {(lang === "en"
+                  ? ["Everything in Zırh", "Full Assessment + Security Roadmap", "Quarterly Expert Review", "Board Presentation (quarterly)", "SOC Lite (AI triage)", "Priority support"]
+                  : ["Zırh'taki her şey", "Tam Değerlendirme + Güvenlik Yol Haritası", "Çeyreklik Uzman İncelemesi", "Yönetim Kurulu Sunumu (çeyreklik)", "SOC Lite (AI triage)", "Öncelikli destek"]
+                ).map(f => (
+                  <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/ciso-asistan-paketi" className="block w-full text-center border-2 border-primary text-primary py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/10 transition-colors">
+                {lang === "en" ? "Learn More" : "Paketi İncele"}
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            {lang === "en"
+              ? "All packages include a 14-day free trial. Prices are excl. VAT. Enterprise pricing on request."
+              : "Tüm paketlerde 14 gün ücretsiz deneme. Fiyatlar KDV hariçtir. Kurumsal fiyatlandırma için teklif alın."}
           </p>
         </div>
       </section>

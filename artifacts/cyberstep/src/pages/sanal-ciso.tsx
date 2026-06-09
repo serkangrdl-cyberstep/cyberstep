@@ -63,14 +63,14 @@ export default function CisoAsistan() {
 
   const WHAT_IT_IS_NOT = lang === "en"
     ? [
-        "Not a virtual CISO",
-        "Not consulting",
-        "Not someone who answers the phone",
+        "Not a replacement for a full-time security team",
+        "Not active incident response (IR retainer required for that)",
+        "Not a classic pentest with active exploitation",
       ]
     : [
-        "Sanal CISO değil",
-        "Danışmanlık değil",
-        "Telefona çıkan biri değil",
+        "Tam zamanlı güvenlik ekibinin yerine geçmez",
+        "Aktif olay müdahalesi değil (bunun için IR retainer gerekir)",
+        "Aktif exploit içeren klasik sızma testi değil",
       ];
 
   const FEATURES = lang === "en"
@@ -188,17 +188,17 @@ export default function CisoAsistan() {
         <div className="container mx-auto px-4 max-w-4xl relative z-10">
           <div className="flex flex-col items-center text-center gap-6">
             <Badge className="bg-primary/20 text-primary border-primary/40">
-              {lang === "en" ? "CISO Assistant Package" : "CISO Asistan Paketi"}
+              {lang === "en" ? "CyberStep Danışman — Advisory Package" : "CyberStep Danışman — Danışmanlık Paketi"}
             </Badge>
             <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight">
               {lang === "en"
-                ? <>Let your CISO focus on strategy,<br />we handle the routine reporting</>
-                : <>CISO'nuz strateji düşünsün,<br />rutin raporlamayı biz yapalım</>}
+                ? <>Your virtual CISO,<br />without the full-time cost</>
+                : <>Tam zamanlı maliyeti olmadan,<br />sanal CISO'nuz hazır</>}
             </h1>
             <p className="text-white/80 text-lg max-w-2xl leading-relaxed">
               {lang === "en"
-                ? <>Monthly board report, weekly threat digest, 7545 &amp; KVKK compliance score, 7 policy templates. Fully automated. <strong className="text-white">2,500 TL/mo + VAT.</strong></>
-                : <>Aylık yönetim kurulu raporu, haftalık tehdit özeti, 7545 ve KVKK uyum skoru, 7 politika şablonu. Tam otomatik. <strong className="text-white">2.500 TL/ay + KDV.</strong></>}
+                ? <>Strategy, roadmap, board reports, compliance — everything a CISO does, automated and delivered. <strong className="text-white">₺9,990/mo + VAT.</strong></>
+                : <>Strateji, yol haritası, yönetim kurulu raporları, uyum takibi — bir CISO'nun yaptığı her şey, otomatik ve teslim edilmiş. <strong className="text-white">₺9.990/ay + KDV.</strong></>}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8">

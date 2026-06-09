@@ -32,8 +32,8 @@ export const TRANSLATIONS = {
     heroBadge: { tr: "Türkiye'nin Siber Güvenlik Risk Platformu", en: "Turkey's Cybersecurity Risk Platform" },
     heroTitle: { tr: "Şirketinize Saldırgan Gözüyle Bakın", en: "See Your Company Through an Attacker's Eyes" },
     heroSubtitle: {
-      tr: "Dışarıdan ne görünüyorsunuz, içeride ne açık var, yapay zeka araçlarınız ne sızdırıyor. Türkçe. Otomatik. Aksiyona hazır.",
-      en: "What do you look like from outside, what's exposed inside, what are your AI tools leaking. Turkish. Automated. Action-ready.",
+      tr: "Sadece domain adınızı girin — sisteminize hiçbir şey kurmadan, IT'nizi rahatsız etmeden, 10 dakikada güvenlik durumunuzu öğrenin. Türkçe. Otomatik. Aksiyona hazır.",
+      en: "Just enter your domain — no agent to install, no IT hassle, learn your security posture in 10 minutes. Turkish. Automated. Action-ready.",
     },
     heroCta: { tr: "Ücretsiz Değerlendirme Başlat", en: "Start Free Assessment" },
 

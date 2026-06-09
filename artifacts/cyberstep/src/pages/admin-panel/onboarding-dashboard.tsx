@@ -23,7 +23,7 @@ interface OnboardingRow {
 const SERVICE_LABELS: Record<string, string> = {
   "fortinet-fabric":  "Fortinet Fabric",
   "dns-izleme":       "DNS İzleme",
-  "ct-log-izleme":    "CT Log İzleme",
+  "ct-log-izleme":    "Sahte Domain Erken Uyarı",
   "ms365":            "Microsoft 365",
   "kvkk-bildirim":    "KVKK Bildirim",
   "servicenow":       "ServiceNow",

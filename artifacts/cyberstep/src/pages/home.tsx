@@ -92,7 +92,7 @@ function CveRadarSection({ lang }: { lang: string }) {
               {cves.map((cve) => (
                 <a
                   key={cve.cveId}
-                  href={`/zafiyet-haberleri/${cve.cveId}`}
+                  href={`/cve/${cve.cveId}`}
                   className="group rounded-xl border border-slate-700 bg-slate-900/60 p-4 hover:border-red-500/50 hover:bg-slate-900 transition-all"
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">

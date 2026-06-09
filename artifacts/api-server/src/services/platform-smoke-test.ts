@@ -28,11 +28,11 @@ type CheckResult = { name: string; ok: boolean; detail: string; ms: number };
 async function checkHealthz(): Promise<CheckResult> {
   const start = Date.now();
   try {
-    const res = await fetch(`${BASE_URL}/api/healthz`, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`${BASE_URL}/api/health`, { signal: AbortSignal.timeout(8000) });
     const ms = Date.now() - start;
-    return { name: "API /healthz", ok: res.ok, detail: `HTTP ${res.status}`, ms };
+    return { name: "API /health", ok: res.ok, detail: `HTTP ${res.status}`, ms };
   } catch (err) {
-    return { name: "API /healthz", ok: false, detail: String(err), ms: Date.now() - start };
+    return { name: "API /health", ok: false, detail: String(err), ms: Date.now() - start };
   }
 }
 
@@ -55,11 +55,9 @@ async function checkGemini(): Promise<CheckResult> {
   }
   try {
     const res = await fetch(
-      `${baseUrl}/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `${baseUrl}/openai/models`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: "ping" }] }] }),
+        headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(12000),
       },
     );

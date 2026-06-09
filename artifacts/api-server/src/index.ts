@@ -21,6 +21,7 @@ import { startDnsCrons } from "./services/dns-cron";
 import { ensureCtTable } from "./routes/ct-monitor/index";
 import { ensureMs365Tables } from "./routes/ms365/index";
 import { ensureCustomerServiceConfigsTable } from "./routes/customer/index";
+import { ensureTechDiscoveryTable } from "./routes/tech-discovery/index";
 import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
 import { ensureServiceNowTables, syncServiceNowIncidents, checkServiceNowConnections } from "./services/serviceNowClient";
 import { ensureWebhookTables, retryFailedWebhooks } from "./services/webhookDispatcher";
@@ -1499,6 +1500,7 @@ async function startup() {
   await ensureNetgsmTables();
   await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
+  await ensureTechDiscoveryTable();
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
   await ensureSocialMediaTables();
   await ensureAdminPermissions();

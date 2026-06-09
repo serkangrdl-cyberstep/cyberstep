@@ -104,3 +104,4 @@ export * from "./index-reports";
 export * from "./ioc-query";
 export * from "./approvals";
 export * from "./demo-reports";
+export * from "./technology-discovery";

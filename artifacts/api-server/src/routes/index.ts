@@ -63,6 +63,7 @@ import adminPanelRouter from "./admin-panel/index";
 import socialMediaRouter from "./social-media/index";
 import cisoRouter from "./ciso/index";
 import demoPublicRouter from "./public/demo";
+import techDiscoveryRouter from "./tech-discovery/index";
 
 const router: IRouter = Router();
 
@@ -130,5 +131,6 @@ router.use(iocPortalRouter);
 router.use(adminPanelRouter);
 router.use(socialMediaRouter);
 router.use(cisoRouter);
+router.use(techDiscoveryRouter);
 
 export default router;

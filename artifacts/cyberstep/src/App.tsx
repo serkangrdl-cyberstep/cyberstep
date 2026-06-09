@@ -9,6 +9,7 @@ import DoraBddkUyum from "./pages/dora-bddk-uyum";
 import SektorPage from "./pages/sektor";
 import ExtensionDownload from "./pages/extension-download";
 import SanalCiso from "./pages/sanal-ciso";
+import TechnologyDiscovery from "./pages/technology-discovery";
 import VcisoErkenErisim from "./pages/vciso-erken-erisim";
 import CisoAsistanPortal from "./pages/hesabim/ciso-asistan";
 import ErpEntegrasyonu from "./pages/erp-entegrasyonu";
@@ -193,6 +194,7 @@ import Bulgularim from "./pages/hesabim/bulgularim";
 import CloudGuvenlik from "./pages/hesabim/cloud-guvenlik";
 import EntegrasyonlarimPage from "./pages/hesabim/entegrasyonlarim";
 import ServislerimPage from "./pages/hesabim/servislerim";
+import TechDiscoveryPortal from "./pages/hesabim/technology-discovery";
 import SepetPage from "./pages/hesabim/sepet";
 import YenilePage from "./pages/yenile";
 import NpsPage from "./pages/nps";
@@ -200,6 +202,7 @@ import StatusPage from "./pages/status";
 import AdminStatusPage from "./pages/admin-panel/status";
 import AdminLeadDiscovery from "./pages/admin-panel/lead-discovery";
 import AdminTechIntelligence from "./pages/admin-panel/tech-intelligence";
+import AdminTechDiscovery from "./pages/admin-panel/technology-discovery";
 import AdminIntelligence from "./pages/admin-panel/istihbarat";
 import AdminEndeksRaporu from "./pages/admin-panel/endeks-raporu";
 import AdminCtiIstihbarat from "./pages/admin-panel/cti-istihbarat";
@@ -297,6 +300,7 @@ function Router() {
       <Route path="/hesabim/ioc-log" component={HesabimIocLog} />
       <Route path="/hesabim/ioc-sorgu" component={IocSorgu} />
       <Route path="/hesabim/servislerim" component={ServislerimPage} />
+      <Route path="/hesabim/technology-discovery" component={TechDiscoveryPortal} />
       <Route path="/hesabim/sepet" component={SepetPage} />
       <Route path="/hesabim/ciso-asistan" component={CisoAsistanPortal} />
       <Route path="/yenile" component={YenilePage} />
@@ -368,6 +372,7 @@ function Router() {
       <Route path="/panel/manuel-tetikle" component={AdminManuelTetikle} />
       <Route path="/panel/lead-discovery" component={AdminLeadDiscovery} />
       <Route path="/panel/tech-intelligence" component={AdminTechIntelligence} />
+      <Route path="/panel/technology-discovery" component={AdminTechDiscovery} />
       <Route path="/panel/intelligence" component={AdminIntelligence} />
       <Route path="/panel/endeks-raporu" component={AdminEndeksRaporu} />
       <Route path="/panel/cti-istihbarat" component={AdminCtiIstihbarat} />
@@ -461,6 +466,7 @@ function Router() {
             <Route path="/sektor/:slug" component={SektorPage} />
             <Route path="/tarayici-eklentisi" component={ExtensionDownload} />
             <Route path="/ciso-asistan-paketi" component={SanalCiso} />
+            <Route path="/technology-discovery" component={TechnologyDiscovery} />
             <Route path="/vciso-erken-erisim" component={VcisoErkenErisim} />
             <Route path="/erp-entegrasyonu" component={ErpEntegrasyonu} />
             <Route path="/sigorta-pazaryeri" component={SigortaPazaryeri} />

@@ -69,11 +69,10 @@ interface AdminMe {
 }
 
 function useDigestAuth() {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   return useQuery<AdminMe>({
     queryKey: ["digest-admin-me"],
     queryFn: async () => {
-      const r = await fetch(`${base}/api/admin-panel/auth/me`, { credentials: "include" });
+      const r = await fetch("/api/admin-panel/auth/me", { credentials: "include" });
       if (!r.ok) throw new Error("Unauthorized");
       return r.json() as Promise<AdminMe>;
     },

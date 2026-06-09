@@ -8,9 +8,8 @@ interface AdminMe {
 }
 
 async function fetchAdminMe(): Promise<AdminMe> {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  // Auth check is against the main app session (shared cookie, same domain)
-  const r = await fetch(`${base}/api/admin-panel/auth/me`, { credentials: "include" });
+  // Absolute path — proxy routes /digest/* to frontend, /api/* to API server
+  const r = await fetch("/api/admin-panel/auth/me", { credentials: "include" });
   if (!r.ok) throw new Error("Unauthorized");
   return r.json();
 }

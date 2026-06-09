@@ -478,7 +478,7 @@ export default function Pricing() {
                   <span className="text-base font-normal text-muted-foreground"> {lang === "en" ? "/ mo — from" : "/ ay'dan"}</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {lang === "en" ? "Essential / Professional / Executive tiers" : "Essential / Professional / Executive seviyeleri"}
+                  {lang === "en" ? "Temel / Profesyonel / Lider tiers" : "Temel / Profesyonel / Lider seviyeleri"}
                 </p>
               </div>
               <ul className="space-y-2 flex-1 text-sm">

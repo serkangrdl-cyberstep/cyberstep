@@ -27,7 +27,7 @@ const EMPTY: FormState = {
 const TIERS = [
   {
     id: "essential",
-    name: "vCISO Essential",
+    name: "vCISO Temel",
     tagTR: "50–100 Çalışan",
     tagEN: "50–100 Employees",
     price: "₺4.990",
@@ -46,14 +46,14 @@ const TIERS = [
     popular: false,
   },
   {
-    id: "professional",
-    name: "vCISO Professional",
+    id: "profesyonel",
+    name: "vCISO Profesyonel",
     tagTR: "100–500 Çalışan",
     tagEN: "100–500 Employees",
     price: "₺9.990",
     expertHours: 4,
     platformItems: [
-      { tr: "Essential'daki her şey", en: "Everything in Essential" },
+      { tr: "Temel'deki her şey", en: "Everything in Temel" },
       { tr: "Tehdit İstihbaratı (Starter)", en: "Threat Intelligence (Starter)" },
       { tr: "Saldırı Yüzeyi Analizi (EASM)", en: "Attack Surface Analysis (EASM)" },
       { tr: "Haftalık Tehdit Özeti", en: "Weekly Threat Digest" },
@@ -61,21 +61,21 @@ const TIERS = [
     ],
     expertItems: [
       { tr: "Aylık 4 saat uzman görüşmesi", en: "4 hours/mo expert sessions" },
-      { tr: "Aylık Steering Committee toplantısı", en: "Monthly Steering Committee" },
-      { tr: "Risk Register ve yol haritası", en: "Risk Register & roadmap" },
+      { tr: "Aylık Yönlendirme Komitesi toplantısı", en: "Monthly Steering Committee" },
+      { tr: "Risk Kaydı ve yol haritası", en: "Risk Register & roadmap" },
       { tr: "Tedarikçi risk değerlendirme", en: "Vendor risk review" },
     ],
     popular: true,
   },
   {
-    id: "executive",
-    name: "vCISO Executive",
+    id: "lider",
+    name: "vCISO Lider",
     tagTR: "Kurumsal KOBİ",
     tagEN: "Enterprise SME",
     price: "₺19.990",
     expertHours: 8,
     platformItems: [
-      { tr: "Professional'daki her şey", en: "Everything in Professional" },
+      { tr: "Profesyonel'deki her şey", en: "Everything in Profesyonel" },
       { tr: "Tam Değerlendirme (55 soru)", en: "Full Assessment (55 questions)" },
       { tr: "AI Politika Üretimi", en: "AI Policy Generation" },
       { tr: "Siber Güvenlik Olgunluk Raporu", en: "Security Maturity Report" },
@@ -400,68 +400,6 @@ export default function SanalCiso() {
         </div>
       </section>
 
-      {/* Revenue share model — for transparency */}
-      <section className="py-14 bg-background border-b">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <div className="text-center mb-8">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
-              {lang === "en" ? "How the model works" : "Model nasıl çalışıyor?"}
-            </p>
-            <h2 className="text-xl font-bold">
-              {lang === "en"
-                ? "Three-layer pricing — transparent"
-                : "Üç katmanlı fiyatlandırma — şeffaf"}
-            </h2>
-          </div>
-
-          <div className="space-y-3">
-            {[
-              {
-                num: "1",
-                titleTR: "Platform Aboneliği (CyberStep payı)",
-                titleEN: "Platform Subscription (CyberStep's share)",
-                descTR: "SaaS lisansı: SOC triage, EASM, DNS izleme, CVE takibi, Board Raporu otomasyonu. Platformun ürettiği değerin büyük bölümü burada.",
-                descEN: "SaaS license: SOC triage, EASM, DNS monitoring, CVE tracking, Board Report automation. The bulk of platform value lives here.",
-                color: "text-primary",
-                bg: "bg-primary/5 border-primary/20",
-              },
-              {
-                num: "2",
-                titleTR: "Danışmanlık Ücreti (İş ortağının payı)",
-                titleEN: "Advisory Fee (Partner's share)",
-                descTR: "İş ortağının uzman danışmanı için aylık sabit ücret. Danışman raporu yazmak yerine yorumlamaya, bütçe rehberliği yapmaya odaklanır.",
-                descEN: "Fixed monthly fee for the partner expert. The consultant focuses on interpretation and budget guidance — not report writing.",
-                color: "text-amber-500",
-                bg: "bg-amber-500/5 border-amber-500/20",
-              },
-              {
-                num: "3",
-                titleTR: "Performans Primi (Ortak)",
-                titleEN: "Performance Bonus (Shared)",
-                descTR: "İsteğe bağlı: kritik bir saldırı girişimi engellenir veya denetimden başarıyla geçilirse ek başarı primi. İlişkiyi uzun vadeli ve güven temelli kılar.",
-                descEN: "Optional: a success bonus when a critical attack is blocked or an audit is passed. Creates a long-term, trust-based relationship.",
-                color: "text-green-500",
-                bg: "bg-green-500/5 border-green-500/20",
-              },
-            ].map(item => (
-              <div key={item.num} className={`rounded-xl border p-5 flex gap-4 ${item.bg}`}>
-                <div className={`h-8 w-8 rounded-full border-2 flex items-center justify-center font-black text-sm shrink-0 ${item.color} border-current`}>
-                  {item.num}
-                </div>
-                <div>
-                  <p className={`font-semibold text-sm mb-1 ${item.color}`}>
-                    {lang === "en" ? item.titleEN : item.titleTR}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {lang === "en" ? item.descEN : item.descTR}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Why this beats traditional consulting */}
       <section className="py-14 bg-muted/20 border-b">
         <div className="container mx-auto px-4 max-w-4xl">
@@ -620,9 +558,9 @@ export default function SanalCiso() {
                 <Select value={form.tier} onValueChange={set("tier")}>
                   <SelectTrigger><SelectValue placeholder={lang === "en" ? "Select..." : "Secin..."} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="essential">vCISO Essential — ₺4.990/ay</SelectItem>
-                    <SelectItem value="professional">vCISO Professional — ₺9.990/ay</SelectItem>
-                    <SelectItem value="executive">vCISO Executive — ₺19.990/ay</SelectItem>
+                    <SelectItem value="essential">vCISO Temel — ₺4.990/ay</SelectItem>
+                    <SelectItem value="profesyonel">vCISO Profesyonel — ₺9.990/ay</SelectItem>
+                    <SelectItem value="lider">vCISO Lider — ₺19.990/ay</SelectItem>
                     <SelectItem value="unsure">{lang === "en" ? "Help me choose" : "Kararsizim, yardim edin"}</SelectItem>
                   </SelectContent>
                 </Select>

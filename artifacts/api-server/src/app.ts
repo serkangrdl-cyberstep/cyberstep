@@ -443,15 +443,21 @@ app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) =>
     res.status(403).json({ error: "Yetkisiz" });
     return;
   }
-  const posts = req.body as Array<{
-    title: string; slug: string; excerpt: string; content: string;
-    titleEn?: string; excerptEn?: string; contentEn?: string;
-    authorName?: string; publishedAt?: string;
-    seoTitle?: string; seoTitleEn?: string; metaDescription?: string; metaDescriptionEn?: string;
-    focusKeyword?: string; focusKeywordEn?: string; seoTags?: string[];
-  }>;
-  if (!Array.isArray(posts) || posts.length === 0) {
-    res.status(400).json({ error: "posts dizisi zorunlu" });
+  const body = req.body as {
+    posts?: Array<{
+      title: string; slug: string; excerpt: string; content: string;
+      titleEn?: string; excerptEn?: string; contentEn?: string;
+      authorName?: string; publishedAt?: string;
+      seoTitle?: string; seoTitleEn?: string; metaDescription?: string; metaDescriptionEn?: string;
+      focusKeyword?: string; focusKeywordEn?: string; seoTags?: string[];
+    }>;
+    deleteIds?: number[];
+  };
+  // Support top-level array (legacy) or structured body
+  const posts = Array.isArray(req.body) ? req.body : (body.posts ?? []);
+  const deleteIds: number[] = Array.isArray(body.deleteIds) ? body.deleteIds : [];
+  if (posts.length === 0 && deleteIds.length === 0) {
+    res.status(400).json({ error: "posts dizisi veya deleteIds zorunlu" });
     return;
   }
   try {
@@ -482,10 +488,38 @@ app.post("/api/internal/seed-blog-posts", async (req: Request, res: Response) =>
       `);
       inserted++;
     }
-    logger.info({ inserted, skipped }, "seed-blog-posts: tamamlandı");
-    res.json({ ok: true, inserted, skipped });
+    let deleted = 0;
+    if (deleteIds.length > 0) {
+      await db.execute(sql`DELETE FROM blog_posts WHERE id = ANY(${deleteIds}::int[])`);
+      deleted = deleteIds.length;
+    }
+    logger.info({ inserted, skipped, deleted }, "seed-blog-posts: tamamlandı");
+    res.json({ ok: true, inserted, skipped, deleted });
   } catch (err) {
     logger.error({ err }, "seed-blog-posts: hata");
+    res.status(500).json({ error: "Hata oluştu" });
+  }
+});
+
+// ─── Internal: blog post sil (production temizliği) ──────────────────────────
+app.post("/api/internal/delete-blog-posts", async (req: Request, res: Response) => {
+  const secret = process.env["ENCRYPTION_KEY"];
+  const provided = req.headers["x-internal-secret"] as string | undefined;
+  if (!secret || !provided || provided !== secret) {
+    res.status(403).json({ error: "Yetkisiz" });
+    return;
+  }
+  const { ids } = req.body as { ids: number[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "ids dizisi zorunlu" });
+    return;
+  }
+  try {
+    await db.execute(sql`DELETE FROM blog_posts WHERE id = ANY(${ids}::int[])`);
+    logger.info({ ids }, "delete-blog-posts: silindi");
+    res.json({ ok: true, deleted: ids });
+  } catch (err) {
+    logger.error({ err }, "delete-blog-posts: hata");
     res.status(500).json({ error: "Hata oluştu" });
   }
 });

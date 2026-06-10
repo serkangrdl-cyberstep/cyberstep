@@ -1,0 +1,23 @@
+CyberStep.io platformunuzun sunduğu siber güvenlik değerlendirme yeteneklerini, CTEM (Sürekli Tehdit Maruziyeti Yönetimi) çerçevesiyle birleştirerek onu basit bir "güvenlik açığı tarayıcı" olmaktan çıkarıp, stratejik bir "risk azaltma motoruna" dönüştürebilirsiniz.
+​İşte CyberStep içerisinde CTEM metodolojisini hayata geçirmek için izleyebileceğiniz stratejik yol haritası:
+​1. Kapsam (Scoping) ve "İş Odaklı" Değerlendirme
+​CyberStep’in sunduğu değerlendirmeleri sadece "teknik açıklar" üzerinden değil, "iş kritikliği" üzerinden sınıflandırın.
+​Varlık Hiyerarşisi: Kullanıcılarınıza, platform üzerindeki dijital varlıklarını (örneğin: "Müşteri Ödeme Sistemi", "İç Operasyonel Portal") etiketleme ve önem derecesi atama imkanı verin.
+​Tehdit Senaryoları: Genel bir tarama yerine; "Fidye yazılımı (Ransomware) senaryosu" veya "Bulut yapılandırma hatası senaryosu" gibi belirli tehdit vektörlerine odaklanan "CTEM Sprints" özelliği geliştirin.
+​2. Keşif (Discovery): Gölge BT (Shadow IT) İzleme
+​CTEM'in temeli olan "görünürlük" için CyberStep'in kapsamını genişletin:
+​Dinamik Envanter: Sadece statik IP taraması değil, API uç noktaları, unutulmuş SaaS abonelikleri ve açıkta kalan bulut depolama alanlarını (S3 buckets, vb.) otomatik keşfeden bir modül ekleyin.
+​Dış Yüzey Yönetimi (EASM): İnternete açık tüm varlıkları periyodik olarak tarayarak, müşterinin "dışarıdan nasıl göründüğünü" sürekli güncelleyen bir dashboard sunun.
+​3. Önceliklendirme (Prioritization): "Risk Skoru" Algoritması
+​CyberStep'i rakiplerinden ayıracak en önemli nokta burasıdır. Teknik CVSS skorunun ötesine geçin:
+​Erişilebilirlik (Reachability): Bir açık teknik olarak "yüksek" olsa bile, eğer internetten erişilemiyorsa veya bir güvenlik duvarı arkasındaysa, skorunu düşürün.
+​Sömürülebilirlik (Exploitability): Sadece "açık var mı?" değil, "bu açık şu an gerçek dünyada aktif olarak kullanılıyor mu?" sorusuna yanıt verin (CISA Known Exploited Vulnerabilities - KEV veritabanı entegrasyonu ile).
+​İş Etkisi: Kritik bir veritabanına giden yolda bulunan düşük seviyeli bir açığı, izole bir test sunucusundaki kritik bir açıkla aynı öncelikte değerlendirmeyin.
+​4. Doğrulama (Validation): "Proof-of-Concept" (PoC)
+​Müşterilerinizin güvenlik ekiplerini yormamak için "yalan yanlış alarmları" temizleyin:
+​Otomatik Simülasyon (BAS): Bulunan bir açığın gerçekten sömürülebilir olduğunu kanıtlayan, güvenli (non-destructive) "proof-of-concept" scriptleri çalıştırın.
+​Saldırı Yolu Analizi (Attack Path Analysis): "Bu açığı kullanırsam hangi kritik veriye ulaşabilirim?" sorusunu görselleştiren bir "Saldırı Rotası" haritası çizin.
+​5. Seferberlik (Mobilization) ve Entegrasyon
+​CyberStep'in sadece rapor veren değil, aksiyon aldıran bir platform olmasını sağlayın:
+​Ticketing Entegrasyonu: Bulunan risklerin Jira, ServiceNow veya Slack gibi araçlara otomatik olarak "ticket" olarak açılmasını sağlayın.
+​Güdümlü Düzeltme (Guided Remediation): Müşteriye sadece "açığın var" demeyin; "bu açığı şu konfigürasyon değişikliği veya şu yama ile 5 dakikada kapatabilirsin" şeklinde adım adım yönlendirin.

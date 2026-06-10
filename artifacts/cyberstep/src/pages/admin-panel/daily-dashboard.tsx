@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -577,9 +577,8 @@ function Taramalar24h() {
                   const isOpen = expanded.has(s.id);
                   const hasBulgu = s.shodanOpenPorts.length > 0 || s.cveSummary.length > 0 || s.ctSubdomains.length > 0 || s.hibpBreaches.length > 0 || s.wafBypassPossible || s.blacklisted;
                   return (
-                    <>
+                    <Fragment key={s.id}>
                       <tr
-                        key={s.id}
                         onClick={() => toggleExpand(s.id)}
                         className={`border-b border-border transition-colors cursor-pointer select-none ${isOpen ? "bg-muted/30" : "hover:bg-muted/20"}`}
                       >
@@ -629,13 +628,13 @@ function Taramalar24h() {
                         <td className="p-2.5 text-muted-foreground whitespace-nowrap">{timeAgo(s.createdAt)}</td>
                       </tr>
                       {isOpen && (
-                        <tr key={`${s.id}-detail`} className="border-b border-border">
+                        <tr className="border-b border-border">
                           <td colSpan={9} className="p-0">
                             <ScanDetailPanel s={s} />
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -710,18 +709,26 @@ function RiskDagilimi() {
       </div>
 
       {/* Drilldown tablo */}
-      {filtered.length > 0 && (
-        <div className="mt-3 rounded-xl border border-border overflow-hidden">
-          <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">
-              {activeRisk ? `${RISK_LABEL[activeRisk]} risk — ${filtered.length} değerlendirme` : `Tüm değerlendirmeler (${filtered.length})`}
-            </span>
-            {activeRisk && (
-              <button onClick={() => setActiveRisk(null)} className="text-xs text-muted-foreground hover:text-foreground">
-                Filtreyi kaldır
-              </button>
-            )}
+      <div className="mt-3 rounded-xl border border-border overflow-hidden">
+        <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center justify-between">
+          <span className="text-xs font-medium text-foreground">
+            {activeRisk
+              ? `${RISK_LABEL[activeRisk]} risk — ${filtered.length} değerlendirme`
+              : `Tüm değerlendirmeler (${filtered.length})`}
+          </span>
+          {activeRisk && (
+            <button onClick={() => setActiveRisk(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Filtreyi kaldır
+            </button>
+          )}
+        </div>
+        {filtered.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+            {activeRisk
+              ? `${RISK_LABEL[activeRisk]} riskli tamamlanmış değerlendirme bulunamadı.`
+              : "Henüz tamamlanmış değerlendirme yok."}
           </div>
+        ) : (
           <div className="overflow-x-auto max-h-72 overflow-y-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-card border-b border-border">
@@ -754,8 +761,8 @@ function RiskDagilimi() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

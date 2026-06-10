@@ -283,7 +283,7 @@ export default function BlogPost() {
   const rtLabel = readingTime(displayContent, lang);
 
   return (
-    <article className="max-w-3xl mx-auto px-4 py-16">
+    <article className="max-w-3xl mx-auto px-4 py-16 overflow-x-hidden min-w-0">
       <BlogPostMeta post={post} lang={lang} />
 
       <Link href="/blog" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-8">
@@ -329,10 +329,11 @@ export default function BlogPost() {
           prose-headings:font-bold
           prose-p:leading-relaxed
           prose-a:text-primary prose-a:underline prose-a:break-words
-          prose-img:rounded-xl prose-img:shadow-md
+          prose-img:rounded-xl prose-img:shadow-md prose-img:max-w-full prose-img:w-full
           prose-blockquote:border-primary
           prose-pre:overflow-x-auto prose-pre:max-w-full
-          prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded"
+          prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+          prose-table:w-full [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full"
         dangerouslySetInnerHTML={{ __html: clean }}
       />
 

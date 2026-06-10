@@ -11,6 +11,7 @@ import {
   Play, Tag, UserCheck, Activity, Network, ShieldAlert, ScrollText,
   ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, Newspaper,
   Zap, ShoppingCart, Code, Fingerprint, Rocket,
+  Wrench, Gauge, Gift, Share2, MonitorCheck, Layers, CalendarDays, Share, GitBranch, ClipboardCheck, Medal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -40,6 +41,9 @@ const NAV_SECTIONS = [
       { icon: Star,            label: "NPS Takibi",            href: "/panel/nps" },
       { icon: CheckSquare,     label: "Onboarding",            href: "/panel/onboarding" },
       { icon: Package,         label: "Musteri Servisleri",    href: "/panel/musteri-servisleri" },
+      { icon: Medal,           label: "Rozet Dağılımı",        href: "/panel/rozetler" },
+      { icon: Gift,            label: "Rozet Avantajları",     href: "/panel/rozet-avantajlari" },
+      { icon: Gauge,           label: "Exposure Skorları",     href: "/panel/exposure-score" },
     ],
   },
   {
@@ -54,6 +58,8 @@ const NAV_SECTIONS = [
       { icon: Receipt,         label: "Fatura Yönetimi",       href: "/panel/faturalar" },
       { icon: TrendingUp,      label: "Gelir / MRR",           href: "/panel/gelir" },
       { icon: Calculator,      label: "Muhasebe Entegrasyonu", href: "/panel/muhasebe" },
+      { icon: Share2,          label: "Referral Programı",     href: "/panel/referrallar" },
+      { icon: MonitorCheck,    label: "Demo Raporları",        href: "/panel/demo-raporlar" },
     ],
   },
   {
@@ -72,6 +78,7 @@ const NAV_SECTIONS = [
     dept: "enterprise",
     items: [
       { icon: Telescope,       label: "Enterprise: Adaylar",     href: "/panel/enterprise/prospects" },
+      { icon: GitBranch,       label: "Enterprise: Pipeline",  href: "/panel/enterprise/pipeline" },
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
       { icon: ListTodo,        label: "Lead Kuyruğu",          href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
@@ -97,6 +104,7 @@ const NAV_SECTIONS = [
       { icon: Package,         label: "İş Paketleri",          href: "/panel/is-paketleri" },
       { icon: Award,           label: "Teknoloji Ortakları",   href: "/panel/partnerlar" },
       { icon: Briefcase,       label: "Danışmanlık",           href: "/panel/danismanlik" },
+      { icon: Layers,          label: "White Label",           href: "/panel/whitelabel" },
       { icon: UserCheck,       label: "Kariyer Başvuruları",   href: "/panel/kariyer" },
     ],
   },
@@ -109,6 +117,8 @@ const NAV_SECTIONS = [
       { icon: Mail,            label: "E-posta Şablonları",    href: "/panel/email-sablonlari" },
       { icon: Users,           label: "Soru Yönetimi",         href: "/panel/sorular" },
       { icon: FileText,        label: "YK Raporları",          href: "/panel/yonetim-raporlari" },
+      { icon: CalendarDays,    label: "Özel Günler",           href: "/panel/ozel-gunler" },
+      { icon: Share,           label: "Sosyal Medya",          href: "/panel/sosyal-medya" },
     ],
   },
   {
@@ -128,6 +138,8 @@ const NAV_SECTIONS = [
       { icon: Network,         label: "ServiceNow",            href: "/panel/servicenow" },
       { icon: Shield,          label: "IOC Guven Kontrolleri", href: "/panel/ioc-kontroller" },
       { icon: Code,            label: "Kod Güvenliği",         href: "/panel/kod-guvenligi" },
+      { icon: ClipboardCheck,  label: "Onay Kuyruğu (HITL)",  href: "/panel/approvals" },
+      { icon: Wrench,          label: "Remediation Takip",     href: "/panel/remediation" },
     ],
   },
   {

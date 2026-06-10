@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Shield, Download, FileText, Lock, CheckCircle, Mail, Building2, User, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Shield, Download, FileText, Lock, CheckCircle, Mail, Building2, User, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,74 +9,86 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
 
-const REPORT_TYPES = [
-  {
-    type: "easm",
+const REPORT_META: Record<string, {
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  tags: string[];
+  defaultScore: number;
+  riskColor: string;
+  riskLabel: string;
+}> = {
+  easm: {
     title: "Dış Saldırı Yüzeyi Analizi",
     subtitle: "EASM Raporu",
     description: "Maruz kalan alt alan adları, açık portlar, SSL sertifika durumu ve risk puanlaması içeren kapsamlı EASM tarama örneği.",
     icon: "🌐",
     tags: ["DNS", "Port Tarama", "SSL", "Alt Alan Adları"],
-    score: 62,
+    defaultScore: 62,
     riskColor: "bg-yellow-500",
     riskLabel: "Orta Risk",
   },
-  {
-    type: "email_security",
+  email_security: {
     title: "E-posta Güvenlik Değerlendirmesi",
     subtitle: "SPF / DMARC / DKIM",
     description: "SPF, DMARC, DKIM kayıtlarının analizi ile phishing ve e-posta sahtekarlığına karşı açıklık tespiti.",
     icon: "📧",
     tags: ["SPF", "DMARC", "DKIM", "Phishing"],
-    score: 45,
+    defaultScore: 45,
     riskColor: "bg-red-500",
     riskLabel: "Yüksek Risk",
   },
-  {
-    type: "board_report",
+  board_report: {
     title: "Yönetim Kurulu Raporu",
     subtitle: "Üst Yönetime Özet",
     description: "Teknik detaylar olmadan yönetim kuruluna sunulmak üzere hazırlanmış siber güvenlik durum özeti.",
     icon: "📊",
     tags: ["Yönetim Kurulu", "Risk", "Özet", "KPI"],
-    score: 71,
+    defaultScore: 71,
     riskColor: "bg-green-500",
     riskLabel: "Düşük Risk",
   },
-  {
-    type: "cve_alert",
+  cve_alert: {
     title: "CVE Güvenlik Açığı Alarmı",
     subtitle: "Kritik CVE Uyarıları",
     description: "Teknoloji yığınına özgü aktif istismar edilen CVE'lerin tespiti ve Türkiye etkisi değerlendirmesi.",
     icon: "⚠️",
     tags: ["CVE", "CVSS", "CISA KEV", "Patch"],
-    score: 38,
+    defaultScore: 38,
     riskColor: "bg-red-600",
     riskLabel: "Kritik Risk",
   },
-  {
-    type: "tprm",
+  tprm: {
     title: "Tedarikçi Risk Yönetimi",
     subtitle: "3. Taraf Risk (TPRM)",
     description: "Kritik tedarikçilerin güvenlik duruşu, domain sağlığı ve compliance riski değerlendirmesi.",
     icon: "🔗",
     tags: ["Tedarikçi", "TPRM", "Compliance", "Risk"],
-    score: 58,
+    defaultScore: 58,
     riskColor: "bg-yellow-500",
     riskLabel: "Orta Risk",
   },
-  {
-    type: "threat_intel",
+  threat_intel: {
     title: "Tehdit İstihbaratı Özeti",
     subtitle: "Sektörel Tehdit Analizi",
     description: "Sektöre özel tehdit aktörleri, aktif kampanyalar ve MITRE ATT&CK haritalama özeti.",
     icon: "🎯",
     tags: ["Tehdit Aktörü", "MITRE", "IOC", "Sektör"],
-    score: 55,
+    defaultScore: 55,
     riskColor: "bg-orange-500",
     riskLabel: "Orta-Yüksek",
   },
-];
+};
+
+interface ActiveReport {
+  reportType: string;
+  displayScore: number | null;
+  demoSector: string | null;
+  downloadCount: number;
+  generatedAt: string;
+  label: string;
+}
 
 interface LeadForm {
   name: string;
@@ -96,10 +109,26 @@ export default function DemoPage() {
   const [state, setState] = useState<DownloadState>({ loading: false, done: false });
   const { toast } = useToast();
 
+  const { data: activeReports = [], isLoading } = useQuery<ActiveReport[]>({
+    queryKey: ["public-demo-reports"],
+    queryFn: () => fetch("/api/public/demo/reports").then(r => r.json()).then(d => d.reports ?? []),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeTypes = new Set(activeReports.map(r => r.reportType));
+  const activeScoreMap = new Map(activeReports.map(r => [r.reportType, r.displayScore]));
+
+  const visibleReports = Object.entries(REPORT_META)
+    .filter(([type]) => activeTypes.size === 0 || activeTypes.has(type))
+    .map(([type, meta]) => {
+      const dbScore = activeScoreMap.get(type);
+      return { type, ...meta, score: dbScore ?? meta.defaultScore };
+    });
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const rapor = params.get("rapor");
-    if (rapor && REPORT_TYPES.some((r) => r.type === rapor)) {
+    if (rapor && REPORT_META[rapor]) {
       setSelected(rapor);
       setState({ loading: false, done: false });
       setForm({ name: "", email: "", company: "" });
@@ -139,7 +168,7 @@ export default function DemoPage() {
     }
   }
 
-  const selectedReport = REPORT_TYPES.find((r) => r.type === selected);
+  const selectedMeta = selected ? REPORT_META[selected] : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -162,35 +191,47 @@ export default function DemoPage() {
 
       {/* Cards */}
       <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {REPORT_TYPES.map((r) => (
-            <div key={r.type} className="border rounded-xl p-5 bg-card hover:shadow-md transition-shadow flex flex-col gap-3">
-              <div className="flex items-start justify-between">
-                <span className="text-3xl">{r.icon}</span>
-                <span className={`text-xs text-white px-2 py-0.5 rounded-full font-medium ${r.riskColor}`}>
-                  {r.riskLabel}
-                </span>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Raporlar yükleniyor...</span>
+          </div>
+        ) : visibleReports.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
+            <p>Şu an yayında demo rapor bulunmuyor. Yakında eklenecek.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {visibleReports.map((r) => (
+              <div key={r.type} className="border rounded-xl p-5 bg-card hover:shadow-md transition-shadow flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <span className="text-3xl">{r.icon}</span>
+                  <span className={`text-xs text-white px-2 py-0.5 rounded-full font-medium ${r.riskColor}`}>
+                    {r.riskLabel}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{r.subtitle}</p>
+                  <h3 className="font-semibold text-base mt-0.5">{r.title}</h3>
+                </div>
+                <p className="text-sm text-muted-foreground flex-1">{r.description}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {r.tags.map((t) => (
+                    <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-muted-foreground">Risk Skoru: <strong>{r.score}/100</strong></span>
+                  <Button size="sm" onClick={() => openModal(r.type)}>
+                    <Download className="w-3.5 h-3.5 mr-1.5" />
+                    PDF İndir
+                  </Button>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{r.subtitle}</p>
-                <h3 className="font-semibold text-base mt-0.5">{r.title}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground flex-1">{r.description}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {r.tags.map((t) => (
-                  <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
-                ))}
-              </div>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-muted-foreground">Risk Skoru: <strong>{r.score}/100</strong></span>
-                <Button size="sm" onClick={() => openModal(r.type)}>
-                  <Download className="w-3.5 h-3.5 mr-1.5" />
-                  PDF İndir
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Trust badges */}
         <div className="mt-12 border rounded-xl p-6 bg-muted/20 text-center">
@@ -209,8 +250,8 @@ export default function DemoPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{selectedReport?.icon}</span>
-              {selectedReport?.title}
+              <span className="text-2xl">{selectedMeta?.icon}</span>
+              {selectedMeta?.title}
             </DialogTitle>
             <DialogDescription>
               PDF'yi indirmek için bilgilerinizi girin. Spam göndermeyiz.

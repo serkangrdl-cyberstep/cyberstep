@@ -256,6 +256,23 @@ router.post("/generate", async (req, res) => {
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
+// GET /api/digest/public-approved — onaylanmış digest özeti (public arşiv için)
+router.get("/public-approved", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: weeklyDigestsTable.id,
+      weekYear: weeklyDigestsTable.weekYear,
+      weekNumber: weeklyDigestsTable.weekNumber,
+      contentSummary: weeklyDigestsTable.contentSummary,
+      approvedAt: weeklyDigestsTable.approvedAt,
+    })
+    .from(weeklyDigestsTable)
+    .where(eq(weeklyDigestsTable.status, "approved"))
+    .orderBy(desc(weeklyDigestsTable.weekYear), desc(weeklyDigestsTable.weekNumber))
+    .limit(52);
+  res.json(rows);
+});
+
 router.get("/stats", async (req, res) => {
   const [sourcesCount] = await db
     .select({ total: sql<number>`count(*)::int` })

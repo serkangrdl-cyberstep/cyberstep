@@ -77,6 +77,7 @@ import CVEDetailPage from "./pages/cve-detail";
 import AdminBulletin from "./pages/admin-panel/bulletin";
 import BulletinArchivePage from "./pages/bulten-arsiv";
 import BulletinDetailPage from "./pages/bulten-detail";
+import HaftalikDigestPage from "./pages/haftalik-digest";
 import AdminPricing from "./pages/admin-panel/pricing";
 import AdminAssessments from "./pages/admin-panel/assessments";
 import AdminPayments from "./pages/admin-panel/payments";
@@ -343,6 +344,7 @@ function Router() {
       <Route path="/panel/bulletin" component={AdminBulletin} />
       <Route path="/bulten/arsiv" component={BulletinArchivePage} />
       <Route path="/bulten/:slug" component={BulletinDetailPage} />
+      <Route path="/haftalik-digest" component={HaftalikDigestPage} />
       <Route path="/panel/fiyatlar" component={AdminPricing} />
       <Route path="/panel/degerlendirmeler/:id/rapor" component={AdminAssessmentReport} />
       <Route path="/panel/degerlendirmeler" component={AdminAssessments} />

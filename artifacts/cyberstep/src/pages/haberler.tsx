@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ExternalLink, Calendar, Globe, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 interface NewsItem {
@@ -170,6 +171,14 @@ export default function Haberler() {
           <p className="text-muted-foreground">
             Güncel tehditler, zafiyet duyuruları ve sektörel gelişmeler
           </p>
+          <div className="mt-3 flex gap-4 text-sm">
+            <Link href="/haftalik-digest" className="text-primary hover:underline">
+              Haftalik digest ozeti →
+            </Link>
+            <Link href="/bulten/arsiv" className="text-muted-foreground hover:text-foreground hover:underline">
+              CISO Bulten arsivi →
+            </Link>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-8">

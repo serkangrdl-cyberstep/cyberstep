@@ -18,6 +18,16 @@ const CONFIGURABLE_API_KEYS = new Set([
   // Censys
   "CENSYS_API_ID",
   "CENSYS_API_SECRET",
+  // VulnCheck (CTI istihbarat)
+  "VULNCHECK_API_KEY",
+  // Ödeme (Iyzico)
+  "IYZICO_API_KEY",
+  "IYZICO_SECRET_KEY",
+  // AI Sahte Doküman (Hive Moderation)
+  "HIVE_API_KEY",
+  // Microsoft 365 / Azure AD
+  "MICROSOFT_CLIENT_ID",
+  "MICROSOFT_CLIENT_SECRET",
   // E-Fatura (Paraşüt)
   "PARASUT_API_KEY",
   "PARASUT_CLIENT_ID",
@@ -192,6 +202,8 @@ router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: 
     // ─── İletişim ────────────────────────────────────────────────────────
     { id: "smtp",          name: "SMTP E-posta",          category: "İletişim",                always: false, active: !!env["SMTP_PASS"],                cost: "varies",   costLabel: "Değişken",   envKey: null,                          desc: "Bülten, rapor ve bildirim e-postalarının gönderimi (ISR, otomatik raporlar, uyarılar)", why: "Müşterilere 30 günlük yeniden tarama raporu ve güvenlik uyarıları göndermek için gerekli", how: "Nodemailer ile yapılandırılmış SMTP sunucusu üzerinden gönderim yapılır", setup: "Replit Secrets'a SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS ekleyin.", docs: "" },
     { id: "isr-imap",      name: "ISR IMAP (AI Satış)",   category: "İletişim",                always: false, active: !!env["ISR_IMAP_PASS"],            cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "AI Satış Asistanı'nın gelen kutusunu okuyarak müşteri e-postalarına otomatik yanıt vermesi", why: "7/24 çalışan AI satış temsilcisi — potansiyel müşteri e-postalarını kaçırmadan yanıtlar", how: "5 dakikada bir IMAP'ten e-posta okunur, Gemini AI ile yanıt oluşturulur", setup: "Replit Secrets'a ISR_IMAP_HOST, ISR_IMAP_USER, ISR_IMAP_PASS ekleyin.", docs: "" },
+    // ─── ITSM & Kimlik ──────────────────────────────────────────────────────
+    { id: "ms365",         name: "Microsoft 365 / Azure AD", category: "ITSM & Operasyon",        always: false, active: !!(env["MICROSOFT_CLIENT_ID"] && env["MICROSOFT_CLIENT_SECRET"]), cost: "varies", costLabel: "M365 Lisansı", envKey: "MICROSOFT_CLIENT_ID", desc: "Azure AD OAuth2 çok kiracılı entegrasyon — Graph API ile kullanıcı etkinlikleri, riskli girişler ve güvenlik uyarıları SOC korelasyon motoruna beslenir", why: "Kurumsal kimlik ve erişim güvenliği KOBİ siber olaylarının %80+'inin başlangıç noktası. M365 tenant'ından gelen riskli giriş uyarıları SOC vakasına otomatik dönüşür.", how: "Müşteri /hesabim/entegrasyonlarim → Microsoft 365 bölümünden OAuth2 akışını başlatır. Her 15 dakikada Graph API'den SignIn + Alert verileri çekilir, SOC korelasyon motoru ile işlenir.", setup: "1. Azure Portal → App Registrations → Yeni uygulama  2. API Permissions: AuditLog.Read.All, SecurityEvents.Read.All, User.Read.All ekle  3. Client ID ve Client Secret'ı Replit Secrets'a MICROSOFT_CLIENT_ID ve MICROSOFT_CLIENT_SECRET olarak kaydet.", docs: "https://learn.microsoft.com/en-us/graph/auth/auth-concepts" },
   ];
   res.json(services);
 });

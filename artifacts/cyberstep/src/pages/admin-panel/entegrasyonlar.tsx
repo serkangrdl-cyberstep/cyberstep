@@ -546,6 +546,16 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "1. ServiceNow instance URL'ini edinin (örn. dev12345.service-now.com)  2. Yönetici hesabıyla API erişimi olan kullanıcı oluşturun  3. /hesabim/entegrasyonlarim → ServiceNow bölümünden bağlayın.",
     docs: "https://developer.servicenow.com/dev.do#!/reference/api/sandiego/rest/c_TableAPI",
   },
+  {
+    id: "ms365", name: "Microsoft 365 / Azure AD", category: "ITSM & Operasyon", type: "platform", icon: "🪟",
+    cost: "varies", costLabel: "M365 Lisansı", costNote: "Azure AD App Registration ücretsiz | M365 Business/Enterprise aboneliği gerekli",
+    envKey: "MICROSOFT_CLIENT_ID", always: false,
+    desc: "Azure AD OAuth2 çok kiracılı entegrasyon — Graph API ile kullanıcı etkinlikleri, riskli girişler ve güvenlik uyarıları SOC korelasyon motoruna beslenir",
+    why: "KOBİ siber olaylarının büyük çoğunluğu kimlik saldırısıyla başlar. M365 tenant'ından gelen riskli giriş, imkansız seyahat ve şifre spreyi uyarıları SOC vakasına otomatik dönüşür.",
+    how: "Müşteri /hesabim/entegrasyonlarim → Microsoft 365 bölümünden OAuth2 akışını başlatır. Her 15 dakikada bir Graph API'den SignIn logs ve Security Alerts çekilir; SOC korelasyon motoru olayları sınıflandırır ve gerekirse vaka açar.",
+    setup: "1. Azure Portal → App Registrations → Yeni kayıt (multi-tenant)  2. API Permissions: AuditLog.Read.All, SecurityEvents.Read.All, User.Read.All ekle → Admin consent ver  3. Certificates & Secrets → Yeni client secret oluştur  4. Replit Secrets'a MICROSOFT_CLIENT_ID ve MICROSOFT_CLIENT_SECRET ekle.",
+    docs: "https://learn.microsoft.com/en-us/graph/auth/auth-concepts",
+  },
 ];
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {

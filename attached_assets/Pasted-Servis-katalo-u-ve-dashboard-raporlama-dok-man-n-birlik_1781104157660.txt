@@ -1,0 +1,211 @@
+Servis kataloğu ve dashboard/raporlama dokümanını birlikte değerlendirdiğimde en önemli gözlem şu:
+CyberStep şu an bir ürün değil, bir MSSP + vCISO + Exposure Management platformuna dönüşme yolunda.
+Bu iyi bir şey ama aynı zamanda en büyük risk de burada.
+Güçlü Taraflar
+Servis kataloğunda tanımladığınız:
+Domain Security Scan
+Assessment
+Pentest Lite
+BAS Lite
+AI Security Assessment
+Technology Discovery
+TPRM
+DNS Monitoring
+SOC
+NOC
+Board Report
+ile dashboard yapısı oldukça uyumlu.
+Özellikle aşağıdakiler çok güçlü:
+1. Security Overview Dashboard
+/hesabim/guvenlik-durumu
+Bu ekran aslında ürünün ana değeri.
+Çünkü müşteri:
+"Benim riskim ne durumda?"
+sorusuna cevap arıyor.
+Araç kullanmak istemiyor.
+Bu nedenle:
+Security Grade
+Ransomware Exposure
+Domain Takeover Resilience
+Sector Benchmark
+çok doğru seçimler.
+Bu ekranı ürünün "ana ekranı" yapardım.
+2. Board Report
+Türkiye'de KOBİ ve orta ölçek firmalarda CIO/CISO eksikliği var.
+Yönetim kurulu raporu:
+aylık
+otomatik
+sade dilde
+üretilirse çok ciddi değer yaratır.
+Bu aslında vCISO'nun çıktısıdır.
+3. Remediation Tracking
+Çoğu ASM ürünü burada başarısız.
+Müşteri:
+Bulgu buldun, sonra ne olacak?
+diye soruyor.
+Sizde:
+ticket
+SLA
+remediation
+risk acceptance
+var.
+Bu çok doğru.
+En Büyük Problem
+Dokümanda çok fazla dashboard var.
+Ben saydım:
+Müşteri tarafı
+13+
+Admin tarafı
+25+
+Toplam:
+40'a yakın ekran.
+Bir KOBİ müşterisi:
+SOC ekranına girmez
+NOC ekranına girmez
+IOC log ekranına girmez
+CVE ekranına girmez
+Müşteri şunları ister:
+İlk Seviye
+Güvenlik Notum
+Acil Risklerim
+Yapılması Gerekenler
+Son Raporlar
+İkinci Seviye
+Technology Discovery
+AI Risk
+Tedarikçi Riski
+Diğerleri menü altında saklanmalı.
+Yoksa ürün SIEM gibi görünmeye başlar.
+Servis Kataloğunda Eksik Olan Şey
+Dashboard'larda görüyorum.
+Servis kataloğunda tam görünmüyor.
+Exposure Management Programı
+Şu anda ürün:
+scan
+report
+assessment
+odaklı.
+Ama müşteri aylık abonelik neden ödesin?
+Abonelik sebebi:
+CyberStep beni sürekli takip ediyor.
+olmalı.
+Bu yüzden ayrı bir servis olarak:
+Continuous Exposure Management
+tanımlanmalı.
+İçeriği:
+Domain Monitoring
+DNS Monitoring
+CT Monitoring
+Credential Exposure
+CVE Monitoring
+Shadow IT
+Attack Surface Tracking
+tek paket.
+Bu aslında CTEM'in ilk aşaması.
+Gartner tarafından tarif edilen CTEM yaklaşımına da daha yakın hale getirir.
+Technology Discovery Çok Değerli
+Bence ürünün en stratejik modülü bu.
+Çünkü burada:
+hangi firewall var
+hangi mail sistemi var
+hangi cloud var
+hangi SaaS kullanılıyor
+görülmeye başlanıyor.
+Sonrasında:
+Otomatik Gap Analysis
+üretilebilir.
+Örnek:
+Sistem tespit etti:
+Microsoft 365
+FortiGate
+VMware
+ama
+MFA yok
+DMARC yok
+EDR yok
+Sonra otomatik:
+Güvenlik Olgunluğu Skoru
+üretilir.
+Bu doğrudan vCISO çıktısıdır.
+CISO Assistant Yeniden Konumlandırılmalı
+Şu an:
+AI Chat
+olarak gözüküyor.
+Bu hata.
+Müşteri zaten ChatGPT kullanıyor.
+Bunun yerine:
+CyberStep Advisor
+olmalı.
+Bağlam:
+Assessment
+Findings
+Technology Discovery
+Remediation Tickets
+Board Reports
+ile beslenmeli.
+Sorular:
+Önümüzdeki ay ne yapmalıyım?
+En büyük riskim nedir?
+Hangi projeye bütçe ayırmalıyım?
+Bu gerçek vCISO yardımcısı olur.
+Eksik Dashboard
+Servis kataloğunda mutlaka olması gerektiğini düşündüğüm ekran:
+Security Roadmap
+Yeni ekran:
+/hesabim/security-roadmap
+Gösterilen:
+30 Gün
+SPF düzelt
+MFA aç
+90 Gün
+EDR kur
+Backup test et
+180 Gün
+Awareness eğitimi
+Incident Response Plan
+Müşteri aslında rapor değil yol haritası satın alır.
+Gelir Modeli Açısından
+Bence ürünün geleceği şu paketlerde:
+CyberStep Essential
+Assessment
+Scan
+Security Score
+Board Report
+CyberStep Exposure
+Essential
+DNS Monitoring
+CT Monitoring
+Credential Monitoring
+Technology Discovery
+CyberStep vCISO
+Exposure
+Security Roadmap
+Monthly Board Report
+Quarterly Review
+Partner vCISO
+CyberStep SOC+
+vCISO
+SOC
+NOC
+Incident Response
+Genel Değerlendirme
+Puanlayacak olsam:
+Alan
+Puan
+Ürün Vizyonu
+9/10
+Dashboard Tasarımı
+8/10
+Servis-Dashboard Uyumu
+9/10
+KOBİ Sadeliği
+6/10
+vCISO Potansiyeli
+10/10
+Ölçeklenebilirlik
+8/10
+Gelir Potansiyeli
+9/10
+Benim en kritik önerim:
+CyberStep'i "güvenlik tarama platformu" olarak değil, "Platform destekli vCISO ve CTEM hizmeti" olarak konumlandırmanız.
+Çünkü dashboard ve raporlama mimarisi buna çok daha yakın görünüyor. Tarama araçları kolay kopyalanır; ancak sürekli takip, önceliklendirme, yol haritası ve yönetim raporlaması birleşimi çok daha zor kopyalanan bir değer önerisi oluşturur.

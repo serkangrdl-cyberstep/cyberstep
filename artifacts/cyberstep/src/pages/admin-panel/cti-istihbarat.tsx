@@ -22,6 +22,7 @@ interface VulnCheckStats {
   blindSpot: number;
   blindSpotPct: number;
   lastFetchedAt: string | null;
+  apiKeyConfigured: boolean;
 }
 
 interface FeedSource {
@@ -192,7 +193,7 @@ export default function AdminCtiIstihbarat() {
             </Button>
           </div>
 
-          {!process.env["VULNCHECK_API_KEY"] && (
+          {stats && !stats.apiKeyConfigured && (
             <Card className="border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="pt-4 pb-4">
                 <div className="flex gap-2 text-sm text-yellow-700 dark:text-yellow-400">

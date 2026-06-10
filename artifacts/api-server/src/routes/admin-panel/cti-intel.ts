@@ -45,6 +45,7 @@ router.get("/admin-panel/cti-intel/vulncheck/stats", requireAdmin, async (req: R
       blindSpot: blindSpotVal > 0 ? blindSpotVal : 0,
       blindSpotPct: totalVal > 0 ? Math.round((blindSpotVal / Number(totalVal)) * 100) : 0,
       lastFetchedAt: lastFetch?.lastFetchedAt ?? null,
+      apiKeyConfigured: !!process.env["VULNCHECK_API_KEY"],
     });
   } catch (err) {
     req.log.error({ err }, "VulnCheck stats error");

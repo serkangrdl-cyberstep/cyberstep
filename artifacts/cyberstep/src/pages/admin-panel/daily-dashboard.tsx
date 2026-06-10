@@ -28,24 +28,73 @@ interface CronHealthResult {
   alerts: CronAlert[];
 }
 
+interface ShodanPort {
+  port: number;
+  protocol: string;
+  service: string;
+  product: string;
+  version: string;
+}
+
+interface CveSummaryItem {
+  service: string;
+  cveId: string;
+  description: string;
+  cvssScore: number;
+  wafMitigated?: boolean;
+}
+
+interface HibpBreach {
+  name: string;
+  breachDate: string;
+  pwnCount: number;
+  dataClasses: string[];
+}
+
 interface ScanRow {
   id: number;
   domain: string;
   email: string | null;
   overallScore: number;
+  confidenceScore: number | null;
+  confidenceNote: string | null;
+  // Shodan
   shodanVulnCount: number;
-  shodanPortCount: number;
-  ctSubdomainCount: number;
+  shodanOpenPorts: ShodanPort[];
+  shodanCountry: string | null;
+  shodanIsp: string | null;
+  // CVE
+  criticalCveCount: number;
+  highCveCount: number;
+  cveSummary: CveSummaryItem[];
+  // WAF
   wafDetected: boolean;
   wafProvider: string | null;
   wafBypassPossible: boolean;
+  originIp: string | null;
+  wafConfidence: number | null;
+  // Subdomains
+  ctSubdomainCount: number;
+  ctSubdomains: string[];
+  // HIBP
+  hibpBreachCount: number;
+  hibpBreaches: HibpBreach[];
+  // Blacklist / rep
   blacklisted: boolean;
-  criticalCveCount: number;
-  highCveCount: number;
+  blacklistCount: number;
+  virusTotalMalicious: number;
+  abuseIpdbScore: number | null;
+  urlhausListed: boolean;
+  // Meta
+  hostingProvider: string | null;
+  sector: string | null;
   createdAt: string;
 }
 
 interface Scans24h {
+  dbTotal: number;
+  yesterdayTotal: number;
+  yesterdayShodan: number;
   total: number;
   withShodan: number;
   withSubdomains: number;
@@ -313,6 +362,138 @@ function OtomasyonSagligi() {
 
 // ─── 2. Son 24 Saat Taramalar ─────────────────────────────────────────────────
 
+function ScanDetailPanel({ s }: { s: ScanRow }) {
+  const hasPorts  = s.shodanOpenPorts.length > 0;
+  const hasCves   = s.cveSummary.length > 0;
+  const hasSubs   = s.ctSubdomains.length > 0;
+  const hasBreaches = s.hibpBreaches.length > 0;
+  const nothing   = !hasPorts && !hasCves && !hasSubs && !hasBreaches && !s.wafBypassPossible && !s.blacklisted;
+
+  if (nothing) {
+    return (
+      <div className="px-4 py-3 text-xs text-muted-foreground bg-muted/20">
+        Bu domain için ek bulgu kaydedilmedi.
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-muted/10 border-t border-border px-4 py-3 space-y-3 text-xs">
+
+      {/* Üst meta satırı */}
+      <div className="flex flex-wrap gap-4 text-muted-foreground">
+        {s.email && <span>İletişim: <span className="text-foreground font-medium">{s.email}</span></span>}
+        {s.sector && <span>Sektör: <span className="text-foreground">{s.sector}</span></span>}
+        {s.hostingProvider && <span>Hosting: <span className="text-foreground">{s.hostingProvider}</span></span>}
+        {s.shodanCountry && <span>Lokasyon: <span className="text-foreground">{s.shodanCountry} {s.shodanIsp ? `— ${s.shodanIsp}` : ""}</span></span>}
+        {s.confidenceScore != null && (
+          <span>Güven skoru: <span className={`font-bold ${s.confidenceScore >= 70 ? "text-emerald-400" : s.confidenceScore >= 40 ? "text-yellow-400" : "text-red-400"}`}>{s.confidenceScore}</span>
+            {s.confidenceNote && <span className="text-muted-foreground"> ({s.confidenceNote})</span>}
+          </span>
+        )}
+      </div>
+
+      {/* WAF Bypass */}
+      {s.wafBypassPossible && (
+        <div className="rounded-lg border border-red-800 bg-red-950/30 p-2.5">
+          <div className="font-bold text-red-400 mb-1">WAF Bypass Riski</div>
+          <div className="text-muted-foreground">
+            Koruyucu: <span className="text-foreground">{s.wafProvider ?? "Bilinmiyor"}</span>
+            {s.wafConfidence != null && <span className="ml-2">Güven: {s.wafConfidence}%</span>}
+            {s.originIp && <span className="ml-3">Gerçek IP: <span className="font-mono text-orange-400">{s.originIp}</span></span>}
+          </div>
+        </div>
+      )}
+
+      {/* Kara liste */}
+      {s.blacklisted && (
+        <div className="rounded-lg border border-red-800 bg-red-950/30 p-2.5">
+          <div className="font-bold text-red-400 mb-1">Kara Listede ({s.blacklistCount} liste)</div>
+          <div className="flex flex-wrap gap-2 text-muted-foreground">
+            {s.urlhausListed && <span className="text-red-400">URLhaus</span>}
+            {s.virusTotalMalicious > 0 && <span className="text-red-400">VirusTotal: {s.virusTotalMalicious} zararlı</span>}
+            {s.abuseIpdbScore != null && s.abuseIpdbScore > 0 && <span className="text-orange-400">AbuseIPDB: {s.abuseIpdbScore}%</span>}
+          </div>
+        </div>
+      )}
+
+      {/* CVE'ler */}
+      {hasCves && (
+        <div>
+          <div className="font-semibold text-foreground mb-1.5">
+            CVE Bulguları
+            {s.criticalCveCount > 0 && <span className="ml-2 text-red-400">({s.criticalCveCount} kritik</span>}
+            {s.highCveCount > 0 && <span className={s.criticalCveCount > 0 ? "" : "ml-2"}>{s.criticalCveCount > 0 ? ", " : "("}{s.highCveCount} yüksek</span>}
+            {(s.criticalCveCount > 0 || s.highCveCount > 0) && <span>)</span>}
+          </div>
+          <div className="space-y-1">
+            {s.cveSummary.slice(0, 8).map((cve, i) => (
+              <div key={i} className="flex items-start gap-2 rounded bg-muted/30 px-2 py-1.5">
+                <span className={`shrink-0 font-mono font-bold ${cve.cvssScore >= 9 ? "text-red-400" : cve.cvssScore >= 7 ? "text-orange-400" : "text-yellow-400"}`}>
+                  {cve.cvssScore.toFixed(1)}
+                </span>
+                <span className="font-mono text-primary shrink-0">{cve.cveId}</span>
+                <span className="text-muted-foreground">{cve.service && <span className="text-foreground">[{cve.service}] </span>}{cve.description}</span>
+                {cve.wafMitigated && <span className="ml-auto shrink-0 text-emerald-400 text-[10px]">WAF azaltıyor</span>}
+              </div>
+            ))}
+            {s.cveSummary.length > 8 && (
+              <div className="text-muted-foreground text-[10px] pl-2">+{s.cveSummary.length - 8} CVE daha...</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Açık portlar */}
+      {hasPorts && (
+        <div>
+          <div className="font-semibold text-foreground mb-1.5">Açık Portlar ({s.shodanOpenPorts.length})</div>
+          <div className="flex flex-wrap gap-1.5">
+            {s.shodanOpenPorts.map((p, i) => (
+              <span key={i} className="inline-flex items-center gap-1 rounded border border-orange-800 bg-orange-950/30 px-2 py-0.5 font-mono">
+                <span className="text-orange-400 font-bold">{p.port}</span>
+                <span className="text-muted-foreground">{p.protocol}</span>
+                {p.product && <span className="text-foreground">{p.product}{p.version ? ` ${p.version}` : ""}</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Subdomain'ler */}
+      {hasSubs && (
+        <div>
+          <div className="font-semibold text-foreground mb-1.5">
+            Subdomain'ler ({s.ctSubdomainCount} toplam{s.ctSubdomainCount > s.ctSubdomains.length ? `, ${s.ctSubdomains.length} gösteriliyor` : ""})
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {s.ctSubdomains.map((sub, i) => (
+              <span key={i} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">{sub}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* HIBP ihlaller */}
+      {hasBreaches && (
+        <div>
+          <div className="font-semibold text-foreground mb-1.5">Veri İhlali ({s.hibpBreachCount} kayıt)</div>
+          <div className="space-y-1">
+            {s.hibpBreaches.slice(0, 5).map((b, i) => (
+              <div key={i} className="flex items-center gap-3 rounded bg-muted/30 px-2 py-1">
+                <span className="font-medium text-foreground">{b.name}</span>
+                <span className="text-muted-foreground">{b.breachDate}</span>
+                <span className="text-orange-400">{b.pwnCount.toLocaleString("tr-TR")} hesap</span>
+                <span className="text-muted-foreground text-[10px]">{b.dataClasses.slice(0, 3).join(", ")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Taramalar24h() {
   const { data, isLoading } = useQuery<Scans24h>({
     queryKey: ["admin-scans-24h"],
@@ -320,94 +501,143 @@ function Taramalar24h() {
     refetchInterval: 120_000,
   });
 
-  const [filter, setFilter] = useState<"all" | "shodan" | "bypass" | "blacklisted" | "lowscore">("all");
+  const [filter, setFilter]     = useState<"all" | "shodan" | "bypass" | "blacklisted" | "lowscore">("all");
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (id: number) =>
+    setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   if (isLoading) return <div className="text-xs text-muted-foreground py-4">Yükleniyor...</div>;
   if (!data) return null;
 
   const filtered = data.scans.filter(s => {
-    if (filter === "shodan")     return s.shodanVulnCount > 0 || s.shodanPortCount > 0;
-    if (filter === "bypass")     return s.wafBypassPossible;
+    if (filter === "shodan")      return s.shodanVulnCount > 0 || s.shodanOpenPorts.length > 0;
+    if (filter === "bypass")      return s.wafBypassPossible;
     if (filter === "blacklisted") return s.blacklisted;
-    if (filter === "lowscore")   return s.overallScore < 45;
+    if (filter === "lowscore")    return s.overallScore < 45;
     return true;
   });
 
   return (
     <section>
-      <SectionHeader label="Son 24 Saat — Tarama Aktivitesi" href="/panel/domain-taramalar" />
+      <SectionHeader label="Domain Tarama Aktivitesi" href="/panel/domain-taramalar" />
+
+      {/* Üst 4 ana stat — DB toplam prominent */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Tile icon={Globe}   label="Toplam Taranan"  value={data.total}          sub="domain" highlight={data.total > 0} />
-        <Tile icon={Search}  label="Shodan Verisi"   value={data.withShodan}     sub="açık port / zafiyet" warn={data.withShodan > 0} />
-        <Tile icon={Shield}  label="WAF Bypass Riski" value={data.withBypassRisk} sub="WAF arkası erişim" warn={data.withBypassRisk > 0} />
-        <Tile icon={AlertTriangle} label="Kara Liste / Kritik CVE" value={data.blacklisted + data.criticalCve} warn={(data.blacklisted + data.criticalCve) > 0} />
+        <Tile icon={Globe}         label="DB'de Toplam"       value={data.dbTotal}           sub="domain scan kaydı" highlight />
+        <Tile icon={Clock}         label="Son 24 Saat"         value={data.total}             sub="yeni tarama" highlight={data.total > 0} />
+        <Tile icon={Activity}      label="Dün Taranan"         value={data.yesterdayTotal}    sub={`Shodan verili: ${data.yesterdayShodan}`} />
+        <Tile icon={AlertTriangle} label="Kara Liste / CVE"    value={data.blacklisted + data.criticalCve} warn={(data.blacklisted + data.criticalCve) > 0} />
       </div>
 
-      {/* Araç breakdown */}
+      {/* Filtre butonları */}
       <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { label: "Subdomain Tespiti", value: data.withSubdomains, key: "shodan" as const },
-          { label: "WAF Tespit Edilen", value: data.withWafDetected, key: "all" as const },
-          { label: "Düşük Skor (<45)", value: data.lowScore, key: "lowscore" as const },
-          { label: "Kara Listede", value: data.blacklisted, key: "blacklisted" as const },
-        ].map(item => (
+        {([
+          { label: "Shodan Verisi", value: data.withShodan, key: "shodan" as const, warn: data.withShodan > 0 },
+          { label: "WAF Bypass Riski", value: data.withBypassRisk, key: "bypass" as const, warn: data.withBypassRisk > 0 },
+          { label: "Düşük Skor (<45)", value: data.lowScore, key: "lowscore" as const, warn: false },
+          { label: "Kara Listede", value: data.blacklisted, key: "blacklisted" as const, warn: data.blacklisted > 0 },
+        ] as const).map(item => (
           <button
-            key={item.label}
+            key={item.key}
             onClick={() => setFilter(f => f === item.key ? "all" : item.key)}
-            className={`text-left rounded-lg border p-2.5 transition-colors ${filter === item.key ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"}`}
+            className={`text-left rounded-lg border p-2.5 transition-colors ${
+              filter === item.key
+                ? "border-primary bg-primary/10"
+                : item.warn
+                  ? "border-orange-800 bg-orange-950/20 hover:border-orange-600"
+                  : "border-border hover:border-primary/40"
+            }`}
           >
-            <div className="text-lg font-bold text-foreground">{item.value}</div>
+            <div className={`text-lg font-bold ${item.warn && item.value > 0 ? "text-orange-400" : "text-foreground"}`}>{item.value}</div>
             <div className="text-[10px] text-muted-foreground">{item.label}</div>
           </button>
         ))}
       </div>
 
       {data.total > 0 && (
-        <Drilldown label="Domain listesini gör" count={filtered.length}>
+        <Drilldown label={`Domain listesini gör (en riskli önce)`} count={filtered.length}>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left p-2.5 text-muted-foreground font-medium w-6" />
                   <th className="text-left p-2.5 text-muted-foreground font-medium">Domain</th>
                   <th className="text-center p-2.5 text-muted-foreground font-medium">Skor</th>
-                  <th className="text-center p-2.5 text-muted-foreground font-medium">Shodan</th>
+                  <th className="text-center p-2.5 text-muted-foreground font-medium">CVE</th>
+                  <th className="text-center p-2.5 text-muted-foreground font-medium">Portlar</th>
                   <th className="text-center p-2.5 text-muted-foreground font-medium">Subdomain</th>
                   <th className="text-center p-2.5 text-muted-foreground font-medium">WAF</th>
+                  <th className="text-center p-2.5 text-muted-foreground font-medium">İhlal</th>
                   <th className="text-left p-2.5 text-muted-foreground font-medium">Tarandı</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.slice(0, 100).map(s => (
-                  <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="p-2.5">
-                      <div className="font-mono font-medium text-foreground">{s.domain}</div>
-                      {s.email && <div className="text-muted-foreground text-[10px]">{s.email}</div>}
-                    </td>
-                    <td className="p-2.5 text-center">
-                      <span className={`font-bold ${scoreColor(s.overallScore)}`}>{s.overallScore}</span>
-                    </td>
-                    <td className="p-2.5 text-center">
-                      {s.shodanVulnCount > 0 || s.shodanPortCount > 0 ? (
-                        <span className="text-orange-400 font-medium">
-                          {s.shodanVulnCount}v / {s.shodanPortCount}p
-                        </span>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="p-2.5 text-center">
-                      {s.ctSubdomainCount > 0
-                        ? <span className="text-primary">{s.ctSubdomainCount}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="p-2.5 text-center">
-                      {s.wafDetected ? (
-                        <span className={`text-[10px] font-medium ${s.wafBypassPossible ? "text-red-400" : "text-emerald-400"}`}>
-                          {s.wafProvider ?? "WAF"}{s.wafBypassPossible ? " ⚠" : " ✓"}
-                        </span>
-                      ) : <span className="text-muted-foreground text-[10px]">Yok</span>}
-                    </td>
-                    <td className="p-2.5 text-muted-foreground">{timeAgo(s.createdAt)}</td>
-                  </tr>
-                ))}
+              <tbody>
+                {filtered.slice(0, 100).map(s => {
+                  const isOpen = expanded.has(s.id);
+                  const hasBulgu = s.shodanOpenPorts.length > 0 || s.cveSummary.length > 0 || s.ctSubdomains.length > 0 || s.hibpBreaches.length > 0 || s.wafBypassPossible || s.blacklisted;
+                  return (
+                    <>
+                      <tr
+                        key={s.id}
+                        onClick={() => toggleExpand(s.id)}
+                        className={`border-b border-border transition-colors cursor-pointer select-none ${isOpen ? "bg-muted/30" : "hover:bg-muted/20"}`}
+                      >
+                        <td className="p-2.5 text-center">
+                          {hasBulgu
+                            ? (isOpen ? <ChevronUp className="h-3.5 w-3.5 text-primary" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />)
+                            : <span className="text-muted-foreground/30 text-[10px]">—</span>}
+                        </td>
+                        <td className="p-2.5">
+                          <div className="font-mono font-medium text-foreground">{s.domain}</div>
+                          {s.email && <div className="text-muted-foreground text-[10px]">{s.email}</div>}
+                        </td>
+                        <td className="p-2.5 text-center">
+                          <span className={`font-bold text-sm ${scoreColor(s.overallScore)}`}>{s.overallScore}</span>
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {s.criticalCveCount > 0 || s.highCveCount > 0 ? (
+                            <span className="font-medium">
+                              {s.criticalCveCount > 0 && <span className="text-red-400">{s.criticalCveCount}K</span>}
+                              {s.criticalCveCount > 0 && s.highCveCount > 0 && <span className="text-muted-foreground"> / </span>}
+                              {s.highCveCount > 0 && <span className="text-orange-400">{s.highCveCount}Y</span>}
+                            </span>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {s.shodanOpenPorts.length > 0 ? (
+                            <span className="text-orange-400 font-medium">{s.shodanOpenPorts.length}</span>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {s.ctSubdomainCount > 0
+                            ? <span className="text-primary">{s.ctSubdomainCount}</span>
+                            : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {s.wafDetected ? (
+                            <span className={`text-[10px] font-medium ${s.wafBypassPossible ? "text-red-400" : "text-emerald-400"}`}>
+                              {s.wafProvider ?? "WAF"}{s.wafBypassPossible ? " !" : " ✓"}
+                            </span>
+                          ) : <span className="text-muted-foreground text-[10px]">—</span>}
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {s.hibpBreachCount > 0
+                            ? <span className="text-orange-400 font-medium">{s.hibpBreachCount}</span>
+                            : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="p-2.5 text-muted-foreground whitespace-nowrap">{timeAgo(s.createdAt)}</td>
+                      </tr>
+                      {isOpen && (
+                        <tr key={`${s.id}-detail`} className="border-b border-border">
+                          <td colSpan={9} className="p-0">
+                            <ScanDetailPanel s={s} />
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
             {filtered.length > 100 && (
@@ -415,6 +645,9 @@ function Taramalar24h() {
                 +{filtered.length - 100} daha — tam liste için <a href="/panel/domain-taramalar" className="text-primary hover:underline">domain taramalar</a> sayfasına gidin.
               </div>
             )}
+          </div>
+          <div className="px-3 py-2 bg-muted/20 border-t border-border text-[10px] text-muted-foreground">
+            Satıra tıklayarak ayrıntılı bulguları (portlar, CVE'ler, subdomain'ler, veri ihlalleri) görüntüleyebilirsiniz.
           </div>
         </Drilldown>
       )}

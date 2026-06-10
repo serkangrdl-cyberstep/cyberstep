@@ -547,39 +547,88 @@ router.get("/admin-panel/analytics/marketing", requireAdmin, async (_req: Reques
 
 // GET /api/admin-panel/analytics/scans-24h — son 24 saatte taranan domainler + araç breakdown
 router.get("/admin-panel/analytics/scans-24h", requireAdmin, async (_req: Request, res: Response) => {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now    = new Date();
+  const since  = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  // Dünkü pencere: yerel gün başı - gün sonu (İstanbul UTC+3)
+  const tzOffset   = 3 * 60 * 60 * 1000;
+  const todayStart = new Date(Math.floor((now.getTime() + tzOffset) / 86_400_000) * 86_400_000 - tzOffset);
+  const yestStart  = new Date(todayStart.getTime() - 86_400_000);
+
+  const [dbTotalRow] = await db.select({ cnt: count() }).from(domainScansTable);
+
+  const [yestShodanRow] = await db.select({ cnt: count() })
+    .from(domainScansTable)
+    .where(and(
+      gte(domainScansTable.createdAt, yestStart),
+      sql`${domainScansTable.createdAt} < ${todayStart}`,
+      sql`(${domainScansTable.shodanVulnCount} > 0 OR jsonb_array_length(COALESCE(${domainScansTable.shodanOpenPorts}::jsonb, '[]'::jsonb)) > 0)`,
+    ));
+
+  const [yestTotalRow] = await db.select({ cnt: count() })
+    .from(domainScansTable)
+    .where(and(
+      gte(domainScansTable.createdAt, yestStart),
+      sql`${domainScansTable.createdAt} < ${todayStart}`,
+    ));
 
   const scans = await db.select({
-    id: domainScansTable.id,
-    domain: domainScansTable.domain,
-    email: domainScansTable.email,
-    overallScore: domainScansTable.overallScore,
-    shodanVulnCount: domainScansTable.shodanVulnCount,
-    shodanOpenPorts: domainScansTable.shodanOpenPorts,
-    ctSubdomainCount: domainScansTable.ctSubdomainCount,
-    wafDetected: domainScansTable.wafDetected,
-    wafProvider: domainScansTable.wafProvider,
+    id:                domainScansTable.id,
+    domain:            domainScansTable.domain,
+    email:             domainScansTable.email,
+    overallScore:      domainScansTable.overallScore,
+    confidenceScore:   domainScansTable.confidenceScore,
+    confidenceNote:    domainScansTable.confidenceNote,
+    // Shodan
+    shodanVulnCount:   domainScansTable.shodanVulnCount,
+    shodanOpenPorts:   domainScansTable.shodanOpenPorts,
+    shodanCountry:     domainScansTable.shodanCountry,
+    shodanIsp:         domainScansTable.shodanIsp,
+    // CVE
+    criticalCveCount:  domainScansTable.criticalCveCount,
+    highCveCount:      domainScansTable.highCveCount,
+    cveSummary:        domainScansTable.cveSummary,
+    // WAF
+    wafDetected:       domainScansTable.wafDetected,
+    wafProvider:       domainScansTable.wafProvider,
     wafBypassPossible: domainScansTable.wafBypassPossible,
-    blacklisted: domainScansTable.blacklisted,
-    criticalCveCount: domainScansTable.criticalCveCount,
-    highCveCount: domainScansTable.highCveCount,
-    createdAt: domainScansTable.createdAt,
+    originIp:          domainScansTable.originIp,
+    wafConfidence:     domainScansTable.wafConfidence,
+    // Subdomains
+    ctSubdomainCount:  domainScansTable.ctSubdomainCount,
+    ctSubdomains:      domainScansTable.ctSubdomains,
+    // HIBP
+    hibpBreachCount:   domainScansTable.hibpBreachCount,
+    hibpBreaches:      domainScansTable.hibpBreaches,
+    // Blacklist / rep
+    blacklisted:       domainScansTable.blacklisted,
+    blacklistCount:    domainScansTable.blacklistCount,
+    virusTotalMalicious: domainScansTable.virusTotalMalicious,
+    abuseIpdbScore:    domainScansTable.abuseIpdbScore,
+    urlhausListed:     domainScansTable.urlhausListed,
+    // Meta
+    hostingProvider:   domainScansTable.hostingProvider,
+    sector:            domainScansTable.sector,
+    createdAt:         domainScansTable.createdAt,
   })
     .from(domainScansTable)
     .where(gte(domainScansTable.createdAt, since))
-    .orderBy(desc(domainScansTable.createdAt))
+    .orderBy(asc(domainScansTable.overallScore))  // En riskli (düşük skor) önce
     .limit(200);
 
-  const total = scans.length;
-  const withShodan       = scans.filter(s => (s.shodanVulnCount ?? 0) > 0 || (s.shodanOpenPorts && (s.shodanOpenPorts as unknown[]).length > 0)).length;
-  const withSubdomains   = scans.filter(s => (s.ctSubdomainCount ?? 0) > 0).length;
-  const withWafDetected  = scans.filter(s => s.wafDetected).length;
-  const withBypassRisk   = scans.filter(s => s.wafBypassPossible).length;
-  const blacklisted      = scans.filter(s => s.blacklisted).length;
-  const criticalCve      = scans.filter(s => (s.criticalCveCount ?? 0) > 0).length;
-  const lowScore         = scans.filter(s => s.overallScore < 45).length;
+  const total          = scans.length;
+  const withShodan     = scans.filter(s => (s.shodanVulnCount ?? 0) > 0 || (s.shodanOpenPorts as unknown[] | null)?.length).length;
+  const withSubdomains = scans.filter(s => (s.ctSubdomainCount ?? 0) > 0).length;
+  const withWafDetected = scans.filter(s => s.wafDetected).length;
+  const withBypassRisk = scans.filter(s => s.wafBypassPossible).length;
+  const blacklisted    = scans.filter(s => s.blacklisted).length;
+  const criticalCve    = scans.filter(s => (s.criticalCveCount ?? 0) > 0).length;
+  const lowScore       = scans.filter(s => s.overallScore < 45).length;
 
   res.json({
+    dbTotal:        Number(dbTotalRow.cnt),
+    yesterdayTotal: Number(yestTotalRow.cnt),
+    yesterdayShodan: Number(yestShodanRow.cnt),
     total,
     withShodan,
     withSubdomains,
@@ -589,20 +638,43 @@ router.get("/admin-panel/analytics/scans-24h", requireAdmin, async (_req: Reques
     criticalCve,
     lowScore,
     scans: scans.map(s => ({
-      id: s.id,
-      domain: s.domain,
-      email: s.email,
-      overallScore: s.overallScore,
+      id:              s.id,
+      domain:          s.domain,
+      email:           s.email,
+      overallScore:    s.overallScore,
+      confidenceScore: s.confidenceScore ?? null,
+      confidenceNote:  s.confidenceNote ?? null,
+      // Shodan
       shodanVulnCount: s.shodanVulnCount ?? 0,
-      shodanPortCount: (s.shodanOpenPorts as unknown[] | null)?.length ?? 0,
-      ctSubdomainCount: s.ctSubdomainCount ?? 0,
-      wafDetected: s.wafDetected ?? false,
-      wafProvider: s.wafProvider,
-      wafBypassPossible: s.wafBypassPossible ?? false,
-      blacklisted: s.blacklisted,
+      shodanOpenPorts: s.shodanOpenPorts ?? [],
+      shodanCountry:   s.shodanCountry ?? null,
+      shodanIsp:       s.shodanIsp ?? null,
+      // CVE
       criticalCveCount: s.criticalCveCount ?? 0,
-      highCveCount: s.highCveCount ?? 0,
-      createdAt: s.createdAt,
+      highCveCount:    s.highCveCount ?? 0,
+      cveSummary:      s.cveSummary ?? [],
+      // WAF
+      wafDetected:     s.wafDetected ?? false,
+      wafProvider:     s.wafProvider ?? null,
+      wafBypassPossible: s.wafBypassPossible ?? false,
+      originIp:        s.originIp ?? null,
+      wafConfidence:   s.wafConfidence ?? null,
+      // Subdomains
+      ctSubdomainCount: s.ctSubdomainCount ?? 0,
+      ctSubdomains:    (s.ctSubdomains ?? []).slice(0, 20),  // İlk 20 subdomain
+      // HIBP
+      hibpBreachCount: s.hibpBreachCount ?? 0,
+      hibpBreaches:    s.hibpBreaches ?? [],
+      // Blacklist / rep
+      blacklisted:     s.blacklisted ?? false,
+      blacklistCount:  s.blacklistCount ?? 0,
+      virusTotalMalicious: s.virusTotalMalicious ?? 0,
+      abuseIpdbScore:  s.abuseIpdbScore ?? null,
+      urlhausListed:   s.urlhausListed ?? false,
+      // Meta
+      hostingProvider: s.hostingProvider ?? null,
+      sector:          s.sector ?? null,
+      createdAt:       s.createdAt,
     })),
   });
 });

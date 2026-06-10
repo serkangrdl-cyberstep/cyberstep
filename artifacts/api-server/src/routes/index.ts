@@ -64,6 +64,7 @@ import socialMediaRouter from "./social-media/index";
 import cisoRouter from "./ciso/index";
 import demoPublicRouter from "./public/demo";
 import techDiscoveryRouter from "./tech-discovery/index";
+import cvePublicRouter from "./cve-public";
 
 const router: IRouter = Router();
 
@@ -132,5 +133,6 @@ router.use(adminPanelRouter);
 router.use(socialMediaRouter);
 router.use(cisoRouter);
 router.use(techDiscoveryRouter);
+router.use(cvePublicRouter);
 
 export default router;

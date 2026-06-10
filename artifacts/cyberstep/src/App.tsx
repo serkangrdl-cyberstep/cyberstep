@@ -212,6 +212,8 @@ import KvkkCezaHesaplayici from "./pages/araclar/kvkk-ceza-hesaplayici";
 import DmarcKontrol from "./pages/araclar/dmarc-kontrol";
 import DarkWebSorgulama from "./pages/araclar/dark-web-sorgulama";
 import SiberRiskRoi from "./pages/araclar/siber-risk-roi";
+import SubdomainTarayici from "./pages/araclar/subdomain-tarayici";
+import WafBypassTarayici from "./pages/araclar/waf-bypass-tarayici";
 
 import { Layout } from "./components/layout";
 import { CookieBanner } from "./components/cookie-banner";
@@ -489,6 +491,10 @@ function Router() {
             <Route path="/araclar/dmarc-kontrol" component={DmarcKontrol} />
             <Route path="/araclar/dark-web-sorgulama" component={DarkWebSorgulama} />
             <Route path="/araclar/siber-risk-roi" component={SiberRiskRoi} />
+            <Route path="/araclar/subdomain-taray%C4%B1c%C4%B1" component={SubdomainTarayici} />
+            <Route path="/araclar/subdomain-tarayıcı" component={SubdomainTarayici} />
+            <Route path="/araclar/WAF-bypass-taray%C4%B1c%C4%B1" component={WafBypassTarayici} />
+            <Route path="/araclar/WAF-bypass-tarayıcı" component={WafBypassTarayici} />
             <Route path="/araclar" component={TumAraclar} />
             <Route path="/rakip-karsilastirma" component={RakipKarsilastirma} />
             <Route path="/sektor-raporu" component={SektorRaporu} />

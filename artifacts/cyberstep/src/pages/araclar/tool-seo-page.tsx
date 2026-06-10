@@ -14,7 +14,7 @@ export interface ToolSeoConfig {
   howItWorks: string[];
   faq: { q: string; a: string }[];
   relatedTools: { slug: string; label: string }[];
-  toolComponent: "DomainScanner" | "SSLChecker" | "KVKKPenalty" | "DmarcChecker" | "DarkWeb" | "RoiCalc";
+  toolComponent: "DomainScanner" | "SSLChecker" | "KVKKPenalty" | "DmarcChecker" | "DarkWeb" | "RoiCalc" | "SubdomainScanner" | "WAFChecker";
 }
 
 const ALL_TOOLS: { slug: string; label: string }[] = [
@@ -24,6 +24,8 @@ const ALL_TOOLS: { slug: string; label: string }[] = [
   { slug: "dmarc-kontrol",            label: "DMARC Kontrol" },
   { slug: "dark-web-sorgulama",       label: "Dark Web Sorgu" },
   { slug: "siber-risk-roi",           label: "Siber Risk ROI" },
+  { slug: "subdomain-tarayıcı",       label: "Subdomain Tarayıcı" },
+  { slug: "WAF-bypass-tarayıcı",      label: "WAF Bypass" },
 ];
 
 // ── Embedded tool components ─────────────────────────────────────────────────
@@ -273,15 +275,167 @@ function RoiCalcEmbed() {
   );
 }
 
+function SubdomainScannerEmbed() {
+  const [domain, setDomain] = useState("");
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const scan = async () => {
+    if (!domain) return;
+    setLoading(true); setErr(""); setResult(null);
+    try {
+      const clean = domain.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]!;
+      const r = await fetch(`/api/public/domain-score/${encodeURIComponent(clean)}`);
+      if (!r.ok) { setErr("Domain bulunamadı veya hata oluştu."); return; }
+      setResult(await r.json());
+    } catch { setErr("Bağlantı hatası."); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-6 space-y-4">
+      <div className="flex gap-3">
+        <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="ornek.com.tr"
+          className="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-primary"
+          onKeyDown={e => e.key === "Enter" && scan()} />
+        <button onClick={scan} disabled={loading || !domain}
+          className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+          {loading ? "Taranıyor..." : "Tara"}
+        </button>
+      </div>
+      {err && <p className="text-red-400 text-sm">{err}</p>}
+      {result && (
+        <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-white">{String(result["domain"] ?? "")}</p>
+            {result["status"] === "not_scanned" ? (
+              <span className="text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full">Henüz Taranmadı</span>
+            ) : (
+              <span className={`text-xs px-3 py-1 rounded-full font-semibold ${Number(result["score"] ?? 0) >= 70 ? "bg-emerald-500/20 text-emerald-400" : Number(result["score"] ?? 0) >= 45 ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"}`}>
+                Skor: {String(result["score"] ?? "—")}/100
+              </span>
+            )}
+          </div>
+          {result["status"] === "not_scanned" ? (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 space-y-2">
+              <p className="text-sm text-yellow-300 font-medium">Bu domain sistemimizde kayıtlı değil.</p>
+              <p className="text-xs text-slate-400">Subdomain keşfi dahil kapsamlı tarama için ücretsiz değerlendirme başlatın. ASN tabanlı analiz, crt.sh sertifika kayıtları ve DNS verilerini birleştirerek tüm alt alan adlarınızı tespit ederiz.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 space-y-2">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tespit Edilen Güvenlik Durumu</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { label: "SSL Sertifikası", val: Boolean((result["summary"] as Record<string, unknown>)?.["ssl"]) },
+                    { label: "SPF Kaydı",       val: Boolean((result["summary"] as Record<string, unknown>)?.["spf"]) },
+                    { label: "DMARC Kaydı",     val: Boolean((result["summary"] as Record<string, unknown>)?.["dmarc"]) },
+                    { label: "Kara Liste",      val: !Boolean((result["summary"] as Record<string, unknown>)?.["blacklisted"]), invertLabel: true },
+                  ].map(({ label, val, invertLabel }) => (
+                    <div key={label} className={`rounded-lg border p-2 flex items-center justify-between ${val ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"}`}>
+                      <span className="text-slate-300">{label}</span>
+                      <span className={val ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
+                        {val ? (invertLabel ? "Temiz" : "Var") : (invertLabel ? "Listede" : "Yok")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-slate-300">
+                Subdomain envanteri, WAF/CDN durumu ve gölge IT varlıkları icin tam tarama gereklidir.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WAFCheckerEmbed() {
+  const [domain, setDomain] = useState("");
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const check = async () => {
+    if (!domain) return;
+    setLoading(true); setErr(""); setResult(null);
+    try {
+      const clean = domain.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]!;
+      const r = await fetch(`/api/public/domain-score/${encodeURIComponent(clean)}`);
+      if (!r.ok) { setErr("Domain bulunamadı veya hata oluştu."); return; }
+      setResult(await r.json());
+    } catch { setErr("Bağlantı hatası."); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-6 space-y-4">
+      <div className="flex gap-3">
+        <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="ornek.com.tr"
+          className="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-primary"
+          onKeyDown={e => e.key === "Enter" && check()} />
+        <button onClick={check} disabled={loading || !domain}
+          className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+          {loading ? "Analiz ediliyor..." : "WAF Kontrol Et"}
+        </button>
+      </div>
+      {err && <p className="text-red-400 text-sm">{err}</p>}
+      {result && (
+        <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-white">{String(result["domain"] ?? "")}</p>
+            {result["status"] === "not_scanned" ? (
+              <span className="text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full">Henüz Taranmadı</span>
+            ) : (
+              <span className={`text-xs px-3 py-1 rounded-full font-semibold ${String(result["risk"] ?? "") === "low" ? "bg-emerald-500/20 text-emerald-400" : String(result["risk"] ?? "") === "medium" ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"}`}>
+                Risk: {String(result["risk"] ?? "—").toUpperCase()}
+              </span>
+            )}
+          </div>
+          {result["status"] === "not_scanned" ? (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 space-y-2">
+              <p className="text-sm text-yellow-300 font-medium">Bu domain sistemimizde kayıtlı değil.</p>
+              <p className="text-xs text-slate-400">WAF/CDN tespiti, origin IP analizi ve bypass risk skoru almak için ücretsiz değerlendirme başlatın. Cloudflare, AWS WAF, Akamai ve diğer sağlayıcılar otomatik olarak tespit edilir.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Genel Skor</p>
+                  <p className={`text-2xl font-bold ${Number(result["score"] ?? 0) >= 70 ? "text-emerald-400" : Number(result["score"] ?? 0) >= 45 ? "text-yellow-400" : "text-red-400"}`}>
+                    {String(result["score"] ?? "—")}/100
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Derece</p>
+                  <p className="text-2xl font-bold text-white">{String(result["grade"] ?? "—")}</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-slate-300">
+                WAF provider tespiti, bypass bypass skoru ve origin IP analizi tam tarama gerektirir. Kapsamlı rapor için değerlendirme başlatın.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ToolEmbed({ type }: { type: ToolSeoConfig["toolComponent"] }) {
   switch (type) {
-    case "DomainScanner": return <DomainScanEmbed />;
-    case "SSLChecker":    return <SSLCheckerEmbed />;
-    case "KVKKPenalty":  return <KVKKCalcEmbed />;
-    case "DmarcChecker": return <DmarcCheckerEmbed />;
-    case "DarkWeb":      return <DarkWebEmbed />;
-    case "RoiCalc":      return <RoiCalcEmbed />;
-    default:             return null;
+    case "DomainScanner":     return <DomainScanEmbed />;
+    case "SSLChecker":        return <SSLCheckerEmbed />;
+    case "KVKKPenalty":       return <KVKKCalcEmbed />;
+    case "DmarcChecker":      return <DmarcCheckerEmbed />;
+    case "DarkWeb":           return <DarkWebEmbed />;
+    case "RoiCalc":           return <RoiCalcEmbed />;
+    case "SubdomainScanner":  return <SubdomainScannerEmbed />;
+    case "WAFChecker":        return <WAFCheckerEmbed />;
+    default:                  return null;
   }
 }
 

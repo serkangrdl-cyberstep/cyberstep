@@ -54,15 +54,25 @@ async function checkGemini(): Promise<CheckResult> {
     return { name: "Gemini API", ok: true, detail: "env yok — atlandı", ms: 0 };
   }
   try {
+    // Replit's Gemini proxy does not expose GET /openai/models.
+    // Use a minimal chat completion to verify the integration is live.
     const res = await fetch(
-      `${baseUrl}/openai/models`,
+      `${baseUrl}/openai/chat/completions`,
       {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(12000),
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gemini-2.0-flash",
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 1,
+        }),
+        signal: AbortSignal.timeout(15000),
       },
     );
     const ms = Date.now() - start;
-    return { name: "Gemini API", ok: res.ok, detail: `HTTP ${res.status}`, ms };
+    // 200 or 400/422 (bad request but proxy is alive) both mean the integration is reachable
+    const ok = res.status < 500;
+    return { name: "Gemini API", ok, detail: `HTTP ${res.status}`, ms };
   } catch (err) {
     return { name: "Gemini API", ok: false, detail: String(err), ms: Date.now() - start };
   }

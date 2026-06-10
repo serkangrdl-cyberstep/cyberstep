@@ -51,6 +51,8 @@ interface OpsCenter {
   comparisons: { yesterdayScans: number; thisWeekLeads: number; lastWeekLeads: number; };
 }
 interface ExtendedStats { dailyTrend: { day: string; count: number }[]; }
+interface RiskDetailRow { id: number; companyName: string; email: string; riskLevel: string; totalScore: number | null; createdAt: string; }
+interface RiskDetailData { distribution: Record<string, number>; assessments: RiskDetailRow[]; }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -317,6 +319,13 @@ export default function AdminDashboard() {
     queryKey: ["admin-domain-extended"],
     queryFn: () => fetch("/api/admin-panel/domain-scans/stats/extended", { credentials: "include" }).then(r => r.json()),
     refetchInterval: 120000,
+  });
+
+  const [activeRisk, setActiveRisk] = useState<string | null>(null);
+  const { data: riskDetail, isLoading: riskDetailLoading } = useQuery<RiskDetailData>({
+    queryKey: ["admin-risk-detail"],
+    queryFn: () => fetch("/api/admin-panel/analytics/risk-detail", { credentials: "include" }).then(r => r.json()),
+    staleTime: 5 * 60_000,
   });
 
   const fmtCur = (n: number) => new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(n);
@@ -590,6 +599,7 @@ export default function AdminDashboard() {
             <h2 className="text-white font-semibold text-sm flex items-center gap-2 mb-3">
               <ShieldAlert className="h-4 w-4 text-red-400" />
               Risk Dağılımı
+              <span className="text-slate-500 font-normal text-xs ml-1">— dilime tıkla → detay</span>
             </h2>
             <Card className="bg-slate-800 border-slate-700">
               <CardContent className="p-5">
@@ -597,27 +607,119 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-6">
                     <ResponsiveContainer width={140} height={140}>
                       <PieChart>
-                        <Pie data={riskDonut} cx="50%" cy="50%" innerRadius={40} outerRadius={64} dataKey="value" strokeWidth={2} stroke="#1e293b">
-                          {riskDonut.map((d) => <Cell key={d.name} fill={d.fill} />)}
+                        <Pie
+                          data={riskDonut}
+                          cx="50%" cy="50%"
+                          innerRadius={40} outerRadius={64}
+                          dataKey="value"
+                          strokeWidth={2} stroke="#1e293b"
+                          cursor="pointer"
+                          onClick={(entry) => {
+                            const name = (entry as { name?: string }).name;
+                            if (name) setActiveRisk(activeRisk === name ? null : name);
+                          }}
+                        >
+                          {riskDonut.map((d) => (
+                            <Cell
+                              key={d.name}
+                              fill={d.fill}
+                              opacity={activeRisk && activeRisk !== d.name ? 0.35 : 1}
+                              stroke={activeRisk === d.name ? "#fff" : "#1e293b"}
+                              strokeWidth={activeRisk === d.name ? 2 : 1}
+                            />
+                          ))}
                         </Pie>
                         <Tooltip content={<DarkTooltip />} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 space-y-1.5">
                       {riskDonut.map(({ name, value, fill }) => (
-                        <div key={name} className="flex items-center gap-2">
+                        <button
+                          key={name}
+                          onClick={() => setActiveRisk(activeRisk === name ? null : name)}
+                          className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg transition-all text-left ${
+                            activeRisk === name
+                              ? "bg-slate-700 ring-1 ring-slate-500"
+                              : "hover:bg-slate-700/50"
+                          }`}
+                        >
                           <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: fill }} />
-                          <span className="text-slate-300 text-sm flex-1">{name}</span>
+                          <span className={`text-sm flex-1 ${activeRisk === name ? "text-white font-medium" : "text-slate-300"}`}>{name}</span>
                           <span className="text-white font-bold text-sm tabular-nums">{value}</span>
-                          <div className="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                             <div className="h-full rounded-full" style={{ background: fill, width: `${Math.min(100, pctOf(value, overview?.totalAssessments ?? 1))}%` }} />
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
                 ) : (
                   <div className="h-32 flex items-center justify-center text-slate-600 text-sm">Henüz veri yok</div>
+                )}
+
+                {/* Drill-down tablo */}
+                {activeRisk && (
+                  <div className="mt-4 border border-slate-700 rounded-xl overflow-hidden">
+                    <div className="px-3 py-2 bg-slate-700/40 border-b border-slate-700 flex items-center justify-between">
+                      <span className="text-xs font-medium text-white">
+                        {activeRisk} risk —{" "}
+                        {riskDetailLoading
+                          ? "yükleniyor..."
+                          : `${(riskDetail?.assessments ?? []).filter(a => a.riskLevel === activeRisk).length} değerlendirme`}
+                      </span>
+                      <button onClick={() => setActiveRisk(null)} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">
+                        Kapat
+                      </button>
+                    </div>
+                    {riskDetailLoading ? (
+                      <div className="px-4 py-4 text-xs text-slate-500">Yükleniyor...</div>
+                    ) : (
+                      <div className="overflow-x-auto max-h-56 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
+                            <tr>
+                              <th className="text-left p-2.5 text-slate-400 font-medium">Şirket</th>
+                              <th className="text-left p-2.5 text-slate-400 font-medium">E-posta</th>
+                              <th className="text-center p-2.5 text-slate-400 font-medium">Skor</th>
+                              <th className="text-left p-2.5 text-slate-400 font-medium">Tarih</th>
+                              <th className="p-2.5" />
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-700/50">
+                            {(riskDetail?.assessments ?? [])
+                              .filter(a => a.riskLevel === activeRisk)
+                              .slice(0, 50)
+                              .map(a => (
+                                <tr key={a.id} className="hover:bg-slate-700/30 transition-colors">
+                                  <td className="p-2.5 font-medium text-slate-200">{a.companyName}</td>
+                                  <td className="p-2.5 text-slate-400">{a.email}</td>
+                                  <td className="p-2.5 text-center">
+                                    <span className={`font-bold ${
+                                      (a.totalScore ?? 0) < 40 ? "text-red-400" :
+                                      (a.totalScore ?? 0) < 70 ? "text-amber-400" :
+                                      "text-emerald-400"
+                                    }`}>{a.totalScore ?? "—"}</span>
+                                  </td>
+                                  <td className="p-2.5 text-slate-500">
+                                    {new Date(a.createdAt).toLocaleDateString("tr-TR")}
+                                  </td>
+                                  <td className="p-2.5">
+                                    <a href={`/panel/degerlendirmeler`} className="text-sky-400 hover:text-sky-300 transition-colors">
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </td>
+                                </tr>
+                              ))}
+                            {(riskDetail?.assessments ?? []).filter(a => a.riskLevel === activeRisk).length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="p-4 text-center text-slate-500">Bu risk seviyesinde değerlendirme yok</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

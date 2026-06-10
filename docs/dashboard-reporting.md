@@ -48,17 +48,51 @@ Müşteri portal'ı `/hesabim/*` altındadır. Tüm sayfalar `useRequireCustomer
 
 ### 1.2 Hesabım Ana Sayfası (`/hesabim`)
 
-**Amaç:** Müşteri profili, abonelik durumu ve hızlı navigasyon hub'ı.
+**Amaç:** Kişiselleştirilebilir güvenlik dashboard'u + hesap ayarları merkezi.
 
-**İçerik:**
-- **Siber Güvenlik Notu Widget:** Harf notu + 0-100 skor + fidye risk bandı → `/hesabim/guvenlik-durumu` linki
-- **Aktif Servisler Widget:** Aktif servis sayısı, bekleyen kurulum adımı varsa sarı badge
-- **Raporlarım linki:** Geçmiş tarama ve değerlendirme sonuçları
-- **Plan Özellikleri Kartı:** Mevcut plan hangi servisleri içeriyor
-- **TOTP / 2FA Kurulumu:** QR kodu ile Google Authenticator kurulumu
-- **Profil Bilgileri:** Ad, şirket, e-posta, abonelik planı ve durumu
-- **Sağlık Skoru Widget:** Müşteri sağlık skoru (0-100) ve churn riski bandı
-- **Abonelik Yenileme Uyarısı:** Sona ermeye <14 gün kalan aboneliklerde uyarı banner
+**Tab Sistemi:**
+
+| Tab | İçerik |
+|-----|---------|
+| **Dashboard** | Özelleştirilebilir widget grid (varsayılan 6 + eklenebilir 5) |
+| **Hesap Ayarları** | Profil bilgileri, TOTP/2FA kurulumu, şifre değiştirme |
+
+**Navigasyon (header):**
+- 4 birincil link: Güvenlik Durumu, Raporlarım, Alan Adı Tarama, AI Güvenlik
+- **Servisler** dropdown: SOC, NOC, DNS İzleme, Tedarikçi Risk, Cloud Güvenlik, CISO Asistan, Pentest Lite, AI Güvenlik Servisleri, Entegrasyonlarım
+- **Hesap** dropdown: Servislerim, Faturalar, Kurulum, YK Raporu, Referral / Davet, Enterprise, Çıkış
+
+**Widget Özelleştirme:**
+- Sağdan açılan "Özelleştir" slide-in paneli (Sheet bileşeni)
+- Tercihler localStorage'a kaydedilir (`cyberstep_dashboard_prefs_v1`)
+- 11 widget — Eye/EyeOff toggle ile açıp kapatılır
+
+| Widget | Varsayılan | Ne Gösterir |
+|--------|-----------|-------------|
+| **Anlık Sinyal Pill'leri** | Açık | Sızıntı, kritik CVE, açık port, assessment riski — en güncel taramadan anlık |
+| **Güvenlik Skoru Trendi** | Açık | Recharts LineChart — son 6 taramanın tarihsel skor grafiği |
+| **Güvenlik Yol Haritası** | Açık | 30/90/180 günlük aksiyon planı (skor bandına göre otomatik hesaplanır — API gerektirmez) |
+| **Fidye Yazılımı Maruziyet** | Açık | 0-100 risk skoru + Düşük/Orta/Yüksek bant |
+| **Domain Ele Geçirme Dayanıklılığı** | Açık | SPF/DKIM/DMARC/SSL/kara liste bileşenlerinden hesaplanan 0-100 skor |
+| **Sektör Karşılaştırması** | Açık | Kendi skor percentile'ı vs sektör ortalaması |
+| **Kurulum İlerleme** | Eklenebilir | Onboarding checklist tamamlanma yüzdesi |
+| **Hesap Sağlığı** | Eklenebilir | Müşteri sağlık skoru (0-100) + churn riski bandı |
+| **Aktif Servisler** | Eklenebilir | Aktif servis sayısı; bekleyen kurulum adımı varsa sarı badge |
+| **Tedarikçi Riski** | Eklenebilir | Kritik/Yüksek riskli tedarikçi sayısı |
+| **Hizmet Planım** | Eklenebilir | Mevcut plan hangi servisleri içeriyor |
+
+**Güvenlik Yol Haritası Widget — Skor Bantları:**
+
+| Skor | Seviye | 30-Gün Odağı |
+|------|--------|--------------|
+| ≥ 80 | İyi | İzleme sürekliliği, gelişmiş tehdit tespiti |
+| 60-79 | Orta | E-posta güvenliği, SSL sertifikası yenileme |
+| 40-59 | Yüksek Risk | DMARC politikası, erişim kontrolü güçlendirme |
+| < 40 | Kritik | Acil müdahale — açık portlar, aktif sızıntı |
+
+**Kritik Uyarı Banner'ı:** Güvenlik notu D veya F olan müşterilerde dashboard'un üstünde kırmızı border'lı uyarı gösterilir.
+
+**Abonelik Yenileme Uyarısı:** Sona ermeye <14 gün kalan aboneliklerde sarı banner.
 
 ---
 
@@ -268,7 +302,21 @@ Admin panel'i `/panel/*` altındadır. `requireAdmin` middleware ile korunur.
 - Filtreleme: domain adı, skor aralığı, tarih
 - Tarama detay linki: `/domain-scan/:id` sayfasına yönlendirme
 - Manuel yeniden tarama tetikleme
-- Orphaned asset keşfi sonuçları
+- Orphaned asset keşfi sonuçları (Gölge IT kartı)
+
+**Shadow IT / ASN Tabanlı Orphaned Asset Keşfi:**
+
+Domain taramasının bir parçası olarak `asnAssetDiscovery.ts` servisi çalışır:
+
+1. Domain'in A kaydından IP alınır
+2. `ipapi.co` API → ASN numarası + ASN adı
+3. RIPE API → ASN'e ait IP prefix listesi
+4. crt.sh API → ASN IP aralığındaki sertifikadan subdomain tespiti
+5. HTTP HEAD ile her host'un WAF'sız erişilebilirliği test edilir
+6. Sonuçlar `domain_scans.orphaned_assets (JSONB)` kolonuna yazılır
+
+Frontend'de (`/domain-scan/:id`) "Gölge IT / ASN Varlık Keşfi" kartı olarak gösterilir.  
+PDF raporunda bölüm 9 olarak yer alır (ücretli planda tam liste, ücretsizde kısmen gizli).
 
 ---
 
@@ -324,6 +372,17 @@ Admin panel'i `/panel/*` altındadır. `requireAdmin` middleware ile korunur.
 - Bildirim durumu: e-posta gönderildi mi, açılma oranı
 - Manuel CVE ekleme ve düzenleme
 - Landing page widget önizlemesi: son 3 kritik CVE
+
+**Landing Page — Kritik Zafiyet Radarı (`CveRadarSection`):**
+
+Public landing sayfasında yer alan bu bölüm iki etkileşimli özellik sunar:
+
+| Özellik | Endpoint | Ne Yapar |
+|---------|----------|----------|
+| **Güncel Kritik CVE Badge'leri** | `GET /api/cve/latest-critical` | CVSS ≥ 9 son 3 CVE — ID, CVSS skoru, yayın tarihi, CISA KEV etiketi |
+| **Domain CVE Hızlı Kontrol** | `POST /api/cve/domain-check` | Kullanıcı domain girer → şirketin tech stack'iyle eşleşen CVE sayısı döner → kayıt CTA'sı |
+
+Veri kaynağı: `cve_findings` tablosu (her 2 saatte güncellenir). Auth gerektirmez — public endpoint.
 
 ---
 
@@ -663,7 +722,7 @@ Admin panel'i `/panel/*` altındadır. `requireAdmin` middleware ile korunur.
 | CVE feed | Her 2 saat | NVD + VulnCheck polling |
 | USOM listesi | Günlük | HTTPS feed çekme |
 | CTI feed'leri (URLHaus, OTX, vb.) | Her 6 saat | Paralel cron |
-| Technographic profil | Domain taramasıyla tetiklenir | `asnAssetDiscovery.ts` |
+| Shadow IT / ASN orphaned assets | Domain taramasıyla tetiklenir | `asnAssetDiscovery.ts` (ipapi.co → RIPE → crt.sh pipeline) |
 | Health score | Günlük 02:00 | `health-score cron` |
 | Board report | Aylık (ayın 25'i) | Otomatik + manuel tetikle |
 | Haftalık bülten | Cuma 08:00 | `bulletin cron` |
@@ -672,4 +731,4 @@ Admin panel'i `/panel/*` altındadır. `requireAdmin` middleware ile korunur.
 
 ---
 
-*Bu doküman CyberStep.io iç kullanım içindir. Güncelleme tarihi: Haziran 2026.*
+*Bu doküman CyberStep.io iç kullanım içindir. Güncelleme tarihi: Haziran 2026 — widget özelleştirme sistemi, Security Roadmap widget, CVE landing widget ve Shadow IT/ASN keşfi eklendi.*

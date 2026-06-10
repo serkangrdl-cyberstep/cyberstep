@@ -119,10 +119,24 @@ export async function checkPlatformCosts(): Promise<void> {
 
   // Kritik cron pipeline sağlık kontrolü
   const criticalCrons = [
-    { name: "lead_qual",     expectedHour: 4,  label: "Lead kalifikasyon" },
-    { name: "crtsh",         expectedHour: 3,  label: "crt.sh taraması",  weekly: true },
-    { name: "shodan",        expectedHour: 4,  label: "Shodan taraması"   },
-    { name: "daily_summary", expectedHour: 8,  label: "Günlük özet"       },
+    // ── Lead & keşif ────────────────────────────────────────────────────────
+    { name: "lead_qual",                 expectedHour: 4,  label: "Lead kalifikasyon"              },
+    { name: "crtsh",                     expectedHour: 3,  label: "crt.sh taraması",  weekly: true },
+    { name: "shodan",                    expectedHour: 4,  label: "Shodan taraması"                },
+    // ── Raporlama & izleme ───────────────────────────────────────────────────
+    { name: "daily_summary",             expectedHour: 8,  label: "Günlük özet"                    },
+    { name: "domain_rescan",             expectedHour: 9,  label: "Domain yeniden tarama"          },
+    { name: "health_score",              expectedHour: 2,  label: "Müşteri sağlık skoru"           },
+    { name: "ai_quality_monitor",        expectedHour: 9,  label: "AI çıktı kalite izleme"         },
+    // ── Güvenlik uyarıları ────────────────────────────────────────────────────
+    { name: "cve_feed_check",            expectedHour: 0,  label: "CVE güvenlik açığı takibi"      },
+    { name: "cve_customer_notification", expectedHour: 0,  label: "CVE müşteri bildirimi"          },
+    { name: "tprm_vendor_rescan",        expectedHour: 2,  label: "Tedarikçi yeniden tarama"       },
+    // ── Gelir & müşteri tutma ─────────────────────────────────────────────────
+    { name: "auto_invoice_generate",     expectedHour: 6,  label: "Otomatik fatura oluşturma"      },
+    { name: "dunning_check",             expectedHour: 10, label: "Geciken ödeme takibi"           },
+    { name: "churn_auto_intervention",   expectedHour: 8,  label: "Churn otomatik müdahale"        },
+    { name: "customer_activation_monitor", expectedHour: 11, label: "Aktivasyon izleyici"          },
   ];
 
   const now = new Date();

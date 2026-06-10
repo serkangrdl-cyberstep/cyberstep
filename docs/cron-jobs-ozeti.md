@@ -1,6 +1,6 @@
 # CyberStep.io — Otomatik Görevler (Cron Jobs) Özeti
 
-> **Son güncelleme:** 8 Haziran 2026  
+> **Son güncelleme:** 10 Haziran 2026  
 > Sistemin arka planda, insan müdahalesi olmadan otomatik olarak yürüttüğü tüm görevlerin teknik olmayan özeti.
 
 ---
@@ -37,6 +37,7 @@
 | SSL Sertifika Keşfi | Her gece 01:00 | Yeni kurulan Türk şirketlerinin SSL sertifikalarını izler | Potansiyel satış adayı (lead) tespit eder |
 | CVE Tehdit Eşleştirme | Her gece 02:30 | Yeni CVE'leri mevcut müşteri profilleriyle eşleştirir | Kime hangi açık mail atılacağını otomatik belirler |
 | Port Tarama | Her Pazar 04:00 | İnternet üzerinde açık port/servis tespiti yapar | Yeni potansiyel müşteri adayı keşfeder |
+| **USOM Kara Liste Yenileme** | **Her gece 03:15** | **Türkiye Ulusal Siber Olaylar Müdahale Merkezi'nin (USOM) zararlı URL/IP listesini indirir; domain tarama motoru bu listeyi referans olarak kullanır** | **Yerli tehdit istihbaratını otomatik günceller; Türkiye'ye özgü saldırı altyapılarını daha hızlı tespit eder** |
 
 ---
 
@@ -50,6 +51,9 @@
 | Alan Adı Keşfi (crt.sh) | Her gece 03:00 | SSL sertifika kayıtlarından yeni Türk şirketlerini bulur | Henüz siber güvenlik hizmeti almayan şirketleri erken keşfeder |
 | **Ücretsiz Tarama Takip E-postası** | **Her saat** | **Ücretsiz tarama yapan anonim kullanıcıları 24-72 saat sonra tespit eder; skor ve öne çıkan bulgularla kişiselleştirilmiş e-posta gönderir, kayıt CTA'sı ekler** | **Ücretsiz kullanıcıları ücretli aboneliğe dönüştürme fırsatını otomatik değerlendirir** |
 | Shodan Lead Tarama | Her gece 04:00 | Shodan üzerinden açık servis/port bulunduran şirketleri tespit eder | Güvenlik açığı olan potansiyel müşterileri otomatik bulur |
+| **SSL Süresi Dolmak Üzere Büyüme Alarmı** | **Her gece 22:00** | **SSL sertifikası 30 gün içinde dolacak olan izlenen domain'leri tespit eder; ilgili şirkete "sertifikanız doluyor" içerikli kişiselleştirilmiş büyüme e-postası gönderir** | **Müşteri olmayan şirketlere tam zamanında değer odaklı dokunuş yapar; dönüşüm olasılığı yüksek zamanlı outreach** |
+| **CVE Eşleşme Büyüme Alarmı** | **Her gece 23:30** | **Yeni kritik CVE'lerle eşleşen teknoloji stacki bulunan izlenen şirketleri tarar; "sisteminizi etkileyen açık tespit ettik" konulu büyüme e-postası gönderir** | **Güvenlik tehdit anında potansiyel müşteriye ulaşır; en yüksek dönüşüm zamanlamasını yakalar** |
+| **Port Değişim Takip Alarmı** | **Her Pazar 01:00** | **İzlenen şirketlerin açık port profilini önceki haftayla karşılaştırır; yeni kritik port tespit edilince büyüme alarmı tetikler** | **Hedef şirketin IT ortamındaki değişiklikleri erken yakalar; güncel ve bağlamsal outreach sağlar** |
 
 ---
 
@@ -87,6 +91,7 @@
 | Uyum Skoru Raporu | Her ayın 1'i 08:00 | Müşterinin güvenlik uyum puanını hesaplar, trend analizi ekler | Aylık ilerlemeyi nesnel olarak ölçer |
 | Yıllık Rapor Hatırlatması | Her ayın 1'i 09:00 | Yıllık rapor dönemine girenler için otomatik hatırlatma gönderir | Önemli raporların gözden kaçmasını önler |
 | Demo Rapor Yenileme | Her ayın 1'i 10:00 | Demo hesapların örnek raporlarını taze ve güncel tutar | Satış demoları her zaman gerçekçi ve güncel görünür |
+| **SOC Aylık AI Maliyet Raporu** | **Her ayın 1'i 09:00** | **Bir önceki ayda SOC triage, korelasyon ve playbook üretimi için harcanan AI (Claude) maliyetini hesaplar; servis bazlı dökümü admin'e e-posta ile gönderir** | **SOC hizmetinin AI maliyet yapısını şeffaf tutar; bütçe planlaması ve müşteri fiyatlandırması için temel veri** |
 
 ---
 
@@ -107,6 +112,7 @@
 | Alan Adı Yeniden Tarama | Her gün 09:30 | Müşteri alan adlarını güncel tehdit imzalarıyla yeniden tarar | Önceden temiz görünen domain'lerdeki yeni tehditleri yakalar |
 | **AI Çıktı Kalite İzleme** | **Her gün 09:30** | **Son 24 saatte oluşturulan raporları kontrol eder: çok kısa aiAnalysis (<400 karakter), boş rapor ve yüksek hata oranı varsa admin'e e-posta alarmı gönderir; ai_cost_log'dan servis bazlı hata oranını da denetler** | **AI raporlama kalitesi düşmeden proaktif müdahaleye olanak tanır; kullanıcı şikayeti gelmeden sistemi yakalar** |
 | **Platform Smoke Test** | **Her saat :05** | **API /healthz, PostgreSQL bağlantısı ve Gemini API erişimini test eder; herhangi biri başarısız olursa anında Telegram + e-posta alarmı gönderir** | **Production bozulmaları kullanıcı şikayetiyle değil, otomatik izlemeyle tespit edilir** |
+| **Tedarikçi Portföyü Yeniden Tarama** | **Her gece 02:00** | **Müşterilerin tedarikçi portföyünde kayıtlı ve aktif izleme açık olan tüm vendor domain'lerini otomatik olarak yeniden tarar; skor değişikliği varsa hem müşteri hem tedarikçi için alert tetikler** | **Tedarikçi risk profilinin güncel kalmasını sağlar; müşterinin tedarik zinciri kaynaklı riskleri gözden kaçırmadan yakalamasını güvence altına alır** |
 
 ---
 
@@ -155,12 +161,12 @@
 | Kategori | Cron Sayısı |
 |---|---|
 | Güvenlik İzleme | 13 |
-| Tehdit İstihbaratı | 8 |
-| Lead Üretimi & Satış | 6 |
+| Tehdit İstihbaratı | 9 |
+| Lead Üretimi & Satış | 9 |
 | Müşteri İletişimi & Onboarding | 12 |
-| Raporlama & Analitik | 11 |
-| Sistem & Altyapı | 14 |
+| Raporlama & Analitik | 12 |
+| Sistem & Altyapı | 15 |
 | AI & İçerik Üretimi | 9 |
 | Yasal Uyumluluk (KVKK) | 3 |
 | Büyüme & Fiyatlandırma | 7 |
-| **TOPLAM** | **83** |
+| **TOPLAM** | **89** |

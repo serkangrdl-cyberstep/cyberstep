@@ -5,11 +5,11 @@ import {
   newsItemsTable,
   weeklyDigestsTable,
 } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, gte, count, avg } from "drizzle-orm";
 import { collectRSSFeeds, seedDefaultSources } from "./rss-collector";
 import { generateWeeklyDigest } from "./claude-processor";
 import { sendMail, sendDigestWeeklyEmail } from "../../services/email";
-import { newsletterSubscribersTable } from "@workspace/db";
+import { newsletterSubscribersTable, weeklyBulletinsTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import { z } from "zod";
 
@@ -282,6 +282,111 @@ router.get("/stats", async (req, res) => {
     totalNewsItems: newsCount?.total ?? 0,
     totalDigests: digestsCount?.total ?? 0,
     latestDigest: latestDigest[0] ?? null,
+  });
+});
+
+// GET /api/digest/dashboard — pazarlama dashboard için kapsamlı özet
+router.get("/dashboard", async (_req, res) => {
+  const now     = new Date();
+  const since7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  // Mevcut hafta numarası (ISO-benzeri)
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const weekNumber  = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86_400_000 + startOfYear.getDay() + 1) / 7);
+  const weekYear    = now.getFullYear();
+
+  // ── Pipeline ──────────────────────────────────────────────────────────────
+  const [newsTotal]         = await db.select({ c: sql<number>`count(*)::int` }).from(newsItemsTable);
+  const [newsTR]            = await db.select({ c: sql<number>`count(*)::int` }).from(newsItemsTable).where(eq(newsItemsTable.isTurkeyRelated, true));
+  const [newsLast7d]        = await db.select({ c: sql<number>`count(*)::int` }).from(newsItemsTable).where(gte(newsItemsTable.createdAt, since7d));
+  const [newsEnriched]      = await db.select({ c: sql<number>`count(*)::int` }).from(newsItemsTable).where(sql`${newsItemsTable.enrichedAt} IS NOT NULL`);
+  const [newsPending]       = await db.select({ c: sql<number>`count(*)::int` }).from(newsItemsTable).where(and(sql`${newsItemsTable.enrichedAt} IS NULL`, eq(newsItemsTable.isTurkeyRelated, true)));
+
+  const lastSources = await db.select({ lastFetchedAt: newsSourcesTable.lastFetchedAt })
+    .from(newsSourcesTable)
+    .where(sql`${newsSourcesTable.lastFetchedAt} IS NOT NULL`)
+    .orderBy(desc(newsSourcesTable.lastFetchedAt))
+    .limit(1);
+
+  // ── Bu hafta haber kategorisi dağılımı ───────────────────────────────────
+  const byCategory = await db.select({
+    category: newsItemsTable.category,
+    cnt:      sql<number>`count(*)::int`,
+  })
+    .from(newsItemsTable)
+    .where(and(
+      eq(newsItemsTable.weekNumber, weekNumber),
+      eq(newsItemsTable.weekYear,   weekYear),
+    ))
+    .groupBy(newsItemsTable.category)
+    .orderBy(desc(sql<number>`count(*)`))
+    .limit(8);
+
+  // ── Son 5 digest ──────────────────────────────────────────────────────────
+  const recentDigests = await db.select({
+    id:         weeklyDigestsTable.id,
+    weekNumber: weeklyDigestsTable.weekNumber,
+    weekYear:   weeklyDigestsTable.weekYear,
+    status:     weeklyDigestsTable.status,
+    createdAt:  weeklyDigestsTable.createdAt,
+    approvedAt: weeklyDigestsTable.approvedAt,
+    sentAt:     weeklyDigestsTable.sentAt,
+  })
+    .from(weeklyDigestsTable)
+    .orderBy(desc(weeklyDigestsTable.weekYear), desc(weeklyDigestsTable.weekNumber))
+    .limit(5);
+
+  // ── Son 5 bülten ──────────────────────────────────────────────────────────
+  const recentBulletins = await db.select({
+    id:             weeklyBulletinsTable.id,
+    weekNumber:     weeklyBulletinsTable.weekNumber,
+    year:           weeklyBulletinsTable.year,
+    status:         weeklyBulletinsTable.status,
+    sentAt:         weeklyBulletinsTable.sentAt,
+    recipientCount: weeklyBulletinsTable.recipientCount,
+    openRate:       weeklyBulletinsTable.openRate,
+    clickRate:      weeklyBulletinsTable.clickRate,
+    createdAt:      weeklyBulletinsTable.createdAt,
+  })
+    .from(weeklyBulletinsTable)
+    .orderBy(desc(weeklyBulletinsTable.createdAt))
+    .limit(5);
+
+  // ── Abone metrikleri ──────────────────────────────────────────────────────
+  const [subsTotal]    = await db.select({ c: sql<number>`count(*)::int` }).from(newsletterSubscribersTable).where(eq(newsletterSubscribersTable.isActive, true));
+  const [subsDigest]   = await db.select({ c: sql<number>`count(*)::int` }).from(newsletterSubscribersTable).where(and(eq(newsletterSubscribersTable.isActive, true), eq(newsletterSubscribersTable.subscribeToDigest, true)));
+  const [subsBlog]     = await db.select({ c: sql<number>`count(*)::int` }).from(newsletterSubscribersTable).where(and(eq(newsletterSubscribersTable.isActive, true), eq(newsletterSubscribersTable.subscribeToBlog, true)));
+  const [subsNew30d]   = await db.select({ c: sql<number>`count(*)::int` }).from(newsletterSubscribersTable).where(gte(newsletterSubscribersTable.subscribedAt, since30d));
+  const [subsChurn30d] = await db.select({ c: sql<number>`count(*)::int` }).from(newsletterSubscribersTable).where(and(sql`${newsletterSubscribersTable.unsubscribedAt} IS NOT NULL`, gte(newsletterSubscribersTable.unsubscribedAt, since30d)));
+
+  res.json({
+    pipeline: {
+      newsTotal:        newsTotal.c,
+      newsTurkeyTotal:  newsTR.c,
+      newsLast7d:       newsLast7d.c,
+      enriched:         newsEnriched.c,
+      pendingEnrichment: newsPending.c,
+      lastCollectAt:    lastSources[0]?.lastFetchedAt ?? null,
+    },
+    thisWeek: {
+      weekNumber,
+      weekYear,
+      byCategory: byCategory.map(r => ({ category: r.category ?? "Diğer", count: r.cnt })),
+    },
+    recentDigests,
+    recentBulletins: recentBulletins.map(b => ({
+      ...b,
+      openRate:  b.openRate  != null ? Number(b.openRate)  : null,
+      clickRate: b.clickRate != null ? Number(b.clickRate) : null,
+    })),
+    subscribers: {
+      total:          subsTotal.c,
+      digestSubs:     subsDigest.c,
+      blogSubs:       subsBlog.c,
+      newLast30d:     subsNew30d.c,
+      churnedLast30d: subsChurn30d.c,
+    },
   });
 });
 

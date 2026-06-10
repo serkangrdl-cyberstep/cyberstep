@@ -7,7 +7,8 @@ import { adminFetchJson } from "@/lib/admin-fetch";
 import {
   AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp,
   Shield, Activity, TrendingUp, Globe, Search, ExternalLink,
-  Clock, RefreshCw, AlertCircle, BarChart3,
+  Clock, RefreshCw, AlertCircle, BarChart3, Newspaper, Share2,
+  BookOpen, Users,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -68,6 +69,33 @@ interface AssessmentRow {
 interface RiskDetail {
   distribution: Record<string, number>;
   assessments: AssessmentRow[];
+}
+
+interface MarketingData {
+  social: {
+    pending: number;
+    approvedLast24h: number;
+    publishedLast7d: number;
+    byPlatform: Record<string, number>;
+  };
+  bulletin: {
+    totalActive: number;
+    newLast30d: number;
+    lastBulletin: {
+      weekNumber: number;
+      year: number;
+      status: string;
+      sentAt: string | null;
+      recipientCount: number | null;
+      openRate: number | null;
+      clickRate: number | null;
+    } | null;
+  };
+  blog: {
+    drafts: number;
+    publishedLast30d: number;
+    total: number;
+  };
 }
 
 interface DailyAnalytics {
@@ -548,7 +576,141 @@ function Pipeline24h() {
   );
 }
 
-// ─── 5. Kenar Bar — Hızlı Linkler ─────────────────────────────────────────────
+// ─── 5. Pazarlama & İçerik ────────────────────────────────────────────────────
+
+function PazarlamaIcerik() {
+  const { data, isLoading } = useQuery<MarketingData>({
+    queryKey: ["admin-marketing"],
+    queryFn: () => adminFetchJson("/api/admin-panel/analytics/marketing"),
+    staleTime: 5 * 60_000,
+    refetchInterval: 300_000,
+  });
+
+  if (isLoading) return <div className="text-xs text-muted-foreground py-4">Yükleniyor...</div>;
+  if (!data) return null;
+
+  const lb = data.bulletin.lastBulletin;
+  const platforms = Object.entries(data.social.byPlatform);
+
+  return (
+    <section>
+      <SectionHeader label="Pazarlama & İçerik" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Sosyal medya */}
+        <div className="rounded-xl border border-border bg-card p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-3">
+            <Share2 className="h-3.5 w-3.5 text-primary" />
+            <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Sosyal Medya</h3>
+          </div>
+          <div className="space-y-2 flex-1">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Onay Bekleyen</span>
+              <span className={`text-sm font-bold ${data.social.pending > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                {data.social.pending}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Bugün Onaylanan</span>
+              <span className="text-sm font-bold text-foreground">{data.social.approvedLast24h}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Son 7g Yayınlanan</span>
+              <span className={`text-sm font-bold ${data.social.publishedLast7d > 0 ? "text-emerald-400" : "text-muted-foreground"}`}>
+                {data.social.publishedLast7d}
+              </span>
+            </div>
+          </div>
+          {platforms.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {platforms.map(([p, cnt]) => (
+                <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">
+                  {p} {cnt}
+                </span>
+              ))}
+            </div>
+          )}
+          <a href="/panel/sosyal-medya" className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+            <ExternalLink className="h-3 w-3" /> Sosyal medya paneli
+          </a>
+        </div>
+
+        {/* Bülten */}
+        <div className="rounded-xl border border-border bg-card p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-3">
+            <Newspaper className="h-3.5 w-3.5 text-primary" />
+            <h3 className="text-xs font-bold text-primary uppercase tracking-wider">CISO Bülteni</h3>
+          </div>
+          <div className="space-y-2 flex-1">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Aktif Abone</span>
+              <span className="text-sm font-bold text-foreground">{data.bulletin.totalActive.toLocaleString("tr-TR")}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Son 30g Yeni</span>
+              <span className={`text-sm font-bold ${data.bulletin.newLast30d > 0 ? "text-emerald-400" : "text-muted-foreground"}`}>
+                +{data.bulletin.newLast30d}
+              </span>
+            </div>
+            {lb && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Son Bülten</span>
+                  <Badge variant="outline" className={`text-[10px] border ${lb.status === "sent" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/30"}`}>
+                    H{lb.weekNumber}/{lb.year} — {lb.status === "sent" ? "Gönderildi" : lb.status}
+                  </Badge>
+                </div>
+                {lb.recipientCount != null && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Alıcı / Açılma</span>
+                    <span className="text-xs font-bold text-foreground">
+                      {lb.recipientCount.toLocaleString("tr-TR")}
+                      {lb.openRate != null && <span className="text-primary"> · %{lb.openRate.toFixed(1)}</span>}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <a href="/panel/bulletin" className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+            <ExternalLink className="h-3 w-3" /> Bülten paneli
+          </a>
+        </div>
+
+        {/* Blog */}
+        <div className="rounded-xl border border-border bg-card p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen className="h-3.5 w-3.5 text-primary" />
+            <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Blog</h3>
+          </div>
+          <div className="space-y-2 flex-1">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Taslak</span>
+              <span className={`text-sm font-bold ${data.blog.drafts > 0 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                {data.blog.drafts}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Son 30g Yayınlanan</span>
+              <span className={`text-sm font-bold ${data.blog.publishedLast30d > 0 ? "text-emerald-400" : "text-muted-foreground"}`}>
+                {data.blog.publishedLast30d}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Toplam Yazı</span>
+              <span className="text-sm font-bold text-foreground">{data.blog.total}</span>
+            </div>
+          </div>
+          <a href="/panel/blog" className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+            <ExternalLink className="h-3 w-3" /> Blog yönetimi
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── 6. Kenar Bar — Hızlı Linkler ─────────────────────────────────────────────
 
 const QUICK_LINKS = [
   { label: "Domain Taramalar",  href: "/panel/domain-taramalar" },
@@ -590,6 +752,11 @@ export default function DailyDashboard() {
 
           {/* Pipeline */}
           <Pipeline24h />
+
+          <div className="border-t border-border" />
+
+          {/* Pazarlama & İçerik */}
+          <PazarlamaIcerik />
 
         </div>
 

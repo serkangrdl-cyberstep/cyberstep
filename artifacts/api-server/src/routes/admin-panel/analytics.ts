@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable, leadCandidatesTable, discoveryRunsTable, leadScanQueueTable, weeklyBulletinsTable, intelligenceReportsTable, dailySummariesTable } from "@workspace/db";
+import { assessmentsTable, reportsTable, paymentsTable, customersTable, domainScansTable, badgeAdvantagesTable, leadCandidatesTable, discoveryRunsTable, leadScanQueueTable, weeklyBulletinsTable, intelligenceReportsTable, dailySummariesTable, socialMediaPostsTable, bulletinSubscribersTable, blogPostsTable } from "@workspace/db";
 import { count, sum, avg, sql, desc, gte, and, eq, asc, isNotNull } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 
@@ -451,6 +451,96 @@ router.get("/admin-panel/analytics/ops-center", requireAdmin, async (_req: Reque
       yesterdayScans: yesterdayN,
       thisWeekLeads:  thisWeekN,
       lastWeekLeads:  lastWeekN,
+    },
+  });
+});
+
+// GET /api/admin-panel/analytics/marketing — sosyal medya, blog, bülten metrikleri
+router.get("/admin-panel/analytics/marketing", requireAdmin, async (_req: Request, res: Response) => {
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  // ── Sosyal medya ──────────────────────────────────────────────────────────
+  const [socialPending] = await db.select({ count: count() })
+    .from(socialMediaPostsTable)
+    .where(sql`${socialMediaPostsTable.status} IN ('draft', 'revision_requested')`);
+
+  const [socialApproved24h] = await db.select({ count: count() })
+    .from(socialMediaPostsTable)
+    .where(and(
+      eq(socialMediaPostsTable.status, "approved"),
+      gte(socialMediaPostsTable.approvedAt, since24h),
+    ));
+
+  const [socialPublished7d] = await db.select({ count: count() })
+    .from(socialMediaPostsTable)
+    .where(and(
+      eq(socialMediaPostsTable.status, "published"),
+      gte(socialMediaPostsTable.publishedAt, since7d),
+    ));
+
+  const socialByPlatform = await db.select({
+    platform: socialMediaPostsTable.platform,
+    cnt: count(),
+  })
+    .from(socialMediaPostsTable)
+    .where(and(
+      eq(socialMediaPostsTable.status, "published"),
+      gte(socialMediaPostsTable.publishedAt, since7d),
+    ))
+    .groupBy(socialMediaPostsTable.platform);
+
+  // ── Bülten aboneleri ──────────────────────────────────────────────────────
+  const [bulSubTotal] = await db.select({ count: count() })
+    .from(bulletinSubscribersTable)
+    .where(eq(bulletinSubscribersTable.isActive, true));
+
+  const [bulSubNew30d] = await db.select({ count: count() })
+    .from(bulletinSubscribersTable)
+    .where(and(
+      eq(bulletinSubscribersTable.isActive, true),
+      gte(bulletinSubscribersTable.subscribedAt, since30d),
+    ));
+
+  const [lastBulletin] = await db.select({
+    weekNumber:     weeklyBulletinsTable.weekNumber,
+    year:           weeklyBulletinsTable.year,
+    status:         weeklyBulletinsTable.status,
+    sentAt:         weeklyBulletinsTable.sentAt,
+    recipientCount: weeklyBulletinsTable.recipientCount,
+    openRate:       weeklyBulletinsTable.openRate,
+    clickRate:      weeklyBulletinsTable.clickRate,
+  })
+    .from(weeklyBulletinsTable)
+    .orderBy(desc(weeklyBulletinsTable.createdAt))
+    .limit(1);
+
+  // ── Blog ──────────────────────────────────────────────────────────────────
+  const [blogDrafts]       = await db.select({ count: count() }).from(blogPostsTable).where(eq(blogPostsTable.status, "draft"));
+  const [blogPublished30d] = await db.select({ count: count() }).from(blogPostsTable).where(and(eq(blogPostsTable.status, "published"), gte(blogPostsTable.publishedAt, since30d)));
+  const [blogTotal]        = await db.select({ count: count() }).from(blogPostsTable);
+
+  res.json({
+    social: {
+      pending:          Number(socialPending.count),
+      approvedLast24h:  Number(socialApproved24h.count),
+      publishedLast7d:  Number(socialPublished7d.count),
+      byPlatform:       Object.fromEntries(socialByPlatform.map(r => [r.platform, Number(r.cnt)])),
+    },
+    bulletin: {
+      totalActive:  Number(bulSubTotal.count),
+      newLast30d:   Number(bulSubNew30d.count),
+      lastBulletin: lastBulletin ? {
+        ...lastBulletin,
+        openRate:  lastBulletin.openRate  != null ? Number(lastBulletin.openRate)  : null,
+        clickRate: lastBulletin.clickRate != null ? Number(lastBulletin.clickRate) : null,
+      } : null,
+    },
+    blog: {
+      drafts:          Number(blogDrafts.count),
+      publishedLast30d: Number(blogPublished30d.count),
+      total:           Number(blogTotal.count),
     },
   });
 });

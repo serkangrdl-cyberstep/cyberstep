@@ -165,8 +165,16 @@ const fabricIngestPath = /^\/api\/fabric\/(webhook|syslog)\//;
 const snWebhookPath = /^\/api\/integrations\/servicenow\/webhook$/;
 const skipJsonParsing = (path: string) => fabricIngestPath.test(path) || snWebhookPath.test(path);
 const jsonParser = express.json({ limit: "512kb" });
+const largeJsonParser = express.json({ limit: "5mb" });
 const urlencodedParser = express.urlencoded({ extended: true, limit: "512kb" });
-app.use((req, res, next) => (skipJsonParsing(req.path) ? next() : jsonParser(req, res, next)));
+const needsLargeBody = (req: Request) =>
+  (req.method === "PUT" && /^\/api\/admin-panel\/blog\/\d+$/.test(req.path)) ||
+  req.path === "/api/gemini/generate-image";
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (skipJsonParsing(req.path)) return next();
+  if (needsLargeBody(req)) return largeJsonParser(req, res, next);
+  return jsonParser(req, res, next);
+});
 app.use((req, res, next) => (skipJsonParsing(req.path) ? next() : urlencodedParser(req, res, next)));
 
 // ─── Input sanitization middleware ───────────────────────────────────────────

@@ -92,7 +92,14 @@ function hasDigestAccess(me: AdminMe | undefined): boolean {
 
 function Sidebar({ adminEmail }: { adminEmail?: string }) {
   const [location] = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("digest-sidebar-collapsed") === "true"; } catch { return false; }
+  });
+
+  const toggle = (val: boolean) => {
+    try { localStorage.setItem("digest-sidebar-collapsed", val ? "true" : "false"); } catch { /* noop */ }
+    setCollapsed(val);
+  };
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" || location === "" : location.startsWith(href);
@@ -102,7 +109,7 @@ function Sidebar({ adminEmail }: { adminEmail?: string }) {
       <aside className="w-10 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0">
         <div className="flex justify-center py-4 border-b border-sidebar-border">
           <button
-            onClick={() => setCollapsed(false)}
+            onClick={() => toggle(false)}
             className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
             title="Menuyu ac"
           >
@@ -141,7 +148,7 @@ function Sidebar({ adminEmail }: { adminEmail?: string }) {
             )}
           </div>
           <button
-            onClick={() => setCollapsed(true)}
+            onClick={() => toggle(true)}
             className="mt-0.5 shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
             title="Menuyu kapat"
           >

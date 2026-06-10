@@ -1,0 +1,113 @@
+CyberStep'in mevcut yönünü (agentless, dışarıdan tarama, KOBİ odaklı, düşük operasyon maliyeti) düşünürsek, bence hata yapılabilecek nokta şu:
+"Daha fazla teknik tarama eklemek" yerine "daha fazla iş değeri üretmek."
+Shodan, VirusTotal, AbuseIPDB, SSL, DNS, WHOIS, teknoloji fingerprinting zaten birçok oyuncunun yaptığı şeyler.
+Katma değer yaratacak olan, bunlardan yeni içgörüler üretmek.
+Ben olsam aşağıdaki modüllere öncelik verirdim:
+1. Tedarikçi Risk Analizi (Vendor Exposure)
+KOBİ'lerde çok eksik.
+Müşteri girer:
+Muhasebeci
+ERP firması
+Yazılım şirketi
+Bulut sağlayıcısı
+Web ajansı
+CyberStep bunların internet görünürlüğünü analiz eder.
+Çıktı:
+"Muhasebe sağlayıcınızın güvenlik skoru sizinkinden daha düşük."
+Bu yönetim seviyesinde çok ilgi çeker.
+Maliyet:
+Neredeyse sıfır
+Mevcut tarama motorunu tekrar kullanırsın
+Katma değer:
+Çok yüksek
+2. Ransomware Exposure Score
+KOBİ'nin anlayacağı dil.
+Kimse:
+CVE-2025-XXXX
+ile ilgilenmiyor.
+Ama:
+"Şirketiniz fidye saldırısına karşı yüksek risk grubunda"
+dediğinde dikkat çekiyor.
+Skor bileşenleri:
+VPN görünürlüğü
+RDP görünürlüğü
+MFA durumu
+Email koruması
+Eski teknoloji kullanımı
+Açık servisler
+Çok kolay ürünleşir.
+3. AI Exposure Assessment
+Türkiye'de neredeyse boş.
+Dışarıdan:
+Chatbot var mı?
+LLM endpointleri var mı?
+API key sızıntısı var mı?
+Github sızıntıları var mı?
+Prompt injection riski var mı?
+Çıktı:
+AI Security Score
+Bu başlık şu an çok satıyor.
+4. Executive Risk Dashboard
+Teknik değil.
+CEO için.
+Örneğin:
+Siber risk seviyesi
+Fidye yazılımı riski
+Email saldırı riski
+Tedarikçi riski
+KVKK riski
+CyberStep'in asıl farkı burada olabilir.
+5. Domain Hijacking Risk
+Çok düşük maliyet.
+Kontrol:
+SPF
+DKIM
+DMARC
+DNSSEC
+Registrar güvenliği
+Sonuç:
+"Alan adınız ele geçirilmeye karşı ne kadar dayanıklı?"
+KOBİ'ler bunu çok sever.
+6. Dark Web Lite
+Pahalı servis alma.
+Başlangıçta:
+Açık veri kaynakları
+Sızıntı aramaları
+Paste siteleri
+Github
+ile başlanabilir.
+Örneğin:
+17 adet çalışan email adresi veri sızıntılarında bulundu.
+Bu çok güçlü satış argümanıdır.
+7. Exposure Trend
+Bence çok kritik.
+Çünkü aylık abonelik sebebi yaratıyor.
+İlk ay:
+75/100
+Sonraki ay:
+82/100
+Sonraki ay:
+88/100
+Müşteri gelişimi görüyor.
+Bu, tek seferlik assessment'tan SaaS'a geçiş noktası.
+8. Siber Güvenlik Notu (Cyber Credit Rating)
+Bence CyberStep'in en farklılaşabileceği alan.
+Örneğin:
+A+
+A
+B
+C
+D
+şeklinde bir not.
+KOBİ'ler CVSS anlamaz.
+Ama:
+"Şirketiniz B notunda."
+anlar.
+Bu notu tekliflere, web sitesine, tedarikçi değerlendirmelerine koyabilir.
+En çok değer yaratacağını düşündüğüm 3 modül
+Sınırlı bütçe ve tek kişi ölçeklenebilirlik açısından sıralarsam:
+Cyber Credit Rating
+Vendor Exposure Assessment
+Ransomware Exposure Score
+Çünkü bunlar mevcut dış tarama verilerini yeniden kullanır, neredeyse sıfır ek maliyet getirir ve seni "zafiyet tarama yapan başka bir platform" olmaktan çıkarıp, "KOBİ'ler için dijital risk derecelendirme ve CTEM platformu" konumuna taşır.
+Aslında CyberStep'in uzun vadeli savunulabilir avantajı yeni tarama araçları eklemek değil, tarama sonuçlarını iş diline çeviren bir "siber kredi derecelendirme kuruluşu" haline gelmek olabilir. Bu Türkiye'de çok daha az kalabalık bir alan.

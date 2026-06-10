@@ -7,6 +7,8 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
 import adminPanelRouter from "./routes/admin-panel/index";
+import basLiteRouter from "./routes/bas-lite/index";
+import exposureScoreRouter from "./routes/admin-panel/exposure-score";
 import cvePublicRouter from "./routes/cve-public";
 import bulletinPublicRouter from "./routes/bulletin-public";
 import bulletinAdminRouter from "./routes/admin-panel/bulletin";
@@ -343,6 +345,8 @@ app.use("/api", portalAccountRouter);
 app.use("/api/portal/ioc", portalIocRouter);
 app.use("/api/admin-panel/approvals", adminApprovalsRouter);
 app.use("/api", monitoringUptimeRouter);
+app.use("/api", basLiteRouter);
+app.use("/api", exposureScoreRouter);
 
 // ─── Internal: secret-token ile blog yazısı tetikleme (production catch-up) ───
 // ENCRYPTION_KEY ile korunur; session auth gerektirmez.

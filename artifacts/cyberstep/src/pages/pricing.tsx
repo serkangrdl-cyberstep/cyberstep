@@ -144,7 +144,7 @@ export default function Pricing() {
               {lang === "en" ? "Choose your protection level" : "Koruma seviyenizi seçin"}
             </p>
             <h2 className="text-3xl font-bold mb-3">
-              {lang === "en" ? "4 Packages. Everything runs in the background." : "4 Paket. Her şey perde arkasında çalışır."}
+              {lang === "en" ? "4 CTEM Packages. Everything runs in the background." : "4 CTEM Paketi. Her şey perde arkasında çalışır."}
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-sm">
               {lang === "en"
@@ -154,13 +154,13 @@ export default function Pricing() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Tier 1 — Kalkan */}
+            {/* Tier 1 — CTEM Temel */}
             <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  {lang === "en" ? "Starter" : "Başlangıç"}
+                  {lang === "en" ? "Essentials" : "Temel"}
                 </p>
-                <h3 className="text-lg font-bold mb-1">CyberStep Kalkan</h3>
+                <h3 className="text-lg font-bold mb-1">{lang === "en" ? "CTEM Essentials" : "CTEM Temel"}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {lang === "en"
                     ? "Know your security posture. Get alerted when something changes."
@@ -186,7 +186,7 @@ export default function Pricing() {
               </Link>
             </div>
 
-            {/* Tier 2 — Zırh (recommended) */}
+            {/* Tier 2 — CTEM Profesyonel (recommended) */}
             <div className="rounded-2xl border-2 border-primary bg-primary/5 p-6 flex flex-col gap-4 relative shadow-md">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                 <Badge className="bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold">
@@ -195,9 +195,9 @@ export default function Pricing() {
               </div>
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  {lang === "en" ? "Protection" : "Koruma"}
+                  {lang === "en" ? "Professional" : "Profesyonel"}
                 </p>
-                <h3 className="text-lg font-bold mb-1">CyberStep Zırh</h3>
+                <h3 className="text-lg font-bold mb-1">{lang === "en" ? "CTEM Professional" : "CTEM Profesyonel"}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {lang === "en"
                     ? "Full protection with Threat Intel, Board Reports, and KVKK tracking."
@@ -210,8 +210,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in Kalkan", "Threat Intelligence (Starter)", "Board Report (monthly)", "KVKK Notification System", "Dark Web Monitoring", "Attack Surface Analysis"]
-                  : ["Kalkan'daki her şey", "Tehdit İstihbaratı (Starter)", "Yönetim Kurulu Raporu (aylık)", "KVKK Bildirim Sistemi", "Dark Web İzleme", "Saldırı Yüzeyi Analizi"]
+                  ? ["Everything in CTEM Essentials", "Threat Intelligence (Starter)", "Board Report (monthly)", "KVKK Notification System", "Dark Web Monitoring", "Attack Surface Analysis"]
+                  : ["CTEM Temel'deki her şey", "Tehdit İstihbaratı (Başlangıç)", "Yönetim Kurulu Raporu (aylık)", "KVKK Bildirim Sistemi", "Dark Web İzleme", "Saldırı Yüzeyi Analizi"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
@@ -223,13 +223,13 @@ export default function Pricing() {
               </Link>
             </div>
 
-            {/* Tier 3 — vCISO */}
+            {/* Tier 3 — CTEM İleri */}
             <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  {lang === "en" ? "Platform + Expert" : "Platform + Uzman"}
+                  {lang === "en" ? "Advanced" : "İleri"}
                 </p>
-                <h3 className="text-lg font-bold mb-1">CyberStep vCISO</h3>
+                <h3 className="text-lg font-bold mb-1">{lang === "en" ? "CTEM Advanced" : "CTEM İleri"}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {lang === "en"
                     ? "Platform automates 80%. Trusted expert partner handles the rest."
@@ -247,8 +247,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in Zırh", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation"]
-                  : ["Zırh'taki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Kaydı ve güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı"]
+                  ? ["Everything in CTEM Professional", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation"]
+                  : ["CTEM Profesyonel'deki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Kaydı ve güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
@@ -260,14 +260,14 @@ export default function Pricing() {
               </Link>
             </div>
 
-            {/* Tier 4 — Tam Yönetilen */}
+            {/* Tier 4 — CTEM Kurumsal */}
             <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 dark:bg-slate-900/80 p-6 flex flex-col gap-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  {lang === "en" ? "Fully Managed" : "Tam Yönetilen"}
+                  {lang === "en" ? "Enterprise" : "Kurumsal"}
                 </p>
                 <h3 className="text-lg font-bold text-white mb-1">
-                  {lang === "en" ? "SOC/NOC Managed Service" : "SOC/NOC Yönetilen Servis"}
+                  {lang === "en" ? "CTEM Enterprise" : "CTEM Kurumsal"}
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   {lang === "en"
@@ -283,8 +283,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in vCISO Lider", "24/7 SOC — triage + playbook + escalation", "NOC — uptime, anomaly detection, capacity", "Fortinet / ServiceNow integrations", "Dedicated security operations team"]
-                  : ["vCISO Lider'deki her şey", "7/24 SOC — triage + playbook + eskalasyon", "NOC — uptime, anomali tespiti, kapasite", "Fortinet / ServiceNow entegrasyonları", "Adanmış güvenlik operasyonları ekibi"]
+                  ? ["Everything in CTEM Advanced", "24/7 SOC — triage + playbook + escalation", "NOC — uptime, anomaly detection, capacity", "Fortinet / ServiceNow integrations", "Dedicated security operations team"]
+                  : ["CTEM İleri'deki her şey", "7/24 SOC — triage + playbook + eskalasyon", "NOC — uptime, anomali tespiti, kapasite", "Fortinet / ServiceNow entegrasyonları", "Adanmış güvenlik operasyonları ekibi"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-slate-300">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />{f}

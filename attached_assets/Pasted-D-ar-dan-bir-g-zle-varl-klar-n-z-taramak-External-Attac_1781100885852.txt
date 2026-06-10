@@ -1,0 +1,31 @@
+Dışarıdan bir gözle varlıklarınızı taramak (External Attack Surface Management - EASM) ve zafiyet tespiti yapmak için bütçeyi yormayacak, ancak sunduğu raporlama ve otomasyonla ciddi katma değer sağlayacak en efektif araçları derledim.
+​Bu araçları keşif (recon), zafiyet taraması ve sızdırma analizi olarak kombine ettiğinizde, yüksek maliyetli ticari platformların sunduğu çıktının önemli bir kısmını elde edebilirsiniz.
+​1. Otomasyon ve Zafiyet Tarama Odaklı Araçlar
+​Nuclei (ProjectDiscovery)
+​Şu an siber güvenlik topluluğunun ve hata avcılarının (bug bounty) vazgeçilmezidir. Tamamen topluluk destekli, YAML tabanlı şablonlar (templates) kullanan çok hızlı bir zafiyet tarayıcısıdır.
+​Katma Değeri: Sadece genel zafiyetleri değil, yeni çıkan (0-day / 1-day) kritik zafiyetleri anında tarayabilmenizi sağlar. Kendi özel kurumsal şablonlarınızı da kolayca yazabilirsiniz.
+​Maliyet: Tamamen Ücretsiz (Açık Kaynak). İlerleyen süreçte bulut tabanlı platformları (ProjectDiscovery Cloud Platform) için bütçe ayrılabilir ancak CLI versiyonu fazlasıyla yeterlidir.
+​Nikto / OpenVAS (Greenbone)
+​Geleneksel ama etkili dış tarama araçlarıdır.
+​Katma Değeri: Web sunucularındaki yanlış yapılandırmaları, varsayılan dosyaları ve güvensiz CGI scriptlerini yakalamakta etkilidir.
+​Maliyet: Ücretsiz.
+​2. Dış Varlık ve Alt Alan Adı (Subdomain) Keşfi
+​Amass (OWASP)
+​Dış ağdan kuruma ait hangi varlıkların (domain, IP blogu, ASN) göründüğünü haritalandırmak için açık kaynaklı en güçlü araçlardan biridir.
+​Katma Değeri: Bilgi toplama (OSINT) tekniklerini, DNS sorgularını ve web arşivlerini birleştirerek unutulmuş, test aşamasında kalmış ve dışarıya açık kalmış alt alan adlarını (subdomain shadow IT) bulur.
+​Maliyet: Ücretsiz.
+​Subfinder (ProjectDiscovery)
+​Amass'a kıyasla çok daha hızlı ve hafif bir alt alan adı keşif aracıdır. Farklı pasif kaynaklardan veri çeker.
+​Katma Değeri: Dakikalar içinde geniş bir dış varlık listesi çıkarır. Nuclei ile boru hattı (pipeline) şeklinde bağlanarak otomatik tarama zinciri oluşturulabilir.
+​Maliyet: Ücretsiz.
+​3. Shodan ve Benzeri Arama Motorları (Entegre Çözümler)
+​Dışarıdan aktif tarama yapıp log bırakmak veya engellenmek yerine, interneti sürekli tarayan motorların verilerini kullanmak büyük katma değer sağlar.
+​Shodan / Censys / Criminal IP
+​Katma Değeri: Kurumunuza ait IP adreslerinin veya domainlerin dışarıdan nasıl göründüğünü, hangi portların açık olduğunu ve hatta hangi sertifikaların sızdığını pasif olarak görmenizi sağlar. Saldırganların gözünden sistemlerinizi izlersiniz.
+​Maliyet: Küçük ekipler veya kurumsal olmayan üyelikler için aylık 50$ - 100$ bandında (veya indirim dönemlerinde çok daha uygun) API paketleri mevcuttur. Bu API'leri otomasyonlarınıza besleyebilirsiniz.
+​Önerilen "Düşük Maliyetli" Otomasyon Kurgusu
+​Bu araçları tek tek çalıştırmak yerine, açık kaynaklı araçları bir araya getiren ücretsiz yönetim panellerini kullanmak kurumsal katma değeri katlar:
+​💡 Öneri: Katana / IVRE veya Trickest
+Eğer tüm bu süreci tek bir arayüzden yönetmek isterseniz, açık kaynaklı IVRE veya Purpleteam gibi framework'leri inceleyebilirsiniz.
+​Alternatif olarak, Trickest veya Tines gibi platformların ücretsiz/düşük bütçeli katmanlarını kullanarak; Subfinder -> Naabu (Port tarama) -> Nuclei (Zafiyet) akışını tamamen otomatize edebilir ve dışarıya açık varlıklarınızı haftalık olarak e-posta raporuna dönüştürebilirsiniz.
+​Mevcut yapınızda öncelikli olarak web uygulamalarını mı yoksa network/IP bacaklarını mı taramayı hedefliyorsunuz? Ona göre odağı daha spesifik bir araca da kaydırabiliriz.

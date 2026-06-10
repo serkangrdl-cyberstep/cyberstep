@@ -124,6 +124,7 @@ import CustomerReports from "./pages/customer/reports";
 import CustomerIntegrations from "./pages/customer/integrations";
 import CustomerDavet from "./pages/customer/davet";
 import PentestLite from "./pages/pentest-lite";
+import BasLite from "./pages/bas-lite";
 import YonetimRaporu from "./pages/customer/yonetim-raporu";
 import AdminSaglik from "./pages/admin/saglik";
 import PlatformSaglik from "./pages/admin-panel/platform-saglik";
@@ -178,6 +179,7 @@ import AdminMs365 from "./pages/admin-panel/ms365";
 import AdminKvkk from "./pages/admin-panel/kvkk";
 import AdminServiceNow from "./pages/admin-panel/servicenow";
 import AdminIocKontroller from "./pages/admin-panel/ioc-kontroller";
+import AdminExposureScore from "./pages/admin-panel/exposure-score";
 import AdminApprovals from "./pages/admin-panel/approvals";
 import IocSorgu from "./pages/ioc-sorgu";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
@@ -307,6 +309,7 @@ function Router() {
       <Route path="/hesabim/ciso-asistan" component={CisoAsistanPortal} />
       <Route path="/yenile" component={YenilePage} />
       <Route path="/pentest-lite" component={PentestLite} />
+      <Route path="/bas-lite" component={BasLite} />
       <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
       <Route path="/nps/:token" component={NpsPage} />
       <Route path="/status" component={StatusPage} />
@@ -384,6 +387,7 @@ function Router() {
       <Route path="/panel/fortinet" component={AdminFortinet} />
       <Route path="/panel/soc" component={AdminSoc} />
       <Route path="/panel/noc" component={AdminNoc} />
+      <Route path="/panel/exposure-score" component={AdminExposureScore} />
       <Route path="/panel/onboarding" component={OnboardingDashboard} />
       <Route path="/panel/musteri-servisleri" component={MusteriServisleri} />
       <Route path="/panel/musteriler/:id/onboarding" component={OnboardingWizard} />

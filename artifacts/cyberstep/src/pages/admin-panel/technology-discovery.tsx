@@ -257,7 +257,7 @@ function RequestRow({ req, onRefresh }: { req: DiscoveryRequest; onRefresh: () =
 export default function AdminTechDiscovery() {
   const { data: requests = [], isLoading, refetch } = useQuery<DiscoveryRequest[]>({
     queryKey: ["admin-tech-discovery"],
-    queryFn: () => fetch("/api/admin/tech-discovery").then(r => r.json()),
+    queryFn: () => fetch("/api/admin/tech-discovery", { credentials: "include" }).then(r => r.json()),
   });
 
   const reqs = Array.isArray(requests) ? requests : [];

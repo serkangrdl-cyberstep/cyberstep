@@ -209,6 +209,12 @@ import AdminTechDiscovery from "./pages/admin-panel/technology-discovery";
 import AdminIntelligence from "./pages/admin-panel/istihbarat";
 import AdminEndeksRaporu from "./pages/admin-panel/endeks-raporu";
 import AdminCtiIstihbarat from "./pages/admin-panel/cti-istihbarat";
+import AdminIsrDashboard from "./pages/admin-panel/isr/index";
+import AdminIsrDeal from "./pages/admin-panel/isr/deal";
+import AdminIsrKurallar from "./pages/admin-panel/isr/kurallar";
+import AdminIsrMusteriler from "./pages/admin-panel/isr/musteriler";
+import AdminIsrVendors from "./pages/admin-panel/isr/vendors";
+import AdminIsrMusteri360 from "./pages/admin-panel/isr/musteri-360";
 import SslKontrol from "./pages/araclar/ssl-kontrol";
 import DomainGuvenlikTaramasi from "./pages/araclar/domain-guvenlik-taramasi";
 import KvkkCezaHesaplayici from "./pages/araclar/kvkk-ceza-hesaplayici";
@@ -408,6 +414,12 @@ function Router() {
       <Route path="/panel/servis-katalogu" component={AdminServisKatalogu} />
       <Route path="/panel/servis-yonetimi" component={AdminServisYonetimi} />
       <Route path="/panel/demo-raporlar" component={AdminDemoRaporlar} />
+      <Route path="/panel/isr/deal/:id" component={AdminIsrDeal} />
+      <Route path="/panel/isr/musteriler/:id" component={AdminIsrMusteri360} />
+      <Route path="/panel/isr/musteriler" component={AdminIsrMusteriler} />
+      <Route path="/panel/isr/kurallar" component={AdminIsrKurallar} />
+      <Route path="/panel/isr/vendors" component={AdminIsrVendors} />
+      <Route path="/panel/isr" component={AdminIsrDashboard} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}

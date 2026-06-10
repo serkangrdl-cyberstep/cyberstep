@@ -10,6 +10,7 @@ import {
   Receipt, TrendingUp, CheckSquare, Star, Calculator,
   Play, Tag, UserCheck, Activity, Network, ShieldAlert, ScrollText,
   ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, Newspaper,
+  Zap, ShoppingCart, Code, Fingerprint, Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -60,7 +61,9 @@ const NAV_SECTIONS = [
     dept: "istihbarat",
     items: [
       { icon: Cpu,             label: "Tech Intelligence",      href: "/panel/tech-intelligence" },
+      { icon: Fingerprint,     label: "Technology Discovery",   href: "/panel/technology-discovery" },
       { icon: BarChart3,       label: "Intelligence Reports",   href: "/panel/intelligence" },
+      { icon: Zap,             label: "CTI İstihbarat",         href: "/panel/cti-istihbarat" },
       { icon: TrendingUp,      label: "Siber Güvenlik Endeksi", href: "/panel/endeks-raporu" },
     ],
   },
@@ -73,6 +76,17 @@ const NAV_SECTIONS = [
       { icon: ListTodo,        label: "Lead Kuyruğu",          href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
       { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },
+      { icon: Rocket,          label: "Growth Engine",         href: "/panel/growth-engine" },
+    ],
+  },
+  {
+    title: "ISR & Kanal Satış",
+    dept: "enterprise",
+    items: [
+      { icon: ShoppingCart,    label: "ISR Dashboard",         href: "/panel/isr" },
+      { icon: Users,           label: "ISR Müşteriler",        href: "/panel/isr/musteriler" },
+      { icon: Building2,       label: "ISR Vendors",           href: "/panel/isr/vendors" },
+      { icon: Calculator,      label: "ISR Marj Kuralları",    href: "/panel/isr/kurallar" },
     ],
   },
   {
@@ -113,6 +127,7 @@ const NAV_SECTIONS = [
       { icon: ScrollText,      label: "KVKK Bildirimler",      href: "/panel/kvkk" },
       { icon: Network,         label: "ServiceNow",            href: "/panel/servicenow" },
       { icon: Shield,          label: "IOC Guven Kontrolleri", href: "/panel/ioc-kontroller" },
+      { icon: Code,            label: "Kod Güvenliği",         href: "/panel/kod-guvenligi" },
     ],
   },
   {

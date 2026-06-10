@@ -102,7 +102,7 @@ export default function AdminEndeksRaporu() {
   const { data: reports = [] } = useQuery<IndexReport[]>({
     queryKey: ["index-reports"],
     queryFn: async () => {
-      const r = await fetch("/api/admin-panel/index/reports");
+      const r = await fetch("/api/admin-panel/index/reports", { credentials: "include" });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
     },
@@ -112,7 +112,7 @@ export default function AdminEndeksRaporu() {
   const { data: previewData } = useQuery<IndexReport>({
     queryKey: ["index-report-detail", previewMonth],
     queryFn: async () => {
-      const r = await fetch(`/api/admin-panel/index/${previewMonth}`);
+      const r = await fetch(`/api/admin-panel/index/${previewMonth}`, { credentials: "include" });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
     },
@@ -124,6 +124,7 @@ export default function AdminEndeksRaporu() {
     mutationFn: async () => {
       const r = await fetch("/api/admin-panel/index/generate", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start: startDate, end: endDate, reportMonth }),
       });
@@ -136,7 +137,7 @@ export default function AdminEndeksRaporu() {
   // ─── Publish mutation ───────────────────────────────────────────────────
   const publishMut = useMutation({
     mutationFn: async (month: string) => {
-      const r = await fetch(`/api/admin-panel/index/${month}/publish`, { method: "POST" });
+      const r = await fetch(`/api/admin-panel/index/${month}/publish`, { method: "POST", credentials: "include" });
       if (!r.ok) throw new Error((await r.json()).error ?? "Hata");
       return r.json();
     },
@@ -146,7 +147,7 @@ export default function AdminEndeksRaporu() {
   // ─── Delete mutation ────────────────────────────────────────────────────
   const deleteMut = useMutation({
     mutationFn: async (month: string) => {
-      const r = await fetch(`/api/admin-panel/index/${month}`, { method: "DELETE" });
+      const r = await fetch(`/api/admin-panel/index/${month}`, { method: "DELETE", credentials: "include" });
       if (!r.ok) throw new Error(await r.text());
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["index-reports"] }); if (previewMonth) setPreviewMonth(null); },

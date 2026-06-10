@@ -62,8 +62,8 @@ export default function IocKontroller() {
     setLoading(true);
     try {
       const [s, l] = await Promise.all([
-        fetch("/api/admin-panel/ioc/stats").then(r => r.json()),
-        fetch("/api/admin-panel/ioc/log?limit=20").then(r => r.json()),
+        fetch("/api/admin-panel/ioc/stats", { credentials: "include" }).then(r => r.json()),
+        fetch("/api/admin-panel/ioc/log?limit=20", { credentials: "include" }).then(r => r.json()),
       ]);
       setStats(s);
       setLog(Array.isArray(l) ? l : []);
@@ -79,6 +79,7 @@ export default function IocKontroller() {
     try {
       await fetch(`/api/admin-panel/ioc/settings/${key}`, {
         method: "PUT",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value }),
       });
@@ -94,6 +95,7 @@ export default function IocKontroller() {
       const url = activate ? "/api/admin-panel/kill-switch/activate" : "/api/admin-panel/kill-switch/deactivate";
       await fetch(url, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: killReason || "admin isteği" }),
       });

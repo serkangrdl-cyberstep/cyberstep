@@ -57,7 +57,7 @@ export default function AdminCodeSecrets() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-code-secrets"],
     queryFn: async () => {
-      const r = await fetch("/api/admin/code-secrets");
+      const r = await fetch("/api/admin/code-secrets", { credentials: "include" });
       if (!r.ok) throw new Error("Yüklenemedi");
       return r.json() as Promise<{ findings: SecretFinding[]; summary: Summary }>;
     },

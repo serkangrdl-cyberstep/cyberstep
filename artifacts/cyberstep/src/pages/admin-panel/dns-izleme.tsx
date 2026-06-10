@@ -69,19 +69,19 @@ function fmtDate(s: string | null) {
 export default function AdminDnsIzleme() {
   const { data: stats } = useQuery<DnsStats>({
     queryKey: ["admin-dns-stats"],
-    queryFn: () => fetch("/api/admin-panel/dns-monitor/stats").then(r => r.json()),
+    queryFn: () => fetch("/api/admin-panel/dns-monitor/stats", { credentials: "include" }).then(r => r.json()),
     refetchInterval: 30000,
   });
 
   const { data: changes = [], isLoading: changesLoading } = useQuery<DnsChangeEvent[]>({
     queryKey: ["admin-dns-changes"],
-    queryFn: () => fetch("/api/admin-panel/dns-monitor/changes").then(r => r.json()),
+    queryFn: () => fetch("/api/admin-panel/dns-monitor/changes", { credentials: "include" }).then(r => r.json()),
     refetchInterval: 30000,
   });
 
   const { data: domains = [] } = useQuery<WatchedDomain[]>({
     queryKey: ["admin-dns-domains"],
-    queryFn: () => fetch("/api/admin-panel/dns-monitor/domains").then(r => r.json()),
+    queryFn: () => fetch("/api/admin-panel/dns-monitor/domains", { credentials: "include" }).then(r => r.json()),
   });
 
   return (

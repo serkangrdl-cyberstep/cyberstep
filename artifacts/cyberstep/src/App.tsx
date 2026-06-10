@@ -198,6 +198,7 @@ import EntegrasyonlarimPage from "./pages/hesabim/entegrasyonlarim";
 import ServislerimPage from "./pages/hesabim/servislerim";
 import TechDiscoveryPortal from "./pages/hesabim/technology-discovery";
 import SepetPage from "./pages/hesabim/sepet";
+import GuvenlikDurumu from "./pages/hesabim/guvenlik-durumu";
 import YenilePage from "./pages/yenile";
 import NpsPage from "./pages/nps";
 import StatusPage from "./pages/status";
@@ -306,6 +307,7 @@ function Router() {
       <Route path="/hesabim/servislerim" component={ServislerimPage} />
       <Route path="/hesabim/technology-discovery" component={TechDiscoveryPortal} />
       <Route path="/hesabim/sepet" component={SepetPage} />
+      <Route path="/hesabim/guvenlik-durumu" component={GuvenlikDurumu} />
       <Route path="/hesabim/ciso-asistan" component={CisoAsistanPortal} />
       <Route path="/yenile" component={YenilePage} />
       <Route path="/pentest-lite" component={PentestLite} />

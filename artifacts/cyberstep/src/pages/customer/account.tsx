@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe, ShoppingCart, Wrench } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut, CheckCircle2, AlertTriangle, ArrowRight, User, Building2, Mail, CreditCard, FileText, Heart, TrendingDown, TrendingUp, Search, Users, Package, Settings, Home, Globe, ShoppingCart, Wrench, Activity } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,56 @@ interface MyServiceItem {
   subscription: { serviceSlug: string; serviceLabel: string; status: string };
   onboardingSteps: { side: string; status: string }[];
   onboardingProgress: number;
+}
+
+const GRADE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
+  "A+": { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  "A":  { text: "text-green-400",   bg: "bg-green-500/10",   border: "border-green-500/30" },
+  "B+": { text: "text-lime-400",    bg: "bg-lime-500/10",    border: "border-lime-500/30" },
+  "B":  { text: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/30" },
+  "C":  { text: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30" },
+  "D":  { text: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30" },
+  "F":  { text: "text-red-600",     bg: "bg-red-600/10",     border: "border-red-600/30" },
+};
+
+function SecurityRatingWidget() {
+  const { data } = useQuery<{ creditGrade: string; creditScore: number; domain: string | null; ransomwareBand: string }>({
+    queryKey: ["security-overview-mini"],
+    queryFn: async () => {
+      const r = await fetch("/api/customer/security-overview", { credentials: "include" });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!data?.creditGrade) return null;
+  const cfg = GRADE_COLORS[data.creditGrade] ?? GRADE_COLORS["C"]!;
+
+  return (
+    <Card className={`bg-slate-900 border ${cfg.border}`}>
+      <CardContent className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className={`rounded-xl ${cfg.bg} ${cfg.border} border w-14 h-14 flex items-center justify-center shrink-0`}>
+            <span className={`text-2xl font-black ${cfg.text}`}>{data.creditGrade}</span>
+          </div>
+          <div>
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" /> Siber Güvenlik Notu
+            </h3>
+            <p className="text-slate-400 text-sm mt-0.5">
+              {data.creditScore}/100 · Fidye riski: {data.ransomwareBand}
+            </p>
+          </div>
+        </div>
+        <Link href="/hesabim/guvenlik-durumu">
+          <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800 shrink-0 gap-2">
+            Güvenlik Durumu <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ActiveServicesWidget() {
@@ -187,6 +237,7 @@ export default function CustomerAccount() {
               <Link href="/raporlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Raporlarım</Link>
               <Link href="/entegrasyonlarim" className="text-slate-400 hover:text-white text-sm transition-colors">Entegrasyonlar</Link>
               <Link href="/hesabim/fortinet-entegrasyonu" className="text-slate-400 hover:text-white text-sm transition-colors">Fortinet</Link>
+              <Link href="/hesabim/guvenlik-durumu" className="text-slate-400 hover:text-emerald-400 text-sm transition-colors">Güvenlik Notu</Link>
               <Link href="/pentest-lite" className="text-slate-400 hover:text-white text-sm transition-colors">Saldırı Yüzeyi</Link>
               <Link href="/hesabim/yonetim-raporu" className="text-slate-400 hover:text-white text-sm transition-colors">YK Raporu</Link>
               <Link href="/hesabim/davet" className="text-slate-400 hover:text-white text-sm transition-colors">Davet</Link>
@@ -365,6 +416,9 @@ export default function CustomerAccount() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Güvenlik Notu Widget */}
+        <SecurityRatingWidget />
 
         {/* Aktif Servisler Widget */}
         <ActiveServicesWidget />

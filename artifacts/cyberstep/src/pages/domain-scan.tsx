@@ -390,6 +390,26 @@ function ScoreColor(score: number) {
   return { text: "text-red-600", bg: "bg-red-50 border-red-200", label: "Kritik" };
 }
 
+function computeCreditGrade(score: number): string {
+  if (score >= 90) return "A+";
+  if (score >= 80) return "A";
+  if (score >= 70) return "B+";
+  if (score >= 60) return "B";
+  if (score >= 50) return "C";
+  if (score >= 35) return "D";
+  return "F";
+}
+
+const CREDIT_GRADE_STYLE: Record<string, string> = {
+  "A+": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "A":  "bg-green-50 text-green-700 border-green-200",
+  "B+": "bg-lime-50 text-lime-700 border-lime-200",
+  "B":  "bg-yellow-50 text-yellow-700 border-yellow-200",
+  "C":  "bg-orange-50 text-orange-700 border-orange-200",
+  "D":  "bg-red-50 text-red-700 border-red-200",
+  "F":  "bg-red-100 text-red-800 border-red-300",
+};
+
 function CheckCard({
   meta,
   pass,
@@ -2231,6 +2251,9 @@ export default function DomainScanPage() {
                     <h2 className="font-bold text-lg">{result.domain}</h2>
                     <Badge variant="outline" className={`font-bold border ${scoreInfo.bg} ${scoreInfo.text}`}>
                       {scoreInfo.label}
+                    </Badge>
+                    <Badge variant="outline" className={`font-bold border text-xs ${CREDIT_GRADE_STYLE[computeCreditGrade(result.overallScore)] ?? ""}`}>
+                      {computeCreditGrade(result.overallScore)} Notu
                     </Badge>
                     {result.blacklisted && (
                       <Badge variant="outline" className="font-bold border bg-red-100 text-red-700 border-red-200">

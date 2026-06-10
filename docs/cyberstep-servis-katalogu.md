@@ -2,7 +2,8 @@
 
 > **Amaç:** Satış sunumları, teknik brifing ve partner onboarding için hazırlanmıştır.  
 > **Güncelleme:** Haziran 2026  
-> **Hedef Kitle:** Satış ekibi, teknik pre-sales, C-level sunum
+> **Hedef Kitle:** Satış ekibi, teknik pre-sales, C-level sunum  
+> **Bağlantılı Döküman:** Dashboard ve raporların tam açıklaması için → `docs/dashboard-reporting.md`
 
 ---
 
@@ -12,13 +13,19 @@
 2. [Ücretsiz Araçlar](#2-ücretsiz-araçlar)
 3. [Risk Değerlendirme Servisleri](#3-risk-değerlendirme-servisleri)
 4. [Domain Güvenlik Taraması — Teknik Derinlik](#4-domain-güvenlik-taraması--teknik-derinlik)
+   - 4.1 Veri Kaynakları
+   - 4.2 Güvenlik Puanı Hesaplama
+   - 4.3 Shadow IT / ASN Varlık Keşfi
+   - 4.4 Saldırı Senaryosu Analizi
+   - 4.5 CTEM Skorlama Katmanı *(Siber Güvenlik Notu, Fidye Skoru, Domain Hijack Skoru)*
 5. [AI Destekli Servisler](#5-ai-destekli-servisler)
 6. [Yönetilen Güvenlik Servisleri (SOC & NOC)](#6-yönetilen-güvenlik-servisleri-soc--noc)
 7. [Entegrasyon Servisleri](#7-entegrasyon-servisleri)
 8. [İstihbarat & İzleme Servisleri](#8-istihbarat--izleme-servisleri)
-9. [Satış & Büyüme Otomasyonu](#9-satış--büyüme-otomasyonu)
-10. [Fiyat Özeti](#10-fiyat-özeti)
-11. [Veri Akışı Diyagramı](#11-veri-akışı-diyagramı)
+9. [Müşteri Dashboard'ları](#9-müşteri-dashboardları)
+10. [Satış & Büyüme Otomasyonu](#10-satış--büyüme-otomasyonu)
+11. [Fiyat Özeti](#11-fiyat-özeti)
+12. [Veri Akışı Diyagramı](#12-veri-akışı-diyagramı)
 
 ---
 
@@ -413,6 +420,129 @@ Claude Haiku'ya gönderilir (hız odaklı)
 
 ---
 
+### 4.5 CTEM Skorlama Katmanı
+
+Bu katman, domain tarama verilerini post-process ederek tek bir domain puanının ötesinde **çok boyutlu risk profili** üretir. Sonuçlar `GET /api/customer/security-overview` endpoint'i üzerinden müşteri Güvenlik Durumu Dashboard'ına taşınır.
+
+---
+
+#### 4.5.1 Siber Güvenlik Notu (Cyber Credit Rating)
+
+**Mantık:** Finans sektörünün kredi notu modelinden ilham alan, tek harf + artı/eksi ile ifade edilen bütünleşik risk skoru.
+
+**Hesaplama:**
+
+```
+Girdi: Domain skoru (0–100, section 4.2'den)
+
+1. Baz not belirleme:
+   90–100 → A+
+   80–89  → A
+   70–79  → B+
+   60–69  → B
+   50–59  → C
+   40–49  → D
+   0–39   → F
+
+2. Risk cezaları (not basamağı düşürür):
+   Assessment riski = Kritik → -2 basamak
+   Assessment riski = Yüksek → -1 basamak
+   HIBP sızıntı sayısı > 10   → -1 basamak
+   Aktif CVE eşleşmesi   > 5  → -1 basamak
+
+3. Not basamak sırası:
+   A+ → A → B+ → B → C → D → F (en kötü)
+```
+
+**Gösterim Yerleri:**
+- `/hesabim` ana sayfası → SecurityRatingWidget (harf + açıklama)
+- `/hesabim/guvenlik-durumu` → büyük harf badge
+- `/domain-tarama` sonuç sayfası → skor kartında `"A Notu"` satır içi badge
+
+---
+
+#### 4.5.2 Fidye Yazılımı Maruziyet Skoru (Ransomware Exposure Score)
+
+**Mantık:** 0–100 arası *artan risk* skoru. Yüksek = kötü.
+
+**Etkenler ve Ağırlıklar:**
+
+| Etken | Puan |
+|-------|------|
+| RDP portu (3389) açık | +25 |
+| SMB portu (445) açık | +20 |
+| Telnet portu (23) açık | +15 |
+| VNC (5900) açık | +15 |
+| DMARC kaydı yok | +20 |
+| SPF kaydı yok | +15 |
+| HIBP sızıntısı var | +10 |
+| CISA KEV'de CVE eşleşmesi | +15 |
+| SSL geçersiz / süresi dolmuş | +10 |
+
+**Bant Sınıflaması:**
+- 0–25: Düşük risk
+- 26–50: Orta risk
+- 51–75: Yüksek risk
+- 76–100: Kritik risk
+
+**Müşteriye Sunumu:** Her etken pill olarak gösterilir: hangi faktörün kaç puan eklediği, düzeltme önerisiyle birlikte.
+
+---
+
+#### 4.5.3 Domain Ele Geçirme Dayanıklılığı (Domain Hijacking Score)
+
+**Mantık:** 0–100 arası *azalan risk* skoru. Yüksek = iyi korumalı.
+
+**Bileşenler:**
+
+| Bileşen | Puan |
+|---------|------|
+| SPF kaydı geçerli | +20 |
+| DKIM kaydı geçerli | +20 |
+| DMARC politikası (reject/quarantine) | +25 |
+| SSL sertifikası geçerli | +20 |
+| USOM/VirusTotal kara listede değil | +15 |
+
+**Bant Sınıflaması:**
+- 80–100: Güçlü
+- 50–79: Orta
+- 0–49: Zayıf
+
+---
+
+#### 4.5.4 Güvenlik Skoru Trendi (Exposure Trend)
+
+**Ne Gösterir:** Son 6 domain taramanın tarihe göre çizgi grafiği.
+
+**Veri:** `domain_scans` tablosu → müşteri e-postasına göre en son 6 kayıt → `scan_date + overall_score`
+
+**Kullanım Alanı:** Müşteriye "güvenlik yatırımının etkisini" somut grafik olarak göstermek. Skor yükseliyorsa pozitif ROI kanıtı.
+
+---
+
+#### 4.5.5 Sektör Karşılaştırması (Sector Benchmarking)
+
+**Ne Gösterir:** Müşterinin kendi sektörü içindeki pozisyonu.
+
+**Hesaplama:**
+
+```sql
+SELECT
+  a.sector,
+  AVG(d.overall_score) AS sector_avg,
+  PERCENT_RANK() OVER (
+    PARTITION BY a.sector
+    ORDER BY MAX(d.overall_score)
+  ) AS percentile
+FROM assessments a
+JOIN domain_scans d ON d.email = a.contact_email
+GROUP BY a.sector, a.contact_email
+```
+
+**Müşteriye Sunumu:** "Finans sektörü ortalaması: 64 — Sizin skorunuz: 78 — Sektörün üst %23'ündesiniz."
+
+---
+
 ## 5. AI Destekli Servisler
 
 ### 5.1 Pentest Lite
@@ -537,6 +667,38 @@ RSS feed'lerden toplanan ham haberler → 7 bölümlük editöryal içerik:
 5. Haftanın Aksiyonu
 6. LinkedIn gönderi metni (hazır, kopyala-yapıştır)
 7. HTML e-posta formatında tüm bülten
+
+---
+
+### 5.8 BAS Lite (Breach & Attack Simulation)
+
+**URL:** `/bas-lite`  
+**Ücret:** Plan dahil / Ayrı paket  
+**Ne Yapar?**
+Aktif saldırı yapmadan, mevcut güvenlik telemetrisini kullanarak saldırı simülasyonu sonuçlarını modelleyen pasif BAS katmanı.
+
+**Nasıl Çalışır?**
+
+```
+Mevcut domain tarama + CVE + port verileri alınır
+       ↓
+Claude AI — saldırı simülasyonu:
+  Hangi saldırı tekniği hangi aşamada tespit edilirdi?
+  Mevcut kontroller (WAF/DMARC/SPF) ne kadar engeller?
+  Tespit olasılığı yüzdesi
+       ↓
+Senaryo kategorileri:
+  - Phishing (e-posta tabanlı)
+  - Ransomware (lateral movement)
+  - Credential Harvesting
+  - Web Defacement
+  - Data Exfiltration
+  - Supply Chain
+       ↓
+Her senaryo için: Saldırı zinciri + Tespit noktaları + Önleme önerileri
+```
+
+**Pentest Lite'tan Farkı:** Pentest Lite verdict (kırmızı/sarı/yeşil) + MITRE haritalama üretir. BAS Lite ise kontrollerin simülasyon saldırılarını hangi aşamada durduracağını modeller — güvenlik ekibine tatbikat senaryosu sunar.
 
 ---
 
@@ -858,11 +1020,51 @@ Veri ihlali tespit edildiğinde 72 saatlik KVKK bildirim yükümlülüğü için
 
 ---
 
-## 9. Satış & Büyüme Otomasyonu
+## 9. Müşteri Dashboard'ları
+
+Müşteri portal'ındaki tüm dashboard ve ekranların tam açıklaması için ayrı dökümanı inceleyin:  
+**→ `docs/dashboard-reporting.md`**
+
+Bu bölüm yalnızca servis kataloğu bağlamında öne çıkan dashboard'ların kısa özetini içerir.
+
+### 9.1 Güvenlik Durumu Dashboard'ı (`/hesabim/guvenlik-durumu`)
+
+Platformun ana analitik ekranı. Section 4.5'teki tüm CTEM skorlarını tek bir dashboard'da birleştirir.
+
+| Widget | Açıklama |
+|--------|----------|
+| Siber Güvenlik Notu | A+…F harf notu, büyük badge |
+| Skor Trendi Grafiği | Son 6 taramanın Recharts çizgi grafiği |
+| Fidye Maruziyet Skoru | 0-100 risk puanı + faktör pill'leri |
+| Domain Hijack Skoru | 0-100 dayanıklılık puanı |
+| Sektör Karşılaştırması | Kendi sektörü içindeki percentile |
+| Anlık Sinyaller | Sızıntı, kritik CVE, açık port, assessment riski |
+
+**Tier Erişimi:** Tüm müşteriler (ilk tarama yoksa CTA)
+
+---
+
+### 9.2 Diğer Müşteri Ekranları (Özet)
+
+| Sayfa | URL | Kapsam |
+|-------|-----|--------|
+| SOC Dashboard | `/hesabim/soc` | Aktif vakalar, SLA takibi, olay anlatısı |
+| NOC Dashboard | `/hesabim/noc` | Ağ metrikleri, uptime yüzdesi |
+| Bulgularım | `/hesabim/bulgularim` | Remediation biletleri, iyileştirme kaydı |
+| Technology Discovery | `/hesabim/technology-discovery` | Tech stack profili, güvenlik olgunluğu |
+| Tedarikçi Portföyü | `/hesabim/tedarikci-portfoyu` | 3. taraf risk, TPRM anketleri |
+| DNS İzleme | `/hesabim/dns-izleme` | DNS değişiklik olayları |
+| IOC Log | `/hesabim/ioc-log` | IOC sorgu geçmişi, kredi bakiyesi |
+| Cloud Güvenlik | `/hesabim/cloud-guvenlik` | CSPM bulguları |
+| CISO Asistan | `/hesabim/ciso-asistan` | Gemini AI serbest sohbet |
+
+---
+
+## 10. Satış & Büyüme Otomasyonu
 
 Bu bileşenler müşteriye doğrudan satılmaz; platform içinde çalışarak satış ekibini güçlendirir.
 
-### 9.1 Growth Engine (Proaktif Outreach)
+### 10.1 Growth Engine (Proaktif Outreach)
 
 **Ne Yapar?**
 Belirli "tetikleyiciler" gerçekleştiğinde otomatik olarak kişiselleştirilmiş satış e-postası üretir ve gönderir.
@@ -883,7 +1085,7 @@ Belirli "tetikleyiciler" gerçekleştiğinde otomatik olarak kişiselleştirilmi
 
 ---
 
-### 9.2 ISR Lead Generation Sistemi
+### 10.2 ISR Lead Generation Sistemi
 
 **Ne Yapar?**
 Harici lead kaynaklarından (Apollo.io, Hunter.io, crt.sh) potansiyel müşteri tespiti ve otomatik önceliklendirme.
@@ -911,7 +1113,7 @@ Gemini AI — E-posta Sınıflandırma:
 
 ---
 
-### 9.3 Referral Programı
+### 10.3 Referral Programı
 
 **Nasıl Çalışır?**
 - Her müşteriye benzersiz referral kodu (`/hesabim/davet`)
@@ -920,7 +1122,7 @@ Gemini AI — E-posta Sınıflandırma:
 
 ---
 
-## 10. Fiyat Özeti
+## 11. Fiyat Özeti
 
 ### Tek Seferlik Hizmetler
 
@@ -964,7 +1166,7 @@ Gemini AI — E-posta Sınıflandırma:
 
 ---
 
-## 11. Veri Akışı Diyagramı
+## 12. Veri Akışı Diyagramı
 
 ```
                     ┌─────────────────────────────────────┐

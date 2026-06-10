@@ -64,11 +64,18 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "sla_proactive_warning",       intervalMinutes: 30,   label: "SLA Proaktif Uyarı" },
   { name: "auto_invoice_generate",       intervalMinutes: 1440, label: "Otomatik Fatura Oluştur" },
   // Haftalık
-  { name: "haftalik_bulten",      intervalMinutes: 10080, label: "Haftalık Bülten" },
-  // Yıllık (525600 dk = 365 gün)
-  { name: "price_auto_update",    intervalMinutes: 525600, label: "TÜFE Fiyat Güncelleme" },
-  { name: "weekly_db_backup",     intervalMinutes: 10080, label: "Haftalık DB Yedek" },
-  { name: "github_secrets_scan",  intervalMinutes: 10080, label: "GitHub Secrets Tarama" },
+  { name: "haftalik_bulten",        intervalMinutes: 10080,  label: "Haftalık Bülten" },
+  { name: "soc_weekly_report",      intervalMinutes: 10080,  label: "SOC Haftalık Rapor" },
+  { name: "fabric_weekly_report",   intervalMinutes: 10080,  label: "Fortinet Haftalık Özet" },
+  { name: "price_auto_update",      intervalMinutes: 525600, label: "TÜFE Fiyat Güncelleme" },
+  { name: "weekly_db_backup",       intervalMinutes: 10080,  label: "Haftalık DB Yedek" },
+  { name: "github_secrets_scan",    intervalMinutes: 10080,  label: "GitHub Secrets Tarama" },
+  // Aylık
+  { name: "soc_monthly_ai_cost",    intervalMinutes: 43200,  label: "SOC Aylık AI Maliyet" },
+  // Eksik (önceki listede yoktu)
+  { name: "ms365_poller",           intervalMinutes: 15,     label: "Microsoft 365 Poller" },
+  { name: "soc_sla",                intervalMinutes: 5,      label: "SOC SLA İzleme" },
+  { name: "fabric_fm_health",       intervalMinutes: 1440,   label: "FortiManager Sağlık" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────

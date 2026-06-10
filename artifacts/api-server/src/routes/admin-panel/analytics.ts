@@ -455,4 +455,89 @@ router.get("/admin-panel/analytics/ops-center", requireAdmin, async (_req: Reque
   });
 });
 
+// GET /api/admin-panel/analytics/scans-24h — son 24 saatte taranan domainler + araç breakdown
+router.get("/admin-panel/analytics/scans-24h", requireAdmin, async (_req: Request, res: Response) => {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const scans = await db.select({
+    id: domainScansTable.id,
+    domain: domainScansTable.domain,
+    email: domainScansTable.email,
+    overallScore: domainScansTable.overallScore,
+    shodanVulnCount: domainScansTable.shodanVulnCount,
+    shodanOpenPorts: domainScansTable.shodanOpenPorts,
+    ctSubdomainCount: domainScansTable.ctSubdomainCount,
+    wafDetected: domainScansTable.wafDetected,
+    wafProvider: domainScansTable.wafProvider,
+    wafBypassPossible: domainScansTable.wafBypassPossible,
+    blacklisted: domainScansTable.blacklisted,
+    criticalCveCount: domainScansTable.criticalCveCount,
+    highCveCount: domainScansTable.highCveCount,
+    createdAt: domainScansTable.createdAt,
+  })
+    .from(domainScansTable)
+    .where(gte(domainScansTable.createdAt, since))
+    .orderBy(desc(domainScansTable.createdAt))
+    .limit(200);
+
+  const total = scans.length;
+  const withShodan       = scans.filter(s => (s.shodanVulnCount ?? 0) > 0 || (s.shodanOpenPorts && (s.shodanOpenPorts as unknown[]).length > 0)).length;
+  const withSubdomains   = scans.filter(s => (s.ctSubdomainCount ?? 0) > 0).length;
+  const withWafDetected  = scans.filter(s => s.wafDetected).length;
+  const withBypassRisk   = scans.filter(s => s.wafBypassPossible).length;
+  const blacklisted      = scans.filter(s => s.blacklisted).length;
+  const criticalCve      = scans.filter(s => (s.criticalCveCount ?? 0) > 0).length;
+  const lowScore         = scans.filter(s => s.overallScore < 45).length;
+
+  res.json({
+    total,
+    withShodan,
+    withSubdomains,
+    withWafDetected,
+    withBypassRisk,
+    blacklisted,
+    criticalCve,
+    lowScore,
+    scans: scans.map(s => ({
+      id: s.id,
+      domain: s.domain,
+      email: s.email,
+      overallScore: s.overallScore,
+      shodanVulnCount: s.shodanVulnCount ?? 0,
+      shodanPortCount: (s.shodanOpenPorts as unknown[] | null)?.length ?? 0,
+      ctSubdomainCount: s.ctSubdomainCount ?? 0,
+      wafDetected: s.wafDetected ?? false,
+      wafProvider: s.wafProvider,
+      wafBypassPossible: s.wafBypassPossible ?? false,
+      blacklisted: s.blacklisted,
+      criticalCveCount: s.criticalCveCount ?? 0,
+      highCveCount: s.highCveCount ?? 0,
+      createdAt: s.createdAt,
+    })),
+  });
+});
+
+// GET /api/admin-panel/analytics/risk-detail — risk dağılımı + değerlendirme listesi (drilldown)
+router.get("/admin-panel/analytics/risk-detail", requireAdmin, async (_req: Request, res: Response) => {
+  const assessments = await db.select({
+    id: assessmentsTable.id,
+    companyName: assessmentsTable.companyName,
+    email: assessmentsTable.email,
+    riskLevel: assessmentsTable.riskLevel,
+    totalScore: assessmentsTable.totalScore,
+    createdAt: assessmentsTable.createdAt,
+  })
+    .from(assessmentsTable)
+    .where(isNotNull(assessmentsTable.riskLevel))
+    .orderBy(desc(assessmentsTable.createdAt))
+    .limit(500);
+
+  const distribution: Record<string, number> = {};
+  for (const a of assessments) {
+    if (a.riskLevel) distribution[a.riskLevel] = (distribution[a.riskLevel] ?? 0) + 1;
+  }
+
+  res.json({ distribution, assessments });
+});
+
 export default router;

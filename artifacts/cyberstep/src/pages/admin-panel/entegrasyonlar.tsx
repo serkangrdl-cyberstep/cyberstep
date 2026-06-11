@@ -349,6 +349,25 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "Kurulum gerekmez.",
     docs: "https://crt.sh/",
   },
+  // ─── Lead Keşfi — Ücretsiz ─────────────────────────────────────────────────
+  {
+    id: "hackertarget", name: "HackerTarget", category: "Lead Keşfi", type: "security", icon: "🎯",
+    cost: "free", costLabel: "Ücretsiz", always: true,
+    desc: "Reverse DNS ve subdomain lookup API'si — IP adresinden hostname keşfi, domain'den alt alan tespiti",
+    why: "RIPE DNS keşif pipeline'ında Türk IPv4 adreslerini domain adlarına çevirir. API key gerektirmez, günlük ~100 istek ücretsiz.",
+    how: "RIPE stat'tan alınan prefix'lerdeki IP'ler HackerTarget reverse DNS ile sorgulanır, .tr domain'leri lead adayı olarak eklenir. Her gece 02:00'de otomatik çalışır.",
+    setup: "Kurulum gerekmez.",
+    docs: "https://hackertarget.com/ip-tools/",
+  },
+  {
+    id: "ripe-stat", name: "RIPE stat.ripe.net", category: "Lead Keşfi", type: "security", icon: "🌐",
+    cost: "free", costLabel: "Ücretsiz", always: true,
+    desc: "RIPE NCC Türkiye IPv4 prefix listesi — Türkiye'ye tahsis edilmiş ~2000 IP bloğunu sağlar",
+    why: "Türk şirketlerine ait IP aralıklarını keşfederek reverse DNS ile domain adlarına dönüştürür. crt.sh ve Shodan'a bağlı olmayan bağımsız bir lead kaynağı.",
+    how: "Her gece 02:00'de RIPE stat API'sinden TR prefix'leri çekilir, örneklem IP'ler HackerTarget ile sorgulanır, .tr domain'leri lead_candidates tablosuna eklenir.",
+    setup: "Kurulum gerekmez. stat.ripe.net tamamen açık bir API'dir.",
+    docs: "https://stat.ripe.net/docs/data_api",
+  },
   // ─── E-posta & Kimlik ──────────────────────────────────────────────────────
   {
     id: "hibp", name: "Have I Been Pwned", category: "E-posta & Kimlik", type: "security", icon: "💀",

@@ -1,6 +1,6 @@
 # CyberStep.io — Otomatik Görevler (Cron Jobs) Özeti
 
-> **Son güncelleme:** 10 Haziran 2026  
+> **Son güncelleme:** 11 Haziran 2026  
 > Sistemin arka planda, insan müdahalesi olmadan otomatik olarak yürüttüğü tüm görevlerin teknik olmayan özeti.
 
 ---
@@ -48,9 +48,10 @@
 | Satış E-posta Kutusu Okuma (ISR) | Her 10 dakikada | IMAP ile satış gelen kutusunu okur, AI ile gelen mailleri sınıflandırır, otomatik teklif süreci başlatır | Satış sorgularına insan müdahalesi olmadan anında yanıt verir |
 | Lead Damlatma Kampanyası | Her saatte | Yeni lead adaylarına önceden hazırlanmış e-posta serisini zamanında gönderir | Potansiyel müşteriyi düzenli dokunuşlarla ısıtır |
 | Lead Puanlama & Nitelendirme | Her saatte | Lead adaylarını şirket büyüklüğü, sektör ve davranışa göre puanlar | Satış ekibinin zamanını en değerli adaylara harcamasını sağlar |
+| **RIPE DNS Lead Keşfi** | **Her gece 02:00** | **RIPE NCC'den Türkiye IPv4 prefix listesini çeker, örneklem IP'leri HackerTarget reverse DNS ile domain adlarına çevirir, .tr domain'lerini lead adayı olarak kaydeder** | **API key gerektirmez; crt.sh ve Shodan'dan bağımsız üçüncü bir lead kaynağı — gece taramaları ~60 prefix, günde 40-80 yeni aday potansiyeli** |
 | Alan Adı Keşfi (crt.sh) | Her gece 03:00 | SSL sertifika kayıtlarından yeni Türk şirketlerini bulur | Henüz siber güvenlik hizmeti almayan şirketleri erken keşfeder |
 | **Ücretsiz Tarama Takip E-postası** | **Her saat** | **Ücretsiz tarama yapan anonim kullanıcıları 24-72 saat sonra tespit eder; skor ve öne çıkan bulgularla kişiselleştirilmiş e-posta gönderir, kayıt CTA'sı ekler** | **Ücretsiz kullanıcıları ücretli aboneliğe dönüştürme fırsatını otomatik değerlendirir** |
-| Shodan Lead Tarama | Her gece 04:00 | Shodan üzerinden açık servis/port bulunduran şirketleri tespit eder | Güvenlik açığı olan potansiyel müşterileri otomatik bulur |
+| Shodan Lead Tarama | Her gece 04:15 | Shodan üzerinden açık servis/port bulunduran şirketleri tespit eder — **4 sorgu/gece** (2'den artırıldı, 8 sorguluk havuz sırayla taranır) | Güvenlik açığı olan potansiyel müşterileri otomatik bulur; günlük keşif kapasitesi iki katına çıktı |
 | **SSL Süresi Dolmak Üzere Büyüme Alarmı** | **Her gece 22:00** | **SSL sertifikası 30 gün içinde dolacak olan izlenen domain'leri tespit eder; ilgili şirkete "sertifikanız doluyor" içerikli kişiselleştirilmiş büyüme e-postası gönderir** | **Müşteri olmayan şirketlere tam zamanında değer odaklı dokunuş yapar; dönüşüm olasılığı yüksek zamanlı outreach** |
 | **CVE Eşleşme Büyüme Alarmı** | **Her gece 23:30** | **Yeni kritik CVE'lerle eşleşen teknoloji stacki bulunan izlenen şirketleri tarar; "sisteminizi etkileyen açık tespit ettik" konulu büyüme e-postası gönderir** | **Güvenlik tehdit anında potansiyel müşteriye ulaşır; en yüksek dönüşüm zamanlamasını yakalar** |
 | **Port Değişim Takip Alarmı** | **Her Pazar 01:00** | **İzlenen şirketlerin açık port profilini önceki haftayla karşılaştırır; yeni kritik port tespit edilince büyüme alarmı tetikler** | **Hedef şirketin IT ortamındaki değişiklikleri erken yakalar; güncel ve bağlamsal outreach sağlar** |
@@ -162,11 +163,11 @@
 |---|---|
 | Güvenlik İzleme | 13 |
 | Tehdit İstihbaratı | 9 |
-| Lead Üretimi & Satış | 9 |
+| Lead Üretimi & Satış | 10 |
 | Müşteri İletişimi & Onboarding | 12 |
 | Raporlama & Analitik | 12 |
 | Sistem & Altyapı | 15 |
 | AI & İçerik Üretimi | 9 |
 | Yasal Uyumluluk (KVKK) | 3 |
 | Büyüme & Fiyatlandırma | 7 |
-| **TOPLAM** | **89** |
+| **TOPLAM** | **90** |

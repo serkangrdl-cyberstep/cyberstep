@@ -351,6 +351,33 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   // ─── Lead Keşfi — Ücretsiz ─────────────────────────────────────────────────
   {
+    id: "certstream", name: "Certstream (GitHub Actions Bridge)", category: "Lead Keşfi", type: "security", icon: "📡",
+    cost: "free", costLabel: "Ücretsiz", always: false,
+    desc: "Gerçek zamanlı SSL CT log akışı — GitHub Actions köprüsü üzerinden her 10 dakikada yeni .tr TLD'lerini yakalar",
+    why: "Replit WebSocket proxy kısıtlaması nedeniyle doğrudan Certstream bağlantısı çalışmıyor. GitHub Actions her 10 dakikada Certstream'e bağlanır, yakaladığı TR domain'lerini /api/internal/cert-ingest'e iletir. Günde ~500-1000 yeni TR domain potansiyeli.",
+    how: "certstream-bridge.yml workflow GitHub Actions'ta her 10 dakikada çalışır. 100sn boyunca Certstream'i dinler, .tr TLD'lerini filtreler ve BRIDGE_SECRET ile korunan ingest endpoint'ine POST gönderir.",
+    setup: "1) GitHub repo'da Settings > Secrets > Actions'a REPLIT_INGEST_URL ve BRIDGE_SECRET ekle. 2) REPLIT_INGEST_URL=https://{domain}/api/internal/cert-ingest 3) Aynı BRIDGE_SECRET değerini Replit Secrets'a da ekle.",
+    docs: "https://certstream.calidog.io/",
+  },
+  {
+    id: "netcraft", name: "Netcraft", category: "Lead Keşfi", type: "security", icon: "🔍",
+    cost: "free", costLabel: "Ücretsiz tier", always: false,
+    desc: "Türk TLD veritabanı — .com.tr/.net.tr/.org.tr/.web.tr/.biz.tr domain araması, sorgu başına 100 sonuç",
+    why: "crt.sh ve RIPE DNS'e bağımsız üçüncü bir lead kaynağı. Netcraft'ın domain envanteri farklı kaynaklarla beslenir; SSL sertifikası olmayan aktif siteleri de kapsar.",
+    how: "NETCRAFT_API_KEY tanımlandıysa her gece 05:30'da 5 TR TLD sorgulanır. Her TLD için 100 domain alınır, duplicate kontrol sonrası lead_candidates tablosuna eklenir.",
+    setup: "NETCRAFT_API_KEY ortam değişkenini Replit Secrets'a ekle. Key yoksa cron sessizce atlanır, hata oluşturmaz.",
+    docs: "https://www.netcraft.com/api/",
+  },
+  {
+    id: "bgptools", name: "BGP.tools", category: "Lead Keşfi", type: "security", icon: "🌍",
+    cost: "free", costLabel: "Ücretsiz", always: true,
+    desc: "TR ASN prefix örneklemesi → HackerTarget reverse DNS → yeni .tr domain keşfi — API key gerektirmez",
+    why: "RIPE stat ile benzer ama farklı veri kaynağı: bgp.tools'un ASN veritabanı bazen RIPE'ten farklı prefix'ler içerir. Günde ~40-80 yeni domain potansiyeli.",
+    how: "Her gece 06:15'te ilk 20 TR ASN alınır. Her ASN'den max 3 IPv4 prefix seçilir (~60 toplam). Her prefix'ten örneklem IP'ler alınır, HackerTarget reverse DNS ile .tr hostname'lere dönüştürülür.",
+    setup: "Kurulum gerekmez. bgp.tools ve HackerTarget free tier kullanılır.",
+    docs: "https://bgp.tools/",
+  },
+  {
     id: "hackertarget", name: "HackerTarget", category: "Lead Keşfi", type: "security", icon: "🎯",
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "Reverse DNS ve subdomain lookup API'si — IP adresinden hostname keşfi, domain'den alt alan tespiti",

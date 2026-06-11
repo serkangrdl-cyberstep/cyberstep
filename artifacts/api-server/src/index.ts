@@ -12,6 +12,8 @@ import { startFabricCrons } from "./services/fabric-cron";
 import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
 import { runRipeDiscovery } from "./services/ripeDiscovery";
+import { runNetcraftDiscovery } from "./services/leadDiscovery/netcraftDiscovery";
+import { runBgpToolsDiscovery } from "./services/leadDiscovery/bgpToolsDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
 import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn, cleanupStaleRunningJobs } from "./services/cronRegistry";
@@ -2392,7 +2394,7 @@ startup()
     // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
     // Her TLD ayrı try/catch içinde — biri 502 alsa diğerleri devam eder.
     // fetchCrtsh zaten 4 deneme + üstel geri çekilme yapıyor.
-    cron.schedule("0 3 * * *", wrapCron("crtsh", "0 3 * * *", async () => {
+    cron.schedule("0 */4 * * *", wrapCron("crtsh", "0 */4 * * *", async () => {
       if (!await cronIsEnabled("crtsh")) { logger.info("crt.sh cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("crtsh", 500);
       let totalAdded = 0;
@@ -2418,7 +2420,7 @@ startup()
 
       return totalAdded;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul, daysBack:7, limit:500)");
+    logger.info("crt.sh discovery cron scheduled (every 4h Istanbul, daysBack:1, limit:500)");
 
     // ─── Lead Discovery: Shodan — Her gece 04:15 (4 sorgu/gece, tam rotasyon) ──
     // epoch-day bazlı rotasyon: 8 sorgunun sırayla 4'ü çalışır (crt.sh devre dışı → Shodan ana kaynak)
@@ -2452,6 +2454,29 @@ startup()
       return result.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
     logger.info("RIPE DNS discovery cron scheduled (daily 02:00 Istanbul, maxPrefixes:60)");
+
+    // ─── Startup: BRIDGE_SECRET uyarısı ──────────────────────────────────────
+    if (!process.env["BRIDGE_SECRET"]) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const suggested = (require("crypto") as typeof import("crypto")).randomBytes(32).toString("hex");
+      logger.warn({ suggested }, "BRIDGE_SECRET tanımlı değil — GitHub Actions bridge devre dışı. Replit Secrets ve GitHub Secrets'a aynı değeri ekle: BRIDGE_SECRET");
+    }
+
+    // ─── Lead Discovery: Netcraft — Her gece 05:30 ────────────────────────────
+    cron.schedule("30 5 * * *", wrapCron("netcraft_discovery", "30 5 * * *", async () => {
+      if (!await cronIsEnabled("netcraft_discovery")) { logger.info("Netcraft cron devre dışı, atlanıyor"); return 0; }
+      const result = await runNetcraftDiscovery();
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Netcraft discovery cron scheduled (daily 05:30 Istanbul)");
+
+    // ─── Lead Discovery: BGP.tools — Her gece 06:15 ───────────────────────────
+    cron.schedule("15 6 * * *", wrapCron("bgptools_discovery", "15 6 * * *", async () => {
+      if (!await cronIsEnabled("bgptools_discovery")) { logger.info("BGP.tools cron devre dışı, atlanıyor"); return 0; }
+      const result = await runBgpToolsDiscovery();
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("BGP.tools discovery cron scheduled (daily 06:15 Istanbul)");
 
     // ─── Lead Discovery: Kalifikasyon — Saatte bir (0 * * * *) ──────────────────
     // Limit 25/çalışma: 24×25=600 aday/gün. Her aday max 25s tarama + 15 dk circuit breaker.
@@ -2700,7 +2725,10 @@ startup()
     setImmediate(async () => {
       const CATCH_UP_CRONS = [
         // External scan / enrichment — missed = stale threat intel
-        { name: "crtsh",                   thresholdHours: 25  },
+        { name: "crtsh",                    thresholdHours: 5   },  // her 4h → 5h buffer
+        { name: "ripe_dns",                 thresholdHours: 25  },
+        { name: "netcraft_discovery",       thresholdHours: 25  },
+        { name: "bgptools_discovery",       thresholdHours: 25  },
         { name: "shodan",                   thresholdHours: 25  },
         { name: "usom_refresh",             thresholdHours: 25  },
         { name: "vulncheck_kev",            thresholdHours: 25  },

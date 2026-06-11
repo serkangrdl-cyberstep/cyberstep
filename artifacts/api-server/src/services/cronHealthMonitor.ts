@@ -41,7 +41,10 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "cve_feed_check",       intervalMinutes: 120,   label: "CVE Feed" },
   // Günlük
   { name: "subscription_renewal", intervalMinutes: 1440,  label: "Abonelik Yenileme" },
-  { name: "crtsh",                intervalMinutes: 1440,  label: "crt.sh Tarama" },
+  { name: "crtsh",                intervalMinutes: 240,   label: "crt.sh Tarama (her 4h)" },
+  { name: "ripe_dns",             intervalMinutes: 1440,  label: "RIPE DNS Lead Keşfi" },
+  { name: "netcraft_discovery",   intervalMinutes: 1440,  label: "Netcraft Domain Keşfi" },
+  { name: "bgptools_discovery",   intervalMinutes: 1440,  label: "BGP.tools ASN Keşfi" },
   { name: "shodan",               intervalMinutes: 1440,  label: "Shodan Tarama" },
   { name: "daily_summary",        intervalMinutes: 1440,  label: "Günlük Özet" },
   { name: "health_score",         intervalMinutes: 1440,  label: "Sağlık Skoru" },

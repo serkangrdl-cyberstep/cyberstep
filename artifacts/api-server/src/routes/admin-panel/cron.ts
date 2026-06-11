@@ -20,6 +20,8 @@ import { qualifyPendingCandidates, getISOWeek } from "../../services/discoveryPi
 import { scanCRTSH } from "../../services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "../../services/shodanDiscovery";
 import { runRipeDiscovery } from "../../services/ripeDiscovery";
+import { runNetcraftDiscovery } from "../../services/leadDiscovery/netcraftDiscovery";
+import { runBgpToolsDiscovery } from "../../services/leadDiscovery/bgpToolsDiscovery";
 export const CRON_DEFS = [
   {
     name: "ripe_dns",
@@ -66,6 +68,28 @@ export const CRON_DEFS = [
     category: "lead-gen",
   },
   {
+    name: "netcraft_discovery",
+    label: "Netcraft Domain Keşfi",
+    description: "Netcraft API üzerinden Türk TLD'lerini (.com.tr vb.) sorgular — NETCRAFT_API_KEY gerekli",
+    defaultSchedule: "30 5 * * *",
+    scheduleLabel: "Her gece 05:30",
+    defaultEnabled: true,
+    defaultLimit: 100,
+    requiresApiKey: "NETCRAFT_API_KEY",
+    category: "lead-gen",
+  },
+  {
+    name: "bgptools_discovery",
+    label: "BGP.tools ASN Keşfi",
+    description: "TR ASN prefix örneklemesi + HackerTarget reverse DNS ile .tr domainleri keşfeder — API key gerektirmez",
+    defaultSchedule: "15 6 * * *",
+    scheduleLabel: "Her gece 06:15",
+    defaultEnabled: true,
+    defaultLimit: 60,
+    requiresApiKey: null as string | null,
+    category: "lead-gen",
+  },
+  {
     name: "blog_autopilot_mon",
     label: "Blog Otopilot (Pazartesi)",
     description: "Pazartesi 09:00'da içerik takviminden AI blog yazısı üretir ve yayınlar",
@@ -93,7 +117,9 @@ export const CRON_DEFS = [
 export const ALL_NIGHT_JOBS = [
   // ─── Keşif & Lead ────────────────────────────────────────────────────────────
   { name: "ripe_dns",                 label: "RIPE DNS Keşfi",                     scheduleLabel: "Her gece 02:00",         scheduleExpr: "0 2 * * *",                              category: "lead-gen"     },
-  { name: "crtsh",                    label: "crt.sh Domain Keşfi",                scheduleLabel: "Her gece 03:00",         scheduleExpr: "0 3 * * *",                              category: "lead-gen"     },
+  { name: "crtsh",                    label: "crt.sh Domain Keşfi",                scheduleLabel: "Her 4 saatte (03:00/07:00/11:00/15:00/19:00/23:00)", scheduleExpr: "0 */4 * * *",            category: "lead-gen"     },
+  { name: "netcraft_discovery",       label: "Netcraft Domain Keşfi",              scheduleLabel: "Her gece 05:30",         scheduleExpr: "30 5 * * *",                             category: "lead-gen"     },
+  { name: "bgptools_discovery",       label: "BGP.tools ASN Keşfi",               scheduleLabel: "Her gece 06:15",         scheduleExpr: "15 6 * * *",                             category: "lead-gen"     },
   { name: "shodan",                   label: "Shodan Pasif Keşif",                 scheduleLabel: "Her gece 04:15",         scheduleExpr: "15 4 * * *",                             category: "lead-gen"     },
   { name: "lead_qual",                label: "Lead Kalifikasyon",                  scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
   { name: "scan_lead_drip",           label: "Tarama Lead Drip",                   scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
@@ -386,6 +412,10 @@ router.post("/admin-panel/cron/trigger/:name", requireAdmin, async (req: Request
     const fn = wrapCron(name, def.defaultSchedule, async () => {
       if (name === "ripe_dns") {
         await runRipeDiscovery({ maxPrefixes: limit });
+      } else if (name === "netcraft_discovery") {
+        await runNetcraftDiscovery();
+      } else if (name === "bgptools_discovery") {
+        await runBgpToolsDiscovery();
       } else if (name === "crtsh") {
         await scanCRTSH("%.com.tr", { daysBack: 2, minCorporateScore: 10, limit });
         await new Promise((r) => setTimeout(r, 3000));

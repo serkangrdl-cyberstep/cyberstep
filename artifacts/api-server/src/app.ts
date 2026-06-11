@@ -20,6 +20,7 @@ import securityOverviewRouter from "./routes/customer/security-overview";
 import adminApprovalsRouter from "./routes/admin-panel/approvals";
 import monitoringUptimeRouter from "./routes/monitoring/uptime";
 import seoRouter from "./routes/public/seo";
+import certIngestRouter from "./routes/internal/cert-ingest";
 import { generateAndPublishBlogPost, generateBlogPostContent, BLOG_PLAN } from "./services/blog-autopilot";
 import { createAdminUser } from "./services/auth";
 import { logger } from "./lib/logger";
@@ -349,6 +350,7 @@ app.use("/api/admin-panel/approvals", adminApprovalsRouter);
 app.use("/api", monitoringUptimeRouter);
 app.use("/api", basLiteRouter);
 app.use("/api", exposureScoreRouter);
+app.use("/api", certIngestRouter);
 
 // ─── Internal: secret-token ile blog yazısı tetikleme (production catch-up) ───
 // ENCRYPTION_KEY ile korunur; session auth gerektirmez.

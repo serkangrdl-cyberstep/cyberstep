@@ -1,0 +1,101 @@
+Dört iş yapılacak. Tablo ve kolon isimleri için önce schema'yı incele
+(lib/db/src/schema/ altındaki tüm dosyalar), gerçek isimleri kullan.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 1 — crt.sh POLLING SIKLIĞI ARTIŞI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/index.ts dosyasında mevcut crt.sh lead discovery cron'unu bul
+(job_name: "crt_discovery" veya benzeri, schedule "0 3 * * *").
+
+Schedule'ı değiştir:
+"0 3 * * *"  →  "0 */4 * * *"
+(günde 1 kez gece 03:00 → her 4 saatte bir: 03:00, 07:00, 11:00, 15:00, 19:00, 23:00)
+
+Bu değişiklikle günlük crt.sh çekimi 1'den 6'ya çıkar.
+
+Aynı cron fonksiyonuna duplicate kontrol ekle (yoksa):
+- Son 4 saatte eklenen domain'leri tekrar ekleme
+- discovery_runs tablosuna her çalışmada source="crtsh" ile kayıt yaz
+
+cronHealthMonitor.ts'de intervalMinutes değerini güncelle:
+{ name: "crt_discovery", intervalMinutes: 240 }  // 1440'dan 240'a
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 2 — GITHUB ACTIONS CERTSTREAM BRIDGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── 2.1 GitHub Actions Workflow ──────────────────
+
+Repo kökünde .github/workflows/certstream-bridge.yml oluştur:
+
+```yaml
+name: Certstream Bridge
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # Her 10 dakikada
+  workflow_dispatch:          # Manuel tetikleme
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Run Certstream Bridge
+        run: |
+          node -e "
+          const WebSocket = require('ws');
+          const https = require('https');
+
+          const REPLIT_URL = process.env.REPLIT_INGEST_URL;
+          const SECRET = process.env.BRIDGE_SECRET;
+          const TR_TLDS = ['.com.tr','.net.tr','.org.tr','.web.tr','.biz.tr','.info.tr','.gen.tr','.tv.tr','.name.tr'];
+          const collected = new Set();
+          const MAX_WAIT_MS = 100000; // 100 sn
+
+          const ws = new WebSocket('wss://certstream.calidog.io', { handshakeTimeout: 15000 });
+
+          const done = () => {
+            ws.close();
+            if (collected.size === 0) { console.log('No TR domains found'); process.exit(0); }
+            const domains = [...collected];
+            console.log('Found:', domains.length, 'TR domains');
+            const payload = JSON.stringify({ domains, secret: SECRET, source: 'certstream' });
+            const url = new URL(REPLIT_URL);
+            const req = https.request({
+              hostname: url.hostname,
+              path: url.pathname,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+            }, res => { console.log('Ingest status:', res.statusCode); process.exit(0); });
+            req.on('error', e => { console.error(e); process.exit(1); });
+            req.write(payload);
+            req.end();
+          };
+
+          setTimeout(done, MAX_WAIT_MS);
+
+          ws.on('open', () => console.log('Connected to Certstream'));
+          ws.on('error', e => { console.error('WS error:', e.message); process.exit(0); });
+          ws.on('message', data => {
+            try {
+              const msg = JSON.parse(data);
+              if (msg.message_type !== 'certificate_update') return;
+              const domains = msg.data?.leaf_cert?.all_domains || [];
+              domains.forEach(d => {
+                const clean = d.replace(/^\*\./, '').toLowerCase();
+                if (TR_TLDS.some(tld => clean.endsWith(tld))) {
+                  // root domain çıkar
+                  const parts = clean.split('.');
+                  const root = parts.slice(-3).join('.');
+                  if (root.length > 5) collected.add(root);
+                }
+              });
+            } catch(e) {}
+          });
+          "
+        env:
+          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
+          BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}

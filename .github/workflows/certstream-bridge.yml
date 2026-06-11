@@ -1,0 +1,68 @@
+name: Certstream Bridge
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # Her 10 dakikada
+  workflow_dispatch:          # Manuel tetikleme
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Run Certstream Bridge
+        run: |
+          node -e "
+          const WebSocket = require('ws');
+          const https = require('https');
+
+          const REPLIT_URL = process.env.REPLIT_INGEST_URL;
+          const SECRET = process.env.BRIDGE_SECRET;
+          const TR_TLDS = ['.com.tr','.net.tr','.org.tr','.web.tr','.biz.tr','.info.tr','.gen.tr','.tv.tr','.name.tr'];
+          const collected = new Set();
+          const MAX_WAIT_MS = 100000; // 100 sn
+
+          const ws = new WebSocket('wss://certstream.calidog.io', { handshakeTimeout: 15000 });
+
+          const done = () => {
+            ws.close();
+            if (collected.size === 0) { console.log('No TR domains found'); process.exit(0); }
+            const domains = [...collected];
+            console.log('Found:', domains.length, 'TR domains');
+            const payload = JSON.stringify({ domains, secret: SECRET, source: 'certstream' });
+            const url = new URL(REPLIT_URL);
+            const req = https.request({
+              hostname: url.hostname,
+              path: url.pathname,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+            }, res => { console.log('Ingest status:', res.statusCode); process.exit(0); });
+            req.on('error', e => { console.error(e); process.exit(1); });
+            req.write(payload);
+            req.end();
+          };
+
+          setTimeout(done, MAX_WAIT_MS);
+
+          ws.on('open', () => console.log('Connected to Certstream'));
+          ws.on('error', e => { console.error('WS error:', e.message); process.exit(0); });
+          ws.on('message', data => {
+            try {
+              const msg = JSON.parse(data);
+              if (msg.message_type !== 'certificate_update') return;
+              const domains = msg.data?.leaf_cert?.all_domains || [];
+              domains.forEach(d => {
+                const clean = d.replace(/^\*\./, '').toLowerCase();
+                if (TR_TLDS.some(tld => clean.endsWith(tld))) {
+                  const parts = clean.split('.');
+                  const root = parts.slice(-3).join('.');
+                  if (root.length > 5) collected.add(root);
+                }
+              });
+            } catch(e) {}
+          });
+          "
+        env:
+          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
+          BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}

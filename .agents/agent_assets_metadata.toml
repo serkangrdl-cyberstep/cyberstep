@@ -66,3 +66,9 @@ id = "BcjIa5cJ6N1kX7-7BQjyi"
 uri = "file://docs/cyberstep-servis-katalogu.md"
 type = "text"
 title = "CyberStep.io — Kapsamlı Servis Kataloğu"
+
+[[outputs]]
+id = "XAJqKXeLQFXSrRj1S45pB"
+uri = "file://cyberstep-platform-dokumantasyonu.md"
+type = "text"
+title = "CyberStep.io — Platform Dokümantasyonu v5.0"

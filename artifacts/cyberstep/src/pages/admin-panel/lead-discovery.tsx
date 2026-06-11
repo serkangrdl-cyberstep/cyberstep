@@ -257,9 +257,9 @@ function CertstreamWidget() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isActive ? "bg-green-500 animate-pulse" : "bg-gray-300"}`} />
-            <span className={`text-sm font-medium ${isActive ? "text-green-700" : "text-gray-500"}`}>
-              {isActive ? "Aktif" : "Durdu"}
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isActive ? "bg-green-500 animate-pulse" : "bg-amber-400"}`} />
+            <span className={`text-sm font-medium ${isActive ? "text-green-700" : "text-amber-700"}`}>
+              {isActive ? "Aktif" : "Pasif (platform kısıtı)"}
             </span>
           </div>
         </div>
@@ -318,11 +318,15 @@ function CertstreamWidget() {
               </span>
             </div>
 
-            {/* Certstream already running note */}
-            <p className="text-xs text-muted-foreground border-t pt-3">
-              Certstream baglantisi sunucu baslarken otomatik aktif olur (CT Monitor ozelligi ile paylasilir).
-              Ayri bir baslatma/durdurma gerekmez.
-            </p>
+            {/* Platform limitation note */}
+            <div className="border-t pt-3 space-y-1">
+              <p className="text-xs text-amber-700 font-medium">Platform kısıtı — Certstream bağlantısı pasif</p>
+              <p className="text-xs text-muted-foreground">
+                certstream.calidog.io WebSocket bağlantısı bu ortamda çalışmamaktadır.
+                Aktif lead kaynağı: <span className="font-medium">crt.sh REST API</span> (günlük cron, .tr domainleri).
+                Lead adayları sol taraftaki "crt.sh ile Tara" sektimasindan üretilmektedir.
+              </p>
+            </div>
           </>
         )}
       </CardContent>
@@ -1287,7 +1291,7 @@ export default function AdminLeadDiscovery() {
       {/* Lead Detail Dialog */}
       {!!detailCandidate && (
         <Dialog open={!!detailCandidate} onOpenChange={() => { setDetailCandidate(null); setFingerprintResult(null); }}>
-          <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+          <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
             <DialogHeader className="px-4 pt-4 pb-2 shrink-0 border-b">
               <DialogTitle className="font-mono text-base">{detailCandidate.domain}</DialogTitle>
             </DialogHeader>

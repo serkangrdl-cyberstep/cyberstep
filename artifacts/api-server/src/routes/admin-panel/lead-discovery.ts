@@ -18,6 +18,7 @@ import { whoisLookup } from "../../services/whoisService";
 import { scrapeContactEmail } from "../../services/webContactScraper";
 import { logger } from "../../lib/logger";
 import { enrichLeadFromTrSources } from "../../services/leadDiscovery/trSourcesEnrichment";
+import { enrichLeadFromWeb } from "../../services/leadDiscovery/webContentEnrichment";
 
 const router = Router();
 
@@ -253,6 +254,47 @@ router.patch("/admin-panel/lead-discovery/candidates/:id/isr-notes", requireAdmi
     updatedAt: new Date(),
   }).where(eq(leadCandidatesTable.id, id));
   res.json({ message: "ISR notları güncellendi." });
+});
+
+// ─── POST /api/admin-panel/lead-discovery/web-enrich (batch) ─────────────────
+router.post("/admin-panel/lead-discovery/web-enrich", requireAdmin, async (req: Request, res: Response) => {
+  const { limit = 30 } = req.body as { limit?: number };
+  const leads = await db.select({ id: leadCandidatesTable.id, domain: leadCandidatesTable.domain })
+    .from(leadCandidatesTable)
+    .where(eq(leadCandidatesTable.isQualified, true))
+    .limit(limit);
+
+  res.json({ message: `${leads.length} lead için web enrichment başlatıldı.`, count: leads.length });
+
+  setImmediate(async () => {
+    for (const lead of leads) {
+      try {
+        await enrichLeadFromWeb(lead.id, lead.domain);
+        await new Promise((r) => setTimeout(r, 1500));
+      } catch (e) {
+        logger.warn({ id: lead.id, domain: lead.domain, err: String(e) }, "Batch web enrich hata");
+      }
+    }
+    logger.info({ count: leads.length }, "Batch web enrich tamamlandı");
+  });
+});
+
+// ─── POST /api/admin-panel/lead-discovery/candidates/:id/web-enrich ──────────
+router.post("/admin-panel/lead-discovery/candidates/:id/web-enrich", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
+
+  res.json({ message: "Web enrichment başlatıldı." });
+
+  setImmediate(async () => {
+    try {
+      await enrichLeadFromWeb(id, candidate.domain);
+      logger.info({ id, domain: candidate.domain }, "Tek lead web enrich tamamlandı");
+    } catch (e) {
+      logger.error({ id, err: String(e) }, "Tek lead web enrich başarısız");
+    }
+  });
 });
 
 // ─── POST /api/admin-panel/lead-discovery/candidates/:id/re-enrich ────────────

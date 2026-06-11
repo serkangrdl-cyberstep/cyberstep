@@ -46,6 +46,13 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   officerName: varchar("officer_name", { length: 255 }),
   officerTitle: varchar("officer_title", { length: 100 }),
   isrNotes: text("isr_notes"),
+  httpStatus: integer("http_status"),
+  isAlive: boolean("is_alive"),
+  responseTimeMs: integer("response_time_ms"),
+  scrapedPhone: varchar("scraped_phone", { length: 50 }),
+  scrapedAddress: text("scraped_address"),
+  scrapedCompanyName: varchar("scraped_company_name", { length: 255 }),
+  webScrapedAt: timestamp("web_scraped_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

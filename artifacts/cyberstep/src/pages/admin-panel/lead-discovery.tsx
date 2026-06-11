@@ -98,6 +98,13 @@ interface LeadCandidate {
   officerName: string | null;
   officerTitle: string | null;
   isrNotes: string | null;
+  httpStatus: number | null;
+  isAlive: boolean | null;
+  responseTimeMs: number | null;
+  scrapedPhone: string | null;
+  scrapedAddress: string | null;
+  scrapedCompanyName: string | null;
+  webScrapedAt: string | null;
   createdAt: string;
 }
 
@@ -608,6 +615,31 @@ export default function AdminLeadDiscovery() {
     },
   });
 
+  const webEnrich = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${BASE}/lead-discovery/candidates/${id}/web-enrich`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: () => {
+      toast({ description: "Web enrichment başlatıldı (liveness + scraping)." });
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["lead-qualified"] }), 20000);
+    },
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
+  const batchWebEnrich = useMutation({
+    mutationFn: (limit: number) =>
+      fetch(`${BASE}/lead-discovery/web-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit }),
+      }).then(async (r) => {
+        const j = await r.json() as { message?: string; error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: (data) => toast({ description: (data as { message?: string }).message ?? "Web enrichment başlatıldı." }),
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
   const saveIsrNotes = useMutation({
     mutationFn: ({ id, notes }: { id: number; notes: string }) =>
       fetch(`${BASE}/lead-discovery/candidates/${id}/isr-notes`, {
@@ -1000,6 +1032,15 @@ export default function AdminLeadDiscovery() {
                 >
                   LinkedIn Listesi Indir
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => batchWebEnrich.mutate(30)}
+                  disabled={batchWebEnrich.isPending}
+                  className="text-xs"
+                >
+                  {batchWebEnrich.isPending ? "Scraping..." : "Toplu Web Scrape (30)"}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1027,8 +1068,22 @@ export default function AdminLeadDiscovery() {
                           <TableRow key={c.id}>
                             <TableCell>
                               <div className="font-medium text-sm font-mono">{c.domain}</div>
-                              {c.companyName && (
-                                <div className="text-xs text-muted-foreground truncate max-w-[160px]">{c.companyName}</div>
+                              {(c.scrapedCompanyName ?? c.companyName) && (
+                                <div className="text-xs text-muted-foreground truncate max-w-[160px]">{c.scrapedCompanyName ?? c.companyName}</div>
+                              )}
+                              {c.webScrapedAt != null ? (
+                                c.isAlive ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200 mt-0.5">
+                                    Canli {c.responseTimeMs != null ? `${c.responseTimeMs}ms` : ""} {c.httpStatus ? `· ${c.httpStatus}` : ""}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 border border-red-200 mt-0.5">
+                                    Erisemiyor {c.httpStatus ? `· ${c.httpStatus}` : ""}
+                                  </span>
+                                )
+                              ) : null}
+                              {c.scrapedPhone && (
+                                <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{c.scrapedPhone}</div>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -1087,6 +1142,16 @@ export default function AdminLeadDiscovery() {
                                     Yeniden Ara
                                   </Button>
                                 )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={`text-xs h-7 w-full ${c.webScrapedAt ? "text-muted-foreground" : ""}`}
+                                  onClick={() => webEnrich.mutate(c.id)}
+                                  disabled={webEnrich.isPending}
+                                  title={c.webScrapedAt ? `Son scrape: ${new Date(c.webScrapedAt).toLocaleDateString("tr-TR")}` : "Web sitesini tara"}
+                                >
+                                  {c.webScrapedAt ? "Web Yenile" : "Web Scrape"}
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"

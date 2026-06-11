@@ -31,6 +31,7 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   // Saatlik
   { name: "lead_qual",            intervalMinutes: 60,    label: "Lead Kalifikasyon" },
   { name: "scan_lead_drip",       intervalMinutes: 60,    label: "Scan Lead Drip" },
+  { name: "lead_tr_enrich",      intervalMinutes: 1440,  label: "Lead TR Enrich" },
   { name: "servicenow_health",    intervalMinutes: 60,    label: "ServiceNow Sağlık" },
   { name: "verification_queue",   intervalMinutes: 60,    label: "Doğrulama Kuyruğu" },
   { name: "noc_baseline",         intervalMinutes: 60,    label: "NOC Baseline" },

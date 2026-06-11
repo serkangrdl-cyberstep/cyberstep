@@ -897,6 +897,28 @@ function startScanLeadDripCron() {
   logger.info("Scan lead drip cron scheduled (hourly)");
 }
 
+function startLeadTrEnrichCron() {
+  cron.schedule(
+    "30 7 * * *",
+    wrapCron("lead_tr_enrich", "30 7 * * *", async () => {
+      const { enrichLeadFromTrSources } = await import("./services/leadDiscovery/trSourcesEnrichment");
+      const leads = await db.execute(
+        sql`SELECT id, domain FROM lead_candidates WHERE is_qualified = true AND officer_name IS NULL LIMIT 50`,
+      );
+      const rows = leads.rows as Array<{ id: number; domain: string }>;
+      let enriched = 0;
+      for (const lead of rows) {
+        const r = await enrichLeadFromTrSources(lead.id, lead.domain);
+        if (r.officerName) enriched++;
+      }
+      logger.info({ total: rows.length, enriched }, "Lead TR enrich cron tamamlandı");
+      return enriched;
+    }),
+    { timezone: "Europe/Istanbul" },
+  );
+  logger.info("Lead TR enrich cron scheduled (daily 07:30 Istanbul)");
+}
+
 function startFreeScanFollowupCron() {
   // ─── Ücretsiz tarama takip e-postası — her saat ──────────────────────────
   cron.schedule(
@@ -1414,6 +1436,12 @@ async function ensureAiCostLogTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS ai_cost_log_date_idx ON ai_cost_log (recorded_at DESC)`);
 }
 
+async function ensureLeadCandidatesExtraColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS officer_name VARCHAR(255)`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS officer_title VARCHAR(100)`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS isr_notes TEXT`);
+}
+
 async function ensurePerformanceIndexes() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_email_idx ON domain_scans (email)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_created_at_idx ON domain_scans (created_at DESC)`);
@@ -1504,6 +1532,7 @@ async function startup() {
   await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
   await ensureTechDiscoveryTable();
+  await ensureLeadCandidatesExtraColumns();
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
   await ensureSocialMediaTables();
   await ensureAdminPermissions();
@@ -1987,6 +2016,7 @@ startup()
   .then(() => {
     startReminderCron();
     startScanLeadDripCron();
+    startLeadTrEnrichCron();
     startFreeScanFollowupCron();
     startIsrImapCron();
     startInflationReminderCron();
@@ -2747,6 +2777,7 @@ startup()
         { name: "sla_proactive_warning",    thresholdHours: 1   },
         { name: "ct_phishing_monitor",      thresholdHours: 5   },
         { name: "scan_lead_drip",           thresholdHours: 2   },
+        { name: "lead_tr_enrich",           thresholdHours: 25  },
         { name: "servicenow_health",        thresholdHours: 2   },
         { name: "noc_baseline",             thresholdHours: 2   },
         // Lead & pipeline (daily)

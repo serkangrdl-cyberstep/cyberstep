@@ -1,0 +1,258 @@
+3 iş yapılacak. Schema'yı önce incele, gerçek tablo/kolon
+isimlerini kullan.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 1 — MERSIS & KAP ENTEGRASYONU
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/services/leadDiscovery/trSourcesEnrichment.ts oluştur:
+
+── 1.1 MERSIS Şirket Yöneticisi Araması ─────────
+
+export async function enrichFromMersis(
+  companyName: string,
+  domain: string
+): Promise<{ officerName: string | null; title: string | null }>
+
+MERSIS açık arama endpoint'i:
+GET https://mersis.gtb.gov.tr/portal/rest/firma/ara?firmaAdi={companyName}&kayitDurumu=1
+
+- companyName: domain'den türet (örn: "diktas.com.tr" → "diktas")
+- Sonuçtan ilk eşleşen şirketin yönetici adını çek
+  (yetkiliListesi veya benzeri alan)
+- timeout: 10sn, hata olursa null döndür, fırlat değil
+- User-Agent header ekle (bot engelini aşmak için):
+  "Mozilla/5.0 (compatible; CyberStep-Enrichment/1.0)"
+
+Döndür:
+{ officerName: "Ahmet Yılmaz", title: "Genel Müdür" }
+veya
+{ officerName: null, title: null }
+
+NOT: MERSIS rate limit belirsiz — istekler arası 2sn sleep ekle.
+Günde max 50 sorgu ile başla (cron'da maxLeads: 50 parametresi).
+
+── 1.2 KAP Yönetici Araması ─────────────────────
+
+export async function enrichFromKap(
+  companyName: string
+): Promise<{ officerName: string | null; email: string | null; title: string | null }>
+
+KAP açık API:
+GET https://www.kap.org.tr/tr/api/basicSearchByName?name={companyName}
+
+- İlk eşleşen şirketin member kodu al
+- GET https://www.kap.org.tr/tr/api/memberInfo/{memberCode}
+  → yöneticiler listesi: ad, unvan, e-posta (varsa)
+- E-posta varsa döndür, yoksa sadece ad + unvan
+- timeout: 8sn, hata → null döndür
+
+NOT: KAP sadece halka açık/borsaya kote şirketler için çalışır.
+Sonuç gelmezse sessizce null döndür — KOBİ'lerin çoğunda
+veri olmayacak, bu beklenen durum.
+
+── 1.3 Enrichment Orchestrator ──────────────────
+
+export async function enrichLeadFromTrSources(
+  leadId: number,
+  domain: string
+): Promise<void>
+
+Sırayla dene (biri bulursa dur):
+1. WHOIS/RDAP (zaten varsa atla)
+2. Web scraping /iletisim sayfası (zaten varsa atla)
+3. MERSIS araması
+4. KAP araması
+
+Her kaynaktan bulunan veriyi lead_candidates tablosuna yaz:
+- officer_name (yeni kolon — migration)
+- officer_title (yeni kolon — migration)
+- contact_source güncelle: "mersis" | "kap" | mevcut değerler
+
+Kolon yoksa migration ekle:
+officer_name: text null
+officer_title: text null
+
+Migration çalıştır: pnpm --filter @workspace/db push
+
+── 1.4 Cron Güncellemesi ────────────────────────
+
+Mevcut leadContactEnrichment cron'una
+enrichLeadFromTrSources çağrısını ekle:
+
+contact_email IS NULL olan ve
+officer_name IS NULL olan leadler için çalıştır
+(hem e-posta hem isim yoksa → iki kaynağı da dene)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 2 — ISR LİNKEDİN HIZLI ARAMA BUTONU
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Admin panel lead discovery sayfasını bul
+(src/pages/admin-panel/lead-discovery.tsx veya benzeri).
+
+── 2.1 LinkedIn Arama URL Üretici ───────────────
+
+Lead tablosunun her satırına "LinkedIn'de Ara" butonu ekle.
+
+URL formatı (yeni sekmede açılır):
+
+Şirket adı biliniyorsa:
+https://www.linkedin.com/search/results/people/?keywords={şirketAdı}&titleKeyword=IT+OR+CTO+OR+Genel+Müdür+OR+Bilgi+İşlem+OR+CISO+OR+Dijital
+
+Sadece domain biliniyorsa:
+https://www.linkedin.com/search/results/companies/?keywords={domain}
+
+officer_name biliniyorsa (MERSIS/KAP'tan geldi):
+https://www.linkedin.com/search/results/people/?keywords={officerName}+{şirketAdı}
+
+Şirket adını şu yerden türet (öncelik sırasıyla):
+1. lead_candidates.company_name (varsa)
+2. domain'den: "diktas.com.tr" → "Diktaş" (ilk segment, büyük harf)
+
+Buton tasarımı:
+- LinkedIn mavi rengi (#0A66C2)
+- LinkedIn "in" ikonu (SVG inline)
+- Tooltip: "LinkedIn'de karar verici ara"
+- Tek tıkla yeni sekmede aç (target="_blank")
+
+── 2.2 Detay Modalına LinkedIn Bölümü ───────────
+
+Lead detay modalı açıldığında (setDetailCandidate ile)
+yeni bir "ISR Aksiyonları" bölümü ekle:
+
+┌─────────────────────────────────────────────────┐
+│ ISR Aksiyonları                                 │
+│                                                 │
+│ [🔍 LinkedIn'de Ara]  [💼 Sales Nav'da Ara]     │
+│                                                 │
+│ MERSIS Bilgisi:                                 │
+│ Yetkili: {officer_name || "Bulunamadı"}         │
+│ Unvan:   {officer_title || "—"}                 │
+│                                                 │
+│ Kontakt E-posta: {contact_email || "Boş"}       │
+│ [✏ Manuel Gir]  butonu                          │
+│                                                 │
+│ Notlar: [textarea — ISR notları için]           │
+│ [Kaydet] butonu → lead_candidates.isr_notes     │
+└─────────────────────────────────────────────────┘
+
+Sales Navigator URL:
+https://www.linkedin.com/sales/search/people?query=(keywords:{şirketAdı})&titleKeyword=IT+OR+CTO+OR+Genel+Müdür
+
+Notlar için isr_notes kolonu yoksa migration ekle:
+isr_notes: text null
+
+── 2.3 Toplu LinkedIn Export ────────────────────
+
+Lead discovery sayfasına "LinkedIn Listesi İndir" butonu ekle
+(Qualified sekmesinde, tablo üstünde):
+
+Seçili veya tüm qualified leadleri CSV olarak indir:
+Kolonlar: domain, company_name, officer_name, officer_title,
+contact_email, overall_score, sales_signal, linkedin_url
+
+CSV adı: cyberstep-leads-{tarih}.csv
+
+Bu CSV Sales Navigator'a import için kullanılabilir.
+
+── 2.4 "Kontakt Bekleniyor" Filtresi ────────────
+
+Lead tablosuna yeni filtre toggle ekle:
+"Kontakt Eksik" — contact_email IS NULL AND officer_name IS NULL
+
+Bu toggle açıkken sadece hiç kontakt bilgisi olmayan,
+ISR müdahalesi gereken leadler gösterilir.
+Badge sayısı: "(X lead ISR bekliyor)"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 3 — DOKÜMANTASYON GÜNCELLEMESİ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+docs/entegrasyon-raporu.md dosyasına ekle:
+
+Bölüm 13 Satış & Lead Gen altına yeni satırlar:
+
+### MERSIS (Ticaret Sicili)
+| Alan | Bilgi |
+|------|-------|
+| Durum | Aktif (her zaman açık) |
+| Maliyet | Ücretsiz |
+| Entegrasyon Seviyesi | Kısmi — şirket yöneticisi adı/unvanı |
+| Gerekli Ortam Değişkeni | Yok |
+
+Açıklama: Türkiye Ticaret Bakanlığı MERSIS sisteminden
+şirket yöneticisi adı ve unvanı çeker. E-posta vermez
+ama LinkedIn aramasını kişi adıyla yapmayı sağlar.
+Günde max 50 sorgu (rate limit koruması).
+
+### KAP (Kamuyu Aydınlatma Platformu)
+| Alan | Bilgi |
+|------|-------|
+| Durum | Aktif (her zaman açık) |
+| Maliyet | Ücretsiz |
+| Entegrasyon Seviyesi | Kısmi — sadece borsaya kote şirketler |
+| Gerekli Ortam Değişkeni | Yok |
+
+Açıklama: Halka açık şirketlerin yönetici bilgilerini
+çeker. KOBİ segmentinde çoğu şirkette veri olmayacak
+ama bulunduğunda e-posta adresi de gelebilir.
+
+---
+
+docs/lead-rate-limiting.md dosyasına ekle:
+
+## Kontakt Zenginleştirme Kaynakları ve Başarı Oranları
+
+| Kaynak | TR KOBİ Başarı Oranı | Veri Türü |
+|--------|---------------------|-----------|
+| WHOIS/RDAP | ~%15-20 | E-posta |
+| Web scraping | ~%25-30 | E-posta |
+| MERSIS | ~%40-50 | Ad + Unvan |
+| KAP | ~%5-10 | Ad + E-posta (borsalı) |
+| Hunter.io | ~%5-10 | E-posta |
+| Apollo.io | ~%8-12 | E-posta |
+| LinkedIn (ISR Manuel) | ~%60-70 | Profil + E-posta |
+
+Not: Apollo.io ve Hunter.io Türk KOBİ veritabanı
+kapsamı düşük. Kontakt bulunamayan leadler için
+LinkedIn Sales Navigator manuel araması ISR tarafından
+yapılmaktadır.
+
+## ISR LinkedIn İş Akışı
+
+1. Admin panel → Lead Discovery → "Kontakt Eksik" filtresi aç
+2. Her lead için "LinkedIn'de Ara" butonuna tıkla
+3. MERSIS'ten gelen yetkili adı varsa kişi araması yap
+4. Bulunan e-postayı "Manuel Gir" ile kaydet
+5. Tüm qualified leadler için CSV export → Sales Navigator import
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 4 — BUILD & TEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Migration: pnpm --filter @workspace/db push
+2. Build: pnpm --filter @workspace/api-server run build
+3. Build: pnpm --filter @workspace/cyberstep run build
+
+Test:
+a. MERSIS erişilebilir mi:
+   curl -s "https://mersis.gtb.gov.tr/portal/rest/firma/ara?firmaAdi=test&kayitDurumu=1" \
+     -H "User-Agent: Mozilla/5.0" | head -c 200
+
+b. KAP erişilebilir mi:
+   curl -s "https://www.kap.org.tr/tr/api/basicSearchByName?name=test" \
+     | head -c 200
+
+c. Yeni kolonlar oluştu mu:
+   psql $DATABASE_URL -c "\d lead_candidates" | grep -E "officer|isr_notes"
+
+d. LinkedIn URL doğru üretiliyor mu:
+   Qualified lead açıkken "LinkedIn'de Ara" butonuna tıkla,
+   URL'nin keywords parametresini kontrol et
+
+Özet:
+- Kaç yeni kolon eklendi
+- MERSIS/KAP endpoint'leri erişilebilir mi
+- LinkedIn butonu hangi sayfada gösteriliyor
+- CSV export çalışıyor mu

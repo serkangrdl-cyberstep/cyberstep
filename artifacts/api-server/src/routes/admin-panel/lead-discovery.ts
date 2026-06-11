@@ -17,6 +17,7 @@ import { generateLeadTeaserEmail } from "../../services/leadTeaserEmail";
 import { whoisLookup } from "../../services/whoisService";
 import { scrapeContactEmail } from "../../services/webContactScraper";
 import { logger } from "../../lib/logger";
+import { enrichLeadFromTrSources } from "../../services/leadDiscovery/trSourcesEnrichment";
 
 const router = Router();
 
@@ -241,6 +242,19 @@ router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin,
   res.json({ message: "Kontak bilgisi güncellendi." });
 });
 
+// ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/isr-notes ──────────
+router.patch("/admin-panel/lead-discovery/candidates/:id/isr-notes", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { isrNotes } = req.body as { isrNotes?: string };
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
+  await db.update(leadCandidatesTable).set({
+    isrNotes: typeof isrNotes === "string" ? isrNotes.trim() || null : null,
+    updatedAt: new Date(),
+  }).where(eq(leadCandidatesTable.id, id));
+  res.json({ message: "ISR notları güncellendi." });
+});
+
 // ─── POST /api/admin-panel/lead-discovery/candidates/:id/re-enrich ────────────
 router.post("/admin-panel/lead-discovery/candidates/:id/re-enrich", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
@@ -273,6 +287,13 @@ router.post("/admin-panel/lead-discovery/candidates/:id/re-enrich", requireAdmin
         logger.info({ id, domain: candidate.domain, source: contactSource, email: contactEmail }, "Re-enrich kontak bulundu");
       } else {
         logger.info({ id, domain: candidate.domain }, "Re-enrich: kontak bulunamadı");
+      }
+
+      // MERSIS/KAP TR kaynaklarından yetkili adı/unvanını bul (her durumda çalışır)
+      try {
+        await enrichLeadFromTrSources(id, candidate.domain);
+      } catch (trErr) {
+        logger.debug({ id, err: String(trErr) }, "TR enrich non-fatal hata");
       }
     } catch (e) {
       logger.error({ id, err: String(e) }, "Re-enrich başarısız");

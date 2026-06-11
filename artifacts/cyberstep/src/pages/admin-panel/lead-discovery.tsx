@@ -94,6 +94,10 @@ interface LeadCandidate {
   teaserGeneratedAt: string | null;
   teaserSentAt: string | null;
   sourceData: SourceData | null;
+  contactSource: string | null;
+  officerName: string | null;
+  officerTitle: string | null;
+  isrNotes: string | null;
   createdAt: string;
 }
 
@@ -405,6 +409,8 @@ export default function AdminLeadDiscovery() {
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
+  const [filterNoContact, setFilterNoContact] = useState(false);
+  const [isrNotesEdit, setIsrNotesEdit] = useState("");
   const [contactEditTarget, setContactEditTarget] = useState<LeadCandidate | null>(null);
   const [editEmail, setEditEmail] = useState("");
   const [editName, setEditName] = useState("");
@@ -597,10 +603,67 @@ export default function AdminLeadDiscovery() {
     mutationFn: (id: number) =>
       fetch(`${BASE}/lead-discovery/candidates/${id}/re-enrich`, { method: "POST" }).then((r) => r.json()),
     onSuccess: () => {
-      toast({ description: "Kontak arama başlatıldı (WHOIS + Web)." });
+      toast({ description: "Kontak arama başlatıldı (WHOIS + Web + MERSIS)." });
       setTimeout(() => qc.invalidateQueries({ queryKey: ["lead-qualified"] }), 15000);
     },
   });
+
+  const saveIsrNotes = useMutation({
+    mutationFn: ({ id, notes }: { id: number; notes: string }) =>
+      fetch(`${BASE}/lead-discovery/candidates/${id}/isr-notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isrNotes: notes }),
+      }).then(async (r) => {
+        const j = await r.json() as { error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: () => {
+      toast({ description: "ISR notları kaydedildi." });
+      qc.invalidateQueries({ queryKey: ["lead-qualified"] });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
+  function buildLinkedInUrl(c: LeadCandidate): string {
+    const parts = c.domain.split(".");
+    const slug = parts[0] ?? "";
+    const company = c.companyName ?? (slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase());
+    if (c.officerName) {
+      return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${c.officerName} ${company}`)}`;
+    }
+    return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(company)}&titleKeyword=${encodeURIComponent("IT OR CTO OR CISO OR Genel Mudur")}`;
+  }
+
+  function buildSalesNavUrl(c: LeadCandidate): string {
+    const parts = c.domain.split(".");
+    const slug = parts[0] ?? "";
+    const company = c.companyName ?? slug;
+    return `https://www.linkedin.com/sales/search/people?query=(keywords:${encodeURIComponent(company)})`;
+  }
+
+  function exportQualifiedCsv(rows: LeadCandidate[]): void {
+    const header = ["domain", "company_name", "officer_name", "officer_title", "contact_email", "risk_score", "contact_source", "linkedin_url"];
+    const lines = rows.map((c) => [
+      c.domain,
+      c.companyName ?? "",
+      c.officerName ?? "",
+      c.officerTitle ?? "",
+      c.contactEmail ?? "",
+      String(c.riskScore ?? ""),
+      c.contactSource ?? "",
+      buildLinkedInUrl(c),
+    ].map((v) => `"${v.replace(/"/g, '""')}"`).join(","));
+    const csv = [header.join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cyberstep-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const deleteCandidate = useMutation({
     mutationFn: (id: number) =>
@@ -920,6 +983,24 @@ export default function AdminLeadDiscovery() {
                   {startQualify.isPending ? "Çalışıyor..." : "Kalifikasyonu Çalıştır"}
                 </Button>
               </div>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <Button
+                  size="sm"
+                  variant={filterNoContact ? "default" : "outline"}
+                  onClick={() => setFilterNoContact((f) => !f)}
+                  className="text-xs"
+                >
+                  {filterNoContact ? "Filtre: Kontakt Eksik" : "Kontakt Eksik"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}
+                  className="text-xs"
+                >
+                  LinkedIn Listesi Indir
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {qualifiedLoading ? (
@@ -939,7 +1020,10 @@ export default function AdminLeadDiscovery() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(qualifiedData?.rows ?? []).map((c) => (
+                        {(filterNoContact
+                          ? (qualifiedData?.rows ?? []).filter((c) => !c.contactEmail && !c.officerName)
+                          : (qualifiedData?.rows ?? [])
+                        ).map((c) => (
                           <TableRow key={c.id}>
                             <TableCell>
                               <div className="font-medium text-sm font-mono">{c.domain}</div>
@@ -1037,11 +1121,19 @@ export default function AdminLeadDiscovery() {
                                     Gönderildi İşaretle
                                   </Button>
                                 )}
+                                <a
+                                  href={buildLinkedInUrl(c)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center text-xs h-7 w-full rounded-md border border-[#0A66C2]/30 bg-[#0A66C2]/5 text-[#0A66C2] hover:bg-[#0A66C2]/10 font-medium"
+                                >
+                                  LinkedIn
+                                </a>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   className="text-xs h-7 w-full"
-                                  onClick={() => { setFingerprintResult(null); setDetailCandidate(c); }}
+                                  onClick={() => { setFingerprintResult(null); setDetailCandidate(c); setIsrNotesEdit(c.isrNotes ?? ""); }}
                                 >
                                   Detay
                                 </Button>
@@ -1809,6 +1901,62 @@ export default function AdminLeadDiscovery() {
               )}
 
             </div>
+
+            {/* ISR Aksiyonları */}
+            <div className="mx-4 mb-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/20 p-3 space-y-3">
+              <div className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">ISR Aksiyonları</div>
+              <div className="flex gap-2 flex-wrap">
+                <a
+                  href={buildLinkedInUrl(detailCandidate)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-[#0A66C2] text-white hover:bg-[#0057b7] font-medium"
+                >
+                  LinkedIn&apos;de Ara
+                </a>
+                <a
+                  href={buildSalesNavUrl(detailCandidate)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2]/10 font-medium"
+                >
+                  Sales Nav
+                </a>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <div className="text-muted-foreground mb-0.5">MERSIS Yetkili</div>
+                  <div className="font-medium">{detailCandidate.officerName ?? "Bulunamadı"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-0.5">Unvan</div>
+                  <div>{detailCandidate.officerTitle ?? "—"}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-muted-foreground mb-0.5">Kontakt E-posta</div>
+                  <div className="font-medium">{detailCandidate.contactEmail ?? "Boş"}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground mb-1">ISR Notları</div>
+                <textarea
+                  className="w-full text-xs border rounded-md p-2 resize-none bg-background"
+                  rows={3}
+                  placeholder="Bu lead için notlarınız..."
+                  value={isrNotesEdit}
+                  onChange={(e) => setIsrNotesEdit(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  className="mt-1 text-xs h-7"
+                  onClick={() => saveIsrNotes.mutate({ id: detailCandidate.id, notes: isrNotesEdit })}
+                  disabled={saveIsrNotes.isPending}
+                >
+                  {saveIsrNotes.isPending ? "Kaydediliyor..." : "Notları Kaydet"}
+                </Button>
+              </div>
+            </div>
+
             {/* Aksiyonlar — sabit alt bar */}
             <div className="flex gap-2 px-4 py-3 border-t shrink-0 flex-wrap bg-background">
               {detailCandidate.isQualified && !detailCandidate.teaserSubject && (

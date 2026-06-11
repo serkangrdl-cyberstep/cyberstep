@@ -43,6 +43,9 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   teaserSentAt: timestamp("teaser_sent_at"),
   isrLeadId: integer("isr_lead_id"),
   notes: text("notes"),
+  officerName: varchar("officer_name", { length: 255 }),
+  officerTitle: varchar("officer_title", { length: 100 }),
+  isrNotes: text("isr_notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

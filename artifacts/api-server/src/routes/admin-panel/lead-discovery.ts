@@ -111,6 +111,21 @@ router.post("/admin-panel/lead-discovery/shodan", requireAdmin, async (req: Requ
   });
 });
 
+// ─── POST /api/admin-panel/lead-discovery/ripe-dns ───────────────────────────
+router.post("/admin-panel/lead-discovery/ripe-dns", requireAdmin, async (req: Request, res: Response) => {
+  const { maxPrefixes = 60 } = req.body as { maxPrefixes?: number };
+  res.json({ message: "RIPE DNS keşfi başlatıldı", maxPrefixes });
+  setImmediate(async () => {
+    try {
+      const { runRipeDiscovery } = await import("../../services/ripeDiscovery");
+      const result = await runRipeDiscovery({ maxPrefixes });
+      logger.info(result, "RIPE DNS keşfi tamamlandı");
+    } catch (e) {
+      logger.error({ err: String(e) }, "RIPE DNS keşfi başarısız");
+    }
+  });
+});
+
 // ─── POST /api/admin-panel/lead-discovery/full ───────────────────────────────
 router.post("/admin-panel/lead-discovery/full", requireAdmin, async (req: Request, res: Response) => {
   const {

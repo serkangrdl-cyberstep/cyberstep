@@ -220,6 +220,55 @@ interface CertstreamStatusData {
   totalQueued: number;
 }
 
+function RipeDnsWidget() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const startRipe = useMutation({
+    mutationFn: () =>
+      fetch(`${BASE}/lead-discovery/ripe-dns`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: () => {
+      toast({ description: "RIPE DNS keşfi arka planda başlatıldı." });
+      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
+    },
+    onError: () => toast({ variant: "destructive", description: "RIPE DNS keşfi başlatılamadı." }),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>RIPE DNS Keşfi</CardTitle>
+        <CardDescription>
+          Türkiye IPv4 prefix'lerinden reverse DNS ile .tr domain keşfi — API key gerektirmez.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-muted/40 rounded-md p-4 text-sm space-y-2">
+          <div className="font-medium">Nasıl çalışır?</div>
+          <ul className="text-xs space-y-0.5 list-disc list-inside text-muted-foreground">
+            <li>stat.ripe.net → Türkiye IPv4 prefix listesi (~2000 prefix)</li>
+            <li>Her prefix'ten örneklem IP seç, HackerTarget reverse DNS sorgula</li>
+            <li>.tr uzantılı root domain'leri lead_candidates'e ekle</li>
+            <li>Bulunan root domain'ler için HackerTarget subdomain lookup</li>
+            <li>Rate limit: ~100 istek/gün → maxPrefixes=60 güvenli; gece 02:00 otomatik çalışır</li>
+          </ul>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => startRipe.mutate()} disabled={startRipe.isPending}>
+            {startRipe.isPending ? "Başlatılıyor..." : "RIPE DNS Keşfini Başlat"}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Tahmini süre: 5-15 dk. Arka planda çalışır.
+          </span>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-xs text-blue-800">
+          Otomatik çalışma: Her gece 02:00 (İstanbul saati). Gündüz test için yukarıdaki butonu kullanın.
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CertstreamWidget() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -630,6 +679,7 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="certstream">Certstream</TabsTrigger>
             <TabsTrigger value="crtsh">crt.sh</TabsTrigger>
             <TabsTrigger value="shodan">Shodan</TabsTrigger>
+            <TabsTrigger value="ripe_dns">RIPE DNS</TabsTrigger>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="qualified">
               Qualified
@@ -774,6 +824,11 @@ export default function AdminLeadDiscovery() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── RIPE DNS TAB ─────────────────────────────────────────────── */}
+        <TabsContent value="ripe_dns">
+          <RipeDnsWidget />
         </TabsContent>
 
         {/* ── PIPELINE TAB ─────────────────────────────────────────────── */}

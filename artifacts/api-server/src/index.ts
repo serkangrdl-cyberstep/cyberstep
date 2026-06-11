@@ -11,6 +11,7 @@ import { generateAndPublishBlogPost } from "./services/blog-autopilot";
 import { startFabricCrons } from "./services/fabric-cron";
 import { scanCRTSH } from "./services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery";
+import { runRipeDiscovery } from "./services/ripeDiscovery";
 import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
 import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn, cleanupStaleRunningJobs } from "./services/cronRegistry";
@@ -2419,8 +2420,8 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("crt.sh discovery cron scheduled (daily 03:00 Istanbul, daysBack:7, limit:500)");
 
-    // ─── Lead Discovery: Shodan — Her gece 04:00 (2 sorgu/gece, tam rotasyon) ──
-    // epoch-day bazlı rotasyon: 8 sorgunun hepsi sırayla çalışır (getDay() 0-6 olduğundan index 7 hiç çalışmıyordu)
+    // ─── Lead Discovery: Shodan — Her gece 04:15 (4 sorgu/gece, tam rotasyon) ──
+    // epoch-day bazlı rotasyon: 8 sorgunun sırayla 4'ü çalışır (crt.sh devre dışı → Shodan ana kaynak)
     cron.schedule("15 4 * * *", wrapCron("shodan", "15 4 * * *", async () => {
       if (!process.env["SHODAN_API_KEY"]) return 0;
       if (!await cronIsEnabled("shodan")) { logger.info("Shodan cron devre dışı, atlanıyor"); return 0; }
@@ -2429,12 +2430,28 @@ startup()
       const qLen = SHODAN_FREE_QUERIES.length;
       const idx1 = epochDay % qLen;
       const idx2 = (epochDay + 1) % qLen;
+      const idx3 = (epochDay + 2) % qLen;
+      const idx4 = (epochDay + 3) % qLen;
       const r1 = await scanShodanFree(idx1, limit);
       await new Promise((r) => setTimeout(r, 8000));
       const r2 = await scanShodanFree(idx2, limit);
-      return r1.addedToLeads + r2.addedToLeads;
+      await new Promise((r) => setTimeout(r, 8000));
+      const r3 = await scanShodanFree(idx3, limit);
+      await new Promise((r) => setTimeout(r, 8000));
+      const r4 = await scanShodanFree(idx4, limit);
+      return r1.addedToLeads + r2.addedToLeads + r3.addedToLeads + r4.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Shodan discovery cron scheduled (daily 04:00 Istanbul, 2 queries/night, limit:300 each)");
+    logger.info("Shodan discovery cron scheduled (daily 04:15 Istanbul, 4 queries/night, limit:300 each)");
+
+    // ─── Lead Discovery: RIPE DNS — Her gece 02:00 ────────────────────────────
+    // Türkiye IPv4 prefix'lerinden reverse DNS → yeni .tr domain keşfi (API key gerektirmez)
+    cron.schedule("0 2 * * *", wrapCron("ripe_dns", "0 2 * * *", async () => {
+      if (!await cronIsEnabled("ripe_dns")) { logger.info("RIPE DNS cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("ripe_dns", 60);
+      const result = await runRipeDiscovery({ maxPrefixes: limit });
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("RIPE DNS discovery cron scheduled (daily 02:00 Istanbul, maxPrefixes:60)");
 
     // ─── Lead Discovery: Kalifikasyon — Saatte bir (0 * * * *) ──────────────────
     // Limit 25/çalışma: 24×25=600 aday/gün. Her aday max 25s tarama + 15 dk circuit breaker.

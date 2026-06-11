@@ -19,7 +19,19 @@ import type { CronState } from "../../services/cronRegistry";
 import { qualifyPendingCandidates, getISOWeek } from "../../services/discoveryPipeline";
 import { scanCRTSH } from "../../services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "../../services/shodanDiscovery";
+import { runRipeDiscovery } from "../../services/ripeDiscovery";
 export const CRON_DEFS = [
+  {
+    name: "ripe_dns",
+    label: "RIPE DNS Keşfi",
+    description: "Türkiye IPv4 prefix'lerinden reverse DNS ile yeni .tr domainleri keşfeder — API key gerektirmez",
+    defaultSchedule: "0 2 * * *",
+    scheduleLabel: "Her gece 02:00",
+    defaultEnabled: true,
+    defaultLimit: 60,
+    requiresApiKey: null as string | null,
+    category: "lead-gen",
+  },
   {
     name: "crtsh",
     label: "crt.sh Domain Keşfi",
@@ -80,6 +92,7 @@ export const CRON_DEFS = [
 // All monitored cron jobs (read-only display — not manually triggerable unless also in CRON_DEFS)
 export const ALL_NIGHT_JOBS = [
   // ─── Keşif & Lead ────────────────────────────────────────────────────────────
+  { name: "ripe_dns",                 label: "RIPE DNS Keşfi",                     scheduleLabel: "Her gece 02:00",         scheduleExpr: "0 2 * * *",                              category: "lead-gen"     },
   { name: "crtsh",                    label: "crt.sh Domain Keşfi",                scheduleLabel: "Her gece 03:00",         scheduleExpr: "0 3 * * *",                              category: "lead-gen"     },
   { name: "shodan",                   label: "Shodan Pasif Keşif",                 scheduleLabel: "Her gece 04:15",         scheduleExpr: "15 4 * * *",                             category: "lead-gen"     },
   { name: "lead_qual",                label: "Lead Kalifikasyon",                  scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
@@ -371,7 +384,9 @@ router.post("/admin-panel/cron/trigger/:name", requireAdmin, async (req: Request
 
     // Fallback: inline execution with wrapCron
     const fn = wrapCron(name, def.defaultSchedule, async () => {
-      if (name === "crtsh") {
+      if (name === "ripe_dns") {
+        await runRipeDiscovery({ maxPrefixes: limit });
+      } else if (name === "crtsh") {
         await scanCRTSH("%.com.tr", { daysBack: 2, minCorporateScore: 10, limit });
         await new Promise((r) => setTimeout(r, 3000));
         await scanCRTSH("%.net.tr", { daysBack: 2, minCorporateScore: 10, limit: Math.floor(limit / 3) });

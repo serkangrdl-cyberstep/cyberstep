@@ -395,6 +395,25 @@ const INTEGRATIONS: IntegrationDef[] = [
     setup: "Kurulum gerekmez. stat.ripe.net tamamen açık bir API'dir.",
     docs: "https://stat.ripe.net/docs/data_api",
   },
+  // ─── TR Kamuya Açık Veri ───────────────────────────────────────────────────
+  {
+    id: "mersis", name: "MERSİS (Ticaret Bakanlığı)", category: "Lead Keşfi", type: "security", icon: "🏛️",
+    cost: "free", costLabel: "Ücretsiz", always: true,
+    desc: "Merkezi Sicil Kayıt Sistemi — şirket adı, vergi no, kuruluş tarihi, faaliyet kodu (NACE), merkez adresi ve ortaklık yapısı",
+    why: "Lead zenginleştirmede şirketin yasal kimliğini, sektörünü ve büyüklüğünü doğrular. MERSIS'te kayıtsız şirketlere yapılan satış girişimlerini önler.",
+    how: "Lead TR Enrich cron'u (günlük 07:30) domain → vergi no eşleştirmesi yaparak lead_candidates.officer_name, officer_title ve isr_notes alanlarını günceller.",
+    setup: "Kurulum gerekmez. MERSİS kamuya açık bir veri tabanıdır.",
+    docs: "https://mersis.gtb.gov.tr",
+  },
+  {
+    id: "kap", name: "KAP (Kamuyu Aydınlatma Platformu)", category: "Lead Keşfi", type: "security", icon: "📊",
+    cost: "free", costLabel: "Ücretsiz", always: true,
+    desc: "Borsa İstanbul halka açık şirketlerinin zorunlu açıklamaları — yıllık raporlar, yönetim kurulu değişiklikleri, özel durum açıklamaları",
+    why: "Hedef şirketin yönetim değişikliklerini, finansal tablo açıklamalarını ve siber güvenlik ile ilgili özel durum bildirimleri takip eder.",
+    how: "Lead TR Enrich cron'u KAP RSS/API üzerinden son açıklamaları çeker; C-level yönetici isim ve unvanlarını isr_notes alanına yazar.",
+    setup: "Kurulum gerekmez. KAP tamamen kamuya açık bir platformdur.",
+    docs: "https://www.kap.org.tr",
+  },
   // ─── E-posta & Kimlik ──────────────────────────────────────────────────────
   {
     id: "hibp", name: "Have I Been Pwned", category: "E-posta & Kimlik", type: "security", icon: "💀",
@@ -637,6 +656,7 @@ const SECURITY_CATEGORIES = [
   "Güvenlik Cihazı Entegrasyonları",
   "Altyapı & Açık Yönetimi",
   "Protokol & Sertifika",
+  "Lead Keşfi",
   "E-posta & Kimlik",
   "Yapay Zeka",
 ];

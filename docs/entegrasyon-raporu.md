@@ -9,14 +9,14 @@
 
 | Durum | Adet |
 |-------|------|
-| Aktif (API key gerekmez, her zaman açık) | 16 |
+| Aktif (API key gerekmez, her zaman açık) | 18 |
 | Aktif (API key mevcut, çalışıyor) | 9 |
 | API Key Bekliyor (kod hazır, key girilmemiş) | 14 |
 | Müşteri Başına Yapılandırılır | 11 |
 | Planlanıyor / Hazırlık Aşaması | 4 |
-| **Toplam** | **54** |
+| **Toplam** | **56** |
 
-**Maliyet Dağılımı:** 20 entegrasyon tamamen ücretsiz — bunlar platform değerinin büyük kısmını oluşturuyor. 8 entegrasyon freemium (ücretsiz başlar, yüksek hacimde ücretlendirilir). 14 entegrasyon ticari/ücretli.
+**Maliyet Dağılımı:** 22 entegrasyon tamamen ücretsiz — bunlar platform değerinin büyük kısmını oluşturuyor. 8 entegrasyon freemium (ücretsiz başlar, yüksek hacimde ücretlendirilir). 14 entegrasyon ticari/ücretli.
 
 ---
 
@@ -351,7 +351,7 @@
 
 **Neden kuruldu:** İki kritik amaç: (1) Müşteri domain taramasında açık portları (RDP:3389, MongoDB:27017, Elasticsearch:9200) tespit eder. Veri sızdıran açık veritabanları en sık bulunan kritik açık. (2) Türkiye'de potansiyel müşteri firmalar için lead discovery — Türkçe TLD'lere sahip şirketleri SSL sertifika bazlı tarar. Ücretsiz "oss" plan search API'yi devre dışı bırakır; `basic`/`dev`/`member` plan gerekli.
 
-**Nasıl çalışır:** Domain taramasında IP Shodan'da sorgulanır, açık port ve CVE listesi rapora eklenir. Lead discovery'de `SHODAN_FREE_QUERIES` listesinden haftalık rotasyonla farklı TR sektörü sorguları çalıştırılır; sonuçlar `lead_candidates` tablosuna işlenir.
+**Nasıl çalışır:** Domain taramasında IP Shodan'da sorgulanır, açık port ve CVE listesi rapora eklenir. Lead discovery'de `SHODAN_FREE_QUERIES` listesinden **4 sorgu/gece** (gün-bazlı 8 sorguluk havuzdan idx1–idx4 rotasyonu) farklı TR sektörü sorguları çalıştırılır; sonuçlar `lead_candidates` tablosuna işlenir. *(Haziran 2026: 2'den 4 sorgu/geceye yükseltildi — günlük keşif kapasitesi iki katına çıktı.)*
 
 ---
 
@@ -688,6 +688,34 @@
 
 ---
 
+### 13.4 RIPE stat.ripe.net
+| Alan | Bilgi |
+|------|-------|
+| **Durum** | Aktif (her zaman açık) |
+| **Maliyet** | Ücretsiz |
+| **Entegrasyon Seviyesi** | Tam — gece 02:00 otomatik çalışır |
+| **Gerekli Ortam Değişkeni** | Yok |
+
+**Neden kuruldu:** crt.sh ve Shodan'dan bağımsız üçüncü bir lead kaynağı. RIPE NCC'nin Türkiye'ye tahsis ettiği ~2.000 IPv4 prefix bloğunu sağlar. API key gerektirmez, tamamen açık bir API'dir. Bu kaynakla sertifika loglarında görünmeyen yeni Türk şirketlerini ve kurumları keşfetmek mümkün.
+
+**Nasıl çalışır:** Her gece 02:00'de (İstanbul saati) `stat.ripe.net/data/country-resource-list/data.json?resource=TR` sorgulanır. Dönen prefix listesinden ~60 rastgele prefix seçilir (HackerTarget günlük limit koruması), her prefix için örnek IP'ler üretilir. Bu IP'ler HackerTarget reverse DNS ile hostname'e çevrilir. `.tr` uzantılı domain'ler `lead_candidates` tablosuna yazılır; günde 40-80 yeni aday potansiyeli.
+
+---
+
+### 13.5 HackerTarget
+| Alan | Bilgi |
+|------|-------|
+| **Durum** | Aktif (her zaman açık) |
+| **Maliyet** | Ücretsiz (~100 istek/gün) |
+| **Entegrasyon Seviyesi** | Tam — RIPE DNS pipeline'ının ikinci aşaması |
+| **Gerekli Ortam Değişkeni** | Yok |
+
+**Neden kuruldu:** IP adresini hostname'e çeviren reverse DNS lookup API'si. API key gerektirmez, ücretsizdir. RIPE stat'tan alınan ham IP aralıklarını insan tarafından tanınabilir domain adlarına dönüştürür. Sadece RIPE DNS pipeline'ında kullanılır (müşteri tarama akışında kullanılmaz).
+
+**Nasıl çalışır:** `https://api.hackertarget.com/reverseiplookup/?q={IP}` endpoint'i çağrılır. `.tr` hostname döndürüyorsa root domain çıkarılır, `lead_candidates` tablosuna eklenir. Günlük ~100 istek limiti `maxPrefixes: 60` parametresiyle korunur (her prefix 1 IP = 60 istek/gece).
+
+---
+
 ## Entegrasyon Durumu Özet Tablosu
 
 | Entegrasyon | Kategori | Durum | Maliyet | Seviye |
@@ -717,7 +745,7 @@
 | FortiGate (Doğrudan) | Müşteri Entegrasyonu | Aktif | Müşteri Lisansı | Tam |
 | Microsoft 365 | Müşteri Entegrasyonu | Aktif | MS365 Lisansı | OAuth2 Çift Yönlü |
 | ServiceNow | Müşteri Entegrasyonu | Aktif | Müşteri Lisansı | Çift Yönlü Senkron |
-| Shodan | Altyapı & Keşif | Aktif | $49/ay | Tam (Tarama + Lead) |
+| Shodan | Altyapı & Keşif | Aktif | $49/ay | Tam (Tarama + Lead, 4 sorgu/gece) |
 | SecurityTrails | Altyapı & Keşif | API Key Bekliyor | $0–$50/ay | Kod Hazır |
 | Censys | Altyapı & Keşif | API Key Bekliyor | $0–Ücretli | Kod Hazır |
 | Cloudflare Radar | Altyapı & Keşif | API Key Bekliyor | Ücretsiz | Kod Hazır |
@@ -744,8 +772,10 @@
 | Certstream | Satış & Lead Gen | Aktif | Ücretsiz | Tam |
 | Apollo.io | Satış & Lead Gen | API Key Bekliyor | $49/ay | Kod Hazır |
 | Hunter.io | Satış & Lead Gen | API Key Bekliyor | $34/ay | Kod Hazır |
+| RIPE stat.ripe.net | Satış & Lead Gen | Aktif | Ücretsiz | Tam (RIPE DNS Lead) |
+| HackerTarget | Satış & Lead Gen | Aktif | Ücretsiz | Tam (Reverse DNS) |
 | Calendly | Üretkenlik | API Key Bekliyor | Freemium | Kod Hazır |
 
 ---
 
-*Son güncelleme: Haziran 2026 — CyberStep.io Teknik Ekibi*
+*Son güncelleme: 11 Haziran 2026 — CyberStep.io Teknik Ekibi*

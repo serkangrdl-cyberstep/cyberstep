@@ -570,7 +570,7 @@ Admin paneline `/panel/giris` ile giriş yapılır. Tüm sayfalar `AdminLayout` 
 | `/hesabim/yonetim-raporu` | Yönetim Raporu | Board report oluşturma, alıcı ekleme, onaylama, gönderme |
 | `/hesabim/enterprise` | Enterprise | Teaser rapor önizleme, ilgi formu, prospect durumu |
 | `/hesabim/davet` | Davet Programı | Referral kodu paylaşma, kazanılan ödüller |
-| `/hesabim/ciso-asistan` | CISO Asistan | Gemini AI destekli chat — güvenlik soruları, öneri, yorumlama |
+| `/hesabim/ciso-asistan` | CISO Asistan | KVKK & BDDK uyum skoru, Board Report yönetimi (Claude Sonnet 4.6), AI politika kütüphanesi — 7 şablon (Claude Haiku 4.5) |
 | `/hesabim/technology-discovery` | Tech Discovery | Kendi domain'inin tech stack ve güvenlik olgunluk haritası |
 | `/hesabim/tedarikci-portfoyu` | Tedarikçi Portföyü | Tedarikçi risk değerlendirmeleri |
 | `/hesabim/cloud-guvenlik` | Cloud Güvenlik | Cloud servis güvenlik kontrolleri |

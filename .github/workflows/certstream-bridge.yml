@@ -14,20 +14,40 @@ jobs:
       - name: Install Python WebSocket client
         run: pip install websockets
 
-      - name: Download certstream-server-go
+      - name: Download certstream-server-go and config
         run: |
           curl -fsSL \
             "https://github.com/d-Rickyy-b/certstream-server-go/releases/download/v1.9.0/certstream-server-go_1.9.0_linux_amd64" \
             -o certstream-server-go
           chmod +x certstream-server-go
 
+          # config.yaml olmadan binary başlamıyor — sample config'i indir
+          curl -fsSL \
+            "https://raw.githubusercontent.com/d-Rickyy-b/certstream-server-go/master/config.sample.yaml" \
+            -o config.yaml
+
+          echo "Binary and config ready."
+          ls -lh certstream-server-go config.yaml
+
       - name: Start certstream-server-go in background
         run: |
           ./certstream-server-go &
           echo "CERTSTREAM_PID=$!" >> $GITHUB_ENV
           echo "Certstream PID: $!"
-          # CT log bağlantısı ve ilk cert verisi için bekle
-          sleep 45
+
+          # Port 8080 açılana kadar bekle (max 90 saniye)
+          echo "Waiting for port 8080..."
+          for i in $(seq 1 90); do
+            if nc -z localhost 8080 2>/dev/null; then
+              echo "Port 8080 ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+          # CT log bağlantısı için 20 saniye daha bekle
+          sleep 20
+          echo "Server ready, starting collection."
 
       - name: Collect TR domains and send to Replit
         run: |
@@ -67,7 +87,6 @@ jobs:
                   return ".".join(parts[-3:])
               return ".".join(parts[-2:])
 
-          # /domains-only endpoint — certstream-server-go listesini sade domain dizisi olarak gönderir
           WS_URL = "ws://localhost:8080/domains-only"
           COLLECT_SECONDS = 480  # 8 dakika
 
@@ -79,7 +98,7 @@ jobs:
               try:
                   async with websockets.connect(
                       WS_URL,
-                      ping_interval=30,    # sunucunun beklediği heartbeat
+                      ping_interval=30,
                       ping_timeout=10,
                       open_timeout=15,
                   ) as ws:
@@ -90,14 +109,20 @@ jobs:
                               msg = await asyncio.wait_for(ws.recv(), timeout=5.0)
                               total_messages += 1
 
-                              # /domains-only formatı: JSON array of strings
-                              domains = json.loads(msg)
-                              if isinstance(domains, list):
-                                  for d in domains:
+                              # /domains-only: JSON array of domain strings
+                              data = json.loads(msg)
+                              if isinstance(data, list):
+                                  for d in data:
+                                      if isinstance(d, str) and is_tr_lead(d):
+                                          collected.add(root_domain(d))
+                              elif isinstance(data, dict):
+                                  # full message format fallback
+                                  leaf = data.get("data", {}).get("leaf_cert", {})
+                                  for d in leaf.get("all_domains", []):
                                       if isinstance(d, str) and is_tr_lead(d):
                                           collected.add(root_domain(d))
 
-                              if total_messages % 5000 == 0:
+                              if total_messages % 2000 == 0:
                                   elapsed = int(time.time() - start)
                                   print(f"  [{elapsed}s] messages={total_messages} TR={len(collected)}", flush=True)
 
@@ -110,7 +135,7 @@ jobs:
               except Exception as e:
                   print(f"Connection error: {e}", flush=True)
 
-              print(f"Done collecting — messages={total_messages} TR domains={len(collected)}", flush=True)
+              print(f"Done — messages={total_messages} TR domains={len(collected)}", flush=True)
 
           asyncio.run(collect())
 

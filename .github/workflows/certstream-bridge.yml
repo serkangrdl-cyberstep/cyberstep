@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 14
 
     steps:
-      - name: Install Python WebSocket client
+      - name: Install dependencies
         run: pip install websockets
 
       - name: Download certstream-server-go and config
@@ -21,36 +21,53 @@ jobs:
             -o certstream-server-go
           chmod +x certstream-server-go
 
-          # config.yaml olmadan binary başlamıyor — sample config'i indir
           curl -fsSL \
             "https://raw.githubusercontent.com/d-Rickyy-b/certstream-server-go/master/config.sample.yaml" \
             -o config.yaml
 
-          echo "Binary and config ready."
-          ls -lh certstream-server-go config.yaml
+          echo "=== config.yaml ==="
+          cat config.yaml
+          echo "=== binary info ==="
+          file certstream-server-go
+          ls -lh certstream-server-go
 
-      - name: Start certstream-server-go in background
+      - name: Start certstream-server-go (with debug log)
         run: |
-          ./certstream-server-go &
+          # Stdout/stderr'i log dosyasına yönlendir
+          ./certstream-server-go > certstream.log 2>&1 &
           echo "CERTSTREAM_PID=$!" >> $GITHUB_ENV
-          echo "Certstream PID: $!"
+          echo "PID: $!"
 
-          # Port 8080 açılana kadar bekle (max 90 saniye)
-          echo "Waiting for port 8080..."
+          # Port 8080 açılana kadar bekle (max 90s)
           for i in $(seq 1 90); do
             if nc -z localhost 8080 2>/dev/null; then
-              echo "Port 8080 ready after ${i}s"
+              echo "Port 8080 OPEN after ${i}s"
               break
+            fi
+            if [ $i -eq 10 ] || [ $i -eq 30 ] || [ $i -eq 60 ]; then
+              echo "--- certstream.log at ${i}s ---"
+              cat certstream.log 2>/dev/null || echo "(empty)"
+              echo "--- process check ---"
+              ps aux | grep certstream | grep -v grep || echo "(not running)"
             fi
             sleep 1
           done
 
-          # CT log bağlantısı için 20 saniye daha bekle
-          sleep 20
-          echo "Server ready, starting collection."
+          echo "=== Final certstream.log ==="
+          cat certstream.log 2>/dev/null || echo "(no log)"
+          echo "=== netstat ==="
+          ss -tlnp | grep -E "8080|LISTEN" | head -10
+
+          # CT log bağlantısı için ek bekleme
+          sleep 15
 
       - name: Collect TR domains and send to Replit
         run: |
+          echo "=== certstream.log at collection time ==="
+          cat certstream.log 2>/dev/null | tail -20 || echo "(no log)"
+          echo "=== port check ==="
+          ss -tlnp | grep 8080 || echo "Port 8080 NOT open"
+
           python3 << 'PYEOF'
           import asyncio, json, os, sys, time
           import websockets
@@ -109,14 +126,12 @@ jobs:
                               msg = await asyncio.wait_for(ws.recv(), timeout=5.0)
                               total_messages += 1
 
-                              # /domains-only: JSON array of domain strings
                               data = json.loads(msg)
                               if isinstance(data, list):
                                   for d in data:
                                       if isinstance(d, str) and is_tr_lead(d):
                                           collected.add(root_domain(d))
                               elif isinstance(data, dict):
-                                  # full message format fallback
                                   leaf = data.get("data", {}).get("leaf_cert", {})
                                   for d in leaf.get("all_domains", []):
                                       if isinstance(d, str) and is_tr_lead(d):
@@ -143,7 +158,6 @@ jobs:
               print("No TR domains found — nothing to send", flush=True)
               sys.exit(0)
 
-          # Replit ingest'e gönder (500'lük batch'ler)
           domains = sorted(collected)
           print(f"Sample: {domains[:5]}", flush=True)
           CHUNK = 500
@@ -158,15 +172,13 @@ jobs:
               }).encode()
               try:
                   req = urllib.request.Request(
-                      REPLIT_URL,
-                      data=payload,
-                      headers={"Content-Type": "application/json"},
-                      method="POST",
+                      REPLIT_URL, data=payload,
+                      headers={"Content-Type": "application/json"}, method="POST",
                   )
                   with urllib.request.urlopen(req, timeout=30) as resp:
                       body = json.loads(resp.read())
                       total_accepted += body.get("accepted", 0)
-                      print(f"  Batch {i//CHUNK+1}: status={resp.status} accepted={body.get('accepted')} skipped={body.get('skipped')}", flush=True)
+                      print(f"  Batch {i//CHUNK+1}: accepted={body.get('accepted')} skipped={body.get('skipped')}", flush=True)
               except Exception as e:
                   print(f"  Batch {i//CHUNK+1}: ERROR {e}", flush=True)
 
@@ -178,4 +190,7 @@ jobs:
 
       - name: Stop certstream-server-go
         if: always()
-        run: kill $CERTSTREAM_PID 2>/dev/null || true
+        run: |
+          kill $CERTSTREAM_PID 2>/dev/null || true
+          echo "=== certstream.log (final) ==="
+          cat certstream.log 2>/dev/null || echo "(no log)"

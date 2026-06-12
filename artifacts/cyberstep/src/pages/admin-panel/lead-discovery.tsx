@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -418,6 +419,7 @@ export default function AdminLeadDiscovery() {
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
   const [filterNoContact, setFilterNoContact] = useState(false);
   const [isrNotesEdit, setIsrNotesEdit] = useState("");
+  const [isrOpen, setIsrOpen] = useState(false);
   const [contactEditTarget, setContactEditTarget] = useState<LeadCandidate | null>(null);
   const [editEmail, setEditEmail] = useState("");
   const [editName, setEditName] = useState("");
@@ -1967,59 +1969,69 @@ export default function AdminLeadDiscovery() {
 
             </div>
 
-            {/* ISR Aksiyonları */}
-            <div className="mx-4 mb-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/20 p-3 space-y-3">
-              <div className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">ISR Aksiyonları</div>
-              <div className="flex gap-2 flex-wrap">
-                <a
-                  href={buildLinkedInUrl(detailCandidate)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-[#0A66C2] text-white hover:bg-[#0057b7] font-medium"
-                >
-                  LinkedIn&apos;de Ara
-                </a>
-                <a
-                  href={buildSalesNavUrl(detailCandidate)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2]/10 font-medium"
-                >
-                  Sales Nav
-                </a>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div>
-                  <div className="text-muted-foreground mb-0.5">MERSIS Yetkili</div>
-                  <div className="font-medium">{detailCandidate.officerName ?? "Bulunamadı"}</div>
+            {/* ISR Aksiyonları — varsayılan kapalı */}
+            <div className="mx-4 mb-2">
+              <button
+                onClick={() => setIsrOpen(o => !o)}
+                className="w-full flex items-center justify-between text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide px-3 py-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/20 hover:bg-blue-100/60 dark:hover:bg-blue-900/30 transition-colors"
+              >
+                <span>ISR Aksiyonları</span>
+                {isrOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {isrOpen && (
+                <div className="mt-1 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/20 p-3 space-y-3">
+                  <div className="flex gap-2 flex-wrap">
+                    <a
+                      href={buildLinkedInUrl(detailCandidate)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-[#0A66C2] text-white hover:bg-[#0057b7] font-medium"
+                    >
+                      LinkedIn&apos;de Ara
+                    </a>
+                    <a
+                      href={buildSalesNavUrl(detailCandidate)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2]/10 font-medium"
+                    >
+                      Sales Nav
+                    </a>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <div className="text-muted-foreground mb-0.5">MERSIS Yetkili</div>
+                      <div className="font-medium">{detailCandidate.officerName ?? "Bulunamadı"}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground mb-0.5">Unvan</div>
+                      <div>{detailCandidate.officerTitle ?? "—"}</div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-muted-foreground mb-0.5">Kontakt E-posta</div>
+                      <div className="font-medium">{detailCandidate.contactEmail ?? "Boş"}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground mb-1">ISR Notları</div>
+                    <textarea
+                      className="w-full text-xs border rounded-md p-2 resize-none bg-background"
+                      rows={3}
+                      placeholder="Bu lead için notlarınız..."
+                      value={isrNotesEdit}
+                      onChange={(e) => setIsrNotesEdit(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      className="mt-1 text-xs h-7"
+                      onClick={() => saveIsrNotes.mutate({ id: detailCandidate.id, notes: isrNotesEdit })}
+                      disabled={saveIsrNotes.isPending}
+                    >
+                      {saveIsrNotes.isPending ? "Kaydediliyor..." : "Notları Kaydet"}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-muted-foreground mb-0.5">Unvan</div>
-                  <div>{detailCandidate.officerTitle ?? "—"}</div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-muted-foreground mb-0.5">Kontakt E-posta</div>
-                  <div className="font-medium">{detailCandidate.contactEmail ?? "Boş"}</div>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground mb-1">ISR Notları</div>
-                <textarea
-                  className="w-full text-xs border rounded-md p-2 resize-none bg-background"
-                  rows={3}
-                  placeholder="Bu lead için notlarınız..."
-                  value={isrNotesEdit}
-                  onChange={(e) => setIsrNotesEdit(e.target.value)}
-                />
-                <Button
-                  size="sm"
-                  className="mt-1 text-xs h-7"
-                  onClick={() => saveIsrNotes.mutate({ id: detailCandidate.id, notes: isrNotesEdit })}
-                  disabled={saveIsrNotes.isPending}
-                >
-                  {saveIsrNotes.isPending ? "Kaydediliyor..." : "Notları Kaydet"}
-                </Button>
-              </div>
+              )}
             </div>
 
             {/* Aksiyonlar — sabit alt bar */}

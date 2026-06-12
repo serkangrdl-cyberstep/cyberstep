@@ -38,17 +38,16 @@ jobs:
           echo "CERTSTREAM_PID=$!" >> $GITHUB_ENV
           echo "PID: $!"
 
-          # Port 8080 açılana kadar bekle (max 90s)
-          for i in $(seq 1 90); do
+          # Port 8080 açılana kadar bekle (max 240s — binary CT log catch-up yapar)
+          for i in $(seq 1 240); do
             if nc -z localhost 8080 2>/dev/null; then
               echo "Port 8080 OPEN after ${i}s"
               break
             fi
-            if [ $i -eq 10 ] || [ $i -eq 30 ] || [ $i -eq 60 ]; then
-              echo "--- certstream.log at ${i}s ---"
-              cat certstream.log 2>/dev/null || echo "(empty)"
-              echo "--- process check ---"
-              ps aux | grep certstream | grep -v grep || echo "(not running)"
+            if [ $i -eq 30 ] || [ $i -eq 90 ] || [ $i -eq 150 ] || [ $i -eq 210 ]; then
+              echo "--- certstream.log at ${i}s (last 3 lines) ---"
+              tail -3 certstream.log 2>/dev/null || echo "(empty)"
+              ps aux | grep certstream | grep -v grep | awk '{print "PID:",$2,"MEM:",$4}' || echo "(not running)"
             fi
             sleep 1
           done

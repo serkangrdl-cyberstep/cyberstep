@@ -1,86 +1,213 @@
-name: Certstream Bridge
+name: CyberStep Lead Discovery
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # Her 15 dakikada (10dk yetmiyordu)
+    - cron: '0 * * * *'   # Saatlik
   workflow_dispatch:
 
 jobs:
-  bridge:
+  discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 12
 
     steps:
-      - name: Install ws package
-        run: npm install ws
+      - name: Install dependencies
+        run: pip install requests cryptography
 
-      - name: Run Certstream Bridge
+      - name: Run discovery
         run: |
-          node -e "
-          const WebSocket = require('./node_modules/ws');
-          const https = require('https');
+          python3 << 'PYEOF'
+          import base64, json, os, struct, time, re, sys
+          import requests
+          from cryptography import x509
+          from cryptography.hazmat.primitives import hashes
 
-          const REPLIT_URL = process.env.REPLIT_INGEST_URL;
-          const SECRET = process.env.BRIDGE_SECRET;
-          const TR_TLDS = ['.com.tr','.net.tr','.org.tr','.web.tr','.biz.tr','.info.tr','.gen.tr','.tv.tr','.name.tr'];
-          const collected = new Set();
-          const MAX_WAIT_MS = 300000; // 5 dakika
-          let totalMessages = 0;
-          let lastLog = Date.now();
+          REPLIT_URL = os.environ.get("REPLIT_INGEST_URL", "")
+          SECRET     = os.environ.get("BRIDGE_SECRET", "")
 
-          if (!REPLIT_URL || !SECRET) { console.error('Missing REPLIT_INGEST_URL or BRIDGE_SECRET'); process.exit(1); }
+          if not REPLIT_URL or not SECRET:
+              print("ERROR: Missing REPLIT_INGEST_URL or BRIDGE_SECRET", flush=True)
+              sys.exit(1)
 
-          const ws = new WebSocket('wss://certstream.calidog.io', { handshakeTimeout: 15000 });
+          TR_TLDS = (
+              ".com.tr", ".net.tr", ".org.tr", ".web.tr",
+              ".biz.tr", ".info.tr", ".gen.tr", ".tv.tr", ".name.tr",
+          )
+          # Kurumsal/devlet TLD'leri koru ama lead olarak ekleme
+          SKIP_TLDS = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
+          SKIP_HOSTS = {
+              "cloudflare.com", "amazonaws.com", "azure.com",
+              "google.com", "microsoft.com", "github.io",
+              "netlify.app", "vercel.app", "letsencrypt.org",
+          }
 
-          const done = () => {
-            try { ws.terminate(); } catch(e) {}
-            console.log('Total messages received:', totalMessages, '| TR domains collected:', collected.size);
-            if (collected.size === 0) { console.log('No TR domains found'); process.exit(0); }
-            const domains = [...collected];
-            console.log('Sample domains:', domains.slice(0,5).join(', '));
-            const payload = JSON.stringify({ domains, secret: SECRET, source: 'certstream' });
-            const url = new URL(REPLIT_URL);
-            const req = https.request({
-              hostname: url.hostname,
-              path: url.pathname + (url.search || ''),
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
-            }, res => {
-              let body = '';
-              res.on('data', d => body += d);
-              res.on('end', () => { console.log('Ingest status:', res.statusCode, body); process.exit(0); });
-            });
-            req.on('error', e => { console.error('POST error:', e.message); process.exit(1); });
-            req.write(payload);
-            req.end();
-          };
+          all_domains = set()
 
-          setTimeout(done, MAX_WAIT_MS);
+          def is_tr_lead(d: str) -> bool:
+              d = d.lower().lstrip("*.")
+              if any(d.endswith(s) for s in SKIP_TLDS): return False
+              if any(h in d for h in SKIP_HOSTS): return False
+              return any(d.endswith(t) for t in TR_TLDS)
 
-          ws.on('open', () => console.log('Connected to Certstream, waiting up to 5 min...'));
-          ws.on('error', e => { console.error('WS error:', e.message); done(); });
-          ws.on('message', data => {
-            totalMessages++;
-            // Her 30 saniyede bir progress log
-            if (Date.now() - lastLog > 30000) {
-              console.log('Progress: messages=' + totalMessages + ' TR=' + collected.size);
-              lastLog = Date.now();
-            }
-            try {
-              const msg = JSON.parse(data);
-              if (msg.message_type !== 'certificate_update') return;
-              const domains = msg.data && msg.data.leaf_cert && msg.data.leaf_cert.all_domains || [];
-              domains.forEach(d => {
-                const clean = d.replace(/^\*\./, '').toLowerCase();
-                if (TR_TLDS.some(tld => clean.endsWith(tld))) {
-                  const parts = clean.split('.');
-                  const root = parts.slice(-3).join('.');
-                  if (root.length > 5 && root.length < 100) collected.add(root);
-                }
-              });
-            } catch(e) {}
-          });
-          "
+          def root_domain(d: str) -> str:
+              d = d.lower().lstrip("*.")
+              parts = d.split(".")
+              # x.com.tr -> com.tr son iki parça + tr
+              if len(parts) >= 3 and parts[-1] == "tr":
+                  return ".".join(parts[-3:])
+              return ".".join(parts[-2:])
+
+          # ─── 1. crt.sh — tüm TR TLD'leri, son 90 gün, sınırsız ───────────────────
+          print("=== PHASE 1: crt.sh ===", flush=True)
+          crtsh_queries = [
+              "%.com.tr", "%.net.tr", "%.org.tr",
+              "%.web.tr", "%.biz.tr", "%.info.tr",
+              "%.gen.tr", "%.tv.tr", "%.name.tr",
+          ]
+          for q in crtsh_queries:
+              try:
+                  r = requests.get(
+                      "https://crt.sh/",
+                      params={"q": q, "output": "json"},
+                      timeout=60,
+                      headers={"User-Agent": "Mozilla/5.0 CyberStep-Research/2.0"},
+                  )
+                  if r.status_code != 200:
+                      print(f"  {q}: HTTP {r.status_code}", flush=True)
+                      continue
+                  certs = r.json()
+                  before = len(all_domains)
+                  for cert in certs:
+                      names = []
+                      if cert.get("common_name"):
+                          names.append(cert["common_name"])
+                      if cert.get("name_value"):
+                          names.extend(cert["name_value"].split("\n"))
+                      for name in names:
+                          name = name.strip().lower().lstrip("*.")
+                          if is_tr_lead(name):
+                              all_domains.add(root_domain(name))
+                  print(f"  {q}: {len(certs)} certs -> +{len(all_domains)-before} domains (total {len(all_domains)})", flush=True)
+                  time.sleep(2)  # crt.sh rate limit
+              except Exception as e:
+                  print(f"  {q}: ERROR {e}", flush=True)
+
+          # ─── 2. Google CT Logs — son 2000 entry ────────────────────────────────
+          print("=== PHASE 2: Google CT Logs ===", flush=True)
+
+          CT_LOGS = [
+              "https://ct.googleapis.com/logs/us1/argon2026h1/ct/v1",
+              "https://ct.googleapis.com/logs/eu1/xenon2026h1/ct/v1",
+          ]
+
+          def parse_cert_domains(der_bytes: bytes) -> list[str]:
+              try:
+                  cert = x509.load_der_x509_certificate(der_bytes)
+                  names = []
+                  try:
+                      san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+                      names.extend(san.value.get_values_for_type(x509.DNSName))
+                  except Exception:
+                      pass
+                  try:
+                      cn_attrs = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+                      if cn_attrs:
+                          names.append(cn_attrs[0].value)
+                  except Exception:
+                      pass
+                  return names
+              except Exception:
+                  return []
+
+          def parse_leaf(leaf_b64: str) -> list[str]:
+              try:
+                  data = base64.b64decode(leaf_b64)
+                  # MerkleTreeLeaf: version(1) + leaf_type(1) + timestamp(8) + entry_type(2)
+                  if len(data) < 12: return []
+                  entry_type = struct.unpack(">H", data[10:12])[0]
+
+                  if entry_type == 0:  # x509_entry
+                      if len(data) < 15: return []
+                      cert_len = struct.unpack(">I", b"\x00" + data[12:15])[0]
+                      cert_der = data[15:15 + cert_len]
+                      return parse_cert_domains(cert_der)
+
+                  elif entry_type == 1:  # precert_entry
+                      # 32 bytes issuer_key_hash + 3 bytes tbs_len + tbs
+                      offset = 12 + 32
+                      if len(data) < offset + 3: return []
+                      tbs_len = struct.unpack(">I", b"\x00" + data[offset:offset+3])[0]
+                      # TBSCertificate is NOT a full cert — use extra_data for the leaf cert
+                      return []
+                  return []
+              except Exception:
+                  return []
+
+          for log_base in CT_LOGS:
+              try:
+                  sth = requests.get(f"{log_base}/get-sth", timeout=15).json()
+                  tree_size = sth["tree_size"]
+                  batch = 256
+                  start = max(0, tree_size - 2000)
+
+                  before = len(all_domains)
+                  for chunk_start in range(start, tree_size, batch):
+                      chunk_end = min(chunk_start + batch - 1, tree_size - 1)
+                      try:
+                          resp = requests.get(
+                              f"{log_base}/get-entries",
+                              params={"start": chunk_start, "end": chunk_end},
+                              timeout=30,
+                          )
+                          if resp.status_code != 200: continue
+                          entries = resp.json().get("entries", [])
+                          for entry in entries:
+                              for name in parse_leaf(entry.get("leaf_input", "")):
+                                  name = name.strip().lower().lstrip("*.")
+                                  if is_tr_lead(name):
+                                      all_domains.add(root_domain(name))
+                      except Exception:
+                          pass
+
+                  print(f"  {log_base.split('/')[4]}: tree_size={tree_size} -> +{len(all_domains)-before} domains", flush=True)
+              except Exception as e:
+                  print(f"  CT log {log_base}: ERROR {e}", flush=True)
+
+          # ─── 3. Send to Replit ingest ────────────────────────────────────────────
+          print(f"=== PHASE 3: Ingest {len(all_domains)} domains ===", flush=True)
+
+          if not all_domains:
+              print("No TR domains found — nothing to send", flush=True)
+              sys.exit(0)
+
+          domains = sorted(all_domains)
+          print(f"Sample: {domains[:5]}", flush=True)
+
+          # Chunk into 500-domain batches
+          CHUNK = 500
+          total_accepted = 0
+          for i in range(0, len(domains), CHUNK):
+              chunk = domains[i:i+CHUNK]
+              payload = json.dumps({
+                  "domains": chunk,
+                  "secret": SECRET,
+                  "source": "ct_discovery",
+              })
+              try:
+                  r = requests.post(
+                      REPLIT_URL,
+                      data=payload,
+                      headers={"Content-Type": "application/json"},
+                      timeout=30,
+                  )
+                  body = r.json()
+                  total_accepted += body.get("accepted", 0)
+                  print(f"  Batch {i//CHUNK+1}: status={r.status_code} accepted={body.get('accepted')} skipped={body.get('skipped')}", flush=True)
+              except Exception as e:
+                  print(f"  Batch {i//CHUNK+1}: ERROR {e}", flush=True)
+
+          print(f"=== DONE: total_accepted={total_accepted} ===", flush=True)
+          PYEOF
         env:
           REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
           BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}

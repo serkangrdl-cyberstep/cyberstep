@@ -13,11 +13,16 @@ function getTransport() {
     return null;
   }
 
+  const host = process.env["SMTP_HOST"] ?? "smtp.gmail.com";
+  const port = parseInt(process.env["SMTP_PORT"] ?? "587", 10);
+  const secure = process.env["SMTP_SECURE"] === "true" || port === 465;
+
   return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    host,
+    port,
+    secure,
     auth: { user, pass },
+    tls: { rejectUnauthorized: false },
   });
 }
 

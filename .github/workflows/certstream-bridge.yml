@@ -23,10 +23,10 @@ jobs:
 
           curl -fsSL \
             "https://raw.githubusercontent.com/d-Rickyy-b/certstream-server-go/master/config.sample.yaml" \
-            -o config.yaml
+            -o config.yml
 
-          echo "=== config.yaml ==="
-          cat config.yaml
+          echo "=== config.yml ==="
+          cat config.yml
           echo "=== binary info ==="
           file certstream-server-go
           ls -lh certstream-server-go

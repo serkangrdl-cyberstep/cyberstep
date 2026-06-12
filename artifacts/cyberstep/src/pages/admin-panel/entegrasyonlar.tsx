@@ -18,7 +18,7 @@ interface IntegrationDef {
   category: string;
   type: "security" | "platform";
   icon: string;
-  cost: "free" | "freemium" | "paid" | "varies";
+  cost: "free" | "freemium" | "paid" | "varies" | "enterprise";
   costLabel: string;
   costNote?: string;
   envKey?: string;
@@ -361,37 +361,37 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   {
     id: "netcraft", name: "Netcraft", category: "Lead Keşfi", type: "security", icon: "🔍",
-    cost: "free", costLabel: "Ücretsiz tier", always: false,
-    desc: "Türk TLD veritabanı — .com.tr/.net.tr/.org.tr/.web.tr/.biz.tr domain araması, sorgu başına 100 sonuç",
-    why: "crt.sh ve RIPE DNS'e bağımsız üçüncü bir lead kaynağı. Netcraft'ın domain envanteri farklı kaynaklarla beslenir; SSL sertifikası olmayan aktif siteleri de kapsar.",
-    how: "NETCRAFT_API_KEY tanımlandıysa her gece 05:30'da 5 TR TLD sorgulanır. Her TLD için 100 domain alınır, duplicate kontrol sonrası lead_candidates tablosuna eklenir.",
-    setup: "NETCRAFT_API_KEY ortam değişkenini Replit Secrets'a ekle. Key yoksa cron sessizce atlanır, hata oluşturmaz.",
+    cost: "enterprise", costLabel: "Enterprise", always: false,
+    desc: "Domain risk skoru, hosting geçmişi ve teknoloji envanteri — Enterprise müşterilere özel API erişimi gerektirir",
+    why: "crt.sh ve RIPE DNS'e bağımsız bir lead ve OSINT kaynağı olabilir. Ancak Netcraft API'si kamuya açık değil; erişim için Netcraft ile doğrudan iletişime geçilmesi gerekiyor.",
+    how: "NETCRAFT_API_KEY tanımlandığında her gece 05:30'da 5 TR TLD sorgulanır ve lead_candidates tablosuna eklenir. Key yoksa cron sessizce atlanır.",
+    setup: "netcraft.com ile iletişime geçerek Enterprise API erişimi talep edin. Key alındıktan sonra Replit Secrets'a NETCRAFT_API_KEY olarak ekleyin.",
     docs: "https://www.netcraft.com/api/",
   },
   {
-    id: "bgptools", name: "BGP.tools", category: "Lead Keşfi", type: "security", icon: "🌍",
+    id: "bgptools", name: "RIPE ASN Bridge", category: "Lead Keşfi", type: "security", icon: "🌍",
     cost: "free", costLabel: "Ücretsiz", always: true,
-    desc: "TR ASN prefix örneklemesi → HackerTarget reverse DNS → yeni .tr domain keşfi — API key gerektirmez",
-    why: "RIPE stat ile benzer ama farklı veri kaynağı: bgp.tools'un ASN veritabanı bazen RIPE'ten farklı prefix'ler içerir. Günde ~40-80 yeni domain potansiyeli.",
-    how: "Her gece 06:15'te ilk 20 TR ASN alınır. Her ASN'den max 3 IPv4 prefix seçilir (~60 toplam). Her prefix'ten örneklem IP'ler alınır, HackerTarget reverse DNS ile .tr hostname'lere dönüştürülür.",
-    setup: "Kurulum gerekmez. bgp.tools ve HackerTarget free tier kullanılır.",
-    docs: "https://bgp.tools/",
+    desc: "RIPE stat TR ASN listesi → ASN başına announced-prefix → dig PTR reverse DNS — API key gerektirmez",
+    why: "ripe-dns-bridge'den farklı olarak rastgele değil ASN bazlı hedefli örnekleme yapar. Her şirketin kendi IP bloğundan domain keşfedilir. bgp.tools REST API'si çalışmadığından RIPE stat kullanılıyor.",
+    how: "Her gece 01:15'te GitHub Actions (bgptools-bridge.yml) RIPE stat'tan 50 TR ASN örnekler, her ASN'den max 4 prefix alır, dig PTR ile hostname'leri bulur ve cert-ingest'e gönderir.",
+    setup: "Kurulum gerekmez. Certstream bridge ile aynı GitHub Secrets (REPLIT_INGEST_URL + BRIDGE_SECRET) kullanılır.",
+    docs: "https://stat.ripe.net/docs/data_api",
   },
   {
     id: "hackertarget", name: "HackerTarget", category: "Lead Keşfi", type: "security", icon: "🎯",
-    cost: "free", costLabel: "Ücretsiz", always: true,
-    desc: "Reverse DNS ve subdomain lookup API'si — IP adresinden hostname keşfi, domain'den alt alan tespiti",
-    why: "RIPE DNS keşif pipeline'ında Türk IPv4 adreslerini domain adlarına çevirir. API key gerektirmez, günlük ~100 istek ücretsiz.",
-    how: "RIPE stat'tan alınan prefix'lerdeki IP'ler HackerTarget reverse DNS ile sorgulanır, .tr domain'leri lead adayı olarak eklenir. Her gece 02:00'de otomatik çalışır.",
+    cost: "free", costLabel: "Ücretsiz", always: false,
+    desc: "Reverse DNS lookup API'si — günlük 100 istek limiti nedeniyle dig PTR ile değiştirildi, artık kullanılmıyor",
+    why: "100 istek/gün limiti GitHub Actions bridge'lerin ihtiyacını karşılamıyor. dig PTR komutu rate limit olmadan doğrudan DNS sorgulama yapıyor.",
+    how: "Artık aktif değil. RIPE DNS ve RIPE ASN bridge'leri dig PTR kullanıyor.",
     setup: "Kurulum gerekmez.",
     docs: "https://hackertarget.com/ip-tools/",
   },
   {
     id: "ripe-stat", name: "RIPE stat.ripe.net", category: "Lead Keşfi", type: "security", icon: "🌐",
     cost: "free", costLabel: "Ücretsiz", always: true,
-    desc: "RIPE NCC Türkiye IPv4 prefix listesi — Türkiye'ye tahsis edilmiş ~2000 IP bloğunu sağlar",
-    why: "Türk şirketlerine ait IP aralıklarını keşfederek reverse DNS ile domain adlarına dönüştürür. crt.sh ve Shodan'a bağlı olmayan bağımsız bir lead kaynağı.",
-    how: "Her gece 02:00'de RIPE stat API'sinden TR prefix'leri çekilir, örneklem IP'ler HackerTarget ile sorgulanır, .tr domain'leri lead_candidates tablosuna eklenir.",
+    desc: "RIPE NCC açık API'si — TR IPv4 prefix listesi (~2000 blok) + ASN listesi (1080 TR ASN) + IP başına network-info ve WHOIS — API key gerektirmez",
+    why: "Lead keşfinde iki bridge'in temel kaynağı (ripe-dns + ripe-asn). Domain scan OSINT zenginleştirmesinde de kullanılıyor: WAF varsa hedef IP'nin ASN, prefix ve organizasyon adı çekilir.",
+    how: "1) ripe-dns-bridge.yml: her gece 01:00, 300 prefix örnekle, dig PTR  2) bgptools-bridge.yml: her gece 01:15, 50 ASN × 4 prefix  3) OSINT enrichment: domain scan sırasında hedef IP için network-info + WHOIS sorgusu",
     setup: "Kurulum gerekmez. stat.ripe.net tamamen açık bir API'dir.",
     docs: "https://stat.ripe.net/docs/data_api",
   },

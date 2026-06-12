@@ -115,7 +115,7 @@ router.post("/admin-panel/lead-discovery/shodan", requireAdmin, async (req: Requ
 
 // ─── POST /api/admin-panel/lead-discovery/ripe-dns ───────────────────────────
 router.post("/admin-panel/lead-discovery/ripe-dns", requireAdmin, async (req: Request, res: Response) => {
-  const { maxPrefixes = 60 } = req.body as { maxPrefixes?: number };
+  const { maxPrefixes = 60 } = (req.body ?? {}) as { maxPrefixes?: number };
   res.json({ message: "RIPE DNS keşfi başlatıldı", maxPrefixes });
   setImmediate(async () => {
     try {
@@ -164,7 +164,7 @@ router.post("/admin-panel/lead-discovery/full", requireAdmin, async (req: Reques
 
 // ─── POST /api/admin-panel/lead-discovery/qualify ────────────────────────────
 router.post("/admin-panel/lead-discovery/qualify", requireAdmin, async (req: Request, res: Response) => {
-  const { limit = 20 } = req.body as { limit?: number };
+  const { limit = 20 } = (req.body ?? {}) as { limit?: number };
   res.json({ message: `${limit} aday kalifikasyonu başlatıldı.` });
   setImmediate(async () => {
     try {
@@ -258,7 +258,7 @@ router.patch("/admin-panel/lead-discovery/candidates/:id/isr-notes", requireAdmi
 
 // ─── POST /api/admin-panel/lead-discovery/web-enrich (batch) ─────────────────
 router.post("/admin-panel/lead-discovery/web-enrich", requireAdmin, async (req: Request, res: Response) => {
-  const { limit = 30 } = req.body as { limit?: number };
+  const { limit = 30 } = (req.body ?? {}) as { limit?: number };
   const leads = await db.select({ id: leadCandidatesTable.id, domain: leadCandidatesTable.domain })
     .from(leadCandidatesTable)
     .where(eq(leadCandidatesTable.isQualified, true))

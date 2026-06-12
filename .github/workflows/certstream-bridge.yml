@@ -2,13 +2,13 @@ name: Certstream Bridge
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # Her 10 dakikada
-  workflow_dispatch:          # Manuel tetikleme
+    - cron: '*/15 * * * *'   # Her 15 dakikada (10dk yetmiyordu)
+  workflow_dispatch:
 
 jobs:
   bridge:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
 
     steps:
       - name: Install ws package
@@ -24,17 +24,20 @@ jobs:
           const SECRET = process.env.BRIDGE_SECRET;
           const TR_TLDS = ['.com.tr','.net.tr','.org.tr','.web.tr','.biz.tr','.info.tr','.gen.tr','.tv.tr','.name.tr'];
           const collected = new Set();
-          const MAX_WAIT_MS = 100000; // 100 sn
+          const MAX_WAIT_MS = 300000; // 5 dakika
+          let totalMessages = 0;
+          let lastLog = Date.now();
 
           if (!REPLIT_URL || !SECRET) { console.error('Missing REPLIT_INGEST_URL or BRIDGE_SECRET'); process.exit(1); }
 
           const ws = new WebSocket('wss://certstream.calidog.io', { handshakeTimeout: 15000 });
 
           const done = () => {
-            try { ws.close(); } catch(e) {}
+            try { ws.terminate(); } catch(e) {}
+            console.log('Total messages received:', totalMessages, '| TR domains collected:', collected.size);
             if (collected.size === 0) { console.log('No TR domains found'); process.exit(0); }
             const domains = [...collected];
-            console.log('Found:', domains.length, 'TR domains');
+            console.log('Sample domains:', domains.slice(0,5).join(', '));
             const payload = JSON.stringify({ domains, secret: SECRET, source: 'certstream' });
             const url = new URL(REPLIT_URL);
             const req = https.request({
@@ -54,19 +57,25 @@ jobs:
 
           setTimeout(done, MAX_WAIT_MS);
 
-          ws.on('open', () => console.log('Connected to Certstream'));
+          ws.on('open', () => console.log('Connected to Certstream, waiting up to 5 min...'));
           ws.on('error', e => { console.error('WS error:', e.message); done(); });
           ws.on('message', data => {
+            totalMessages++;
+            // Her 30 saniyede bir progress log
+            if (Date.now() - lastLog > 30000) {
+              console.log('Progress: messages=' + totalMessages + ' TR=' + collected.size);
+              lastLog = Date.now();
+            }
             try {
               const msg = JSON.parse(data);
               if (msg.message_type !== 'certificate_update') return;
-              const domains = msg.data?.leaf_cert?.all_domains || [];
+              const domains = msg.data && msg.data.leaf_cert && msg.data.leaf_cert.all_domains || [];
               domains.forEach(d => {
                 const clean = d.replace(/^\*\./, '').toLowerCase();
                 if (TR_TLDS.some(tld => clean.endsWith(tld))) {
                   const parts = clean.split('.');
                   const root = parts.slice(-3).join('.');
-                  if (root.length > 5) collected.add(root);
+                  if (root.length > 5 && root.length < 100) collected.add(root);
                 }
               });
             } catch(e) {}

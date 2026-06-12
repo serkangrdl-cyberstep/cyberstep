@@ -15,6 +15,7 @@ import { whoisLookup } from "./whoisService";
 import { scrapeContactEmail } from "./webContactScraper";
 import { generateLeadTeaserEmail } from "./leadTeaserEmail";
 import { shouldExcludeFromPipeline, computeCVEBreakdown } from "./leadScoringService";
+import { checkLiveness } from "./leadDiscovery/webContentEnrichment";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
@@ -160,8 +161,33 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<{ pr
         continue;
       }
 
-      await db.update(leadCandidatesTable).set({ scanStatus: "scanning" })
-        .where(eq(leadCandidatesTable.id, candidate.id));
+      // Liveness check — ölü siteleri domain scan'a sokmadan önce ele
+      const liveness = await checkLiveness(candidate.domain);
+      if (!liveness.isAlive) {
+        logger.info(
+          { domain: candidate.domain, httpStatus: liveness.httpStatus, responseTimeMs: liveness.responseTimeMs },
+          "Kalifikasyon: site erişilemiyor, kapsam dışı bırakıldı",
+        );
+        await db.update(leadCandidatesTable).set({
+          scanStatus: "failed",
+          isAlive: false,
+          httpStatus: liveness.httpStatus,
+          responseTimeMs: liveness.responseTimeMs,
+          updatedAt: new Date(),
+        }).where(eq(leadCandidatesTable.id, candidate.id));
+        processedCount++;
+        await sleep(300);
+        continue;
+      }
+
+      // Canlı site — durumu kaydet ve taramaya geç
+      await db.update(leadCandidatesTable).set({
+        isAlive: true,
+        httpStatus: liveness.httpStatus,
+        responseTimeMs: liveness.responseTimeMs,
+        scanStatus: "scanning",
+        updatedAt: new Date(),
+      }).where(eq(leadCandidatesTable.id, candidate.id));
 
       // Domain taraması — max 25s timeout
       const scanResult = await withTimeout(runDomainScanInternal(candidate.domain), SCAN_TIMEOUT_MS, null);

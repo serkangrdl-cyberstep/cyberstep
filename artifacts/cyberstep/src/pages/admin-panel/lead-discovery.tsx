@@ -1039,7 +1039,7 @@ export default function AdminLeadDiscovery() {
                   disabled={batchWebEnrich.isPending}
                   className="text-xs"
                 >
-                  {batchWebEnrich.isPending ? "Scraping..." : "Toplu Web Scrape (30)"}
+                  {batchWebEnrich.isPending ? "Taranıyor..." : "Toplu Web Tarama (30)"}
                 </Button>
               </div>
             </CardHeader>

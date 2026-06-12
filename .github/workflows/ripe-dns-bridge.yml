@@ -92,8 +92,8 @@ jobs:
               print(f"RIPE stat hatası: {e}", flush=True)
               sys.exit(1)
 
-          # /8 gibi çok geniş prefix'leri atla (tek ASN'in prefix'i değil)
-          prefixes = [p for p in prefixes if int(p.split("/")[1]) >= 20]
+          # Range format kayıtları filtrele (örn. "x.x.x.x-y.y.y.y") ve /8 gibi geniş prefix'leri atla
+          prefixes = [p for p in prefixes if "/" in p and int(p.split("/")[1]) >= 20]
           import random
           random.shuffle(prefixes)
           prefixes = prefixes[:MAX_PREFIXES]

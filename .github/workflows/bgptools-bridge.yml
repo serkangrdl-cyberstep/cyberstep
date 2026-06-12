@@ -1,4 +1,4 @@
-name: CyberStep Lead Discovery (BGP.tools + Reverse DNS)
+name: CyberStep Lead Discovery (RIPE ASN + Reverse DNS)
 
 on:
   schedule:
@@ -8,13 +8,13 @@ on:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: Discover TR domains via BGP.tools ASN + PTR lookups
+      - name: Discover TR domains via RIPE ASN prefix listing + PTR lookups
         run: |
           python3 - << 'PYEOF'
-          import json, os, sys, time, subprocess
+          import json, os, sys, time, subprocess, random
           import urllib.request
 
           REPLIT_URL = os.environ.get("REPLIT_INGEST_URL", "")
@@ -24,7 +24,7 @@ jobs:
               print("ERROR: REPLIT_INGEST_URL veya BRIDGE_SECRET eksik", flush=True)
               sys.exit(1)
 
-          UA = "CyberStep-Research/1.0 bgp.tools (contact@cyberstep.io)"
+          UA = "CyberStep-Research/1.0 (contact@cyberstep.io)"
 
           SKIP_TLDS  = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
           SKIP_HOSTS = {
@@ -33,9 +33,10 @@ jobs:
               "netlify.app", "vercel.app",
           }
 
-          MAX_ASNS            = 40   # İlk 40 TR ASN
-          MAX_PREFIXES_PER_ASN = 4
-          MAX_IPS_TOTAL        = 400  # Toplam dig lookup sayısı
+          MAX_ASNS             = 50    # 50 ASN örnekle (1080 TR ASN'den)
+          MAX_PREFIXES_PER_ASN = 4     # Her ASN'den max 4 prefix
+          IPS_PER_PREFIX       = 3     # Her prefix'ten 3 IP
+          MAX_IPS_TOTAL        = 600   # Toplam dig limit
 
           def is_tr_lead(d: str) -> bool:
               d = d.lower()
@@ -49,7 +50,7 @@ jobs:
                   return ".".join(parts[-3:])
               return ".".join(parts[-2:])
 
-          def sample_ips(cidr: str, n: int = 4):
+          def sample_ips(cidr: str, n: int = 3) -> list:
               try:
                   base, bits = cidr.split("/")
                   prefix_len = int(bits)
@@ -89,51 +90,56 @@ jobs:
                   print(f"  HATA {url}: {e}", flush=True)
                   return None
 
-          # ── 1. Türkiye ASN listesi ─────────────────────────────────────────────
-          print("BGP.tools TR ASN listesi alınıyor...", flush=True)
-          country_data = fetch_json("https://bgp.tools/country/TR.json")
-          if not country_data or not isinstance(country_data, dict):
-              print("ASN listesi alınamadı — çıkılıyor", flush=True)
+          # ── 1. RIPE stat: Türkiye ASN listesi (1080 TR ASN) ───────────────────
+          print("RIPE stat'tan TR ASN listesi alınıyor...", flush=True)
+          ripe_data = fetch_json(
+              "https://stat.ripe.net/data/country-resource-list/data.json?resource=TR&v=4"
+          )
+          if not ripe_data:
+              print("TR ASN listesi alınamadı — çıkılıyor", flush=True)
               sys.exit(1)
 
-          asns = country_data.get("asns", [])[:MAX_ASNS]
-          print(f"{len(asns)} TR ASN alındı", flush=True)
+          all_asns = ripe_data["data"]["resources"]["asn"]
+          random.shuffle(all_asns)
+          sampled_asns = all_asns[:MAX_ASNS]
+          print(f"{len(all_asns)} TR ASN mevcut, {len(sampled_asns)} ASN örneklendi", flush=True)
 
-          # ── 2. Her ASN için prefix listesi + IP örnekleme ─────────────────────
+          # ── 2. Her ASN için RIPE announced-prefixes + IP örnekleme ───────────
           all_ips: list[str] = []
-          for asn_entry in asns:
+          for asn in sampled_asns:
               if len(all_ips) >= MAX_IPS_TOTAL:
                   break
-              asn = asn_entry.get("asn") if isinstance(asn_entry, dict) else asn_entry
-              if not asn:
-                  continue
-              asn_data = fetch_json(f"https://bgp.tools/as/{asn}.json")
-              if not asn_data or not isinstance(asn_data, dict):
-                  time.sleep(0.5)
+              asn_data = fetch_json(
+                  f"https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{asn}&starttime=-1w"
+              )
+              if not asn_data:
+                  time.sleep(0.3)
                   continue
 
-              prefixes = []
-              if isinstance(asn_data.get("prefixes"), list):
-                  prefixes = asn_data["prefixes"][:MAX_PREFIXES_PER_ASN]
-              elif isinstance(asn_data.get("ipv4_prefixes"), list):
-                  prefixes = [p.get("prefix") for p in asn_data["ipv4_prefixes"][:MAX_PREFIXES_PER_ASN] if p.get("prefix")]
+              raw_prefixes = asn_data.get("data", {}).get("prefixes", [])
+              # IPv4 only, CIDR format only
+              prefixes = [
+                  p["prefix"] for p in raw_prefixes
+                  if isinstance(p, dict)
+                  and "/" in p.get("prefix", "")
+                  and ":" not in p.get("prefix", "")  # IPv6 hariç
+              ][:MAX_PREFIXES_PER_ASN]
 
               for pfx in prefixes:
-                  if isinstance(pfx, str):
-                      all_ips.extend(sample_ips(pfx, n=3))
+                  all_ips.extend(sample_ips(pfx, n=IPS_PER_PREFIX))
                   if len(all_ips) >= MAX_IPS_TOTAL:
                       break
               time.sleep(0.2)
 
           print(f"{len(all_ips)} IP örneklendi — PTR sorguları başlıyor", flush=True)
 
-          # ── 3. PTR (reverse DNS) sorguları — dig, rate limit yok ─────────────
+          # ── 3. PTR (reverse DNS) sorguları ────────────────────────────────────
           collected: set[str] = set()
           for idx, ip in enumerate(all_ips):
               hostname = ptr_lookup(ip)
               if hostname and is_tr_lead(hostname):
                   collected.add(root_domain(hostname))
-              if idx > 0 and idx % 50 == 0:
+              if idx > 0 and idx % 100 == 0:
                   print(f"  [{idx}/{len(all_ips)}] bulunan TR domain: {len(collected)}", flush=True)
 
           print(f"\nToplam: {len(collected)} benzersiz TR domain", flush=True)
@@ -153,7 +159,7 @@ jobs:
               payload = json.dumps({
                   "domains": chunk,
                   "secret": SECRET,
-                  "source": "bgptools",
+                  "source": "ripe_asn",
               }).encode()
               try:
                   req = urllib.request.Request(

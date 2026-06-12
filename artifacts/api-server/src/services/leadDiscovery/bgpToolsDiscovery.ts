@@ -2,7 +2,7 @@
  * BGP.tools tabanlı Türk domain keşfi — API key gerektirmez.
  *
  * Yaklaşım:
- *   1. bgp.tools/asns.json → Türkiye (TR) ASN listesi
+ *   1. bgp.tools/country/TR.json → Türkiye (TR) ASN listesi
  *   2. İlk 20 TR ASN için bgp.tools/as/{asn}.json → IPv4 prefix listesi
  *   3. Her ASN'den max 3 prefix, toplam max 60 prefix
  *   4. Her prefix'ten IP örneklemesi (/24 → 4 IP; daha geniş → 2 IP)
@@ -11,6 +11,7 @@
  *
  * Kapasite: ~200 IP / çalışma → 40-80 yeni TR domain / gün
  * Rate limit: HackerTarget ~100 istek/gün → toplam IP sayısı buna göre sınırlanır
+ * NOT: Replit cron'u devre dışı; GitHub Actions bridge (bgptools-bridge.yml) devraldı.
  */
 import axios from "axios";
 import { db } from "@workspace/db";
@@ -19,9 +20,12 @@ import { eq, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { shouldExcludeFromPipeline } from "../leadScoringService";
 
-const BGP_ASNS_URL = "https://bgp.tools/asns.json";
+// /asns.json → 404/403; güncel endpoint: /country/TR.json
+const BGP_ASNS_URL = "https://bgp.tools/country/TR.json";
 const BGP_AS_URL = (asn: number) => `https://bgp.tools/as/${asn}.json`;
 const HT_REVERSE_URL = "https://api.hackertarget.com/reverseiplookup/";
+// bgp.tools descriptive User-Agent zorunlu (anonim UA → 403)
+const BGP_UA = "CyberStep-Research/1.0 bgp.tools (contact@cyberstep.io)";
 
 const MAX_ASNS = 20;
 const MAX_PREFIXES_PER_ASN = 3;
@@ -81,17 +85,25 @@ function sampleIpsFromPrefix(cidr: string): string[] {
 async function fetchTrAsns(): Promise<AsnEntry[]> {
   const resp = await axios.get(BGP_ASNS_URL, {
     timeout: 20_000,
-    headers: { "User-Agent": "CyberStep-SecurityResearch/1.0" },
+    headers: { "User-Agent": BGP_UA },
   });
-  const list: AsnEntry[] = Array.isArray(resp.data) ? resp.data : [];
-  return list.filter((a) => a.country === "TR" || a.country === "tr").slice(0, MAX_ASNS);
+  // /country/TR.json → { asns: [{ asn, name, ... }] }
+  // /asns.json (eski) → [{ asn, country, name, ... }]
+  const raw = resp.data;
+  const list: AsnEntry[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.asns)
+      ? raw.asns
+      : [];
+  // /country/TR.json zaten sadece TR ASN'lerini döner; /asns.json için ülke filtresi
+  return list.filter((a) => !a.country || a.country === "TR" || a.country === "tr").slice(0, MAX_ASNS);
 }
 
 async function fetchAsnPrefixes(asn: number): Promise<string[]> {
   try {
     const resp = await axios.get(BGP_AS_URL(asn), {
       timeout: 10_000,
-      headers: { "User-Agent": "CyberStep-SecurityResearch/1.0" },
+      headers: { "User-Agent": BGP_UA },
     });
     const data = resp.data as AsnDetail;
     // bgp.tools may return prefixes as string array or as objects
@@ -116,7 +128,7 @@ async function reverseDns(ip: string): Promise<string[]> {
     const resp = await axios.get(HT_REVERSE_URL, {
       params: { q: ip },
       timeout: 8_000,
-      headers: { "User-Agent": "CyberStep-SecurityResearch/1.0" },
+      headers: { "User-Agent": BGP_UA },
     });
     const text: string = typeof resp.data === "string" ? resp.data : "";
     if (!text || text.includes("error") || text.toLowerCase().includes("no dns")) return [];

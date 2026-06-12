@@ -1,0 +1,145 @@
+name: CyberStep Lead Discovery (crt.sh)
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # Her gece 02:30 UTC (05:30 TR) — certstream bridge'den önce
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Query crt.sh and ingest TR domains
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, sys, time, datetime
+          import urllib.request, urllib.parse
+
+          REPLIT_URL = os.environ.get("REPLIT_INGEST_URL", "")
+          SECRET     = os.environ.get("BRIDGE_SECRET", "")
+
+          if not REPLIT_URL or not SECRET:
+              print("ERROR: REPLIT_INGEST_URL veya BRIDGE_SECRET eksik", flush=True)
+              sys.exit(1)
+
+          # ── Filtreler ──────────────────────────────────────────────────────────
+          QUERIES    = ["%.com.tr", "%.net.tr", "%.org.tr", "%.web.tr"]
+          SKIP_TLDS  = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
+          SKIP_HOSTS = {
+              "cloudflare.com", "amazonaws.com", "azure.com", "google.com",
+              "microsoft.com", "letsencrypt.org", "fastly.net", "akamai.net",
+              "netlify.app", "vercel.app", "github.io", "akamaitechnologies.com",
+          }
+
+          DAYS_BACK  = 2  # Günlük çalıştığı için son 48 saat yeterli
+          cutoff_dt  = datetime.datetime.utcnow() - datetime.timedelta(days=DAYS_BACK)
+
+          def is_tr_lead(d: str) -> bool:
+              d = d.lower().lstrip("*.")
+              if any(d.endswith(s) for s in SKIP_TLDS): return False
+              if any(h in d for h in SKIP_HOSTS): return False
+              return d.endswith(".tr")
+
+          def root_domain(d: str) -> str:
+              parts = d.lower().lstrip("*.").split(".")
+              if len(parts) >= 3 and parts[-1] == "tr":
+                  return ".".join(parts[-3:])
+              return ".".join(parts[-2:])
+
+          def extract_domains(cert: dict) -> set:
+              domains = set()
+              cn = (cert.get("common_name") or "").lower().strip()
+              if cn: domains.add(cn)
+              for line in (cert.get("name_value") or "").split("\n"):
+                  line = line.strip().lower()
+                  if line: domains.add(line)
+              return domains
+
+          collected: set = set()
+
+          for query in QUERIES:
+              print(f"\n--- crt.sh sorgusu: {query} ---", flush=True)
+              url = f"https://crt.sh/?q={urllib.parse.quote(query)}&output=json&deduplicate=Y"
+              try:
+                  req = urllib.request.Request(
+                      url,
+                      headers={"User-Agent": "Mozilla/5.0 (compatible; CyberStep-Research/1.0; +https://cyberstep.io)"},
+                  )
+                  with urllib.request.urlopen(req, timeout=60) as resp:
+                      raw = resp.read()
+                      if not raw:
+                          print(f"  Boş yanıt — atlanıyor", flush=True)
+                          time.sleep(5)
+                          continue
+                      certs = json.loads(raw)
+              except Exception as e:
+                  print(f"  HATA {query}: {e}", flush=True)
+                  time.sleep(10)
+                  continue
+
+              print(f"  {len(certs)} sertifika alındı", flush=True)
+
+              old_count = 0
+              for cert in certs:
+                  # Tarih filtresi — eskilerini atla (crt.sh newest-first döner)
+                  ts = cert.get("entry_timestamp") or ""
+                  if ts:
+                      try:
+                          cert_dt = datetime.datetime.fromisoformat(ts.rstrip("Z"))
+                          if cert_dt < cutoff_dt:
+                              old_count += 1
+                              # Ardışık 500 eski kayıt varsa çıkış yap
+                              if old_count > 500:
+                                  print(f"  500 ardışık eski kayıt — erken çıkış", flush=True)
+                                  break
+                              continue
+                      except Exception:
+                          pass
+                  else:
+                      old_count = 0
+
+                  for d in extract_domains(cert):
+                      if is_tr_lead(d):
+                          collected.add(root_domain(d))
+
+              print(f"  Toplam benzersiz TR domain: {len(collected)}", flush=True)
+              time.sleep(3)  # crt.sh rate limit
+
+          if not collected:
+              print("\nTR domain bulunamadı — gönderilecek bir şey yok", flush=True)
+              sys.exit(0)
+
+          domains = sorted(collected)
+          print(f"\nGönderiyor: {len(domains)} domain", flush=True)
+          print(f"Örnek: {domains[:5]}", flush=True)
+
+          CHUNK = 500
+          total_accepted = 0
+
+          for i in range(0, len(domains), CHUNK):
+              chunk = domains[i:i + CHUNK]
+              payload = json.dumps({
+                  "domains": chunk,
+                  "secret": SECRET,
+                  "source": "crtsh",
+              }).encode()
+              try:
+                  req = urllib.request.Request(
+                      REPLIT_URL, data=payload,
+                      headers={"Content-Type": "application/json"}, method="POST",
+                  )
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      body = json.loads(resp.read())
+                      accepted = body.get("accepted", 0)
+                      total_accepted += accepted
+                      print(f"  Batch {i // CHUNK + 1}: accepted={accepted} skipped={body.get('skipped')}", flush=True)
+              except Exception as e:
+                  print(f"  Batch {i // CHUNK + 1}: HATA {e}", flush=True)
+
+          print(f"\n=== TAMAMLANDI: total_accepted={total_accepted} ===", flush=True)
+          PYEOF
+        env:
+          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
+          BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}

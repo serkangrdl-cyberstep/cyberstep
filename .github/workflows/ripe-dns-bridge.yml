@@ -1,0 +1,153 @@
+name: CyberStep Lead Discovery (RIPE DNS)
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # Her gece 01:00 UTC (04:00 TR)
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Discover TR domains via RIPE prefixes + PTR lookups
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, sys, time, subprocess
+          import urllib.request
+
+          REPLIT_URL = os.environ.get("REPLIT_INGEST_URL", "")
+          SECRET     = os.environ.get("BRIDGE_SECRET", "")
+
+          if not REPLIT_URL or not SECRET:
+              print("ERROR: REPLIT_INGEST_URL veya BRIDGE_SECRET eksik", flush=True)
+              sys.exit(1)
+
+          SKIP_TLDS  = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
+          SKIP_HOSTS = {
+              "cloudflare.com", "amazonaws.com", "azure.com", "google.com",
+              "microsoft.com", "letsencrypt.org", "fastly.net", "akamai.net",
+              "netlify.app", "vercel.app",
+          }
+
+          MAX_PREFIXES = 300   # 300 prefix × 3 IP = 900 PTR sorgusu
+          IPS_PER_PREFIX = 3
+
+          def is_tr_lead(d: str) -> bool:
+              d = d.lower()
+              if any(d.endswith(s) for s in SKIP_TLDS): return False
+              if any(h in d for h in SKIP_HOSTS): return False
+              return d.endswith(".tr")
+
+          def root_domain(d: str) -> str:
+              parts = d.lower().split(".")
+              if len(parts) >= 3 and parts[-1] == "tr":
+                  return ".".join(parts[-3:])
+              return ".".join(parts[-2:])
+
+          def sample_ips(cidr: str, n: int = 3) -> list:
+              try:
+                  base, bits = cidr.split("/")
+                  prefix_len = int(bits)
+                  parts = list(map(int, base.split(".")))
+                  host_bits = 32 - prefix_len
+                  total = 2 ** host_bits
+                  base_num = (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]
+                  count = min(n, max(1, total - 2))
+                  ips = []
+                  for i in range(count):
+                      offset = int((i + 1) / (count + 1) * total)
+                      ip_num = (base_num + offset) & 0xFFFFFFFF
+                      ips.append(f"{(ip_num>>24)&0xFF}.{(ip_num>>16)&0xFF}.{(ip_num>>8)&0xFF}.{ip_num&0xFF}")
+                  return ips
+              except Exception:
+                  return []
+
+          def ptr_lookup(ip: str) -> str | None:
+              try:
+                  result = subprocess.run(
+                      ["dig", "-x", ip, "+short", "+time=3", "+tries=1"],
+                      capture_output=True, text=True, timeout=5,
+                  )
+                  hostname = result.stdout.strip().rstrip(".")
+                  if hostname and "." in hostname:
+                      return hostname.lower()
+              except Exception:
+                  pass
+              return None
+
+          # ── 1. RIPE stat: Türkiye IPv4 prefix listesi ─────────────────────────
+          print("RIPE stat'tan TR IPv4 prefix listesi alınıyor...", flush=True)
+          ripe_url = "https://stat.ripe.net/data/country-resource-list/data.json?resource=TR&v=4"
+          try:
+              req = urllib.request.Request(
+                  ripe_url,
+                  headers={"User-Agent": "CyberStep-Research/1.0 (contact@cyberstep.io)"},
+              )
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  data = json.loads(resp.read())
+              prefixes = data["data"]["resources"]["ipv4"]
+          except Exception as e:
+              print(f"RIPE stat hatası: {e}", flush=True)
+              sys.exit(1)
+
+          # /8 gibi çok geniş prefix'leri atla (tek ASN'in prefix'i değil)
+          prefixes = [p for p in prefixes if int(p.split("/")[1]) >= 20]
+          import random
+          random.shuffle(prefixes)
+          prefixes = prefixes[:MAX_PREFIXES]
+          print(f"{len(prefixes)} prefix seçildi (toplam {MAX_PREFIXES} max)", flush=True)
+
+          # ── 2. Her prefix'ten IP örnekle + PTR sorgula ───────────────────────
+          all_ips: list[str] = []
+          for pfx in prefixes:
+              all_ips.extend(sample_ips(pfx, n=IPS_PER_PREFIX))
+
+          print(f"{len(all_ips)} IP örneklendi — PTR sorguları başlıyor", flush=True)
+
+          collected: set[str] = set()
+          for idx, ip in enumerate(all_ips):
+              hostname = ptr_lookup(ip)
+              if hostname and is_tr_lead(hostname):
+                  collected.add(root_domain(hostname))
+              if idx > 0 and idx % 100 == 0:
+                  print(f"  [{idx}/{len(all_ips)}] bulunan TR domain: {len(collected)}", flush=True)
+
+          print(f"\nToplam: {len(collected)} benzersiz TR domain", flush=True)
+
+          if not collected:
+              print("TR domain bulunamadı — gönderilecek yok", flush=True)
+              sys.exit(0)
+
+          # ── 3. cert-ingest'e gönder ───────────────────────────────────────────
+          domains = sorted(collected)
+          print(f"Örnek: {domains[:5]}", flush=True)
+
+          CHUNK = 500
+          total_accepted = 0
+          for i in range(0, len(domains), CHUNK):
+              chunk = domains[i:i + CHUNK]
+              payload = json.dumps({
+                  "domains": chunk,
+                  "secret": SECRET,
+                  "source": "ripe_dns",
+              }).encode()
+              try:
+                  req = urllib.request.Request(
+                      REPLIT_URL, data=payload,
+                      headers={"Content-Type": "application/json"}, method="POST",
+                  )
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      body = json.loads(resp.read())
+                      accepted = body.get("accepted", 0)
+                      total_accepted += accepted
+                      print(f"  Batch {i // CHUNK + 1}: accepted={accepted} skipped={body.get('skipped')}", flush=True)
+              except Exception as e:
+                  print(f"  Batch {i // CHUNK + 1}: HATA {e}", flush=True)
+
+          print(f"\n=== TAMAMLANDI: total_accepted={total_accepted} ===", flush=True)
+          PYEOF
+        env:
+          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
+          BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}

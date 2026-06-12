@@ -2111,6 +2111,44 @@ startup()
     startDnsCrons();
     logger.info("Certstream devre dışı — crt.sh polling kullanılıyor");
 
+    // ─── Certstream GitHub Actions dispatch — saatte bir ─────────────────────
+    // GitHub'ın schedule'ına güvenmiyoruz; kendi cron'umuzdan dispatch ediyoruz.
+    cron.schedule("5 * * * *", wrapCron("certstream_dispatch", "5 * * * *", async () => {
+      const pat = process.env["GITHUB_PAT"];
+      const repo = "serkangrdl-cyberstep/CyberStep";
+      const workflowId = "certstream-bridge.yml";
+      if (!pat) { logger.warn("GITHUB_PAT eksik — certstream dispatch atlandı"); return 0; }
+      const { default: https } = await import("https");
+      await new Promise<void>((resolve) => {
+        const body = JSON.stringify({ ref: "main" });
+        const req = https.request({
+          hostname: "api.github.com",
+          path: `/repos/${repo}/actions/workflows/${workflowId}/dispatches`,
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${pat}`,
+            Accept: "application/vnd.github+json",
+            "User-Agent": "CyberStep-Server",
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(body),
+          },
+        }, (res) => {
+          res.resume();
+          if (res.statusCode === 204) {
+            logger.info({ workflow: workflowId }, "Certstream dispatch tetiklendi");
+          } else {
+            logger.warn({ status: res.statusCode, workflow: workflowId }, "Certstream dispatch başarısız");
+          }
+          resolve();
+        });
+        req.on("error", (err) => { logger.warn({ err: String(err) }, "Certstream dispatch HTTP hata"); resolve(); });
+        req.write(body);
+        req.end();
+      });
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Certstream GitHub dispatch cron scheduled (saatte bir, :05)");
+
     // ─── Microsoft 365 Graph API poller — her 15 dakikada ────────────────────
     cron.schedule("*/15 * * * *", wrapCron("ms365_poller", "*/15 * * * *", async () => {
       const { pollAllMs365Integrations } = await import("./services/ms365Graph");

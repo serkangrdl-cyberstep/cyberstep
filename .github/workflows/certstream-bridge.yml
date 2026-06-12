@@ -134,10 +134,17 @@ jobs:
                               data = json.loads(msg)
                               domains_in_msg = []
                               if isinstance(data, list):
+                                  # Format: düz domain dizisi
                                   domains_in_msg = [d for d in data if isinstance(d, str)]
                               elif isinstance(data, dict):
-                                  leaf = data.get("data", {}).get("leaf_cert", {})
-                                  domains_in_msg = [d for d in leaf.get("all_domains", []) if isinstance(d, str)]
+                                  data_field = data.get("data")
+                                  if isinstance(data_field, list):
+                                      # certstream-server-go format: {"data": ["d1","d2"], "message_type": "dns_entries"}
+                                      domains_in_msg = [d for d in data_field if isinstance(d, str)]
+                                  elif isinstance(data_field, dict):
+                                      # certstream lite format: {"data": {"leaf_cert": {"all_domains": [...]}}}
+                                      leaf = data_field.get("leaf_cert", {})
+                                      domains_in_msg = [d for d in leaf.get("all_domains", []) if isinstance(d, str)]
 
                               for d in domains_in_msg:
                                   if is_tr_lead(d):

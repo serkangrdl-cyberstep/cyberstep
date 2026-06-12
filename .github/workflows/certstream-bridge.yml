@@ -11,10 +11,13 @@ jobs:
     timeout-minutes: 4
 
     steps:
+      - name: Install ws package
+        run: npm install ws
+
       - name: Run Certstream Bridge
         run: |
           node -e "
-          const WebSocket = require('ws');
+          const WebSocket = require('./node_modules/ws');
           const https = require('https');
 
           const REPLIT_URL = process.env.REPLIT_INGEST_URL;
@@ -23,10 +26,12 @@ jobs:
           const collected = new Set();
           const MAX_WAIT_MS = 100000; // 100 sn
 
+          if (!REPLIT_URL || !SECRET) { console.error('Missing REPLIT_INGEST_URL or BRIDGE_SECRET'); process.exit(1); }
+
           const ws = new WebSocket('wss://certstream.calidog.io', { handshakeTimeout: 15000 });
 
           const done = () => {
-            ws.close();
+            try { ws.close(); } catch(e) {}
             if (collected.size === 0) { console.log('No TR domains found'); process.exit(0); }
             const domains = [...collected];
             console.log('Found:', domains.length, 'TR domains');
@@ -34,11 +39,15 @@ jobs:
             const url = new URL(REPLIT_URL);
             const req = https.request({
               hostname: url.hostname,
-              path: url.pathname,
+              path: url.pathname + (url.search || ''),
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
-            }, res => { console.log('Ingest status:', res.statusCode); process.exit(0); });
-            req.on('error', e => { console.error(e); process.exit(1); });
+            }, res => {
+              let body = '';
+              res.on('data', d => body += d);
+              res.on('end', () => { console.log('Ingest status:', res.statusCode, body); process.exit(0); });
+            });
+            req.on('error', e => { console.error('POST error:', e.message); process.exit(1); });
             req.write(payload);
             req.end();
           };
@@ -46,7 +55,7 @@ jobs:
           setTimeout(done, MAX_WAIT_MS);
 
           ws.on('open', () => console.log('Connected to Certstream'));
-          ws.on('error', e => { console.error('WS error:', e.message); process.exit(0); });
+          ws.on('error', e => { console.error('WS error:', e.message); done(); });
           ws.on('message', data => {
             try {
               const msg = JSON.parse(data);

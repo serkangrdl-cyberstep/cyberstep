@@ -14,69 +14,36 @@ jobs:
       - name: Install dependencies
         run: pip install websockets
 
-      - name: Download certstream-server-go and config
+      - name: Download and start certstream-server-go
         run: |
           curl -fsSL \
             "https://github.com/d-Rickyy-b/certstream-server-go/releases/download/v1.9.0/certstream-server-go_1.9.0_linux_amd64" \
             -o certstream-server-go
           chmod +x certstream-server-go
 
-          # Sadece canlı CT logları izle, Google default loglarını devre dışı bırak
-          # (default logs catch-up yapar ve client buffer'ı taşırır)
-          cat > config.yml << 'CFGEOF'
-          webserver:
-            listen_addr: "0.0.0.0"
-            listen_port: 8080
-            full_url: "/full-stream"
-            lite_url: "/"
-            domains_only_url: "/domains-only"
-            cert_path: ""
-            cert_key_path: ""
-            compression_enabled: false
-          prometheus:
-            enabled: false
-            listen_addr: "0.0.0.0"
-            listen_port: 8081
-            metrics_url: "/metrics"
-            expose_system_metrics: false
-            real_ip: false
-            whitelist:
-              - "127.0.0.1/8"
-          general:
-            disable_default_logs: true
-          ct_logs:
-            - url: "https://oak.ct.letsencrypt.org/2025h2/"
-            - url: "https://oak.ct.letsencrypt.org/2026h1/"
-            - url: "https://oak.ct.letsencrypt.org/2026h2/"
-            - url: "https://sectigo-ct2.comodo.com/"
-          CFGEOF
+          # Minimal config — sadece port ayarı, default CT logları kullanılır
+          echo "d2Vic2VydmVyOgogIGxpc3Rlbl9hZGRyOiAiMC4wLjAuMCIKICBsaXN0ZW5fcG9ydDogODA4MAogIGRvbWFpbnNfb25seV91cmw6ICIvZG9tYWlucy1vbmx5Igo=" | base64 -d > config.yml
+          echo "=== config.yml ===" && cat config.yml
 
-          echo "=== config.yml ==="
-          cat config.yml
-
-      - name: Start certstream-server-go
-        run: |
           ./certstream-server-go > certstream.log 2>&1 &
           echo "CERTSTREAM_PID=$!" >> $GITHUB_ENV
 
-          # Port 8080 açılana kadar bekle (max 60s)
-          for i in $(seq 1 60); do
+          # Port 8080 açılana kadar bekle (max 90s)
+          for i in $(seq 1 90); do
             if nc -z localhost 8080 2>/dev/null; then
               echo "Port 8080 OPEN after ${i}s"
               break
             fi
             sleep 1
           done
-
-          echo "=== certstream.log (ilk 20 satır) ==="
-          head -20 certstream.log 2>/dev/null || echo "(no log)"
-          echo "=== port ==="
           ss -tlnp | grep 8080 || echo "Port 8080 NOT open"
 
-          # CT log bağlantısı için kısa bekleme
-          sleep 5
+          echo "=== certstream.log (ilk 20 satır) ===" && head -20 certstream.log || true
 
       - name: Collect TR domains and send to Replit
+        env:
+          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
+          BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
         run: |
           python3 << 'PYEOF'
           import asyncio, json, os, sys, time
@@ -127,43 +94,35 @@ jobs:
               try:
                   async with websockets.connect(
                       WS_URL,
-                      max_size=None,        # message boyut limiti kaldır
-                      compression=None,     # sıkıştırma overhead'i kaldır
-                      ping_interval=None,   # ping overhead kaldır (8 dakika kısa)
+                      max_size=None,
+                      compression=None,
+                      ping_interval=None,
                       open_timeout=15,
                   ) as ws:
                       print("Connected! 8 dakika TR domain toplanıyor...", flush=True)
-                      first_msg_printed = False
 
                       while time.time() < deadline:
                           try:
-                              # Kalan süreye göre timeout
                               remaining = deadline - time.time()
                               if remaining <= 0:
                                   break
                               msg = await asyncio.wait_for(
                                   ws.recv(),
-                                  timeout=min(remaining, 5.0),
+                                  timeout=min(remaining, 30.0),
                               )
                           except asyncio.TimeoutError:
-                              break
+                              continue  # 30s timeout — mesaj gelmeyebilir, devam et
                           except Exception as e:
                               print(f"  recv error: {e}", flush=True)
                               break
 
                           total_messages += 1
 
-                          # ── FAST PATH: JSON parse OLMADAN .tr kontrolü ──────────
-                          # certstream-server-go milisaniyede binlerce mesaj gönderir.
-                          # %99+ mesaj .tr içermez — string check ile hızlıca atla.
+                          if isinstance(msg, bytes):
+                              msg = msg.decode("utf-8", errors="ignore")
                           if ".tr" not in msg:
                               continue
                           tr_raw_hits += 1
-
-                          # ── SLOW PATH: yalnızca .tr barındıran mesajları parse et ─
-                          if not first_msg_printed:
-                              first_msg_printed = True
-                              print(f"  İlk .tr mesajı: {msg[:200]}", flush=True)
 
                           try:
                               data = json.loads(msg)
@@ -185,7 +144,7 @@ jobs:
                               if is_tr_lead(d):
                                   collected.add(root_domain(d))
 
-                          if total_messages % 10000 == 0:
+                          if total_messages % 50000 == 0:
                               elapsed = int(time.time() - start)
                               print(
                                   f"  [{elapsed}s] msgs={total_messages} tr_hits={tr_raw_hits} TR={len(collected)}",
@@ -236,9 +195,6 @@ jobs:
 
           print(f"=== TAMAMLANDI: total_accepted={total_accepted} ===", flush=True)
           PYEOF
-        env:
-          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
-          BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
 
       - name: Stop certstream-server-go
         if: always()

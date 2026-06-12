@@ -2552,14 +2552,14 @@ startup()
     logger.info("BGP.tools discovery cron scheduled (daily 06:15 Istanbul)");
 
     // ─── Lead Discovery: Kalifikasyon — Saatte bir (0 * * * *) ──────────────────
-    // Limit 25/çalışma: 24×25=600 aday/gün. Her aday max 25s tarama + 15 dk circuit breaker.
+    // Limit 100/çalışma: 24×100=2400 aday/gün. Her aday max 25s tarama + 25 dk circuit breaker.
     cron.schedule("0 * * * *", wrapCron("lead_qual", "0 * * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("lead_qual", 25);
+      const limit = await cronGetLimit("lead_qual", 100);
       const result = await qualifyPendingCandidates(limit);
       return result.qualified;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Lead qualification cron scheduled (saatte bir, limit 25)");
+    logger.info("Lead qualification cron scheduled (saatte bir, limit 100)");
 
     // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
     cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {

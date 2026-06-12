@@ -123,7 +123,7 @@ export async function runFullDiscoveryAndQualify(config: PipelineConfig = {}): P
   logger.info("=== Pipeline Tamamlandı ===");
 }
 
-export async function qualifyPendingCandidates(limit: number = 20): Promise<{ processed: number; qualified: number }> {
+export async function qualifyPendingCandidates(limit: number = 100): Promise<{ processed: number; qualified: number }> {
   const pending = await db.select().from(leadCandidatesTable)
     .where(eq(leadCandidatesTable.scanStatus, "pending"))
     .orderBy(
@@ -135,7 +135,7 @@ export async function qualifyPendingCandidates(limit: number = 20): Promise<{ pr
 
   logger.info({ count: pending.length }, "Aday kalifikasyonu başlıyor");
 
-  const MAX_RUNTIME_MS = 15 * 60 * 1000; // 15 dakika circuit breaker
+  const MAX_RUNTIME_MS = 25 * 60 * 1000; // 25 dakika circuit breaker
   const SCAN_TIMEOUT_MS = 25_000;         // tek domain taraması max 25s
   const batchStart = Date.now();
   let processedCount = 0;

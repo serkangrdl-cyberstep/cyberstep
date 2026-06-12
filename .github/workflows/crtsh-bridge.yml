@@ -2,7 +2,7 @@ name: CyberStep Lead Discovery (crt.sh)
 
 on:
   schedule:
-    - cron: '30 2 * * *'   # Her gece 02:30 UTC (05:30 TR) — certstream bridge'den önce
+    - cron: '30 2 * * *'   # Her gece 02:30 UTC (05:30 TR)
   workflow_dispatch:
 
 jobs:
@@ -14,8 +14,8 @@ jobs:
       - name: Query crt.sh and ingest TR domains
         run: |
           python3 - << 'PYEOF'
-          import json, os, sys, time, datetime
-          import urllib.request, urllib.parse
+          import json, os, sys, time
+          import urllib.request, urllib.error
 
           REPLIT_URL = os.environ.get("REPLIT_INGEST_URL", "")
           SECRET     = os.environ.get("BRIDGE_SECRET", "")
@@ -24,17 +24,26 @@ jobs:
               print("ERROR: REPLIT_INGEST_URL veya BRIDGE_SECRET eksik", flush=True)
               sys.exit(1)
 
-          # ── Filtreler ──────────────────────────────────────────────────────────
-          QUERIES    = ["%.com.tr", "%.net.tr", "%.org.tr", "%.web.tr"]
+          # crt.sh wildcard sorguları
+          # ÖNEMLİ: % karakterini urllib.parse.quote ile encode ETME.
+          # quote("%.com.tr") → "%25.com.tr" yapar, crt.sh 404 döndürür.
+          # Python f-string içinde doğrudan % bırakarak gönder.
+          QUERIES = [
+              "%.com.tr",
+              "%.net.tr",
+              "%.org.tr",
+              "%.web.tr",
+              "%.biz.tr",
+              "%.info.tr",
+              "%.gen.tr",
+          ]
+
           SKIP_TLDS  = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
           SKIP_HOSTS = {
               "cloudflare.com", "amazonaws.com", "azure.com", "google.com",
               "microsoft.com", "letsencrypt.org", "fastly.net", "akamai.net",
               "netlify.app", "vercel.app", "github.io", "akamaitechnologies.com",
           }
-
-          DAYS_BACK  = 2  # Günlük çalıştığı için son 48 saat yeterli
-          cutoff_dt  = datetime.datetime.utcnow() - datetime.timedelta(days=DAYS_BACK)
 
           def is_tr_lead(d: str) -> bool:
               d = d.lower().lstrip("*.")
@@ -49,70 +58,77 @@ jobs:
               return ".".join(parts[-2:])
 
           def extract_domains(cert: dict) -> set:
-              domains = set()
+              domains: set[str] = set()
               cn = (cert.get("common_name") or "").lower().strip()
-              if cn: domains.add(cn)
+              if cn:
+                  domains.add(cn)
               for line in (cert.get("name_value") or "").split("\n"):
                   line = line.strip().lower()
-                  if line: domains.add(line)
+                  if line:
+                      domains.add(line)
               return domains
 
-          collected: set = set()
+          def crtsh_fetch(query: str) -> list:
+              """crt.sh'den JSON sertifika listesi çek.
+              % wildcard'ı URL encode ETME — f-string içinde olduğu gibi bırak.
+              Kısa timeout + 2 retry — toplam budget ~90s/sorgu.
+              """
+              url = f"https://crt.sh/?q={query}&output=json&deduplicate=Y"
+              headers = {
+                  "User-Agent": "Mozilla/5.0 (compatible; CyberStep-Research/2.0)",
+                  "Accept":     "application/json",
+              }
+              for attempt in range(1, 3):  # max 2 deneme
+                  try:
+                      req = urllib.request.Request(url, headers=headers)
+                      with urllib.request.urlopen(req, timeout=40) as resp:
+                          status = resp.status
+                          raw = resp.read()
+                          if not raw:
+                              print(f"  [deneme {attempt}] Boş yanıt", flush=True)
+                              time.sleep(5 * attempt)
+                              continue
+                          certs = json.loads(raw)
+                          print(f"  HTTP {status} — {len(certs)} sertifika", flush=True)
+                          return certs
+                  except urllib.error.HTTPError as e:
+                      print(f"  [deneme {attempt}] HTTP {e.code}: {e.reason}", flush=True)
+                      time.sleep(5 * attempt)
+                  except urllib.error.URLError as e:
+                      print(f"  [deneme {attempt}] URL hatası: {e.reason}", flush=True)
+                      time.sleep(5 * attempt)
+                  except Exception as e:
+                      print(f"  [deneme {attempt}] HATA: {e}", flush=True)
+                      time.sleep(5 * attempt)
+              return []
+
+          collected: set[str] = set()
 
           for query in QUERIES:
-              print(f"\n--- crt.sh sorgusu: {query} ---", flush=True)
-              url = f"https://crt.sh/?q={urllib.parse.quote(query)}&output=json&deduplicate=Y"
-              try:
-                  req = urllib.request.Request(
-                      url,
-                      headers={"User-Agent": "Mozilla/5.0 (compatible; CyberStep-Research/1.0; +https://cyberstep.io)"},
-                  )
-                  with urllib.request.urlopen(req, timeout=60) as resp:
-                      raw = resp.read()
-                      if not raw:
-                          print(f"  Boş yanıt — atlanıyor", flush=True)
-                          time.sleep(5)
-                          continue
-                      certs = json.loads(raw)
-              except Exception as e:
-                  print(f"  HATA {query}: {e}", flush=True)
-                  time.sleep(10)
+              print(f"\n--- crt.sh: {query} ---", flush=True)
+              certs = crtsh_fetch(query)
+              if not certs:
+                  print("  Veri alınamadı — sonraki sorguya geçiliyor", flush=True)
+                  time.sleep(3)
                   continue
 
-              print(f"  {len(certs)} sertifika alındı", flush=True)
-
-              old_count = 0
+              before = len(collected)
               for cert in certs:
-                  # Tarih filtresi — eskilerini atla (crt.sh newest-first döner)
-                  ts = cert.get("entry_timestamp") or ""
-                  if ts:
-                      try:
-                          cert_dt = datetime.datetime.fromisoformat(ts.rstrip("Z"))
-                          if cert_dt < cutoff_dt:
-                              old_count += 1
-                              # Ardışık 500 eski kayıt varsa çıkış yap
-                              if old_count > 500:
-                                  print(f"  500 ardışık eski kayıt — erken çıkış", flush=True)
-                                  break
-                              continue
-                      except Exception:
-                          pass
-                  else:
-                      old_count = 0
-
                   for d in extract_domains(cert):
                       if is_tr_lead(d):
                           collected.add(root_domain(d))
 
-              print(f"  Toplam benzersiz TR domain: {len(collected)}", flush=True)
-              time.sleep(3)  # crt.sh rate limit
+              added = len(collected) - before
+              print(f"  +{added} yeni domain (toplam: {len(collected)})", flush=True)
+              time.sleep(5)  # crt.sh rate limit
+
+          print(f"\n=== Toplam {len(collected)} benzersiz TR domain ===", flush=True)
 
           if not collected:
-              print("\nTR domain bulunamadı — gönderilecek bir şey yok", flush=True)
+              print("TR domain bulunamadı — gönderilecek bir şey yok", flush=True)
               sys.exit(0)
 
           domains = sorted(collected)
-          print(f"\nGönderiyor: {len(domains)} domain", flush=True)
           print(f"Örnek: {domains[:5]}", flush=True)
 
           CHUNK = 500
@@ -134,7 +150,10 @@ jobs:
                       body = json.loads(resp.read())
                       accepted = body.get("accepted", 0)
                       total_accepted += accepted
-                      print(f"  Batch {i // CHUNK + 1}: accepted={accepted} skipped={body.get('skipped')}", flush=True)
+                      print(
+                          f"  Batch {i // CHUNK + 1}: accepted={accepted} skipped={body.get('skipped')}",
+                          flush=True,
+                      )
               except Exception as e:
                   print(f"  Batch {i // CHUNK + 1}: HATA {e}", flush=True)
 

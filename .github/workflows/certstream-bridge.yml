@@ -21,52 +21,63 @@ jobs:
             -o certstream-server-go
           chmod +x certstream-server-go
 
-          curl -fsSL \
-            "https://raw.githubusercontent.com/d-Rickyy-b/certstream-server-go/master/config.sample.yaml" \
-            -o config.yml
+          # Sadece canlı CT logları izle, Google default loglarını devre dışı bırak
+          # (default logs catch-up yapar ve client buffer'ı taşırır)
+          cat > config.yml << 'CFGEOF'
+          webserver:
+            listen_addr: "0.0.0.0"
+            listen_port: 8080
+            full_url: "/full-stream"
+            lite_url: "/"
+            domains_only_url: "/domains-only"
+            cert_path: ""
+            cert_key_path: ""
+            compression_enabled: false
+          prometheus:
+            enabled: false
+            listen_addr: "0.0.0.0"
+            listen_port: 8081
+            metrics_url: "/metrics"
+            expose_system_metrics: false
+            real_ip: false
+            whitelist:
+              - "127.0.0.1/8"
+          general:
+            disable_default_logs: true
+          ct_logs:
+            - url: "https://oak.ct.letsencrypt.org/2025h2/"
+            - url: "https://oak.ct.letsencrypt.org/2026h1/"
+            - url: "https://oak.ct.letsencrypt.org/2026h2/"
+            - url: "https://sectigo-ct2.comodo.com/"
+          CFGEOF
 
           echo "=== config.yml ==="
           cat config.yml
-          echo "=== binary info ==="
-          file certstream-server-go
-          ls -lh certstream-server-go
 
-      - name: Start certstream-server-go (with debug log)
+      - name: Start certstream-server-go
         run: |
-          # Stdout/stderr'i log dosyasına yönlendir
           ./certstream-server-go > certstream.log 2>&1 &
           echo "CERTSTREAM_PID=$!" >> $GITHUB_ENV
-          echo "PID: $!"
 
-          # Port 8080 açılana kadar bekle (max 240s — binary CT log catch-up yapar)
-          for i in $(seq 1 240); do
+          # Port 8080 açılana kadar bekle (max 60s)
+          for i in $(seq 1 60); do
             if nc -z localhost 8080 2>/dev/null; then
               echo "Port 8080 OPEN after ${i}s"
               break
             fi
-            if [ $i -eq 30 ] || [ $i -eq 90 ] || [ $i -eq 150 ] || [ $i -eq 210 ]; then
-              echo "--- certstream.log at ${i}s (last 3 lines) ---"
-              tail -3 certstream.log 2>/dev/null || echo "(empty)"
-              ps aux | grep certstream | grep -v grep | awk '{print "PID:",$2,"MEM:",$4}' || echo "(not running)"
-            fi
             sleep 1
           done
 
-          echo "=== Final certstream.log ==="
-          cat certstream.log 2>/dev/null || echo "(no log)"
-          echo "=== netstat ==="
-          ss -tlnp | grep -E "8080|LISTEN" | head -10
+          echo "=== certstream.log (ilk 20 satır) ==="
+          head -20 certstream.log 2>/dev/null || echo "(no log)"
+          echo "=== port ==="
+          ss -tlnp | grep 8080 || echo "Port 8080 NOT open"
 
-          # CT log bağlantısı için ek bekleme
-          sleep 15
+          # CT log bağlantısı için kısa bekleme
+          sleep 5
 
       - name: Collect TR domains and send to Replit
         run: |
-          echo "=== certstream.log at collection time ==="
-          cat certstream.log 2>/dev/null | tail -20 || echo "(no log)"
-          echo "=== port check ==="
-          ss -tlnp | grep 8080 || echo "Port 8080 NOT open"
-
           python3 << 'PYEOF'
           import asyncio, json, os, sys, time
           import websockets
@@ -76,14 +87,14 @@ jobs:
           SECRET     = os.environ.get("BRIDGE_SECRET", "")
 
           if not REPLIT_URL or not SECRET:
-              print("ERROR: Missing REPLIT_INGEST_URL or BRIDGE_SECRET", flush=True)
+              print("ERROR: REPLIT_INGEST_URL veya BRIDGE_SECRET eksik", flush=True)
               sys.exit(1)
 
           TR_TLDS = (
               ".com.tr", ".net.tr", ".org.tr", ".web.tr",
               ".biz.tr", ".info.tr", ".gen.tr", ".tv.tr", ".name.tr",
           )
-          SKIP_TLDS = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
+          SKIP_TLDS  = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
           SKIP_HOSTS = {
               "cloudflare.com", "amazonaws.com", "azure.com",
               "google.com", "microsoft.com", "letsencrypt.org",
@@ -107,72 +118,97 @@ jobs:
           COLLECT_SECONDS = 480  # 8 dakika
 
           async def collect():
-              start = time.time()
+              start    = time.time()
+              deadline = start + COLLECT_SECONDS
               total_messages = 0
+              tr_raw_hits    = 0
               print(f"Connecting to {WS_URL} ...", flush=True)
 
               try:
                   async with websockets.connect(
                       WS_URL,
-                      ping_interval=30,
-                      ping_timeout=10,
+                      max_size=None,        # message boyut limiti kaldır
+                      compression=None,     # sıkıştırma overhead'i kaldır
+                      ping_interval=None,   # ping overhead kaldır (8 dakika kısa)
                       open_timeout=15,
                   ) as ws:
-                      print("Connected! Collecting TR domains for 8 minutes...", flush=True)
+                      print("Connected! 8 dakika TR domain toplanıyor...", flush=True)
                       first_msg_printed = False
 
-                      while time.time() - start < COLLECT_SECONDS:
+                      while time.time() < deadline:
                           try:
-                              msg = await asyncio.wait_for(ws.recv(), timeout=5.0)
-                              total_messages += 1
-
-                              # İlk mesajı debug için yazdır
-                              if not first_msg_printed:
-                                  first_msg_printed = True
-                                  print(f"  First message (truncated): {msg[:300]}", flush=True)
-
-                              data = json.loads(msg)
-                              domains_in_msg = []
-                              if isinstance(data, list):
-                                  # Format: düz domain dizisi
-                                  domains_in_msg = [d for d in data if isinstance(d, str)]
-                              elif isinstance(data, dict):
-                                  data_field = data.get("data")
-                                  if isinstance(data_field, list):
-                                      # certstream-server-go format: {"data": ["d1","d2"], "message_type": "dns_entries"}
-                                      domains_in_msg = [d for d in data_field if isinstance(d, str)]
-                                  elif isinstance(data_field, dict):
-                                      # certstream lite format: {"data": {"leaf_cert": {"all_domains": [...]}}}
-                                      leaf = data_field.get("leaf_cert", {})
-                                      domains_in_msg = [d for d in leaf.get("all_domains", []) if isinstance(d, str)]
-
-                              for d in domains_in_msg:
-                                  if is_tr_lead(d):
-                                      collected.add(root_domain(d))
-
-                              if total_messages % 2000 == 0:
-                                  elapsed = int(time.time() - start)
-                                  print(f"  [{elapsed}s] messages={total_messages} TR={len(collected)}", flush=True)
-
+                              # Kalan süreye göre timeout
+                              remaining = deadline - time.time()
+                              if remaining <= 0:
+                                  break
+                              msg = await asyncio.wait_for(
+                                  ws.recv(),
+                                  timeout=min(remaining, 5.0),
+                              )
                           except asyncio.TimeoutError:
-                              continue
+                              break
                           except Exception as e:
                               print(f"  recv error: {e}", flush=True)
                               break
 
+                          total_messages += 1
+
+                          # ── FAST PATH: JSON parse OLMADAN .tr kontrolü ──────────
+                          # certstream-server-go milisaniyede binlerce mesaj gönderir.
+                          # %99+ mesaj .tr içermez — string check ile hızlıca atla.
+                          if ".tr" not in msg:
+                              continue
+                          tr_raw_hits += 1
+
+                          # ── SLOW PATH: yalnızca .tr barındıran mesajları parse et ─
+                          if not first_msg_printed:
+                              first_msg_printed = True
+                              print(f"  İlk .tr mesajı: {msg[:200]}", flush=True)
+
+                          try:
+                              data = json.loads(msg)
+                          except Exception:
+                              continue
+
+                          domains_in_msg: list[str] = []
+                          if isinstance(data, list):
+                              domains_in_msg = [d for d in data if isinstance(d, str)]
+                          elif isinstance(data, dict):
+                              data_field = data.get("data")
+                              if isinstance(data_field, list):
+                                  domains_in_msg = [d for d in data_field if isinstance(d, str)]
+                              elif isinstance(data_field, dict):
+                                  leaf = data_field.get("leaf_cert", {})
+                                  domains_in_msg = [d for d in leaf.get("all_domains", []) if isinstance(d, str)]
+
+                          for d in domains_in_msg:
+                              if is_tr_lead(d):
+                                  collected.add(root_domain(d))
+
+                          if total_messages % 10000 == 0:
+                              elapsed = int(time.time() - start)
+                              print(
+                                  f"  [{elapsed}s] msgs={total_messages} tr_hits={tr_raw_hits} TR={len(collected)}",
+                                  flush=True,
+                              )
+
               except Exception as e:
                   print(f"Connection error: {e}", flush=True)
 
-              print(f"Done — messages={total_messages} TR domains={len(collected)}", flush=True)
+              elapsed = int(time.time() - start)
+              print(
+                  f"Bitti — {elapsed}s | msgs={total_messages} tr_hits={tr_raw_hits} TR domains={len(collected)}",
+                  flush=True,
+              )
 
           asyncio.run(collect())
 
           if not collected:
-              print("No TR domains found — nothing to send", flush=True)
+              print("TR domain bulunamadı — gönderilecek bir şey yok", flush=True)
               sys.exit(0)
 
           domains = sorted(collected)
-          print(f"Sample: {domains[:5]}", flush=True)
+          print(f"Örnek: {domains[:5]}", flush=True)
           CHUNK = 500
           total_accepted = 0
 
@@ -191,11 +227,14 @@ jobs:
                   with urllib.request.urlopen(req, timeout=30) as resp:
                       body = json.loads(resp.read())
                       total_accepted += body.get("accepted", 0)
-                      print(f"  Batch {i//CHUNK+1}: accepted={body.get('accepted')} skipped={body.get('skipped')}", flush=True)
+                      print(
+                          f"  Batch {i//CHUNK+1}: accepted={body.get('accepted')} skipped={body.get('skipped')}",
+                          flush=True,
+                      )
               except Exception as e:
-                  print(f"  Batch {i//CHUNK+1}: ERROR {e}", flush=True)
+                  print(f"  Batch {i//CHUNK+1}: HATA {e}", flush=True)
 
-          print(f"=== DONE: total_accepted={total_accepted} ===", flush=True)
+          print(f"=== TAMAMLANDI: total_accepted={total_accepted} ===", flush=True)
           PYEOF
         env:
           REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
@@ -205,5 +244,5 @@ jobs:
         if: always()
         run: |
           kill $CERTSTREAM_PID 2>/dev/null || true
-          echo "=== certstream.log (final) ==="
-          cat certstream.log 2>/dev/null || echo "(no log)"
+          echo "=== certstream.log (son 30 satır) ==="
+          tail -30 certstream.log 2>/dev/null || echo "(no log)"

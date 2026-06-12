@@ -119,22 +119,29 @@ jobs:
                       open_timeout=15,
                   ) as ws:
                       print("Connected! Collecting TR domains for 8 minutes...", flush=True)
+                      first_msg_printed = False
 
                       while time.time() - start < COLLECT_SECONDS:
                           try:
                               msg = await asyncio.wait_for(ws.recv(), timeout=5.0)
                               total_messages += 1
 
+                              # İlk mesajı debug için yazdır
+                              if not first_msg_printed:
+                                  first_msg_printed = True
+                                  print(f"  First message (truncated): {msg[:300]}", flush=True)
+
                               data = json.loads(msg)
+                              domains_in_msg = []
                               if isinstance(data, list):
-                                  for d in data:
-                                      if isinstance(d, str) and is_tr_lead(d):
-                                          collected.add(root_domain(d))
+                                  domains_in_msg = [d for d in data if isinstance(d, str)]
                               elif isinstance(data, dict):
                                   leaf = data.get("data", {}).get("leaf_cert", {})
-                                  for d in leaf.get("all_domains", []):
-                                      if isinstance(d, str) and is_tr_lead(d):
-                                          collected.add(root_domain(d))
+                                  domains_in_msg = [d for d in leaf.get("all_domains", []) if isinstance(d, str)]
+
+                              for d in domains_in_msg:
+                                  if is_tr_lead(d):
+                                      collected.add(root_domain(d))
 
                               if total_messages % 2000 == 0:
                                   elapsed = int(time.time() - start)

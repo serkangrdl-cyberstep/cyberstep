@@ -119,6 +119,8 @@ export const domainScansTable = pgTable("domain_scans", {
     isSameAsKnown: boolean;
   }>>(),
   censysTotalFound: integer("censys_total_found"),
+  letterGrade: text("letter_grade"),
+  isPubliclyShared: boolean("is_publicly_shared").notNull().default(false),
 });
 
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });

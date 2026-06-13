@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable } from "@workspace/db";
 import { eq, desc, count, sql } from "drizzle-orm";
+import { calculateLetterGrade } from "../../lib/scoring/letterGrade";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
 import { checkAndConsumeQuota } from "../../services/apiQuotaTracker";
@@ -1304,6 +1305,7 @@ export async function performDomainScan(domain: string): Promise<{
         kepConfigured: false, kepRelays: [], kepSecure: false,
         wafDetected: false, wafProvider: null, wafBypassPossible: false,
         originIp: null, originIpSource: null, wafHeadersAdded: [], wafConfidence: 0,
+        letterGrade: calculateLetterGrade(scoreResult.total),
       })
       .returning();
 
@@ -1518,6 +1520,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: sslLabs.grade,
         badgeToken: randomUUID(),
+        letterGrade: calculateLetterGrade(overallScore),
         referralSource,
         kepConfigured: kep.configured,
         kepRelays: kep.relays,
@@ -1906,6 +1909,23 @@ router.get("/trust-badge/:token/widget.js", async (req, res) => {
   s.parentNode.insertBefore(el,s);
 })();`;
   res.send(script);
+});
+
+// ─── POST /api/domain-scan/:id/share ─────────────────────────────────────────
+// Tarama sonucunu paylaşıma aç / kapat
+router.post("/domain-scan/:id/share", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const body = req.body as { shared?: boolean };
+  const isShared = body.shared !== false;
+  await db.update(domainScansTable)
+    .set({ isPubliclyShared: isShared })
+    .where(eq(domainScansTable.id, id));
+  const [scan] = await db.select({
+    badgeToken: domainScansTable.badgeToken,
+    isPubliclyShared: domainScansTable.isPubliclyShared,
+  }).from(domainScansTable).where(eq(domainScansTable.id, id));
+  void res.json({ ok: true, isPubliclyShared: scan?.isPubliclyShared ?? false, token: scan?.badgeToken });
 });
 
 import attackScenariosRouter from "./attack-scenarios";

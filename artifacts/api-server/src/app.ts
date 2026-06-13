@@ -23,6 +23,7 @@ import seoRouter from "./routes/public/seo";
 import certIngestRouter from "./routes/internal/cert-ingest";
 import badgeRouter from "./routes/badge/index";
 import emergingThreatsAdminRouter from "./routes/admin-panel/emerging-threats";
+import publicResultRouter from "./routes/public-result";
 import { generateAndPublishBlogPost, generateBlogPostContent, BLOG_PLAN } from "./services/blog-autopilot";
 import { createAdminUser } from "./services/auth";
 import { logger } from "./lib/logger";
@@ -355,6 +356,7 @@ app.use("/api", exposureScoreRouter);
 app.use("/api", certIngestRouter);
 app.use("/api", badgeRouter);
 app.use("/api", emergingThreatsAdminRouter);
+app.use("/api", publicResultRouter);
 
 // ─── Internal: secret-token ile blog yazısı tetikleme (production catch-up) ───
 // ENCRYPTION_KEY ile korunur; session auth gerektirmez.

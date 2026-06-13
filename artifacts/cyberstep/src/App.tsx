@@ -41,6 +41,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 import Home from "./pages/home";
+import SonucPage from "./pages/sonuc";
 import AssessmentStart from "./pages/assessment-start";
 import AssessmentRunner from "./pages/assessment-runner";
 import AssessmentReport, { AssessmentReportById } from "./pages/assessment-report";
@@ -434,6 +435,9 @@ function Router() {
       {/* Partner portal */}
       <Route path="/ortak/giris" component={PartnerLogin} />
       <Route path="/ortak" component={PartnerDashboard} />
+
+      {/* Public standalone pages — no shared Layout */}
+      <Route path="/sonuc/:id" component={SonucPage} />
 
       {/* All other routes use shared Layout */}
       <Route>

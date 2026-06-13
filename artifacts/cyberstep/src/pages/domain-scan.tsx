@@ -14,6 +14,7 @@ import {
   Mail, Lock, Server, Loader2, ArrowRight, Info, FileText,
   DatabaseZap, ShieldAlert, ShieldCheck, Sparkles, Bug, Network, Wifi, Flag,
   Swords, ChevronDown, ChevronUp, Target, Zap, AlertOctagon, MapPin,
+  Share2, Link2, CopyCheck,
 } from "lucide-react";
 
 function originIpSourceLabel(source: string): string {
@@ -137,6 +138,9 @@ interface ScanResult {
   }> | null;
   censysTotalFound?: number | null;
   createdAt: string;
+  letterGrade?: string | null;
+  isPubliclyShared?: boolean;
+  badgeToken?: string | null;
 }
 
 function ShodanCard({ openPorts, vulnCount, country, isp, wafDetected, domain }: {
@@ -1092,6 +1096,71 @@ function CveCard({ cveSummary }: { cveSummary: Array<{ service: string; cveId: s
           <XCircle className="h-5 w-5 text-red-500" />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ShareToggle({ scanId, initialShared, token }: {
+  scanId: number;
+  initialShared: boolean;
+  token: string | null;
+}) {
+  const [shared, setShared] = useState(initialShared);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const publicUrl = token ? `${window.location.origin}/sonuc/${token}` : null;
+
+  const toggle = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/domain-scan/${scanId}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shared: !shared }),
+      });
+      if (res.ok) setShared(!shared);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copy = () => {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Button
+        size="sm"
+        variant="outline"
+        className={shared ? "border-cyan-500/40 text-cyan-700 hover:bg-cyan-50 bg-cyan-50/40" : "border-slate-300 text-slate-600 hover:bg-slate-50"}
+        onClick={toggle}
+        disabled={loading}
+        title={shared ? "Paylaşımı kapat" : "Sonucu herkese açık yap"}
+      >
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+        ) : (
+          <Share2 className="h-3.5 w-3.5 mr-1.5" />
+        )}
+        {shared ? "Paylaşım Açık" : "Paylaş"}
+      </Button>
+      {shared && publicUrl && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 px-2"
+          onClick={copy}
+          title="Bağlantıyı kopyala"
+        >
+          {copied ? <CopyCheck className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+        </Button>
+      )}
     </div>
   );
 }
@@ -2324,6 +2393,7 @@ export default function DomainScanPage() {
                         <><Download className="h-3.5 w-3.5 mr-1.5" />PDF Olarak İndir</>
                       )}
                     </Button>
+                    <ShareToggle scanId={result.id} initialShared={result.isPubliclyShared ?? false} token={result.badgeToken ?? null} />
                   </div>
                 </div>
               </div>

@@ -84,3 +84,9 @@ id = "2w98g8J8q-ahS99ffImiB"
 uri = "file://.local/reports/kalifikasyon-kapasite-optimizasyon-faz1.md"
 type = "text"
 title = "FAZ 1 — Kalifikasyon Pipeline Kontrol Raporu"
+
+[[outputs]]
+id = "dyPg4l7FYTkvzFQTKzHaq"
+uri = "file://.local/lead-magnet-kontrol-raporu.md"
+type = "text"
+title = "Risk Skoru Rozeti — Ön Kontrol Raporu"

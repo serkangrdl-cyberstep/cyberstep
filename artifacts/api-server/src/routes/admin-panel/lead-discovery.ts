@@ -189,7 +189,7 @@ router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, asy
     const body = JSON.stringify({ ref: "main" });
     const req2 = https.request({
       hostname: "api.github.com",
-      path: "/repos/serkangrdl-cyberstep/cyberstep/actions/workflows/certstream-bridge.yml/dispatches",
+      path: "/repos/serkangrdl-cyberstep/CyberStep/actions/workflows/certstream-bridge.yml/dispatches",
       method: "POST",
       headers: {
         Authorization: `Bearer ${pat}`,
@@ -372,10 +372,13 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
 // ─── GET /api/admin-panel/lead-discovery/candidates ──────────────────────────
 router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: Request, res: Response) => {
   const status = req.query["status"] as string | undefined;
+  const tier = req.query["tier"] as string | undefined;
   const page = parseInt(req.query["page"] as string ?? "1");
   const pageSize = parseInt(req.query["pageSize"] as string ?? "50");
 
-  const conditions = status ? [eq(leadCandidatesTable.scanStatus, status)] : [];
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (status) conditions.push(eq(leadCandidatesTable.scanStatus, status));
+  if (tier) conditions.push(eq(leadCandidatesTable.tier, tier));
 
   const rows = await db.select().from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined)

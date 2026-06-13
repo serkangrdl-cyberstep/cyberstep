@@ -731,6 +731,7 @@ export default function AdminLeadDiscovery() {
   const [filterQualified, setFilterQualified] = useState(false);
   const [filterHasContact, setFilterHasContact] = useState(false);
   const [filterNotSent, setFilterNotSent] = useState(false);
+  const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
@@ -797,15 +798,16 @@ export default function AdminLeadDiscovery() {
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent],
+    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filterHasContact) params.set("hasContact", "true");
       if (filterNotSent) params.set("notSent", "true");
-      const url = filterQualified
-        ? `${BASE}/lead-discovery/qualified?${params}`
-        : `${BASE}/lead-discovery/candidates?${params}`;
-      return fetch(url).then((r) => r.json());
+      if (filterQualified) {
+        return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
+      }
+      if (filterTier) params.set("tier", filterTier);
+      return fetch(`${BASE}/lead-discovery/candidates?${params}`).then((r) => r.json());
     },
     refetchInterval: 15_000,
   });
@@ -1394,10 +1396,10 @@ export default function AdminLeadDiscovery() {
                     variant="outline"
                     size="sm"
                     className="w-full"
-                    onClick={() => startQualify.mutate()}
-                    disabled={startQualify.isPending}
+                    onClick={() => startFull.mutate()}
+                    disabled={startFull.isPending}
                   >
-                    {startQualify.isPending ? "Çalışıyor..." : "Tam Pipeline Başlat"}
+                    {startFull.isPending ? "Çalışıyor..." : "Tam Pipeline Başlat"}
                   </Button>
                 </CardContent>
               </Card>
@@ -1687,7 +1689,7 @@ export default function AdminLeadDiscovery() {
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <Checkbox
                       checked={filterQualified}
-                      onCheckedChange={(v) => { setFilterQualified(!!v); setPage(1); }}
+                      onCheckedChange={(v) => { setFilterQualified(!!v); setFilterTier(""); setPage(1); }}
                     />
                     Sadece kalifikasyon geçenler
                   </label>
@@ -1705,6 +1707,18 @@ export default function AdminLeadDiscovery() {
                     />
                     Gönderilmemiş
                   </label>
+                  {!filterQualified && (
+                    <select
+                      className="text-sm border rounded px-2 py-1 bg-background text-foreground"
+                      value={filterTier}
+                      onChange={(e) => { setFilterTier(e.target.value); setPage(1); }}
+                    >
+                      <option value="">Tüm Tier'lar</option>
+                      <option value="tier3">Tier 3 — Ön-eleme Bekleyen</option>
+                      <option value="tier2">Tier 2 — Kalifikasyon Bekleyen</option>
+                      <option value="tier1">Tier 1 — Qualified</option>
+                    </select>
+                  )}
                 </div>
               </div>
             </CardHeader>

@@ -399,8 +399,8 @@ function CertstreamWidget() {
             {cs?.recentRuns && cs.recentRuns.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Son Çalışmalar</p>
-                <div className="rounded-md border overflow-hidden">
-                  <table className="w-full text-xs">
+                <div className="rounded-md border overflow-x-auto">
+                  <table className="w-full min-w-[420px] text-xs">
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="text-left px-3 py-1.5 font-medium">Kaynak</th>

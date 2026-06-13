@@ -1168,17 +1168,15 @@ export default function AdminLeadDiscovery() {
                                 >
                                   Kontak Düzenle
                                 </Button>
-                                {!c.teaserSubject && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs h-7 w-full"
-                                    onClick={() => generateTeaser.mutate(c.id)}
-                                    disabled={generateTeaser.isPending}
-                                  >
-                                    Teaser Üret
-                                  </Button>
-                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7 w-full"
+                                  onClick={() => generateTeaser.mutate(c.id)}
+                                  disabled={generateTeaser.isPending}
+                                >
+                                  {c.teaserSubject ? "Yeniden Üret" : "Teaser Üret"}
+                                </Button>
                                 {c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
                                   <Button
                                     size="sm"
@@ -1372,7 +1370,7 @@ export default function AdminLeadDiscovery() {
                               >
                                 Detay
                               </Button>
-                              {!c.teaserSubject && c.isQualified && (
+                              {c.isQualified && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -1380,7 +1378,7 @@ export default function AdminLeadDiscovery() {
                                   onClick={() => generateTeaser.mutate(c.id)}
                                   disabled={generateTeaser.isPending}
                                 >
-                                  Teaser
+                                  {c.teaserSubject ? "Yeniden Üret" : "Teaser"}
                                 </Button>
                               )}
                               {!!c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
@@ -2037,9 +2035,9 @@ export default function AdminLeadDiscovery() {
 
             {/* Aksiyonlar — sabit alt bar */}
             <div className="flex gap-2 px-4 py-3 border-t shrink-0 flex-wrap bg-background">
-              {detailCandidate.isQualified && !detailCandidate.teaserSubject && (
+              {detailCandidate.isQualified && (
                 <Button size="sm" variant="outline" onClick={() => { generateTeaser.mutate(detailCandidate.id); setDetailCandidate(null); }}>
-                  Teaser Üret
+                  {detailCandidate.teaserSubject ? "Teaser Yeniden Üret" : "Teaser Üret"}
                 </Button>
               )}
               {detailCandidate.isQualified && (
@@ -2083,6 +2081,13 @@ export default function AdminLeadDiscovery() {
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="outline" onClick={() => setTeaserPreview(null)}>Kapat</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { generateTeaser.mutate(teaserPreview.id); setTeaserPreview(null); }}
+                  disabled={generateTeaser.isPending}
+                >
+                  Yeniden Üret
+                </Button>
                 {!teaserPreview.teaserSentAt && teaserPreview.contactEmail && (
                   <Button
                     onClick={() => {

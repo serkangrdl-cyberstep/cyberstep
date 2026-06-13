@@ -1608,6 +1608,7 @@ async function startup() {
   await ensureNetgsmTables();
   await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
+  await ensureBadgeAndEmergingColumns();
   await ensureTechDiscoveryTable();
   await ensureIspTables();
   await ensureLeadCandidatesExtraColumns();
@@ -1880,6 +1881,26 @@ async function ensureOnboardingEmailColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS onboarding_d7_sent_at TIMESTAMP`);
 }
 
+async function ensureBadgeAndEmergingColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS badge_token TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS badge_enabled BOOLEAN NOT NULL DEFAULT TRUE`);
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS badge_impression_count INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE IF EXISTS cve_tracker ADD COLUMN IF NOT EXISTS is_emerging BOOLEAN DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE IF EXISTS cve_tracker ADD COLUMN IF NOT EXISTS severity_label TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS cve_tracker ADD COLUMN IF NOT EXISTS alert_sent_at TIMESTAMP`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS emerging_threat_alerts (
+      id SERIAL PRIMARY KEY,
+      cve_id VARCHAR(30) REFERENCES cve_tracker(cve_id),
+      customer_id INTEGER REFERENCES customers(id),
+      technology_matched VARCHAR(150),
+      sent_at TIMESTAMP,
+      email_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function ensureDomainScanPurchasesTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS domain_scan_purchases (
@@ -1897,6 +1918,13 @@ async function ensureDomainScanPurchasesTable() {
 }
 
 // ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:30'da) ────
+function startEmergingThreatCron() {
+  cron.schedule("0 */4 * * *", wrapCron("emerging_threats", "0 */4 * * *", async () => {
+    const { checkEmergingThreats } = await import("./services/emergingThreatService");
+    await checkEmergingThreats();
+  }));
+}
+
 function startInflationReminderCron() {
   cron.schedule("30 9 * * 1", wrapCron("inflation_reminder", "30 9 * * 1", async () => {
     try {
@@ -2101,6 +2129,7 @@ startup()
     startFreeScanFollowupCron();
     startIsrImapCron();
     startInflationReminderCron();
+    startEmergingThreatCron();
     startBlogAutopilotCron();
     startSocialMediaWeeklyCron();
     startDigestCron();

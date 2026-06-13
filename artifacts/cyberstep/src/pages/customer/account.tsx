@@ -8,7 +8,7 @@ import {
   Globe, ShoppingCart, Wrench, Activity, XCircle,
   Flame, Lock, BarChart2, TrendingUp, TrendingDown,
   ChevronDown, Map, MonitorCheck, LayoutDashboard,
-  RotateCcw,
+  RotateCcw, Copy, Award, Eye, EyeOff,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -899,6 +899,103 @@ function PlanFeaturesWidget({ plan, status }: { plan?: string | null; status: st
   );
 }
 
+// ─── Badge Widget ─────────────────────────────────────────────────────────────
+
+function BadgeWidget({ plan, status }: { plan?: string | null; status: string }) {
+  const isPaid = (plan === "full" || plan === "premium") && status === "active";
+  const { toast } = useToast();
+
+  const { data: badge, refetch } = useQuery<{ badgeToken: string; badgeEnabled: boolean; badgeImpressionCount: number }>({
+    queryKey: ["customer-badge"],
+    queryFn: () => fetch("/api/customer/badge", { credentials: "include" }).then(r => {
+      if (!r.ok) return Promise.reject(r);
+      return r.json();
+    }),
+    enabled: isPaid,
+    retry: false,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: () => fetch("/api/customer/badge/toggle", { method: "POST", credentials: "include" }).then(r => r.json()),
+    onSuccess: () => { void refetch(); },
+  });
+
+  if (!isPaid) return null;
+
+  const embedCode = badge?.badgeToken
+    ? `<a href="https://cyberstep.io" target="_blank" rel="noopener noreferrer"><img src="https://cyberstep.io/api/badge/${badge.badgeToken}" alt="CyberStep ile Korunuyor" width="160" height="44" /></a>`
+    : "";
+
+  return (
+    <Card className="bg-slate-900 border-slate-700">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <Award className="h-5 w-5 text-cyan-400" /> Güven Rozeti
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {badge ? (
+          <>
+            <div className="flex items-center gap-4 flex-wrap">
+              <img
+                src={`/api/badge/${badge.badgeToken}`}
+                alt="CyberStep Güven Rozeti"
+                width={160}
+                height={44}
+                className="rounded border border-slate-700"
+              />
+              <div>
+                <p className="text-sm text-slate-300">Web sitenizde kullanın</p>
+                <p className="text-xs text-slate-500 mt-0.5">{badge.badgeImpressionCount} görüntüleme</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-1.5">HTML Embed Kodu</p>
+              <div className="flex gap-2">
+                <code className="flex-1 text-xs bg-slate-800 text-slate-300 p-2.5 rounded border border-slate-700 overflow-x-auto whitespace-nowrap block">
+                  {embedCode}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 border-slate-600 text-slate-300 hover:bg-slate-700"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(embedCode);
+                    toast({ title: "Kopyalandı" });
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                onClick={() => toggleMutation.mutate()}
+                disabled={toggleMutation.isPending}
+              >
+                {badge.badgeEnabled
+                  ? <><EyeOff className="h-3.5 w-3.5 mr-1.5" />Gizle</>
+                  : <><Eye className="h-3.5 w-3.5 mr-1.5" />Etkinleştir</>
+                }
+              </Button>
+              <span className={`text-xs ${badge.badgeEnabled ? "text-emerald-400" : "text-slate-500"}`}>
+                {badge.badgeEnabled ? "Aktif — rozet görünür" : "Devre Dışı"}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-slate-400">Rozet yükleniyor...</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Account Settings Tab ─────────────────────────────────────────────────────
 
 function AccountSettingsTab({ customer }: {
@@ -1076,6 +1173,9 @@ function AccountSettingsTab({ customer }: {
 
       {/* Plan */}
       <PlanFeaturesWidget plan={customer.subscriptionPlan} status={customer.subscriptionStatus} />
+
+      {/* Güven Rozeti */}
+      <BadgeWidget plan={customer.subscriptionPlan} status={customer.subscriptionStatus} />
     </div>
   );
 }

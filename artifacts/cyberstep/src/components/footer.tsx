@@ -181,6 +181,7 @@ export function Footer() {
                 { label: lang === "en" ? "Domain Security Scan"       : "Alan Adı Güvenlik Taraması",  href: "/domain-tarama" },
                 { label: lang === "en" ? "KVKK DPA Contract Draft"    : "KVKK DPA Sözleşme Taslağı",  href: "/kvkk-dpa-olustur" },
                 { label: lang === "en" ? "Cyber Panic Button"         : "Siber Panik Butonu",           href: "/siber-panik" },
+                { label: lang === "en" ? "Partner Program"            : "İş Ortaklığı",                 href: "/is-ortakligi" },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>

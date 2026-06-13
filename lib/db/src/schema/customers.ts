@@ -24,6 +24,9 @@ export const customersTable = pgTable("customers", {
   deletionRequestedAt: timestamp("deletion_requested_at"),
   scheduledDeletionAt: timestamp("scheduled_deletion_at"),
   archivedAt: timestamp("archived_at"),
+  badgeToken: text("badge_token"),
+  badgeEnabled: boolean("badge_enabled").default(true),
+  badgeImpressionCount: integer("badge_impression_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

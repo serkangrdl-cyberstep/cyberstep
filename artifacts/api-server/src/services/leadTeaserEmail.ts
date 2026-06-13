@@ -197,6 +197,9 @@ function buildHtmlEmail(params: {
       <strong style="color:#E8EDF5">CyberStep.io Ekibi</strong><br>
       <span style="color:#5A6A80;font-size:11px">Türkiye merkezli siber güvenlik risk analizi platformu</span>
     </p>
+    <p style="margin:12px 0 0;color:#5A6A80;font-size:11px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px">
+      Bu rapor, <strong style="color:#00C8FF">Step AI</strong> — CyberStep'in yapay zeka güvenlik analisti — tarafından otomatik olarak hazırlanmış ve uzman ekibimiz tarafından gözden geçirilmiştir.
+    </p>
   </div>
 
   <div style="background:rgba(0,0,0,0.25);padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05)">

@@ -40,10 +40,26 @@ export const cveTrackerTable = pgTable("cve_tracker", {
   publishedAtLinkedin: timestamp("published_at_linkedin"),
   publishedAtX: timestamp("published_at_x"),
   notificationsSent: integer("notifications_sent").default(0),
+  isEmerging: boolean("is_emerging").default(false),
+  severityLabel: text("severity_label"),
+  alertSentAt: timestamp("alert_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => [
   index("idx_cve_tracker_status").on(t.status),
   index("idx_cve_tracker_detected").on(t.detectedAt),
+]);
+
+export const emergingThreatAlertsTable = pgTable("emerging_threat_alerts", {
+  id: serial("id").primaryKey(),
+  cveId: varchar("cve_id", { length: 30 }).references(() => cveTrackerTable.cveId),
+  customerId: integer("customer_id").references(() => customersTable.id),
+  technologyMatched: varchar("technology_matched", { length: 150 }),
+  sentAt: timestamp("sent_at"),
+  emailStatus: varchar("email_status", { length: 20 }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => [
+  index("idx_eta_status").on(t.emailStatus),
+  index("idx_eta_cve").on(t.cveId),
 ]);
 
 export const cveDomainMatchesTable = pgTable("cve_domain_matches", {

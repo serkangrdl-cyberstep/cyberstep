@@ -55,6 +55,7 @@ import NedenCyberStep from "./pages/neden-cyberstep";
 import Iletisim from "./pages/iletisim";
 import Kurumsal from "./pages/kurumsal";
 import PartnerPage from "./pages/partner";
+import IsOrtakligi from "./pages/is-ortakligi";
 import EuAiAct from "./pages/eu-ai-act";
 import EuAiActSorular from "./pages/eu-ai-act-sorular";
 import EuAiActRapor from "./pages/eu-ai-act-rapor";
@@ -182,6 +183,7 @@ import AdminServiceNow from "./pages/admin-panel/servicenow";
 import AdminIocKontroller from "./pages/admin-panel/ioc-kontroller";
 import AdminExposureScore from "./pages/admin-panel/exposure-score";
 import AdminApprovals from "./pages/admin-panel/approvals";
+import AdminEmergingThreats from "./pages/admin-panel/emerging-threats";
 import IocSorgu from "./pages/ioc-sorgu";
 import DnsIzleme from "./pages/hesabim/dns-izleme";
 import TedarikciPortfoyu from "./pages/hesabim/tedarikci-portfoyu";
@@ -422,6 +424,7 @@ function Router() {
       <Route path="/panel/isr/kurallar" component={AdminIsrKurallar} />
       <Route path="/panel/isr/vendors" component={AdminIsrVendors} />
       <Route path="/panel/isr" component={AdminIsrDashboard} />
+      <Route path="/panel/acil-tehditler" component={AdminEmergingThreats} />
       <Route path="/panel" component={AdminDashboard} />
 
       {/* Partner portal */}
@@ -438,6 +441,7 @@ function Router() {
             <Route path="/neden-cyberstep" component={NedenCyberStep} />
             <Route path="/kurumsal" component={Kurumsal} />
             <Route path="/partner" component={PartnerPage} />
+            <Route path="/is-ortakligi" component={IsOrtakligi} />
             <Route path="/eu-ai-act" component={EuAiAct} />
             <Route path="/eu-ai-act/sorular/:id" component={EuAiActSorular} />
             <Route path="/eu-ai-act/rapor/:id" component={EuAiActRapor} />

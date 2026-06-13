@@ -92,6 +92,7 @@ export async function ensureIspTables() {
 
 // ─── GET /api/admin-panel/lead-discovery/stats ───────────────────────────────
 router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
   const [total] = await db.select({ count: count() }).from(leadCandidatesTable);
   const [scanned] = await db.select({ count: count() }).from(leadCandidatesTable)
     .where(eq(leadCandidatesTable.scanStatus, "scanned"));
@@ -138,6 +139,7 @@ router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Reque
 // ─── GET /api/admin-panel/lead-discovery/certstream/status ──────────────────
 // GitHub Actions Certstream bridge istatistikleri — discovery_runs tablosundan
 router.get("/admin-panel/lead-discovery/certstream/status", requireAdmin, async (_req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
   const BRIDGE_SOURCES = ["ct_discovery", "certstream", "bgptools", "bgp_tools", "bgptools-bridge", "certstream-bridge"];
 
   const recentRuns = await db.select({

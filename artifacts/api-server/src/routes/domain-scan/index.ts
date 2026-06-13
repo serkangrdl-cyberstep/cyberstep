@@ -9,6 +9,7 @@ import { domainScansTable, scanLeadsTable, customersTable } from "@workspace/db"
 import { eq, desc, count, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
+import { checkAndConsumeQuota } from "../../services/apiQuotaTracker";
 
 const router = Router();
 
@@ -684,6 +685,10 @@ export async function checkShodan(domain: string): Promise<{
 } | null> {
   const apiKey = process.env["SHODAN_API_KEY"];
   if (!apiKey) return null;
+  if (!checkAndConsumeQuota("shodan")) {
+    logger.info({ domain }, "Shodan günlük kota aşıldı — tarama atlanıyor");
+    return null;
+  }
   const empty = (isp: string | null = null): { openPorts: ShodanPort[]; vulnCount: number; country: string | null; isp: string | null; cdn: CdnInfo; portRiskSummary: PortRiskSummary } => ({
     openPorts: [], vulnCount: 0, country: null, isp,
     cdn: detectCdn(isp),
@@ -736,6 +741,10 @@ async function checkVirusTotal(domain: string): Promise<{
 } | null> {
   const apiKey = process.env["VIRUSTOTAL_API_KEY"];
   if (!apiKey) return null;
+  if (!checkAndConsumeQuota("virustotal")) {
+    logger.info({ domain }, "VirusTotal günlük kota aşıldı — tarama atlanıyor");
+    return null;
+  }
   return new Promise((resolve) => {
     const req = https.request(
       { hostname: "www.virustotal.com", path: `/api/v3/domains/${encodeURIComponent(domain)}`, method: "GET", timeout: 10000, headers: { "x-apikey": apiKey, "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },

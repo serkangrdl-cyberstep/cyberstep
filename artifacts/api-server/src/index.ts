@@ -14,7 +14,8 @@ import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery"
 import { runRipeDiscovery } from "./services/ripeDiscovery";
 import { runNetcraftDiscovery } from "./services/leadDiscovery/netcraftDiscovery";
 import { runBgpToolsDiscovery } from "./services/leadDiscovery/bgpToolsDiscovery";
-import { qualifyPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
+import { qualifyPendingCandidates, preScreenPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
+import { generateEcosystemReport } from "./services/ecosystemReportService";
 import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
 import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn, cleanupStaleRunningJobs } from "./services/cronRegistry";
 import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
@@ -1483,6 +1484,30 @@ async function ensureWebEnrichColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS web_scraped_at TIMESTAMP`);
 }
 
+async function ensureLeadCandidatesTierColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS tier VARCHAR(20) DEFAULT 'tier3'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS last_scanned_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS scan_depth VARCHAR(20) DEFAULT 'lightweight'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS needs_manual_contact BOOLEAN DEFAULT false`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_lead_candidates_tier ON lead_candidates (tier)`);
+  await db.execute(sql`
+    UPDATE lead_candidates SET tier = 'tier1', last_scanned_at = updated_at, scan_depth = 'full'
+    WHERE scan_status = 'scanned' AND is_qualified = true AND tier IS NULL
+  `);
+  await db.execute(sql`
+    UPDATE lead_candidates SET tier = 'tier2', last_scanned_at = updated_at, scan_depth = 'full'
+    WHERE scan_status = 'scanned' AND is_qualified = false AND tier IS NULL
+  `);
+  await db.execute(sql`
+    UPDATE lead_candidates SET tier = 'tier3'
+    WHERE scan_status IN ('pending', 'failed') AND tier IS NULL
+  `);
+  await db.execute(sql`
+    UPDATE lead_candidates SET needs_manual_contact = true
+    WHERE is_qualified = true AND contact_email IS NULL AND needs_manual_contact = false
+  `);
+}
+
 async function ensurePerformanceIndexes() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_email_idx ON domain_scans (email)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_created_at_idx ON domain_scans (created_at DESC)`);
@@ -1575,6 +1600,7 @@ async function startup() {
   await ensureTechDiscoveryTable();
   await ensureLeadCandidatesExtraColumns();
   await ensureWebEnrichColumns();
+  await ensureLeadCandidatesTierColumns();
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
   await ensureSocialMediaTables();
   await ensureAdminPermissions();
@@ -2591,6 +2617,14 @@ startup()
 
     // ─── Lead Discovery: Kalifikasyon — Her 20 dakikada bir ─────────────────────
     // Limit 200/çalışma: 3×200×24=14400 aday/gün. Her aday max 25s tarama + 25 dk circuit breaker.
+    cron.schedule("*/5 * * * *", wrapCron("lead_prescreen", "*/5 * * * *", async () => {
+      if (!await cronIsEnabled("lead_prescreen")) { logger.info("Lead ön-eleme cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("lead_prescreen", 500);
+      const result = await preScreenPendingCandidates(limit);
+      return result.promoted;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Lead prescreen cron scheduled (her 5 dakika, limit 500)");
+
     cron.schedule("*/20 * * * *", wrapCron("lead_qual", "*/20 * * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
       const limit = await cronGetLimit("lead_qual", 200);
@@ -2598,6 +2632,14 @@ startup()
       return result.qualified;
     }), { timezone: "Europe/Istanbul" });
     logger.info("Lead qualification cron scheduled (her 20 dakika, limit 200)");
+
+    cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
+      if (!await cronIsEnabled("ecosystem_report")) { return 0; }
+      const report = await generateEcosystemReport(30);
+      logger.info({ totalScanned: report.intake.totalScanned, dmarcMissingPct: report.security.dmarcMissingPct }, "Haftalık ekosistem raporu üretildi");
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Ekosistem raporu cron scheduled (Pazartesi 09:00 Istanbul)");
 
     // ─── VulnCheck KEV — her gece 01:00 Istanbul ──────────────────────────────
     cron.schedule("0 1 * * *", wrapCron("vulncheck_kev", "0 1 * * *", async () => {
@@ -2852,7 +2894,9 @@ startup()
         { name: "fabric_fm_health",         thresholdHours: 25  },
         { name: "fabric_block_verify",      thresholdHours: 7   },
         // Hourly (2h threshold)
+        { name: "lead_prescreen",            thresholdHours: 1   },
         { name: "lead_qual",                thresholdHours: 2   },
+        { name: "ecosystem_report",         thresholdHours: 200 },
         { name: "verification_queue",       thresholdHours: 2   },
         { name: "platform_smoke_test",      thresholdHours: 2   },
         { name: "sla_proactive_warning",    thresholdHours: 1   },

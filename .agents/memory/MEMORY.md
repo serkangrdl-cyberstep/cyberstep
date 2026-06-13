@@ -42,3 +42,4 @@
 - [performDomainScan](domain-scan-direct.md) — exported from routes/domain-scan/index.ts; discoveryPipeline imports directly to bypass HTTP rate limiter; returns {id, overallScore, findings}
 - [AI Managed Systems](ai-managed-systems.md) — dunning/upsell/market-watch/platform-monitor/analytics/onboarding/KVKK; 8 new crons; db.execute returns QueryResult not array — use .rows[0]; chain .where() with and() not two .where() calls
 - [PDFKit bottom margin trap](pdfkit-bottom-margin.md) — always use margins:{bottom:0} with autoFirstPage:false; non-zero bottom triggers auto-page-add at y=H-margin even with explicit coords
+- [Katmanlı Tarama Mimarisi](tiered-scan-pipeline.md) — preScreenPendingCandidates (Tier3→Tier2) + qualifyPendingCandidates (Tier2→Tier1); DISABLE_APOLLO_HUNTER env flag; apiQuotaTracker.ts Shodan/VT günlük limit; ecosystem_report haftalık cron

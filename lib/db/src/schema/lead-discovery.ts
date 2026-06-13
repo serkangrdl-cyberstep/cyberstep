@@ -53,11 +53,16 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   scrapedAddress: text("scraped_address"),
   scrapedCompanyName: varchar("scraped_company_name", { length: 255 }),
   webScrapedAt: timestamp("web_scraped_at"),
+  tier: varchar("tier", { length: 20 }).default("tier3"),
+  lastScannedAt: timestamp("last_scanned_at"),
+  scanDepth: varchar("scan_depth", { length: 20 }).default("lightweight"),
+  needsManualContact: boolean("needs_manual_contact").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [
   index("idx_lead_candidates_status").on(t.scanStatus),
   index("idx_lead_candidates_qualified").on(t.isQualified),
+  index("idx_lead_candidates_tier").on(t.tier),
 ]);
 
 export const subdomainScoringRulesTable = pgTable("subdomain_scoring_rules", {

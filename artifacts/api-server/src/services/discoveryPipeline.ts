@@ -1,7 +1,12 @@
 /**
- * Full discovery → qualify → teaser pipeline.
- * Orchestrates crt.sh + Shodan scans, then qualifies via domain scan,
- * finds contacts via Apollo/Hunter, generates teaser emails via Claude.
+ * İki aşamalı lead discovery → qualify → teaser pipeline.
+ *
+ * Aşama 1 — Ön-eleme (preScreenPendingCandidates):
+ *   Sadece ucuz kontroller (domain eleme + liveness). Tier3 → Tier2.
+ *   Sık schedule edilebilir, yüksek batch limiti.
+ *
+ * Aşama 2 — Derin kalifikasyon (qualifyPendingCandidates):
+ *   Tam OSINT zinciri. Yalnızca Tier2 domainlere uygulanır. Tier2 → Tier1/Tier2.
  */
 import { db } from "@workspace/db";
 import { leadCandidatesTable, domainScansTable, customerTechStackTable } from "@workspace/db";
@@ -123,9 +128,19 @@ export async function runFullDiscoveryAndQualify(config: PipelineConfig = {}): P
   logger.info("=== Pipeline Tamamlandı ===");
 }
 
-export async function qualifyPendingCandidates(limit: number = 200): Promise<{ processed: number; qualified: number }> {
+// ─── FAZ 1: Ön-eleme (Tier 3 → Tier 2) ──────────────────────────────────────
+
+/**
+ * Sadece ucuz kontroller: domain eleme + liveness check.
+ * Tier3 domainleri hızlıca eleme veya Tier2'ye terfi ettirir.
+ * Tam OSINT zinciri çalıştırmaz.
+ */
+export async function preScreenPendingCandidates(limit: number = 500): Promise<{ processed: number; promoted: number; eliminated: number }> {
   const pending = await db.select().from(leadCandidatesTable)
-    .where(eq(leadCandidatesTable.scanStatus, "pending"))
+    .where(and(
+      eq(leadCandidatesTable.scanStatus, "pending"),
+      eq(leadCandidatesTable.tier, "tier3"),
+    ))
     .orderBy(
       desc(leadCandidatesTable.hasFortigate),
       desc(sql`(source_data->>'corporateScore')::int`),
@@ -133,40 +148,40 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
     )
     .limit(limit);
 
-  logger.info({ count: pending.length }, "Aday kalifikasyonu başlıyor");
+  logger.info({ count: pending.length }, "Ön-eleme başlıyor (Tier3 → Tier2)");
 
-  const MAX_RUNTIME_MS = 25 * 60 * 1000; // 25 dakika circuit breaker
-  const SCAN_TIMEOUT_MS = 25_000;         // tek domain taraması max 25s
+  const MAX_RUNTIME_MS = 8 * 60 * 1000;
   const batchStart = Date.now();
   let processedCount = 0;
-  let qualifiedCount = 0;
+  let promotedCount = 0;
+  let eliminatedCount = 0;
 
   for (const candidate of pending) {
-    // Circuit breaker: 15 dakika geçtiyse dur
     if (Date.now() - batchStart > MAX_RUNTIME_MS) {
-      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (15 dk) aşıldı, batch sonlandırılıyor");
+      logger.warn({ processed: processedCount, promoted: promotedCount }, "Ön-eleme: max süre (8 dk) aşıldı, batch sonlandırılıyor");
       break;
     }
 
     try {
-      // Eleme kontrolü — kamu TLD'leri ve kurum tiplerini atla
       const sourceOrg = (candidate.sourceData as Record<string, unknown> | null)?.["org"] as string | null ?? null;
       const exclusion = shouldExcludeFromPipeline(candidate.domain, sourceOrg);
       if (exclusion.exclude) {
-        logger.info({ domain: candidate.domain, reason: exclusion.reason }, "Kalifikasyon: domain eleme listesinde, atlanıyor");
-        await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
-          .where(eq(leadCandidatesTable.id, candidate.id));
+        logger.info({ domain: candidate.domain, reason: exclusion.reason }, "Ön-eleme: domain eleme listesinde, atlanıyor");
+        await db.update(leadCandidatesTable).set({
+          scanStatus: "failed",
+          updatedAt: new Date(),
+        }).where(eq(leadCandidatesTable.id, candidate.id));
         processedCount++;
-        await sleep(300);
+        eliminatedCount++;
+        await sleep(100);
         continue;
       }
 
-      // Liveness check — ölü siteleri domain scan'a sokmadan önce ele
       const liveness = await checkLiveness(candidate.domain);
       if (!liveness.isAlive) {
         logger.info(
-          { domain: candidate.domain, httpStatus: liveness.httpStatus, responseTimeMs: liveness.responseTimeMs },
-          "Kalifikasyon: site erişilemiyor, kapsam dışı bırakıldı",
+          { domain: candidate.domain, httpStatus: liveness.httpStatus },
+          "Ön-eleme: site erişilemiyor, elendi",
         );
         await db.update(leadCandidatesTable).set({
           scanStatus: "failed",
@@ -176,25 +191,81 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
           updatedAt: new Date(),
         }).where(eq(leadCandidatesTable.id, candidate.id));
         processedCount++;
-        await sleep(300);
+        eliminatedCount++;
+        await sleep(100);
         continue;
       }
 
-      // Canlı site — durumu kaydet ve taramaya geç
       await db.update(leadCandidatesTable).set({
         isAlive: true,
         httpStatus: liveness.httpStatus,
         responseTimeMs: liveness.responseTimeMs,
+        tier: "tier2",
+        updatedAt: new Date(),
+      }).where(eq(leadCandidatesTable.id, candidate.id));
+
+      processedCount++;
+      promotedCount++;
+    } catch (e) {
+      logger.warn({ domain: candidate.domain, err: String(e) }, "Ön-eleme hatası");
+      processedCount++;
+    }
+
+    await sleep(200);
+  }
+
+  logger.info({ processed: processedCount, promoted: promotedCount, eliminated: eliminatedCount }, "Ön-eleme batch tamamlandı");
+  return { processed: processedCount, promoted: promotedCount, eliminated: eliminatedCount };
+}
+
+// ─── FAZ 2: Derin kalifikasyon (Tier 2 → Tier 1 / reject) ───────────────────
+
+/**
+ * Tam OSINT zinciri — yalnızca Tier2 domainlere uygulanır.
+ * Geçen domainler Tier1'e terfi eder; geçemeyenler Tier2'de kalır (scanned+rejected).
+ */
+export async function qualifyPendingCandidates(limit: number = 200): Promise<{ processed: number; qualified: number }> {
+  const pending = await db.select().from(leadCandidatesTable)
+    .where(and(
+      eq(leadCandidatesTable.scanStatus, "pending"),
+      eq(leadCandidatesTable.tier, "tier2"),
+    ))
+    .orderBy(
+      desc(leadCandidatesTable.hasFortigate),
+      desc(sql`(source_data->>'corporateScore')::int`),
+      asc(leadCandidatesTable.createdAt),
+    )
+    .limit(limit);
+
+  logger.info({ count: pending.length }, "Derin kalifikasyon başlıyor (Tier2)");
+
+  const MAX_RUNTIME_MS = 25 * 60 * 1000;
+  const SCAN_TIMEOUT_MS = 25_000;
+  const batchStart = Date.now();
+  let processedCount = 0;
+  let qualifiedCount = 0;
+
+  const disableApolloHunter = process.env["DISABLE_APOLLO_HUNTER"] === "true";
+
+  for (const candidate of pending) {
+    if (Date.now() - batchStart > MAX_RUNTIME_MS) {
+      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (25 dk) aşıldı, batch sonlandırılıyor");
+      break;
+    }
+
+    try {
+      await db.update(leadCandidatesTable).set({
         scanStatus: "scanning",
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
 
-      // Domain taraması — max 25s timeout
       const scanResult = await withTimeout(runDomainScanInternal(candidate.domain), SCAN_TIMEOUT_MS, null);
 
       if (!scanResult) {
-        await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
-          .where(eq(leadCandidatesTable.id, candidate.id));
+        await db.update(leadCandidatesTable).set({
+          scanStatus: "failed",
+          updatedAt: new Date(),
+        }).where(eq(leadCandidatesTable.id, candidate.id));
         processedCount++;
         await sleep(1000);
         continue;
@@ -203,7 +274,6 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       const criticals = scanResult.findings.filter((f) => f.severity === "critical");
       const isQualified = scanResult.overallScore < 60;
 
-      // CVE breakdown hesapla ve sourceData'ya ekle
       const cveBreakdown = computeCVEBreakdown(scanResult.cveSummary);
       const existingSourceData = (candidate.sourceData as Record<string, unknown> | null) ?? {};
       const updatedSourceData = { ...existingSourceData, cveBreakdown };
@@ -215,6 +285,9 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         criticalFindings: criticals.length,
         findingHighlights: criticals.slice(0, 3).map((f) => f.title),
         isQualified,
+        tier: isQualified ? "tier1" : "tier2",
+        lastScannedAt: new Date(),
+        scanDepth: "full",
         sourceData: updatedSourceData,
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
@@ -232,7 +305,6 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         }>;
 
         if (services.length > 0) {
-          // Önceki shadow IT girişlerini temizle (re-scan senaryosu)
           await db.delete(customerTechStackTable).where(
             and(
               eq(customerTechStackTable.leadCandidateId, candidate.id),
@@ -269,36 +341,41 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       }
       qualifiedCount++;
 
-      // İletişim bul: Apollo → Hunter → WHOIS → Web scraping
+      // İletişim bul: (Apollo/Hunter devre dışıysa atla) → WHOIS → Web scraping
       if (!candidate.contactEmail) {
         try {
           let contactEmail: string | null = null;
           let contactName: string | null = null;
           let contactTitle: string | null = null;
-          let contactSource = "apollo";
+          let contactSource = "unknown";
 
-          // 1. Apollo
-          const apolloContacts = await apolloService.findDecisionMakers(candidate.domain);
-          if (apolloContacts.length > 0) {
-            const c = apolloContacts[0] as { email?: string; name?: string; title?: string };
-            contactEmail = c.email ?? null;
-            contactName = c.name ?? null;
-            contactTitle = c.title ?? null;
-          }
-
-          // 2. Hunter fallback
-          if (!contactEmail) {
-            const hunterResult = await hunterService.domainSearch(candidate.domain);
-            const top = hunterResult.emails[0] as { value?: string; first_name?: string; last_name?: string; position?: string } | undefined;
-            if (top) {
-              contactEmail = top.value ?? null;
-              contactName = [top.first_name, top.last_name].filter(Boolean).join(" ") || null;
-              contactTitle = top.position ?? null;
-              contactSource = "hunter";
+          if (!disableApolloHunter) {
+            // 1. Apollo
+            const apolloContacts = await apolloService.findDecisionMakers(candidate.domain);
+            if (apolloContacts.length > 0) {
+              const c = apolloContacts[0] as { email?: string; name?: string; title?: string };
+              contactEmail = c.email ?? null;
+              contactName = c.name ?? null;
+              contactTitle = c.title ?? null;
+              contactSource = "apollo";
             }
+
+            // 2. Hunter fallback
+            if (!contactEmail) {
+              const hunterResult = await hunterService.domainSearch(candidate.domain);
+              const top = hunterResult.emails[0] as { value?: string; first_name?: string; last_name?: string; position?: string } | undefined;
+              if (top) {
+                contactEmail = top.value ?? null;
+                contactName = [top.first_name, top.last_name].filter(Boolean).join(" ") || null;
+                contactTitle = top.position ?? null;
+                contactSource = "hunter";
+              }
+            }
+          } else {
+            logger.info({ domain: candidate.domain }, "Apollo/Hunter devre dışı (DISABLE_APOLLO_HUNTER=true), WHOIS'e geçiliyor");
           }
 
-          // 3. WHOIS fallback
+          // 3. WHOIS
           if (!contactEmail) {
             const whoisEmail = await whoisLookup(candidate.domain);
             if (whoisEmail) {
@@ -307,7 +384,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
             }
           }
 
-          // 4. Web scraping fallback
+          // 4. Web scraping (birincil yöntem TR için)
           if (!contactEmail) {
             const webContact = await scrapeContactEmail(candidate.domain);
             if (webContact) {
@@ -322,12 +399,23 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
               contactName,
               contactTitle,
               contactSource,
+              needsManualContact: false,
               updatedAt: new Date(),
             }).where(eq(leadCandidatesTable.id, candidate.id));
             logger.info({ domain: candidate.domain, source: contactSource }, "Kontak bulundu");
+          } else {
+            await db.update(leadCandidatesTable).set({
+              needsManualContact: true,
+              updatedAt: new Date(),
+            }).where(eq(leadCandidatesTable.id, candidate.id));
+            logger.info({ domain: candidate.domain }, "Kontak bulunamadı — manuel araştırma işaretlendi");
           }
         } catch (e) {
           logger.warn({ domain: candidate.domain, err: String(e) }, "İletişim bulma başarısız");
+          await db.update(leadCandidatesTable).set({
+            needsManualContact: true,
+            updatedAt: new Date(),
+          }).where(eq(leadCandidatesTable.id, candidate.id));
         }
         await sleep(500);
       }
@@ -342,11 +430,13 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         }
       });
 
-      logger.info({ domain: candidate.domain, criticals: criticals.length, score: scanResult.overallScore }, "Kalifikasyon geçti");
+      logger.info({ domain: candidate.domain, criticals: criticals.length, score: scanResult.overallScore }, "Kalifikasyon geçti → Tier1");
     } catch (e) {
       logger.error({ domain: candidate.domain, err: String(e) }, "Kalifikasyon hatası");
-      await db.update(leadCandidatesTable).set({ scanStatus: "failed" })
-        .where(eq(leadCandidatesTable.id, candidate.id));
+      await db.update(leadCandidatesTable).set({
+        scanStatus: "failed",
+        updatedAt: new Date(),
+      }).where(eq(leadCandidatesTable.id, candidate.id));
       processedCount++;
     }
 

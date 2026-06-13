@@ -113,6 +113,8 @@ interface LeadCandidate {
   scanId: number | null;
   wafDetected: boolean | null;
   confidenceScore: number | null;
+  tier: string | null;
+  ispOrganization: string | null;
 }
 
 interface SubdomainSummary {
@@ -1739,6 +1741,7 @@ export default function AdminLeadDiscovery() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Domain / Şirket</TableHead>
+                        <TableHead>Tier</TableHead>
                         <TableHead>Kaynak Detay</TableHead>
                         <TableHead className="text-right">Risk</TableHead>
                         <TableHead>Bulgular</TableHead>
@@ -1750,6 +1753,12 @@ export default function AdminLeadDiscovery() {
                     <TableBody>
                       {(candidatesData?.rows ?? []).map((c) => {
                         const sd = c.sourceData;
+                        const tierLabel = c.tier === "tier1" ? "T1" : c.tier === "tier2" ? "T2" : c.tier === "tier3" ? "T3" : "—";
+                        const tierCls = c.tier === "tier1"
+                          ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+                          : c.tier === "tier2"
+                          ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                          : "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700";
                         return (
                         <TableRow key={c.id}>
                           <TableCell>
@@ -1759,6 +1768,16 @@ export default function AdminLeadDiscovery() {
                               {!!c.hasFortigate && <span className="text-[10px] text-orange-600 font-medium">FortiGate</span>}
                               {c.isQualified && <span className="text-[10px] text-green-600 font-medium">Kalifikasyon</span>}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${tierCls}`}>
+                              {tierLabel}
+                            </span>
+                            {c.tier && (
+                              <div className="text-[9px] text-muted-foreground mt-0.5">
+                                {c.tier === "tier1" ? "Qualified" : c.tier === "tier2" ? "OSINT" : "Ön-eleme"}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="space-y-0.5">

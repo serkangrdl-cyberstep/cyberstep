@@ -1785,7 +1785,18 @@ export default function AdminLeadDiscovery() {
         <Dialog open={!!detailCandidate} onOpenChange={() => { setDetailCandidate(null); setFingerprintResult(null); }}>
           <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
             <DialogHeader className="px-4 pt-4 pb-2 shrink-0 border-b">
-              <DialogTitle className="font-mono text-base">{detailCandidate.domain}</DialogTitle>
+              <DialogTitle className="font-mono text-base flex items-center gap-2">
+                {detailCandidate.domain}
+                <a
+                  href={`https://${detailCandidate.domain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-sans font-normal text-blue-600 hover:underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Siteyi Aç ↗
+                </a>
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 text-sm overflow-y-auto flex-1 px-4 py-4">
               {/* Şirket bilgisi */}

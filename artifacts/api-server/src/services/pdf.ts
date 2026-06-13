@@ -539,31 +539,37 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.addPage(); // pageAdded tetiklenir → header + doc.y = 52
 
     // ── WAF/CDN Durumu Bilgi Kutusu ──────────────────────────────────────────
-    if (data.wafDetected && data.wafProvider) {
+    if (data.wafDetected) {
       const wafLabels: Record<string, string> = {
         cloudflare: "Cloudflare", f5: "F5 BIG-IP", akamai: "Akamai",
         imperva: "Imperva", sucuri: "Sucuri", aws_waf: "AWS WAF", fortinet: "Fortinet FortiWeb",
       };
-      const wafName = wafLabels[data.wafProvider] ?? data.wafProvider;
+      const wafName = data.wafProvider ? (wafLabels[data.wafProvider] ?? data.wafProvider) : "WAF/CDN";
       const confPct = data.confidenceScore ?? null;
-      const isLowConf = confPct != null && confPct < 70;
-      const boxBg: [number, number, number]     = isLowConf ? [254, 240, 240] : [235, 245, 255];
-      const boxBorder: [number, number, number] = isLowConf ? [220, 38, 38]   : [59, 130, 246];
+      const isPartialVis = confPct != null && confPct < 85;
+      // Amber (#FFF6E8 / #F5A623) when partial visibility, blue otherwise
+      const boxBg: [number, number, number]     = isPartialVis ? [255, 246, 232] : [235, 245, 255];
+      const boxBorder: [number, number, number] = isPartialVis ? [245, 166, 35]  : [59, 130, 246];
+      const titleColor: [number, number, number] = isPartialVis ? [180, 83, 9]   : [30, 64, 175];
       const wbY = doc.y;
-      doc.rect(MARGIN, wbY, CONTENT_W, 42).fill(boxBg);
-      doc.rect(MARGIN, wbY, 3, 42).fill(boxBorder);
-      doc.fillColor(boxBorder).fontSize(9).font(FONT_BOLD)
+      doc.rect(MARGIN, wbY, CONTENT_W, 52).fill(boxBg);
+      doc.rect(MARGIN, wbY, 3, 52).fill(boxBorder);
+      doc.fillColor(titleColor).fontSize(9).font(FONT_BOLD)
         .text(
-          `${wafName} WAF Aktif${confPct != null ? `  —  Tarama Güvenilirliği %${confPct}` : ""}`,
+          `${wafName} WAF Aktif${confPct != null ? `  —  Tarama Görünürlüğü %${confPct}` : ""}${isPartialVis ? "  (Kısmi Görünürlük)" : ""}`,
           MARGIN + 12, wbY + 6, { width: CONTENT_W - 18, lineBreak: false }
         );
-      doc.fillColor([50, 70, 90]).fontSize(8).font(FONT_REGULAR)
+      doc.fillColor([50, 70, 90] as [number,number,number]).fontSize(8).font(FONT_REGULAR)
         .text(
-          "Tam güvenilir: E-posta güvenliği (SPF/DMARC/DKIM), SSL sertifikası, veri sızıntısı, kara liste. " +
-          "Doğrulama önerilir: HTTP başlıkları ve CVE/port bulguları (WAF etkili).",
-          MARGIN + 12, wbY + 22, { width: CONTENT_W - 18 }
+          "Tam güvenilir: E-posta güvenliği (SPF/DMARC/DKIM), SSL sertifikası, veri sızıntısı, kara liste.",
+          MARGIN + 12, wbY + 22, { width: CONTENT_W - 18, lineBreak: false }
         );
-      doc.y = wbY + 50;
+      doc.fillColor([80, 60, 10] as [number,number,number]).fontSize(8).font(FONT_REGULAR)
+        .text(
+          "Doğrulama önerilir: Açık portlar, sürüm bilgileri ve CVE eşleşmeleri WAF nedeniyle kısmi olabilir.",
+          MARGIN + 12, wbY + 34, { width: CONTENT_W - 18, lineBreak: false }
+        );
+      doc.y = wbY + 60;
     }
 
     // ── Origin IP Keşif Durumu ────────────────────────────────────────────────

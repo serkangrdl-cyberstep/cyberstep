@@ -143,6 +143,7 @@ interface DomainScan {
   safeBrowsingFlagged: boolean | null;
   wafDetected: boolean | null;
   wafProvider: string | null;
+  confidenceScore: number | null;
   ctSubdomainCount: number;
   ctSubdomains: string[];
   sslLabsGrade: string | null;
@@ -2163,6 +2164,11 @@ export default function AdminLeadDiscovery() {
                         {candidateDomainScan.wafDetected && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-blue-50 text-blue-700 border-blue-200">
                             WAF: {candidateDomainScan.wafProvider ?? "Tespit Edildi"}
+                          </span>
+                        )}
+                        {candidateDomainScan.confidenceScore != null && candidateDomainScan.confidenceScore < 85 && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border bg-amber-50 text-amber-800 border-amber-300" title="WAF/CDN nedeniyle tarama kısmi görünürlükle yapıldı. Açık port ve CVE bulguları için ek doğrulama önerilir.">
+                            Kısmi Görünürlük ({candidateDomainScan.confidenceScore}/100)
                           </span>
                         )}
                       </div>

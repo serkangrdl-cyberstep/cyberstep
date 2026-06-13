@@ -9,7 +9,7 @@
  * - Pasif tarama şeffaflık notu
  */
 import { db } from "@workspace/db";
-import { leadCandidatesTable } from "@workspace/db";
+import { leadCandidatesTable, domainScansTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { logger } from "../lib/logger";
@@ -81,6 +81,37 @@ Kurallar:
   }
 }
 
+function buildConfidenceDisclaimer(scan: {
+  wafDetected: boolean;
+  wafProvider: string | null;
+  confidenceScore: number | null;
+}): string {
+  if (!scan.wafDetected || !scan.confidenceScore || scan.confidenceScore >= 85) return "";
+
+  const providerText = scan.wafProvider
+    ? `${scan.wafProvider} altyapısı`
+    : "bir güvenlik duvarı/CDN";
+
+  return `
+  <div style="margin:0 32px 20px;background:#FFF6E8;border:1px solid #F5A623;border-radius:8px;padding:16px 18px">
+    <div style="color:#F5A623;font-weight:700;font-size:12px;margin-bottom:8px;letter-spacing:0.3px">
+      TARAMA GÖRÜNÜRLÜĞÜ HAKKINDA
+    </div>
+    <p style="margin:0 0 8px;color:#1A2B45;font-size:12px;line-height:1.6">
+      Bu domain <strong>${providerText}</strong> arkasında çalışıyor. Bu durumda:
+    </p>
+    <p style="margin:0 0 6px;color:#1A2B45;font-size:12px;line-height:1.6">
+      <span style="color:#22863a;font-weight:600">Tam güvenilir:</span> E-posta güvenliği (SPF/DKIM/DMARC) ve SSL sertifika bulguları — bunlar DNS ve sertifika katmanından doğrudan okunur.
+    </p>
+    <p style="margin:0 0 8px;color:#1A2B45;font-size:12px;line-height:1.6">
+      <span style="color:#B45309;font-weight:600">Doğrulama önerilir:</span> Web sunucusu/uygulama katmanına dair bulgular (açık portlar, sürüm bilgileri, CVE eşleşmeleri) ${providerText} tarafından maskelenmiş olabilir.
+    </p>
+    <p style="margin:0;color:#5A6A80;font-size:11px;line-height:1.5">
+      Bu rapor halka açık OSINT verilerine dayalı ön değerlendirmedir. Kesin analiz için iç ağdan yapılan bir tarama önerilir — CyberStep ekibi bu hizmeti de sunmaktadır.
+    </p>
+  </div>`;
+}
+
 function buildHtmlEmail(params: {
   salutation: string;
   domain: string;
@@ -89,12 +120,22 @@ function buildHtmlEmail(params: {
   findingSeverity: string;
   impactExplanation: string;
   reportUrl: string;
+  wafDetected?: boolean;
+  wafProvider?: string | null;
+  confidenceScore?: number | null;
 }): string {
   const { label: scoreText, color: scoreColor } = scoreStyle(params.score);
   const scanDate = new Date().toLocaleDateString("tr-TR", {
     day: "numeric",
     month: "long",
     year: "numeric",
+  });
+
+  const isPartialVisibility = params.wafDetected && params.confidenceScore != null && params.confidenceScore < 85;
+  const disclaimer = buildConfidenceDisclaimer({
+    wafDetected: params.wafDetected ?? false,
+    wafProvider: params.wafProvider ?? null,
+    confidenceScore: params.confidenceScore ?? null,
   });
 
   return `
@@ -120,7 +161,9 @@ function buildHtmlEmail(params: {
       </div>
       <div style="width:1px;height:44px;background:rgba(255,255,255,0.1);flex-shrink:0"></div>
       <div style="flex:1">
-        <div style="color:#7B8FAF;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">Genel Risk Skoru</div>
+        <div style="color:#7B8FAF;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">
+          Genel Risk Skoru${isPartialVisibility ? ' <span style="background:#F5A623;color:#1A2B45;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700">Kısmi Görünürlük</span>' : ''}
+        </div>
         <div style="color:#A8B8D0;font-size:12px;line-height:1.5">Halka açık DNS, sertifika ve ağ kayıtları analiz edilerek hesaplandı</div>
       </div>
     </div>
@@ -136,6 +179,8 @@ function buildHtmlEmail(params: {
       Bu tarama, halka açık DNS kayıtları, sertifika şeffaflık logları ve ağ keşif verileri üzerinden tamamen pasif olarak gerçekleştirildi — sisteminize herhangi bir erişim sağlanmadı.
     </p>
   </div>
+
+  ${disclaimer}
 
   <div style="padding:0 32px 20px">
     <p style="margin:0 0 16px;color:#A8B8D0;font-size:13px;line-height:1.65">
@@ -183,6 +228,26 @@ export async function generateLeadTeaserEmail(
     return;
   }
 
+  // WAF/confidence verisi — candidate.scanId üzerinden domain_scans'tan çekiliyor
+  let wafDetected = false;
+  let wafProvider: string | null = null;
+  let confidenceScore: number | null = null;
+  if (candidate.scanId) {
+    const [scan] = await db
+      .select({
+        wafDetected: domainScansTable.wafDetected,
+        wafProvider: domainScansTable.wafProvider,
+        confidenceScore: domainScansTable.confidenceScore,
+      })
+      .from(domainScansTable)
+      .where(eq(domainScansTable.id, candidate.scanId));
+    if (scan) {
+      wafDetected = scan.wafDetected ?? false;
+      wafProvider = scan.wafProvider ?? null;
+      confidenceScore = scan.confidenceScore ?? null;
+    }
+  }
+
   const salutation = candidate.contactName
     ? `Sayın ${candidate.contactName},`
     : `Sayın ${candidate.companyName ? candidate.companyName + " Yöneticisi," : "Yetkili,"}`;
@@ -207,6 +272,9 @@ export async function generateLeadTeaserEmail(
     findingSeverity: topFinding.severity,
     impactExplanation,
     reportUrl,
+    wafDetected,
+    wafProvider,
+    confidenceScore,
   });
 
   await db

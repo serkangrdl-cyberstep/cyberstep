@@ -140,6 +140,25 @@ export type DomainScanResultHibpBreachesItem = { [key: string]: unknown };
 
 export type DomainScanResultShadowItServicesItem = { [key: string]: unknown };
 
+export type DomainScanResultOrphanedAssetsItemRisk = typeof DomainScanResultOrphanedAssetsItemRisk[keyof typeof DomainScanResultOrphanedAssetsItemRisk];
+
+
+export const DomainScanResultOrphanedAssetsItemRisk = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export type DomainScanResultOrphanedAssetsItem = {
+  subdomain?: string;
+  ip?: string;
+  isWafProtected?: boolean;
+  httpAccessible?: boolean;
+  httpsAccessible?: boolean;
+  risk?: DomainScanResultOrphanedAssetsItemRisk;
+  reason?: string;
+};
+
 export interface DomainScanResult {
   id: number;
   domain: string;
@@ -165,6 +184,12 @@ export interface DomainScanResult {
   blacklisted: boolean;
   blacklistCount: number;
   shadowItServices: DomainScanResultShadowItServicesItem[];
+  /** @nullable */
+  asnNumber?: string | null;
+  /** @nullable */
+  asnName?: string | null;
+  /** @nullable */
+  orphanedAssets?: DomainScanResultOrphanedAssetsItem[] | null;
   /** @nullable */
   domainAiSuggestions?: string | null;
   createdAt: string;

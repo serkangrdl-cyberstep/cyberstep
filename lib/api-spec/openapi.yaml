@@ -845,6 +845,30 @@ components:
           type: array
           items:
             type: object
+        asnNumber:
+          type: ["string", "null"]
+        asnName:
+          type: ["string", "null"]
+        orphanedAssets:
+          type: ["array", "null"]
+          items:
+            type: object
+            properties:
+              subdomain:
+                type: string
+              ip:
+                type: string
+              isWafProtected:
+                type: boolean
+              httpAccessible:
+                type: boolean
+              httpsAccessible:
+                type: boolean
+              risk:
+                type: string
+                enum: [high, medium, low]
+              reason:
+                type: string
         domainAiSuggestions:
           type: ["string", "null"]
         createdAt:

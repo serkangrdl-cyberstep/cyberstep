@@ -487,6 +487,17 @@ export const GetReportResponse = zod.object({
   "shadowItServices": zod.array(zod.object({
 
 }).passthrough()),
+  "asnNumber": zod.string().nullish(),
+  "asnName": zod.string().nullish(),
+  "orphanedAssets": zod.array(zod.object({
+  "subdomain": zod.string().optional(),
+  "ip": zod.string().optional(),
+  "isWafProtected": zod.boolean().optional(),
+  "httpAccessible": zod.boolean().optional(),
+  "httpsAccessible": zod.boolean().optional(),
+  "risk": zod.enum(['high', 'medium', 'low']).optional(),
+  "reason": zod.string().optional()
+})).nullish(),
   "domainAiSuggestions": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 }),zod.null()]).optional(),

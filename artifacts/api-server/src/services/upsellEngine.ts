@@ -179,7 +179,8 @@ export async function runUpsellEngine(): Promise<number> {
 
   for (const customer of customers) {
     for (const rule of UPSELL_RULES) {
-      if (await hasRecentUpsell(customer.id, rule.id, 30)) continue;
+      const recentlySent = await hasRecentUpsell(customer.id, rule.id, 30).catch(() => true);
+      if (recentlySent) continue;
 
       const shouldTrigger = await rule.trigger(customer.id).catch(() => false);
       if (!shouldTrigger) continue;

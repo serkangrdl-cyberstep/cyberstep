@@ -1,9 +1,9 @@
 /**
- * BGP.tools tabanlı Türk domain keşfi — API key gerektirmez.
+ * RIPE stat tabanlı Türk domain keşfi — API key gerektirmez.
  *
  * Yaklaşım:
- *   1. bgp.tools/country/TR.json → Türkiye (TR) ASN listesi
- *   2. İlk 20 TR ASN için bgp.tools/as/{asn}.json → IPv4 prefix listesi
+ *   1. stat.ripe.net/country-resource-list?resource=TR → Türkiye ASN listesi
+ *   2. Her ASN için stat.ripe.net/announced-prefixes → IPv4 prefix listesi
  *   3. Her ASN'den max 3 prefix, toplam max 60 prefix
  *   4. Her prefix'ten IP örneklemesi (/24 → 4 IP; daha geniş → 2 IP)
  *   5. HackerTarget reverse DNS → .tr hostname tespiti
@@ -11,7 +11,7 @@
  *
  * Kapasite: ~200 IP / çalışma → 40-80 yeni TR domain / gün
  * Rate limit: HackerTarget ~100 istek/gün → toplam IP sayısı buna göre sınırlanır
- * NOT: Replit cron'u devre dışı; GitHub Actions bridge (bgptools-bridge.yml) devraldı.
+ * NOT: bgp.tools REST API'si 404 döndüğünden RIPE stat'a geçildi (2026-06-13).
  */
 import axios from "axios";
 import { db } from "@workspace/db";
@@ -20,12 +20,12 @@ import { eq, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { shouldExcludeFromPipeline } from "../leadScoringService";
 
-// /asns.json → 404/403; güncel endpoint: /country/TR.json
-const BGP_ASNS_URL = "https://bgp.tools/country/TR.json";
-const BGP_AS_URL = (asn: number) => `https://bgp.tools/as/${asn}.json`;
+// RIPE stat API — bgp.tools 404/403 döndüğünden geçildi
+const RIPE_COUNTRY_URL = "https://stat.ripe.net/data/country-resource-list/data.json";
+const RIPE_PREFIXES_URL = (asn: number) =>
+  `https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS${asn}&starttime=-1w`;
 const HT_REVERSE_URL = "https://api.hackertarget.com/reverseiplookup/";
-// bgp.tools descriptive User-Agent zorunlu (anonim UA → 403)
-const BGP_UA = "CyberStep-Research/1.0 bgp.tools (contact@cyberstep.io)";
+const BGP_UA = "CyberStep-Research/1.0 contact@cyberstep.io";
 
 const MAX_ASNS = 20;
 const MAX_PREFIXES_PER_ASN = 3;
@@ -37,10 +37,6 @@ interface AsnEntry {
   country?: string;
 }
 
-interface AsnDetail {
-  prefixes?: string[];
-  ipv4_prefixes?: Array<{ prefix?: string }>;
-}
 
 function extractRootDomain(hostname: string): string {
   const clean = hostname.replace(/^\*\./, "").toLowerCase();
@@ -83,41 +79,39 @@ function sampleIpsFromPrefix(cidr: string): string[] {
 }
 
 async function fetchTrAsns(): Promise<AsnEntry[]> {
-  const resp = await axios.get(BGP_ASNS_URL, {
+  const resp = await axios.get(RIPE_COUNTRY_URL, {
+    params: { resource: "TR" },
     timeout: 20_000,
     headers: { "User-Agent": BGP_UA },
   });
-  // /country/TR.json → { asns: [{ asn, name, ... }] }
-  // /asns.json (eski) → [{ asn, country, name, ... }]
-  const raw = resp.data;
-  const list: AsnEntry[] = Array.isArray(raw)
-    ? raw
-    : Array.isArray(raw?.asns)
-      ? raw.asns
-      : [];
-  // /country/TR.json zaten sadece TR ASN'lerini döner; /asns.json için ülke filtresi
-  return list.filter((a) => !a.country || a.country === "TR" || a.country === "tr").slice(0, MAX_ASNS);
+  // RIPE stat response: { data: { resources: { asn: ["1234", "5678-5680", ...] } } }
+  const asnRanges: string[] = resp.data?.data?.resources?.asn ?? [];
+  const result: AsnEntry[] = [];
+  for (const range of asnRanges) {
+    const parts = range.split("-");
+    const start = parseInt(parts[0] ?? "", 10);
+    if (isNaN(start)) continue;
+    result.push({ asn: start });
+    if (result.length >= MAX_ASNS) break;
+  }
+  return result;
 }
 
 async function fetchAsnPrefixes(asn: number): Promise<string[]> {
   try {
-    const resp = await axios.get(BGP_AS_URL(asn), {
+    const resp = await axios.get(RIPE_PREFIXES_URL(asn), {
       timeout: 10_000,
       headers: { "User-Agent": BGP_UA },
     });
-    const data = resp.data as AsnDetail;
-    // bgp.tools may return prefixes as string array or as objects
-    const raw: string[] = [
-      ...(Array.isArray(data?.prefixes) ? (data.prefixes as string[]) : []),
-      ...(Array.isArray(data?.ipv4_prefixes)
-        ? (data.ipv4_prefixes as Array<{ prefix?: string }>).map((p) => p.prefix ?? "").filter(Boolean)
-        : []),
-    ];
-    // IPv4 only (/8–/28)
-    return raw.filter((p) => {
-      const bits = parseInt(p.split("/")[1] ?? "0", 10);
-      return bits >= 8 && bits <= 28 && !p.includes(":");
-    });
+    // RIPE stat response: { data: { prefixes: [{ prefix: "1.2.3.0/24", ... }] } }
+    const prefixes: Array<{ prefix?: string }> = resp.data?.data?.prefixes ?? [];
+    return prefixes
+      .map((p) => p.prefix ?? "")
+      .filter((p) => {
+        if (!p || p.includes(":")) return false; // IPv6 atla
+        const bits = parseInt(p.split("/")[1] ?? "0", 10);
+        return bits >= 8 && bits <= 28;
+      });
   } catch {
     return [];
   }

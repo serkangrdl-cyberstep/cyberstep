@@ -51,14 +51,21 @@ export async function fetchVulnCheckKEV(): Promise<VulnCheckResult> {
     return { total: 0, upserted: 0, edgeCount: 0, ransomwareCount: 0 };
   }
 
-  const response = await axios.get(`${VULNCHECK_BASE}/index/vulncheck-kev`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: "application/json",
-    },
-    params: { limit: 500 },
-    timeout: 30_000,
-  });
+  let response;
+  try {
+    response = await axios.get(`${VULNCHECK_BASE}/index/vulncheck-kev`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+      params: { limit: 500 },
+      timeout: 45_000,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ msg }, "VulnCheck KEV API ulaşılamadı — atlandı");
+    return { total: 0, upserted: 0, edgeCount: 0, ransomwareCount: 0 };
+  }
 
   const vulnerabilities = (response.data?.data as unknown[]) ?? [];
   let upserted = 0;

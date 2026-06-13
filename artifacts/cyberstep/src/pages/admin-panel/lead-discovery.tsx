@@ -888,6 +888,19 @@ export default function AdminLeadDiscovery() {
     },
   });
 
+  const startPrescreen = useMutation({
+    mutationFn: () =>
+      fetch(`${BASE}/lead-discovery/prescreen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 500 }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      toast({ description: "Ön-eleme başlatıldı. 500 aday işlenecek." });
+      qc.invalidateQueries({ queryKey: ["lead-stats"] });
+    },
+  });
+
   const generateTeaser = useMutation({
     mutationFn: (id: number) =>
       fetch(`${BASE}/lead-discovery/candidates/${id}/teaser`, { method: "POST" }).then((r) => r.json()),
@@ -1256,68 +1269,156 @@ export default function AdminLeadDiscovery() {
 
         {/* ── PIPELINE TAB ─────────────────────────────────────────────── */}
         <TabsContent value="pipeline">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tam Pipeline</CardTitle>
-                <CardDescription>crt.sh + Shodan tarama → Kalifikasyon → Teaser uretimi</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {[
-                    ["Ön-eleme Bekleyen", stats?.pendingTier3 ?? 0],
-                    ["Ön-elemede", stats?.prescreening ?? 0],
-                    ["Nitelendirme Bekleyen", stats?.pendingTier2 ?? 0],
-                    ["Taranıyor", stats?.scanning ?? 0],
-                    ["Tarandı", stats?.scanned ?? 0],
-                    ["Gönderildi", stats?.teaserSent ?? 0],
-                  ].map(([l, v]) => (
-                    <div key={String(l)} className="flex justify-between bg-muted/40 rounded px-3 py-2">
-                      <span className="text-muted-foreground">{l}</span>
-                      <span className="font-bold">{v}</span>
+          <div className="space-y-4">
+            {/* Akış göstergesi */}
+            <div className="flex items-center gap-1 text-xs text-muted-foreground overflow-x-auto pb-1">
+              {["Ham Veri (crt.sh/Shodan/CT Bridge)", "Ön-eleme", "Nitelendirme (OSINT)", "Qualified Lead"].map((s, i, arr) => (
+                <div key={s} className="flex items-center gap-1 shrink-0">
+                  <span className="bg-muted rounded px-2 py-0.5 font-medium">{s}</span>
+                  {i < arr.length - 1 && <span className="text-muted-foreground/50">→</span>}
+                </div>
+              ))}
+            </div>
+
+            {/* Tier kartları */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              {/* TIER 3 — Ön-eleme */}
+              <Card className="border-orange-200 dark:border-orange-900">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 rounded px-2 py-0.5">Aşama 1</span>
+                    <CardTitle className="text-base">Ön-eleme</CardTitle>
+                  </div>
+                  <CardDescription className="text-xs">
+                    crt.sh, Shodan ve CT Bridge'den gelen ham domain'lerin canlı olup olmadığı HTTP isteğiyle test edilir. Cevap vermeyen, 4xx/5xx dönen veya bağlantı reddeden domainler kuyruktan çıkarılır. Geçenler Aşama 2'ye alınır.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between">
+                      <span className="text-muted-foreground">Kuyrukta</span>
+                      <span className="font-bold text-orange-600">{(stats?.pendingTier3 ?? 0).toLocaleString("tr-TR")}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between">
+                      <span className="text-muted-foreground">İşlemde</span>
+                      <span className="font-bold">{(stats?.prescreening ?? 0).toLocaleString("tr-TR")}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 space-y-0.5">
+                    <div>Otomatik: her 5 dakikada 500 aday</div>
+                    <div>Eleme kriterleri: timeout, 404, 410, 5xx, bağlantı hatası</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => startPrescreen.mutate()}
+                    disabled={startPrescreen.isPending}
+                  >
+                    {startPrescreen.isPending ? "Çalışıyor..." : "Ön-elemeyi Çalıştır (500 aday)"}
+                  </Button>
+                </CardContent>
+              </Card>
 
-                <Button
-                  className="w-full"
-                  onClick={() => startFull.mutate()}
-                  disabled={startFull.isPending}
-                >
-                  {startFull.isPending ? "Baslatiliyor..." : "Tam Pipeline Basalt"}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Tahmini sure: 2-3 saat (50 domain icin). Arka planda calisir.
-                </p>
-              </CardContent>
-            </Card>
+              {/* TIER 2 — Kalifikasyon */}
+              <Card className="border-blue-200 dark:border-blue-900">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded px-2 py-0.5">Aşama 2</span>
+                    <CardTitle className="text-base">Kalifikasyon</CardTitle>
+                  </div>
+                  <CardDescription className="text-xs">
+                    Tam OSINT zinciri: DNS kayıtları, SSL sertifikası analizi, Shodan port/servis tespiti, VirusTotal itibar, HIBP veri ihlali, shadow IT tespiti ve CVE eşleştirmesi. Risk skoru hesaplanır — skor &lt; 60 olan adaylar nitelendirilerek lead olarak işaretlenir.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between">
+                      <span className="text-muted-foreground">Kuyrukta</span>
+                      <span className="font-bold text-blue-600">{(stats?.pendingTier2 ?? 0).toLocaleString("tr-TR")}</span>
+                    </div>
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between">
+                      <span className="text-muted-foreground">Tarandı</span>
+                      <span className="font-bold">{(stats?.scanned ?? 0).toLocaleString("tr-TR")}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 space-y-0.5">
+                    <div>Otomatik: her 20 dakikada 20 aday</div>
+                    <div>Kota: Shodan 100/gün, VirusTotal 500/gün</div>
+                    <div>Nitelendirme eşiği: risk skoru &lt; 60</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => startQualify.mutate()}
+                    disabled={startQualify.isPending}
+                  >
+                    {startQualify.isPending ? "Çalışıyor..." : "Kalifikasyonu Çalıştır (20 aday)"}
+                  </Button>
+                </CardContent>
+              </Card>
 
+              {/* TIER 1 — Qualified */}
+              <Card className="border-green-200 dark:border-green-900">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded px-2 py-0.5">Aşama 3</span>
+                    <CardTitle className="text-base">Qualified Lead</CardTitle>
+                  </div>
+                  <CardDescription className="text-xs">
+                    Kalifikasyonu geçmiş adaylar. Apollo ve Hunter.io üzerinden iletişim bilgisi aranır, bulunan adaylar için Claude AI ile kişiselleştirilmiş teaser e-postası üretilir.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between">
+                      <span className="text-muted-foreground">Toplam</span>
+                      <span className="font-bold text-green-600">{(stats?.qualified ?? 0).toLocaleString("tr-TR")}</span>
+                    </div>
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between">
+                      <span className="text-muted-foreground">Contact Bulundu</span>
+                      <span className="font-bold">{(stats?.withContact ?? 0).toLocaleString("tr-TR")}</span>
+                    </div>
+                    <div className="bg-muted/40 rounded px-3 py-2 flex justify-between col-span-2">
+                      <span className="text-muted-foreground">Teaser Gönderildi</span>
+                      <span className="font-bold">{(stats?.teaserSent ?? 0).toLocaleString("tr-TR")}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 space-y-0.5">
+                    <div>Contact: Apollo API → Hunter.io fallback</div>
+                    <div>Teaser: Claude claude-sonnet-4-6 ile üretilir</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => startQualify.mutate()}
+                    disabled={startQualify.isPending}
+                  >
+                    {startQualify.isPending ? "Çalışıyor..." : "Tam Pipeline Başlat"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tam pipeline butonu */}
             <Card>
-              <CardHeader>
-                <CardTitle>Sadece Kalifikasyon</CardTitle>
-                <CardDescription>
-                  Yeni tarama yapmadan bekleyen adaylari sira, qualify, teaser.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-muted/40 rounded-md p-3 text-sm">
-                  <div className="font-medium mb-2">Kalifikasyon kriterleri</div>
-                  <ul className="space-y-1 text-muted-foreground text-xs">
-                    <li>• En az 1 kritik guvenlik acigi bulunmali</li>
-                    <li>• Genel risk skoru ≥ 40/100</li>
-                    <li>• Iletisim: Apollo → Hunter fallback</li>
-                    <li>• Teaser: Claude AI ile kisisel e-posta</li>
-                  </ul>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Tam Pipeline (crt.sh + Shodan → Kalifikasyon)</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Yeni domain taraması yapar, ardından sıradaki 20 adayı qualify eder. Tahmini süre: 2-3 saat.</div>
+                  </div>
+                  <Button
+                    onClick={() => startFull.mutate()}
+                    disabled={startFull.isPending}
+                    size="sm"
+                  >
+                    {startFull.isPending ? "Başlatılıyor..." : "Tam Pipeline Başlat"}
+                  </Button>
                 </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => startQualify.mutate()}
-                  disabled={startQualify.isPending}
-                >
-                  {startQualify.isPending ? "Calisıyor..." : "Kalifikasyonu Baslat (20 aday)"}
-                </Button>
               </CardContent>
             </Card>
           </div>

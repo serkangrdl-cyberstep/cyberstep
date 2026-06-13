@@ -14,7 +14,7 @@ import {
 import { requireAdmin } from "./middleware";
 import { scanCRTSH } from "../../services/crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "../../services/shodanDiscovery";
-import { runFullDiscoveryAndQualify, qualifyPendingCandidates } from "../../services/discoveryPipeline";
+import { runFullDiscoveryAndQualify, qualifyPendingCandidates, preScreenPendingCandidates } from "../../services/discoveryPipeline";
 import { generateLeadTeaserEmail } from "../../services/leadTeaserEmail";
 import { whoisLookup } from "../../services/whoisService";
 import { scrapeContactEmail } from "../../services/webContactScraper";
@@ -313,6 +313,20 @@ router.post("/admin-panel/lead-discovery/full", requireAdmin, async (req: Reques
       });
     } catch (e) {
       logger.error({ err: String(e) }, "Pipeline başarısız");
+    }
+  });
+});
+
+// ─── POST /api/admin-panel/lead-discovery/prescreen ─────────────────────────
+router.post("/admin-panel/lead-discovery/prescreen", requireAdmin, async (req: Request, res: Response) => {
+  const { limit = 500 } = (req.body ?? {}) as { limit?: number };
+  res.json({ message: `${limit} aday ön-eleme başlatıldı.` });
+  setImmediate(async () => {
+    try {
+      const result = await preScreenPendingCandidates(limit);
+      logger.info({ result }, "Manuel ön-eleme tamamlandı");
+    } catch (e) {
+      logger.error({ err: String(e) }, "Ön-eleme başarısız");
     }
   });
 });

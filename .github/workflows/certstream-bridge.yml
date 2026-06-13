@@ -1,8 +1,6 @@
 name: CyberStep Lead Discovery (Certstream)
 
 on:
-  schedule:
-    - cron: '0 * * * *'   # Saatlik
   workflow_dispatch:
 
 jobs:
@@ -16,9 +14,7 @@ jobs:
 
       - name: Download and start certstream-server-go
         run: |
-          curl -fsSL \
-            "https://github.com/d-Rickyy-b/certstream-server-go/releases/download/v1.9.0/certstream-server-go_1.9.0_linux_amd64" \
-            -o certstream-server-go
+          curl -fsSL             "https://github.com/d-Rickyy-b/certstream-server-go/releases/download/v1.9.0/certstream-server-go_1.9.0_linux_amd64"             -o certstream-server-go
           chmod +x certstream-server-go
 
           # Minimal config — sadece port ayarı, default CT logları kullanılır
@@ -111,7 +107,7 @@ jobs:
                                   timeout=min(remaining, 30.0),
                               )
                           except asyncio.TimeoutError:
-                              continue  # 30s timeout — mesaj gelmeyebilir, devam et
+                              continue
                           except Exception as e:
                               print(f"  recv error: {e}", flush=True)
                               break

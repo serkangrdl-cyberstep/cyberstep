@@ -127,6 +127,83 @@ router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Reque
   });
 });
 
+// ─── GET /api/admin-panel/lead-discovery/certstream/status ──────────────────
+// GitHub Actions Certstream bridge istatistikleri — discovery_runs tablosundan
+router.get("/admin-panel/lead-discovery/certstream/status", requireAdmin, async (_req: Request, res: Response) => {
+  const BRIDGE_SOURCES = ["ct_discovery", "certstream", "bgptools", "bgp_tools", "bgptools-bridge", "certstream-bridge"];
+
+  const recentRuns = await db.select({
+    id: discoveryRunsTable.id,
+    source: discoveryRunsTable.source,
+    status: discoveryRunsTable.status,
+    totalFound: discoveryRunsTable.totalFound,
+    totalAdded: discoveryRunsTable.totalAdded,
+    startedAt: discoveryRunsTable.startedAt,
+    completedAt: discoveryRunsTable.completedAt,
+  }).from(discoveryRunsTable)
+    .where(inArray(discoveryRunsTable.source, BRIDGE_SOURCES))
+    .orderBy(desc(discoveryRunsTable.startedAt))
+    .limit(20);
+
+  const [ctTotal] = await db.select({ count: count() }).from(leadCandidatesTable)
+    .where(inArray(leadCandidatesTable.source, BRIDGE_SOURCES));
+
+  const lastRun = recentRuns[0] ?? null;
+  const last24h = recentRuns.filter(r => r.startedAt && (Date.now() - new Date(r.startedAt).getTime()) < 86_400_000);
+  const totalAdded24h = last24h.reduce((s, r) => s + r.totalAdded, 0);
+  const totalFound24h = last24h.reduce((s, r) => s + r.totalFound, 0);
+  const totalAddedAll = recentRuns.reduce((s, r) => s + r.totalAdded, 0);
+
+  res.json({
+    bridgeActive: lastRun != null && lastRun.startedAt != null &&
+      (Date.now() - new Date(lastRun.startedAt).getTime()) < 2 * 60 * 60 * 1000,
+    lastRunAt: lastRun?.startedAt ?? null,
+    lastRunSource: lastRun?.source ?? null,
+    lastRunAdded: lastRun?.totalAdded ?? 0,
+    lastRunFound: lastRun?.totalFound ?? 0,
+    totalLeads: ctTotal?.count ?? 0,
+    totalAdded24h,
+    totalFound24h,
+    runs24h: last24h.length,
+    recentRuns: recentRuns.slice(0, 10),
+  });
+});
+
+// ─── POST /api/admin-panel/lead-discovery/certstream/dispatch ────────────────
+router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, async (_req: Request, res: Response) => {
+  const pat = process.env["GITHUB_PAT"];
+  if (!pat) { res.status(503).json({ error: "GITHUB_PAT eksik — dispatch yapılamıyor" }); return; }
+
+  const { default: https } = await import("https");
+  await new Promise<void>((resolve) => {
+    const body = JSON.stringify({ ref: "main" });
+    const req2 = https.request({
+      hostname: "api.github.com",
+      path: "/repos/serkangrdl-cyberstep/CyberStep/actions/workflows/certstream-bridge.yml/dispatches",
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "CyberStep-Server",
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    }, (r) => {
+      r.resume();
+      if (r.statusCode === 204) {
+        logger.info("Certstream dispatch manual tetiklendi");
+      } else {
+        logger.warn({ status: r.statusCode }, "Certstream dispatch başarısız");
+      }
+      resolve();
+    });
+    req2.on("error", (e) => { logger.warn({ err: String(e) }, "Certstream dispatch hata"); resolve(); });
+    req2.write(body);
+    req2.end();
+  });
+  res.json({ ok: true, message: "GitHub Actions dispatch tetiklendi" });
+});
+
 // ─── GET /api/admin-panel/lead-discovery/runs ────────────────────────────────
 router.get("/admin-panel/lead-discovery/runs", requireAdmin, async (req: Request, res: Response) => {
   const limit = parseInt(req.query["limit"] as string ?? "20");

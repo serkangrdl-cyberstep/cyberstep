@@ -242,16 +242,24 @@ interface TechStackItem {
 }
 
 interface CertstreamStatusData {
-  id: number;
-  status: string;
-  startedAt: string | null;
-  lastCertAt: string | null;
-  totalReceived: number;
-  totalTrFound: number;
-  totalQualified: number;
-  queuePending: number;
-  last24hReceived: number;
-  totalQueued: number;
+  bridgeActive: boolean;
+  lastRunAt: string | null;
+  lastRunSource: string | null;
+  lastRunAdded: number;
+  lastRunFound: number;
+  totalLeads: number;
+  totalAdded24h: number;
+  totalFound24h: number;
+  runs24h: number;
+  recentRuns: Array<{
+    id: number;
+    source: string;
+    status: string;
+    totalFound: number;
+    totalAdded: number;
+    startedAt: string;
+    completedAt: string | null;
+  }>;
 }
 
 function RipeDnsWidget() {
@@ -310,62 +318,62 @@ function CertstreamWidget() {
   const { data: cs, isLoading } = useQuery<CertstreamStatusData>({
     queryKey: ["certstream-status"],
     queryFn: () => fetch(`${BASE}/lead-discovery/certstream/status`).then((r) => r.json()),
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
   });
 
-  const processQueue = useMutation({
+  const dispatch = useMutation({
     mutationFn: () =>
-      fetch(`${BASE}/lead-discovery/certstream/process`, { method: "POST" }).then((r) => r.json()),
-    onSuccess: () => {
-      toast({ description: "Queue işleme başlatıldı." });
-      qc.invalidateQueries({ queryKey: ["certstream-status"] });
-      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
+      fetch(`${BASE}/lead-discovery/certstream/dispatch`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: (data: { ok?: boolean; error?: string }) => {
+      if (data?.error) { toast({ variant: "destructive", description: data.error }); return; }
+      toast({ description: "GitHub Actions dispatch tetiklendi. ~2 dk içinde yeni lead'ler gelecek." });
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["certstream-status"] }), 5000);
     },
+    onError: () => toast({ variant: "destructive", description: "Dispatch başarısız." }),
   });
 
-  const secondsAgo = cs?.lastCertAt
-    ? Math.round((Date.now() - new Date(cs.lastCertAt).getTime()) / 1000)
+  const lastRunAgo = cs?.lastRunAt
+    ? Math.round((Date.now() - new Date(cs.lastRunAt).getTime()) / 1000 / 60)
     : null;
 
-  const isActive = cs?.status === "running";
+  const isBridgeRecent = lastRunAgo != null && lastRunAgo < 120;
+
+  function fmtDate(d: string | null) {
+    if (!d) return "—";
+    return new Date(d).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
+  }
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Certstream Gercek Zamanli Lead Akisi</CardTitle>
+            <CardTitle>CT Log Bridge — GitHub Actions</CardTitle>
             <CardDescription>
-              7/24 SSL sertifika akisi. Her yeni Turk kurumsal SSL → otomatik lead adayi.
+              certstream-server-go GitHub Actions VM'de çalışır, yakalanan .tr domainleri /api/internal/cert-ingest üzerinden lead_candidates'e aktarılır.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isActive ? "bg-green-500 animate-pulse" : "bg-amber-400"}`} />
-            <span className={`text-sm font-medium ${isActive ? "text-green-700" : "text-amber-700"}`}>
-              {isActive ? "Aktif" : "Pasif (platform kısıtı)"}
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isBridgeRecent ? "bg-green-500 animate-pulse" : "bg-slate-400"}`} />
+            <span className={`text-sm font-medium ${isBridgeRecent ? "text-green-700" : "text-slate-500"}`}>
+              {isBridgeRecent ? "Bridge Aktif" : lastRunAgo == null ? "Veri Yok" : `Son çalışma: ${lastRunAgo}dk önce`}
             </span>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">Yukleniyor...</div>
+          <div className="text-sm text-muted-foreground">Yükleniyor...</div>
         ) : (
           <>
-            {/* Stats grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                {
-                  label: "Son sertifika",
-                  value: secondsAgo != null
-                    ? secondsAgo < 60 ? `${secondsAgo}s once` : `${Math.round(secondsAgo / 60)}dk once`
-                    : "—",
-                },
-                { label: "Son 24s alınan", value: (cs?.last24hReceived ?? 0).toLocaleString("tr-TR") },
-                { label: "Queue'da bekleyen", value: (cs?.queuePending ?? 0).toLocaleString("tr-TR") },
-                { label: "Toplam alınan cert", value: (cs?.totalReceived ?? 0).toLocaleString("tr-TR") },
-                { label: "TR domain bulundu", value: (cs?.totalTrFound ?? 0).toLocaleString("tr-TR") },
-                { label: "Lead'e eklenen (toplam)", value: (cs?.totalQualified ?? 0).toLocaleString("tr-TR") },
+                { label: "Son çalışma", value: lastRunAgo != null ? `${lastRunAgo} dk önce` : "—" },
+                { label: "Son run eklenen", value: (cs?.lastRunAdded ?? 0).toLocaleString("tr-TR") },
+                { label: "Son run bulunan", value: (cs?.lastRunFound ?? 0).toLocaleString("tr-TR") },
+                { label: "Son 24s run sayısı", value: (cs?.runs24h ?? 0).toString() },
+                { label: "Son 24s eklenen", value: (cs?.totalAdded24h ?? 0).toLocaleString("tr-TR") },
+                { label: "CT bridge toplam", value: (cs?.totalLeads ?? 0).toLocaleString("tr-TR") },
               ].map((s) => (
                 <div key={s.label} className="bg-muted/40 rounded-md px-3 py-2.5">
                   <div className="text-lg font-bold">{s.value}</div>
@@ -374,41 +382,52 @@ function CertstreamWidget() {
               ))}
             </div>
 
-            {/* Info box */}
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800 space-y-1">
-              <div className="font-medium">Nasil calisir?</div>
+              <div className="font-medium">Nasıl çalışır?</div>
               <ul className="text-xs space-y-0.5 list-disc list-inside text-blue-700">
-                <li>certstream.calidog.io'dan dunya genelindeki SSL sertifika loglarini izler</li>
-                <li>Turk domain (.tr) veya TR orglu sertifikalari tespit eder</li>
-                <li>Subdomain analizi: erp/login/portal gibi kurumsal kalip ≥ 60 skor</li>
-                <li>certstream_queue tablosuna buffer'lar (50 cert veya 30 saniyede bir toplu insert)</li>
-                <li>Her saat cron ile queue → lead_candidates tablosuna tasir</li>
-                <li>Var olan domain bulunursa cert_org ile sirket adini tamamlar</li>
+                <li>Saatte bir sunucumuz GitHub Actions'a workflow_dispatch gönderir (:05 dakikasında)</li>
+                <li>GitHub Actions VM'de certstream-server-go başlar, tüm CT loglarını dinler (~8 dk)</li>
+                <li>.tr TLD'li domainleri tespit eder, /api/internal/cert-ingest'e batch gönderir</li>
+                <li>Ingest endpoint lead_candidates tablosuna UNIQUE constraint ile ekler</li>
+                <li>BGP/RIPE bridge da aynı ingest endpoint'i kullanır (source: bgptools)</li>
               </ul>
             </div>
 
-            {/* Action */}
+            {cs?.recentRuns && cs.recentRuns.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Son Çalışmalar</p>
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left px-3 py-1.5 font-medium">Kaynak</th>
+                        <th className="text-left px-3 py-1.5 font-medium">Tarih</th>
+                        <th className="text-right px-3 py-1.5 font-medium">Bulunan</th>
+                        <th className="text-right px-3 py-1.5 font-medium">Eklenen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {cs.recentRuns.map((r) => (
+                        <tr key={r.id} className="hover:bg-muted/30">
+                          <td className="px-3 py-1.5 font-mono">{r.source}</td>
+                          <td className="px-3 py-1.5 text-muted-foreground">{fmtDate(r.startedAt)}</td>
+                          <td className="px-3 py-1.5 text-right">{r.totalFound.toLocaleString("tr-TR")}</td>
+                          <td className="px-3 py-1.5 text-right font-medium text-emerald-700">{r.totalAdded.toLocaleString("tr-TR")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
-              <Button
-                onClick={() => processQueue.mutate()}
-                disabled={processQueue.isPending || (cs?.queuePending ?? 0) === 0}
-                variant="outline"
-              >
-                {processQueue.isPending ? "Isleniyor..." : `Queue Isimdi Isle (${cs?.queuePending ?? 0} bekleyen)`}
+              <Button onClick={() => dispatch.mutate()} disabled={dispatch.isPending} variant="outline" size="sm">
+                {dispatch.isPending ? "Dispatch ediliyor..." : "Şimdi Dispatch Et"}
               </Button>
               <span className="text-xs text-muted-foreground">
-                Otomatik: her saat isler. Manuel tetikleme de mumkun.
+                Otomatik: her saat :05. Manuel tetikleme ~2 dk sonra sonuç verir.
               </span>
-            </div>
-
-            {/* Platform limitation note */}
-            <div className="border-t pt-3 space-y-1">
-              <p className="text-xs text-amber-700 font-medium">Platform kısıtı — Certstream bağlantısı pasif</p>
-              <p className="text-xs text-muted-foreground">
-                certstream.calidog.io WebSocket bağlantısı bu ortamda çalışmamaktadır.
-                Aktif lead kaynağı: <span className="font-medium">crt.sh REST API</span> (günlük cron, .tr domainleri).
-                Lead adayları sol taraftaki "crt.sh ile Tara" sektimasindan üretilmektedir.
-              </p>
             </div>
           </>
         )}

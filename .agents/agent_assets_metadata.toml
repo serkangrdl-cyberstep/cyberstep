@@ -78,3 +78,9 @@ id = "JSPcpFq5qQBa5MScVn12m"
 uri = "file://.local/reports/certstream-pipeline-durum-tespiti.md"
 type = "text"
 title = "Certstream Pipeline Durum Tespiti Raporu"
+
+[[outputs]]
+id = "2w98g8J8q-ahS99ffImiB"
+uri = "file://.local/reports/kalifikasyon-kapasite-optimizasyon-faz1.md"
+type = "text"
+title = "FAZ 1 — Kalifikasyon Pipeline Kontrol Raporu"

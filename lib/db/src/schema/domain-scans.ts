@@ -124,3 +124,16 @@ export const domainScansTable = pgTable("domain_scans", {
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });
 export type InsertDomainScan = z.infer<typeof insertDomainScanSchema>;
 export type DomainScan = typeof domainScansTable.$inferSelect;
+
+export const domainScanSubdomainsTable = pgTable("domain_scan_subdomains", {
+  id: serial("id").primaryKey(),
+  scanId: integer("scan_id").notNull(),
+  domain: text("domain").notNull(),
+  httpStatus: integer("http_status"),
+  contentType: text("content_type"),
+  assetClassification: text("asset_classification").default("unknown"),
+  priorityScore: integer("priority_score").default(0),
+  priorityReason: text("priority_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type DomainScanSubdomain = typeof domainScanSubdomainsTable.$inferSelect;

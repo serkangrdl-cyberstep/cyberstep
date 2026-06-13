@@ -107,7 +107,28 @@ interface LeadCandidate {
   scrapedCompanyName: string | null;
   webScrapedAt: string | null;
   createdAt: string;
+  scanId: number | null;
+  wafDetected: boolean | null;
+  confidenceScore: number | null;
 }
+
+interface SubdomainSummary {
+  summary: { web_app: number; api: number; redirect: number; error_4xx: number; error_5xx: number; unreachable: number; unknown: number; total: number };
+  topPriority: Array<{ domain: string; priorityScore: number; priorityReason: string; classification: string; httpStatus: number | null }>;
+  processing: boolean;
+}
+
+function getWafBadge(confidenceScore: number | null, wafDetected: boolean | null): { label: string; color: "green" | "amber" } {
+  if (!wafDetected || (confidenceScore ?? 100) >= 85) return { label: "Tam Görünürlük", color: "green" };
+  if ((confidenceScore ?? 0) >= 70) return { label: "Kısmi Görünürlük", color: "amber" };
+  return { label: "WAF Arkası", color: "amber" };
+}
+
+const CLASSIFICATION_LABELS: Record<string, string> = {
+  web_app: "Web Uygulaması", api: "API", redirect: "Yönlendirme (3xx)",
+  error_4xx: "Hata (4xx)", error_5xx: "Sunucu Hatası (5xx)",
+  unreachable: "Erişilemiyor", unknown: "Bilinmiyor",
+};
 
 interface DomainScan {
   id: number;
@@ -726,6 +747,13 @@ export default function AdminLeadDiscovery() {
       return r.json();
     },
     enabled: !!detailCandidate,
+  });
+
+  const { data: subdomainSummary } = useQuery<SubdomainSummary>({
+    queryKey: ["scan-subdomains", candidateDomainScan?.id],
+    queryFn: () => fetch(`/api/domain-scan/${candidateDomainScan!.id}/subdomains`, { credentials: "include" }).then((r) => r.json()),
+    enabled: !!candidateDomainScan?.id,
+    refetchInterval: (query) => (query.state.data?.processing && query.state.data?.summary.total === 0) ? 5000 : false,
   });
 
   const { data: shodanQueries } = useQuery<ShodanQuery[]>({
@@ -1375,6 +1403,14 @@ export default function AdminLeadDiscovery() {
                                   )}
                                 </div>
                               ) : "—"}
+                              {c.wafDetected !== null && c.scanId && (() => {
+                                const b = getWafBadge(c.confidenceScore ?? null, c.wafDetected ?? null);
+                                return (
+                                  <span className={`mt-0.5 inline-flex text-[10px] px-1.5 py-0.5 rounded border ${b.color === "green" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+                                    {b.label}
+                                  </span>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               {c.contactEmail ? (
@@ -1887,6 +1923,50 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
 
+              {/* Varlık Sınıflandırması */}
+              {subdomainSummary && subdomainSummary.summary.total > 0 && (
+                <div className="bg-slate-50 border rounded-md p-3 space-y-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Varlık Sınıflandırması</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    {(["web_app", "api", "redirect", "error_4xx", "error_5xx", "unreachable"] as const).filter((k) => (subdomainSummary.summary as Record<string, number>)[k] > 0).map((k) => (
+                      <div key={k} className="flex justify-between">
+                        <span className="text-muted-foreground">{CLASSIFICATION_LABELS[k]}:</span>
+                        <span className="font-medium">{(subdomainSummary.summary as Record<string, number>)[k]}</span>
+                      </div>
+                    ))}
+                    <div className="col-span-2 border-t pt-1 mt-1 flex justify-between">
+                      <span className="text-muted-foreground">Toplam Alt Domain:</span>
+                      <span className="font-semibold">{subdomainSummary.summary.total}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {subdomainSummary?.processing && subdomainSummary.summary.total === 0 && (
+                <div className="text-xs text-muted-foreground text-center py-2 border rounded-md bg-slate-50">
+                  Alt domain analizi yapılıyor...
+                </div>
+              )}
+
+              {/* Öncelikli İnceleme Önerileri */}
+              {(subdomainSummary?.topPriority?.length ?? 0) > 0 && (
+                <div className="bg-slate-50 border rounded-md p-3 space-y-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Öncelikli Inceleme Önerileri</div>
+                  <div className="space-y-2">
+                    {subdomainSummary!.topPriority.map((item) => (
+                      <div key={item.domain} className="flex items-start gap-2 text-xs">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-mono font-medium truncate">{item.domain}</div>
+                          <div className="text-muted-foreground text-[11px]">{item.priorityReason}</div>
+                        </div>
+                        <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${item.priorityScore >= 30 ? "bg-red-100 text-red-700" : item.priorityScore >= 20 ? "bg-orange-100 text-orange-700" : "bg-slate-100 text-slate-600"}`}>
+                          {item.priorityScore}p
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Risk skoru + CVE breakdown */}
               <div className="flex items-start gap-4 flex-wrap">
                 <div>
@@ -1903,6 +1983,17 @@ export default function AdminLeadDiscovery() {
                   <div className="text-xs text-muted-foreground">Kaynak</div>
                   <Badge variant="outline">{detailCandidate.source === "crtsh" ? "crt.sh" : "Shodan"}</Badge>
                 </div>
+                {candidateDomainScan && (() => {
+                  const b = getWafBadge(candidateDomainScan.confidenceScore, candidateDomainScan.wafDetected);
+                  return (
+                    <div>
+                      <div className="text-xs text-muted-foreground">Tarama Güveni</div>
+                      <span className={`px-2 py-0.5 text-xs rounded-full border ${b.color === "green" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+                        {b.label}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* CVE breakdown */}

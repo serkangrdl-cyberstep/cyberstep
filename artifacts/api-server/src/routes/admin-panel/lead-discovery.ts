@@ -6,9 +6,10 @@ import {
   discoveryRunsTable,
   customerTechStackTable,
   ispPartnersTable,
+  domainScansTable,
 } from "@workspace/db";
 import {
-  eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or,
+  eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or, inArray,
 } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { scanCRTSH } from "../../services/crtshScanner";
@@ -284,7 +285,24 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   const [{ total }] = await db.select({ total: count() }).from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined);
 
-  res.json({ rows, total, page, pageSize });
+  // WAF rozeti için domain_scans'tan wafDetected + confidenceScore batch yükle
+  const scanIds = rows.map((r) => r.scanId).filter((id): id is number => id !== null);
+  const wafMap = new Map<number, { wafDetected: boolean | null; confidenceScore: number | null }>();
+  if (scanIds.length > 0) {
+    const wafRows = await db.select({
+      id: domainScansTable.id,
+      wafDetected: domainScansTable.wafDetected,
+      confidenceScore: domainScansTable.confidenceScore,
+    }).from(domainScansTable).where(inArray(domainScansTable.id, scanIds));
+    for (const r of wafRows) wafMap.set(r.id, { wafDetected: r.wafDetected, confidenceScore: r.confidenceScore });
+  }
+  const enrichedRows = rows.map((r) => ({
+    ...r,
+    wafDetected: r.scanId ? (wafMap.get(r.scanId)?.wafDetected ?? null) : null,
+    confidenceScore: r.scanId ? (wafMap.get(r.scanId)?.confidenceScore ?? null) : null,
+  }));
+
+  res.json({ rows: enrichedRows, total, page, pageSize });
 });
 
 // ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/contact ────────────

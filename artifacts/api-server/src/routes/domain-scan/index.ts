@@ -5,7 +5,7 @@ import https from "https";
 import http from "http";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
-import { domainScansTable, scanLeadsTable, customersTable } from "@workspace/db";
+import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable } from "@workspace/db";
 import { eq, desc, count, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
@@ -1551,6 +1551,17 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         logger.warn({ err, scanId: scan.id }, "Auto attack scenario trigger failed")
       );
 
+      // Fire-and-forget: subdomain HTTP probe + asset classification
+      if (certTrans.subdomains.length > 0) {
+        const scanId = scan.id;
+        const subdomainsToProbe = certTrans.subdomains;
+        setImmediate(() => {
+          import("../../services/subdomainClassifier")
+            .then(({ probeAndClassifySubdomains }) => probeAndClassifySubdomains(scanId, subdomainsToProbe))
+            .catch((e: unknown) => logger.warn({ err: String(e), scanId }, "Subdomain sınıflandırma arka plan hatası"));
+        });
+      }
+
       // Fire-and-forget: scan completion email
       if (email) {
         setImmediate(async () => {
@@ -1681,6 +1692,33 @@ router.get("/domain-scan/history/:domain", async (req, res) => {
     .orderBy(desc(domainScansTable.createdAt))
     .limit(10);
   res.json(scans);
+});
+
+// ─── GET /api/domain-scan/:id/subdomains ─────────────────────────────────────
+router.get("/domain-scan/:id/subdomains", async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const rows = await db.select().from(domainScanSubdomainsTable)
+    .where(eq(domainScanSubdomainsTable.scanId, id))
+    .orderBy(desc(domainScanSubdomainsTable.priorityScore));
+
+  const summary = { web_app: 0, api: 0, redirect: 0, error_4xx: 0, error_5xx: 0, unreachable: 0, unknown: 0, total: rows.length };
+  for (const r of rows) {
+    const cls = r.assetClassification ?? "unknown";
+    if (cls in summary) (summary as Record<string, number>)[cls]++;
+    else summary.unknown++;
+  }
+
+  const topPriority = rows.slice(0, 5).map((r) => ({
+    domain: r.domain,
+    priorityScore: r.priorityScore ?? 0,
+    priorityReason: r.priorityReason ?? "Standart",
+    classification: r.assetClassification ?? "unknown",
+    httpStatus: r.httpStatus,
+  }));
+
+  res.json({ summary, topPriority, processing: rows.length === 0 });
 });
 
 // ─── GET /api/domain-scan/:id/pdf ────────────────────────────────────────────

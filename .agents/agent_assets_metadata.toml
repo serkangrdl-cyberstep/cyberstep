@@ -72,3 +72,9 @@ id = "XAJqKXeLQFXSrRj1S45pB"
 uri = "file://cyberstep-platform-dokumantasyonu.md"
 type = "text"
 title = "CyberStep.io — Platform Dokümantasyonu v5.0"
+
+[[outputs]]
+id = "JSPcpFq5qQBa5MScVn12m"
+uri = "file://.local/reports/certstream-pipeline-durum-tespiti.md"
+type = "text"
+title = "Certstream Pipeline Durum Tespiti Raporu"

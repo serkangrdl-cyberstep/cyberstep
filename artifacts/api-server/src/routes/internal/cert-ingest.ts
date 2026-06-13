@@ -58,6 +58,7 @@ router.post("/internal/cert-ingest", ingestLimiter, async (req: Request, res: Re
         domain,
         source: src,
         scanStatus: "pending" as const,
+        tier: "tier3" as const,
       })))
       .onConflictDoNothing()
       .returning({ id: leadCandidatesTable.id })

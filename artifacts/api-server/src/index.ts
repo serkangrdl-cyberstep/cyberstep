@@ -1508,6 +1508,11 @@ async function ensureLeadCandidatesTierColumns() {
     UPDATE lead_candidates SET tier = 'tier3'
     WHERE scan_status IN ('pending', 'failed') AND tier IS NULL
   `);
+  // 'prescreening' durumunda kalan adayları 'pending'e döndür (crash recovery).
+  await db.execute(sql`
+    UPDATE lead_candidates SET scan_status = 'pending', updated_at = now()
+    WHERE scan_status = 'prescreening'
+  `);
   await db.execute(sql`
     UPDATE lead_candidates SET needs_manual_contact = true
     WHERE is_qualified = true AND contact_email IS NULL AND needs_manual_contact = false

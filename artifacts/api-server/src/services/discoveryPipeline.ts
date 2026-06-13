@@ -10,7 +10,7 @@
  */
 import { db } from "@workspace/db";
 import { leadCandidatesTable, domainScansTable, customerTechStackTable } from "@workspace/db";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { scanCRTSH } from "./crtshScanner";
 import { scanShodanFree, SHODAN_FREE_QUERIES } from "./shodanDiscovery";
@@ -136,17 +136,28 @@ export async function runFullDiscoveryAndQualify(config: PipelineConfig = {}): P
  * Tam OSINT zinciri çalıştırmaz.
  */
 export async function preScreenPendingCandidates(limit: number = 500): Promise<{ processed: number; promoted: number; eliminated: number }> {
-  const pending = await db.select().from(leadCandidatesTable)
-    .where(and(
-      eq(leadCandidatesTable.scanStatus, "pending"),
-      eq(leadCandidatesTable.tier, "tier3"),
-    ))
-    .orderBy(
-      desc(leadCandidatesTable.hasFortigate),
-      desc(sql`(source_data->>'corporateScore')::int`),
-      asc(leadCandidatesTable.createdAt),
+  // Atomik claim: scan_status'u 'prescreening' yaparak eş zamanlı instance'ların aynı adayı seçmesini engelle.
+  // FOR UPDATE SKIP LOCKED → çakışan satırlar atlanır, her instance kendi batch'ini alır.
+  const claimResult = await db.execute<{
+    id: number;
+    domain: string;
+    source_data: unknown;
+    has_fortigate: boolean;
+  }>(sql`
+    UPDATE lead_candidates
+    SET scan_status = 'prescreening', updated_at = now()
+    WHERE id IN (
+      SELECT id FROM lead_candidates
+      WHERE scan_status = 'pending' AND tier = 'tier3'
+      ORDER BY has_fortigate DESC,
+               (source_data->>'corporateScore')::int DESC NULLS LAST,
+               created_at ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
     )
-    .limit(limit);
+    RETURNING id, domain, source_data, has_fortigate
+  `);
+  const pending = claimResult.rows as Array<{ id: number; domain: string; source_data: unknown; has_fortigate: boolean }>;
 
   logger.info({ count: pending.length }, "Ön-eleme başlıyor (Tier3 → Tier2)");
 
@@ -155,6 +166,7 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
   let processedCount = 0;
   let promotedCount = 0;
   let eliminatedCount = 0;
+  const processedIds = new Set<number>();
 
   for (const candidate of pending) {
     if (Date.now() - batchStart > MAX_RUNTIME_MS) {
@@ -163,7 +175,8 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
     }
 
     try {
-      const sourceOrg = (candidate.sourceData as Record<string, unknown> | null)?.["org"] as string | null ?? null;
+      // source_data: raw SQL snake_case döndürür
+      const sourceOrg = (candidate.source_data as Record<string, unknown> | null)?.["org"] as string | null ?? null;
       const exclusion = shouldExcludeFromPipeline(candidate.domain, sourceOrg);
       if (exclusion.exclude) {
         logger.info({ domain: candidate.domain, reason: exclusion.reason }, "Ön-eleme: domain eleme listesinde, atlanıyor");
@@ -171,6 +184,7 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
           scanStatus: "failed",
           updatedAt: new Date(),
         }).where(eq(leadCandidatesTable.id, candidate.id));
+        processedIds.add(candidate.id);
         processedCount++;
         eliminatedCount++;
         await sleep(100);
@@ -190,6 +204,7 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
           responseTimeMs: liveness.responseTimeMs,
           updatedAt: new Date(),
         }).where(eq(leadCandidatesTable.id, candidate.id));
+        processedIds.add(candidate.id);
         processedCount++;
         eliminatedCount++;
         await sleep(100);
@@ -204,14 +219,26 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
 
+      processedIds.add(candidate.id);
       processedCount++;
       promotedCount++;
     } catch (e) {
       logger.warn({ domain: candidate.domain, err: String(e) }, "Ön-eleme hatası");
+      // Hata durumunda da işlenmiş sayılır — 'pending'e bırakılmaz, bir sonraki batch'te tekrar alınmaz
+      processedIds.add(candidate.id);
       processedCount++;
     }
 
     await sleep(200);
+  }
+
+  // MAX_RUNTIME nedeniyle işlenemeyen claimed ('prescreening') adayları 'pending'e döndür
+  const unprocessedIds = pending.filter((c) => !processedIds.has(c.id)).map((c) => c.id);
+  if (unprocessedIds.length > 0) {
+    await db.update(leadCandidatesTable)
+      .set({ scanStatus: "pending", updatedAt: new Date() })
+      .where(inArray(leadCandidatesTable.id, unprocessedIds));
+    logger.info({ count: unprocessedIds.length }, "Ön-eleme: işlenemeyen adaylar 'pending'e döndürüldü");
   }
 
   logger.info({ processed: processedCount, promoted: promotedCount, eliminated: eliminatedCount }, "Ön-eleme batch tamamlandı");

@@ -101,6 +101,8 @@ import AdminEmailNotifications from "./pages/admin-panel/email-notifications";
 import AdminIsOrtaklari from "./pages/admin-panel/is-ortaklari";
 import AdminIsPaketleri from "./pages/admin-panel/is-paketleri";
 import AdminRozetAvantajlari from "./pages/admin-panel/rozet-avantajlari";
+import AdminGuvenRozetiAdmin from "./pages/admin-panel/guven-rozeti-admin";
+import AdminIsOrtakligiBasvurulari from "./pages/admin-panel/is-ortakligi-basvurulari";
 import PartnerLogin from "./pages/partner/login";
 import PartnerDashboard from "./pages/partner/dashboard";
 import { AdminLayout } from "./components/admin-layout";
@@ -367,6 +369,8 @@ function Router() {
       <Route path="/panel/bildirimler" component={AdminEmailNotifications} />
       <Route path="/panel/rozet-avantajlari" component={AdminRozetAvantajlari} />
       <Route path="/panel/is-ortaklari" component={AdminIsOrtaklari} />
+      <Route path="/panel/guven-rozeti-admin" component={AdminGuvenRozetiAdmin} />
+      <Route path="/panel/is-ortakligi-basvurulari" component={AdminIsOrtakligiBasvurulari} />
       <Route path="/panel/is-paketleri" component={AdminIsPaketleri} />
       <Route path="/panel/saglik" component={AdminSaglik} />
       <Route path="/panel/platform-saglik" component={PlatformSaglik} />

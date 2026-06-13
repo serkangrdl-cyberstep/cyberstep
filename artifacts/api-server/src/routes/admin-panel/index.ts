@@ -37,6 +37,8 @@ import adminsRouter from "./admins";
 import iocControlsRouter from "./ioc-controls";
 import ctiIntelRouter from "./cti-intel";
 import indexReportsRouter from "./index-reports";
+import badgeAdminRouter from "./badge-admin";
+import partnerLeadsAdminRouter from "./partner-leads-admin";
 
 const router = Router();
 router.use(authRouter);
@@ -77,5 +79,7 @@ router.use(adminsRouter);
 router.use(iocControlsRouter);
 router.use(ctiIntelRouter);
 router.use(indexReportsRouter);
+router.use(badgeAdminRouter);
+router.use(partnerLeadsAdminRouter);
 
 export default router;

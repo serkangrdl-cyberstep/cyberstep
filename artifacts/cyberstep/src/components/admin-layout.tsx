@@ -43,6 +43,7 @@ const NAV_SECTIONS = [
       { icon: Package,         label: "Musteri Servisleri",    href: "/panel/musteri-servisleri" },
       { icon: Medal,           label: "Rozet Dağılımı",        href: "/panel/rozetler" },
       { icon: Gift,            label: "Rozet Avantajları",     href: "/panel/rozet-avantajlari" },
+      { icon: Shield,          label: "Güven Rozeti",          href: "/panel/guven-rozeti-admin" },
       { icon: Gauge,           label: "Exposure Skorları",     href: "/panel/exposure-score" },
     ],
   },
@@ -101,6 +102,7 @@ const NAV_SECTIONS = [
     dept: "ortaklar",
     items: [
       { icon: Building2,       label: "İş Ortakları",          href: "/panel/is-ortaklari" },
+      { icon: Handshake,       label: "İş Ortaklığı Başvuruları", href: "/panel/is-ortakligi-basvurulari" },
       { icon: Package,         label: "İş Paketleri",          href: "/panel/is-paketleri" },
       { icon: Award,           label: "Teknoloji Ortakları",   href: "/panel/partnerlar" },
       { icon: Briefcase,       label: "Danışmanlık",           href: "/panel/danismanlik" },
@@ -127,6 +129,7 @@ const NAV_SECTIONS = [
     items: [
       { icon: Network,         label: "Fortinet Fabric",       href: "/panel/fortinet" },
       { icon: ShieldAlert,     label: "CVE Izleme",            href: "/panel/cve" },
+      { icon: Zap,             label: "Acil Tehdit Bildirimleri", href: "/panel/acil-tehditler" },
       { icon: ShieldAlert,     label: "SOC Operasyon",         href: "/panel/soc" },
       { icon: ShieldAlert,     label: "Haftalık Bülten",       href: "/panel/bulletin" },
       { icon: Network,         label: "NOC Operasyon",         href: "/panel/noc" },

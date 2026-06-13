@@ -84,11 +84,10 @@ export default function IsOrtakligi() {
           name: form.contactName,
           email: form.email,
           phone: form.phone,
-          type: "partner",
-          companyType: form.companyType,
-          estimatedCustomers: form.estimatedCustomers,
-          message: form.message,
-          inquiryType: "partner",
+          leadType: "partner",
+          role: form.companyType || undefined,
+          useCase: form.estimatedCustomers ? `Tahmini müşteri sayısı: ${form.estimatedCustomers}` : undefined,
+          message: form.message || undefined,
         }),
       });
       setSent(true);

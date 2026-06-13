@@ -1507,6 +1507,7 @@ export default function AdminLeadDiscovery() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Domain</TableHead>
+                          <TableHead>Tier</TableHead>
                           <TableHead className="text-right">Risk</TableHead>
                           <TableHead>Contact Email</TableHead>
                           <TableHead>Contact Adı</TableHead>
@@ -1539,6 +1540,19 @@ export default function AdminLeadDiscovery() {
                               {c.scrapedPhone && (
                                 <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{c.scrapedPhone}</div>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              {c.tier ? (
+                                <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${
+                                  c.tier === "tier1"
+                                    ? "bg-green-100 text-green-700 border-green-300"
+                                    : c.tier === "tier2"
+                                    ? "bg-blue-100 text-blue-700 border-blue-300"
+                                    : "bg-orange-100 text-orange-700 border-orange-300"
+                                }`}>
+                                  {c.tier === "tier1" ? "T1" : c.tier === "tier2" ? "T2" : "T3"}
+                                </span>
+                              ) : <span className="text-[10px] text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell className="text-right">
                               {c.riskScore != null ? (

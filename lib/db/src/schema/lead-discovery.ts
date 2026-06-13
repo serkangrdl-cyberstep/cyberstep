@@ -2,6 +2,8 @@ import {
   pgTable, serial, integer, varchar, text, boolean,
   timestamp, jsonb, index,
 } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
 
 export const discoveryRunsTable = pgTable("discovery_runs", {
   id: serial("id").primaryKey(),
@@ -57,12 +59,14 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   lastScannedAt: timestamp("last_scanned_at"),
   scanDepth: varchar("scan_depth", { length: 20 }).default("lightweight"),
   needsManualContact: boolean("needs_manual_contact").default(false),
+  ispOrganization: text("isp_organization"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [
   index("idx_lead_candidates_status").on(t.scanStatus),
   index("idx_lead_candidates_qualified").on(t.isQualified),
   index("idx_lead_candidates_tier").on(t.tier),
+  index("idx_lead_candidates_isp").on(t.ispOrganization),
 ]);
 
 export const subdomainScoringRulesTable = pgTable("subdomain_scoring_rules", {
@@ -74,6 +78,27 @@ export const subdomainScoringRulesTable = pgTable("subdomain_scoring_rules", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+// ─── ISP Partners ─────────────────────────────────────────────────────────────
+// Türk ISP/hosting operatörleri için normalize mapping + iş ortaklığı durumu
+export const ispPartnersTable = pgTable("isp_partners", {
+  id: serial("id").primaryKey(),
+  // Shodan org field'ından gelen raw değerle eşleştirilecek ILIKE pattern (% wildcard destekler)
+  organizationNamePattern: text("organization_name_pattern").notNull(),
+  // Normalize edilmiş görünen isim (örn. "Türk Telekom")
+  partnerName: varchar("partner_name", { length: 255 }).notNull(),
+  partnerContact: varchar("partner_contact", { length: 255 }),
+  isActivePartnership: boolean("is_active_partnership").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_isp_partners_pattern").on(t.organizationNamePattern),
+  index("idx_isp_partners_name").on(t.partnerName),
+]);
+
+export const insertIspPartnerSchema = createInsertSchema(ispPartnersTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertIspPartner = z.infer<typeof insertIspPartnerSchema>;
+
 export type DiscoveryRun = typeof discoveryRunsTable.$inferSelect;
 export type LeadCandidate = typeof leadCandidatesTable.$inferSelect;
 export type SubdomainScoringRule = typeof subdomainScoringRulesTable.$inferSelect;
+export type IspPartner = typeof ispPartnersTable.$inferSelect;

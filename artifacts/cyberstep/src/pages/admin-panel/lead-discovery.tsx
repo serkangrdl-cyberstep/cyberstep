@@ -395,6 +395,279 @@ function CertstreamWidget() {
   );
 }
 
+// ─── ISP Grup tipi ────────────────────────────────────────────────────────────
+interface IspGroup {
+  normalizedName: string;
+  isActivePartnership: boolean;
+  partnerContact: string | null;
+  count: number;
+  avgRiskScore: number;
+  criticalFindingsTotal: number;
+  lastScannedAt: string | null;
+  leads: Array<{
+    id: number;
+    domain: string;
+    companyName: string | null;
+    riskScore: number | null;
+    criticalFindings: number;
+    ispOrganization: string | null;
+    contactEmail: string | null;
+    teaserSentAt: string | null;
+    tier: string | null;
+  }>;
+}
+
+interface IspPartnerRow {
+  id: number;
+  organizationNamePattern: string;
+  partnerName: string;
+  partnerContact: string | null;
+  isActivePartnership: boolean;
+}
+
+function exportGroupToCsv(group: IspGroup) {
+  const header = "Domain,Şirket,Risk Skoru,Kritik Bulgular,E-posta,Tier,ISP\n";
+  const rows = group.leads.map(l =>
+    [l.domain, l.companyName ?? "", l.riskScore ?? 0, l.criticalFindings, l.contactEmail ?? "", l.tier ?? "", l.ispOrganization ?? ""].join(",")
+  ).join("\n");
+  const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url;
+  a.download = `isp-${group.normalizedName.replace(/\s+/g, "-")}-leads.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function IspGroupsView() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const [showPartnerMgmt, setShowPartnerMgmt] = useState(false);
+  const [newPattern, setNewPattern] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newContact, setNewContact] = useState("");
+
+  const BASE = "/api/admin-panel/lead-discovery";
+
+  const { data: groups, isLoading } = useQuery<IspGroup[]>({
+    queryKey: ["isp-groups"],
+    queryFn: () => fetch(`${BASE}/isp-groups`).then(r => r.json()),
+  });
+
+  const { data: partners } = useQuery<IspPartnerRow[]>({
+    queryKey: ["isp-partners"],
+    queryFn: () => fetch(`${BASE}/isp-partners`).then(r => r.json()),
+    enabled: showPartnerMgmt,
+  });
+
+  const togglePartnership = useMutation({
+    mutationFn: ({ id, val }: { id: number; val: boolean }) =>
+      fetch(`${BASE}/isp-partners/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActivePartnership: val }) }).then(r => r.json()),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["isp-partners"] }); queryClient.invalidateQueries({ queryKey: ["isp-groups"] }); },
+  });
+
+  const addPartner = useMutation({
+    mutationFn: () =>
+      fetch(`${BASE}/isp-partners`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationNamePattern: newPattern, partnerName: newName, partnerContact: newContact || undefined }) }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ description: "ISP pattern eklendi." });
+      setNewPattern(""); setNewName(""); setNewContact("");
+      queryClient.invalidateQueries({ queryKey: ["isp-partners"] });
+    },
+  });
+
+  const backfill = useMutation({
+    mutationFn: () => fetch(`${BASE}/isp-backfill`, { method: "POST" }).then(r => r.json()),
+    onSuccess: (d: { updated: number }) => {
+      toast({ description: `${d.updated} lead güncellendi.` });
+      queryClient.invalidateQueries({ queryKey: ["isp-groups"] });
+    },
+  });
+
+  const toggleGroup = (name: string) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
+
+  const riskColor = (score: number | null) => {
+    if (!score) return "text-muted-foreground";
+    if (score >= 70) return "text-red-600 font-semibold";
+    if (score >= 40) return "text-amber-600 font-semibold";
+    return "text-green-600";
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle>ISP / Operatör Bazlı Lead Grupları</CardTitle>
+              <CardDescription>
+                Shodan org alanına göre normalize edilmiş {groups?.length ?? 0} operatör —{" "}
+                {groups?.reduce((s, g) => s + g.count, 0) ?? 0} kalifikasyonlu lead
+              </CardDescription>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => backfill.mutate()} disabled={backfill.isPending} className="text-xs">
+                {backfill.isPending ? "Çalışıyor..." : "Backfill ISP"}
+              </Button>
+              <Button size="sm" variant={showPartnerMgmt ? "default" : "outline"} onClick={() => setShowPartnerMgmt(p => !p)} className="text-xs">
+                Partner Yönetimi
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Partner Yönetimi Paneli */}
+      {showPartnerMgmt && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">ISP Pattern Yönetimi</CardTitle>
+            <CardDescription>Shodan org alanı bu pattern'larla ILIKE eşleştirilir ve normalize edilir.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Pattern (% wildcard)</label>
+                <Input placeholder="%Turk Telekomunikasyon%" value={newPattern} onChange={e => setNewPattern(e.target.value)} className="h-8 text-sm w-56" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Normalize isim</label>
+                <Input placeholder="Türk Telekom" value={newName} onChange={e => setNewName(e.target.value)} className="h-8 text-sm w-40" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Kontak (opsiyonel)</label>
+                <Input placeholder="ornek@isp.com" value={newContact} onChange={e => setNewContact(e.target.value)} className="h-8 text-sm w-40" />
+              </div>
+              <Button size="sm" onClick={() => addPartner.mutate()} disabled={!newPattern || !newName || addPartner.isPending}>Ekle</Button>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pattern</TableHead>
+                    <TableHead>Partner Adı</TableHead>
+                    <TableHead>Kontak</TableHead>
+                    <TableHead>İş Birliği</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(partners ?? []).map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-mono text-xs">{p.organizationNamePattern}</TableCell>
+                      <TableCell className="text-sm">{p.partnerName}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{p.partnerContact ?? "—"}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant={p.isActivePartnership ? "default" : "outline"}
+                          className={`text-xs h-6 ${p.isActivePartnership ? "bg-green-600 hover:bg-green-700" : ""}`}
+                          onClick={() => togglePartnership.mutate({ id: p.id, val: !p.isActivePartnership })}
+                        >
+                          {p.isActivePartnership ? "Aktif Partner" : "Potansiyel"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!(partners?.length) && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4 text-sm">Henüz pattern yok.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Gruplar — Accordion */}
+      {isLoading && <div className="text-center text-muted-foreground py-12 text-sm">Yükleniyor...</div>}
+      {!isLoading && !(groups?.length) && (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground text-sm">
+            ISP bilgisi olan kalifikasyonlu lead bulunamadı. Backfill butonunu çalıştırın.
+          </CardContent>
+        </Card>
+      )}
+      {(groups ?? []).map(group => {
+        const isOpen = openGroups.has(group.normalizedName);
+        return (
+          <Card key={group.normalizedName} className={group.isActivePartnership ? "border-green-500/40" : ""}>
+            <button
+              className="w-full text-left px-5 py-4 flex items-center gap-3 hover:bg-muted/30 transition-colors"
+              onClick={() => toggleGroup(group.normalizedName)}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm">{group.normalizedName}</span>
+                  {group.isActivePartnership ? (
+                    <Badge className="bg-green-100 text-green-700 border border-green-300 text-[10px] px-1.5 py-0">Partner</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Potansiyel</Badge>
+                  )}
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
+                  <span><span className="font-medium text-foreground">{group.count}</span> lead</span>
+                  <span>Ort. risk <span className={riskColor(group.avgRiskScore)}>{group.avgRiskScore}/100</span></span>
+                  <span><span className="text-red-600 font-medium">{group.criticalFindingsTotal}</span> kritik bulgu</span>
+                  {group.lastScannedAt && <span>Son tarama: {new Date(group.lastScannedAt).toLocaleDateString("tr-TR")}</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7"
+                  onClick={e => { e.stopPropagation(); exportGroupToCsv(group); }}
+                >
+                  CSV
+                </Button>
+                {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </button>
+
+            {isOpen && (
+              <div className="border-t">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Domain</TableHead>
+                        <TableHead>Şirket</TableHead>
+                        <TableHead className="text-right">Risk</TableHead>
+                        <TableHead className="text-right">Kritik</TableHead>
+                        <TableHead>E-posta</TableHead>
+                        <TableHead>Tier</TableHead>
+                        <TableHead>ISP (raw)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.leads.map(lead => (
+                        <TableRow key={lead.id}>
+                          <TableCell className="font-mono text-xs">{lead.domain}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{lead.companyName ?? "—"}</TableCell>
+                          <TableCell className={`text-right text-xs ${riskColor(lead.riskScore)}`}>{lead.riskScore ?? "—"}</TableCell>
+                          <TableCell className="text-right text-xs">{lead.criticalFindings > 0 ? <span className="text-red-600 font-semibold">{lead.criticalFindings}</span> : "0"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{lead.contactEmail ?? "—"}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-[10px]">{lead.tier ?? "—"}</Badge></TableCell>
+                          <TableCell className="text-[10px] text-muted-foreground max-w-[180px] truncate">{lead.ispOrganization ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AdminLeadDiscovery() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -787,6 +1060,7 @@ export default function AdminLeadDiscovery() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="isp-gruplari">ISP Grupları</TabsTrigger>
             <TabsTrigger value="results">Sonuclar</TabsTrigger>
             <TabsTrigger value="history">Gecmis</TabsTrigger>
           </TabsList>
@@ -1498,6 +1772,11 @@ export default function AdminLeadDiscovery() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ISP GRUPLARI TAB ─────────────────────────────────────────── */}
+        <TabsContent value="isp-gruplari">
+          <IspGroupsView />
         </TabsContent>
       </Tabs>
 

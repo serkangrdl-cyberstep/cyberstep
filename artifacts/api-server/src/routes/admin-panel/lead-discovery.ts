@@ -5,9 +5,10 @@ import {
   leadCandidatesTable,
   discoveryRunsTable,
   customerTechStackTable,
+  ispPartnersTable,
 } from "@workspace/db";
 import {
-  eq, desc, sql, and, count, isNull, isNotNull, asc,
+  eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or,
 } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { scanCRTSH } from "../../services/crtshScanner";
@@ -21,6 +22,72 @@ import { enrichLeadFromTrSources } from "../../services/leadDiscovery/trSourcesE
 import { enrichLeadFromWeb } from "../../services/leadDiscovery/webContentEnrichment";
 
 const router = Router();
+
+// ─── ISP tabloları oluştur / migrate et (startup'ta çağrılır) ────────────────
+export async function ensureIspTables() {
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS isp_organization TEXT`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_lead_candidates_isp ON lead_candidates(isp_organization)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS isp_partners (
+      id SERIAL PRIMARY KEY,
+      organization_name_pattern TEXT NOT NULL,
+      partner_name VARCHAR(255) NOT NULL,
+      partner_contact VARCHAR(255),
+      is_active_partnership BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_isp_partners_pattern ON isp_partners(organization_name_pattern)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_isp_partners_name ON isp_partners(partner_name)`);
+
+  // Seed yalnızca tablo boşsa
+  const { rows } = await db.execute<{ c: string }>(sql`SELECT COUNT(*) AS c FROM isp_partners`);
+  if (parseInt(rows[0]?.c ?? "0") === 0) {
+    const seeds: [string, string][] = [
+      ["%Turk Telekomunikasyon%", "Türk Telekom"],
+      ["%TTNet%", "Türk Telekom"],
+      ["%TT Teknoloji%", "Türk Telekom"],
+      ["%Turk Telecom%", "Türk Telekom"],
+      ["%Superonline Iletisim%", "Turkcell Superonline"],
+      ["%Superonline%", "Turkcell Superonline"],
+      ["%Turkcell Superonline%", "Turkcell Superonline"],
+      ["%Vodafone Net%", "Vodafone"],
+      ["%Vodafone Telekomunikasyon%", "Vodafone"],
+      ["%Vodafone TR%", "Vodafone"],
+      ["%TURKNET%", "TurkNet"],
+      ["%Turknet Iletisim%", "TurkNet"],
+      ["%Turk Net%", "TurkNet"],
+      ["%Fibernet%", "Fibernet"],
+      ["%Millenicom%", "Millenicom"],
+      ["%Radore%", "Radore Hosting"],
+      ["%Natro%", "Natro"],
+      ["%Doruk%", "Doruk Net"],
+      ["%Fatihnet%", "Fatihnet"],
+      ["%Bursanet%", "Bursanet"],
+      ["%Metronet%", "Metronet"],
+      ["%Hetzner%", "Hetzner Online"],
+      ["%OVH%", "OVH"],
+      ["%DigitalOcean%", "DigitalOcean"],
+      ["%Amazon%", "AWS"],
+      ["%AMAZON%", "AWS"],
+      ["%Microsoft Corporation%", "Azure"],
+      ["%Google LLC%", "Google Cloud"],
+      ["%Cloudflare%", "Cloudflare"],
+      ["%Akamai%", "Akamai"],
+    ];
+    for (const [pattern, name] of seeds) {
+      await db.execute(sql`INSERT INTO isp_partners(organization_name_pattern, partner_name) VALUES(${pattern}, ${name}) ON CONFLICT DO NOTHING`);
+    }
+  }
+
+  // Backfill mevcut lead'ler
+  await db.execute(sql`
+    UPDATE lead_candidates
+    SET isp_organization = source_data->>'org'
+    WHERE isp_organization IS NULL AND source_data->>'org' IS NOT NULL AND source_data->>'org' <> ''
+  `);
+}
 
 // ─── GET /api/admin-panel/lead-discovery/stats ───────────────────────────────
 router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Request, res: Response) => {
@@ -401,6 +468,142 @@ router.get("/admin-panel/lead-discovery/candidates/:id/tech-stack", requireAdmin
     .where(eq(customerTechStackTable.leadCandidateId, id))
     .orderBy(asc(customerTechStackTable.category));
   res.json(stack);
+});
+
+// ─── GET /api/admin-panel/lead-discovery/isp-groups ──────────────────────────
+// Kalifikasyonu geçmiş lead'leri normalize edilmiş ISP adına göre gruplar
+router.get("/admin-panel/lead-discovery/isp-groups", requireAdmin, async (_req: Request, res: Response) => {
+  // Tüm isp_partners pattern'lerini çek
+  const partners = await db.select().from(ispPartnersTable).orderBy(asc(ispPartnersTable.partnerName));
+
+  // Qualify'lı lead'leri isp_organization ile çek
+  const leads = await db.select({
+    id: leadCandidatesTable.id,
+    domain: leadCandidatesTable.domain,
+    companyName: leadCandidatesTable.companyName,
+    riskScore: leadCandidatesTable.riskScore,
+    criticalFindings: leadCandidatesTable.criticalFindings,
+    ispOrganization: leadCandidatesTable.ispOrganization,
+    contactEmail: leadCandidatesTable.contactEmail,
+    teaserSentAt: leadCandidatesTable.teaserSentAt,
+    lastScannedAt: leadCandidatesTable.lastScannedAt,
+    tier: leadCandidatesTable.tier,
+  }).from(leadCandidatesTable)
+    .where(and(
+      eq(leadCandidatesTable.isQualified, true),
+      isNotNull(leadCandidatesTable.ispOrganization),
+    ))
+    .orderBy(desc(leadCandidatesTable.riskScore));
+
+  // Lead'i normalize edilmiş partner adına eşle
+  function resolvePartnerName(rawOrg: string): { normalizedName: string; isActivePartnership: boolean; partnerContact: string | null } {
+    for (const p of partners) {
+      // ILIKE pattern: % wildcard → JS regex
+      const regex = new RegExp(p.organizationNamePattern.replace(/%/g, ".*"), "i");
+      if (regex.test(rawOrg)) {
+        return { normalizedName: p.partnerName, isActivePartnership: p.isActivePartnership, partnerContact: p.partnerContact };
+      }
+    }
+    return { normalizedName: rawOrg, isActivePartnership: false, partnerContact: null };
+  }
+
+  // Gruplama
+  const groups: Record<string, {
+    normalizedName: string;
+    isActivePartnership: boolean;
+    partnerContact: string | null;
+    count: number;
+    avgRiskScore: number;
+    criticalFindingsTotal: number;
+    lastScannedAt: Date | null;
+    leads: typeof leads;
+  }> = {};
+
+  for (const lead of leads) {
+    const raw = lead.ispOrganization ?? "Bilinmiyor";
+    const { normalizedName, isActivePartnership, partnerContact } = resolvePartnerName(raw);
+    if (!groups[normalizedName]) {
+      groups[normalizedName] = {
+        normalizedName,
+        isActivePartnership,
+        partnerContact,
+        count: 0,
+        avgRiskScore: 0,
+        criticalFindingsTotal: 0,
+        lastScannedAt: null,
+        leads: [],
+      };
+    }
+    const g = groups[normalizedName]!;
+    g.count++;
+    g.criticalFindingsTotal += lead.criticalFindings ?? 0;
+    g.leads.push(lead);
+    if (lead.lastScannedAt && (!g.lastScannedAt || lead.lastScannedAt > g.lastScannedAt)) {
+      g.lastScannedAt = lead.lastScannedAt;
+    }
+  }
+
+  // avgRiskScore hesapla
+  for (const g of Object.values(groups)) {
+    const scores = g.leads.map(l => l.riskScore ?? 0).filter(s => s > 0);
+    g.avgRiskScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+  }
+
+  // Büyükten küçüğe lead sayısına göre sırala
+  const sorted = Object.values(groups).sort((a, b) => b.count - a.count);
+  res.json(sorted);
+});
+
+// ─── GET /api/admin-panel/lead-discovery/isp-partners ────────────────────────
+router.get("/admin-panel/lead-discovery/isp-partners", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db.select().from(ispPartnersTable).orderBy(asc(ispPartnersTable.partnerName));
+  res.json(rows);
+});
+
+// ─── POST /api/admin-panel/lead-discovery/isp-partners ───────────────────────
+router.post("/admin-panel/lead-discovery/isp-partners", requireAdmin, async (req: Request, res: Response) => {
+  const { organizationNamePattern, partnerName, partnerContact } = req.body as {
+    organizationNamePattern: string;
+    partnerName: string;
+    partnerContact?: string;
+  };
+  if (!organizationNamePattern || !partnerName) {
+    res.status(400).json({ error: "organizationNamePattern ve partnerName zorunlu." }); return;
+  }
+  const [row] = await db.insert(ispPartnersTable).values({
+    organizationNamePattern,
+    partnerName,
+    partnerContact: partnerContact ?? null,
+    isActivePartnership: false,
+  }).returning();
+  res.json(row);
+});
+
+// ─── PATCH /api/admin-panel/lead-discovery/isp-partners/:id ──────────────────
+router.patch("/admin-panel/lead-discovery/isp-partners/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { isActivePartnership, partnerContact, partnerName } = req.body as {
+    isActivePartnership?: boolean;
+    partnerContact?: string;
+    partnerName?: string;
+  };
+  const updates: Partial<{ isActivePartnership: boolean; partnerContact: string; partnerName: string; updatedAt: Date }> = { updatedAt: new Date() };
+  if (isActivePartnership !== undefined) updates.isActivePartnership = isActivePartnership;
+  if (partnerContact !== undefined) updates.partnerContact = partnerContact;
+  if (partnerName !== undefined) updates.partnerName = partnerName;
+  const [row] = await db.update(ispPartnersTable).set(updates).where(eq(ispPartnersTable.id, id)).returning();
+  if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  res.json(row);
+});
+
+// ─── POST /api/admin-panel/lead-discovery/isp-backfill ───────────────────────
+// Manuel tetikle: source_data->>'org' alanını isp_organization'a kopyala
+router.post("/admin-panel/lead-discovery/isp-backfill", requireAdmin, async (_req: Request, res: Response) => {
+  const result = await db.execute(
+    sql`UPDATE lead_candidates SET isp_organization = source_data->>'org'
+        WHERE isp_organization IS NULL AND source_data->>'org' IS NOT NULL AND source_data->>'org' <> ''`
+  );
+  res.json({ updated: result.rowCount });
 });
 
 export default router;

@@ -140,7 +140,9 @@ router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Reque
 // GitHub Actions Certstream bridge istatistikleri — discovery_runs tablosundan
 router.get("/admin-panel/lead-discovery/certstream/status", requireAdmin, async (_req: Request, res: Response) => {
   res.set("Cache-Control", "no-store");
-  const BRIDGE_SOURCES = ["ct_discovery", "certstream", "bgptools", "bgp_tools", "bgptools-bridge", "certstream-bridge"];
+  // "ct_discovery" artık crt.sh scanner'ı tarafından kullanılıyor (certstream-bridge.yml → "certstream-bridge" kaynağına geçildi)
+  // Bu listeye dahil edilmez; yalnızca gerçek certstream bridge ve BGP bridge kaynakları sayılır.
+  const BRIDGE_SOURCES = ["certstream-bridge", "certstream", "bgptools-bridge", "bgp_tools", "bgptools"];
 
   const recentRuns = await db.select({
     id: discoveryRunsTable.id,

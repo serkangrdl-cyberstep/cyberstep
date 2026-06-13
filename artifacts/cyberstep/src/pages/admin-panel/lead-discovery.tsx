@@ -705,7 +705,19 @@ function IspGroupsView() {
                           <TableCell className={`text-right text-xs ${riskColor(lead.riskScore)}`}>{lead.riskScore ?? "—"}</TableCell>
                           <TableCell className="text-right text-xs">{lead.criticalFindings > 0 ? <span className="text-red-600 font-semibold">{lead.criticalFindings}</span> : "0"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{lead.contactEmail ?? "—"}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-[10px]">{lead.tier ?? "—"}</Badge></TableCell>
+                          <TableCell>
+                            {lead.tier ? (
+                              <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${
+                                lead.tier === "tier1"
+                                  ? "bg-green-100 text-green-700 border-green-300"
+                                  : lead.tier === "tier2"
+                                  ? "bg-blue-100 text-blue-700 border-blue-300"
+                                  : "bg-orange-100 text-orange-700 border-orange-300"
+                              }`}>
+                                {lead.tier === "tier1" ? "T1" : lead.tier === "tier2" ? "T2" : "T3"}
+                              </span>
+                            ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                          </TableCell>
                           <TableCell className="text-[10px] text-muted-foreground max-w-[180px] truncate">{lead.ispOrganization ?? "—"}</TableCell>
                         </TableRow>
                       ))}

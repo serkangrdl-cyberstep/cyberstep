@@ -1,0 +1,22 @@
+İşte Replit/Claude Code için kullanabileceğin prompt:
+Prompt: ISP/Hosting Operatör Bazlı Lead Gruplama
+CyberStep lead kalifikasyon sisteminde, Shodan tespit detayında yer alan "Organizasyon" alanına (ISP/hosting sağlayıcı adı, örn. "Turk Telekomunikasyon Anonim Sirketi", "Vodafone", "Superonline" vb.) göre lead'leri gruplandıran bir özellik ekle.
+Gereksinimler:
+Veritabanı şeması:
+customer_tech_stack veya lead tablosuna isp_organization alanı ekle (Shodan'ın org field'ından dolunuyor, zaten mevcut olabilir — kontrol et).
+Yeni bir isp_partners referans tablosu oluştur: id, organization_name_pattern (regex/like), partner_name, partner_contact, is_active_partnership, created_at.
+Bilinen Türk ISP/hosting organizasyon isimleri için normalize edici bir mapping tablosu oluştur (örn. "Turk Telekomunikasyon Anonim Sirketi" → "Türk Telekom", "TTNet" → "Türk Telekom", "Superonline Iletisim Hizmetleri" → "Turkcell Superonline", "Vodafone Net" → "Vodafone" vb.) çünkü Shodan org alanları aynı şirket için farklı yazımlarda gelebiliyor.
+Yeni endpoint/servis: groupLeadsByISP() fonksiyonu:
+Tüm kalifiye lead'leri isp_organization alanına göre grupla.
+Normalize edilmiş operatör adına göre gruplandırma yap (mapping tablosunu kullan).
+Her grup için: toplam lead sayısı, ortalama risk skoru, kritik bulgu toplamı, son tarama tarihi döndür.
+Admin panel UI:
+Lead listesi sayfasında "Operatöre Göre Grupla" filtre/görünüm seçeneği ekle.
+Gruplanmış görünümde her operatör başlığı altında ilgili lead'lerin (domain, risk skoru, kritik bulgu) listesi gösterilsin, accordion/collapsible yapıda.
+Her operatör grubu için "CSV Dışa Aktar" butonu ekle (gelecekte operatöre gönderilecek lead paketleri için).
+İş ortaklığı durumu işaretleme:
+isp_partners tablosundaki is_active_partnership alanına göre, eğer ilgili operatörle aktif işbirliği varsa, o grup başlığında "🤝 Partner" badge'i göster.
+Partner olmayan operatörler için "Potansiyel İşbirliği" etiketi göster (gelecekte BD/satış ekibine sinyal olarak).
+Migration: Mevcut taranmış lead'lerin Shodan organizasyon verisini geriye dönük olarak normalize edip yeni alanlara dolduran bir migration script yaz.
+Mevcut kod yapısını ve naming convention'ları koru, surgical (minimal diff) değişiklik yap, mevcut lead detay modalını bozma.
+Not: Normalize mapping listesini büyük operatörlerle (Türk Telekom, Türksat, Vodafone, Turkcell/Superonline, Millenicom, Doğan Holding/D-Smart, Radore, Natro vb.) başlatıp zamanla genişletmeni öneririm.

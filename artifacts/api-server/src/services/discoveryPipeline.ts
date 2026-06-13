@@ -123,7 +123,7 @@ export async function runFullDiscoveryAndQualify(config: PipelineConfig = {}): P
   logger.info("=== Pipeline Tamamlandı ===");
 }
 
-export async function qualifyPendingCandidates(limit: number = 100): Promise<{ processed: number; qualified: number }> {
+export async function qualifyPendingCandidates(limit: number = 200): Promise<{ processed: number; qualified: number }> {
   const pending = await db.select().from(leadCandidatesTable)
     .where(eq(leadCandidatesTable.scanStatus, "pending"))
     .orderBy(

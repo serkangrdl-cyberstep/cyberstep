@@ -754,11 +754,12 @@ export default function AdminLeadDiscovery() {
   return (
     <AdminLayout title="Lead Discovery">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {[
           { label: "Toplam Aday", value: stats?.total ?? 0, color: "" },
-          { label: "Qualified", value: stats?.qualified ?? 0, color: "text-green-600" },
-          { label: "Contact Bulunan", value: stats?.withContact ?? 0, color: "text-blue-600" },
+          { label: "Nitelendirme Bekleyen", value: stats?.pending ?? 0, color: "text-amber-600" },
+          { label: "Nitelendirilen", value: stats?.qualified ?? 0, color: "text-green-600" },
+          { label: "Kontak Bulunan", value: stats?.withContact ?? 0, color: "text-blue-600" },
           { label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" },
         ].map((s) => (
           <Card key={s.label}>

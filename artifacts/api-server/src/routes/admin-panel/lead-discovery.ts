@@ -103,8 +103,13 @@ router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Reque
     .where(and(isNotNull(leadCandidatesTable.teaserSubject), isNull(leadCandidatesTable.teaserSentAt)));
   const [teaserSent] = await db.select({ count: count() }).from(leadCandidatesTable)
     .where(isNotNull(leadCandidatesTable.teaserSentAt));
-  const [pending] = await db.select({ count: count() }).from(leadCandidatesTable)
-    .where(eq(leadCandidatesTable.scanStatus, "pending"));
+  // pending = tier2 (nitelendirme bekleyen, stabil sayı) + tier3 (ön-eleme bekleyen)
+  const [pendingTier2] = await db.select({ count: count() }).from(leadCandidatesTable)
+    .where(and(eq(leadCandidatesTable.scanStatus, "pending"), eq(leadCandidatesTable.tier, "tier2")));
+  const [pendingTier3] = await db.select({ count: count() }).from(leadCandidatesTable)
+    .where(and(eq(leadCandidatesTable.scanStatus, "pending"), eq(leadCandidatesTable.tier, "tier3")));
+  const [prescreening] = await db.select({ count: count() }).from(leadCandidatesTable)
+    .where(eq(leadCandidatesTable.scanStatus, "prescreening"));
   const [scanning] = await db.select({ count: count() }).from(leadCandidatesTable)
     .where(eq(leadCandidatesTable.scanStatus, "scanning"));
 
@@ -116,7 +121,10 @@ router.get("/admin-panel/lead-discovery/stats", requireAdmin, async (_req: Reque
 
   res.json({
     total: total?.count ?? 0,
-    pending: pending?.count ?? 0,
+    pending: (pendingTier2?.count ?? 0) + (pendingTier3?.count ?? 0),
+    pendingTier2: pendingTier2?.count ?? 0,
+    pendingTier3: pendingTier3?.count ?? 0,
+    prescreening: prescreening?.count ?? 0,
     scanning: scanning?.count ?? 0,
     scanned: scanned?.count ?? 0,
     qualified: qualified?.count ?? 0,
@@ -179,7 +187,7 @@ router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, asy
     const body = JSON.stringify({ ref: "main" });
     const req2 = https.request({
       hostname: "api.github.com",
-      path: "/repos/serkangrdl-cyberstep/CyberStep/actions/workflows/certstream-bridge.yml/dispatches",
+      path: "/repos/serkangrdl-cyberstep/cyberstep/actions/workflows/certstream-bridge.yml/dispatches",
       method: "POST",
       headers: {
         Authorization: `Bearer ${pat}`,

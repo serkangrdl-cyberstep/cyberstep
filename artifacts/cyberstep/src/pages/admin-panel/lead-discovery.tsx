@@ -21,6 +21,9 @@ const BASE = "/api/admin-panel";
 interface Stats {
   total: number;
   pending: number;
+  pendingTier2: number;
+  pendingTier3: number;
+  prescreening: number;
   scanning: number;
   scanned: number;
   qualified: number;
@@ -423,7 +426,7 @@ function CertstreamWidget() {
 
             <div className="flex items-center gap-3">
               <Button onClick={() => dispatch.mutate()} disabled={dispatch.isPending} variant="outline" size="sm">
-                {dispatch.isPending ? "Dispatch ediliyor..." : "Şimdi Dispatch Et"}
+                {dispatch.isPending ? "Çalıştırılıyor..." : "Şimdi Çalıştır"}
               </Button>
               <span className="text-xs text-muted-foreground">
                 Otomatik: her saat :05. Manuel tetikleme ~2 dk sonra sonuç verir.
@@ -1078,7 +1081,7 @@ export default function AdminLeadDiscovery() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {[
           { label: "Toplam Aday", value: stats?.total ?? 0, color: "" },
-          { label: "Nitelendirme Bekleyen", value: stats?.pending ?? 0, color: "text-amber-600" },
+          { label: "Nitelendirme Bekleyen", value: stats?.pendingTier2 ?? 0, color: "text-amber-600" },
           { label: "Nitelendirilen", value: stats?.qualified ?? 0, color: "text-green-600" },
           { label: "Kontak Bulunan", value: stats?.withContact ?? 0, color: "text-blue-600" },
           { label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" },
@@ -1262,7 +1265,9 @@ export default function AdminLeadDiscovery() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
-                    ["Bekleyen Aday", stats?.pending ?? 0],
+                    ["Ön-eleme Bekleyen", stats?.pendingTier3 ?? 0],
+                    ["Ön-elemede", stats?.prescreening ?? 0],
+                    ["Nitelendirme Bekleyen", stats?.pendingTier2 ?? 0],
                     ["Taranıyor", stats?.scanning ?? 0],
                     ["Tarandı", stats?.scanned ?? 0],
                     ["Gönderildi", stats?.teaserSent ?? 0],

@@ -335,15 +335,22 @@ function CertstreamWidget() {
     onError: () => toast({ variant: "destructive", description: "Dispatch başarısız." }),
   });
 
+  function toUtcDate(d: string | null | undefined): Date | null {
+    if (!d) return null;
+    // Drizzle timestamp() stringleri "Z" olmadan gelir; browser olmadan UTC olarak yorumlar
+    const s = /[Zz]|[+-]\d{2}:?\d{2}/.test(d) ? d : d + "Z";
+    return new Date(s);
+  }
+
   const lastRunAgo = cs?.lastRunAt
-    ? Math.round((Date.now() - new Date(cs.lastRunAt).getTime()) / 1000 / 60)
+    ? Math.round((Date.now() - (toUtcDate(cs.lastRunAt)?.getTime() ?? 0)) / 1000 / 60)
     : null;
 
   const isBridgeRecent = lastRunAgo != null && lastRunAgo < 120;
 
   function fmtDate(d: string | null) {
     if (!d) return "—";
-    return new Date(d).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
+    return (toUtcDate(d) ?? new Date(d)).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
   }
 
   return (

@@ -1018,6 +1018,12 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         "CyberStep.io, Türkiye'deki işletmelerin siber güvenlik risklerini hızlı ve anlaşılır biçimde görselleştiren yapay zeka destekli bir değerlendirme platformudur. Tüm siber güvenlik hizmetlerimiz için cyberstep.io adresini ziyaret edin.",
         MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
       );
+    doc.moveDown(0.5);
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
+      .text(
+        "Bu rapor, Step AI — CyberStep'in yapay zeka güvenlik analisti — tarafından otomatik olarak hazırlanmış ve uzman ekibimiz tarafından gözden geçirilmiştir.",
+        MARGIN, doc.y + 2, { width: CONTENT_W, lineGap: 2 }
+      );
     doc.moveDown(0.8);
     doc.fillColor([55, 65, 81]).font(FONT_BOLD).fontSize(9)
       .text("Yasal Uyarı", MARGIN, doc.y, { width: CONTENT_W });

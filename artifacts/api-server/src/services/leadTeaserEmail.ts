@@ -9,8 +9,8 @@
  * - Pasif tarama şeffaflık notu
  */
 import { db } from "@workspace/db";
-import { leadCandidatesTable, domainScansTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { leadCandidatesTable, domainScansTable, domainScanSubdomainsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { logger } from "../lib/logger";
 
@@ -123,6 +123,7 @@ function buildHtmlEmail(params: {
   wafDetected?: boolean;
   wafProvider?: string | null;
   confidenceScore?: number | null;
+  assetSummaryLine?: string | null;
 }): string {
   const { label: scoreText, color: scoreColor } = scoreStyle(params.score);
   const scanDate = new Date().toLocaleDateString("tr-TR", {
@@ -179,6 +180,11 @@ function buildHtmlEmail(params: {
       Bu tarama, halka açık DNS kayıtları, sertifika şeffaflık logları ve ağ keşif verileri üzerinden tamamen pasif olarak gerçekleştirildi — sisteminize herhangi bir erişim sağlanmadı.
     </p>
   </div>
+
+  ${params.assetSummaryLine ? `
+  <div style="margin:0 32px 20px;padding:12px 16px;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.15);border-radius:8px">
+    <p style="margin:0;color:#A8B8D0;font-size:13px;line-height:1.65">${params.assetSummaryLine}</p>
+  </div>` : ""}
 
   ${disclaimer}
 
@@ -251,6 +257,27 @@ export async function generateLeadTeaserEmail(
     }
   }
 
+  // Varlık sınıflandırması özeti — domain_scan_subdomains tablosundan
+  let assetSummaryLine: string | null = null;
+  if (candidate.scanId) {
+    const rows = await db.select({
+      classification: domainScanSubdomainsTable.assetClassification,
+      cnt: sql<number>`count(*)::int`,
+    }).from(domainScanSubdomainsTable)
+      .where(eq(domainScanSubdomainsTable.scanId, candidate.scanId))
+      .groupBy(domainScanSubdomainsTable.assetClassification);
+    const total = rows.reduce((s, r) => s + r.cnt, 0);
+    if (total > 1) {
+      const webApps = rows.find(r => r.classification === "web_app")?.cnt ?? 0;
+      const apis = rows.find(r => r.classification === "api")?.cnt ?? 0;
+      const parts = [
+        webApps > 0 ? `${webApps} web uygulaması` : null,
+        apis > 0 ? `${apis} API` : null,
+      ].filter(Boolean).join(", ");
+      assetSummaryLine = `Taramamız, ${candidate.domain} altında toplam ${total} dijital varlık tespit etti${parts ? ` (${parts} dahil)` : ""}. Bu varlıkların güvenlik durumunu yönetmek, saldırı yüzeyinizi küçültmenin ilk adımıdır.`;
+    }
+  }
+
   const salutation = candidate.contactName
     ? `Sayın ${candidate.contactName},`
     : `Sayın ${candidate.companyName ? candidate.companyName + " Yöneticisi," : "Yetkili,"}`;
@@ -278,6 +305,7 @@ export async function generateLeadTeaserEmail(
     wafDetected,
     wafProvider,
     confidenceScore,
+    assetSummaryLine,
   });
 
   await db

@@ -1030,6 +1030,11 @@ async function ensureDomainScanEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS kep_configured BOOLEAN`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS kep_relays JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS kep_secure BOOLEAN`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS asn_number TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS asn_name TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS orphaned_assets JSONB`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS censys_related_hosts JSONB`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS censys_total_found INTEGER`);
 }
 
 async function updatePricingPlanFeatures() {

@@ -1,0 +1,51 @@
+<svg width="280" height="64" viewBox="0 0 280 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad-wm" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00C8FF"/>
+      <stop offset="100%" stop-color="#0080FF"/>
+    </linearGradient>
+    <filter id="glow-wm" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="shield-clip-wm">
+      <path d="M24 3 L42 10 L42 26 C42 35 34 42 24 46 C14 42 6 35 6 26 L6 10 Z" transform="translate(8,8)"/>
+    </clipPath>
+  </defs>
+
+  <!-- Shield background -->
+  <path d="M24 3 L42 10 L42 26 C42 35 34 42 24 46 C14 42 6 35 6 26 L6 10 Z"
+        transform="translate(8,8)"
+        fill="#0A1628" stroke="url(#grad-wm)" stroke-width="1.5"/>
+
+  <!-- Inner shield rim -->
+  <path d="M24 6 L39 12 L39 26 C39 33.5 32.5 40 24 43.5 C15.5 40 9 33.5 9 26 L9 12 Z"
+        transform="translate(8,8)"
+        fill="none" stroke="#00C8FF" stroke-width="0.5" stroke-opacity="0.3"/>
+
+  <!-- Circuit S path -->
+  <g filter="url(#glow-wm)" clip-path="url(#shield-clip-wm)">
+    <path d="M 17 30 L 17 26 L 22 26 L 22 22 L 17 22 L 17 18 L 31 18 L 31 22 L 26 22 L 26 26 L 31 26 L 31 30 Z"
+          transform="translate(8,8)"
+          fill="url(#grad-wm)" fill-opacity="0.9"/>
+    <circle cx="25" cy="26" r="2" fill="#00C8FF"/>
+    <circle cx="39" cy="26" r="2" fill="#00C8FF"/>
+    <circle cx="25" cy="38" r="2" fill="#00C8FF"/>
+    <circle cx="39" cy="38" r="2" fill="#00C8FF"/>
+    <line x1="18" y1="30" x2="22" y2="30" stroke="#00C8FF" stroke-width="1" stroke-opacity="0.4" transform="translate(8,8)"/>
+    <line x1="42" y1="34" x2="46" y2="34" stroke="#00C8FF" stroke-width="1" stroke-opacity="0.4" transform="translate(8,8)"/>
+  </g>
+
+  <!-- Shield bottom glow -->
+  <path d="M32 60 C24 57 18 50 17 43" stroke="#00C8FF" stroke-width="0.8" stroke-opacity="0.2" fill="none" stroke-linecap="round"/>
+
+  <!-- Wordmark text -->
+  <text font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-weight="800" font-size="26" letter-spacing="-0.5" dominant-baseline="auto">
+    <tspan x="72" y="38" fill="#E8EDF5">Cyber</tspan><tspan fill="#00C8FF">Step</tspan>
+  </text>
+  <text x="72" y="53"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-weight="500" font-size="10" letter-spacing="3"
+        fill="#7B8FAF" text-anchor="start">.IO</text>
+</svg>

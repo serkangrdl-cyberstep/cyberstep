@@ -57,7 +57,7 @@ const NAV_SECTIONS = [
   {
     label: "Marka",
     items: [
-      { href: "/step-ai", label: "Step AI" },
+      { href: "/step-ai", label: "Marka Kilavuzu" },
     ],
   },
   {

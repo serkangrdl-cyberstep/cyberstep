@@ -408,27 +408,19 @@ function CertstreamWidget() {
             {cs?.recentRuns && cs.recentRuns.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Son Çalışmalar</p>
-                <div className="rounded-md border overflow-x-auto">
-                  <table className="w-full min-w-[420px] text-xs">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left px-3 py-1.5 font-medium">Kaynak</th>
-                        <th className="text-left px-3 py-1.5 font-medium">Tarih</th>
-                        <th className="text-right px-3 py-1.5 font-medium">Bulunan</th>
-                        <th className="text-right px-3 py-1.5 font-medium">Eklenen</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {cs.recentRuns.map((r) => (
-                        <tr key={r.id} className="hover:bg-muted/30">
-                          <td className="px-3 py-1.5 font-mono">{r.source}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground">{fmtDate(r.startedAt)}</td>
-                          <td className="px-3 py-1.5 text-right">{r.totalFound.toLocaleString("tr-TR")}</td>
-                          <td className="px-3 py-1.5 text-right font-medium text-emerald-700">{r.totalAdded.toLocaleString("tr-TR")}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-1.5">
+                  {cs.recentRuns.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs bg-muted/20">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-[11px] truncate text-foreground">{r.source}</span>
+                        <span className="text-muted-foreground shrink-0">{fmtDate(r.startedAt)}</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-muted-foreground">{r.totalFound.toLocaleString("tr-TR")} bulundu</span>
+                        <span className="font-medium text-emerald-700">+{r.totalAdded.toLocaleString("tr-TR")}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

@@ -186,9 +186,15 @@ router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, asy
   const pat = process.env["GITHUB_PAT"];
   if (!pat) { res.status(503).json({ error: "GITHUB_PAT eksik — dispatch yapılamıyor" }); return; }
 
+  // Derive production ingest URL from REPLIT_DOMAINS (first domain = primary)
+  // Falls back to GitHub Secret REPLIT_INGEST_URL if not set in workflow
+  const replitDomains = (process.env["REPLIT_DOMAINS"] ?? "").split(",").map(d => d.trim()).filter(Boolean);
+  const primaryDomain = replitDomains[0] ?? "cyberstep.io";
+  const ingestUrl = `https://${primaryDomain}/api/internal/cert-ingest`;
+
   const { default: https } = await import("https");
   await new Promise<void>((resolve) => {
-    const body = JSON.stringify({ ref: "main" });
+    const body = JSON.stringify({ ref: "main", inputs: { ingest_url: ingestUrl } });
     const req2 = https.request({
       hostname: "api.github.com",
       path: "/repos/serkangrdl-cyberstep/CyberStep/actions/workflows/certstream-bridge.yml/dispatches",

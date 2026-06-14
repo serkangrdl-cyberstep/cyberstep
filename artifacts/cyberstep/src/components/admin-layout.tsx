@@ -81,6 +81,7 @@ const NAV_SECTIONS = [
       { icon: Telescope,       label: "Enterprise: Adaylar",     href: "/panel/enterprise/prospects" },
       { icon: GitBranch,       label: "Enterprise: Pipeline",  href: "/panel/enterprise/pipeline" },
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
+      { icon: ShoppingCart,    label: "ISR Satış Paneli",      href: "/panel/enterprise/isr-calisma" },
       { icon: ListTodo,        label: "Lead Kuyruğu",          href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
       { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },

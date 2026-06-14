@@ -7,8 +7,9 @@ import {
   enterpriseContractsTable,
   enterpriseContractServicesTable,
   enterpriseInvoicesTable,
+  prospectRepliesTable,
 } from "@workspace/db";
-import { eq, desc, sql, and, count, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, count, isNull, inArray } from "drizzle-orm";
 import { requireAdmin } from "../admin-panel/middleware";
 import { generateTeaserReport, generatePreviewToken } from "../../services/teaserReportService";
 import { logger } from "../../lib/logger";
@@ -633,6 +634,95 @@ router.get("/api/enterprise/my-prospect", async (req: Request, res: Response) =>
 
   res.json({ ...prospect, ...(report ?? {}) });
 });
+
+// ─── ISR Sabah Dashboard ──────────────────────────────────────────────────────
+
+router.get("/api/enterprise/isr/dashboard", requireAdmin, async (req: Request, res: Response) => {
+  const qualifiedStatuses = ["scanned", "scanning", "teaser_sent", "interested"];
+  const prospects = await db
+    .select()
+    .from(enterpriseProspectsTable)
+    .where(sql`${enterpriseProspectsTable.status} = ANY(ARRAY[${sql.join(qualifiedStatuses.map(s => sql`${s}`), sql`, `)}])`)
+    .orderBy(desc(enterpriseProspectsTable.lastActivityAt))
+    .limit(200);
+
+  const prospectIds = prospects.map((p) => p.id);
+
+  // En son teaser raporu her prospect için
+  const teasers = prospectIds.length > 0
+    ? await db.execute(sql`
+        SELECT DISTINCT ON (prospect_id) *
+        FROM teaser_reports
+        WHERE prospect_id = ANY(ARRAY[${sql.raw(prospectIds.join(","))}]::int[])
+        ORDER BY prospect_id, created_at DESC
+      `)
+    : { rows: [] };
+
+  const teaserMap = new Map<number, Record<string, unknown>>();
+  for (const row of teasers.rows as Array<Record<string, unknown>>) {
+    const pid = Number(row["prospect_id"]);
+    teaserMap.set(pid, row);
+  }
+
+  const result = prospects.map((p) => {
+    const teaser = teaserMap.get(p.id) ?? null;
+    return {
+      ...p,
+      teaser,
+      contactComplete: !!(p.contactEmail && p.contactName),
+      followup1Sent: !!(teaser?.["followup_1_sent_at"]),
+      followup2Sent: !!(teaser?.["followup_2_sent_at"]),
+    };
+  });
+
+  res.json(result);
+});
+
+// ─── Prospect Replies ─────────────────────────────────────────────────────────
+
+router.get("/api/enterprise/isr/replies", requireAdmin, async (req: Request, res: Response) => {
+  const { handled } = req.query as Record<string, string>;
+  const rows = await db
+    .select({
+      reply: prospectRepliesTable,
+      prospect: {
+        id: enterpriseProspectsTable.id,
+        companyName: enterpriseProspectsTable.companyName,
+        domain: enterpriseProspectsTable.domain,
+        status: enterpriseProspectsTable.status,
+      },
+    })
+    .from(prospectRepliesTable)
+    .leftJoin(enterpriseProspectsTable, eq(prospectRepliesTable.prospectId, enterpriseProspectsTable.id))
+    .where(handled === "true" ? sql`${prospectRepliesTable.isHandled} = true` : sql`${prospectRepliesTable.isHandled} = false`)
+    .orderBy(desc(prospectRepliesTable.receivedAt))
+    .limit(100);
+  res.json(rows);
+});
+
+router.patch("/api/enterprise/isr/replies/:id/handle", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { handledBy, handlerNotes } = req.body as { handledBy?: string; handlerNotes?: string };
+  await db.update(prospectRepliesTable).set({
+    isHandled: true,
+    handledAt: new Date(),
+    handledBy: handledBy ?? "admin",
+    handlerNotes,
+  }).where(eq(prospectRepliesTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Prospect contact-only update ─────────────────────────────────────────────
+router.patch("/api/enterprise/prospects/:id/contact", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { contactName, contactTitle, contactEmail, contactPhone, linkedinUrl } = req.body as Record<string, string>;
+  await db.update(enterpriseProspectsTable)
+    .set({ contactName, contactTitle, contactEmail, contactPhone, linkedinUrl, lastActivityAt: new Date() })
+    .where(eq(enterpriseProspectsTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Customer portal ──────────────────────────────────────────────────────────
 
 router.post("/api/enterprise/my-prospect/contact", async (req: Request, res: Response) => {
   const session = (req as unknown as { session?: { customerId?: number; customer?: { email?: string } } }).session;

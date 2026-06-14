@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>CyberStep — Siber Güvenlik Skoru</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: #060D1A;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+  padding: 48px 24px;
+  min-height: 100vh;
+}
+
+h2.section-title {
+  color: #8896A8;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: -32px;
+}
+
+/* ════════════════════════════════════
+   CARD 1 — Ana Skor Kartı
+════════════════════════════════════ */
+.score-card {
+  width: 420px;
+  background: linear-gradient(145deg, #0A1828, #060D1A);
+  border-radius: 24px;
+  border: 1px solid #1A3050;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,200,255,0.06);
+  position: relative;
+}
+.score-card::before {
+  content:'';
+  position:absolute;
+  top:-60px; right:-60px;
+  width:200px; height:200px;
+  background: radial-gradient(circle, rgba(0,200,255,0.08) 0%, transparent 70%);
+  border-radius:50%;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #0D2035, #091520);
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #1A3050;
+}
+.card-logo {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, #0A2540, #060D1A);
+  border-radius: 10px;
+  border: 1.5px solid #00C8FF;
+  display: flex; align-items:center; justify-content:center;
+  font-size: 18px;
+  box-shadow: 0 0 12px rgba(0,200,255,0.2);
+}
+.card-company { flex:1; }
+.card-company-name {
+  font-size: 14px; font-weight: 700; color: #E8EDF5;
+  letter-spacing: 0.3px;
+}
+.card-company-sub {
+  font-size: 10.5px; color: #8896A8; margin-top: 2px;
+}
+.card-date {
+  font-size: 10px; color: #4A6080; text-align: right;
+  line-height: 1.5;
+}
+
+/* Big score display */
+.score-main {
+  padding: 28px 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.score-circle {
+  position: relative;
+  width: 110px; height: 110px;
+  flex-shrink: 0;
+}
+.score-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-circle .track { fill: none; stroke: #1A3050; stroke-width: 8; }
+.score-circle .fill  { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1.2s ease; }
+.score-center {
+  position: absolute;
+  inset: 0;
+  display: flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.score-num {
+  font-size: 32px; font-weight: 900; line-height: 1;
+}
+.score-grade {
+  font-size: 13px; font-weight: 700; opacity: 0.9; margin-top: 2px;
+}
+
+.score-info { flex:1; }
+.score-label {
+  font-size: 11px; color: #8896A8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;
+}
+.score-verdict {
+  font-size: 18px; font-weight: 800; color: #E8EDF5; line-height: 1.25; margin-bottom: 8px;
+}
+.score-sector {
+  font-size: 11px; color: #8896A8;
+}
+.score-sector span { font-weight: 700; }
+.score-sector .sector-val { color: #00C8FF; }
+
+/* Grade bar */
+.grade-bar {
+  margin: 0 24px 20px;
+}
+.grade-bar-track {
+  height: 8px;
+  background: #0D2035;
+  border-radius: 4px;
+  overflow: visible;
+  position: relative;
+}
+.grade-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s ease;
+}
+.grade-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 9.5px;
+  color: #4A6080;
+}
+.grade-marker {
+  position: absolute;
+  top: -4px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid #060D1A;
+  transform: translateX(-50%);
+  transition: left 1.2s ease;
+}
+
+/* Sub metrics */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: #1A3050;
+  border-top: 1px solid #1A3050;
+}
+.metric-cell {
+  background: #060D1A;
+  padding: 14px 16px;
+  text-align: center;
+}
+.metric-icon { font-size: 16px; margin-bottom: 4px; }
+.metric-val  { font-size: 15px; font-weight: 800; margin-bottom: 2px; }
+.metric-lbl  { font-size: 9px; color: #8896A8; letter-spacing: 0.5px; }
+
+/* Card footer */
+.card-footer {
+  padding: 12px 24px;
+  background: #04090F;
+  border-top: 1px solid #1A3050;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-brand-text { font-size: 10px; color: #4A6080; letter-spacing: 1px; }
+.footer-badge {
+  font-size: 9.5px; font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid;
+  letter-spacing: 0.5px;
+}
+
+/* ════════════════════════════════════
+   CARD 2 — Grade Scale Visual
+════════════════════════════════════ */
+.grade-scale-card {
+  width: 420px;
+  background: linear-gradient(145deg, #0A1828, #060D1A);
+  border-radius: 24px;
+  border: 1px solid #1A3050;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+.grade-scale-title {
+  font-size: 13px; font-weight: 700; color: #E8EDF5;
+  margin-bottom: 4px;
+}
+.grade-scale-sub {
+  font-size: 10.5px; color: #8896A8; margin-bottom: 20px;
+}
+.grade-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.grade-letter {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items:center; justify-content:center;
+  font-size: 18px; font-weight: 900;
+  flex-shrink: 0;
+}
+.grade-desc { flex: 1; }
+.grade-desc-title { font-size: 12px; font-weight: 700; color: #E8EDF5; }
+.grade-desc-text  { font-size: 10.5px; color: #8896A8; margin-top: 1px; }
+.grade-range {
+  font-size: 11px; font-weight: 700; text-align: right;
+  min-width: 50px;
+}
+
+/* ════════════════════════════════════
+   CARD 3 — Sektör Karşılaştırma
+════════════════════════════════════ */
+.compare-card {
+  width: 420px;
+  background: linear-gradient(145deg, #0A1828, #060D1A);
+  border-radius: 24px;
+  border: 1px solid #1A3050;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+.compare-title {
+  font-size: 13px; font-weight: 700; color: #E8EDF5; margin-bottom: 4px;
+}
+.compare-sub { font-size: 10.5px; color: #8896A8; margin-bottom: 20px; }
+
+.compare-row {
+  margin-bottom: 16px;
+}
+.compare-row-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+.compare-label { font-size: 11px; color: #8896A8; }
+.compare-score { font-size: 12px; font-weight: 800; }
+.compare-track {
+  height: 10px;
+  background: #0D2035;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+.compare-fill {
+  height: 100%;
+  border-radius: 5px;
+}
+.compare-avg-line {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: rgba(255,255,255,0.25);
+}
+
+.benchmark-note {
+  background: #0D2035;
+  border: 1px solid #1A3050;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  display: flex; align-items:center; gap: 10px;
+}
+.benchmark-icon { font-size: 20px; }
+.benchmark-text { font-size: 11px; color: #8896A8; line-height: 1.5; }
+.benchmark-text strong { color: #E8EDF5; }
+</style>
+</head>
+<body>
+
+<h2 class="section-title">SİBER GÜVENLİK SKORU — KARTI</h2>
+
+<!-- ══ CARD 1: B GRADE — ORTA ══ -->
+<div class="score-card" id="card-b">
+  <div class="card-header">
+    <div class="card-logo">🔒</div>
+    <div class="card-company">
+      <div class="card-company-name">Örnek Teknoloji A.Ş.</div>
+      <div class="card-company-sub">ornek.com.tr · İstanbul · Teknoloji</div>
+    </div>
+    <div class="card-date">
+      Haziran 2026<br>
+      <span style="color:#00C8FF;font-weight:700">Güncellendi</span>
+    </div>
+  </div>
+
+  <div class="score-main">
+    <div class="score-circle">
+      <svg viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="40"/>
+        <circle class="fill" cx="50" cy="50" r="40"
+          stroke="#F5A623"
+          stroke-dasharray="251.2"
+          stroke-dashoffset="100"
+          id="fill-b"/>
+      </svg>
+      <div class="score-center">
+        <div class="score-num" style="color:#F5A623">67</div>
+        <div class="score-grade" style="color:#F5A623">B</div>
+      </div>
+    </div>
+    <div class="score-info">
+      <div class="score-label">Güvenlik Skoru</div>
+      <div class="score-verdict">Orta Seviye<br>Risk Mevcut</div>
+      <div class="score-sector">
+        Sektör ort: <span class="sector-val">54</span> ·
+        Sizin: <span style="color:#F5A623;font-weight:700">67</span>
+        <span style="color:#2ECC71;font-weight:700"> ↑ +13</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grade-bar">
+    <div class="grade-bar-track">
+      <div class="grade-bar-fill" style="width:67%;background:linear-gradient(90deg,#E03A3A,#F5A623,#2ECC71);"></div>
+      <div class="grade-marker" style="left:67%;background:#F5A623;box-shadow:0 0 8px rgba(245,166,35,0.8)"></div>
+    </div>
+    <div class="grade-labels">
+      <span>F · 0</span><span>D · 20</span><span>C · 40</span><span>B · 60</span><span>A · 80</span>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-cell">
+      <div class="metric-icon">🔴</div>
+      <div class="metric-val" style="color:#E03A3A">2</div>
+      <div class="metric-lbl">KRİTİK</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-icon">🟠</div>
+      <div class="metric-val" style="color:#F5A623">5</div>
+      <div class="metric-lbl">YÜKSEK</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-icon">🟡</div>
+      <div class="metric-val" style="color:#F0C040">8</div>
+      <div class="metric-lbl">ORTA</div>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <div class="footer-brand-text">CYBERSTEP.IO · POWERED BY STEP AI</div>
+    <div class="footer-badge" style="color:#F5A623;border-color:rgba(245,166,35,0.35);background:rgba(245,166,35,0.08)">
+      B · GELİŞTİRİLEBİLİR
+    </div>
+  </div>
+</div>
+
+<!-- ══ CARD 2: A GRADE — TEMİZ ══ -->
+<div class="score-card" id="card-a">
+  <div class="card-header">
+    <div class="card-logo">🛡️</div>
+    <div class="card-company">
+      <div class="card-company-name">Güven Finans Ltd.</div>
+      <div class="card-company-sub">guvenfinans.com.tr · Ankara · Fintech</div>
+    </div>
+    <div class="card-date">
+      Haziran 2026<br>
+      <span style="color:#2ECC71;font-weight:700">Temiz ✓</span>
+    </div>
+  </div>
+
+  <div class="score-main">
+    <div class="score-circle">
+      <svg viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="40"/>
+        <circle class="fill" cx="50" cy="50" r="40"
+          stroke="#2ECC71"
+          stroke-dasharray="251.2"
+          stroke-dashoffset="50"
+          id="fill-a"/>
+      </svg>
+      <div class="score-center">
+        <div class="score-num" style="color:#2ECC71">87</div>
+        <div class="score-grade" style="color:#2ECC71">A</div>
+      </div>
+    </div>
+    <div class="score-info">
+      <div class="score-label">Güvenlik Skoru</div>
+      <div class="score-verdict">Yüksek Güvenlik<br>Seviyesi</div>
+      <div class="score-sector">
+        Sektör ort: <span class="sector-val">61</span> ·
+        Sizin: <span style="color:#2ECC71;font-weight:700">87</span>
+        <span style="color:#2ECC71;font-weight:700"> ↑ +26</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grade-bar">
+    <div class="grade-bar-track">
+      <div class="grade-bar-fill" style="width:87%;background:linear-gradient(90deg,#E03A3A,#F5A623,#2ECC71);"></div>
+      <div class="grade-marker" style="left:87%;background:#2ECC71;box-shadow:0 0 8px rgba(46,204,113,0.8)"></div>
+    </div>
+    <div class="grade-labels">
+      <span>F · 0</span><span>D · 20</span><span>C · 40</span><span>B · 60</span><span>A · 80</span>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-cell">
+      <div class="metric-icon">🟢</div>
+      <div class="metric-val" style="color:#2ECC71">0</div>
+      <div class="metric-lbl">KRİTİK</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-icon">🟡</div>
+      <div class="metric-val" style="color:#F0C040">1</div>
+      <div class="metric-lbl">YÜKSEK</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-icon">✅</div>
+      <div class="metric-val" style="color:#2ECC71">2</div>
+      <div class="metric-lbl">ORTA</div>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <div class="footer-brand-text">CYBERSTEP.IO · POWERED BY STEP AI</div>
+    <div class="footer-badge" style="color:#2ECC71;border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.08)">
+      A · ÜST DÜZEY
+    </div>
+  </div>
+</div>
+
+<!-- ══ CARD 3: F GRADE — KRİTİK ══ -->
+<div class="score-card" id="card-f">
+  <div class="card-header">
+    <div class="card-logo">⚠️</div>
+    <div class="card-company">
+      <div class="card-company-name">Risk İnşaat Grup</div>
+      <div class="card-company-sub">riskinsaat.com · İzmir · İnşaat</div>
+    </div>
+    <div class="card-date">
+      Haziran 2026<br>
+      <span style="color:#E03A3A;font-weight:700">ACİL !</span>
+    </div>
+  </div>
+
+  <div class="score-main">
+    <div class="score-circle">
+      <svg viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="40"/>
+        <circle class="fill" cx="50" cy="50" r="40"
+          stroke="#E03A3A"
+          stroke-dasharray="251.2"
+          stroke-dashoffset="200"
+          id="fill-f"/>
+      </svg>
+      <div class="score-center">
+        <div class="score-num" style="color:#E03A3A">21</div>
+        <div class="score-grade" style="color:#E03A3A">F</div>
+      </div>
+    </div>
+    <div class="score-info">
+      <div class="score-label">Güvenlik Skoru</div>
+      <div class="score-verdict" style="color:#E03A3A">Kritik Risk!<br>Acil Aksiyon</div>
+      <div class="score-sector">
+        Sektör ort: <span class="sector-val">48</span> ·
+        Sizin: <span style="color:#E03A3A;font-weight:700">21</span>
+        <span style="color:#E03A3A;font-weight:700"> ↓ -27</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grade-bar">
+    <div class="grade-bar-track">
+      <div class="grade-bar-fill" style="width:21%;background:linear-gradient(90deg,#E03A3A,#F5A623,#2ECC71);"></div>
+      <div class="grade-marker" style="left:21%;background:#E03A3A;box-shadow:0 0 8px rgba(224,58,58,0.8)"></div>
+    </div>
+    <div class="grade-labels">
+      <span>F · 0</span><span>D · 20</span><span>C · 40</span><span>B · 60</span><span>A · 80</span>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-cell">
+      <div class="metric-icon">🔴</div>
+      <div class="metric-val" style="color:#E03A3A">7</div>
+      <div class="metric-lbl">KRİTİK</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-icon">🟠</div>
+      <div class="metric-val" style="color:#F5A623">12</div>
+      <div class="metric-lbl">YÜKSEK</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-icon">🟡</div>
+      <div class="metric-val" style="color:#F0C040">9</div>
+      <div class="metric-lbl">ORTA</div>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <div class="footer-brand-text">CYBERSTEP.IO · POWERED BY STEP AI</div>
+    <div class="footer-badge" style="color:#E03A3A;border-color:rgba(224,58,58,0.35);background:rgba(224,58,58,0.08)">
+      F · ACİL MÜDAHALE
+    </div>
+  </div>
+</div>
+
+<!-- ══ CARD 4: Grade Scale ══ -->
+<h2 class="section-title">HARF NOTU SKALASI</h2>
+<div class="grade-scale-card">
+  <div class="grade-scale-title">Siber Güvenlik Harf Notu Skalası</div>
+  <div class="grade-scale-sub">Kredi notu gibi oku — şirketinin siber sağlık durumu tek bakışta</div>
+
+  <div class="grade-row">
+    <div class="grade-letter" style="background:rgba(46,204,113,0.15);color:#2ECC71;border:1.5px solid rgba(46,204,113,0.3)">A</div>
+    <div class="grade-desc">
+      <div class="grade-desc-title">Üst Düzey Güvenlik</div>
+      <div class="grade-desc-text">Kritik açık yok · İyi yapılandırılmış · Sürekli izleme aktif</div>
+    </div>
+    <div class="grade-range" style="color:#2ECC71">80–100</div>
+  </div>
+
+  <div class="grade-row">
+    <div class="grade-letter" style="background:rgba(0,200,255,0.12);color:#00C8FF;border:1.5px solid rgba(0,200,255,0.3)">B</div>
+    <div class="grade-desc">
+      <div class="grade-desc-title">Geliştirilebilir</div>
+      <div class="grade-desc-text">Küçük riskler var · Kritik açık yok · Önlem alınabilir</div>
+    </div>
+    <div class="grade-range" style="color:#00C8FF">60–79</div>
+  </div>
+
+  <div class="grade-row">
+    <div class="grade-letter" style="background:rgba(240,192,64,0.12);color:#F0C040;border:1.5px solid rgba(240,192,64,0.3)">C</div>
+    <div class="grade-desc">
+      <div class="grade-desc-title">Orta Risk</div>
+      <div class="grade-desc-text">Birden fazla güvenlik açığı · 90 gün içinde aksiyon şart</div>
+    </div>
+    <div class="grade-range" style="color:#F0C040">40–59</div>
+  </div>
+
+  <div class="grade-row">
+    <div class="grade-letter" style="background:rgba(245,166,35,0.12);color:#F5A623;border:1.5px solid rgba(245,166,35,0.3)">D</div>
+    <div class="grade-desc">
+      <div class="grade-desc-title">Yüksek Risk</div>
+      <div class="grade-desc-text">Kritik açıklar mevcut · Saldırı riski yüksek · Acil plan gerekli</div>
+    </div>
+    <div class="grade-range" style="color:#F5A623">20–39</div>
+  </div>
+
+  <div class="grade-row">
+    <div class="grade-letter" style="background:rgba(224,58,58,0.15);color:#E03A3A;border:1.5px solid rgba(224,58,58,0.35)">F</div>
+    <div class="grade-desc">
+      <div class="grade-desc-title">Kritik — Acil Müdahale</div>
+      <div class="grade-desc-text">Sistemler açıkta · Fidye/veri ihlali riski çok yüksek</div>
+    </div>
+    <div class="grade-range" style="color:#E03A3A">0–19</div>
+  </div>
+</div>
+
+<!-- ══ CARD 5: Sektör Karşılaştırma ══ -->
+<h2 class="section-title">SEKTÖR KARŞILAŞTIRMASI</h2>
+<div class="compare-card">
+  <div class="compare-title">Sektörünüzle Karşılaştırma</div>
+  <div class="compare-sub">Türkiye geneli sektör ortalamaları — Haziran 2026</div>
+
+  <div class="compare-row">
+    <div class="compare-row-header">
+      <span class="compare-label">🏭 Üretim & Sanayi</span>
+      <span class="compare-score" style="color:#F5A623">Ort: 48 · Sizin: <span style="color:#2ECC71">71</span></span>
+    </div>
+    <div class="compare-track">
+      <div class="compare-fill" style="width:71%;background:linear-gradient(90deg,#E03A3A 0%,#F5A623 48%,#2ECC71 100%)"></div>
+      <div class="compare-avg-line" style="left:48%"></div>
+    </div>
+  </div>
+
+  <div class="compare-row">
+    <div class="compare-row-header">
+      <span class="compare-label">🏦 Finans & Fintech</span>
+      <span class="compare-score" style="color:#F5A623">Ort: 61 · Sizin: <span style="color:#2ECC71">87</span></span>
+    </div>
+    <div class="compare-track">
+      <div class="compare-fill" style="width:87%;background:linear-gradient(90deg,#E03A3A 0%,#F5A623 61%,#2ECC71 100%)"></div>
+      <div class="compare-avg-line" style="left:61%"></div>
+    </div>
+  </div>
+
+  <div class="compare-row">
+    <div class="compare-row-header">
+      <span class="compare-label">🏥 Sağlık</span>
+      <span class="compare-score" style="color:#F5A623">Ort: 43 · Sizin: <span style="color:#E03A3A">21</span></span>
+    </div>
+    <div class="compare-track">
+      <div class="compare-fill" style="width:21%;background:linear-gradient(90deg,#E03A3A 0%,#F5A623 43%,#2ECC71 100%)"></div>
+      <div class="compare-avg-line" style="left:43%"></div>
+    </div>
+  </div>
+
+  <div class="compare-row">
+    <div class="compare-row-header">
+      <span class="compare-label">💻 Teknoloji</span>
+      <span class="compare-score" style="color:#F5A623">Ort: 54 · Sizin: <span style="color:#F5A623">67</span></span>
+    </div>
+    <div class="compare-track">
+      <div class="compare-fill" style="width:67%;background:linear-gradient(90deg,#E03A3A 0%,#F5A623 54%,#2ECC71 100%)"></div>
+      <div class="compare-avg-line" style="left:54%"></div>
+    </div>
+  </div>
+
+  <div class="benchmark-note">
+    <div class="benchmark-icon">📊</div>
+    <div class="benchmark-text">
+      <strong>Ortalama çizgisi:</strong> Sektör ortalamasının sağındaysanız sektörünüzden daha güvenlisiniz.<br>
+      Veriler CyberStep platformundaki anonim tarama sonuçlarından hesaplanmaktadır.
+    </div>
+  </div>
+</div>
+
+<div style="height:40px"></div>
+
+<script>
+// Animate score circles on load
+window.addEventListener('load', () => {
+  const circles = [
+    { id: 'fill-b', score: 67 },
+    { id: 'fill-a', score: 87 },
+    { id: 'fill-f', score: 21 },
+  ];
+  circles.forEach(c => {
+    const el = document.getElementById(c.id);
+    const circumference = 251.2;
+    const offset = circumference - (c.score / 100) * circumference;
+    // Start from full offset
+    el.style.strokeDashoffset = circumference;
+    setTimeout(() => {
+      el.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)';
+      el.style.strokeDashoffset = offset;
+    }, 300);
+  });
+});
+</script>
+</body>
+</html>

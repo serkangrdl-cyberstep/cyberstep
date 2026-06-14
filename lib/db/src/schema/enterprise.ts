@@ -134,3 +134,22 @@ export const enterpriseInvoicesTable = pgTable("enterprise_invoices", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type EnterpriseInvoice = typeof enterpriseInvoicesTable.$inferSelect;
+
+// ─── Prospect Replies (teaser e-postasına gelen yanıtlar) ───────────────────
+export const prospectRepliesTable = pgTable("prospect_replies", {
+  id: serial("id").primaryKey(),
+  prospectId: integer("prospect_id").references(() => enterpriseProspectsTable.id),
+  teaserReportId: integer("teaser_report_id").references(() => teaserReportsTable.id),
+  messageId: varchar("message_id", { length: 255 }).unique(),
+  fromEmail: varchar("from_email", { length: 255 }),
+  fromName: varchar("from_name", { length: 255 }),
+  subject: text("subject"),
+  bodyText: text("body_text"),
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
+  isHandled: boolean("is_handled").default(false),
+  handledAt: timestamp("handled_at"),
+  handledBy: varchar("handled_by", { length: 100 }),
+  handlerNotes: text("handler_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type ProspectReply = typeof prospectRepliesTable.$inferSelect;

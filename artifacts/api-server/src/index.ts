@@ -725,6 +725,24 @@ async function ensureIsrTables() {
     )
   `);
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS prospect_replies (
+      id SERIAL PRIMARY KEY,
+      prospect_id INTEGER REFERENCES enterprise_prospects(id),
+      teaser_report_id INTEGER REFERENCES teaser_reports(id),
+      message_id VARCHAR(255) UNIQUE,
+      from_email VARCHAR(255),
+      from_name VARCHAR(255),
+      subject TEXT,
+      body_text TEXT,
+      received_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      is_handled BOOLEAN DEFAULT FALSE,
+      handled_at TIMESTAMP,
+      handled_by VARCHAR(100),
+      handler_notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS enterprise_contracts (
       id SERIAL PRIMARY KEY,
       prospect_id INTEGER REFERENCES enterprise_prospects(id),
@@ -885,6 +903,28 @@ function startIsrImapCron() {
     }
   }), { timezone: "Europe/Istanbul" });
   logger.info("ISR IMAP poller scheduled (every 10 minutes)");
+
+  // Teaser yanıt poller — her 15 dakikada bir (ISR IMAP ile farklı servis)
+  cron.schedule("*/15 * * * *", wrapCron("teaser_reply_poll", "*/15 * * * *", async () => {
+    try {
+      const { pollTeaserReplies } = await import("./services/teaserReplyPoller");
+      await pollTeaserReplies();
+    } catch (err) {
+      logger.error({ err }, "Teaser reply poller error");
+    }
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("Teaser reply poller scheduled (every 15 minutes)");
+
+  // Teaser follow-up e-postaları — her gün 09:15 İstanbul
+  cron.schedule("15 9 * * *", wrapCron("teaser_followup", "15 9 * * *", async () => {
+    try {
+      const { runFollowUpCron } = await import("./services/teaserFollowupService");
+      await runFollowUpCron();
+    } catch (err) {
+      logger.error({ err }, "Teaser follow-up cron error");
+    }
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("Teaser follow-up cron scheduled (daily 09:15 Istanbul)");
 }
 
 // ─── Cron: Scan lead e-posta aktivasyon dizisi (her saat bir kez) ─────────────

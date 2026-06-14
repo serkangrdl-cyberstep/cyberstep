@@ -150,6 +150,7 @@ import EnterpriseTab from "./pages/hesabim/enterprise-tab";
 import EnterpriseProspects from "./pages/admin-panel/enterprise/prospects";
 import EnterprisePipeline from "./pages/admin-panel/enterprise/pipeline";
 import EnterpriseContracts from "./pages/admin-panel/enterprise/contracts";
+import IsrCalisma from "./pages/admin-panel/enterprise/isr-calisma";
 import LeadGenQueue from "./pages/admin-panel/lead-gen/queue";
 import LeadGenCampaigns from "./pages/admin-panel/lead-gen/campaigns";
 import PreviewPage from "./pages/preview";
@@ -381,6 +382,7 @@ function Router() {
       <Route path="/panel/enterprise/prospects" component={EnterpriseProspects} />
       <Route path="/panel/enterprise/pipeline" component={EnterprisePipeline} />
       <Route path="/panel/enterprise/contracts" component={EnterpriseContracts} />
+      <Route path="/panel/enterprise/isr-calisma" component={IsrCalisma} />
       <Route path="/panel/lead-gen/queue" component={LeadGenQueue} />
       <Route path="/panel/lead-gen/campaigns" component={LeadGenCampaigns} />
       <Route path="/panel/faturalar" component={AdminFaturalar} />

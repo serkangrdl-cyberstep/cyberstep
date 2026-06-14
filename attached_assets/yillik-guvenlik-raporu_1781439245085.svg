@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 680" width="800" height="1360">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="20%" r="75%">
+      <stop offset="0%" stop-color="#0D2035"/>
+      <stop offset="100%" stop-color="#060D1A"/>
+    </radialGradient>
+    <radialGradient id="topGlow" cx="50%" cy="0%" r="60%">
+      <stop offset="0%" stop-color="#00C8FF" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#00C8FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="barG" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E03A3A"/>
+      <stop offset="55%" stop-color="#F5A623"/>
+      <stop offset="100%" stop-color="#2ECC71"/>
+    </linearGradient>
+    <linearGradient id="headerG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A2540"/>
+      <stop offset="100%" stop-color="#060D1A"/>
+    </linearGradient>
+    
+      
+      
+    
+    
+      
+      
+    
+    <clipPath id="roundCard">
+      <rect width="400" height="680" rx="28"/>
+    </clipPath>
+  </defs>
+
+  
+  <rect width="400" height="680" rx="28" fill="url(#bg)"/>
+  <rect width="400" height="680" rx="28" fill="url(#topGlow)"/>
+  
+  
+  <rect width="400" height="680" rx="28" fill="url(#gr)"/>
+  
+  <rect width="400" height="680" rx="28" fill="none" stroke="#1A3050" stroke-width="1.5"/>
+
+  
+  <rect x="80" y="0" width="240" height="3" rx="1.5" fill="#00C8FF" opacity="0.6"/>
+
+  
+  <rect x="0" y="0" width="400" height="115" rx="28" fill="url(#headerG)" clip-path="url(#roundCard)"/>
+  <rect x="0" y="95" width="400" height="22" fill="url(#headerG)"/>
+  <rect x="0" y="115" width="400" height="1" fill="#1A3050"/>
+
+  
+  <rect x="16" y="14" width="70" height="26" rx="6" fill="rgba(0,200,255,0.12)" stroke="#00C8FF" stroke-width="1"/>
+  <text x="51" y="32" font-family="Arial Black,Arial" font-size="11" font-weight="900" fill="#00C8FF" text-anchor="middle" letter-spacing="1">2026</text>
+
+  <text x="16" y="72" font-family="Arial Black,Arial" font-size="26" font-weight="900" fill="#E8EDF5">Güvenlik</text>
+  <text x="16" y="100" font-family="Arial Black,Arial" font-size="26" font-weight="900" fill="#00C8FF">Yıllığınız</text>
+
+  
+  
+  <circle cx="348" cy="55" r="34" fill="#0A1E2E" stroke="#00C8FF" stroke-width="2"/>
+  
+  <circle cx="338" cy="52" r="10" fill="#081828" stroke="#00C8FF" stroke-width="1.5"/>
+  <circle cx="358" cy="52" r="10" fill="#081828" stroke="#00C8FF" stroke-width="1.5"/>
+  <circle cx="338" cy="52" r="7" fill="#00C8FF" opacity="0.9"/>
+  <circle cx="358" cy="52" r="7" fill="#00C8FF" opacity="0.9"/>
+  <circle cx="339" cy="50" r="3" fill="#001A2A"/>
+  <circle cx="359" cy="50" r="3" fill="#001A2A"/>
+  <circle cx="341" cy="49" r="2" fill="white" opacity="0.9"/>
+  <circle cx="361" cy="49" r="2" fill="white" opacity="0.9"/>
+  
+  <path d="M334 63 Q348 72 362 63" fill="none" stroke="#2ECC71" stroke-width="2.5" stroke-linecap="round"/>
+  
+  <line x1="348" y1="21" x2="348" y2="10" stroke="#00C8FF" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="348" cy="8" r="4" fill="#F5A623"/>
+  
+  <text x="16" y="110" font-family="Arial,sans-serif" font-size="9.5" fill="#8896A8" letter-spacing="0.5">Örnek Teknoloji A.Ş.  ·  ornek.com.tr</text>
+
+  
+  <rect x="16" y="128" width="368" height="108" rx="16" fill="rgba(0,200,255,0.05)" stroke="#1A3050" stroke-width="1"/>
+  
+  <circle cx="80" cy="183" r="42" fill="none" stroke="#1A3050" stroke-width="7"/>
+  <circle cx="80" cy="183" r="42" fill="none" stroke="#F5A623" stroke-width="7" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="79" transform="rotate(-90 80 183)"/>
+  <circle cx="80" cy="183" r="33" fill="#060D1A"/>
+  <text x="80" y="179" font-family="Arial Black,Arial" font-size="24" font-weight="900" fill="#F5A623" text-anchor="middle">67</text>
+  <text x="80" y="196" font-family="Arial Black,Arial" font-size="12" font-weight="700" fill="#F5A623" text-anchor="middle">B</text>
+
+  <text x="140" y="152" font-family="Arial,sans-serif" font-size="9.5" fill="#8896A8" letter-spacing="1.5">YIL SONU SKORU</text>
+  <text x="140" y="172" font-family="Arial Black,Arial" font-size="20" font-weight="900" fill="#E8EDF5">Orta Seviye Risk</text>
+  
+  <rect x="140" y="182" width="232" height="6" rx="3" fill="#0D2035"/>
+  <rect x="140" y="182" width="156" height="6" rx="3" fill="url(#barG)"/>
+  <circle cx="296" cy="185" r="6" fill="#F5A623" stroke="#060D1A" stroke-width="2"/>
+  
+  <text x="140" y="204" font-family="Arial,sans-serif" font-size="10.5" fill="#8896A8">Geçen yıl: <tspan fill="#8896A8" font-weight="700">54</tspan>   Bu yıl: <tspan fill="#F5A623" font-weight="800">67</tspan>  <tspan fill="#2ECC71" font-weight="700">+13 ↑</tspan></text>
+  <text x="140" y="222" font-family="Arial,sans-serif" font-size="10" fill="#8896A8">Sektör ortalaması: <tspan fill="#00C8FF" font-weight="700">54</tspan>  ·  Sizi geçiyor <tspan fill="#2ECC71" font-weight="700">%62</tspan></text>
+
+  
+  
+  <rect x="16" y="252" width="178" height="80" rx="14" fill="#091520" stroke="#1A3050" stroke-width="1"/>
+  <rect x="206" y="252" width="178" height="80" rx="14" fill="#091520" stroke="#1A3050" stroke-width="1"/>
+
+  
+  <text x="105" y="280" font-family="Arial Black,Arial" font-size="30" font-weight="900" fill="#00C8FF" text-anchor="middle">47</text>
+  <text x="105" y="298" font-family="Arial,sans-serif" font-size="9.5" fill="#8896A8" text-anchor="middle" letter-spacing="0.5">TOPLAM TARAMA</text>
+  <text x="105" y="313" font-family="Arial,sans-serif" font-size="9" fill="#4A6080" text-anchor="middle">Ocak – Aralık 2026</text>
+
+  
+  <text x="295" y="280" font-family="Arial Black,Arial" font-size="30" font-weight="900" fill="#2ECC71" text-anchor="middle">31</text>
+  <text x="295" y="298" font-family="Arial,sans-serif" font-size="9.5" fill="#8896A8" text-anchor="middle" letter-spacing="0.5">KAPALI BULGULAR</text>
+  <text x="295" y="313" font-family="Arial,sans-serif" font-size="9" fill="#4A6080" text-anchor="middle">Giderilen güvenlik açıkları</text>
+
+  
+  <rect x="16" y="344" width="178" height="80" rx="14" fill="#091520" stroke="#1A3050" stroke-width="1"/>
+  <rect x="206" y="344" width="178" height="80" rx="14" fill="#091520" stroke="#1A3050" stroke-width="1"/>
+
+  
+  <text x="105" y="372" font-family="Arial Black,Arial" font-size="30" font-weight="900" fill="#9B59B6" text-anchor="middle">%23</text>
+  <text x="105" y="390" font-family="Arial,sans-serif" font-size="9.5" fill="#8896A8" text-anchor="middle" letter-spacing="0.5">YÜZEYİ KÜÇÜLTTÜ</text>
+  <text x="105" y="405" font-family="Arial,sans-serif" font-size="9" fill="#4A6080" text-anchor="middle">Saldırı yüzeyi azalması</text>
+
+  
+  <text x="295" y="368" font-family="Arial Black,Arial" font-size="24" font-weight="900" fill="#E03A3A" text-anchor="middle">4.2</text>
+  <text x="295" y="386" font-family="Arial Black,Arial" font-size="11" font-weight="700" fill="#E03A3A" text-anchor="middle">GÜN ORT.</text>
+  <text x="295" y="402" font-family="Arial,sans-serif" font-size="9.5" fill="#8896A8" text-anchor="middle" letter-spacing="0.5">KRİTİK KAPAMA SÜRESİ</text>
+  <text x="295" y="417" font-family="Arial,sans-serif" font-size="9" fill="#4A6080" text-anchor="middle">Sektör ort: 14.6 gün</text>
+
+  
+  <rect x="16" y="438" width="368" height="120" rx="16" fill="#091520" stroke="#1A3050" stroke-width="1"/>
+  <text x="32" y="460" font-family="Arial Black,Arial" font-size="12" font-weight="700" fill="#E8EDF5">Aylık Güvenlik Trendi</text>
+  <text x="32" y="474" font-family="Arial,sans-serif" font-size="9" fill="#8896A8">Güvenlik skoru — 12 aylık değişim</text>
+
+  
+  
+  
+  <line x1="32" y1="544" x2="368" y2="544" stroke="#1A3050" stroke-width="1"/>
+  
+  <line x1="32" y1="524" x2="368" y2="524" stroke="#1A3050" stroke-width="0.5" stroke-dasharray="3,4"/>
+  <text x="30" y="527" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="end">50</text>
+
+  
+  
+  
+  
+  <rect x="32" y="530" width="20" height="14" rx="3" fill="#F5A623" opacity="0.5"/>
+  <rect x="60" y="531" width="20" height="13" rx="3" fill="#F5A623" opacity="0.5"/>
+  <rect x="88" y="527" width="20" height="17" rx="3" fill="#F5A623" opacity="0.6"/>
+  <rect x="116" y="525" width="20" height="19" rx="3" fill="#F5A623" opacity="0.7"/>
+  <rect x="144" y="521" width="20" height="23" rx="3" fill="#F5A623" opacity="0.8"/>
+  <rect x="172" y="522" width="20" height="22" rx="3" fill="#F5A623" opacity="0.8"/>
+  <rect x="200" y="519" width="20" height="25" rx="3" fill="#2ECC71" opacity="0.8"/>
+  <rect x="228" y="517" width="20" height="27" rx="3" fill="#2ECC71" opacity="0.85"/>
+  <rect x="256" y="517" width="20" height="27" rx="3" fill="#2ECC71" opacity="0.85"/>
+  <rect x="284" y="515" width="20" height="29" rx="3" fill="#2ECC71" opacity="0.9"/>
+  <rect x="312" y="515" width="20" height="29" rx="3" fill="#2ECC71" opacity="0.9"/>
+  <rect x="340" y="515" width="20" height="29" rx="3" fill="#2ECC71"/>
+
+  
+  <text x="42" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Oc</text>
+  <text x="70" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Şb</text>
+  <text x="98" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Mr</text>
+  <text x="126" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Ns</text>
+  <text x="154" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">My</text>
+  <text x="182" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Hn</text>
+  <text x="210" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Tr</text>
+  <text x="238" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Ağ</text>
+  <text x="266" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Ey</text>
+  <text x="294" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Ek</text>
+  <text x="322" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Ks</text>
+  <text x="350" y="553" font-family="Arial,sans-serif" font-size="7" fill="#4A6080" text-anchor="middle">Ar</text>
+
+  
+  <rect x="16" y="572" width="368" height="60" rx="14" fill="rgba(46,204,113,0.07)" stroke="rgba(46,204,113,0.25)" stroke-width="1"/>
+  
+  <rect x="30" y="583" width="36" height="28" rx="6" fill="rgba(245,166,35,0.15)" stroke="#F5A623" stroke-width="1"/>
+  <text x="48" y="602" font-family="Arial Black,Arial" font-size="18" fill="#F5A623" text-anchor="middle">1.</text>
+  <text x="78" y="593" font-family="Arial Black,Arial" font-size="12" font-weight="900" fill="#E8EDF5">En İyi Başarı</text>
+  <text x="78" y="609" font-family="Arial,sans-serif" font-size="10" fill="#8896A8">Tüm kritik bulgular 5 günde kapatıldı — Nisan 2026</text>
+  <text x="78" y="622" font-family="Arial,sans-serif" font-size="9.5" fill="#2ECC71">Sektör topun %12'sindeydiniz o ay</text>
+
+  
+  <rect x="0" y="643" width="400" height="37" rx="28" fill="#04090F" clip-path="url(#roundCard)"/>
+  <rect x="0" y="643" width="400" height="14" fill="#04090F"/>
+  <rect x="0" y="643" width="400" height="1" fill="#1A3050"/>
+  <text x="200" y="658" font-family="Arial,sans-serif" font-size="9" fill="#4A6080" text-anchor="middle" letter-spacing="2">CYBERSTEP.IO  ·  STEP AI  ·  2026 YILLIK RAPOR</text>
+  <text x="200" y="672" font-family="Arial,sans-serif" font-size="8.5" fill="#1A3050" text-anchor="middle">cyberstep.io/yillik-rapor</text>
+</svg>

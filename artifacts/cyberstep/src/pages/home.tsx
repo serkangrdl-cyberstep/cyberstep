@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SpecialDayBanner } from "@/components/special-day-banner";
-import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2, Globe, Search, XCircle, CheckCircle2, AlertCircle, Lock, AtSign, Mail, Zap, ExternalLink } from "lucide-react";
+import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2, Globe, Search, XCircle, CheckCircle2, AlertCircle, Lock, AtSign, Mail, Zap, ExternalLink, Brain } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -696,6 +696,10 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold">{lang === "en" ? "3. Get Your AI Report Instantly" : "3. AI Raporunuzu Anında Alın"}</h3>
               <p className="text-muted-foreground">{t(T.home.step3sub, lang)}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                {lang === "en" ? "Powered by " : "Hazırlayan: "}
+                <span className="font-semibold text-primary/80">Step AI</span>
+              </p>
             </div>
 
             <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300/60 dark:border-amber-700/50 rounded-lg p-6 shadow-sm flex flex-col items-center text-center space-y-4">
@@ -1162,6 +1166,91 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Step AI */}
+      <section className="py-20 bg-slate-900 text-white border-t border-white/5">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div>
+                <p className="text-cyan-400 text-sm font-semibold uppercase tracking-widest mb-3">
+                  {lang === "en" ? "Meet our AI" : "Yapay zekamızla tanışın"}
+                </p>
+                <h2 className="text-3xl md:text-4xl font-bold leading-tight">
+                  <span className="text-white">Step</span>
+                  <span className="text-cyan-400"> AI</span>
+                </h2>
+                <p className="text-slate-400 mt-3 leading-relaxed">
+                  {lang === "en"
+                    ? "CyberStep's AI security analyst. Scans your domain, reads public threat databases, writes your risk report — all in minutes."
+                    : "CyberStep'in yapay zeka güvenlik analisti. Domain'inizi tarar, kamuya açık tehdit veritabanlarını okur, risk raporunuzu yazar — dakikalar içinde."}
+                </p>
+              </div>
+              <ul className="space-y-3">
+                {[
+                  { en: "Passive domain & attack surface scanning", tr: "Pasif domain ve saldırı yüzeyi taraması" },
+                  { en: "CVSS/EPSS-based risk prioritization", tr: "CVSS/EPSS bazlı risk önceliklendirmesi" },
+                  { en: "Sector-specific threat analysis", tr: "Sektöre özel tehdit analizi" },
+                  { en: "KVKK & compliance gap detection", tr: "KVKK ve uyum açığı tespiti" },
+                  { en: "Every report reviewed by our expert team", tr: "Her rapor uzman ekibimiz tarafından gözden geçirilir" },
+                ].map(item => (
+                  <li key={item.en} className="flex items-center gap-3 text-sm text-slate-300">
+                    <div className="h-5 w-5 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="h-3 w-3 text-cyan-400" />
+                    </div>
+                    {lang === "en" ? item.en : item.tr}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-slate-500 text-xs leading-relaxed border-l-2 border-cyan-500/30 pl-3">
+                {lang === "en"
+                  ? "Step AI uses only passive OSINT methods — no direct access to your systems. All findings are reviewed by our cybersecurity team before delivery."
+                  : "Step AI yalnızca pasif OSINT yöntemleri kullanır — sistemlerinize doğrudan erişmez. Tüm bulgular uzman siber güvenlik ekibimiz tarafından teslimattan önce gözden geçirilir."}
+              </p>
+            </div>
+            <div className="bg-slate-800/60 border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center shrink-0">
+                  <Brain className="h-5 w-5 text-cyan-400" />
+                </div>
+                <div>
+                  <div className="font-bold text-white text-sm">
+                    Step<span className="text-cyan-400"> AI</span>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {lang === "en" ? "CyberStep AI Security Analyst" : "CyberStep Yapay Zeka Güvenlik Analisti"}
+                  </div>
+                </div>
+                <div className="ml-auto">
+                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                    {lang === "en" ? "Active" : "Aktif"}
+                  </span>
+                </div>
+              </div>
+              {[
+                { icon: "🔍", en: "Scanning DNS & subdomain records...", tr: "DNS ve subdomain kayıtları taranıyor...", done: true },
+                { icon: "🔒", en: "Verifying SSL certificates...", tr: "SSL sertifikaları doğrulanıyor...", done: true },
+                { icon: "⚡", en: "Matching CVE database...", tr: "CVE veritabanı eşleştiriliyor...", done: true },
+                { icon: "📋", en: "Generating risk report...", tr: "Risk raporu hazırlanıyor...", done: false },
+              ].map((step, i) => (
+                <div key={i} className={`flex items-center gap-3 text-sm ${step.done ? "text-slate-400" : "text-white font-medium"}`}>
+                  <span className="text-base w-5 shrink-0">{step.icon}</span>
+                  <span className="flex-1">{lang === "en" ? step.en : step.tr}</span>
+                  {step.done
+                    ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    : <Loader2 className="h-4 w-4 text-cyan-400 animate-spin shrink-0" />}
+                </div>
+              ))}
+              <div className="pt-3 border-t border-white/10 text-xs text-slate-500">
+                {lang === "en"
+                  ? "Every report is generated by Step AI and reviewed by our expert team before delivery."
+                  : "Her rapor Step AI tarafından oluşturulur, uzman ekibimiz tarafından gözden geçirilir."}
+              </div>
             </div>
           </div>
         </div>

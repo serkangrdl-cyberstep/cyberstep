@@ -1765,7 +1765,7 @@ function AssessmentReportCore({ id }: { id: number }) {
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    AI ön analizi tamamlandı
+                    <span>Step AI ön analizi tamamlandı</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-orange-600 font-medium">
                     <Clock className="h-4 w-4" />

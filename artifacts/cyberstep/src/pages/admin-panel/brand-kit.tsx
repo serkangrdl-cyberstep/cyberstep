@@ -1,5 +1,6 @@
 import { AdminLayout } from "@/components/admin-layout";
 import { CyberStepIcon, CyberStepWordmark, CyberStepBadge } from "@/components/brand-logo";
+import { StepAiSelfie } from "@/components/step-ai-selfie";
 
 // ─── Renk paleti verisi ────────────────────────────────────────────────────────
 
@@ -391,6 +392,17 @@ export default function BrandKit() {
               <RuleItem ok={false}>Yalnızca renkle anlam iletme (erişilebilirlik)</RuleItem>
             </RuleCard>
           </div>
+        </section>
+
+        {/* ── Maskot Animasyonu ── */}
+        <section>
+          <SectionHeader label="Maskot Animasyonu — Step AI Selfie" />
+          <div className="rounded-2xl overflow-hidden border border-[#0F2040] bg-[#060D1A] flex flex-col items-center justify-center py-10">
+            <StepAiSelfie domain="ornek.com" />
+          </div>
+          <p className="text-xs text-[#7B8FAF] mt-3">
+            Tarama tamamlandığında Step AI maskotu selfie çekip kullanıcıyı kutlar. Flaş + gökkuşağı konfeti + polaroid + mesaj balonu animasyonları içerir.
+          </p>
         </section>
 
       </div>

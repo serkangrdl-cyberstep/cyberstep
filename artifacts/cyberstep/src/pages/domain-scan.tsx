@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { StepAiSelfie } from "@/components/step-ai-selfie";
 import { Download } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useLanguage } from "@/contexts/language-context";
@@ -1878,6 +1879,7 @@ export default function DomainScanPage() {
   const [email, setEmail] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [attackTeaserStatus, setAttackTeaserStatus] = useState<"idle" | "loading" | "ready">("idle");
+  const [showScanComplete, setShowScanComplete] = useState(false);
   const [attackTeaser, setAttackTeaser] = useState<{
     totalScenarios: number;
     yuksek: number;
@@ -1920,6 +1922,13 @@ export default function DomainScanPage() {
 
   const result = scanMutation.data;
   const scoreInfo = result ? ScoreColor(result.overallScore) : null;
+
+  useEffect(() => {
+    if (!result?.id) return;
+    setShowScanComplete(true);
+    const t = setTimeout(() => setShowScanComplete(false), 5500);
+    return () => clearTimeout(t);
+  }, [result?.id]);
 
   const { data: sessionCustomer } = useQuery<{ subscriptionPlan: string | null } | null>({
     queryKey: ["customer-me-scan"],
@@ -2173,6 +2182,20 @@ export default function DomainScanPage() {
             <p className="text-sm text-red-700">{(scanMutation.error as Error).message}</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Scan complete celebration overlay */}
+      {showScanComplete && result && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#060D1A]/90 backdrop-blur-sm cursor-pointer"
+          onClick={() => setShowScanComplete(false)}
+        >
+          <StepAiSelfie
+            key={result.id}
+            domain={domain}
+            scanDate={new Date().toISOString().split("T")[0]}
+          />
+        </div>
       )}
 
       {/* Results */}

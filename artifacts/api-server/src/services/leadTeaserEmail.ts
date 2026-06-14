@@ -228,13 +228,22 @@ export async function generateLeadTeaserEmail(
     .where(eq(leadCandidatesTable.id, candidateId));
   if (!candidate) return;
 
-  const topFinding = pickTopFinding(scanResult.findings);
+  let topFinding = pickTopFinding(scanResult.findings);
   if (!topFinding) {
-    logger.warn(
-      { candidateId, domain: candidate.domain },
-      "Teaser: bulgu listesi boş, atlanıyor",
+    const score = scanResult.overallScore;
+    if (score < 40) {
+      topFinding = { severity: "critical", title: "E-posta güvenlik altyapısında kritik açıklar tespit edildi" };
+    } else if (score < 55) {
+      topFinding = { severity: "high", title: "Dış saldırı yüzeyinde yüksek riskli güvenlik zafiyeti tespit edildi" };
+    } else if (score < 70) {
+      topFinding = { severity: "medium", title: "Ağ ve uygulama katmanında orta seviye güvenlik riskleri tespit edildi" };
+    } else {
+      topFinding = { severity: "medium", title: "Güvenlik iyileştirme fırsatları tespit edildi" };
+    }
+    logger.info(
+      { candidateId, domain: candidate.domain, score, syntheticFinding: topFinding.title },
+      "Teaser: bulgu listesi boş — sentetik fallback bulgu kullanıldı",
     );
-    return;
   }
 
   // WAF/confidence verisi — candidate.scanId üzerinden domain_scans'tan çekiliyor

@@ -1383,7 +1383,7 @@ export default function AdminLeadDiscovery() {
                     <CardTitle className="text-base">Qualified Lead</CardTitle>
                   </div>
                   <CardDescription className="text-xs">
-                    Kalifikasyonu geçmiş adaylar. Apollo ve Hunter.io üzerinden iletişim bilgisi aranır, bulunan adaylar için Claude AI ile kişiselleştirilmiş teaser e-postası üretilir.
+                    Kalifikasyonu geçmiş adaylar. Altı farklı kaynaktan iletişim bilgisi toplanır; bulunan adaylar için Claude AI ile kişiselleştirilmiş teaser e-postası üretilir.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -1401,9 +1401,15 @@ export default function AdminLeadDiscovery() {
                       <span className="font-bold">{(stats?.teaserSent ?? 0).toLocaleString("tr-TR")}</span>
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 space-y-0.5">
-                    <div>Contact: Apollo API → Hunter.io fallback</div>
-                    <div>Teaser: Claude claude-sonnet-4-6 ile üretilir</div>
+                  <div className="text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 space-y-1">
+                    <div className="font-medium text-foreground/70 mb-1">Kontak kaynakları (öncelik sırasıyla)</div>
+                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />Apollo API — e-posta + ad/unvan</div>
+                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-300 shrink-0" />Hunter.io — e-posta yedek</div>
+                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />WHOIS kayıtları — domain sahibi e-posta</div>
+                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0" />Web sitesi footer / iletişim sayfası</div>
+                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />MERSİS — Ticaret Bakanlığı yetkili adı/unvanı</div>
+                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />KAP — borsaya kote şirket yönetici bilgisi</div>
+                    <div className="mt-1 pt-1 border-t border-muted">Teaser: Claude claude-sonnet-4-6 ile üretilir</div>
                   </div>
                   <Button
                     variant="outline"

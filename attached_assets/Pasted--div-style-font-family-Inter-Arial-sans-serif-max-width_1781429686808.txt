@@ -1,0 +1,74 @@
+
+<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#060D1A;color:#E8EDF5;border-radius:12px;overflow:hidden">
+
+  <div style="padding:28px 32px 20px">
+    <span style="color:#E8EDF5;font-weight:bold;font-size:22px">Cyber</span><span style="color:#00C8FF;font-weight:bold;font-size:22px">Step</span><span style="color:#7B8FAF;font-size:14px">.io</span>
+  </div>
+
+  <div style="padding:0 32px 20px">
+    <p style="margin:0 0 14px;font-size:15px;line-height:1.5;color:#E8EDF5">Sayın Yetkili,</p>
+    <p style="margin:0;color:#A8B8D0;font-size:14px;line-height:1.7">
+      14 Haziran 2026 tarihinde <strong style="color:#E8EDF5">centrumvitamin.com.tr</strong> alan adınız için gerçekleştirdiğimiz pasif güvenlik taramasında dikkat çekici bir bulguya rastladık.
+    </p>
+  </div>
+
+  <div style="margin:0 32px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(0,200,255,0.2);border-radius:10px;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:16px">
+      <div style="text-align:center;min-width:56px">
+        <div style="font-size:30px;font-weight:bold;color:#FFB020;line-height:1">58</div>
+        <div style="font-size:10px;color:#FFB020;font-weight:700;margin-top:2px;text-transform:uppercase;letter-spacing:0.3px">Orta Risk</div>
+        <div style="font-size:10px;color:#5A6A80;margin-top:1px">/ 100</div>
+      </div>
+      <div style="width:1px;height:44px;background:rgba(255,255,255,0.1);flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="color:#7B8FAF;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">
+          Genel Risk Skoru
+        </div>
+        <div style="color:#A8B8D0;font-size:12px;line-height:1.5">Halka açık DNS, sertifika ve ağ kayıtları analiz edilerek hesaplandı</div>
+      </div>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="color:#7B8FAF;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px">Öne Çıkan Bulgu</div>
+      <div style="color:#E8EDF5;font-size:14px;font-weight:600;margin-bottom:8px">Ağ ve uygulama katmanında orta seviye güvenlik riskleri tespit edildi</div>
+      <div style="color:#A8B8D0;font-size:13px;line-height:1.65">Centrumvitamin.com.tr web sitesinde müşteri bilgileri sızması veya sitenin hizmet vermesinin engellenmesi riskine neden olabilecek güvenlik sorunları bulunmuştur. Bu sorunların hızlıca düzeltilmesi gerekir.</div>
+    </div>
+  </div>
+
+  <div style="padding:0 32px 20px">
+    <p style="margin:0;color:#5A6A80;font-size:12px;line-height:1.65;border-left:2px solid rgba(0,200,255,0.25);padding-left:12px">
+      Bu tarama, halka açık DNS kayıtları, sertifika şeffaflık logları ve ağ keşif verileri üzerinden tamamen pasif olarak gerçekleştirildi — sisteminize herhangi bir erişim sağlanmadı.
+    </p>
+  </div>
+
+  
+
+  
+
+  <div style="padding:0 32px 20px">
+    <p style="margin:0 0 16px;color:#A8B8D0;font-size:13px;line-height:1.65">
+      Türkiye'deki şirketlerin %65,2'si son 12 ayda en az bir siber saldırıya uğradı <span style="color:#5A6A80">(Fortinet Türkiye / DORinsight 2025)</span>. Sizin için hazırladığımız raporu görüntülemek için aşağıdaki butona tıklayabilirsiniz — kayıt gerektirmez, raporunuz hazır.
+    </p>
+    <a href="https://cyberstepio-cyber-risk-analyzer.replit.app/tarama?domain=centrumvitamin.com.tr" style="display:block;background:#00C8FF;color:#060D1A;text-align:center;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;letter-spacing:0.2px">
+      RAPORUMU G&Ouml;R&Uuml;NTÜLE &rarr;
+    </a>
+  </div>
+
+  <div style="padding:8px 32px 28px">
+    <p style="margin:0;color:#A8B8D0;font-size:13px;line-height:1.6">
+      Saygılarımızla,<br>
+      <strong style="color:#E8EDF5">CyberStep.io Ekibi</strong><br>
+      <span style="color:#5A6A80;font-size:11px">Türkiye merkezli siber güvenlik risk analizi platformu</span>
+    </p>
+    <p style="margin:12px 0 0;color:#5A6A80;font-size:11px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px">
+      Bu rapor, <strong style="color:#00C8FF">Step AI</strong> — CyberStep'in yapay zeka güvenlik analisti — tarafından otomatik olarak hazırlanmış ve uzman ekibimiz tarafından gözden geçirilmiştir.
+    </p>
+  </div>
+
+  <div style="background:rgba(0,0,0,0.25);padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05)">
+    <p style="margin:0;color:#5A6A80;font-size:11px;line-height:1.65;text-align:center">
+      Bu e-posta, <strong>centrumvitamin.com.tr</strong> alan adına ait halka açık kayıtların pasif analizi sonucunda gönderilmiştir.<br>
+      Tarafımızla iletişime geçmek istemiyorsanız <a href="mailto:privacy@cyberstep.io" style="color:#5A6A80;text-decoration:underline">buradan bildirebilirsiniz</a>.
+    </p>
+  </div>
+
+</div>

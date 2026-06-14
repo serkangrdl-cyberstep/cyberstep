@@ -1,15 +1,45 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { db, domainScansTable } from "@workspace/db";
+import { db, pool, domainScansTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
 const router = Router();
 
+// Column names in snake_case order (matches SELECT * column order; no id)
+const COLUMNS = [
+  "domain","email","spf_pass","spf_record","dmarc_pass","dmarc_record",
+  "dkim_pass","dkim_selectors","mx_pass","mx_records","ssl_pass","ssl_expiry",
+  "ssl_issuer","ssl_days_until_expiry","overall_score","created_at","notified_at",
+  "hibp_breach_count","hibp_breaches","blacklisted","blacklist_count","blacklist_results",
+  "shadow_it_services","tenant_id","http_headers_score","http_headers_details",
+  "urlhaus_listed","urlhaus_threat","usom_listed","ct_subdomains","ct_subdomain_count",
+  "cve_summary","shodan_open_ports","shodan_vuln_count","shodan_country","shodan_isp",
+  "virustotal_reputation","virustotal_malicious","virustotal_suspicious",
+  "abuseipdb_score","abuseipdb_total_reports","abuseipdb_country","abuseipdb_isp",
+  "safe_browsing_flagged","safe_browsing_threats","ssl_labs_grade","badge_token",
+  "referral_source","kep_configured","kep_relays","kep_secure",
+  "attack_scenarios_json","attack_scenarios_status","attack_scenarios_started_at",
+  "redirected_to","gemini_ai_report","gemini_ai_report_status",
+  "waf_detected","waf_provider","waf_bypass_possible","origin_ip","waf_headers_added",
+  "waf_confidence","sector","city","hosting_provider","is_wordpress","has_cdn",
+  "cdn_provider","open_ports_count","critical_cve_count","high_cve_count",
+  "included_in_index","excluded_reason","confidence_score","confidence_note",
+  "origin_ip_source","asn_number","asn_name","orphaned_assets","censys_related_hosts",
+  "censys_total_found","letter_grade","is_publicly_shared",
+] as const;
+
+const toCamel = (s: string) =>
+  s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+const COL_TO_CAMEL: Record<string, string> = Object.fromEntries(
+  COLUMNS.map(c => [c, toCamel(c)])
+);
+
+const COL_LIST = COLUMNS.join(", ");
+const PLACEHOLDERS = COLUMNS.map((_, i) => `$${i + 1}`).join(", ");
+const INSERT_SQL = `INSERT INTO domain_scans (${COL_LIST}) VALUES (${PLACEHOLDERS})`;
+
 // ─── POST /api/internal/migrate-domain-scans ─────────────────────────────────
-// Dev DB'deki domain tarama sonuçlarını prod DB'ye aktarır.
-// Yalnızca prod'da henüz bulunmayan domain'leri ekler (çakışma yok).
-// BRIDGE_SECRET ile korunur.
 router.post("/internal/migrate-domain-scans", async (req: Request, res: Response) => {
   const { scans, secret } = req.body as { scans?: unknown[]; secret?: string };
 
@@ -23,49 +53,43 @@ router.post("/internal/migrate-domain-scans", async (req: Request, res: Response
     return;
   }
 
-  // Gelen batch'teki domain listesi
-  const incomingDomains = (scans as Array<Record<string, unknown>>)
-    .map(s => String(s["domain"] ?? ""))
-    .filter(Boolean);
+  const rows = scans as Array<Record<string, unknown>>;
+  const incomingDomains = rows.map(s => String(s["domain"] ?? "")).filter(Boolean);
 
   if (incomingDomains.length === 0) {
     res.json({ inserted: 0, skipped: 0 });
     return;
   }
 
-  // Bu domain'lerden hangisi prod'da zaten var?
+  // Prod'da zaten hangi domain'ler var?
   const existing = await db
     .select({ domain: domainScansTable.domain })
     .from(domainScansTable)
     .where(inArray(domainScansTable.domain, incomingDomains));
 
   const existingSet = new Set(existing.map(r => r.domain));
-
-  type FullInsert = typeof domainScansTable.$inferInsert;
-
-  const toInsert: FullInsert[] = (scans as Array<Record<string, unknown>>)
-    .filter(s => !existingSet.has(String(s["domain"] ?? "")))
-    .map(s => {
-      // id olmadan tüm alanları geç; created_at'ı orijinal değerle koru
-      const { id: _id, ...rest } = s;
-      return rest as unknown as FullInsert;
-    });
-
+  const toInsert = rows.filter(s => !existingSet.has(String(s["domain"] ?? "")));
+  const skipped = rows.length - toInsert.length;
   let inserted = 0;
-  let skipped = scans.length - toInsert.length;
 
-  if (toInsert.length > 0) {
-    // 50'şer batch ile insert et
-    const CHUNK = 50;
-    for (let i = 0; i < toInsert.length; i += CHUNK) {
-      const chunk = toInsert.slice(i, i + CHUNK);
-      await db.insert(domainScansTable).values(chunk);
-      inserted += chunk.length;
+  // Use raw pg pool to bypass Drizzle's type mappers (avoids toISOString issues)
+  const client = await pool.connect();
+  try {
+    for (const row of toInsert) {
+      const vals = COLUMNS.map(col => {
+        const v = row[COL_TO_CAMEL[col] ?? col] ?? row[col] ?? null;
+        if (v !== null && typeof v === "object") return JSON.stringify(v);
+        return v ?? null;
+      });
+      await client.query(INSERT_SQL, vals);
+      inserted++;
     }
+  } finally {
+    client.release();
   }
 
-  logger.info({ inserted, skipped, total: scans.length }, "Domain scan migration batch complete");
-  res.json({ inserted, skipped, total: scans.length });
+  logger.info({ inserted, skipped, total: rows.length }, "Domain scan migration batch complete");
+  res.json({ inserted, skipped, total: rows.length });
 });
 
 export default router;

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <radialGradient id="bgCircle" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#0D2035"/>
+      <stop offset="100%" stop-color="#060D1A"/>
+    </radialGradient>
+    <radialGradient id="headGrad" cx="40%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#1A4A6B"/>
+      <stop offset="100%" stop-color="#060D1A"/>
+    </radialGradient>
+    <radialGradient id="eyeGrad" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#00C8FF"/>
+      <stop offset="100%" stop-color="#006688"/>
+    </radialGradient>
+    <radialGradient id="shGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#F5C842"/>
+      <stop offset="100%" stop-color="#D4880A"/>
+    </radialGradient>
+    
+      
+      
+    
+    <clipPath id="circle">
+      <circle cx="150" cy="150" r="145"/>
+    </clipPath>
+  </defs>
+
+  
+  <circle cx="150" cy="150" r="148" fill="url(#bgCircle)" stroke="#00C8FF" stroke-width="4"/>
+  
+  <circle cx="150" cy="150" r="140" fill="none" stroke="#00C8FF" stroke-width="0.5" opacity="0.2"/>
+
+  <g clip-path="url(#circle)">
+    
+    <line x1="150" y1="28" x2="150" y2="5" stroke="#00C8FF" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="150" cy="-2" r="8" fill="#F5A623" stroke="#FFF0C0" stroke-width="1.2"/>
+    <circle cx="150" cy="-2" r="14" fill="none" stroke="#F5A623" stroke-width="1" opacity="0.3"/>
+
+    
+    <circle cx="150" cy="160" r="118" fill="url(#headGrad)" stroke="#00C8FF" stroke-width="2.5"/>
+    
+    <ellipse cx="118" cy="95" rx="36" ry="20" fill="white" opacity="0.04" transform="rotate(-25,118,95)"/>
+
+    
+    <circle cx="33" cy="155" r="13" fill="#091828" stroke="#00C8FF" stroke-width="2"/>
+    <circle cx="33" cy="155" r="6" fill="#00C8FF" opacity="0.55"/>
+    <circle cx="267" cy="155" r="13" fill="#091828" stroke="#00C8FF" stroke-width="2"/>
+    <circle cx="267" cy="155" r="6" fill="#00C8FF" opacity="0.55"/>
+
+    
+    <circle cx="112" cy="150" r="38" fill="#071525" stroke="#00C8FF" stroke-width="2.2"/>
+    <circle cx="188" cy="150" r="38" fill="#071525" stroke="#00C8FF" stroke-width="2.2"/>
+    <circle cx="112" cy="150" r="27" fill="url(#eyeGrad)"/>
+    <circle cx="188" cy="150" r="27" fill="url(#eyeGrad)"/>
+    
+    <circle cx="115" cy="148" r="12" fill="#003344"/>
+    <circle cx="191" cy="148" r="12" fill="#003344"/>
+    
+    <circle cx="122" cy="140" r="6" fill="white" opacity="0.92"/>
+    <circle cx="198" cy="140" r="6" fill="white" opacity="0.92"/>
+    <circle cx="108" cy="152" r="3" fill="white" opacity="0.5"/>
+    <circle cx="184" cy="152" r="3" fill="white" opacity="0.5"/>
+
+    
+    <path d="M84 114 Q112 100 140 112" fill="none" stroke="#00C8FF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M160 112 Q188 100 216 114" fill="none" stroke="#00C8FF" stroke-width="4" stroke-linecap="round"/>
+
+    
+    <path d="M114 194 Q150 218 186 194" fill="none" stroke="#00C8FF" stroke-width="4.5" stroke-linecap="round"/>
+    
+    <ellipse cx="94" cy="186" rx="14" ry="8" fill="#F5A623" opacity="0.2"/>
+    <ellipse cx="206" cy="186" rx="14" ry="8" fill="#F5A623" opacity="0.2"/>
+
+    
+    <g transform="translate(128, 248)">
+      <path d="M22 0 Q40 6 40 6 L40 24 Q40 38 22 46 Q4 38 4 24 L4 6 Q4 6 22 0Z" fill="url(#shGrad)" stroke="#FFF8E0" stroke-width="1.2"/>
+      <text x="22" y="31" font-family="Arial Black, Arial" font-size="18" font-weight="900" fill="#060D1A" text-anchor="middle">S</text>
+    </g>
+  </g>
+</svg>

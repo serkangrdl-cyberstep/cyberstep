@@ -17,6 +17,7 @@ import OzelGunler from "@/pages/OzelGunler";
 import Rozetler from "@/pages/Rozetler";
 import DemoRaporlar from "@/pages/DemoRaporlar";
 import Referrallar from "@/pages/Referrallar";
+import StepAI from "@/pages/StepAI";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,12 @@ const NAV_SECTIONS = [
       { href: "/referrallar", label: "Referral Programi" },
       { href: "/rozetler", label: "Rozet Yonetimi" },
       { href: "/demo-raporlar", label: "Demo Raporlar" },
+    ],
+  },
+  {
+    label: "Marka",
+    items: [
+      { href: "/step-ai", label: "Step AI" },
     ],
   },
   {
@@ -235,6 +242,7 @@ function AppLayout() {
             <Route path="/rozetler" component={Rozetler} />
             <Route path="/demo-raporlar" component={DemoRaporlar} />
             <Route path="/referrallar" component={Referrallar} />
+            <Route path="/step-ai" component={StepAI} />
             <Route component={NotFound} />
           </Switch>
         </div>

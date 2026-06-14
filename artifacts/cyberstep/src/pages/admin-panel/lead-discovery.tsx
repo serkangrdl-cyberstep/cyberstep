@@ -2630,24 +2630,31 @@ export default function AdminLeadDiscovery() {
       {/* Teaser Preview Dialog */}
       {!!teaserPreview && (
         <Dialog open={!!teaserPreview} onOpenChange={() => setTeaserPreview(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl w-[95vw]">
             <DialogHeader>
-              <DialogTitle>Teaser Onizleme — {teaserPreview.domain}</DialogTitle>
+              <DialogTitle>Teaser Önizleme — {teaserPreview.domain}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">Konu</div>
-                <div className="font-medium">{teaserPreview.teaserSubject}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Konu</div>
+                  <div className="font-medium text-sm">{teaserPreview.teaserSubject}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Alıcı</div>
+                  <div className="text-sm">{teaserPreview.contactEmail ?? "—"}</div>
+                </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground mb-1">Alici</div>
-                <div className="text-sm">{teaserPreview.contactEmail}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">Icerik</div>
-                <ScrollArea className="h-48 border rounded-md p-3">
-                  <pre className="text-sm whitespace-pre-wrap font-sans">{teaserPreview.teaserBody}</pre>
-                </ScrollArea>
+                <div className="text-xs text-muted-foreground mb-1">İçerik</div>
+                <div className="border rounded-md overflow-hidden" style={{ height: 480 }}>
+                  <iframe
+                    srcDoc={teaserPreview.teaserBody ?? ""}
+                    className="w-full h-full"
+                    sandbox="allow-same-origin"
+                    title="Teaser Önizleme"
+                  />
+                </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="outline" onClick={() => setTeaserPreview(null)}>Kapat</Button>

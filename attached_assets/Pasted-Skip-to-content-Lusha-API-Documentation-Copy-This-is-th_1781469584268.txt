@@ -1,0 +1,371 @@
+Skip to content
+
+
+
+
+Lusha API Documentation
+Copy
+
+This is the Lusha API V3 documentation.
+
+V3 introduces a new search-then-enrich pattern, bulk operations, AI-powered lookalikes, and richer filter capabilities. All endpoints are under https://api.lusha.com/v3/.
+
+For more information on V3, refer to the Migration Guide.
+
+Lusha provides a RESTful API for querying a comprehensive dataset of business profiles and company information. Built for teams running prospecting, enrichment, automation, and analytics workflows that need accurate, continuously updated business data. The API supports both real-time and bulk use cases.
+
+Use the Lusha API to search for new prospects, enrich existing records, react to real-world changes, and expand coverage with AI-powered lookalike recommendations.
+
+All API requests must be made over HTTPS. All responses are returned in JSON format.
+
+Available Endpoints
+Category	Description
+Search	Find contacts or companies using known identifiers
+Enrich	Retrieve full profile data for contacts or companies by ID
+Search & Enrich	Find and retrieve full contact or company data in a single call
+Prospecting	Filter-based search across contacts and companies
+Lookalikes	AI-powered recommendations for similar contacts and companies
+Signals	Real-world activity data for contacts and companies
+Decision Makers	Find the most relevant decision makers across your target accounts
+Website Visits	Companies ranked by website-visit signals for your tracked domains
+Filters	Discover valid filter values for prospecting
+Webhooks	Real-time signal notifications via HTTP callbacks
+Account	Usage, credits, rate limits, and pricing
+Data Source and Privacy
+Lusha is a search platform. The data provided is not created or directly managed by Lusha. It is sourced from publicly available information and trusted business partners.
+
+For more details on how we collect and handle data, see our Privacy Policy.
+
+Authentication
+All API requests require an API key linked to your Lusha account and plan. Pass your key in the api_key request header on every call.
+
+Generate and manage your API key in the Lusha dashboard.
+
+Store your API key securely and use it only in server-side environments.
+
+Rate Limiting
+Lusha enforces rate limits on a per-plan basis to ensure fair usage and platform stability. Limits are applied across multiple time windows (per minute, per hour, and per day), and vary depending on your account plan.
+
+Rate limits for the Credit Usage API differ from standard endpoint limits.
+
+Note: To check your current plan's limits, visit the Lusha Help Center or contact your account manager.
+
+Rate Limit Response Headers
+
+Header	Description
+x-rate-limit-daily	Total requests allowed per day
+x-daily-requests-left	Requests remaining in your daily quota
+x-daily-usage	Requests made in the current daily period
+x-rate-limit-hourly	Total requests allowed per hour
+x-hourly-requests-left	Requests remaining in your hourly quota
+x-hourly-usage	Requests made in the current hourly period
+x-rate-limit-minute	Total requests allowed per minute
+x-minute-requests-left	Requests remaining in the current minute window
+x-minute-usage	Requests made in the current minute window
+Error Codes
+Lusha uses standard HTTP status codes to indicate the result of each request.
+
+Code	Name	Description
+200	OK	Request was successful
+400	Bad Request	Request is malformed or missing required fields
+401	Unauthorized	API key is missing or invalid
+402	Payment Required	Insufficient credits or payment needed
+403	Forbidden	Account is inactive. Contact support@lusha.com
+404	Not Found	Endpoint or resource does not exist
+429	Too Many Requests	Rate limit or daily quota exceeded
+451	Unavailable For Legal Reasons	Request blocked due to GDPR regulations
+499	Client Closed Request	Request timed out before completing
+5XX	Server Error	Issue on Lusha's end. Retry with exponential backoff
+Error Response Format
+
+
+
+{
+  "statusCode": 400,
+  "message": "Invalid request parameters"
+}
+Tips for Handling Errors
+
+Verify your API key is correct and active
+Read the message field for specific troubleshooting details
+For 429 errors, wait before retrying
+For 5XX errors, use exponential backoff before retrying
+Download OpenAPI description
+openapi.json
+
+openapi.yaml
+
+Overview
+URL
+https://api.lusha.com
+
+Lusha Support
+support@lusha.com
+
+
+License
+Proprietary
+
+Terms of Service
+
+Languages
+
+curl
+
+JavaScript
+
+Servers
+Mock server
+https://docs.lusha.com/_mock/apis/openapi
+
+Production server
+https://api.lusha.com
+
+Search
+Copy
+
+Search APIs: Find contacts or companies using known identifiers.
+
+Look up contacts by id, linkedinUrl, email, or firstName + lastName + companyName/companyDomain. Look up companies by id, name, or domain.
+
+Returns a non-PII preview of each profile with a has field listing available data points and a canReveal field showing what can be unlocked via Enrich.
+
+Billing: Charged per successful result via the api_search action.
+
+Operations
+
+post
+/v3/contacts/search
+
+post
+/v3/companies/search
++ Show
+Enrich
+Copy
+
+Enrich APIs: Retrieve full profile data for contacts or companies by ID.
+
+Pass IDs from Search results to reveal emails, phones, and full firmographic data.
+
+Billing: Charged per revealed field via per-datapoint pricing (revealEmail, revealPhone, reveal_company).
+
+Operations
+
+post
+/v3/contacts/enrich
+
+post
+/v3/companies/enrich
++ Show
+Search & Enrich
+Copy
+
+Search & Enrich APIs: Find and retrieve full contact or company data in a single call.
+
+Combines Search and Enrich into one request. Provide identifiers and control what gets revealed via the reveal field.
+
+Billing: Two charges apply — one for the search (api_search) and one per revealed field.
+
+Operations
+
+post
+/v3/contacts/search-and-enrich
+
+post
+/v3/companies/search-and-enrich
++ Show
+Prospecting
+Copy
+
+Prospecting APIs: Filter-based search for contacts and companies.
+
+Use prospecting to find new records that match your Ideal Customer Profile (ICP). Apply rich filters across:
+
+Contact attributes: title, seniority, location, signals
+Company attributes: size, revenue, industry, technologies, intent
+Results are paginated: up to 1,000 pages x 50 results = 50,000 results per query.
+
+Billing: Uses the capture/charge model with api_search actions. Signal charges apply additionally.
+
+Operations
+
+post
+/v3/contacts/prospecting
+
+post
+/v3/companies/prospecting
++ Show
+Lookalikes
+Copy
+
+Lookalike APIs: Use AI-powered recommendations to discover contacts and companies similar to your best existing customers. The Contact Lookalikes and Company Lookalikes endpoints return paginated results you can pipe directly into Enrich for full data.
+
+Operations
+
+post
+/v3/contacts/lookalike
+
+post
+/v3/companies/lookalike
++ Show
+Signals
+Copy
+
+Real-world activity data for contacts and companies.
+
+Signals are available as standalone endpoints or as an optional signals filter on Search and Prospecting endpoints.
+
+Contact signal types: promotion, companyChange, allSignals
+
+Company signal types: headcountIncrease1m/3m/6m/12m, headcountDecrease1m/3m/6m/12m, surgeInHiring, surgeInHiringByDepartment, surgeInHiringByLocation, websiteTrafficIncrease, websiteTrafficDecrease, itSpendIncrease, itSpendDecrease, riskNews, commercialActivityNews, corporateStrategyNews, financialEventsNews, peopleNews, marketIntelligenceNews, productActivityNews, allSignals
+
+Credits are charged per matched signal per result via showSignalsContact or showSignalsCompany.
+
+Operations
+
+post
+/v3/contacts/signals
+
+post
+/v3/companies/signals
+
+get
+/v3/contacts/signals/types
+
+get
+/v3/companies/signals/types
+
+get
+/v3/companies/signals/filters
+
+get
+/v3/companies/signals/filters/{filterType}
++ Show
+Decision Makers
+Copy
+
+Supply companies by domain or Lusha ID and get back the most relevant decision makers per company, ranked by fit. Results are free contact previews — pass the returned id values to Enrich Contacts to reveal emails and phones.
+
+Operations
+
+post
+/v3/contacts/decision-makers
+Beta
++ Show
+Website Visits
+Copy
+
+Retrieve companies ranked by website-visit signals for your tracked domains.
+
+Domains must be configured for tracking in the dashboard. Each result combines a V3 company firmographic preview with behavioral visit metrics (score, sessions, unique visitors, avg session length, and more).
+
+Operations
+
+post
+/v3/companies/website-visits
+Beta
++ Show
+Filters
+Copy
+
+Filter APIs: Retrieve available filter values for prospecting.
+
+Use the discovery endpoints to list all available filter types, then fetch valid values for a specific filter type before building a prospecting request.
+
+Contact filter types: departments, seniority, existingDataPoints, countries, locations
+
+Company filter types: names, sizes, revenues, locations, sics, naics, industriesLabels, intentTopics, technologies
+
+Operations
+
+get
+/v3/contacts/prospecting/filters
+
+get
+/v3/contacts/prospecting/filters/{filterType}
+
+get
+/v3/companies/prospecting/filters
+
+get
+/v3/companies/prospecting/filters/{filterType}
++ Show
+Webhooks
+Copy
+
+Subscribe to real-time notifications when contacts change jobs or companies experience key business events.
+
+Webhooks deliver HTTP POST requests to your endpoints when signals occur - from promotions and job changes to company growth.
+
+For a full list of available signals, refer to Signal Options.
+
+Key Features:
+
+Real-time contact & company signal notifications
+Bulk subscription management (up to 25 items per request)
+Secure delivery with HMAC-SHA256 signatures
+Delivery monitoring with audit logs
+Available Endpoints:
+
+Method	Endpoint	Purpose
+POST	/api/subscriptions	Create subscriptions (bulk supported)
+GET	/api/subscriptions	List all subscriptions
+GET	/api/subscriptions/{id}	Get subscription by ID
+PATCH	/api/subscriptions/{id}	Update subscription
+POST	/api/subscriptions/delete	Delete subscriptions (bulk supported)
+POST	/api/subscriptions/{id}/test	Test subscription delivery
+GET	/api/audit-logs	Get webhook delivery logs
+GET	/api/audit-logs/stats	Get delivery statistics
+GET	/api/account/secret	Get account webhook secret
+POST	/api/account/secret/regenerate	Regenerate account secret
+POST	/api/subscriptions/opt-out	Subscribe to contact opt-out notifications
+Webhook Delivery Acknowledgment: When receiving webhook deliveries (POST requests), your endpoint must acknowledge with a specific response format. See the Create Subscription endpoint for the required acknowledgment structure.
+
+Rate Limits
+Security & Verification
+Credits & Billing
+Error Response Format
+Operations
+
+post
+/api/subscriptions
+
+get
+/api/subscriptions
+
+get
+/api/subscriptions/{id}
+
+patch
+/api/subscriptions/{id}
+
+post
+/api/subscriptions/{id}/test
+
+post
+/api/subscriptions/delete
+
+get
+/api/audit-logs
+
+get
+/api/audit-logs/stats
+Show 3 more...
++ Show
+Account
+Copy
+
+Account API: Retrieve account usage, credit balance, rate limits, plan details, and pricing.
+
+Use this endpoint to monitor consumption and understand the credit cost of each action type in the public API flow.
+
+Rate limit: 5 requests per minute.
+
+Operations
+
+get
+/v3/account/usage
++ Show
+Terms
+Copyright © Lusha. All rights reserved.
+Ask AI

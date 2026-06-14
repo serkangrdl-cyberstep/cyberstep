@@ -1242,6 +1242,26 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+              {/* Dr. Step Güvenlik Durumu — mood strip */}
+              <div className="w-full max-w-xs border border-slate-700/60 rounded-xl p-3 bg-slate-800/40">
+                <p className="text-xs text-slate-500 text-center mb-2.5">
+                  {lang === "en" ? "Dr. Step diagnoses your security" : "Dr. Step güvenliğinizi teşhis eder"}
+                </p>
+                <div className="flex justify-around items-end">
+                  {[
+                    { src: "/mood-happy.svg",   label: lang === "en" ? "Clean" : "Temiz",    color: "text-emerald-400" },
+                    { src: "/mood-worried.svg",  label: lang === "en" ? "Risk" : "Riskli",    color: "text-amber-400" },
+                    { src: "/mood-alarm.svg",    label: lang === "en" ? "Critical" : "Kritik", color: "text-red-400" },
+                    { src: "/mood-scan.svg",     label: lang === "en" ? "Scanning" : "Tarıyor", color: "text-cyan-400" },
+                    { src: "/mood-victory.svg",  label: lang === "en" ? "Fixed" : "Çözüldü",  color: "text-violet-400" },
+                  ].map(m => (
+                    <div key={m.src} className="flex flex-col items-center gap-1">
+                      <img src={m.src} alt={m.label} className="h-9 w-9 object-contain" />
+                      <span className={`text-[10px] font-medium ${m.color}`}>{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

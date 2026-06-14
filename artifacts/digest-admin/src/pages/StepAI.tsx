@@ -58,6 +58,102 @@ cyberstep: {
   gray:    "#7B8FAF",
 }`;
 
+const DR_STEP_ASSETS = [
+  {
+    id: "dr-main",
+    label: "Dr. Step Ana",
+    size: "600 × 600",
+    desc: "Nötr duruş, ECG ekranı, doktor üniforması. Genel kullanım ve marka tanıtımı için.",
+    src: "/dr-step-main.svg",
+    previewBg: "#0D1E33",
+    previewH: "h-64",
+  },
+  {
+    id: "dr-clipboard",
+    label: "Dr. Step Clipboard",
+    size: "600 × 600",
+    desc: "Elinde rapor panosu. Rapor hazır / değerlendirme tamamlandı durumları için.",
+    src: "/dr-step-clipboard.svg",
+    previewBg: "#0A1628",
+    previewH: "h-64",
+  },
+  {
+    id: "dr-alarm",
+    label: "Dr. Step Alarm",
+    size: "600 × 600",
+    desc: "Gözlüklü alarm ifadesi. Kritik bulgular / acil durum uyarıları için.",
+    src: "/dr-step-alarm.svg",
+    previewBg: "#1a0a0a",
+    previewH: "h-64",
+  },
+  {
+    id: "dr-clean",
+    label: "Dr. Step Temiz Rapor",
+    size: "600 × 600",
+    desc: "Başparmak yukarı, mutlu ifade. Temiz rapor / yüksek skor sonuçları için.",
+    src: "/dr-step-clean.svg",
+    previewBg: "#0a1a0e",
+    previewH: "h-64",
+  },
+  {
+    id: "dr-card",
+    label: "Dr. Step Kart",
+    size: "600 × 600",
+    desc: "Tam kart formatı, koyu arka plan + marka logosu. Sosyal medya ve sunum için.",
+    src: "/dr-step-card.svg",
+    previewBg: "#060D1A",
+    previewH: "h-64",
+  },
+];
+
+const MOOD_ASSETS = [
+  {
+    id: "mood-happy",
+    label: "Happy — Temiz Rapor",
+    size: "400 × 400",
+    desc: '"Harika! Güvendesiniz" — Skor A/B, temiz rapor durumu.',
+    src: "/mood-happy.svg",
+    previewBg: "#0a1a0e",
+    color: "#22c55e",
+  },
+  {
+    id: "mood-alarm",
+    label: "Alarm — Kritik Bulgu",
+    size: "400 × 400",
+    desc: '"Acil Durum! Kritik Açık" — Kırmızı alarm soruları veya F/D notu.',
+    src: "/mood-alarm.svg",
+    previewBg: "#1a0a0a",
+    color: "#ef4444",
+  },
+  {
+    id: "mood-scan",
+    label: "Curious — Tarama",
+    size: "400 × 400",
+    desc: '"Tarama Yapılıyor..." — Aktif tarama / yükleme durumu.',
+    src: "/mood-scan.svg",
+    previewBg: "#0a1520",
+    color: "#00C8FF",
+  },
+  {
+    id: "mood-worried",
+    label: "Worried — Orta Risk",
+    size: "400 × 400",
+    desc: '"Dikkat! Orta Risk Mevcut" — Skor C/D, iyileştirme gerekiyor.',
+    src: "/mood-worried.svg",
+    previewBg: "#1a1200",
+    color: "#f59e0b",
+  },
+  {
+    id: "mood-victory",
+    label: "Victory — Sorun Giderildi",
+    size: "400 × 400",
+    desc: '"Sorun Giderildi! Zafer" — Bulgu kapatıldı / aksiyon tamamlandı.',
+    src: "/mood-victory.svg",
+    previewBg: "#10001a",
+    color: "#a855f7",
+  },
+];
+
 const MASCOT_ASSETS = [
   {
     id: "card",
@@ -221,6 +317,109 @@ export default function StepAI() {
                 <p className="text-xs mb-1" style={{ color: "#7B8FAF" }}>{item.label}</p>
                 <p className="text-sm font-mono" style={{ color: "#E8EDF5" }}>{item.value}</p>
                 <p className="text-xs mt-1 italic" style={{ color: "#7B8FAF" }}>{item.note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Bölüm 1b: Dr. Step Doktor Serisi ───────────────────────────── */}
+      <section>
+        <SectionHeader label="Dr. Step — Doktor Serisi" />
+        <p className="text-xs mb-5 leading-relaxed" style={{ color: "#7B8FAF" }}>
+          Dr. Step, CyberStep'in "Güvenlik Kan Tahlili" konseptinin maskotu. Siber güvenlik durumuna göre 5 farklı pozu var.
+          Alan adı tarama raporları ve değerlendirme sayfalarında risk seviyesine bağlı otomatik seçilir.
+        </p>
+        <div className="grid md:grid-cols-5 gap-4">
+          {DR_STEP_ASSETS.map(asset => (
+            <div key={asset.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid #0F2040" }}>
+              <div
+                className={`flex items-center justify-center p-3 ${asset.previewH}`}
+                style={{ background: asset.previewBg }}
+              >
+                <img
+                  src={asset.src}
+                  alt={asset.label}
+                  className="h-full object-contain"
+                  style={{ filter: "drop-shadow(0 0 16px rgba(0,200,255,0.15))" }}
+                />
+              </div>
+              <div className="p-3 space-y-1.5" style={{ background: "#0A1628" }}>
+                <div className="flex items-baseline justify-between gap-1">
+                  <p className="font-semibold text-xs" style={{ color: "#E8EDF5" }}>{asset.label}</p>
+                  <span className="text-xs font-mono shrink-0" style={{ color: "#7B8FAF" }}>{asset.size}</span>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: "#7B8FAF" }}>{asset.desc}</p>
+                <a
+                  href={asset.src}
+                  download
+                  className="inline-block text-xs px-2.5 py-1 rounded-lg transition-colors mt-1"
+                  style={{ border: "1px solid #0F2040", color: "#00C8FF", background: "rgba(0,200,255,0.06)" }}
+                >
+                  SVG indir
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Bölüm 1c: Step AI Ruh Hali İfadeleri ───────────────────────── */}
+      <section>
+        <SectionHeader label="Step AI — Ruh Hali İfadeleri" />
+        <p className="text-xs mb-5 leading-relaxed" style={{ color: "#7B8FAF" }}>
+          5 farklı ruh hali ifadesi, risk skoru ve tarama durumuna göre otomatik olarak doğru mascot'u gösterir.
+          Tarama başladığında "Curious", temiz raporda "Happy", kritik bulguda "Alarm" kullanılır.
+        </p>
+        <div className="grid sm:grid-cols-5 gap-4">
+          {MOOD_ASSETS.map(asset => (
+            <div key={asset.id} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${asset.color}22` }}>
+              <div
+                className="flex items-center justify-center p-4 h-44"
+                style={{ background: asset.previewBg }}
+              >
+                <img
+                  src={asset.src}
+                  alt={asset.label}
+                  className="h-full object-contain"
+                  style={{ filter: `drop-shadow(0 0 16px ${asset.color}40)` }}
+                />
+              </div>
+              <div className="p-3 space-y-1" style={{ background: "#0A1628" }}>
+                <p className="font-semibold text-xs" style={{ color: asset.color }}>{asset.label}</p>
+                <p className="text-xs leading-relaxed" style={{ color: "#7B8FAF" }}>{asset.desc}</p>
+                <a
+                  href={asset.src}
+                  download
+                  className="inline-block text-xs px-2.5 py-1 rounded-lg transition-colors mt-1"
+                  style={{ border: "1px solid #0F2040", color: "#7B8FAF", background: "rgba(255,255,255,0.04)" }}
+                >
+                  SVG indir
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Mood mapping tablosu */}
+        <div className="mt-5 rounded-xl p-5" style={{ background: "#0A1628", border: "1px solid #0F2040" }}>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#00C8FF" }}>
+            Risk Skoru → Mascot Eşleşmesi
+          </p>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {[
+              { score: "Skor A+/A (≥80)", mood: "Happy", use: "Domain tarama temiz rapor, değerlendirme Düşük Risk", color: "#22c55e" },
+              { score: "Skor B+/B (60–79)", mood: "Worried", use: "Domain tarama orta risk, değerlendirme Orta Risk", color: "#f59e0b" },
+              { score: "Skor C/D/F (<60)", mood: "Alarm", use: "Domain tarama kritik, değerlendirme Yüksek/Kritik Risk", color: "#ef4444" },
+              { score: "Tarama devam ediyor", mood: "Curious", use: "Buton tıklandığında yükleme animasyonu sırasında", color: "#00C8FF" },
+              { score: "Bulgu kapatıldı", mood: "Victory", use: "Gelecek: aksiyon tamamlandı bildirimi (rezerv)", color: "#a855f7" },
+            ].map(row => (
+              <div key={row.score} className="rounded-lg p-3 flex items-center gap-3" style={{ background: "#060D1A", border: "1px solid #0F2040" }}>
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: row.color }} />
+                <div>
+                  <p className="text-xs font-mono font-semibold" style={{ color: "#E8EDF5" }}>{row.score} → <span style={{ color: row.color }}>{row.mood}</span></p>
+                  <p className="text-xs" style={{ color: "#7B8FAF" }}>{row.use}</p>
+                </div>
               </div>
             ))}
           </div>

@@ -414,6 +414,12 @@ const CREDIT_GRADE_STYLE: Record<string, string> = {
   "F":  "bg-red-100 text-red-800 border-red-300",
 };
 
+function getDrStepMood(score: number): { src: string; label: string } {
+  if (score >= 80) return { src: "/dr-step-clean.svg", label: "Dr. Step temiz rapor" };
+  if (score >= 60) return { src: "/mood-worried.svg", label: "Dr. Step endişeli" };
+  return { src: "/dr-step-alarm.svg", label: "Dr. Step alarm" };
+}
+
 function CheckCard({
   meta,
   pass,
@@ -2147,11 +2153,14 @@ export default function DomainScanPage() {
             )}
           </Button>
           {scanMutation.isPending && (
-            <p className="text-xs text-muted-foreground mt-2">
-              {lang === "en"
-                ? "Checking DNS records, SSL, data breaches and blacklists..."
-                : "DNS kayıtları, SSL, veri sızıntısı ve kara listeler kontrol ediliyor..."}
-            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <img src="/mood-scan.svg" alt="Taranıyor" className="h-10 w-10 object-contain shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                {lang === "en"
+                  ? "Checking DNS records, SSL, data breaches and blacklists..."
+                  : "DNS kayıtları, SSL, veri sızıntısı ve kara listeler kontrol ediliyor..."}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -2311,6 +2320,11 @@ export default function DomainScanPage() {
           <Card className={`shadow-sm mb-6 border ${scoreInfo.bg}`}>
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                <img
+                  src={getDrStepMood(result.overallScore).src}
+                  alt={getDrStepMood(result.overallScore).label}
+                  className="w-20 h-20 object-contain shrink-0 hidden sm:block"
+                />
                 <div className="text-center shrink-0">
                   <div className={`text-5xl font-black ${scoreInfo.text}`}>{result.overallScore}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">/ 100 puan</div>

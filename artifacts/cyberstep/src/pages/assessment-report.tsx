@@ -558,6 +558,15 @@ function AssessmentReportCore({ id }: { id: number }) {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row items-center gap-8">
+              <img
+                src={
+                  report.riskLevel === "Düşük" ? "/mood-happy.svg"
+                  : report.riskLevel === "Orta" ? "/mood-worried.svg"
+                  : "/mood-alarm.svg"
+                }
+                alt="Dr. Step ruh hali"
+                className="w-20 h-20 object-contain shrink-0 hidden md:block"
+              />
               <div className="relative flex items-center justify-center shrink-0">
                 <svg className="w-36 h-36 transform -rotate-90">
                   <circle cx="72" cy="72" r="62" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-muted/30" />

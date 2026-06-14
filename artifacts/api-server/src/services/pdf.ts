@@ -5,6 +5,20 @@ const FONT_DIR = "/usr/share/fonts/truetype/dejavu";
 const FONT_REGULAR = path.join(FONT_DIR, "DejaVuSans.ttf");
 const FONT_BOLD    = path.join(FONT_DIR, "DejaVuSans-Bold.ttf");
 
+const MASCOT_DIR = path.join(__dirname, "assets", "mascot");
+
+function getMascotPath(score: number): string {
+  if (score >= 80) return path.join(MASCOT_DIR, "dr-step-clean.png");
+  if (score >= 60) return path.join(MASCOT_DIR, "mood-worried.png");
+  return path.join(MASCOT_DIR, "dr-step-alarm.png");
+}
+
+function getAssessmentMascotPath(riskLevel: string): string {
+  if (riskLevel === "Düşük") return path.join(MASCOT_DIR, "dr-step-clean.png");
+  if (riskLevel === "Orta")  return path.join(MASCOT_DIR, "mood-worried.png");
+  return path.join(MASCOT_DIR, "dr-step-alarm.png");
+}
+
 interface ReportData {
   assessmentId: number;
   companyName: string;
@@ -107,6 +121,12 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
       .text(data.riskLevel, riskBoxX, riskBoxY + 16, { width: scoreBoxW, align: "center" });
     doc.fillColor(GRAY).fontSize(9).font(FONT_REGULAR)
       .text(`${data.redAlarmCount} kırmızı alarm`, riskBoxX, riskBoxY + 44, { width: scoreBoxW, align: "center" });
+
+    // Dr. Step mascot — assessment PDF (risk seviyesine göre)
+    try {
+      const mascotX = MARGIN + CONTENT_W - 76;
+      doc.image(getAssessmentMascotPath(data.riskLevel), mascotX, riskBoxY, { width: 72, height: 72 });
+    } catch { /* mascot dosyası bulunamazsa atla */ }
 
     doc.y = riskBoxY + 88;
 
@@ -488,6 +508,11 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
     doc.fillColor(scoreCol).font(FONT_BOLD).fontSize(16).text(scoreLabel, MARGIN, LVL_Y);
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
       .text(scoreDesc, MARGIN, LVL_Y + 23, { width: 270 });
+
+    // Dr. Step mascot — risk seviyesine göre değişir
+    try {
+      doc.image(getMascotPath(data.overallScore), GX - 65, GY + GR + 14, { width: 110, height: 110 });
+    } catch { /* mascot dosyası bulunamazsa atla */ }
 
     // TR sektör karşılaştırma barı
     const BAR_Y = LVL_Y + 72;

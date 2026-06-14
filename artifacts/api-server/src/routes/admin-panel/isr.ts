@@ -82,8 +82,7 @@ router.get("/admin-panel/isr/leads-queue", requireAdmin, async (req: Request, re
       eq(leadCandidatesTable.isQualified, true),
       isNull(leadCandidatesTable.isrPromotedAt),
     ))
-    .orderBy(desc(leadCandidatesTable.riskScore))
-    .limit(50);
+    .orderBy(desc(leadCandidatesTable.riskScore));
   res.json(rows);
 });
 

@@ -310,6 +310,9 @@ export default function CustomerReports() {
             <TabsTrigger value="domains" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
               <Globe className="h-4 w-4 mr-2" /> Alan Adı Taramaları ({domainScans.length})
             </TabsTrigger>
+            <TabsTrigger value="annual" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
+              <BarChart3 className="h-4 w-4 mr-2" /> Yıllık Raporlar
+            </TabsTrigger>
           </TabsList>
 
           {/* Assessments Tab */}
@@ -486,8 +489,100 @@ export default function CustomerReports() {
               );
             })}
           </TabsContent>
+
+          {/* Annual Reports Tab */}
+          <AnnualReportsTab />
         </Tabs>
       </div>
     </div>
+  );
+}
+
+interface AnnualReportRow {
+  id: number;
+  domain: string;
+  company_name: string | null;
+  year: number;
+  year_end_score: number;
+  year_end_grade: string | null;
+  score_delta: number | null;
+  total_scans: number;
+  pdf_url: string | null;
+  created_at: string;
+}
+
+function AnnualReportsTab() {
+  const { data: customer } = useRequireCustomer();
+  const { data: reports = [], isLoading } = useQuery<AnnualReportRow[]>({
+    queryKey: ["customer-annual-reports"],
+    queryFn: () => fetch("/api/customer/annual-reports", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer,
+  });
+
+  const gradeColor = (g: string | null) => {
+    if (g === "A") return "text-emerald-400";
+    if (g === "B") return "text-lime-400";
+    if (g === "C") return "text-amber-400";
+    if (g === "D") return "text-orange-400";
+    return "text-red-400";
+  };
+
+  return (
+    <TabsContent value="annual" className="mt-4 space-y-3">
+      {isLoading && <div className="text-center py-12 text-slate-500">Yükleniyor...</div>}
+      {!isLoading && reports.length === 0 && (
+        <Card className="bg-slate-900 border-slate-700">
+          <CardContent className="p-12 text-center">
+            <BarChart3 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
+            <p className="text-slate-400">Henüz yıllık rapor bulunmuyor.</p>
+            <p className="text-slate-500 text-sm mt-2">
+              Yıllık güvenlik raporları her yıl 1 Ocak'ta otomatik olarak oluşturulur.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      {reports.map((r) => (
+        <Card key={r.id} className="bg-slate-900 border-slate-700 hover:border-slate-600 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-white font-semibold">{r.domain}</p>
+                  <Badge className="bg-slate-700 text-slate-300 border-slate-600 text-xs">
+                    {r.year} Yılı
+                  </Badge>
+                  {r.year_end_grade && (
+                    <Badge className={`text-xs bg-slate-800 border-slate-600 ${gradeColor(r.year_end_grade)}`}>
+                      {r.year_end_grade} Notu
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-slate-400 text-sm mt-1 flex items-center gap-3">
+                  <span>{r.total_scans} tarama</span>
+                  {r.score_delta !== null && (
+                    <span className={r.score_delta >= 0 ? "text-emerald-400" : "text-red-400"}>
+                      {r.score_delta >= 0 ? `+${r.score_delta}` : r.score_delta} puan değişim
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className={`text-3xl font-bold ${gradeColor(r.year_end_grade)}`}>{r.year_end_score}</p>
+                  <p className="text-slate-500 text-xs">/ 100 puan</p>
+                </div>
+                {r.pdf_url && (
+                  <a href={r.pdf_url} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="outline" className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10">
+                      <Download className="h-3.5 w-3.5 mr-1" /> PNG İndir
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </TabsContent>
   );
 }

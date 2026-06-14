@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { StepAiSelfie } from "@/components/step-ai-selfie";
+import { SecurityScoreCard } from "@/components/security-score-card";
 import { Download } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useLanguage } from "@/contexts/language-context";
@@ -142,6 +143,8 @@ interface ScanResult {
   letterGrade?: string | null;
   isPubliclyShared?: boolean;
   badgeToken?: string | null;
+  criticalCveCount?: number;
+  highCveCount?: number;
 }
 
 function ShodanCard({ openPorts, vulnCount, country, isp, wafDetected, domain }: {
@@ -2436,6 +2439,21 @@ export default function DomainScanPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Paylaşılabilir Güvenlik Kartı */}
+          <SecurityScoreCard
+            score={result.overallScore}
+            grade={result.letterGrade ?? computeCreditGrade(result.overallScore)}
+            domain={result.domain}
+            criticalCount={result.criticalCveCount ?? 0}
+            highCount={result.highCveCount ?? 0}
+            mediumCount={(result.cveSummary ?? []).filter((c: { cvssScore?: number }) => (c.cvssScore ?? 0) >= 4 && (c.cvssScore ?? 0) < 7).length}
+            sectorAvg={54}
+            scanDate={result.createdAt}
+            variant="full"
+            badgeToken={result.badgeToken}
+            isPubliclyShared={result.isPubliclyShared ?? false}
+          />
 
           {/* Score breakdown */}
           {result.scoreBreakdown && (

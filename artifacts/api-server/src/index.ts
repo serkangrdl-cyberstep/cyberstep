@@ -1955,6 +1955,30 @@ async function ensureDomainScanPurchasesTable() {
       paid_at TIMESTAMP
     )
   `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS annual_reports (
+      id SERIAL PRIMARY KEY,
+      domain TEXT NOT NULL,
+      company_name TEXT,
+      year INTEGER NOT NULL,
+      year_end_score INTEGER NOT NULL,
+      year_end_grade TEXT,
+      prev_year_score INTEGER,
+      score_delta INTEGER,
+      total_scans INTEGER NOT NULL DEFAULT 0,
+      closed_findings INTEGER NOT NULL DEFAULT 0,
+      surface_reduction INTEGER NOT NULL DEFAULT 0,
+      avg_critical_close_days INTEGER,
+      monthly_scores JSONB,
+      top_achievement TEXT,
+      sector_percentile INTEGER,
+      svg_content TEXT,
+      pdf_url TEXT,
+      email_sent_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
 }
 
 // ─── Cron: 6-aylık fiyat güncelleme hatırlatıcısı (her Pazartesi 09:30'da) ────
@@ -2028,6 +2052,16 @@ function startInflationReminderCron() {
     return await runPriceAutoUpdate();
   }), { timezone: "Europe/Istanbul" });
   logger.info("Price auto-update cron scheduled (1 Jan 09:00 Istanbul)");
+
+  // ─── Yıllık Güvenlik Raporu — Her yıl 1 Ocak 09:30 Istanbul ──────────────
+  cron.schedule("30 9 1 1 *", wrapCron("annual_security_report", "30 9 1 1 *", async () => {
+    const { generateAnnualReports } = await import("./lib/reports/annualReportSvg.js");
+    const year = new Date().getFullYear() - 1;
+    const sent = await generateAnnualReports(year);
+    logger.info(`Annual reports: ${sent} sent for year ${year}`);
+    return sent;
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("Annual security report cron scheduled (1 Jan 09:30 Istanbul)");
 }
 
 // ─── Digest Cron ─────────────────────────────────────────────────────────────
@@ -3032,6 +3066,7 @@ startup()
         { name: "growth_port_change",       thresholdHours: 169 },
         { name: "inflation_reminder",       thresholdHours: 169 },
         { name: "price_auto_update",        thresholdHours: 8785 },
+        { name: "annual_security_report",  thresholdHours: 8785 },
         { name: "nps_send",                 thresholdHours: 169 },
         { name: "social_media_weekly",      thresholdHours: 169 },
         { name: "weekly_db_backup",         thresholdHours: 169 },

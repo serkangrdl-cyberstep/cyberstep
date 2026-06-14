@@ -979,4 +979,35 @@ router.post("/customer/onboarding/verify-step", requireCustomer, async (req: Req
   }
 });
 
+// ─── GET /api/customer/annual-reports ─────────────────────────────────────────
+router.get("/customer/annual-reports", requireCustomer, async (req, res) => {
+  try {
+    const customerId = getCustomerId(req);
+    if (!customerId) { res.status(401).json({ error: "Yetkisiz" }); return; }
+
+    const { rows: emailRows } = await pool.query<{ email: string }>(
+      "SELECT email FROM customers WHERE id=$1 LIMIT 1",
+      [customerId]
+    );
+    const email = emailRows[0]?.email;
+    if (!email) { res.json([]); return; }
+
+    const { rows } = await pool.query(
+      `SELECT ar.id, ar.domain, ar.company_name, ar.year, ar.year_end_score,
+              ar.year_end_grade, ar.score_delta, ar.total_scans, ar.pdf_url,
+              ar.created_at
+       FROM annual_reports ar
+       WHERE ar.domain IN (
+         SELECT DISTINCT domain FROM domain_scans WHERE email=$1 AND domain IS NOT NULL
+       )
+       ORDER BY ar.year DESC, ar.created_at DESC`,
+      [email]
+    );
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "customer annual-reports failed");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 export default router;

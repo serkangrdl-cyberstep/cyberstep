@@ -82,4 +82,17 @@ router.use(indexReportsRouter);
 router.use(badgeAdminRouter);
 router.use(partnerLeadsAdminRouter);
 
+// ─── POST /api/admin-panel/reports/annual/generate ────────────────────────────
+router.post("/reports/annual/generate", async (req, res) => {
+  try {
+    const year: number = Number(req.body?.year) || new Date().getFullYear() - 1;
+    const domain: string | undefined = req.body?.domain ?? undefined;
+    const { generateAnnualReports } = await import("../../lib/reports/annualReportSvg.js");
+    const sent = await generateAnnualReports(year, domain);
+    res.json({ success: true, sent, year, domain: domain ?? "all" });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;

@@ -106,3 +106,4 @@ export * from "./approvals";
 export * from "./demo-reports";
 export * from "./technology-discovery";
 export * from "./bas-lite";
+export * from "./annual-reports";

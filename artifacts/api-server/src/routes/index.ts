@@ -65,6 +65,7 @@ import cisoRouter from "./ciso/index";
 import demoPublicRouter from "./public/demo";
 import techDiscoveryRouter from "./tech-discovery/index";
 import cvePublicRouter from "./cve-public";
+import migrateScansRouter from "./internal/migrate-scans";
 
 const router: IRouter = Router();
 
@@ -134,5 +135,6 @@ router.use(socialMediaRouter);
 router.use(cisoRouter);
 router.use(techDiscoveryRouter);
 router.use(cvePublicRouter);
+router.use(migrateScansRouter);
 
 export default router;

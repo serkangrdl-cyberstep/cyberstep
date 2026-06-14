@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  
+  <defs>
+    <radialGradient id="bodyGrad" cx="42%" cy="32%" r="62%">
+      <stop offset="0%" stop-color="#1A4A6B"/>
+      <stop offset="100%" stop-color="#060D1A"/>
+    </radialGradient>
+    <radialGradient id="eyeL" cx="38%" cy="30%" r="58%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#00C8FF"/>
+      <stop offset="100%" stop-color="#0066AA"/>
+    </radialGradient>
+    <radialGradient id="eyeR" cx="38%" cy="30%" r="58%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#00C8FF"/>
+      <stop offset="100%" stop-color="#0066AA"/>
+    </radialGradient>
+    <radialGradient id="shieldG" cx="50%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#F5C842"/>
+      <stop offset="100%" stop-color="#C47800"/>
+    </radialGradient>
+    
+      
+      
+    
+    
+      
+      
+    
+    
+      
+    
+    
+  </defs>
+  <circle cx="200" cy="180" r="130" fill="#9B59B6" opacity="0.06"/>
+  
+  <rect x="138" y="395" width="38" height="50" rx="19" fill="url(#bodyGrad)" stroke="#00C8FF" stroke-width="2"/>
+  <ellipse cx="143" cy="447" rx="27" ry="12" fill="#0A1E30" stroke="#00C8FF" stroke-width="1.5"/>
+  <rect x="224" y="395" width="38" height="50" rx="19" fill="url(#bodyGrad)" stroke="#00C8FF" stroke-width="2"/>
+  <ellipse cx="257" cy="447" rx="27" ry="12" fill="#0A1E30" stroke="#00C8FF" stroke-width="1.5"/>
+  <ellipse cx="200" cy="472" rx="85" ry="12" fill="#00C8FF" opacity="0.1"/>
+  
+  <path d="M125 252 Q82 230 70 188 Q62 158 82 150 Q102 142 112 168 Q120 188 126 218" fill="url(#bodyGrad)" stroke="#9B59B6" stroke-width="2.5"/>
+  <circle cx="64" cy="144" r="22" fill="url(#bodyGrad)" stroke="#9B59B6" stroke-width="2.5"/>
+  
+  <line x1="64" y1="122" x2="52" y2="100" stroke="#9B59B6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="64" y1="122" x2="76" y2="100" stroke="#9B59B6" stroke-width="3" stroke-linecap="round"/>
+  <path d="M275 252 Q318 230 330 188 Q338 158 318 150 Q298 142 288 168 Q280 188 274 218" fill="url(#bodyGrad)" stroke="#9B59B6" stroke-width="2.5"/>
+  <circle cx="336" cy="144" r="22" fill="url(#bodyGrad)" stroke="#9B59B6" stroke-width="2.5"/>
+  
+  <line x1="336" y1="122" x2="324" y2="100" stroke="#9B59B6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="336" y1="122" x2="348" y2="100" stroke="#9B59B6" stroke-width="3" stroke-linecap="round"/>
+  
+  <rect x="110" y="188" width="180" height="215" rx="60" fill="url(#bodyGrad)" stroke="#00C8FF" stroke-width="2.5"/>
+  
+  <rect x="138" y="268" width="124" height="88" rx="16" fill="#091520" stroke="#00C8FF" stroke-width="1.5"/>
+  
+  <line x1="152" y1="286" x2="248" y2="286" stroke="#00C8FF" stroke-width="1" opacity="0.4"/>
+  <line x1="152" y1="299" x2="232" y2="299" stroke="#00C8FF" stroke-width="1" opacity="0.3"/>
+  <line x1="152" y1="312" x2="240" y2="312" stroke="#00C8FF" stroke-width="1" opacity="0.4"/>
+  <circle cx="240" cy="286" r="4" fill="#2ECC71"/>
+  
+  <g transform="translate(174,223)">
+    <path d="M26 0 Q46 7 46 7 L46 28 Q46 44 26 53 Q6 44 6 28 L6 7Z" fill="url(#shieldG)" stroke="#FFF8E0" stroke-width="1.5"/>
+    <text x="26" y="36" font-family="Arial Black,Arial" font-size="22" font-weight="900" fill="#060D1A" text-anchor="middle">S</text>
+  </g>
+  
+  <rect x="152" y="270" width="96" height="84" rx="14" fill="#0D0A20" stroke="#9B59B6" stroke-width="1.5"/>
+  <circle cx="200" cy="312" r="22" fill="#9B59B6" opacity="0.2" stroke="#9B59B6" stroke-width="1.5"/>
+  <text x="200" y="320" font-family="Arial Black" font-size="24" fill="#9B59B6" text-anchor="middle">✓</text>
+  
+  <g transform="translate(174,223)">
+    <path d="M26 0 Q46 7 46 7 L46 28 Q46 44 26 53 Q6 44 6 28 L6 7Z" fill="url(#shieldG)" stroke="#FFF8E0" stroke-width="1.5"/>
+    <text x="26" y="36" font-family="Arial Black,Arial" font-size="22" font-weight="900" fill="#060D1A" text-anchor="middle">S</text>
+  </g>
+  
+  <line x1="200" y1="55" x2="200" y2="25" stroke="#00C8FF" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="200" cy="18" r="10" fill="#9B59B6" stroke="#FFF8E0" stroke-width="1.5"/>
+  <circle cx="200" cy="18" r="16" fill="none" stroke="#9B59B6" stroke-width="1.5" opacity="0.35"/><circle cx="200" cy="18" r="22" fill="none" stroke="#9B59B6" stroke-width="1" opacity="0.15"/>
+  
+  <circle cx="96" cy="158" r="14" fill="#0A1E30" stroke="#00C8FF" stroke-width="2"/>
+  <circle cx="96" cy="158" r="7" fill="#00C8FF" opacity="0.6"/>
+  <circle cx="304" cy="158" r="14" fill="#0A1E30" stroke="#00C8FF" stroke-width="2"/>
+  <circle cx="304" cy="158" r="7" fill="#00C8FF" opacity="0.6"/>
+  <circle cx="200" cy="165" r="105" fill="url(#bodyGrad)" stroke="#00C8FF" stroke-width="2.5"/>
+  
+  <path d="M133 118 Q163 104 192 116" fill="none" stroke="#9B59B6" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M208 116 Q237 104 267 118" fill="none" stroke="#9B59B6" stroke-width="4.5" stroke-linecap="round"/>
+  
+  <circle cx="163" cy="158" r="34" fill="#081828" stroke="#00C8FF" stroke-width="2"/>
+  <circle cx="237" cy="158" r="34" fill="#081828" stroke="#00C8FF" stroke-width="2"/>
+  <circle cx="163" cy="158" r="24" fill="url(#eyeL)"/>
+  <circle cx="237" cy="158" r="24" fill="url(#eyeR)"/>
+  <circle cx="163" cy="154" r="11" fill="#002A3D"/>
+  <circle cx="237" cy="154" r="11" fill="#002A3D"/>
+  <circle cx="169" cy="148" r="5" fill="white" opacity="0.92"/>
+  <circle cx="243" cy="148" r="5" fill="white" opacity="0.92"/>
+  <circle cx="160" cy="157" r="2.5" fill="white" opacity="0.45"/>
+  <circle cx="234" cy="157" r="2.5" fill="white" opacity="0.45"/>
+  
+  <path d="M158 198 Q200 226 242 198" fill="#060D1A" stroke="#9B59B6" stroke-width="5" stroke-linecap="round"/>
+  <path d="M168 205 Q200 220 232 205" fill="white" opacity="0.85"/>
+  
+  <text x="30" y="88" font-size="22">🎉</text>
+  <text x="318" y="85" font-size="20">🏆</text>
+  <text x="38" y="180" font-size="16" opacity="0.7">✨</text>
+  <text x="330" y="175" font-size="18" opacity="0.7">⭐</text>
+  
+  <ellipse cx="140" cy="192" rx="15" ry="8" fill="#9B59B6" opacity="0.22"/>
+  <ellipse cx="260" cy="192" rx="15" ry="8" fill="#9B59B6" opacity="0.22"/>
+  
+  <rect x="80" y="418" width="240" height="48" rx="12" fill="#060D1A" stroke="#9B59B6" stroke-width="1.5"/>
+  <text x="200" y="436" font-family="Arial,sans-serif" font-size="10" fill="#8896A8" text-anchor="middle" letter-spacing="2">DURUM</text>
+  <text x="200" y="456" font-family="Arial Black,Arial" font-size="14" font-weight="900" fill="#9B59B6" text-anchor="middle">Sorun Giderildi! Zafer 🏆</text>
+</svg>

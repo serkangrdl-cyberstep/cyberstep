@@ -7,10 +7,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, Search, Plus, Building2, Mail, Phone, TrendingUp, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Users, Search, Plus, Building2, Mail, Phone, TrendingUp, Pencil, Trash2, ChevronRight, AlertTriangle, Globe, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+
+interface LeadQueueItem {
+  id: number;
+  domain: string;
+  companyName: string | null;
+  scrapedCompanyName: string | null;
+  sector: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  officerName: string | null;
+  scrapedPhone: string | null;
+  riskScore: number | null;
+  criticalFindings: number;
+  teaserSentAt: string | null;
+  isrNotes: string | null;
+}
 
 interface Customer {
   id: number;
@@ -94,10 +111,36 @@ function CustomerForm({
 
 export default function AdminIsrMusteriler() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+
+  const { data: leadsQueue = [], isLoading: leadsLoading } = useQuery<LeadQueueItem[]>({
+    queryKey: ["isr-leads-queue"],
+    queryFn: () => fetch("/api/admin-panel/isr/leads-queue", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
+  const promoteMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/admin-panel/lead-discovery/candidates/${id}/promote-to-isr`, {
+        method: "POST",
+        credentials: "include",
+      }).then(async r => {
+        const j = await r.json() as { error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: (_, id) => {
+      const lead = leadsQueue.find(l => l.id === id);
+      toast({ description: `${lead?.scrapedCompanyName ?? lead?.companyName ?? lead?.domain} ISR müşterisi yapıldı.` });
+      qc.invalidateQueries({ queryKey: ["isr-leads-queue"] });
+      qc.invalidateQueries({ queryKey: ["isr-customers"] });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["isr-customers", search],
@@ -149,6 +192,76 @@ export default function AdminIsrMusteriler() {
             <Plus className="h-4 w-4 mr-1.5" /> Yeni Musteri
           </Button>
         </div>
+
+        {/* Nitelikli Lead Kuyruğu */}
+        {(leadsLoading || leadsQueue.length > 0) && (
+          <Card className="border-purple-200 bg-purple-50/40">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-purple-600" />
+                Nitelikli Lead Kuyruğu
+                {leadsQueue.length > 0 && (
+                  <Badge className="bg-purple-600 text-white border-0 text-xs ml-1">{leadsQueue.length}</Badge>
+                )}
+                <span className="text-xs text-purple-500 font-normal ml-auto">Risk skoruna göre siralanmis — musteri yapmak icin tiklayin</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {leadsLoading ? (
+                <div className="text-xs text-slate-400 py-2">Yukleniyor...</div>
+              ) : (
+                <div className="space-y-2">
+                  {leadsQueue.map(lead => {
+                    const name = lead.scrapedCompanyName ?? lead.companyName ?? lead.domain;
+                    const contact = lead.contactName ?? lead.officerName;
+                    const email = lead.contactEmail;
+                    return (
+                      <div key={lead.id} className="flex items-center gap-3 bg-white rounded-lg border border-purple-100 px-3 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm text-slate-900 truncate">{name}</span>
+                            {lead.sector && <Badge variant="outline" className="text-xs px-1.5 py-0">{lead.sector}</Badge>}
+                            {lead.riskScore != null && (
+                              <Badge className={`text-xs px-1.5 py-0 border-0 ${lead.riskScore >= 70 ? "bg-red-100 text-red-700" : lead.riskScore >= 40 ? "bg-orange-100 text-orange-700" : "bg-yellow-100 text-yellow-700"}`}>
+                                Risk {lead.riskScore}
+                              </Badge>
+                            )}
+                            {lead.criticalFindings > 0 && (
+                              <Badge className="text-xs px-1.5 py-0 border-0 bg-red-50 text-red-600">
+                                {lead.criticalFindings} kritik
+                              </Badge>
+                            )}
+                            {lead.teaserSentAt && (
+                              <Badge className="text-xs px-1.5 py-0 border-0 bg-green-50 text-green-700">Teaser gonderildi</Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 mt-1">
+                            <span className="text-xs text-slate-500 flex items-center gap-1"><Globe className="h-3 w-3" />{lead.domain}</span>
+                            {contact && <span className="text-xs text-slate-500 flex items-center gap-1"><Users className="h-3 w-3" />{contact}</span>}
+                            {email && <span className="text-xs text-slate-500">{email}</span>}
+                            {lead.scrapedPhone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="h-3 w-3" />{lead.scrapedPhone}</span>}
+                          </div>
+                          {lead.isrNotes && (
+                            <p className="text-xs text-slate-400 italic mt-0.5 truncate">{lead.isrNotes}</p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          className="shrink-0 bg-purple-600 hover:bg-purple-700 text-white text-xs h-7"
+                          onClick={() => promoteMutation.mutate(lead.id)}
+                          disabled={promoteMutation.isPending}
+                        >
+                          <UserPlus className="h-3 w-3 mr-1" />
+                          Musteri Yap
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search */}
         <div className="relative max-w-sm">

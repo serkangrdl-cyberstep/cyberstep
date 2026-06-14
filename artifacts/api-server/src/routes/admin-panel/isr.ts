@@ -6,6 +6,7 @@ import {
   isrRfqResponsesTable, isrQuoteLinesTable, isrQuotesTable, isrMarginRulesTable,
   isrEmailInboxTable, isrCustomersTable, isrActivitiesTable, isrRemindersTable,
   isrVendorsTable as vt,
+  leadCandidatesTable,
 } from "@workspace/db";
 import { eq, desc, sql, and, count, ilike, or, inArray, isNull } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
@@ -58,6 +59,34 @@ router.get("/admin-panel/isr/stats", requireAdmin, async (req: Request, res: Res
 });
 
 // ─── Customers ────────────────────────────────────────────────────────────────
+// ─── GET /api/admin-panel/isr/leads-queue — nitelikli ama henüz ISR'a eklenmemiş lead'ler ─
+router.get("/admin-panel/isr/leads-queue", requireAdmin, async (req: Request, res: Response) => {
+  const rows = await db
+    .select({
+      id: leadCandidatesTable.id,
+      domain: leadCandidatesTable.domain,
+      companyName: leadCandidatesTable.companyName,
+      scrapedCompanyName: leadCandidatesTable.scrapedCompanyName,
+      sector: leadCandidatesTable.sector,
+      contactName: leadCandidatesTable.contactName,
+      contactEmail: leadCandidatesTable.contactEmail,
+      officerName: leadCandidatesTable.officerName,
+      scrapedPhone: leadCandidatesTable.scrapedPhone,
+      riskScore: leadCandidatesTable.riskScore,
+      criticalFindings: leadCandidatesTable.criticalFindings,
+      teaserSentAt: leadCandidatesTable.teaserSentAt,
+      isrNotes: leadCandidatesTable.isrNotes,
+    })
+    .from(leadCandidatesTable)
+    .where(and(
+      eq(leadCandidatesTable.isQualified, true),
+      isNull(leadCandidatesTable.isrPromotedAt),
+    ))
+    .orderBy(desc(leadCandidatesTable.riskScore))
+    .limit(50);
+  res.json(rows);
+});
+
 router.get("/admin-panel/isr/customers", requireAdmin, async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req, res); if (!tenantId) return;
   const { q } = req.query as Record<string, string>;

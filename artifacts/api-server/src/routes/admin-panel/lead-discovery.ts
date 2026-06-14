@@ -7,6 +7,7 @@ import {
   customerTechStackTable,
   ispPartnersTable,
   domainScansTable,
+  isrCustomersTable,
 } from "@workspace/db";
 import {
   eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or, inArray,
@@ -21,6 +22,12 @@ import { scrapeContactEmail } from "../../services/webContactScraper";
 import { logger } from "../../lib/logger";
 import { enrichLeadFromTrSources } from "../../services/leadDiscovery/trSourcesEnrichment";
 import { enrichLeadFromWeb } from "../../services/leadDiscovery/webContentEnrichment";
+
+function requireTenantId(req: Request, res: Response): number | null {
+  const tid = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | undefined;
+  if (!tid) { res.status(403).json({ error: "Workspace seçilmedi", code: "NO_TENANT" }); return null; }
+  return tid;
+}
 
 const router = Router();
 
@@ -438,6 +445,43 @@ router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin,
   }).where(eq(leadCandidatesTable.id, id));
 
   res.json({ message: "Kontak bilgisi güncellendi." });
+});
+
+// ─── POST /api/admin-panel/lead-discovery/candidates/:id/promote-to-isr ──────
+router.post("/admin-panel/lead-discovery/candidates/:id/promote-to-isr", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
+  if (candidate.isrPromotedAt) {
+    res.json({ ok: true, isrCustomerId: candidate.isrCustomerId, alreadyPromoted: true });
+    return;
+  }
+
+  const companyName = candidate.scrapedCompanyName ?? candidate.companyName ?? candidate.domain;
+  const [isrCustomer] = await db.insert(isrCustomersTable).values({
+    tenantId,
+    companyName,
+    contactName: candidate.contactName ?? candidate.officerName ?? null,
+    email: candidate.contactEmail ?? null,
+    phone: candidate.scrapedPhone ?? null,
+    sector: candidate.sector ?? null,
+    notes: [
+      candidate.isrNotes,
+      candidate.riskScore != null ? `Risk skoru: ${candidate.riskScore}` : null,
+      candidate.criticalFindings > 0 ? `Kritik bulgu: ${candidate.criticalFindings}` : null,
+      candidate.findingHighlights?.length ? `Bulgular: ${candidate.findingHighlights.slice(0, 3).join("; ")}` : null,
+    ].filter(Boolean).join("\n") || null,
+  }).returning({ id: isrCustomersTable.id });
+
+  await db.update(leadCandidatesTable).set({
+    isrPromotedAt: new Date(),
+    isrCustomerId: isrCustomer?.id ?? null,
+    updatedAt: new Date(),
+  }).where(eq(leadCandidatesTable.id, id));
+
+  logger.info({ id, domain: candidate.domain, isrCustomerId: isrCustomer?.id }, "Lead ISR müşteri listesine eklendi");
+  res.json({ ok: true, isrCustomerId: isrCustomer?.id });
 });
 
 // ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/isr-notes ──────────

@@ -115,6 +115,8 @@ interface LeadCandidate {
   confidenceScore: number | null;
   tier: string | null;
   ispOrganization: string | null;
+  isrPromotedAt: string | null;
+  isrCustomerId: number | null;
 }
 
 interface SubdomainSummary {
@@ -1060,19 +1062,24 @@ export default function AdminLeadDiscovery() {
     },
   });
 
-  const pushToQueue = useMutation({
+  const promoteToIsr = useMutation({
     mutationFn: (c: LeadCandidate) =>
-      fetch("/api/lead-gen/queue", {
+      fetch(`${BASE}/lead-discovery/candidates/${c.id}/promote-to-isr`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ domain: c.domain, companyName: c.companyName ?? "" }),
       }).then(async (r) => {
-        const j = await r.json() as { error?: string };
+        const j = await r.json() as { error?: string; alreadyPromoted?: boolean; isrCustomerId?: number };
         if (!r.ok) throw new Error(j.error ?? "Hata");
         return j;
       }),
-    onSuccess: () => toast({ description: "ISR kuyruğuna eklendi." }),
+    onSuccess: (data, vars) => {
+      if (data.alreadyPromoted) {
+        toast({ description: "Bu lead zaten ISR listesinde." });
+      } else {
+        toast({ description: `${vars.companyName ?? vars.domain} ISR müşteri listesine eklendi.` });
+      }
+      qc.invalidateQueries({ queryKey: ["qualified-leads"] });
+    },
     onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
   });
 
@@ -1892,15 +1899,21 @@ export default function AdminLeadDiscovery() {
                                 </Button>
                               )}
                               {c.isQualified && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7 w-full text-purple-600 border-purple-200 hover:bg-purple-50"
-                                  onClick={() => pushToQueue.mutate(c)}
-                                  disabled={pushToQueue.isPending}
-                                >
-                                  ISR Kuyruğu
-                                </Button>
+                                c.isrPromotedAt ? (
+                                  <span className="inline-flex items-center justify-center text-xs h-7 w-full rounded-md border border-green-200 bg-green-50 text-green-700 font-medium">
+                                    ISR Listesinde
+                                  </span>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 w-full text-purple-600 border-purple-200 hover:bg-purple-50"
+                                    onClick={() => promoteToIsr.mutate(c)}
+                                    disabled={promoteToIsr.isPending}
+                                  >
+                                    ISR Listesine Ekle
+                                  </Button>
+                                )
                               )}
                               <Button
                                 size="sm"
@@ -2617,10 +2630,17 @@ export default function AdminLeadDiscovery() {
                 </Button>
               )}
               {detailCandidate.isQualified && (
-                <Button size="sm" variant="outline" className="text-purple-600 border-purple-200"
-                  onClick={() => { pushToQueue.mutate(detailCandidate); setDetailCandidate(null); }}>
-                  ISR Kuyruğuna Ekle
-                </Button>
+                detailCandidate.isrPromotedAt ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-md border border-green-200 bg-green-50 text-green-700 text-sm font-medium">
+                    ISR Listesinde
+                  </span>
+                ) : (
+                  <Button size="sm" variant="outline" className="text-purple-600 border-purple-200"
+                    onClick={() => { promoteToIsr.mutate(detailCandidate); setDetailCandidate(null); }}
+                    disabled={promoteToIsr.isPending}>
+                    ISR Listesine Ekle
+                  </Button>
+                )
               )}
               <Button size="sm" variant="outline" className="text-cyan-600 border-cyan-200"
                 onClick={() => { setFingerprintResult(null); fingerprintLead.mutate(detailCandidate.domain); }}

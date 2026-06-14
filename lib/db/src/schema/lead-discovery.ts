@@ -60,6 +60,8 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   scanDepth: varchar("scan_depth", { length: 20 }).default("lightweight"),
   needsManualContact: boolean("needs_manual_contact").default(false),
   ispOrganization: text("isp_organization"),
+  isrPromotedAt: timestamp("isr_promoted_at"),
+  isrCustomerId: integer("isr_customer_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

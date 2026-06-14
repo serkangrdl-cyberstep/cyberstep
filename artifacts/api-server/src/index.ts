@@ -1528,6 +1528,8 @@ async function ensureWebEnrichColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS scraped_address TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS scraped_company_name VARCHAR(255)`);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS web_scraped_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS isr_promoted_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS isr_customer_id INTEGER REFERENCES isr_customers(id) ON DELETE SET NULL`);
 }
 
 async function ensureLeadCandidatesTierColumns() {

@@ -2,6 +2,11 @@ name: CyberStep Lead Discovery (Certstream)
 
 on:
   workflow_dispatch:
+    inputs:
+      ingest_url:
+        description: 'Override REPLIT_INGEST_URL (e.g. https://cyberstep.io/api/internal/cert-ingest)'
+        required: false
+        default: ''
 
 jobs:
   discover:
@@ -14,17 +19,17 @@ jobs:
 
       - name: Download and start certstream-server-go
         run: |
-          curl -fsSL             "https://github.com/d-Rickyy-b/certstream-server-go/releases/download/v1.9.0/certstream-server-go_1.9.0_linux_amd64"             -o certstream-server-go
+          curl -fsSL \
+            "https://github.com/d-Rickyy-b/certstream-server-go/releases/download/v1.9.0/certstream-server-go_1.9.0_linux_amd64" \
+            -o certstream-server-go
           chmod +x certstream-server-go
 
-          # Minimal config — sadece port ayarı, default CT logları kullanılır
           echo "d2Vic2VydmVyOgogIGxpc3Rlbl9hZGRyOiAiMC4wLjAuMCIKICBsaXN0ZW5fcG9ydDogODA4MAogIGRvbWFpbnNfb25seV91cmw6ICIvZG9tYWlucy1vbmx5Igo=" | base64 -d > config.yml
           echo "=== config.yml ===" && cat config.yml
 
           ./certstream-server-go > certstream.log 2>&1 &
           echo "CERTSTREAM_PID=$!" >> $GITHUB_ENV
 
-          # Port 8080 açılana kadar bekle (max 90s)
           for i in $(seq 1 90); do
             if nc -z localhost 8080 2>/dev/null; then
               echo "Port 8080 OPEN after ${i}s"
@@ -34,14 +39,14 @@ jobs:
           done
           ss -tlnp | grep 8080 || echo "Port 8080 NOT open"
 
-          echo "=== certstream.log (ilk 20 satır) ===" && head -20 certstream.log || true
+          echo "=== certstream.log (ilk 20 satir) ===" && head -20 certstream.log || true
 
       - name: Collect TR domains and send to Replit
         env:
-          REPLIT_INGEST_URL: ${{ secrets.REPLIT_INGEST_URL }}
+          REPLIT_INGEST_URL: ${{ inputs.ingest_url || secrets.REPLIT_INGEST_URL }}
           BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
         run: |
-          python3 << 'PYEOF'
+          python3 - << 'PYEOF'
           import asyncio, json, os, sys, time
           import websockets
           import urllib.request
@@ -63,7 +68,7 @@ jobs:
               "google.com", "microsoft.com", "letsencrypt.org",
           }
 
-          collected: set[str] = set()
+          collected: set = set()
 
           def is_tr_lead(d: str) -> bool:
               d = d.lower().lstrip("*.")
@@ -78,7 +83,7 @@ jobs:
               return ".".join(parts[-2:])
 
           WS_URL = "ws://localhost:8080/domains-only"
-          COLLECT_SECONDS = 480  # 8 dakika
+          COLLECT_SECONDS = 480
 
           async def collect():
               start    = time.time()
@@ -125,7 +130,7 @@ jobs:
                           except Exception:
                               continue
 
-                          domains_in_msg: list[str] = []
+                          domains_in_msg = []
                           if isinstance(data, list):
                               domains_in_msg = [d for d in data if isinstance(d, str)]
                           elif isinstance(data, dict):
@@ -152,18 +157,18 @@ jobs:
 
               elapsed = int(time.time() - start)
               print(
-                  f"Bitti — {elapsed}s | msgs={total_messages} tr_hits={tr_raw_hits} TR domains={len(collected)}",
+                  f"Bitti -- {elapsed}s | msgs={total_messages} tr_hits={tr_raw_hits} TR domains={len(collected)}",
                   flush=True,
               )
 
           asyncio.run(collect())
 
           if not collected:
-              print("TR domain bulunamadı — gönderilecek bir şey yok", flush=True)
+              print("TR domain bulunamadi -- gonderilecek bir sey yok", flush=True)
               sys.exit(0)
 
           domains = sorted(collected)
-          print(f"Örnek: {domains[:5]}", flush=True)
+          print(f"Ornek: {domains[:5]}", flush=True)
           CHUNK = 500
           total_accepted = 0
 
@@ -196,5 +201,5 @@ jobs:
         if: always()
         run: |
           kill $CERTSTREAM_PID 2>/dev/null || true
-          echo "=== certstream.log (son 30 satır) ==="
+          echo "=== certstream.log (son 30 satir) ==="
           tail -30 certstream.log 2>/dev/null || echo "(no log)"

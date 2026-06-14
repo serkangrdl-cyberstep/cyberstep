@@ -925,6 +925,122 @@ function startIsrImapCron() {
     }
   }), { timezone: "Europe/Istanbul" });
   logger.info("Teaser follow-up cron scheduled (daily 09:15 Istanbul)");
+
+  // D+3 — teaser gönderildi ama 3 gün geçti, hâlâ müşteri olmadı → ISR'ye hatırlatma
+  cron.schedule("0 10 * * *", wrapCron("isr_leadgen_d3", "0 10 * * *", async () => {
+    try {
+      const { and, isNotNull, isNull, lte, gte } = await import("drizzle-orm");
+      const { leadCandidatesTable } = await import("@workspace/db");
+      const { sendMail } = await import("./services/email");
+      const { buildFollowupReminderHtml } = await import("./lib/email-templates/isrEmails");
+      const { getIsrEmail, getIsrBaseUrl } = await import("./lib/isr/teamConfig");
+
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      const fourDaysAgo  = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+
+      const leads = await db.select().from(leadCandidatesTable).where(and(
+        isNotNull(leadCandidatesTable.teaserSentAt),
+        lte(leadCandidatesTable.teaserSentAt, threeDaysAgo),
+        gte(leadCandidatesTable.teaserSentAt, fourDaysAgo),
+        isNull(leadCandidatesTable.isrPromotedAt),
+        isNull(leadCandidatesTable.isrFollowupD3SentAt),
+      ));
+
+      const baseUrl = getIsrBaseUrl();
+      for (const lead of leads) {
+        const isrEmail = getIsrEmail("isr-team");
+        await sendMail({
+          to: isrEmail,
+          subject: `Takip Gerekli: ${lead.scrapedCompanyName ?? lead.domain} (3 gündür müşteri olmadı)`,
+          html: buildFollowupReminderHtml({
+            leadName: lead.scrapedCompanyName ?? lead.companyName ?? lead.domain,
+            contactName: lead.contactName ?? null,
+            contactEmail: lead.contactEmail ?? null,
+            daysSinceSent: 3,
+            riskScore: lead.riskScore ?? null,
+            leadUrl: `${baseUrl}/panel/isr/leads`,
+            action: "Telefon araması veya LinkedIn mesajı önerilir.",
+          }),
+        });
+        await db.update(leadCandidatesTable)
+          .set({ isrFollowupD3SentAt: new Date(), updatedAt: new Date() })
+          .where(sql`${leadCandidatesTable.id} = ${lead.id}`);
+      }
+      logger.info({ count: leads.length }, "D+3 ISR leadgen followup tamamlandı");
+    } catch (err) {
+      logger.error({ err }, "ISR D+3 cron hatası");
+    }
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("ISR D+3 leadgen followup cron scheduled (daily 10:00 Istanbul)");
+
+  // D+7 — teaser gönderildi, 7 gün geçti, hâlâ müşteri olmadı → adaya + ISR'ye
+  cron.schedule("30 10 * * *", wrapCron("isr_leadgen_d7", "30 10 * * *", async () => {
+    try {
+      const { and, isNotNull, isNull, lte, gte } = await import("drizzle-orm");
+      const { leadCandidatesTable } = await import("@workspace/db");
+      const { sendMail } = await import("./services/email");
+      const { buildD7FollowupHtml, buildFollowupReminderHtml } = await import("./lib/email-templates/isrEmails");
+      const { getIsrEmail, getIsrBaseUrl } = await import("./lib/isr/teamConfig");
+
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+
+      const leads = await db.select().from(leadCandidatesTable).where(and(
+        isNotNull(leadCandidatesTable.teaserSentAt),
+        lte(leadCandidatesTable.teaserSentAt, sevenDaysAgo),
+        gte(leadCandidatesTable.teaserSentAt, eightDaysAgo),
+        isNull(leadCandidatesTable.isrPromotedAt),
+        isNull(leadCandidatesTable.isrFollowupD7SentAt),
+      ));
+
+      const baseUrl = getIsrBaseUrl();
+      for (const lead of leads) {
+        const criticalFindings = lead.criticalFindings ?? 0;
+        const urgencyNote = criticalFindings > 0
+          ? `Raporunuzda ${criticalFindings} kritik bulgu bulunuyor — bu açıklar zaman geçtikçe daha riskli hale geliyor.`
+          : "Güvenlik durumunuzu iyileştirmek için adımları görüntüleyin.";
+
+        // 1. Adaya D+7 e-posta
+        if (lead.contactEmail) {
+          await sendMail({
+            to: lead.contactEmail,
+            subject: `${lead.scrapedCompanyName ?? lead.domain} — Güvenlik Raporunuz Hâlâ Sizi Bekliyor`,
+            html: buildD7FollowupHtml({
+              companyName: lead.scrapedCompanyName ?? lead.companyName ?? lead.domain,
+              contactName: lead.contactName ?? null,
+              domain: lead.domain,
+              riskScore: lead.riskScore ?? null,
+              urgencyNote,
+            }),
+          });
+        }
+
+        // 2. ISR ekibine bildirim
+        const isrEmail = getIsrEmail("isr-team");
+        await sendMail({
+          to: isrEmail,
+          subject: `D+7 Follow-up Gönderildi: ${lead.scrapedCompanyName ?? lead.domain}`,
+          html: buildFollowupReminderHtml({
+            leadName: lead.scrapedCompanyName ?? lead.companyName ?? lead.domain,
+            contactName: lead.contactName ?? null,
+            contactEmail: lead.contactEmail ?? null,
+            daysSinceSent: 7,
+            riskScore: lead.riskScore ?? null,
+            leadUrl: `${baseUrl}/panel/isr/leads`,
+            action: "Rapor açıldı, 7 gün geçti. Telefon araması zamanı.",
+          }),
+        });
+
+        await db.update(leadCandidatesTable)
+          .set({ isrFollowupD7SentAt: new Date(), updatedAt: new Date() })
+          .where(sql`${leadCandidatesTable.id} = ${lead.id}`);
+      }
+      logger.info({ count: leads.length }, "D+7 ISR leadgen followup tamamlandı");
+    } catch (err) {
+      logger.error({ err }, "ISR D+7 cron hatası");
+    }
+  }), { timezone: "Europe/Istanbul" });
+  logger.info("ISR D+7 leadgen followup cron scheduled (daily 10:30 Istanbul)");
 }
 
 // ─── Cron: Scan lead e-posta aktivasyon dizisi (her saat bir kez) ─────────────
@@ -1518,6 +1634,8 @@ async function ensureLeadCandidatesExtraColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS officer_name VARCHAR(255)`);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS officer_title VARCHAR(100)`);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS isr_notes TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS isr_followup_d3_sent_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_candidates ADD COLUMN IF NOT EXISTS isr_followup_d7_sent_at TIMESTAMP`);
 }
 
 async function ensureWebEnrichColumns() {

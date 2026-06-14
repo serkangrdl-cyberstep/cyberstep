@@ -8,6 +8,7 @@ import {
   ispPartnersTable,
   domainScansTable,
   isrCustomersTable,
+  isrDealsTable,
 } from "@workspace/db";
 import {
   eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or, inArray,
@@ -22,6 +23,9 @@ import { scrapeContactEmail } from "../../services/webContactScraper";
 import { logger } from "../../lib/logger";
 import { enrichLeadFromTrSources } from "../../services/leadDiscovery/trSourcesEnrichment";
 import { enrichLeadFromWeb } from "../../services/leadDiscovery/webContentEnrichment";
+import { sendMail } from "../../services/email";
+import { buildTeaserEmailHtml, buildDealNotificationHtml } from "../../lib/email-templates/isrEmails";
+import { getIsrEmail, getIsrBaseUrl } from "../../lib/isr/teamConfig";
 
 function requireTenantId(req: Request, res: Response): number | null {
   const tid = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | undefined;
@@ -480,6 +484,49 @@ router.post("/admin-panel/lead-discovery/candidates/:id/promote-to-isr", require
     updatedAt: new Date(),
   }).where(eq(leadCandidatesTable.id, id));
 
+  // Otomatik deal oluştur + ISR ekibine bildirim (fire-and-forget)
+  setImmediate(async () => {
+    try {
+      const baseUrl = getIsrBaseUrl();
+      const [newDeal] = await db.insert(isrDealsTable).values({
+        tenantId,
+        customerId: isrCustomer?.id ?? null,
+        customerName: companyName,
+        customerEmail: candidate.contactEmail ?? "",
+        customerCompany: companyName,
+        customerPhone: candidate.scrapedPhone ?? null,
+        status: "new",
+        intakeChannel: "lead_discovery",
+        priority: (candidate.riskScore ?? 0) >= 70 ? "high" : "normal",
+        notes: [
+          `Lead skoru: ${candidate.riskScore ?? "N/A"}`,
+          candidate.criticalFindings > 0 ? `Kritik bulgu: ${candidate.criticalFindings}` : null,
+          "Otomatik oluşturuldu — Lead Discovery",
+        ].filter(Boolean).join("\n"),
+      }).returning({ id: isrDealsTable.id });
+
+      const dealUrl = `${baseUrl}/panel/isr/deal/${newDeal?.id}`;
+      const isrEmail = getIsrEmail("isr-team");
+      await sendMail({
+        to: isrEmail,
+        subject: `Yeni Deal: ${companyName}`,
+        html: buildDealNotificationHtml({
+          companyName,
+          domain: candidate.domain,
+          contactName: candidate.contactName ?? null,
+          contactEmail: candidate.contactEmail ?? null,
+          riskScore: candidate.riskScore ?? null,
+          criticalFindings: candidate.criticalFindings ?? 0,
+          dealId: newDeal?.id ?? 0,
+          dealUrl,
+        }),
+      });
+      logger.info({ id, domain: candidate.domain, dealId: newDeal?.id }, "ISR deal oluşturuldu ve bildirim gönderildi");
+    } catch (err) {
+      logger.error({ err, id }, "ISR deal oluşturma/bildirim hatası");
+    }
+  });
+
   logger.info({ id, domain: candidate.domain, isrCustomerId: isrCustomer?.id }, "Lead ISR müşteri listesine eklendi");
   res.json({ ok: true, isrCustomerId: isrCustomer?.id });
 });
@@ -615,10 +662,28 @@ router.post("/admin-panel/lead-discovery/candidates/:id/send-teaser", requireAdm
     res.status(400).json({ error: "İletişim e-postası bulunamadı." }); return;
   }
 
+  const html = buildTeaserEmailHtml({
+    companyName: candidate.scrapedCompanyName ?? candidate.companyName ?? candidate.domain,
+    contactName: candidate.contactName ?? null,
+    domain: candidate.domain,
+    teaserBody: candidate.teaserBody,
+    riskScore: candidate.riskScore ?? null,
+    criticalFindings: candidate.criticalFindings ?? 0,
+  });
+
+  setImmediate(async () => {
+    try {
+      await sendMail({ to: candidate.contactEmail!, subject: candidate.teaserSubject!, html });
+      logger.info({ id, to: candidate.contactEmail }, "Teaser e-posta gönderildi");
+    } catch (err) {
+      logger.error({ err, id }, "Teaser e-posta gönderimi başarısız");
+    }
+  });
+
   await db.update(leadCandidatesTable).set({ teaserSentAt: new Date(), updatedAt: new Date() })
     .where(eq(leadCandidatesTable.id, id));
 
-  res.json({ message: `Teaser ${candidate.contactEmail} adresine gönderildi olarak işaretlendi.` });
+  res.json({ message: `Teaser ${candidate.contactEmail} adresine gönderiliyor.`, sentTo: candidate.contactEmail });
 });
 
 // ─── DELETE /api/admin-panel/lead-discovery/candidates/:id ───────────────────

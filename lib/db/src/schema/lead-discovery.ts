@@ -62,6 +62,8 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   ispOrganization: text("isp_organization"),
   isrPromotedAt: timestamp("isr_promoted_at"),
   isrCustomerId: integer("isr_customer_id"),
+  isrFollowupD3SentAt: timestamp("isr_followup_d3_sent_at"),
+  isrFollowupD7SentAt: timestamp("isr_followup_d7_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

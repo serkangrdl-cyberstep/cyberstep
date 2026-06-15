@@ -85,6 +85,7 @@ const NAV_SECTIONS = [
       { icon: ListTodo,        label: "Lead Kuyruğu",          href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
       { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },
+      { icon: BarChart3,       label: "Kaynak Dashboard",      href: "/panel/source-dashboard" },
       { icon: Rocket,          label: "Growth Engine",         href: "/panel/growth-engine" },
     ],
   },

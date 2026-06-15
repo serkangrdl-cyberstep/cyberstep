@@ -39,6 +39,7 @@ import ctiIntelRouter from "./cti-intel";
 import indexReportsRouter from "./index-reports";
 import badgeAdminRouter from "./badge-admin";
 import partnerLeadsAdminRouter from "./partner-leads-admin";
+import sourceStatsRouter from "./source-stats";
 
 const router = Router();
 router.use(authRouter);
@@ -81,6 +82,7 @@ router.use(ctiIntelRouter);
 router.use(indexReportsRouter);
 router.use(badgeAdminRouter);
 router.use(partnerLeadsAdminRouter);
+router.use(sourceStatsRouter);
 
 // ─── POST /api/admin-panel/reports/annual/generate ────────────────────────────
 router.post("/reports/annual/generate", async (req, res) => {

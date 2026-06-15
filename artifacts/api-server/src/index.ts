@@ -16,6 +16,7 @@ import { runNetcraftDiscovery } from "./services/leadDiscovery/netcraftDiscovery
 import { runBgpToolsDiscovery } from "./services/leadDiscovery/bgpToolsDiscovery";
 import { runUrlscanDiscovery } from "./services/leadDiscovery/urlscanDiscovery";
 import { runVirusTotalDiscovery } from "./services/leadDiscovery/virusTotalDiscovery";
+import { getSourceQualityStats } from "./routes/admin-panel/source-stats";
 import { qualifyPendingCandidates, preScreenPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { generateEcosystemReport } from "./services/ecosystemReportService";
 import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
@@ -2872,6 +2873,25 @@ startup()
       return result.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
     logger.info("VirusTotal subdomain cron scheduled (Salı 04:00 Istanbul, limit 50)");
+
+    // ─── Source Quality Check — Her Pazartesi 08:30 ─────────────────────────────
+    // Kalifikasyon oranı düşük kaynaklara ait uyarıları logla
+    cron.schedule("30 8 * * 1", wrapCron("source_quality_check", "30 8 * * 1", async () => {
+      if (!await cronIsEnabled("source_quality_check")) { logger.info("Source quality check devre dışı, atlanıyor"); return 0; }
+      const stats = await getSourceQualityStats(30);
+      let warnings = 0;
+      for (const s of stats) {
+        if (Number(s.total_scanned) >= 50 && Number(s.qualification_rate) < 10) {
+          logger.warn(
+            { source: s.source, qualification_rate: s.qualification_rate, total_scanned: s.total_scanned },
+            `Kaynak kalitesi düşük: ${s.source} — %${s.qualification_rate} (%10 altında)`,
+          );
+          warnings++;
+        }
+      }
+      return warnings;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Source quality check cron scheduled (Pazartesi 08:30 Istanbul)");
 
     // ─── Lead Discovery: Kalifikasyon — Her 20 dakikada bir ─────────────────────
     // Limit 200/çalışma: 3×200×24=14400 aday/gün. Her aday max 25s tarama + 25 dk circuit breaker.

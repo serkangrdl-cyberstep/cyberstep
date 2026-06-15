@@ -7,6 +7,149 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
+// ─── Teaser CTA ───────────────────────────────────────────────────────────────
+interface CheckoutData { domain: string; score: number; grade: string; criticalCount: number; highCount: number; plan: { name: string; price: number; description: string } }
+
+function TeaserCTA({ token, domain, score }: { token: string; domain: string; score: number }) {
+  const [view, setView] = useState<"main" | "checkout" | "meeting" | "done">("main");
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [meetingForm, setMeetingForm] = useState({ name: "", email: "", phone: "", message: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function openCheckout() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/public/teaser/${token}/checkout-preview`);
+      const data = await res.json() as CheckoutData;
+      setCheckoutData(data);
+      setView("checkout");
+    } catch { setError("Bir hata oluştu, tekrar deneyin."); }
+    finally { setLoading(false); }
+  }
+
+  async function submitMeeting() {
+    if (!meetingForm.email) { setError("E-posta zorunlu"); return; }
+    setLoading(true); setError("");
+    try {
+      const res = await fetch(`/preview/${token}/meeting-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(meetingForm),
+      });
+      if (!res.ok) throw new Error();
+      setView("done");
+    } catch { setError("Bir hata oluştu, tekrar deneyin."); }
+    finally { setLoading(false); }
+  }
+
+  function goToPayment() {
+    if (!checkoutData) return;
+    const plan = checkoutData.plan.name === "Zırh" ? "zirh" : "kalkan";
+    window.location.href = `/odeme?plan=${plan}&domain=${encodeURIComponent(domain)}`;
+  }
+
+  const scoreColor = score >= 70 ? "#2ECC71" : score >= 50 ? "#F5A623" : "#E03A3A";
+  const inp: React.CSSProperties = { background: "#060D1A", border: "1px solid #1A3050", borderRadius: 8, padding: "12px 14px", color: "#E8EDF5", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box" };
+  const card: React.CSSProperties = { margin: "32px 0 16px", background: "linear-gradient(135deg,#0D2035,#091520)", border: "1.5px solid #1A3050", borderRadius: 18, overflow: "hidden" };
+
+  if (view === "main") return (
+    <div style={card}>
+      <div style={{ background: "#091520", padding: "18px 24px", borderBottom: "1px solid #1A3050", textAlign: "center" }}>
+        <div style={{ fontSize: 13, color: "#8896A8", marginBottom: 4 }}>{domain} için güvenlik skoru</div>
+        <div style={{ fontSize: 38, fontWeight: 900, color: scoreColor }}>{score}/100</div>
+        <div style={{ fontSize: 13, color: "#8896A8", marginTop: 4 }}>Tam raporu görmek ve güvenliğinizi artırmak için bir seçenek belirleyin</div>
+      </div>
+      <div style={{ padding: "24px 24px 20px" }}>
+        <button onClick={openCheckout} disabled={loading} style={{ width: "100%", padding: 16, background: "#00C8FF", color: "#060D1A", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 900, cursor: "pointer", marginBottom: 12, opacity: loading ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          Hemen Abone Ol — {"\u20BA"}2.990/ay
+        </button>
+        <button onClick={() => setView("meeting")} style={{ width: "100%", padding: 14, background: "transparent", color: "#E8EDF5", border: "1.5px solid #1A3050", borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          Uzmanla Görüşün
+        </button>
+        <div style={{ display: "flex", gap: 16, marginTop: 16, justifyContent: "center", flexWrap: "wrap" }}>
+          {["Dilediğiniz zaman iptal", "Türkçe destek", "KVKK uyumlu"].map(t => (
+            <div key={t} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#8896A8" }}>
+              <span style={{ color: "#2ECC71" }}>✓</span> {t}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (view === "checkout" && checkoutData) return (
+    <div style={{ ...card, border: "1.5px solid #00C8FF" }}>
+      <div style={{ background: "#091520", padding: "16px 24px", borderBottom: "1px solid #1A3050" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#E8EDF5" }}>Sipariş Özeti</div>
+      </div>
+      <div style={{ padding: 24 }}>
+        <div style={{ background: "#060D1A", border: "1px solid #1A3050", borderRadius: 10, padding: 16, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#E8EDF5" }}>CyberStep {checkoutData.plan.name} Paketi</div>
+            <div style={{ fontSize: 13, color: "#8896A8", marginTop: 4 }}>{checkoutData.domain} · {checkoutData.plan.description}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#2ECC71" }}>{"\u20BA"}{checkoutData.plan.price.toLocaleString("tr-TR")}</div>
+            <div style={{ fontSize: 12, color: "#8896A8" }}>/ay · KDV dahil</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          {["Sürekli dış saldırı yüzeyi izleme", "SSL sertifikası takibi ve uyarıları", "E-posta güvenlik yapılandırma rehberi", "Aylık yönetici güvenlik raporu", "Türkçe teknik destek"].map(item => (
+            <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 13, color: "#E8EDF5" }}>
+              <span style={{ color: "#2ECC71", flexShrink: 0 }}>✓</span>{item}
+            </div>
+          ))}
+        </div>
+        <button onClick={goToPayment} style={{ width: "100%", padding: 14, background: "#2ECC71", color: "#060D1A", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 900, cursor: "pointer", marginBottom: 10 }}>
+          Ödemeye Geç
+        </button>
+        <button onClick={() => setView("main")} style={{ width: "100%", padding: 12, background: "transparent", color: "#8896A8", border: "1px solid #1A3050", borderRadius: 10, fontSize: 14, cursor: "pointer" }}>
+          Geri
+        </button>
+        <div style={{ fontSize: 11, color: "#4A6080", textAlign: "center", marginTop: 12 }}>Güvenli ödeme · İstediğiniz zaman iptal</div>
+      </div>
+    </div>
+  );
+
+  if (view === "meeting") return (
+    <div style={{ ...card, border: "1.5px solid #1A3050" }}>
+      <div style={{ background: "#091520", padding: "16px 24px", borderBottom: "1px solid #1A3050" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#E8EDF5" }}>Uzmanla Görüşün</div>
+        <div style={{ fontSize: 12, color: "#8896A8", marginTop: 4 }}>Güvenlik uzmanımız 24 saat içinde sizi arayacak</div>
+      </div>
+      <div style={{ padding: 24 }}>
+        {error && <div style={{ background: "rgba(224,58,58,0.1)", border: "1px solid #E03A3A", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#E03A3A", marginBottom: 14 }}>{error}</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input placeholder="Adınız Soyadınız" value={meetingForm.name} onChange={e => setMeetingForm(p => ({ ...p, name: e.target.value }))} style={inp} />
+          <input type="email" placeholder="E-posta adresiniz *" value={meetingForm.email} onChange={e => setMeetingForm(p => ({ ...p, email: e.target.value }))} style={inp} />
+          <input type="tel" placeholder="Telefon numaranız" value={meetingForm.phone} onChange={e => setMeetingForm(p => ({ ...p, phone: e.target.value }))} style={inp} />
+          <textarea placeholder="Merak ettiğiniz bir şey var mı? (opsiyonel)" value={meetingForm.message} onChange={e => setMeetingForm(p => ({ ...p, message: e.target.value }))} rows={3} style={{ ...inp, resize: "vertical" }} />
+        </div>
+        <button onClick={submitMeeting} disabled={loading} style={{ width: "100%", padding: 14, background: "#00C8FF", color: "#060D1A", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 900, cursor: "pointer", marginTop: 16, opacity: loading ? 0.7 : 1 }}>
+          {loading ? "Gönderiliyor..." : "Görüşme Talep Et →"}
+        </button>
+        <button onClick={() => setView("main")} style={{ width: "100%", padding: 12, background: "transparent", color: "#8896A8", border: "1px solid #1A3050", borderRadius: 10, fontSize: 14, cursor: "pointer", marginTop: 8 }}>
+          Geri
+        </button>
+      </div>
+    </div>
+  );
+
+  if (view === "done") return (
+    <div style={{ margin: "32px 0 16px", background: "rgba(46,204,113,0.06)", border: "1.5px solid #2ECC71", borderRadius: 18, padding: 32, textAlign: "center" }}>
+      <div style={{ fontSize: 44, marginBottom: 12 }}>✓</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "#2ECC71", marginBottom: 8 }}>Talebiniz Alındı</div>
+      <div style={{ fontSize: 14, color: "#8896A8", lineHeight: 1.6 }}>
+        Güvenlik uzmanımız en geç <strong style={{ color: "#E8EDF5" }}>24 saat</strong> içinde
+        {meetingForm.email && <> <strong style={{ color: "#E8EDF5" }}>{meetingForm.email}</strong> adresine</>} ulaşacak.
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
 interface Finding {
   title: string;
   severity: string;
@@ -257,6 +400,9 @@ export default function PreviewPage() {
             <CTAForm token={token!} />
           )}
         </div>
+
+        {/* Teaser CTA */}
+        <TeaserCTA token={token!} domain={data.domain} score={data.overall_score ?? 0} />
 
         {/* Footer */}
         <div className="text-center text-slate-600 text-xs pb-6">

@@ -8,6 +8,7 @@ import {
   enterpriseContractServicesTable,
   enterpriseInvoicesTable,
   prospectRepliesTable,
+  meetingRequestsTable,
 } from "@workspace/db";
 import { eq, desc, sql, and, count, isNull, inArray } from "drizzle-orm";
 import { requireAdmin } from "../admin-panel/middleware";
@@ -414,6 +415,169 @@ router.post("/preview/:token/cta", async (req: Request, res: Response) => {
     status: "cta_clicked",
   }).where(eq(teaserReportsTable.previewToken, String(token ?? "")));
 
+  res.json({ ok: true });
+});
+
+// ─── Görüşme Talebi ───────────────────────────────────────────────────────────
+
+router.post("/preview/:token/meeting-request", async (req: Request, res: Response) => {
+  const { token } = req.params;
+  const { name, email, phone, message } = req.body as Record<string, string>;
+  if (!email) return void res.status(400).json({ error: "E-posta zorunlu" });
+
+  const [row] = await db.select({
+    report: teaserReportsTable,
+    prospect: enterpriseProspectsTable,
+  })
+    .from(teaserReportsTable)
+    .innerJoin(enterpriseProspectsTable, eq(teaserReportsTable.prospectId, enterpriseProspectsTable.id))
+    .where(eq(teaserReportsTable.previewToken, String(token ?? "")));
+
+  if (!row) return void res.status(404).json({ error: "Geçersiz token" });
+
+  await db.insert(meetingRequestsTable).values({
+    prospectId: row.prospect.id,
+    teaserReportId: row.report.id,
+    name: name || "",
+    email: email || "",
+    phone: phone || "",
+    message: message || "",
+    status: "pending",
+  });
+
+  await db.update(enterpriseProspectsTable)
+    .set({
+      status: "interested",
+      contactEmail: email || row.prospect.contactEmail,
+      contactName: name || row.prospect.contactName,
+      lastActivityAt: new Date(),
+    })
+    .where(eq(enterpriseProspectsTable.id, row.prospect.id));
+
+  // ISR ekibine e-posta
+  setImmediate(async () => {
+    try {
+      const { sendMail } = await import("../../services/email");
+      const appUrl = process.env["REPLIT_DOMAINS"]
+        ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
+        : "http://localhost:80";
+      await sendMail({
+        to: process.env["ISR_TEAM_EMAIL"] || "isr@cyberstep.io",
+        subject: `Görüşme Talebi: ${row.prospect.domain} (${row.report.overallRiskScore ?? "?"}/100)`,
+        html: `
+<div style="font-family:Arial;background:#060D1A;padding:32px;max-width:560px;border-radius:12px">
+  <h2 style="color:#00C8FF;margin:0 0 16px">Yeni Görüşme Talebi</h2>
+  <div style="background:#0A1828;border-radius:8px;padding:16px;margin-bottom:16px">
+    <div style="color:#8896A8;font-size:12px;margin-bottom:4px">DOMAIN</div>
+    <div style="color:#E8EDF5;font-size:18px;font-weight:700">${row.prospect.domain}</div>
+    <div style="color:#F5A623;font-size:15px;margin-top:4px">Skor: ${row.report.overallRiskScore ?? "?"}/100</div>
+  </div>
+  <div style="background:#0A1828;border-radius:8px;padding:16px;margin-bottom:16px">
+    <div style="color:#8896A8;font-size:12px;margin-bottom:8px">İLETİŞİM</div>
+    <div style="color:#E8EDF5">İsim: ${name || "Belirtilmedi"}</div>
+    <div style="color:#E8EDF5">E-posta: ${email}</div>
+    <div style="color:#E8EDF5">Telefon: ${phone || "Belirtilmedi"}</div>
+    ${message ? `<div style="color:#8896A8;margin-top:8px">Not: ${message}</div>` : ""}
+  </div>
+  <a href="${appUrl}/panel/isr/meeting-requests"
+     style="display:block;background:#00C8FF;color:#060D1A;text-align:center;padding:12px;border-radius:8px;font-weight:900;text-decoration:none">
+    Görüşme Taleplerini Gör →
+  </a>
+</div>`,
+      });
+      // Müşteriye onay maili
+      await sendMail({
+        to: email,
+        subject: "Görüşme Talebiniz Alındı — CyberStep",
+        html: `
+<div style="font-family:Arial;background:#060D1A;padding:32px;max-width:560px;border-radius:12px">
+  <h2 style="color:#2ECC71;margin:0 0 16px">Talebiniz Alındı</h2>
+  <p style="color:#E8EDF5">Merhaba${name ? " " + name : ""},</p>
+  <p style="color:#8896A8;line-height:1.6">
+    <strong style="color:#E8EDF5">${row.prospect.domain}</strong> için güvenlik görüşme talebinizi aldık.
+    Uzmanımız en geç <strong style="color:#2ECC71">24 saat</strong> içinde sizinle iletişime geçecek.
+  </p>
+  <div style="background:#0A1828;border-radius:8px;padding:16px;margin:20px 0">
+    <div style="color:#8896A8;font-size:13px">Bu süreçte yapabilecekleriniz:</div>
+    <div style="color:#E8EDF5;margin-top:8px">
+      SSL sertifikanızın yenileme tarihini kontrol edin<br>
+      E-posta güvenliğiniz için DMARC kaydı ekleyin<br>
+      IT ekibinizi görüşmeye dahil edin
+    </div>
+  </div>
+  <p style="color:#4A6080;font-size:12px">CyberStep · cyberstep.io · info@cyberstep.io</p>
+</div>`,
+      });
+    } catch (err) {
+      logger.warn({ err }, "Meeting request email send failed");
+    }
+  });
+
+  res.json({ success: true });
+});
+
+// ─── Checkout Preview ─────────────────────────────────────────────────────────
+
+router.get("/api/public/teaser/:token/checkout-preview", async (req: Request, res: Response) => {
+  const { token } = req.params;
+  const [row] = await db.select({
+    report: teaserReportsTable,
+    prospect: enterpriseProspectsTable,
+  })
+    .from(teaserReportsTable)
+    .innerJoin(enterpriseProspectsTable, eq(teaserReportsTable.prospectId, enterpriseProspectsTable.id))
+    .where(eq(teaserReportsTable.previewToken, String(token ?? "")));
+
+  if (!row) return void res.status(404).json({ error: "Geçersiz token" });
+
+  const score = row.report.overallRiskScore ?? 50;
+  const recommendedPlan = score < 40
+    ? { name: "Zırh", price: 5990, description: "Gelişmiş koruma" }
+    : { name: "Kalkan", price: 2990, description: "Temel koruma ve izleme" };
+
+  res.json({
+    domain: row.prospect.domain,
+    score,
+    grade: score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F",
+    criticalCount: row.report.criticalCount ?? 0,
+    highCount: row.report.highCount ?? 0,
+    plan: recommendedPlan,
+  });
+});
+
+// ─── ISR Meeting Requests (admin) ─────────────────────────────────────────────
+
+router.get("/api/enterprise/isr/meeting-requests", requireAdmin, async (req: Request, res: Response) => {
+  const { status } = req.query as Record<string, string>;
+  const rows = await db.select({
+    request: meetingRequestsTable,
+    prospect: {
+      id: enterpriseProspectsTable.id,
+      domain: enterpriseProspectsTable.domain,
+      companyName: enterpriseProspectsTable.companyName,
+      sector: enterpriseProspectsTable.sector,
+    },
+    reportScore: teaserReportsTable.overallRiskScore,
+    reportLevel: teaserReportsTable.riskLevel,
+  })
+    .from(meetingRequestsTable)
+    .leftJoin(enterpriseProspectsTable, eq(meetingRequestsTable.prospectId, enterpriseProspectsTable.id))
+    .leftJoin(teaserReportsTable, eq(meetingRequestsTable.teaserReportId, teaserReportsTable.id))
+    .where(status && status !== "all" ? eq(meetingRequestsTable.status, status) : sql`1=1`)
+    .orderBy(desc(meetingRequestsTable.requestedAt))
+    .limit(200);
+  res.json(rows);
+});
+
+router.patch("/api/enterprise/isr/meeting-requests/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  const { status } = req.body as { status: string };
+  const now = new Date();
+  await db.update(meetingRequestsTable).set({
+    status,
+    ...(status === "contacted" ? { contactedAt: now } : {}),
+    ...(status === "scheduled" ? { scheduledAt: now } : {}),
+  }).where(eq(meetingRequestsTable.id, id));
   res.json({ ok: true });
 });
 

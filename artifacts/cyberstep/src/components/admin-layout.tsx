@@ -11,7 +11,7 @@ import {
   Play, Tag, UserCheck, Activity, Network, ShieldAlert, ScrollText,
   ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, Newspaper,
   Zap, ShoppingCart, Code, Fingerprint, Rocket,
-  Wrench, Gauge, Gift, Share2, MonitorCheck, Layers, CalendarDays, Share, GitBranch, ClipboardCheck, Medal,
+  Wrench, Gauge, Gift, Share2, MonitorCheck, Layers, CalendarDays, Share, GitBranch, ClipboardCheck, Medal, CalendarCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -97,6 +97,7 @@ const NAV_SECTIONS = [
       { icon: Users,           label: "ISR Müşteriler",        href: "/panel/isr/musteriler" },
       { icon: Building2,       label: "ISR Vendors",           href: "/panel/isr/vendors" },
       { icon: Calculator,      label: "ISR Marj Kuralları",    href: "/panel/isr/kurallar" },
+      { icon: CalendarCheck,   label: "Görüşme Talepleri",     href: "/panel/isr/meeting-requests" },
     ],
   },
   {

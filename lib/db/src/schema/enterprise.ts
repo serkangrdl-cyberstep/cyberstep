@@ -153,3 +153,19 @@ export const prospectRepliesTable = pgTable("prospect_replies", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type ProspectReply = typeof prospectRepliesTable.$inferSelect;
+
+// ─── Meeting Requests (teaser CTA → görüşme talebi) ──────────────────────────
+export const meetingRequestsTable = pgTable("meeting_requests", {
+  id: serial("id").primaryKey(),
+  prospectId: integer("prospect_id").references(() => enterpriseProspectsTable.id),
+  teaserReportId: integer("teaser_report_id").references(() => teaserReportsTable.id),
+  name: varchar("name", { length: 200 }),
+  email: varchar("email", { length: 200 }),
+  phone: varchar("phone", { length: 50 }),
+  message: text("message"),
+  status: varchar("status", { length: 30 }).default("pending"),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  contactedAt: timestamp("contacted_at"),
+  scheduledAt: timestamp("scheduled_at"),
+});
+export type MeetingRequest = typeof meetingRequestsTable.$inferSelect;

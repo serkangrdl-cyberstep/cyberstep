@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, LogOut, Loader2, CheckCircle2, AlertTriangle, Copy, Server,
   Activity, Ban, Network, PlayCircle, RefreshCw, ChevronRight, Lock, ShieldOff,
+  Wifi, WifiOff, Key,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,19 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
+
+interface PolicyAnalysis {
+  total: number; any_source: number; any_destination: number;
+  logging_disabled: number; disabled_policies: number; implicit_deny_exists: boolean;
+}
+interface VpnData {
+  ssl_vpn_active_users: number; ipsec_tunnels_up: number;
+  ssl_vpn_enabled: boolean; mfa_enabled?: boolean;
+}
+interface EndpointData {
+  total_endpoints: number | null; compliant: number; non_compliant: number; note?: string;
+}
+interface ThreatData { active_sessions: number | null; note?: string; }
 
 interface Integration {
   id: number;
@@ -36,6 +50,17 @@ interface Integration {
   correlationsCount: number;
   blocksCount: number;
   lastEventAt: string | null;
+  // FortiGate direct API
+  fgConfigured: boolean;
+  fgHost: string | null;
+  fgFirmwareVersion: string | null;
+  fgFirmwareEol: boolean | null;
+  fgFirmwareOutdated: boolean | null;
+  fgPolicyAnalysis: PolicyAnalysis | null;
+  fgVpnData: VpnData | null;
+  fgEndpoints: EndpointData | null;
+  fgThreats: ThreatData | null;
+  fgSyncedAt: string | null;
 }
 
 interface Correlation {
@@ -572,6 +597,8 @@ function Dashboard(props: {
         </CardContent>
       </Card>
 
+      <FortiGateApiPanel integration={integration} />
+
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader><CardTitle className="text-white text-lg">Keşfedilen Fabric Cihazları</CardTitle></CardHeader>
         <CardContent>
@@ -597,6 +624,246 @@ function Dashboard(props: {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── FortiGate Direct API Panel ──────────────────────────────────────────────
+
+function FortiGateApiPanel({ integration }: { integration: Integration }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ fgHost: integration.fgHost ?? "", fgApiKey: "" });
+  const [showForm, setShowForm] = useState(!integration.fgConfigured);
+
+  const configure = useMutation({
+    mutationFn: () =>
+      fetch("/api/portal/fabric/fortigate/configure", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then(r => r.json()),
+    onSuccess: (d: { ok: boolean; version?: string; hostname?: string; error?: string }) => {
+      if (d.ok) {
+        toast({ title: "FortiGate bağlandı", description: `${d.hostname ?? ""} — FortiOS ${d.version ?? ""}`.trim() });
+        setShowForm(false);
+      } else {
+        toast({ title: "Bağlantı başarısız", description: d.error, variant: "destructive" });
+      }
+      qc.invalidateQueries({ queryKey: ["fabric-status"] });
+    },
+    onError: () => toast({ title: "Hata", description: "Kaydedilemedi.", variant: "destructive" }),
+  });
+
+  const syncNow = useMutation({
+    mutationFn: () =>
+      fetch("/api/portal/fabric/fortigate/sync", {
+        method: "POST", credentials: "include",
+      }).then(r => r.json()),
+    onSuccess: (d: { ok: boolean; errors?: string[] }) => {
+      if (d.ok) {
+        toast({ title: "Senkronizasyon tamamlandı", description: d.errors?.length ? `${d.errors.length} uyarı oluştu` : undefined });
+      } else {
+        toast({ title: "Senkronizasyon başarısız", variant: "destructive" });
+      }
+      qc.invalidateQueries({ queryKey: ["fabric-status"] });
+    },
+    onError: () => toast({ title: "Senkronizasyon başarısız", variant: "destructive" }),
+  });
+
+  const pa = integration.fgPolicyAnalysis;
+  const vpn = integration.fgVpnData;
+  const ep = integration.fgEndpoints;
+  const threats = integration.fgThreats;
+
+  const fwCls = integration.fgFirmwareEol
+    ? "border-red-500/40 bg-red-500/5"
+    : integration.fgFirmwareOutdated
+    ? "border-amber-500/40 bg-amber-500/5"
+    : integration.fgFirmwareVersion
+    ? "border-emerald-500/40 bg-emerald-500/5"
+    : "border-slate-700 bg-slate-800/40";
+
+  return (
+    <Card className="bg-slate-900 border-slate-800">
+      <CardHeader>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-white text-lg flex items-center gap-2">
+              <Key className="h-4 w-4 text-emerald-400" /> FortiGate API Analizi
+            </CardTitle>
+            <CardDescription>
+              FortiGate REST API ile politika, VPN ve endpoint verilerini çekin.
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            {integration.fgConfigured && (
+              <Button size="sm" variant="outline" className="border-slate-700" onClick={() => syncNow.mutate()} disabled={syncNow.isPending}>
+                {syncNow.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Şimdi Senkronize Et
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="text-slate-400" onClick={() => setShowForm((v) => !v)}>
+              {showForm ? "Gizle" : integration.fgConfigured ? "Yeniden Yapılandır" : "Yapılandır"}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {showForm && (
+          <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 space-y-3">
+            <p className="text-slate-300 text-sm font-medium">FortiGate REST API Bağlantısı</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-slate-400 text-xs block mb-1">FortiGate Adresi</label>
+                <Input
+                  value={form.fgHost}
+                  onChange={(e) => setForm({ ...form, fgHost: e.target.value })}
+                  placeholder="https://192.168.1.1"
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-slate-400 text-xs block mb-1">REST API Anahtarı</label>
+                <Input
+                  type="password"
+                  value={form.fgApiKey}
+                  onChange={(e) => setForm({ ...form, fgApiKey: e.target.value })}
+                  placeholder="••••••••••••••"
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+            </div>
+            <div className="rounded border border-blue-500/30 bg-blue-500/5 p-3 text-blue-200 text-xs flex gap-2">
+              <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+              API anahtarı AES-256 ile şifrelenerek saklanır. FortiGate'te System &gt; Admin Profiles altından salt-okunur API kullanıcısı oluşturun.
+            </div>
+            <Button
+              onClick={() => configure.mutate()}
+              disabled={configure.isPending || !form.fgHost || !form.fgApiKey}
+              className="bg-emerald-600 hover:bg-emerald-500"
+            >
+              {configure.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Bağlantıyı Test Et ve Kaydet
+            </Button>
+          </div>
+        )}
+
+        {!integration.fgConfigured && !showForm && (
+          <div className="text-center py-6 text-slate-400 text-sm">
+            FortiGate API henüz yapılandırılmamış. "Yapılandır" butonuna tıklayın.
+          </div>
+        )}
+
+        {integration.fgConfigured && !showForm && (
+          <>
+            {integration.fgSyncedAt && (
+              <p className="text-slate-500 text-xs">
+                Son sync: {fmtDate(integration.fgSyncedAt)}
+              </p>
+            )}
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Firmware */}
+              <div className={`rounded-lg border p-3 ${fwCls}`}>
+                <p className="text-xs text-slate-400 mb-1">FortiOS Firmware</p>
+                {integration.fgFirmwareVersion ? (
+                  <>
+                    <p className="text-white font-semibold text-sm">{integration.fgFirmwareVersion}</p>
+                    {integration.fgFirmwareEol ? (
+                      <span className="text-red-400 text-xs flex items-center gap-1 mt-1"><AlertTriangle className="h-3 w-3" /> EOL</span>
+                    ) : integration.fgFirmwareOutdated ? (
+                      <span className="text-amber-400 text-xs flex items-center gap-1 mt-1"><AlertTriangle className="h-3 w-3" /> Güncel Degil</span>
+                    ) : (
+                      <span className="text-emerald-400 text-xs flex items-center gap-1 mt-1"><CheckCircle2 className="h-3 w-3" /> Guncel</span>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-slate-500 text-xs mt-1">Bilinmiyor</p>
+                )}
+              </div>
+
+              {/* Active Sessions */}
+              <div className="rounded-lg border border-slate-700 bg-slate-800/40 p-3">
+                <p className="text-xs text-slate-400 mb-1">Aktif Oturum</p>
+                <p className="text-white font-semibold text-sm">
+                  {threats?.active_sessions !== null && threats?.active_sessions !== undefined
+                    ? threats.active_sessions.toLocaleString("tr-TR")
+                    : "-"}
+                </p>
+                {threats?.note && <p className="text-slate-500 text-xs mt-1">{threats.note}</p>}
+              </div>
+
+              {/* VPN */}
+              <div className={`rounded-lg border p-3 ${vpn?.ssl_vpn_enabled && vpn?.mfa_enabled === false ? "border-red-500/40 bg-red-500/5" : "border-slate-700 bg-slate-800/40"}`}>
+                <p className="text-xs text-slate-400 mb-1">SSL VPN</p>
+                {vpn ? (
+                  <>
+                    <p className="text-white font-semibold text-sm">{vpn.ssl_vpn_active_users} aktif kullanıcı</p>
+                    {vpn.ssl_vpn_enabled && vpn.mfa_enabled === false && (
+                      <span className="text-red-400 text-xs flex items-center gap-1 mt-1"><WifiOff className="h-3 w-3" /> MFA yok</span>
+                    )}
+                    {vpn.ssl_vpn_enabled && vpn.mfa_enabled !== false && (
+                      <span className="text-emerald-400 text-xs flex items-center gap-1 mt-1"><Wifi className="h-3 w-3" /> MFA aktif</span>
+                    )}
+                    {!vpn.ssl_vpn_enabled && <p className="text-slate-500 text-xs mt-1">SSL VPN kapalı</p>}
+                  </>
+                ) : (
+                  <p className="text-slate-500 text-xs mt-1">Bilinmiyor</p>
+                )}
+              </div>
+
+              {/* Endpoints */}
+              <div className={`rounded-lg border p-3 ${(ep?.non_compliant ?? 0) > 0 ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700 bg-slate-800/40"}`}>
+                <p className="text-xs text-slate-400 mb-1">FortiClient Endpoint</p>
+                {ep?.total_endpoints !== null && ep?.total_endpoints !== undefined ? (
+                  <>
+                    <p className="text-white font-semibold text-sm">{ep.total_endpoints} toplam</p>
+                    <div className="flex gap-2 text-xs mt-1">
+                      <span className="text-emerald-400">{ep.compliant} uyumlu</span>
+                      {ep.non_compliant > 0 && <span className="text-amber-400">{ep.non_compliant} uyumsuz</span>}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-slate-500 text-xs mt-1">{ep?.note ?? "EMS bağlı değil"}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Policy Analysis */}
+            {pa && (
+              <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+                <p className="text-white text-sm font-medium mb-3">Firewall Policy Analizi</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <PolicyStat label="Toplam Policy" value={pa.total} cls="text-slate-200" />
+                  <PolicyStat label="Any-Kaynak" value={pa.any_source}
+                    cls={pa.any_source > 2 ? "text-red-400" : pa.any_source > 0 ? "text-amber-400" : "text-emerald-400"} />
+                  <PolicyStat label="Any-Hedef" value={pa.any_destination}
+                    cls={pa.any_destination > 0 ? "text-amber-400" : "text-emerald-400"} />
+                  <PolicyStat label="Log Kapalı" value={pa.logging_disabled}
+                    cls={pa.logging_disabled > 0 ? "text-amber-400" : "text-emerald-400"} />
+                  <PolicyStat label="Devre Dışı" value={pa.disabled_policies} cls="text-slate-400" />
+                  <div className="bg-slate-800/60 rounded p-2">
+                    <p className="text-slate-400 text-xs">Implicit Deny</p>
+                    <p className={`text-sm font-semibold mt-0.5 ${pa.implicit_deny_exists ? "text-emerald-400" : "text-red-400"}`}>
+                      {pa.implicit_deny_exists ? "Var" : "Yok"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PolicyStat({ label, value, cls }: { label: string; value: number; cls: string }) {
+  return (
+    <div className="bg-slate-800/60 rounded p-2">
+      <p className="text-slate-400 text-xs">{label}</p>
+      <p className={`text-sm font-semibold mt-0.5 ${cls}`}>{value}</p>
     </div>
   );
 }

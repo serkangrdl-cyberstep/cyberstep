@@ -4,6 +4,7 @@ import {
   domainScansTable,
   internalScansTable,
   internalScanSurveysTable,
+  fortinetIntegrationsTable,
 } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
@@ -201,6 +202,63 @@ export async function buildSecurityContext(customerId: number): Promise<string> 
     lines.push(`PCI-DSS: ${survey.pciDss ? "KAPSAM VAR" : "KAPSAM YOK"}`);
     lines.push(`SIEM: ${survey.siemExists ? "VAR" : "YOK"}`);
     lines.push(`SOC: ${survey.socType ?? "YOK"}`);
+  }
+
+  // 5. Fortinet Fabric / FortiGate API verileri
+  const fortinet = await db.query.fortinetIntegrationsTable.findFirst({
+    where: eq(fortinetIntegrationsTable.customerId, customerId),
+    orderBy: desc(fortinetIntegrationsTable.updatedAt),
+    columns: {
+      status: true, eventsReceived: true, correlationsCount: true, blocksCount: true,
+      fgFirmwareVersion: true, fgFirmwareEol: true, fgFirmwareOutdated: true,
+      fgPolicyAnalysis: true, fgVpnData: true, fgEndpoints: true, fgSyncedAt: true,
+    },
+  });
+
+  if (fortinet) {
+    lines.push("");
+    lines.push("=== FORTİNET SECURITY FABRIC ===");
+    lines.push(`Olay Akışı: ${fortinet.status === "connected" ? "Bağlı" : "Bağlı değil"}`);
+    lines.push(`Alınan olay: ${fortinet.eventsReceived}, Korelasyon: ${fortinet.correlationsCount}, Engellenen IP: ${fortinet.blocksCount}`);
+
+    if (fortinet.fgFirmwareVersion) {
+      lines.push(`FortiOS Versiyonu: ${fortinet.fgFirmwareVersion}`);
+      if (fortinet.fgFirmwareEol) lines.push("⚠ FortiOS EOL — destek sona erdi, kritik güvenlik riski");
+      else if (fortinet.fgFirmwareOutdated) lines.push("⚠ FortiOS güncel değil");
+    }
+
+    if (fortinet.fgPolicyAnalysis) {
+      const pa = fortinet.fgPolicyAnalysis;
+      lines.push(`Firewall Policy: ${pa.total} toplam`);
+      if (pa.any_source > 0) lines.push(`⚠ Any-kaynak policy: ${pa.any_source} (herkese açık kurallar)`);
+      if (pa.any_destination > 0) lines.push(`⚠ Any-hedef policy: ${pa.any_destination}`);
+      if (pa.logging_disabled > 0) lines.push(`⚠ Log kapalı policy: ${pa.logging_disabled} (görünmez trafik)`);
+      if (pa.disabled_policies > 0) lines.push(`Devre dışı policy: ${pa.disabled_policies}`);
+      if (!pa.implicit_deny_exists) lines.push("⚠ Implicit Deny kuralı yok");
+    }
+
+    if (fortinet.fgVpnData) {
+      const vpn = fortinet.fgVpnData;
+      if (vpn.ssl_vpn_enabled) {
+        lines.push(`SSL VPN aktif kullanıcı: ${vpn.ssl_vpn_active_users}`);
+        if (vpn.mfa_enabled === false) lines.push("⚠ SSL VPN aktif ancak MFA yok — kritik risk");
+      }
+      if (vpn.ipsec_tunnels_up > 0) lines.push(`IPSec tünel: ${vpn.ipsec_tunnels_up} aktif`);
+    }
+
+    if (fortinet.fgEndpoints) {
+      const ep = fortinet.fgEndpoints;
+      if (ep.total_endpoints !== null) {
+        lines.push(`FortiClient Endpoint: ${ep.total_endpoints} toplam, ${ep.compliant} uyumlu, ${ep.non_compliant} uyumsuz`);
+        if (ep.non_compliant > 0) lines.push(`⚠ ${ep.non_compliant} uyumsuz endpoint var`);
+      } else if (ep.note) {
+        lines.push(`FortiClient: ${ep.note}`);
+      }
+    }
+
+    if (fortinet.fgSyncedAt) {
+      lines.push(`Son FortiGate API sync: ${new Date(fortinet.fgSyncedAt).toLocaleDateString("tr-TR")}`);
+    }
   }
 
   return lines.join("\n");

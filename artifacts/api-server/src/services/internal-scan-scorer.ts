@@ -12,9 +12,27 @@ export interface InternalScoreResult {
   findings: InternalScoreFinding[];
 }
 
+interface FabricData {
+  firmware_version?: string;
+  firmware_eol?: boolean;
+  firmware_outdated?: boolean;
+  policy_analysis?: {
+    total: number; any_source: number; any_destination: number;
+    logging_disabled: number; disabled_policies: number; implicit_deny_exists: boolean;
+  };
+  vpn?: {
+    ssl_vpn_active_users: number; ipsec_tunnels_up: number;
+    ssl_vpn_enabled: boolean; mfa_enabled?: boolean;
+  };
+  endpoints?: {
+    total_endpoints: number | null; compliant: number; non_compliant: number; note?: string;
+  };
+}
+
 export function calculateInternalScore(
   data: Record<string, unknown>,
   survey?: Record<string, unknown>,
+  fabricData?: FabricData,
 ): InternalScoreResult {
   let score = 100;
   const findings: InternalScoreFinding[] = [];
@@ -518,6 +536,86 @@ export function calculateInternalScore(
     }
 
     breakdown["survey"] = score;
+  }
+
+  // ── FORTİNET FABRIC KONTROLLERİ ────────────────────────────────────────────
+  if (fabricData) {
+    if (fabricData.firmware_eol === true) {
+      score -= 20;
+      findings.push({
+        category: "firewall",
+        finding: `FortiOS ${fabricData.firmware_version ?? ""} EOL — destek sona erdi`.trim(),
+        severity: "critical",
+        points: 20,
+        recommendation: `FortiOS güncel kararlı versiyona yükseltilmeli. Mevcut: ${fabricData.firmware_version ?? "bilinmiyor"}`,
+      });
+    } else if (fabricData.firmware_outdated === true) {
+      score -= 8;
+      findings.push({
+        category: "firewall",
+        finding: `FortiOS ${fabricData.firmware_version ?? ""} güncel değil`.trim(),
+        severity: "medium",
+        points: 8,
+        recommendation: "FortiOS son kararlı versiyona güncellenmeli.",
+      });
+    }
+
+    if ((fabricData.policy_analysis?.any_source ?? 0) > 2) {
+      score -= 10;
+      findings.push({
+        category: "firewall",
+        finding: `${fabricData.policy_analysis!.any_source} policy'de kaynak "any" (herkese açık)`,
+        severity: "high",
+        points: 10,
+        recommendation: "Kaynak IP kısıtlaması olmayan kurallar gözden geçirilmeli.",
+      });
+    }
+
+    if ((fabricData.policy_analysis?.logging_disabled ?? 0) > 0) {
+      score -= 6;
+      findings.push({
+        category: "firewall",
+        finding: `${fabricData.policy_analysis!.logging_disabled} policy'de log kapalı`,
+        severity: "medium",
+        points: 6,
+        recommendation: "Tüm accept policy'lerde loglama etkinleştirilmeli.",
+      });
+    }
+
+    if (fabricData.policy_analysis && !fabricData.policy_analysis.implicit_deny_exists) {
+      score -= 5;
+      findings.push({
+        category: "firewall",
+        finding: "Implicit Deny kuralı yok — kural dışı trafik serbest geçebilir",
+        severity: "medium",
+        points: 5,
+        recommendation: "En alta varsayılan deny-all kuralı eklenmeli.",
+      });
+    }
+
+    if (fabricData.vpn?.ssl_vpn_enabled && fabricData.vpn.mfa_enabled === false) {
+      score -= 12;
+      findings.push({
+        category: "vpn",
+        finding: "SSL VPN aktif ama MFA yok",
+        severity: "critical",
+        points: 12,
+        recommendation: "VPN erişiminde MFA zorunlu hale getirilmeli. FortiToken veya TOTP kullanılabilir.",
+      });
+    }
+
+    if ((fabricData.endpoints?.non_compliant ?? 0) > 0) {
+      score -= 5;
+      findings.push({
+        category: "endpoint",
+        finding: `${fabricData.endpoints!.non_compliant} uyumsuz FortiClient endpoint`,
+        severity: "medium",
+        points: 5,
+        recommendation: "Uyumsuz endpoint'ler FortiClient EMS üzerinden güncellenmeli.",
+      });
+    }
+
+    breakdown["fortinet"] = score;
   }
 
   return {

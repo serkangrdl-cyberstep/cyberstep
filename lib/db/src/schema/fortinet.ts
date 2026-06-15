@@ -43,6 +43,29 @@ export const fortinetIntegrationsTable = pgTable("fortinet_integrations", {
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+
+  // FortiGate direct API (pull-based — CyberStep → FortiGate)
+  fgHost: text("fg_host"), // https://192.168.1.1
+  fgApiKeyEnc: text("fg_api_key_enc"), // AES-256-GCM ciphertext
+  fgFirmwareVersion: text("fg_firmware_version"),
+  fgFirmwareEol: boolean("fg_firmware_eol").default(false),
+  fgFirmwareOutdated: boolean("fg_firmware_outdated").default(false),
+  fgPolicyAnalysis: jsonb("fg_policy_analysis").$type<{
+    total: number; any_source: number; any_destination: number;
+    logging_disabled: number; disabled_policies: number; implicit_deny_exists: boolean;
+  }>(),
+  fgVpnData: jsonb("fg_vpn_data").$type<{
+    ssl_vpn_active_users: number; ipsec_tunnels_up: number;
+    ssl_vpn_enabled: boolean; mfa_enabled?: boolean;
+  }>(),
+  fgEndpoints: jsonb("fg_endpoints").$type<{
+    total_endpoints: number | null; compliant: number;
+    non_compliant: number; note?: string;
+  }>(),
+  fgThreats: jsonb("fg_threats").$type<{
+    active_sessions: number | null; note?: string;
+  }>(),
+  fgSyncedAt: timestamp("fg_synced_at"),
 });
 
 // ─── Normalized incoming events ───────────────────────────────────────────────

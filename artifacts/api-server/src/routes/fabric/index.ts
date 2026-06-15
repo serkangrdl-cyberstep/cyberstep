@@ -17,6 +17,7 @@ import { encryptSecret, generateToken } from "../../services/fabric-crypto";
 import { fmTestConnection, fmBlockIp, fmUnblockIp, fmDiscoverDevices } from "../../services/fabric-fortimanager";
 import { decryptSecret } from "../../services/fabric-crypto";
 import { correlateForIntegration } from "../../services/fabric-correlation";
+import { fgTestConnection, fgFullSync } from "../../services/fortigate-client";
 
 const router = Router();
 
@@ -131,6 +132,17 @@ function publicIntegration(i: Integration) {
     correlationsCount: i.correlationsCount,
     blocksCount: i.blocksCount,
     lastEventAt: i.lastEventAt,
+    // FortiGate direct API
+    fgConfigured: !!i.fgHost && !!i.fgApiKeyEnc,
+    fgHost: i.fgHost,
+    fgFirmwareVersion: i.fgFirmwareVersion,
+    fgFirmwareEol: i.fgFirmwareEol,
+    fgFirmwareOutdated: i.fgFirmwareOutdated,
+    fgPolicyAnalysis: i.fgPolicyAnalysis,
+    fgVpnData: i.fgVpnData,
+    fgEndpoints: i.fgEndpoints,
+    fgThreats: i.fgThreats,
+    fgSyncedAt: i.fgSyncedAt,
   };
 }
 
@@ -395,6 +407,77 @@ router.post("/portal/fabric/discover-devices", requireCustomer, async (req: Requ
   } catch (err) {
     logger.error({ err }, "Device discovery failed");
     res.status(500).json({ error: "Cihaz keşfi başarısız" });
+  }
+});
+
+// ─── FortiGate Direct API ─────────────────────────────────────────────────────
+
+const fgConfigSchema = z.object({
+  fgHost: z.string().url(),
+  fgApiKey: z.string().min(8),
+});
+
+router.post("/portal/fabric/fortigate/configure", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  const parsed = fgConfigSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Geçersiz FortiGate bilgileri" }); return; }
+  try {
+    const integration = await getOrInit(customerId);
+    const enc = encryptSecret(parsed.data.fgApiKey);
+    if (!enc) { res.status(500).json({ error: "Şifreleme anahtarı yapılandırılmamış" }); return; }
+    const test = await fgTestConnection({ host: parsed.data.fgHost, apiKey: parsed.data.fgApiKey });
+    await db.update(fortinetIntegrationsTable)
+      .set({ fgHost: parsed.data.fgHost, fgApiKeyEnc: enc, updatedAt: new Date() })
+      .where(eq(fortinetIntegrationsTable.id, integration.id));
+    res.json({ ok: test.connected, version: test.version, hostname: test.hostname, error: test.error });
+  } catch (err) {
+    logger.error({ err }, "Failed to configure FortiGate API");
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+router.get("/portal/fabric/fortigate/test", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  try {
+    const integration = await getOrInit(customerId);
+    const apiKey = decryptSecret(integration.fgApiKeyEnc);
+    if (!integration.fgHost || !apiKey) {
+      res.status(400).json({ connected: false, error: "FortiGate API henüz yapılandırılmamış" }); return;
+    }
+    const result = await fgTestConnection({ host: integration.fgHost, apiKey });
+    res.json(result);
+  } catch (err) {
+    logger.error({ err }, "FortiGate test failed");
+    res.status(500).json({ connected: false, error: "Sunucu hatası" });
+  }
+});
+
+router.post("/portal/fabric/fortigate/sync", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  try {
+    const integration = await getOrInit(customerId);
+    const apiKey = decryptSecret(integration.fgApiKeyEnc);
+    if (!integration.fgHost || !apiKey) {
+      res.status(400).json({ error: "FortiGate API henüz yapılandırılmamış" }); return;
+    }
+    const result = await fgFullSync({ host: integration.fgHost, apiKey });
+    await db.update(fortinetIntegrationsTable).set({
+      fgFirmwareVersion: result.firmwareVersion ?? undefined,
+      fgFirmwareEol: result.firmwareEol,
+      fgFirmwareOutdated: result.firmwareOutdated,
+      fgPolicyAnalysis: result.policyAnalysis ?? undefined,
+      fgVpnData: result.vpnData ?? undefined,
+      fgEndpoints: result.endpoints,
+      fgThreats: result.threats,
+      fgSyncedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(fortinetIntegrationsTable.id, integration.id));
+    const [updated] = await db.select().from(fortinetIntegrationsTable)
+      .where(eq(fortinetIntegrationsTable.id, integration.id));
+    res.json({ ok: true, errors: result.errors, integration: publicIntegration(updated!) });
+  } catch (err) {
+    logger.error({ err }, "FortiGate sync failed");
+    res.status(500).json({ error: "Senkronizasyon başarısız" });
   }
 });
 

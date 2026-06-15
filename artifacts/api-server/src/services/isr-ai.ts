@@ -456,3 +456,109 @@ Lütfen yanıtınızın konusuna bu referans kodunu eklemeyi unutmayın.
 Teşekkürler,
 CyberStep.io Satış Ekibi`;
 }
+
+// ─── ISR Copilot — AI destekli satış rehberi ─────────────────────────────────
+export interface CopilotContent {
+  musteri_ozeti: string;
+  satis_acisi: string;
+  aciliyet_faktoru: string;
+  onerilen_paket: { isim: string; fiyat: string; neden: string[] };
+  gorusmede_sor: Array<{ soru: string; amac: string }>;
+  itirazlar: Array<{ itiraz: string; cevap: string }>;
+  linkedin_mesaji: string;
+  followup_mail_d3: { konu: string; icerik: string };
+  followup_mail_d7: { konu: string; icerik: string };
+  bir_sonraki_adim: string;
+  upsell_zamani: string;
+}
+
+export async function generateIsrCopilot(deal: {
+  customerCompany: string | null;
+  customerName: string | null;
+  requestText: string | null;
+  aiSummary: string | null;
+  originalBody: string | null;
+  productKeywords: string | null;
+  status: string;
+  priority: string;
+  vendorName: string | null;
+  createdAt: Date;
+}): Promise<CopilotContent> {
+  const ai = makeDefaultAiFn();
+  if (!ai) throw new Error("AI servisi kullanılamıyor");
+
+  const summary = `Şirket: ${deal.customerCompany ?? "Bilinmiyor"}
+İletişim: ${deal.customerName ?? "Bilinmiyor"}
+Durum: ${deal.status}
+Öncelik: ${deal.priority}
+Vendor: ${deal.vendorName ?? "Belirtilmemiş"}
+Ürün/Anahtar Kelimeler: ${deal.productKeywords ?? "—"}
+
+AI Özet: ${deal.aiSummary ?? "—"}
+
+Talep Metni:
+${(deal.requestText ?? deal.originalBody ?? "Bilgi yok").slice(0, 800)}`;
+
+  const prompt = `Sen CyberStep'in ISR (İç Satış Temsilcisi) asistanısın.
+Türkiye'deki şirketlere siber güvenlik SaaS ve donanım/yazılım çözümleri satıyorsunuz.
+
+Ürün kataloğu:
+- Kalkan Paketi: ₺2.990/ay — Dış saldırı yüzeyi izleme, SSL takibi, aylık rapor
+- Zırh Paketi: ₺5.990/ay — Kalkan + gelişmiş tehdit istihbaratı + öncelikli destek
+- vCISO Danışmanlık: ₺4.990/ay — Teknik rehberlik, KVKK uyum yol haritası, haftalık görüşme
+- AI Saldırı Analizi: ₺4.990 tek seferlik — Derinlemesine güvenlik raporu
+
+ISR teknik değil, satış odaklı. Karmaşık terimler kullanma. Türkçe yaz.
+
+Aşağıdaki lead için ISR satış rehberi hazırla:
+
+${summary}
+
+Oluşturulma: ${deal.createdAt.toLocaleDateString("tr-TR")}
+
+Şu JSON formatında yanıt ver (yalnızca JSON, açıklama ekleme):
+{
+  "musteri_ozeti": "2-3 cümle, ISR'nin okuyup hemen anlayacağı sade özet",
+  "satis_acisi": "Bu müşteri için en güçlü satış açısı (tek paragraf)",
+  "aciliyet_faktoru": "Neden şimdi harekete geçmeli (somut, tarih/rakam ile)",
+  "onerilen_paket": {
+    "isim": "paket adı",
+    "fiyat": "₺X/ay",
+    "neden": ["1. neden", "2. neden", "3. neden"]
+  },
+  "gorusmede_sor": [
+    {"soru": "soru metni", "amac": "bu soruyu neden soruyoruz"},
+    {"soru": "soru metni", "amac": "..."},
+    {"soru": "soru metni", "amac": "..."}
+  ],
+  "itirazlar": [
+    {"itiraz": "Fiyat pahalı", "cevap": "..."},
+    {"itiraz": "Şu an ihtiyacımız yok", "cevap": "..."},
+    {"itiraz": "Başka bir sistemimiz var", "cevap": "..."}
+  ],
+  "linkedin_mesaji": "150 kelime altı, doğal, satışçı olmayan LinkedIn mesaj taslağı",
+  "followup_mail_d3": {
+    "konu": "mail konusu",
+    "icerik": "mail içeriği (3-4 paragraf, düz metin)"
+  },
+  "followup_mail_d7": {
+    "konu": "mail konusu",
+    "icerik": "mail içeriği (daha kısa, daha acil ton)"
+  },
+  "bir_sonraki_adim": "ISR şu an ne yapmalı (tek net aksiyon)",
+  "upsell_zamani": "Hangi koşulda üst pakete geçiş önerilmeli"
+}`;
+
+  const text = await ai(prompt);
+  const clean = text.replace(/```json|```/g, "").trim();
+
+  const parsed = JSON.parse(clean) as CopilotContent;
+  // Ensure neden is always an array
+  if (parsed.onerilen_paket && typeof parsed.onerilen_paket.neden === "string") {
+    parsed.onerilen_paket.neden = (parsed.onerilen_paket.neden as unknown as string)
+      .split(/\n|;/)
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  }
+  return parsed;
+}

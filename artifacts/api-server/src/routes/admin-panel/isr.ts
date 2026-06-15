@@ -7,6 +7,7 @@ import {
   isrEmailInboxTable, isrCustomersTable, isrActivitiesTable, isrRemindersTable,
   isrVendorsTable as vt,
   leadCandidatesTable,
+  isrCopilotCacheTable,
 } from "@workspace/db";
 import { eq, desc, sql, and, count, ilike, or, inArray, isNull } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
@@ -789,6 +790,47 @@ router.post("/admin-panel/isr/deals/:id/next-action", requireAdmin, async (req: 
   });
 
   res.json({ actions });
+});
+
+// ─── ISR Copilot ─────────────────────────────────────────────────────────────
+router.post("/admin-panel/isr/deals/:id/copilot", requireAdmin, async (req: Request, res: Response) => {
+  const tenantId = requireTenantId(req, res); if (!tenantId) return;
+  const dealId = parseInt(String(req.params.id));
+
+  const [deal] = await db.select().from(isrDealsTable)
+    .where(and(eq(isrDealsTable.id, dealId), eq(isrDealsTable.tenantId, tenantId)));
+  if (!deal) { res.status(404).json({ error: "Deal bulunamadı" }); return; }
+
+  // Serve 24h cache if fresh
+  const [cached] = await db.select().from(isrCopilotCacheTable)
+    .where(and(
+      eq(isrCopilotCacheTable.dealId, dealId),
+      sql`${isrCopilotCacheTable.createdAt} >= now() - interval '24 hours'`,
+    ));
+  if (cached) { res.json({ copilot: cached.content, cached: true }); return; }
+
+  const { generateIsrCopilot } = await import("../../services/isr-ai");
+  const copilot = await generateIsrCopilot({
+    customerCompany: deal.customerCompany,
+    customerName: deal.customerName,
+    requestText: deal.requestText,
+    aiSummary: deal.aiSummary,
+    originalBody: deal.originalBody,
+    productKeywords: deal.productKeywords,
+    status: deal.status,
+    priority: deal.priority,
+    vendorName: deal.vendorName,
+    createdAt: deal.createdAt,
+  });
+
+  await db.insert(isrCopilotCacheTable)
+    .values({ dealId, content: copilot })
+    .onConflictDoUpdate({
+      target: isrCopilotCacheTable.dealId,
+      set: { content: copilot, createdAt: new Date() },
+    });
+
+  res.json({ copilot, cached: false });
 });
 
 // Suppress unused import warning

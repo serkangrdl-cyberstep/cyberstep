@@ -24,6 +24,20 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 
+interface CopilotContent {
+  musteri_ozeti: string;
+  satis_acisi: string;
+  aciliyet_faktoru: string;
+  onerilen_paket: { isim: string; fiyat: string; neden: string[] };
+  gorusmede_sor: Array<{ soru: string; amac: string }>;
+  itirazlar: Array<{ itiraz: string; cevap: string }>;
+  linkedin_mesaji: string;
+  followup_mail_d3: { konu: string; icerik: string };
+  followup_mail_d7: { konu: string; icerik: string };
+  bir_sonraki_adim: string;
+  upsell_zamani: string;
+}
+
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   new:                  { label: "Yeni",                   color: "bg-blue-100 text-blue-700" },
   rfq_sent:             { label: "RFQ Gönderildi",         color: "bg-yellow-100 text-yellow-700" },
@@ -85,6 +99,10 @@ export default function AdminIsrDeal() {
   const [activityTitle, setActivityTitle] = useState("");
   const [activityDesc, setActivityDesc] = useState("");
   const [showActivityForm, setShowActivityForm] = useState(false);
+  const [copilotResult, setCopilotResult] = useState<{ copilot: CopilotContent; cached: boolean } | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotError, setCopilotError] = useState<string | null>(null);
+  const [copilotTab, setCopilotTab] = useState<"ozet" | "gorusme" | "mailler" | "itirazlar">("ozet");
 
   // Reminder state
   const [remindDate, setRemindDate] = useState("");
@@ -201,6 +219,24 @@ export default function AdminIsrDeal() {
       setNbaActions([]);
     } finally {
       setNbaLoading(false);
+    }
+  };
+
+  const handleCopilotStart = async () => {
+    setCopilotLoading(true);
+    setCopilotError(null);
+    try {
+      const r = await fetch(`/api/admin-panel/isr/deals/${dealId}/copilot`, {
+        method: "POST", credentials: "include",
+      });
+      if (!r.ok) { setCopilotError("Copilot üretilemedi, tekrar deneyin."); return; }
+      const d = await r.json() as { copilot: CopilotContent; cached: boolean };
+      setCopilotResult(d);
+      setCopilotTab("ozet");
+    } catch {
+      setCopilotError("Bağlantı hatası.");
+    } finally {
+      setCopilotLoading(false);
     }
   };
 
@@ -1006,6 +1042,17 @@ export default function AdminIsrDeal() {
         </div>
       </div>
 
+      {/* ISR Copilot */}
+      <IsrCopilotSection
+        copilot={copilotResult?.copilot ?? null}
+        cached={copilotResult?.cached ?? false}
+        loading={copilotLoading}
+        error={copilotError}
+        activeTab={copilotTab}
+        onTabChange={setCopilotTab}
+        onStart={handleCopilotStart}
+      />
+
       {/* RFQ Gönder Dialog */}
       {(() => {
         const selectedVendor = vendorsData?.find(v => String(v.id) === rfqVendorId);
@@ -1123,6 +1170,213 @@ export default function AdminIsrDeal() {
         </DialogContent>
       </Dialog>
     </AdminLayout>
+  );
+}
+
+// ─── ISR Copilot Section ──────────────────────────────────────────────────────
+const C = {
+  bg: "#060D1A", card: "#0A1828", border: "#1A3050",
+  blue: "#00C8FF", text: "#E8EDF5", muted: "#8896A8",
+  green: "#2ECC71", yellow: "#F5A623", red: "#E03A3A", purple: "#9B59B6",
+};
+
+function CopilotMailBlock({ title, subtitle, color, subject, content }: {
+  title: string; subtitle: string; color: string;
+  subject: string | null; content: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    const text = subject ? `Konu: ${subject}\n\n${content}` : content;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <div style={{ background: C.card, border: `1px solid ${color}33`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ background: `${color}11`, borderBottom: `1px solid ${color}22`, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{title}</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{subtitle}</div>
+        </div>
+        <button onClick={copy} style={{ background: `${color}22`, border: `1px solid ${color}44`, color: color, borderRadius: 6, padding: "4px 12px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>
+          {copied ? "Kopyalandı" : "Kopyala"}
+        </button>
+      </div>
+      <div style={{ padding: 16 }}>
+        {subject && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>Konu: <span style={{ color: C.text, fontWeight: 600 }}>{subject}</span></div>}
+        <pre style={{ fontSize: 12, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0, fontFamily: "inherit" }}>{content}</pre>
+      </div>
+    </div>
+  );
+}
+
+function IsrCopilotSection({ copilot, cached, loading, error, activeTab, onTabChange, onStart }: {
+  copilot: CopilotContent | null;
+  cached: boolean;
+  loading: boolean;
+  error: string | null;
+  activeTab: "ozet" | "gorusme" | "mailler" | "itirazlar";
+  onTabChange: (t: "ozet" | "gorusme" | "mailler" | "itirazlar") => void;
+  onStart: () => void;
+}) {
+  if (!copilot && !loading) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.blue}18`, border: `1px solid ${C.blue}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Bot style={{ width: 20, height: 20, color: C.blue }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>ISR Copilot</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+              Bu deal için AI destekli satış rehberi — görüşme soruları, mail taslakları, itiraz cevapları
+            </div>
+          </div>
+        </div>
+        {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 12, background: `${C.red}11`, border: `1px solid ${C.red}33`, borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
+        <button onClick={onStart} style={{ background: C.blue, color: C.bg, border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+          <Zap style={{ width: 16, height: 16 }} /> Copilot Başlat
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.blue}44`, borderRadius: 14, padding: 32, textAlign: "center" }}>
+        <Loader2 style={{ width: 32, height: 32, color: C.blue, animation: "spin 1s linear infinite", margin: "0 auto 12px" }} />
+        <div style={{ color: C.blue, fontWeight: 700, fontSize: 15 }}>Müşteri analiz ediliyor...</div>
+        <div style={{ color: C.muted, fontSize: 13, marginTop: 6 }}>Satış rehberi hazırlanıyor</div>
+      </div>
+    );
+  }
+
+  if (!copilot) return null;
+
+  const tabs = [
+    { key: "ozet" as const, label: "Özet" },
+    { key: "gorusme" as const, label: "Görüşme" },
+    { key: "mailler" as const, label: "Mailler" },
+    { key: "itirazlar" as const, label: "İtirazlar" },
+  ];
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.blue}55`, borderRadius: 14, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ background: C.bg, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Bot style={{ width: 18, height: 18, color: C.blue }} />
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>ISR Copilot</span>
+          {cached && <span style={{ fontSize: 10, color: C.muted, background: C.border, padding: "2px 8px", borderRadius: 10 }}>önbellekten</span>}
+        </div>
+        <div style={{ background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, color: C.blue }}>
+          {copilot.onerilen_paket.isim} — {copilot.onerilen_paket.fiyat}
+        </div>
+      </div>
+
+      {/* Aciliyet */}
+      <div style={{ background: `${C.yellow}0D`, borderBottom: `1px solid ${C.yellow}33`, padding: "10px 20px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <Zap style={{ width: 14, height: 14, color: C.yellow, marginTop: 2, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, color: C.yellow, fontWeight: 600, lineHeight: 1.5 }}>{copilot.aciliyet_faktoru}</span>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
+        {tabs.map(tab => (
+          <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{ padding: "11px 18px", fontSize: 13, fontWeight: 600, background: "transparent", border: "none", cursor: "pointer", color: activeTab === tab.key ? C.blue : C.muted, borderBottom: activeTab === tab.key ? `2px solid ${C.blue}` : "2px solid transparent" }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: 20 }}>
+
+        {/* ÖZET */}
+        {activeTab === "ozet" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Müşteri Özeti</div>
+              <div style={{ fontSize: 13, color: C.text, lineHeight: 1.65 }}>{copilot.musteri_ozeti}</div>
+            </div>
+            <div style={{ background: `${C.blue}0A`, border: `1px solid ${C.blue}2A`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 10, color: C.blue, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Satış Açısı</div>
+              <div style={{ fontSize: 13, color: C.text, lineHeight: 1.65 }}>{copilot.satis_acisi}</div>
+            </div>
+            <div style={{ background: `${C.green}0A`, border: `1px solid ${C.green}2A`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 10, color: C.green, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>Önerilen Paket</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.green, marginBottom: 8 }}>{copilot.onerilen_paket.isim} — {copilot.onerilen_paket.fiyat}</div>
+              {(Array.isArray(copilot.onerilen_paket.neden) ? copilot.onerilen_paket.neden : []).map((n, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                  <span style={{ color: C.green, flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: 13, color: C.text }}>{n}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: C.yellow, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 10, color: C.bg, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>Bir Sonraki Adım</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.bg }}>{copilot.bir_sonraki_adim}</div>
+            </div>
+          </div>
+        )}
+
+        {/* GÖRÜŞME */}
+        {activeTab === "gorusme" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>Görüşmede bu soruları sor — her biri bir ihtiyacı ortaya çıkarır</div>
+            {copilot.gorusmede_sor.map((item, i) => (
+              <div key={i} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ width: 24, height: 24, borderRadius: "50%", background: C.blue, color: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 5 }}>{item.soru}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>Amaç: {item.amac}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div style={{ background: `${C.purple}0D`, border: `1px solid ${C.purple}33`, borderRadius: 10, padding: 14, marginTop: 6 }}>
+              <div style={{ fontSize: 10, color: C.purple, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Upsell Zamanı</div>
+              <div style={{ fontSize: 13, color: C.text }}>{copilot.upsell_zamani}</div>
+            </div>
+          </div>
+        )}
+
+        {/* MAİLLER */}
+        {activeTab === "mailler" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <CopilotMailBlock title="LinkedIn Mesajı" subtitle="Teaser açılmadıysa D+3'te gönder" color="#0077B5" subject={null} content={copilot.linkedin_mesaji} />
+            <CopilotMailBlock title="D+3 Takip Maili" subtitle="Teaser gönderildi, 3 gün geçti, açılmadı" color={C.yellow} subject={copilot.followup_mail_d3.konu} content={copilot.followup_mail_d3.icerik} />
+            <CopilotMailBlock title="D+7 Takip Maili" subtitle="Açıldı ama dönüş yok — daha acil ton" color={C.red} subject={copilot.followup_mail_d7.konu} content={copilot.followup_mail_d7.icerik} />
+          </div>
+        )}
+
+        {/* İTİRAZLAR */}
+        {activeTab === "itirazlar" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>Görüşmede karşılaşacağın itirazlar ve hazır cevaplar</div>
+            {copilot.itirazlar.map((item, i) => (
+              <div key={i} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ background: `${C.red}0D`, borderBottom: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.red }}>"{item.itiraz}"</span>
+                </div>
+                <div style={{ padding: "10px 14px", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span style={{ color: C.green, fontSize: 14, flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>{item.cevap}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: "10px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={onStart} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 8, padding: "6px 16px", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+          <MessageSquare style={{ width: 12, height: 12 }} /> Yeniden Üret
+        </button>
+      </div>
+    </div>
   );
 }
 

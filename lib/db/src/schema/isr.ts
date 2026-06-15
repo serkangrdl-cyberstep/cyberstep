@@ -249,3 +249,14 @@ export type InsertIsrVendor = z.infer<typeof insertIsrVendorSchema>;
 export type InsertIsrDistributor = z.infer<typeof insertIsrDistributorSchema>;
 export type InsertIsrDeal = z.infer<typeof insertIsrDealSchema>;
 export type InsertIsrMarginRule = z.infer<typeof insertIsrMarginRuleSchema>;
+
+// ─── ISR Copilot Cache ────────────────────────────────────────────────────────
+export const isrCopilotCacheTable = pgTable("isr_copilot_cache", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").unique().notNull().references(() => isrDealsTable.id, { onDelete: "cascade" }),
+  content: jsonb("content").notNull(),
+  modelUsed: text("model_used").default("gemini-2.5-flash"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type IsrCopilotCache = typeof isrCopilotCacheTable.$inferSelect;

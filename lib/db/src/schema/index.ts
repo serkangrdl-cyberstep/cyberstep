@@ -107,3 +107,4 @@ export * from "./demo-reports";
 export * from "./technology-discovery";
 export * from "./bas-lite";
 export * from "./annual-reports";
+export * from "./internal-scans";

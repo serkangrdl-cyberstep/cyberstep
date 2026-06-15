@@ -27,6 +27,7 @@ export const customersTable = pgTable("customers", {
   badgeToken: text("badge_token"),
   badgeEnabled: boolean("badge_enabled").default(true),
   badgeImpressionCount: integer("badge_impression_count").default(0),
+  apiKey: text("api_key"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

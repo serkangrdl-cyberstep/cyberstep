@@ -26,7 +26,7 @@ jobs:
 
           UA = "CyberStep-Research/1.0 (contact@cyberstep.io)"
 
-          SKIP_TLDS  = (".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
+          SKIP_TLDS  = (".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
           SKIP_HOSTS = {
               "cloudflare.com", "amazonaws.com", "azure.com", "google.com",
               "microsoft.com", "letsencrypt.org", "fastly.net", "akamai.net",

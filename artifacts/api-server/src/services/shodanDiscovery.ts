@@ -29,6 +29,9 @@ export const SHODAN_FREE_QUERIES = [
   { q: "asn:AS43260 port:443 ssl", label: "Radore/DGN (AS43260) HTTPS", priority: 3 },
   { q: "asn:AS197328 port:443 ssl", label: "Vodafone TR (AS197328) HTTPS", priority: 3 },
   { q: "asn:AS201252 port:443 ssl", label: "Netdirekt (AS201252) HTTPS", priority: 3 },
+  { q: "asn:AS8386 port:443 ssl",   label: "TTNet (AS8386) HTTPS", priority: 3 },
+  { q: "asn:AS15924 port:443 ssl",  label: "Biznet/Hosting (AS15924) HTTPS", priority: 3 },
+  { q: "asn:AS44565 port:443 ssl",  label: "Çözüm Park (AS44565) HTTPS", priority: 3 },
 ];
 
 function extractRootDomain(hostname: string): string {

@@ -9,10 +9,11 @@ import {
   leadCandidatesTable,
   isrCopilotCacheTable,
 } from "@workspace/db";
-import { eq, desc, sql, and, count, ilike, or, inArray, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, count, ilike, or, inArray, isNull, isNotNull } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { getTenantId } from "../../middleware/auth";
 import { sendRfqsForDeal, sendApprovedQuote, processInbox } from "../../services/isr-imap";
+import { sendMail } from "../../services/email";
 
 const router = Router();
 
@@ -831,6 +832,174 @@ router.post("/admin-panel/isr/deals/:id/copilot", requireAdmin, async (req: Requ
     });
 
   res.json({ copilot, cached: false });
+});
+
+// ─── NEW ISR WORKFLOW (lead_candidates based) ────────────────────────────────
+
+// GET /api/admin-panel/isr/work-list
+router.get("/admin-panel/isr/work-list", requireAdmin, async (_req: Request, res: Response) => {
+  const cols = {
+    id: leadCandidatesTable.id,
+    domain: leadCandidatesTable.domain,
+    companyName: leadCandidatesTable.companyName,
+    scrapedCompanyName: leadCandidatesTable.scrapedCompanyName,
+    sector: leadCandidatesTable.sector,
+    city: leadCandidatesTable.city,
+    riskScore: leadCandidatesTable.riskScore,
+    criticalFindings: leadCandidatesTable.criticalFindings,
+    findingHighlights: leadCandidatesTable.findingHighlights,
+    contactName: leadCandidatesTable.contactName,
+    contactTitle: leadCandidatesTable.contactTitle,
+    contactEmail: leadCandidatesTable.contactEmail,
+    scrapedPhone: leadCandidatesTable.scrapedPhone,
+    teaserSubject: leadCandidatesTable.teaserSubject,
+    teaserBody: leadCandidatesTable.teaserBody,
+    teaserGeneratedAt: leadCandidatesTable.teaserGeneratedAt,
+    teaserSentAt: leadCandidatesTable.teaserSentAt,
+    isrNotes: leadCandidatesTable.isrNotes,
+    tier: leadCandidatesTable.tier,
+    createdAt: leadCandidatesTable.createdAt,
+  };
+
+  const [notContacted, contacted, teaserSent] = await Promise.all([
+    db.select(cols).from(leadCandidatesTable)
+      .where(and(eq(leadCandidatesTable.isQualified, true), isNull(leadCandidatesTable.contactEmail)))
+      .orderBy(desc(leadCandidatesTable.riskScore))
+      .limit(200),
+    db.select(cols).from(leadCandidatesTable)
+      .where(and(eq(leadCandidatesTable.isQualified, true), isNotNull(leadCandidatesTable.contactEmail), isNull(leadCandidatesTable.teaserSentAt)))
+      .orderBy(desc(leadCandidatesTable.riskScore))
+      .limit(200),
+    db.select(cols).from(leadCandidatesTable)
+      .where(and(eq(leadCandidatesTable.isQualified, true), isNotNull(leadCandidatesTable.teaserSentAt)))
+      .orderBy(desc(leadCandidatesTable.teaserSentAt))
+      .limit(200),
+  ]);
+
+  res.json({ notContacted, contacted, teaserSent });
+});
+
+// PUT /api/admin-panel/isr/leads/:id/contact
+router.put("/admin-panel/isr/leads/:id/contact", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(String(req.params["id"]));
+  const { contactName, contactEmail, contactTitle, scrapedPhone, isrNotes } = req.body as {
+    contactName?: string; contactEmail?: string; contactTitle?: string;
+    scrapedPhone?: string; isrNotes?: string;
+  };
+  await db.update(leadCandidatesTable)
+    .set({ contactName, contactEmail, contactTitle, scrapedPhone, isrNotes, updatedAt: new Date() })
+    .where(eq(leadCandidatesTable.id, id));
+  res.json({ ok: true });
+});
+
+// POST /api/admin-panel/isr/leads/:id/teaser/generate
+router.post("/admin-panel/isr/leads/:id/teaser/generate", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(String(req.params["id"]));
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Lead bulunamadı" }); return; }
+
+  const { generateIsrCopilot } = await import("../../services/isr-ai");
+  // Use copilot-style AI to generate a cold email teaser
+  const company = candidate.companyName ?? candidate.scrapedCompanyName ?? candidate.domain;
+  const highlights = Array.isArray(candidate.findingHighlights) ? candidate.findingHighlights.join("\n- ") : "";
+  const prompt = `Sen CyberStep'in ISR asistanısın. Türkiye'deki KOBİ'lere siber güvenlik SaaS çözümleri satıyorsunuz.
+  
+Aşağıdaki potansiyel müşteri için kişiselleştirilmiş bir soğuk satış emaili (teaser) hazırla.
+
+Şirket: ${company}
+Domain: ${candidate.domain}
+Sektör: ${candidate.sector ?? "Belirtilmemiş"}
+Şehir: ${candidate.city ?? "Türkiye"}
+Risk Skoru: ${candidate.riskScore ?? "N/A"} / 100
+Kritik Bulgular: ${candidate.criticalFindings ?? 0}
+Bulgu Özeti:
+${highlights ? `- ${highlights}` : "Genel güvenlik açıkları tespit edildi"}
+
+Kural:
+- Türkçe, profesyonel ama sıcak ton
+- Teknik değil, iş odaklı yaz
+- Spesifik bul ettiğimiz risklere kısaca değin (şirket adını kullan)
+- 3-4 paragraf, 200 kelime altı
+- CTA: "15 dakikalık ücretsiz güvenlik özeti görüşmesi"
+- Tırnak işareti veya emoji kullanma
+
+Sadece JSON döndür:
+{"subject": "email konusu", "body": "email gövdesi (düz metin, HTML yok)"}`;
+
+  void generateIsrCopilot; // keep import referenced
+  const { GoogleGenAI } = await import("@google/genai");
+  const apiKey = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
+  const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
+  if (!apiKey || !baseUrl) { res.status(503).json({ error: "AI servisi yapılandırılmamış" }); return; }
+  const client = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: "", baseUrl } });
+  const result = await client.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+  });
+  const text = result.text ?? "";
+  const clean = text.replace(/```json|```/g, "").trim();
+  const parsed = JSON.parse(clean) as { subject: string; body: string };
+
+  await db.update(leadCandidatesTable).set({
+    teaserSubject: parsed.subject,
+    teaserBody: parsed.body,
+    teaserGeneratedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(leadCandidatesTable.id, id));
+
+  res.json({ subject: parsed.subject, body: parsed.body });
+});
+
+// POST /api/admin-panel/isr/leads/:id/teaser/send
+router.post("/admin-panel/isr/leads/:id/teaser/send", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(String(req.params["id"]));
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Lead bulunamadı" }); return; }
+  if (!candidate.contactEmail) { res.status(400).json({ error: "Kontak email adresi yok" }); return; }
+  if (!candidate.teaserBody || !candidate.teaserSubject) { res.status(400).json({ error: "Önce teaser üretin" }); return; }
+
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.6;color:#333">
+${candidate.teaserBody.split("\n").map(p => p.trim() ? `<p>${p}</p>` : "").join("")}
+<hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
+<p style="font-size:12px;color:#888">
+  CyberStep.io — Türk KOBİ'ler için Siber Güvenlik Platformu<br/>
+  Bu emaili almak istemiyorsanız yanıtlayabilirsiniz.
+</p>
+</div>`;
+
+  await sendMail({ to: candidate.contactEmail, subject: candidate.teaserSubject, html });
+  await db.update(leadCandidatesTable).set({ teaserSentAt: new Date(), updatedAt: new Date() })
+    .where(eq(leadCandidatesTable.id, id));
+  res.json({ ok: true });
+});
+
+// POST /api/admin-panel/isr/leads/:id/lead-copilot
+router.post("/admin-panel/isr/leads/:id/lead-copilot", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(String(req.params["id"]));
+  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  if (!candidate) { res.status(404).json({ error: "Lead bulunamadı" }); return; }
+
+  const { generateIsrCopilot } = await import("../../services/isr-ai");
+  const company = candidate.companyName ?? candidate.scrapedCompanyName ?? candidate.domain;
+  const highlights = Array.isArray(candidate.findingHighlights)
+    ? candidate.findingHighlights.join(", ")
+    : null;
+  const priority = (candidate.riskScore ?? 0) >= 70 ? "urgent" : (candidate.riskScore ?? 0) >= 50 ? "high" : "normal";
+
+  const copilot = await generateIsrCopilot({
+    customerCompany: company,
+    customerName: candidate.contactName,
+    requestText: null,
+    aiSummary: highlights,
+    originalBody: candidate.isrNotes ?? null,
+    productKeywords: candidate.sector ?? null,
+    status: "teaser_sent",
+    priority,
+    vendorName: null,
+    createdAt: candidate.createdAt,
+  });
+
+  res.json({ copilot });
 });
 
 // Suppress unused import warning

@@ -83,7 +83,6 @@ const NAV_SECTIONS = [
       { icon: Telescope,       label: "Enterprise: Adaylar",     href: "/panel/enterprise/prospects" },
       { icon: GitBranch,       label: "Enterprise: Pipeline",  href: "/panel/enterprise/pipeline" },
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
-      { icon: ShoppingCart,    label: "ISR Satış Paneli",      href: "/panel/enterprise/isr-calisma" },
       { icon: ListTodo,        label: "Lead Kuyruğu",          href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
       { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },
@@ -95,11 +94,7 @@ const NAV_SECTIONS = [
     title: "ISR & Kanal Satış",
     dept: "enterprise",
     items: [
-      { icon: ShoppingCart,    label: "ISR Dashboard",         href: "/panel/isr" },
-      { icon: Users,           label: "ISR Müşteriler",        href: "/panel/isr/musteriler" },
-      { icon: Building2,       label: "ISR Vendors",           href: "/panel/isr/vendors" },
-      { icon: Calculator,      label: "ISR Marj Kuralları",    href: "/panel/isr/kurallar" },
-      { icon: CalendarCheck,   label: "Görüşme Talepleri",     href: "/panel/isr/meeting-requests" },
+      { icon: ShoppingCart,    label: "ISR İş Listesi",        href: "/panel/isr" },
     ],
   },
   {

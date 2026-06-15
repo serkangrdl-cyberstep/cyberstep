@@ -173,8 +173,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Domain Security Scan", "DNS Monitoring", "Fake Domain Early Alert", "CVE Impact Alerts", "Mini Assessment + AI Report"]
-                  : ["Domain Güvenlik Taraması", "DNS İzleme", "Sahte Domain Erken Uyarı", "CVE Etki Uyarıları", "Mini Değerlendirme + AI Rapor"]
+                  ? ["Domain Security Scan", "DNS Monitoring", "Fake Domain Early Alert", "CVE Impact Alerts", "Mini Assessment + AI Report", "Internal Scan Script (Windows + Linux)", "Basic inventory & security score"]
+                  : ["Domain Güvenlik Taraması", "DNS İzleme", "Sahte Domain Erken Uyarı", "CVE Etki Uyarıları", "Mini Değerlendirme + AI Rapor", "İç Tarama Scripti (Windows + Linux)", "Temel envanter ve güvenlik skoru"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
@@ -210,8 +210,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in CTEM Essentials", "Threat Intelligence (Starter)", "Board Report (monthly)", "KVKK Notification System", "Dark Web Monitoring", "Attack Surface Analysis"]
-                  : ["CTEM Temel'deki her şey", "Tehdit İstihbaratı (Başlangıç)", "Yönetim Kurulu Raporu (aylık)", "KVKK Bildirim Sistemi", "Dark Web İzleme", "Saldırı Yüzeyi Analizi"]
+                  ? ["Everything in CTEM Essentials", "Threat Intelligence (Starter)", "Board Report (monthly)", "KVKK Notification System", "Dark Web Monitoring", "Attack Surface Analysis", "Internal Scan + AD/identity analysis", "AI Action Plan (monthly)"]
+                  : ["CTEM Temel'deki her şey", "Tehdit İstihbaratı (Başlangıç)", "Yönetim Kurulu Raporu (aylık)", "KVKK Bildirim Sistemi", "Dark Web İzleme", "Saldırı Yüzeyi Analizi", "İç Tarama + AD/kimlik analizi", "AI Aksiyon Planı (aylık)"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
@@ -247,8 +247,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in CTEM Professional", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation"]
-                  : ["CTEM Profesyonel'deki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Kaydı ve güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı"]
+                  ? ["Everything in CTEM Professional", "Monthly/quarterly expert sessions", "Risk Register & security roadmap", "Board presentation support", "Compliance audit preparation", "Full internal scan (all layers)", "AI-powered vCISO report", "Security survey & compliance assessment"]
+                  : ["CTEM Profesyonel'deki her şey", "Aylık/çeyreklik uzman görüşmeleri", "Risk Kaydı ve güvenlik yol haritası", "Yönetim kurulu sunum desteği", "Uyum denetimi hazırlığı", "Tam iç tarama (tüm katmanlar)", "AI destekli vCISO raporu", "Güvenlik anketi ve uyumluluk değerlendirmesi"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}
@@ -283,8 +283,8 @@ export default function Pricing() {
               </div>
               <ul className="space-y-1.5 flex-1 text-xs">
                 {(lang === "en"
-                  ? ["Everything in CTEM Advanced", "24/7 SOC — triage + playbook + escalation", "NOC — uptime, anomaly detection, capacity", "Fortinet / ServiceNow integrations", "Dedicated security operations team"]
-                  : ["CTEM İleri'deki her şey", "7/24 SOC — triage + playbook + eskalasyon", "NOC — uptime, anomali tespiti, kapasite", "Fortinet / ServiceNow entegrasyonları", "Adanmış güvenlik operasyonları ekibi"]
+                  ? ["Everything in CTEM Advanced", "24/7 SOC — triage + playbook + escalation", "NOC — uptime, anomaly detection, capacity", "Fortinet / ServiceNow integrations", "Dedicated security operations team", "Fortinet Fabric integration", "Monthly AI action plan updates"]
+                  : ["CTEM İleri'deki her şey", "7/24 SOC — triage + playbook + eskalasyon", "NOC — uptime, anomali tespiti, kapasite", "Fortinet / ServiceNow entegrasyonları", "Adanmış güvenlik operasyonları ekibi", "Fortinet Fabric entegrasyonu", "Aylık AI aksiyon planı güncellemesi"]
                 ).map(f => (
                   <li key={f} className="flex items-center gap-2 text-slate-300">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />{f}

@@ -324,8 +324,11 @@ export default function Home() {
       ? "Turkey's Cybersecurity Risk Platform | CyberStep.io"
       : "Turkiye'nin Siber Guvenlik Risk Platformu | CyberStep.io",
     description: lang === "en"
-      ? "See your company through an attacker's eyes. AI-powered analysis, KVKK compliance, financial risk estimation. Start with a free domain scan."
-      : "Saldirgánin gozuyle sirketinize bakin. Dis saldiri yüzeyi, AI guvenlik analizi, KVKK uyumu. Ucretsiz domain taramasiyla baslayin.",
+      ? "See your company through an attacker's eyes. AI-powered analysis, internal network scan, KVKK compliance, financial risk estimation. Start with a free domain scan."
+      : "Saldirginin gozuyle sirketinize bakin. Ic ag guvenlik taramasi, AI analizi, KVKK uyumu. Ucretsiz domain taramasiyla baslayin.",
+    keywords: lang === "en"
+      ? "internal scan, network security, cybersecurity, Active Directory analysis, Fortinet, vCISO, KVKK, Turkey"
+      : "iç tarama, ağ güvenliği, siber güvenlik, Active Directory analizi, Fortinet, vCISO, KVKK",
     canonicalPath: "/",
     lang,
   });
@@ -1300,6 +1303,121 @@ export default function Home() {
       </section>
 
       <CveRadarSection lang={lang} />
+
+      {/* İç Tarama — Dışarıdan Değil, İçeriden Bakın */}
+      <section className="py-20 bg-muted/20 border-y">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4">
+              <Shield className="h-3 w-3 mr-1" />
+              {lang === "en" ? "Internal Scan" : "İç Tarama"}
+            </Badge>
+            <h2 className="text-3xl font-bold">
+              {lang === "en" ? "Look From the Inside, Not the Outside" : "Dışarıdan Değil, İçeriden Bakın"}
+            </h2>
+            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+              {lang === "en"
+                ? "CyberStep's internal scan tool uncovers risks inside your network, including angles invisible from the outside. Run a single script — we'll capture your system's complete security picture."
+                : "CyberStep'in iç tarama aracı, ağınızın içindeki riskleri dışarıdan görülemeyen açıları da dahil ederek ortaya çıkarır. Tek bir script çalıştırın — sisteminizin tam güvenlik fotoğrafını çıkaralım."}
+            </p>
+          </div>
+
+          {/* 4 Özellik Kartı */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-14">
+            {[
+              {
+                icon: Search,
+                en: { title: "Deep Inventory", desc: "All devices, OS versions, open ports and services on the network are automatically detected." },
+                tr: { title: "Derin Envanter", desc: "Ağdaki tüm cihazlar, işletim sistemi versiyonları, açık portlar ve servisler otomatik tespit edilir." },
+              },
+              {
+                icon: Lock,
+                en: { title: "Identity Security", desc: "Active Directory structure, admin accounts, password policies and risky configurations are analyzed." },
+                tr: { title: "Kimlik Güvenliği", desc: "Active Directory yapısı, admin hesapları, şifre politikası ve riskli yapılandırmalar analiz edilir." },
+              },
+              {
+                icon: Brain,
+                en: { title: "AI Action Plan", desc: "All findings are evaluated by Claude AI and a prioritized action plan with cost estimates is generated." },
+                tr: { title: "AI Aksiyon Planı", desc: "Tüm bulgular Claude AI tarafından değerlendirilerek önceliklendirilmiş, maliyet tahminiyle aksiyon planı oluşturulur." },
+              },
+              {
+                icon: Zap,
+                en: { title: "Fortinet Integration", desc: "If you have Fortinet infrastructure, firewall policies, VPN status and endpoint compliance are included in the report." },
+                tr: { title: "Fortinet Entegrasyonu", desc: "Fortinet altyapınız varsa firewall politikaları, VPN durumu ve endpoint uyumluluğu da rapora dahil edilir." },
+              },
+            ].map(({ icon: Icon, en, tr }) => {
+              const content = lang === "en" ? en : tr;
+              return (
+                <div key={content.title} className="rounded-xl border bg-card p-5 flex flex-col gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm mb-1">{content.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{content.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 3 Adımda İç Tarama */}
+          <div className="rounded-2xl border bg-card p-8 mb-8">
+            <h3 className="text-xl font-bold text-center mb-8">
+              {lang === "en" ? "3 Steps to Internal Scan" : "3 Adımda İç Tarama"}
+            </h3>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                {
+                  step: "1",
+                  en: { title: "Download the Script", desc: "Download the Windows (.ps1) or Linux (.sh) script with one click. No installation required." },
+                  tr: { title: "Script İndirin", desc: "Tek tıkla Windows (.ps1) veya Linux (.sh) scriptini indirin. Kurulum gerekmez." },
+                },
+                {
+                  step: "2",
+                  en: { title: "Run It", desc: "Your IT team runs the script (5 minutes). Results are automatically uploaded to the platform." },
+                  tr: { title: "Çalıştırın", desc: "IT ekibiniz scripti çalıştırır (5 dakika). Sonuçlar otomatik olarak platforma yüklenir." },
+                },
+                {
+                  step: "3",
+                  en: { title: "Get Your Report", desc: "Your AI security report is ready — complete action plan with critical actions, cost estimates and priority order." },
+                  tr: { title: "Raporunuzu Alın", desc: "AI güvenlik raporunuz hazır. Kritik aksiyonlar, maliyet tahminleri ve öncelik sırası ile eksiksiz aksiyon planı." },
+                },
+              ].map(({ step, en, tr }) => {
+                const content = lang === "en" ? en : tr;
+                return (
+                  <div key={step} className="flex flex-col items-center text-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold shrink-0">
+                      {step}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">{content.title}</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{content.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Gizlilik / Güven Notu */}
+          <div className="rounded-xl border border-green-600/30 bg-green-950/10 p-5 flex gap-4">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center">
+              <Lock className="h-4 w-4 text-green-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm mb-1">
+                {lang === "en" ? "Your Privacy is Safe" : "Gizliliğiniz Güvende"}
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {lang === "en"
+                  ? "The internal scan script only reads — it does not modify, delete or copy any files. Collected data is used only for security analysis and transmitted over an encrypted connection."
+                  : "İç tarama scripti yalnızca okuma yapar. Hiçbir dosyayı değiştirmez, silmez veya kopyalamaz. Toplanan veriler yalnızca güvenlik analizi için kullanılır ve şifreli bağlantı üzerinden iletilir."}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Ücretsiz Güvenlik Araçları */}
       <section className="py-20 bg-background border-t">

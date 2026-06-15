@@ -177,6 +177,7 @@ import OnboardingDashboard from "./pages/admin-panel/onboarding-dashboard";
 import MusteriServisleri from "./pages/admin-panel/musteri-servisleri";
 import AdminAiCosts from "./pages/admin-panel/ai-costs";
 import AdminRemediation from "./pages/admin-panel/remediation";
+import AdminIcTaramaAdmin from "./pages/admin-panel/ic-tarama-admin";
 import AdminCodeSecrets from "./pages/admin-panel/code-secrets";
 import AdminObservability from "./pages/admin-panel/observability";
 import AdminDnsIzleme from "./pages/admin-panel/dns-izleme";
@@ -371,6 +372,7 @@ function Router() {
       <Route path="/panel/yoneticiler" component={AdminYoneticiler} />
       <Route path="/panel/musteriler" component={AdminMusteriler} />
       <Route path="/panel/domain-taramalar" component={AdminDomainTaramalar} />
+      <Route path="/panel/ic-tarama" component={AdminIcTaramaAdmin} />
       <Route path="/panel/email-sablonlari" component={AdminEmailTemplates} />
       <Route path="/panel/bildirimler" component={AdminEmailNotifications} />
       <Route path="/panel/rozet-avantajlari" component={AdminRozetAvantajlari} />

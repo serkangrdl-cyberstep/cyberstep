@@ -6,7 +6,7 @@ import {
   CheckCircle, Clock, BarChart3, DollarSign, Globe, Users,
   Database, ChevronDown, ChevronUp, ExternalLink, Info,
   Activity, AlertCircle, Search, Mail, Zap, ShieldAlert,
-  ArrowRight, RefreshCw, Cpu, Target, Shield,
+  ArrowRight, RefreshCw, Cpu, Target, Shield, Monitor,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -795,6 +795,7 @@ export default function AdminDashboard() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
+              { label: "İç Tarama",          desc: "Müşteri iç tarama durumu",      href: "/panel/ic-tarama",         icon: Monitor,      color: "text-blue-400"    },
               { label: "Domain Taramaları",  desc: "Tarama geçmişi, analitik",      href: "/panel/domain-taramalar",  icon: Globe,        color: "text-emerald-400" },
               { label: "Müşteri Yönetimi",   desc: "Abonelikler, plan atamaları",   href: "/panel/musteriler",        icon: Users,        color: "text-sky-400"     },
               { label: "Growth Engine",      desc: "Tetikleyiciler, kampanyalar",   href: "/panel/growth-engine",     icon: TrendingUp,   color: "text-violet-400"  },

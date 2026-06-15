@@ -187,9 +187,156 @@ function DownloadButtons() {
   );
 }
 
+function ScriptGuideModal({
+  os,
+  onClose,
+}: {
+  os: "windows" | "linux";
+  onClose: () => void;
+}) {
+  const steps =
+    os === "windows"
+      ? [
+          {
+            title: "1. PowerShell'i Yönetici Olarak Aç",
+            content:
+              'Başlat menüsünde "PowerShell" arayın.\nSağ tıklayın → "Yönetici olarak çalıştır" seçin.',
+            code: null,
+            tip: "Yönetici yetkisi olmadan da çalışır — ama bazı bilgiler eksik kalabilir.",
+          },
+          {
+            title: "2. Script'i Çalıştırın",
+            content: "Script indirdiğiniz klasöre gidin ve çalıştırın:",
+            code: "cd Downloads\n.\\cyberstep-scan.ps1",
+            tip: '"Bu dosyayı çalıştırmak istiyor musunuz?" sorusuna Y yazıp Enter\'a basın.',
+          },
+          {
+            title: "3. Bitti!",
+            content:
+              "Script yaklaşık 1-2 dakika çalışır.\nBitince sonuçlar otomatik olarak platforma yüklenir.\nBu sayfayı yenileyerek sonuçlarınızı görebilirsiniz.",
+            code: null,
+            tip: null,
+          },
+        ]
+      : [
+          {
+            title: "1. Terminal'i Açın",
+            content: "Terminal uygulamasını açın.\nScript'i indirdiğiniz klasöre gidin:",
+            code: "cd ~/Downloads",
+            tip: null,
+          },
+          {
+            title: "2. Çalıştırma İzni Verin",
+            content: "Script'e çalıştırma izni verin:",
+            code: "chmod +x cyberstep-scan.sh",
+            tip: null,
+          },
+          {
+            title: "3. Script'i Çalıştırın",
+            content: "Sudo ile çalıştırın (tam veri için gerekli):",
+            code: "sudo ./cyberstep-scan.sh",
+            tip: "Sudo olmadan da çalışır — bazı sistem bilgileri eksik kalabilir.",
+          },
+          {
+            title: "4. Bitti!",
+            content:
+              "Script yaklaşık 1-2 dakika çalışır.\nSonuçlar otomatik platforma yüklenir.",
+            code: null,
+            tip: null,
+          },
+        ];
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900 border border-primary/60 rounded-2xl p-8 w-[560px] max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <div className="text-lg font-bold text-white">
+              {os === "windows" ? "Windows" : "Linux"} Script Nasıl Çalıştırılır?
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              Yaklaşık 5 dakika · Yönetici yetkisi önerilir
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors text-xl leading-none ml-4"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Güvenlik notu */}
+        <div className="border border-green-700/40 bg-green-900/10 rounded-lg px-4 py-3 mb-6 text-xs text-green-400 leading-relaxed">
+          Script yalnızca okuma yapar — hiçbir dosyayı değiştirmez veya silmez.
+          Veriler şifreli bağlantıyla iletilir.
+        </div>
+
+        {/* Adımlar */}
+        <div className="space-y-5">
+          {steps.map((step, i) => (
+            <div key={i}>
+              <div className="text-sm font-semibold text-primary mb-1.5">
+                {step.title}
+              </div>
+              <div className="text-sm text-gray-400 leading-relaxed whitespace-pre-line mb-2">
+                {step.content}
+              </div>
+              {step.code && (
+                <div className="bg-gray-950 border border-gray-700 rounded-md px-3 py-2.5 font-mono text-sm text-green-400 whitespace-pre">
+                  {step.code}
+                </div>
+              )}
+              {step.tip && (
+                <div className="text-xs text-amber-400 mt-2 leading-relaxed">
+                  Ipucu: {step.tip}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Offline test modu */}
+        <div className="bg-gray-950 border border-gray-700 rounded-lg p-4 mt-6">
+          <div className="text-xs font-semibold text-gray-400 mb-2">
+            Önce Test Etmek İstiyorsanız (Offline Mod)
+          </div>
+          <div className="font-mono text-xs text-gray-300 whitespace-pre">
+            {os === "windows"
+              ? '.\\cyberstep-scan.ps1 -OutputFile "test.json"'
+              : "./cyberstep-scan.sh --output test.json"}
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            Sonuç platforma gönderilmez, dosyaya yazılır. İçeriği inceleyebilirsiniz.
+          </div>
+        </div>
+
+        {/* Destek */}
+        <div className="mt-5 text-center text-xs text-gray-500">
+          Sorun mu yaşıyorsunuz?{" "}
+          <a
+            href="mailto:destek@cyberstep.io"
+            className="text-primary hover:underline"
+          >
+            destek@cyberstep.io
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DownloadSection() {
   const { data: keyData } = useApiKey();
   const apiKey = keyData?.apiKey ?? "...";
+  const [showGuide, setShowGuide] = useState<"windows" | "linux" | null>(null);
 
   const downloadScript = (os: "windows" | "linux") => {
     window.location.href = `/api/internal-scan/download-script?os=${os}`;
@@ -247,6 +394,13 @@ function DownloadSection() {
           <Button onClick={() => downloadScript("windows")} className="w-full bg-blue-700 hover:bg-blue-600 text-white">
             <Download className="w-4 h-4 mr-2" /> .ps1 İndir
           </Button>
+          <Button
+            variant="outline"
+            className="w-full mt-2 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 text-xs"
+            onClick={() => setShowGuide("windows")}
+          >
+            Nasıl Çalıştırılır?
+          </Button>
         </div>
 
         <div className="border border-gray-700 rounded-lg p-5 bg-gray-900/30 hover:border-primary/40 transition-colors">
@@ -282,8 +436,19 @@ function DownloadSection() {
           <Button onClick={() => downloadScript("linux")} className="w-full bg-orange-700 hover:bg-orange-600 text-white">
             <Download className="w-4 h-4 mr-2" /> .sh İndir
           </Button>
+          <Button
+            variant="outline"
+            className="w-full mt-2 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 text-xs"
+            onClick={() => setShowGuide("linux")}
+          >
+            Nasıl Çalıştırılır?
+          </Button>
         </div>
       </div>
+
+      {showGuide && (
+        <ScriptGuideModal os={showGuide} onClose={() => setShowGuide(null)} />
+      )}
 
       <div className="border border-gray-700/50 rounded-lg p-4 bg-gray-900/20 text-sm text-gray-400 space-y-1">
         <div className="flex items-center gap-2 text-gray-300 font-medium mb-2">

@@ -347,4 +347,115 @@ router.get(
   },
 );
 
+// ─── GET /api/admin-panel/internal-scans/overview ────────────────────────────
+
+router.get(
+  "/api/admin-panel/internal-scans/overview",
+  requireAdmin,
+  async (_req: Request, res: Response) => {
+    const result = await pool.query(`
+      SELECT
+        c.id                          AS customer_id,
+        c.email,
+        c.company_name,
+        c.sector,
+
+        i.id                          AS scan_id,
+        i.hostname,
+        i.internal_score,
+        i.scan_type,
+        i.scanned_at,
+        i.findings_count,
+
+        ds.overall_score              AS external_score,
+        ds.letter_grade,
+
+        ai.id                         AS ai_report_id,
+        ai.generated_at               AS ai_report_date,
+
+        srv.id                        AS survey_id,
+        srv.backup_enabled,
+        srv.ir_plan_exists,
+        srv.kvkk_verbis_registered,
+        srv.cyber_insurance
+
+      FROM customers c
+      LEFT JOIN LATERAL (
+        SELECT id, hostname, internal_score, scan_type, scanned_at, findings_count
+        FROM internal_scans
+        WHERE customer_id = c.id
+        ORDER BY scanned_at DESC LIMIT 1
+      ) i ON true
+      LEFT JOIN LATERAL (
+        SELECT overall_score, letter_grade
+        FROM domain_scans
+        WHERE email = c.email
+        ORDER BY created_at DESC LIMIT 1
+      ) ds ON true
+      LEFT JOIN LATERAL (
+        SELECT id, generated_at
+        FROM ai_security_reports
+        WHERE customer_id = c.id
+        ORDER BY generated_at DESC LIMIT 1
+      ) ai ON true
+      LEFT JOIN internal_scan_surveys srv ON srv.customer_id = c.id
+      ORDER BY i.scanned_at DESC NULLS LAST
+    `);
+
+    const rows = result.rows as Record<string, unknown>[];
+    const scanned = rows.filter((r) => r["scan_id"]);
+    const withScore = rows.filter((r) => r["internal_score"] != null);
+    const stats = {
+      total_customers: rows.length,
+      scanned: scanned.length,
+      not_scanned: rows.length - scanned.length,
+      avg_internal_score:
+        withScore.length === 0
+          ? 0
+          : Math.round(
+              withScore.reduce(
+                (sum, r) => sum + (r["internal_score"] as number),
+                0,
+              ) / withScore.length,
+            ),
+      ai_report_generated: rows.filter((r) => r["ai_report_id"]).length,
+      survey_completed: rows.filter((r) => r["survey_id"]).length,
+    };
+
+    res.json({ customers: rows, stats });
+  },
+);
+
+// ─── GET /api/admin-panel/internal-scans/customer/:customerId ─────────────────
+
+router.get(
+  "/api/admin-panel/internal-scans/customer/:customerId",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    const customerId = Number(String(req.params["customerId"]));
+    if (!customerId) {
+      res.status(400).json({ error: "Geçersiz müşteri ID" });
+      return;
+    }
+
+    const [scans, aiReport, survey] = await Promise.all([
+      db
+        .select()
+        .from(internalScansTable)
+        .where(eq(internalScansTable.customerId, customerId))
+        .orderBy(desc(internalScansTable.scannedAt)),
+      db.query.aiSecurityReportsTable.findFirst({
+        where: eq(aiSecurityReportsTable.customerId, customerId),
+        orderBy: desc(aiSecurityReportsTable.generatedAt),
+      }),
+      db.query.internalScanSurveysTable.findFirst({
+        where: eq(internalScanSurveysTable.customerId, customerId),
+      }),
+    ]);
+
+    res.json({ scans, aiReport, survey });
+  },
+);
+
 export default router;
+

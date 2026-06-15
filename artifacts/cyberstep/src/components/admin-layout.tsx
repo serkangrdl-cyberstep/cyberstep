@@ -12,6 +12,7 @@ import {
   ChevronDown, Cpu, BarChart3, Palette, Sunrise, ToggleLeft, Newspaper,
   Zap, ShoppingCart, Code, Fingerprint, Rocket,
   Wrench, Gauge, Gift, Share2, MonitorCheck, Layers, CalendarDays, Share, GitBranch, ClipboardCheck, Medal, CalendarCheck,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAdmin } from "@/hooks/use-admin";
@@ -37,6 +38,7 @@ const NAV_SECTIONS = [
       { icon: FileText,        label: "Değerlendirmeler",      href: "/panel/degerlendirmeler" },
       { icon: UserSquare2,     label: "Müşteriler",            href: "/panel/musteriler" },
       { icon: Globe,           label: "Alan Adı Taramaları",   href: "/panel/domain-taramalar" },
+      { icon: Monitor,         label: "İç Tarama",             href: "/panel/ic-tarama" },
       { icon: Heart,           label: "Müşteri Sağlığı",       href: "/panel/saglik" },
       { icon: Star,            label: "NPS Takibi",            href: "/panel/nps" },
       { icon: CheckSquare,     label: "Onboarding",            href: "/panel/onboarding" },

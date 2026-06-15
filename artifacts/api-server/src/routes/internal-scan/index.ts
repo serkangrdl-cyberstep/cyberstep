@@ -1,11 +1,17 @@
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
 import { db, pool } from "@workspace/db";
-import { internalScansTable, internalScanSurveysTable, customersTable } from "@workspace/db";
+import {
+  internalScansTable,
+  internalScanSurveysTable,
+  customersTable,
+  aiSecurityReportsTable,
+} from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { requireCustomer, getCustomerId } from "../../middleware/auth";
+import { requireCustomer, getCustomerId, requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { calculateInternalScore } from "../../services/internal-scan-scorer";
+import { generateSecurityReport } from "../../lib/ai/generateSecurityReport";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -73,6 +79,30 @@ function generateLinuxScript(customerId: number, apiKey: string, apiUrl: string)
   }
 }
 
+// ─── AI Rapor oluşturma (background) ─────────────────────────────────────────
+
+async function triggerAiReportGeneration(customerId: number, scanId: number): Promise<void> {
+  try {
+    const output = await generateSecurityReport(customerId, scanId);
+    await db.insert(aiSecurityReportsTable).values({
+      customerId,
+      internalScanId: scanId,
+      executiveSummary: output.executiveSummary,
+      criticalActions: output.criticalActions,
+      mediumTermActions: output.mediumTermActions,
+      longTermActions: output.longTermActions,
+      costEstimates: output.costEstimates,
+      benchmarkData: output.benchmarkData,
+      fullResponse: output as unknown as Record<string, unknown>,
+      inputTokens: output.inputTokens ?? null,
+      outputTokens: output.outputTokens ?? null,
+    });
+    logger.info({ customerId, scanId }, "AI güvenlik raporu oluşturuldu");
+  } catch (err) {
+    logger.error({ err, customerId, scanId }, "AI güvenlik raporu hatası");
+  }
+}
+
 // ─── POST /api/internal-scan/upload — API key auth ────────────────────────────
 
 router.post("/api/internal-scan/upload", async (req: Request, res: Response) => {
@@ -125,6 +155,13 @@ router.post("/api/internal-scan/upload", async (req: Request, res: Response) => 
     internalScore: result.score,
     findings: result.findings,
   });
+
+  // Fire-and-forget: AI raporu oluştur
+  if (saved?.id) {
+    setImmediate(() => {
+      triggerAiReportGeneration(customerId, saved.id).catch(() => {});
+    });
+  }
 });
 
 // ─── GET /api/internal-scan/latest — session auth ────────────────────────────
@@ -236,5 +273,78 @@ router.post("/api/internal-scan/survey", requireCustomer, async (req: Request, r
   logger.info({ customerId }, "internal scan survey saved");
   res.json({ success: true });
 });
+
+// ─── GET /api/internal-scan/latest-report — en son AI raporu ─────────────────
+
+router.get("/api/internal-scan/latest-report", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  const report = await db.query.aiSecurityReportsTable.findFirst({
+    where: eq(aiSecurityReportsTable.customerId, customerId),
+    orderBy: desc(aiSecurityReportsTable.generatedAt),
+  });
+  res.json(report ?? null);
+});
+
+// ─── POST /api/internal-scan/generate-report — AI rapor tetikle ──────────────
+
+router.post("/api/internal-scan/generate-report", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+
+  // Son taramayı al
+  const scan = await db.query.internalScansTable.findFirst({
+    where: eq(internalScansTable.customerId, customerId),
+    orderBy: desc(internalScansTable.scannedAt),
+  });
+
+  if (!scan) {
+    res.status(400).json({ error: "Önce bir iç tarama yapılmalı" });
+    return;
+  }
+
+  res.json({ success: true, message: "Rapor oluşturuluyor, lütfen bekleyin..." });
+
+  // Fire-and-forget
+  setImmediate(() => {
+    triggerAiReportGeneration(customerId, scan.id).catch(() => {});
+  });
+});
+
+// ─── GET /api/admin-panel/customers/:customerId/security-report ───────────────
+
+router.get(
+  "/api/admin-panel/customers/:customerId/security-report",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    const customerId = Number(String(req.params["customerId"]));
+    if (!customerId) {
+      res.status(400).json({ error: "Geçersiz müşteri ID" });
+      return;
+    }
+
+    const [customer, report, scans] = await Promise.all([
+      db.query.customersTable.findFirst({
+        where: eq(customersTable.id, customerId),
+        columns: { id: true, email: true, companyName: true },
+      }),
+      db.query.aiSecurityReportsTable.findFirst({
+        where: eq(aiSecurityReportsTable.customerId, customerId),
+        orderBy: desc(aiSecurityReportsTable.generatedAt),
+      }),
+      db.select({
+        id: internalScansTable.id,
+        scanType: internalScansTable.scanType,
+        hostname: internalScansTable.hostname,
+        internalScore: internalScansTable.internalScore,
+        scannedAt: internalScansTable.scannedAt,
+      })
+        .from(internalScansTable)
+        .where(eq(internalScansTable.customerId, customerId))
+        .orderBy(desc(internalScansTable.scannedAt))
+        .limit(5),
+    ]);
+
+    res.json({ customer, report, scans });
+  },
+);
 
 export default router;

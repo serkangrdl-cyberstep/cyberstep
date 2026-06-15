@@ -52,3 +52,23 @@ export const internalScanSurveysTable = pgTable("internal_scan_surveys", {
 
 export type InternalScanSurvey = typeof internalScanSurveysTable.$inferSelect;
 export type InsertInternalScanSurvey = typeof internalScanSurveysTable.$inferInsert;
+
+export const aiSecurityReportsTable = pgTable("ai_security_reports", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id"),
+  internalScanId: integer("internal_scan_id"),
+  executiveSummary: text("executive_summary"),
+  criticalActions: jsonb("critical_actions"),
+  mediumTermActions: jsonb("medium_term_actions"),
+  longTermActions: jsonb("long_term_actions"),
+  costEstimates: jsonb("cost_estimates"),
+  benchmarkData: jsonb("benchmark_data"),
+  fullResponse: jsonb("full_response"),
+  modelUsed: varchar("model_used", { length: 50 }).default("claude-haiku-4-5-20251001"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+});
+
+export type AiSecurityReport = typeof aiSecurityReportsTable.$inferSelect;
+export type InsertAiSecurityReport = typeof aiSecurityReportsTable.$inferInsert;

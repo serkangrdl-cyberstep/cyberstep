@@ -22,6 +22,13 @@ export const SHODAN_FREE_QUERIES = [
   { q: 'country:TR product:"VMware vSphere"', label: "TR VMware Altyapısı", priority: 2 },
   { q: 'country:TR http.title:"Giriş" port:443', label: "TR Giriş Sayfaları (Kurumsal)", priority: 3 },
   { q: "country:TR port:443 ssl org:.com.tr", label: "TR Kurumsal SSL (.com.tr org)", priority: 2 },
+  // Türk ISP/ASN bazlı taramalar — Shodan paid plan gerektirir
+  { q: "asn:AS9121 port:443 ssl", label: "Türk Telekom (AS9121) HTTPS", priority: 2 },
+  { q: "asn:AS47331 port:443 ssl", label: "Turkcell (AS47331) HTTPS", priority: 2 },
+  { q: "asn:AS34984 port:443 ssl", label: "Superonline (AS34984) HTTPS", priority: 2 },
+  { q: "asn:AS43260 port:443 ssl", label: "Radore/DGN (AS43260) HTTPS", priority: 3 },
+  { q: "asn:AS197328 port:443 ssl", label: "Vodafone TR (AS197328) HTTPS", priority: 3 },
+  { q: "asn:AS201252 port:443 ssl", label: "Netdirekt (AS201252) HTTPS", priority: 3 },
 ];
 
 function extractRootDomain(hostname: string): string {

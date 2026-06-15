@@ -21,7 +21,7 @@ const RIPE_URL = "https://stat.ripe.net/data/country-resource-list/data.json";
 const HT_REVERSE_URL = "https://api.hackertarget.com/reverseiplookup/";
 const HT_SUBDOMAIN_URL = "https://api.hackertarget.com/hostsearch/";
 
-const EXCLUDED_TLDS = [".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr"];
+const EXCLUDED_TLDS = [".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr"];
 const EXCLUDED_DOMAINS = new Set([
   "cloudflare.com", "amazonaws.com", "azure.com", "google.com",
   "microsoft.com", "github.io", "netlify.app", "vercel.app",

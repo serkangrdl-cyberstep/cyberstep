@@ -14,6 +14,8 @@ import { scanShodanFree, SHODAN_FREE_QUERIES } from "./services/shodanDiscovery"
 import { runRipeDiscovery } from "./services/ripeDiscovery";
 import { runNetcraftDiscovery } from "./services/leadDiscovery/netcraftDiscovery";
 import { runBgpToolsDiscovery } from "./services/leadDiscovery/bgpToolsDiscovery";
+import { runUrlscanDiscovery } from "./services/leadDiscovery/urlscanDiscovery";
+import { runVirusTotalDiscovery } from "./services/leadDiscovery/virusTotalDiscovery";
 import { qualifyPendingCandidates, preScreenPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { generateEcosystemReport } from "./services/ecosystemReportService";
 import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
@@ -2778,6 +2780,8 @@ startup()
         { query: "%.web.tr",  limitFactor: 0.1 },
         { query: "%.biz.tr",  limitFactor: 0.1 },
         { query: "%.info.tr", limitFactor: 0.1 },
+        { query: "%.gen.tr",  limitFactor: 0.1 },
+        { query: "%.edu.tr",  limitFactor: 0.1 }, // sector=education, düşük öncelik
       ];
 
       for (const { query, limitFactor } of TLD_QUERIES) {
@@ -2849,6 +2853,25 @@ startup()
       return result.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
     logger.info("BGP.tools discovery cron scheduled (daily 06:15 Istanbul)");
+
+    // ─── Lead Discovery: URLScan.io — Her Pazartesi 03:00 ─────────────────────
+    // Ücretsiz: ~100 istek/gün; URLSCAN_API_KEY varsa 1000/gün
+    cron.schedule("0 3 * * 1", wrapCron("urlscan_discovery", "0 3 * * 1", async () => {
+      if (!await cronIsEnabled("urlscan_discovery")) { logger.info("URLScan cron devre dışı, atlanıyor"); return 0; }
+      const result = await runUrlscanDiscovery(5);
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("URLScan discovery cron scheduled (Pazartesi 03:00 Istanbul, 5 sayfa)");
+
+    // ─── Lead Discovery: VirusTotal Subdomain — Her Salı 04:00 ───────────────
+    // VIRUSTOTAL_API_KEY gerekli; 4 istek/dakika limit — 50 domain × 15s bekleme
+    cron.schedule("0 4 * * 2", wrapCron("virustotal_discovery", "0 4 * * 2", async () => {
+      if (!await cronIsEnabled("virustotal_discovery")) { logger.info("VirusTotal cron devre dışı, atlanıyor"); return 0; }
+      const limit = await cronGetLimit("virustotal_discovery", 50);
+      const result = await runVirusTotalDiscovery(limit);
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("VirusTotal subdomain cron scheduled (Salı 04:00 Istanbul, limit 50)");
 
     // ─── Lead Discovery: Kalifikasyon — Her 20 dakikada bir ─────────────────────
     // Limit 200/çalışma: 3×200×24=14400 aday/gün. Her aday max 25s tarama + 25 dk circuit breaker.

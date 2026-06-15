@@ -55,8 +55,22 @@ export function isTurkishDomain(d: string): boolean {
 }
 
 const EXCLUDED_TLDS_CRTSH = [
-  ".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr",
+  ".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr",
+  // .edu.tr: pipeline'a girer, sector=education olarak işaretlenir
 ];
+
+export function inferSectorFromDomain(domain: string): string {
+  const d = domain.toLowerCase();
+  if (d.endsWith(".edu.tr")) return "education";
+  if (d.endsWith(".org.tr")) return "ngo";
+  if (d.endsWith(".biz.tr")) return "commercial";
+  if (d.endsWith(".net.tr")) return "technology";
+  if (d.endsWith(".com.tr")) return "commercial";
+  if (d.endsWith(".web.tr")) return "commercial";
+  if (d.endsWith(".gen.tr")) return "commercial";
+  if (d.endsWith(".info.tr")) return "commercial";
+  return "unknown";
+}
 
 export function isExcluded(domain: string): boolean {
   const d = domain.toLowerCase();

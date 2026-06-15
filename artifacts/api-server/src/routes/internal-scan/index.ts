@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
 import { db, pool } from "@workspace/db";
-import { internalScansTable, customersTable } from "@workspace/db";
+import { internalScansTable, internalScanSurveysTable, customersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
@@ -95,7 +95,15 @@ router.post("/api/internal-scan/upload", async (req: Request, res: Response) => 
     return;
   }
 
-  const result = calculateInternalScore(scanData);
+  // Anket verisini çek — varsa skora dahil et
+  const surveyRow = await db.query.internalScanSurveysTable.findFirst({
+    where: eq(internalScanSurveysTable.customerId, customerId),
+  });
+  const surveyData = surveyRow
+    ? (surveyRow as unknown as Record<string, unknown>)
+    : undefined;
+
+  const result = calculateInternalScore(scanData, surveyData);
 
   const [saved] = await db.insert(internalScansTable).values({
     customerId,
@@ -177,6 +185,56 @@ router.get("/api/internal-scan/api-key", requireCustomer, async (req: Request, r
   const customerId = getCustomerId(req)!;
   const apiKey = await getOrCreateApiKey(customerId);
   res.json({ apiKey });
+});
+
+// ─── GET /api/internal-scan/survey — mevcut anketi getir ─────────────────────
+
+router.get("/api/internal-scan/survey", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  const survey = await db.query.internalScanSurveysTable.findFirst({
+    where: eq(internalScanSurveysTable.customerId, customerId),
+  });
+  res.json(survey ?? null);
+});
+
+// ─── POST /api/internal-scan/survey — anketi kaydet/güncelle ─────────────────
+
+router.post("/api/internal-scan/survey", requireCustomer, async (req: Request, res: Response) => {
+  const customerId = getCustomerId(req)!;
+  const body = req.body as Record<string, unknown>;
+
+  // Sadece izin verilen alanları al
+  const allowed = [
+    "backupEnabled", "backupFrequency", "backupOffsite", "backupImmutable", "backupLastTestDate",
+    "irPlanExists", "irPlanLastTest", "irTeamDefined",
+    "securityTrainingEnabled", "trainingFrequency", "phishingSimulation",
+    "cyberInsurance", "kvkkVerbisRegistered", "iso27001", "pciDss",
+    "siemExists", "socExists", "socType",
+  ] as const;
+
+  const data: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in body) data[key] = body[key];
+  }
+
+  const existing = await db.query.internalScanSurveysTable.findFirst({
+    where: eq(internalScanSurveysTable.customerId, customerId),
+  });
+
+  if (existing) {
+    await db
+      .update(internalScanSurveysTable)
+      .set({ ...data, updatedAt: new Date() } as never)
+      .where(eq(internalScanSurveysTable.customerId, customerId));
+  } else {
+    await db.insert(internalScanSurveysTable).values({
+      customerId,
+      ...data,
+    } as never);
+  }
+
+  logger.info({ customerId }, "internal scan survey saved");
+  res.json({ success: true });
 });
 
 export default router;

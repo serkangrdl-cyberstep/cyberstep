@@ -68,6 +68,84 @@ FAILED_SERVICES=$(systemctl --failed 2>/dev/null | grep "failed" | wc -l || echo
 CRON_COUNT=$(crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$" | wc -l || echo "0")
 SYSTEM_CRON=$(ls /etc/cron.d/ 2>/dev/null | tr '\n' ',' | sed 's/,$//')
 
+# -- 7. KİMLİK & ERİŞİM -------------------------------------------------------
+IDENTITY_MODE="local"
+AD_AVAILABLE="false"
+DOMAIN_NAME=""
+DOMAIN_ADMIN_COUNT="null"
+TOTAL_USERS_AD="null"
+STALE_USERS="null"
+PW_MIN_LENGTH="null"
+PW_COMPLEXITY="null"
+PW_MAX_AGE="null"
+PW_MIN_AGE="null"
+SUDO_NOPASSWD=0
+SUDO_ALL=0
+GUEST_ENABLED="false"
+SSH_PUBKEY_AUTH=""
+SSH_PERMIT_EMPTY=""
+FAILED_LOGINS=0
+SUDO_MEMBERS=""
+
+# Realm / SSSD ile domain bağlantısı kontrol et
+if command -v realm >/dev/null 2>&1; then
+    REALM_STATUS=$(realm list 2>/dev/null | head -1)
+    if [[ -n "$REALM_STATUS" ]]; then
+        AD_AVAILABLE="true"
+        IDENTITY_MODE="realm"
+        DOMAIN_NAME=$(realm list 2>/dev/null | grep "domain-name" | awk '{print $2}')
+        if command -v getent >/dev/null 2>&1; then
+            TOTAL_USERS_AD=$(getent passwd 2>/dev/null | awk -F: '$3 >= 1000 && $3 < 65534' | wc -l)
+        fi
+        DOMAIN_ADMIN_COUNT=$(grep -c "^%" /etc/sudoers 2>/dev/null || echo 0)
+    fi
+elif wbinfo -t 2>/dev/null; then
+    AD_AVAILABLE="true"
+    IDENTITY_MODE="winbind"
+    DOMAIN_NAME=$(wbinfo --own-domain 2>/dev/null || echo "")
+fi
+
+# Yerel kullanıcı analizi
+LOCAL_USERS_WITH_LOGIN=$(awk -F: '$3 >= 1000 && $3 < 65534 && $7 !~ /nologin|false/ {print $1}' \
+    /etc/passwd 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+TOTAL_LOCAL=$(awk -F: '$3 >= 1000 && $3 < 65534' /etc/passwd 2>/dev/null | wc -l)
+SYSTEM_ACCOUNTS=$(awk -F: '$3 < 1000 && $3 > 0' /etc/passwd 2>/dev/null | wc -l)
+
+# Sudo NOPASSWD
+SUDO_NOPASSWD=$(grep -r "NOPASSWD" /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v "^#" | wc -l || echo 0)
+SUDO_ALL=$(grep -r "ALL=(ALL" /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v "^#" | wc -l || echo 0)
+
+# Guest hesabı
+id "guest" >/dev/null 2>&1 && GUEST_ENABLED="true"
+
+# PAM şifre politikası
+PW_MIN_LENGTH=$(grep "^minlen" /etc/security/pwquality.conf 2>/dev/null | awk '{print $3}')
+PW_COMPLEXITY=$(grep "^minclass" /etc/security/pwquality.conf 2>/dev/null | awk '{print $3}')
+PW_MAX_AGE=$(grep "^PASS_MAX_DAYS" /etc/login.defs 2>/dev/null | awk '{print $2}')
+PW_MIN_AGE=$(grep "^PASS_MIN_DAYS" /etc/login.defs 2>/dev/null | awk '{print $2}')
+
+# SSH
+SSH_PUBKEY_AUTH=$(grep "^PubkeyAuthentication" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}')
+SSH_PERMIT_EMPTY=$(grep "^PermitEmptyPasswords" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}')
+
+# Başarısız login denemeleri (bu ay)
+FAILED_LOGINS=$(grep "Failed password" /var/log/auth.log 2>/dev/null | \
+    grep "$(date +%b)" | wc -l 2>/dev/null || \
+    journalctl _SYSTEMD_UNIT=sshd.service 2>/dev/null | \
+    grep "Failed password" | grep "$(date +%b)" | wc -l 2>/dev/null || echo 0)
+
+# Sudo grup üyeleri
+SUDO_MEMBERS=$(getent group sudo 2>/dev/null | cut -d: -f4 || \
+               getent group wheel 2>/dev/null | cut -d: -f4 || echo "")
+
+# JSON için null-safe değerler
+PW_MIN_LENGTH_JSON=${PW_MIN_LENGTH:-null}
+PW_COMPLEXITY_JSON=${PW_COMPLEXITY:-null}
+PW_MAX_AGE_JSON=${PW_MAX_AGE:-null}
+PW_MIN_AGE_JSON=${PW_MIN_AGE:-null}
+DOMAIN_ADMIN_COUNT_JSON=${DOMAIN_ADMIN_COUNT:-null}
+TOTAL_USERS_AD_JSON=${TOTAL_USERS_AD:-null}
+
 # -- JSON ÇIKTI ---------------------------------------------------------------
 JSON=$(cat << ENDJSON
 {
@@ -107,6 +185,29 @@ JSON=$(cat << ENDJSON
     "failed_count": $FAILED_SERVICES,
     "user_cron_count": $CRON_COUNT,
     "system_cron_files": "$SYSTEM_CRON"
+  },
+  "identity": {
+    "mode": "$IDENTITY_MODE",
+    "ad_available": $AD_AVAILABLE,
+    "domain_name": "$DOMAIN_NAME",
+    "domain_admin_count": $DOMAIN_ADMIN_COUNT_JSON,
+    "total_ad_users": $TOTAL_USERS_AD_JSON,
+    "total_local_users": $TOTAL_LOCAL,
+    "local_users_with_shell": "$LOCAL_USERS_WITH_LOGIN",
+    "system_accounts": $SYSTEM_ACCOUNTS,
+    "sudo_nopasswd_entries": $SUDO_NOPASSWD,
+    "sudo_all_entries": $SUDO_ALL,
+    "sudo_members": "$SUDO_MEMBERS",
+    "guest_account_enabled": $GUEST_ENABLED,
+    "ssh_pubkey_auth": "$SSH_PUBKEY_AUTH",
+    "ssh_permit_empty_passwords": "$SSH_PERMIT_EMPTY",
+    "failed_logins_this_month": $FAILED_LOGINS,
+    "password_policy": {
+      "min_length": $PW_MIN_LENGTH_JSON,
+      "complexity_classes": $PW_COMPLEXITY_JSON,
+      "max_age_days": $PW_MAX_AGE_JSON,
+      "min_age_days": $PW_MIN_AGE_JSON
+    }
   }
 }
 ENDJSON

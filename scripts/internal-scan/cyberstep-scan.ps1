@@ -178,6 +178,165 @@ try {
     })
 } catch { $result.errors += "disks: $_" }
 
+# -- 7. KIMLIK & ERISIM (AD veya Yerel) ----------------------------------------
+
+$result.identity = @{
+    ad_available = $false
+    mode         = "local"
+    findings     = @()
+}
+
+$adAvailable = $false
+try {
+    $domainInfo = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
+    $adAvailable = $true
+} catch { }
+
+$adModuleAvailable = $null -ne (Get-Module -ListAvailable -Name "ActiveDirectory")
+
+if ($adAvailable -and $adModuleAvailable) {
+    $result.identity.ad_available = $true
+    $result.identity.mode = "active_directory"
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $domain = Get-ADDomain
+        $result.identity.domain_name              = $domain.DNSRoot
+        $result.identity.domain_functional_level  = $domain.DomainMode.ToString()
+        $result.identity.forest_functional_level  = (Get-ADForest).ForestMode.ToString()
+
+        $allUsers      = Get-ADUser -Filter * -Properties Enabled, LastLogonDate, PasswordExpired, PasswordNeverExpires, PasswordLastSet
+        $enabledUsers  = $allUsers | Where-Object { $_.Enabled -eq $true }
+        $disabledUsers = $allUsers | Where-Object { $_.Enabled -eq $false }
+        $result.identity.total_users    = @($allUsers).Count
+        $result.identity.enabled_users  = @($enabledUsers).Count
+        $result.identity.disabled_users = @($disabledUsers).Count
+
+        $staleThreshold = (Get-Date).AddDays(-90)
+        $staleUsers = $enabledUsers | Where-Object { $_.LastLogonDate -ne $null -and $_.LastLogonDate -lt $staleThreshold }
+        $result.identity.stale_users_90d = @($staleUsers).Count
+
+        $kerberoastable = Get-ADUser -Filter { ServicePrincipalName -ne "$null" -and Enabled -eq $true } -Properties ServicePrincipalName
+        $result.identity.kerberoastable_accounts = @($kerberoastable).Count
+
+        $asrepRoastable = Get-ADUser -Filter { DoesNotRequirePreAuth -eq $true -and Enabled -eq $true } -Properties DoesNotRequirePreAuth -EA SilentlyContinue
+        $result.identity.asrep_roastable = if ($asrepRoastable) { @($asrepRoastable).Count } else { 0 }
+
+        try {
+            $adminSDHolder = Get-ADUser -Filter { AdminCount -eq 1 -and Enabled -eq $true }
+            $result.identity.admin_sd_holder = @($adminSDHolder).Count
+        } catch { $result.identity.admin_sd_holder = $null }
+
+        try {
+            $lockout30 = Search-ADAccount -LockedOut | Where-Object { $_.LastBadPasswordAttempt -gt (Get-Date).AddDays(-30) }
+            $result.identity.lockouts_30d = @($lockout30).Count
+        } catch { $result.identity.lockouts_30d = $null }
+
+        try {
+            $gpos = Get-GPO -All
+            $result.identity.gpo_count    = @($gpos).Count
+            $result.identity.gpo_unlinked = @($gpos | Where-Object { $_.GpoStatus -eq "AllSettingsDisabled" }).Count
+        } catch { $result.identity.gpo_count = $null; $result.errors += "gpo: $_" }
+
+        $domainAdmins = Get-ADGroupMember "Domain Admins" -Recursive -EA SilentlyContinue
+        $result.identity.domain_admin_count = if ($domainAdmins) { @($domainAdmins).Count } else { 0 }
+
+        $oldPwdAdmins = $domainAdmins | ForEach-Object {
+            Get-ADUser $_ -Properties PasswordLastSet -EA SilentlyContinue
+        } | Where-Object { $_.PasswordLastSet -ne $null -and $_.PasswordLastSet -lt (Get-Date).AddDays(-365) }
+        $result.identity.admins_old_password = @($oldPwdAdmins).Count
+
+        $pwPolicy = Get-ADDefaultDomainPasswordPolicy -EA SilentlyContinue
+        if ($pwPolicy) {
+            $result.identity.password_policy = @{
+                min_length         = $pwPolicy.MinPasswordLength
+                complexity_enabled = $pwPolicy.ComplexityEnabled
+                max_age_days       = $pwPolicy.MaxPasswordAge.Days
+                min_age_days       = $pwPolicy.MinPasswordAge.Days
+                lockout_threshold  = $pwPolicy.LockoutThreshold
+                reversible_encryption = $pwPolicy.ReversibleEncryptionEnabled
+            }
+        }
+
+        try {
+            $fgpp = Get-ADFineGrainedPasswordPolicy -Filter * -EA SilentlyContinue
+            $result.identity.fine_grained_policies = @($fgpp).Count
+        } catch { $result.identity.fine_grained_policies = 0 }
+
+        $kerbStale = Get-ADUser -Filter { ServicePrincipalName -ne "$null" -and Enabled -eq $true } -Properties ServicePrincipalName
+        $result.identity.kerberoastable_accounts = @($kerbStale).Count
+
+        $neverExpire = $enabledUsers | Where-Object { $_.PasswordNeverExpires -eq $true }
+        $result.identity.password_never_expires = @($neverExpire).Count
+
+        try {
+            $rdpNla = (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" `
+                -Name "UserAuthenticationRequired" -EA SilentlyContinue).UserAuthenticationRequired
+            $result.identity.rdp_nla_enabled = ($rdpNla -eq 1)
+        } catch { $result.errors += "rdp_nla: $_" }
+
+    } catch { $result.identity.ad_error = $_.ToString(); $result.errors += "ad_module: $_" }
+
+} elseif ($adAvailable -and -not $adModuleAvailable) {
+    $result.identity.ad_available      = $true
+    $result.identity.mode              = "adsi_fallback"
+    $result.identity.ad_module_missing = $true
+    $result.identity.note              = "AD modulu yuklu degil. RSAT yukleyerek daha fazla bilgi toplanabilir."
+    try {
+        $searcher = New-Object DirectoryServices.DirectorySearcher
+        $searcher.Filter = "(&(objectClass=user)(objectCategory=person))"
+        $searcher.PageSize = 1000
+        $results = $searcher.FindAll()
+        $result.identity.total_users = $results.Count
+    } catch { $result.errors += "adsi: $_" }
+
+} else {
+    $result.identity.mode = "local_security_policy"
+    try {
+        $netAccounts = net accounts 2>&1
+        $minPwdLen  = ($netAccounts | Select-String "Minimum password length").ToString() -replace "\D",""
+        $maxPwdAge  = ($netAccounts | Select-String "Maximum password age").ToString() -replace "\D",""
+        $lockoutThr = ($netAccounts | Select-String "Lockout threshold").ToString() -replace "\D",""
+        $result.identity.local_policy = @{
+            min_password_length = if ($minPwdLen)  { [int]$minPwdLen }  else { $null }
+            max_password_age_days = if ($maxPwdAge -and $maxPwdAge -ne "Unlimited") { [int]$maxPwdAge } else { $null }
+            lockout_threshold   = if ($lockoutThr) { [int]$lockoutThr } else { $null }
+        }
+    } catch { $result.errors += "net_accounts: $_" }
+
+    try {
+        $localAdmins = Get-LocalGroupMember -Group "Administrators"
+        $result.identity.local_admins = @($localAdmins | ForEach-Object {
+            @{ name = $_.Name; type = $_.PrincipalSource.ToString() }
+        })
+        $result.identity.local_admin_count = @($localAdmins).Count
+    } catch { $result.errors += "local_admins: $_" }
+
+    $guestEnabled = (Get-LocalUser -Name "Guest" -EA SilentlyContinue).Enabled
+    $result.identity.guest_account_enabled = ($guestEnabled -eq $true)
+
+    try {
+        $tmpFile = "$env:TEMP\secedit_export.cfg"
+        secedit /export /cfg $tmpFile /quiet 2>$null
+        if (Test-Path $tmpFile) {
+            $secedit = Get-Content $tmpFile
+            $pwdComplexity = ($secedit | Select-String "PasswordComplexity").ToString() -match "= 1"
+            $minPwdLen2    = ($secedit | Select-String "MinimumPasswordLength") -replace ".*= ",""
+            $result.identity.secedit = @{
+                password_complexity = $pwdComplexity
+                min_password_length = if ($minPwdLen2) { [int]$minPwdLen2.Trim() } else { $null }
+            }
+            Remove-Item $tmpFile -Force
+        }
+    } catch { $result.errors += "secedit: $_" }
+
+    try {
+        $rdpNla = (Get-ItemProperty `
+            "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" `
+            -Name "UserAuthenticationRequired" -EA SilentlyContinue).UserAuthenticationRequired
+        $result.identity.rdp_nla_enabled = ($rdpNla -eq 1)
+    } catch { $result.errors += "rdp_nla: $_" }
+}
+
 # -- CIKTI -------------------------------------------------------------------
 $json = $result | ConvertTo-Json -Depth 8
 

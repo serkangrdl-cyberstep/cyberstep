@@ -256,11 +256,18 @@ function TeaserPanel({ lead }: { lead: Lead }) {
           </div>
           <div className="space-y-1">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Email Govdesi</p>
-            <pre className="text-sm text-slate-200 bg-slate-900/60 rounded px-3 py-2 whitespace-pre-wrap font-sans leading-relaxed max-h-56 overflow-y-auto">
-              {teaser.body}
-            </pre>
+            <div
+              className="text-sm text-slate-200 bg-slate-900/60 rounded px-3 py-3 leading-relaxed max-h-64 overflow-y-auto prose prose-invert prose-sm max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: teaser.body
+                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                  .split(/\n\n+/)
+                  .map(para => `<p style="margin:0 0 0.75em 0">${para.replace(/\n/g, "<br/>")}</p>`)
+                  .join(""),
+              }}
+            />
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <Button
               size="sm"
               variant="outline"
@@ -273,9 +280,7 @@ function TeaserPanel({ lead }: { lead: Lead }) {
             </Button>
             <Button
               size="sm"
-              onClick={() => {
-                void navigator.clipboard.writeText(teaser.body);
-              }}
+              onClick={() => { void navigator.clipboard.writeText(teaser.body); }}
               variant="outline"
               className="border-slate-600 text-slate-300 hover:bg-slate-800 text-xs"
             >
@@ -285,14 +290,14 @@ function TeaserPanel({ lead }: { lead: Lead }) {
               size="sm"
               onClick={() => send.mutate()}
               disabled={send.isPending || send.isSuccess}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs ml-auto"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:ml-auto w-full sm:w-auto justify-center"
             >
               {send.isPending ? (
                 <><Loader2 className="h-3 w-3 animate-spin mr-1" />Gonderiliyor...</>
               ) : send.isSuccess ? (
                 <><CheckCircle2 className="h-3 w-3 mr-1" />Gonderildi</>
               ) : (
-                <><Send className="h-3 w-3 mr-1" />{lead.contactEmail} adresine Gonder</>
+                <><Send className="h-3 w-3 mr-1" />Gonder: {lead.contactEmail}</>
               )}
             </Button>
           </div>
@@ -774,10 +779,10 @@ export default function IsrIsListesi() {
   return (
     <AdminLayout title="ISR Is Listesi">
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white">ISR Is Listesi</h1>
-            <p className="text-sm text-slate-400 mt-0.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-white">ISR Is Listesi</h1>
+            <p className="text-xs text-slate-400 mt-0.5 hidden sm:block">
               Qualified leadler — kontak bulma, teaser gonderme ve Copilot akisi
             </p>
           </div>
@@ -786,33 +791,33 @@ export default function IsrIsListesi() {
             variant="outline"
             onClick={() => void refetch()}
             disabled={isFetching}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            className="border-slate-700 text-slate-300 hover:bg-slate-800 shrink-0"
           >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
-            Yenile
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""} sm:mr-1.5`} />
+            <span className="hidden sm:inline">Yenile</span>
           </Button>
         </div>
 
         {/* KPI row */}
         {data && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {tabs.map((t) => (
               <Card
                 key={t.id}
                 className={`cursor-pointer transition-all border ${activeTab === t.id ? "bg-slate-800 border-slate-600" : "bg-slate-900/60 border-slate-800 hover:border-slate-700"}`}
                 onClick={() => setActiveTab(t.id)}
               >
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
+                <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3">
+                  <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${
                     t.id === "notContacted" ? "bg-blue-500/20 text-blue-400" :
                     t.id === "contacted" ? "bg-violet-500/20 text-violet-400" :
                     "bg-emerald-500/20 text-emerald-400"
                   }`}>
                     {t.icon}
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-white">{t.count ?? "—"}</p>
-                    <p className="text-xs text-slate-400">{t.label}</p>
+                  <div className="text-center sm:text-left min-w-0">
+                    <p className="text-xl sm:text-2xl font-bold text-white leading-none">{t.count ?? "—"}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">{t.label}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -820,29 +825,31 @@ export default function IsrIsListesi() {
           </div>
         )}
 
-        {/* Tab bar */}
-        <div className="flex gap-1 border-b border-slate-800 pb-0">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                activeTab === t.id
-                  ? "border-blue-500 text-white"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {t.icon}
-              {t.label}
-              {t.count !== undefined && (
-                <Badge className={`text-[10px] h-4 px-1.5 ${
-                  activeTab === t.id ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300"
-                }`}>
-                  {t.count}
-                </Badge>
-              )}
-            </button>
-          ))}
+        {/* Tab bar — horizontally scrollable on mobile */}
+        <div className="overflow-x-auto -mx-6 px-6">
+          <div className="flex border-b border-slate-800 min-w-max">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                  activeTab === t.id
+                    ? "border-blue-500 text-white"
+                    : "border-transparent text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {t.icon}
+                {t.label}
+                {t.count !== undefined && (
+                  <Badge className={`text-[10px] h-4 px-1.5 ${
+                    activeTab === t.id ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300"
+                  }`}>
+                    {t.count}
+                  </Badge>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}

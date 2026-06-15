@@ -256,16 +256,14 @@ function TeaserPanel({ lead }: { lead: Lead }) {
           </div>
           <div className="space-y-1">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Email Govdesi</p>
-            <div
-              className="text-sm text-slate-200 bg-slate-900/60 rounded px-3 py-3 leading-relaxed max-h-64 overflow-y-auto prose prose-invert prose-sm max-w-none"
-              dangerouslySetInnerHTML={{
-                __html: teaser.body
-                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-                  .split(/\n\n+/)
-                  .map(para => `<p style="margin:0 0 0.75em 0">${para.replace(/\n/g, "<br/>")}</p>`)
-                  .join(""),
-              }}
-            />
+            <div className="border border-slate-700 rounded overflow-hidden" style={{ height: 320 }}>
+              <iframe
+                srcDoc={teaser.body}
+                className="w-full h-full bg-white"
+                sandbox="allow-same-origin"
+                title="Teaser Onizleme"
+              />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Button

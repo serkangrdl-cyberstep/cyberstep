@@ -746,6 +746,17 @@ export default function AdminLeadDiscovery() {
   const [filterQualified, setFilterQualified] = useState(false);
   const [filterHasContact, setFilterHasContact] = useState(false);
   const [filterNotSent, setFilterNotSent] = useState(false);
+  // ─── Qualified tab filters ────────────────────────────────────────────────
+  const [qPage, setQPage] = useState(1);
+  const [qPageSize, setQPageSize] = useState(50);
+  const [qSearch, setQSearch] = useState("");
+  const [qSearchInput, setQSearchInput] = useState("");
+  const [qTier, setQTier] = useState("");
+  const [qSort, setQSort] = useState("risk_desc");
+  const [qContact, setQContact] = useState(""); // "" | "has" | "no"
+  const [qTeaser, setQTeaser] = useState(""); // "" | "has" | "sent" | "notsent"
+  const [qMinScore, setQMinScore] = useState(0);
+  const [qPageInput, setQPageInput] = useState("");
   const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
@@ -802,12 +813,20 @@ export default function AdminLeadDiscovery() {
   const { data: qualifiedData, isLoading: qualifiedLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-qualified", qualifiedPage],
+    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore],
     queryFn: () => {
-      const params = new URLSearchParams({ page: String(qualifiedPage), pageSize: "20" });
+      const params = new URLSearchParams({ page: String(qPage), pageSize: String(qPageSize), sortBy: qSort });
+      if (qSearch) params.set("search", qSearch);
+      if (qTier) params.set("tier", qTier);
+      if (qContact === "has") params.set("hasContact", "true");
+      if (qContact === "no") params.set("noContact", "true");
+      if (qTeaser === "has") params.set("hasTeaser", "true");
+      if (qTeaser === "sent") params.set("teaserSent", "true");
+      if (qTeaser === "notsent") params.set("notSent", "true");
+      if (qMinScore > 0) params.set("minScore", String(qMinScore));
       return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
     },
-    refetchInterval: 20_000,
+    refetchInterval: 30_000,
   });
 
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
@@ -1454,266 +1473,344 @@ export default function AdminLeadDiscovery() {
 
         {/* ── QUALIFIED TAB ────────────────────────────────────────────── */}
         <TabsContent value="qualified">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <CardTitle>Qualified Leadler</CardTitle>
-                  <CardDescription>
-                    Kalifikasyonu geçmiş {qualifiedData?.total ?? 0} aday —
-                    {" "}{stats?.withContact ?? 0} contact bulundu,
-                    {" "}{stats?.teaserSent ?? 0} teaser gönderildi
-                  </CardDescription>
+          <div className="space-y-3">
+            {/* Stats bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: "Toplam Qualified", value: stats?.qualified ?? 0, color: "text-green-600" },
+                { label: "Contact Bulundu", value: stats?.withContact ?? 0, color: "text-blue-600" },
+                { label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" },
+                { label: "Bu Sayfada", value: qualifiedData?.rows?.length ?? 0, color: "text-slate-400" },
+              ].map((s) => (
+                <div key={s.label} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                  <div className="text-[11px] text-slate-500">{s.label}</div>
+                  <div className={`text-xl font-bold ${s.color}`}>{s.value.toLocaleString("tr-TR")}</div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => startQualify.mutate()}
-                  disabled={startQualify.isPending}
-                >
-                  {startQualify.isPending ? "Çalışıyor..." : "Kalifikasyonu Çalıştır"}
+              ))}
+            </div>
+
+            {/* Filter + search bar */}
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-3">
+              {/* Search row */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Domain ara (örn: finans, .net, holding…)"
+                  value={qSearchInput}
+                  onChange={(e) => setQSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { setQSearch(qSearchInput); setQPage(1); }
+                  }}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <Button size="sm" onClick={() => { setQSearch(qSearchInput); setQPage(1); }} className="shrink-0">
+                  Ara
                 </Button>
+                {qSearch && (
+                  <Button size="sm" variant="ghost" className="text-slate-400 shrink-0" onClick={() => { setQSearch(""); setQSearchInput(""); setQPage(1); }}>
+                    Temizle
+                  </Button>
+                )}
               </div>
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <Button
-                  size="sm"
-                  variant={filterNoContact ? "default" : "outline"}
-                  onClick={() => setFilterNoContact((f) => !f)}
-                  className="text-xs"
+
+              {/* Filter chips row */}
+              <div className="flex flex-wrap gap-2 items-center">
+                {/* Tier */}
+                <select
+                  value={qTier}
+                  onChange={(e) => { setQTier(e.target.value); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
                 >
-                  {filterNoContact ? "Filtre: Kontakt Eksik" : "Kontakt Eksik"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}
-                  className="text-xs"
+                  <option value="">Tüm Tier'lar</option>
+                  <option value="tier1">Tier 1 (En İyi)</option>
+                  <option value="tier2">Tier 2</option>
+                  <option value="tier3">Tier 3</option>
+                </select>
+
+                {/* Contact durumu */}
+                <select
+                  value={qContact}
+                  onChange={(e) => { setQContact(e.target.value); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
                 >
-                  LinkedIn Listesi Indir
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => batchWebEnrich.mutate(30)}
-                  disabled={batchWebEnrich.isPending}
-                  className="text-xs"
+                  <option value="">Tüm Contact</option>
+                  <option value="has">Contact Var</option>
+                  <option value="no">Contact Eksik</option>
+                </select>
+
+                {/* Teaser durumu */}
+                <select
+                  value={qTeaser}
+                  onChange={(e) => { setQTeaser(e.target.value); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
                 >
-                  {batchWebEnrich.isPending ? "Taranıyor..." : "Toplu Web Tarama (30)"}
-                </Button>
+                  <option value="">Tüm Teaser</option>
+                  <option value="has">Teaser Hazır</option>
+                  <option value="sent">Gönderildi</option>
+                  <option value="notsent">Gönderilmedi</option>
+                </select>
+
+                {/* Min risk skoru */}
+                <select
+                  value={qMinScore}
+                  onChange={(e) => { setQMinScore(parseInt(e.target.value)); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value={0}>Min Risk: Hepsi</option>
+                  <option value={30}>Min Risk: 30+</option>
+                  <option value={50}>Min Risk: 50+</option>
+                  <option value={70}>Min Risk: 70+</option>
+                  <option value={85}>Min Risk: 85+</option>
+                </select>
+
+                {/* Sıralama */}
+                <select
+                  value={qSort}
+                  onChange={(e) => { setQSort(e.target.value); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value="risk_desc">Risk: Yüksek → Düşük</option>
+                  <option value="risk_asc">Risk: Düşük → Yüksek</option>
+                  <option value="added_desc">En Yeni Eklenen</option>
+                  <option value="added_asc">En Eski Eklenen</option>
+                  <option value="domain_asc">Domain A → Z</option>
+                </select>
+
+                {/* Sayfa boyutu */}
+                <select
+                  value={qPageSize}
+                  onChange={(e) => { setQPageSize(parseInt(e.target.value)); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value={20}>20 / sayfa</option>
+                  <option value={50}>50 / sayfa</option>
+                  <option value={100}>100 / sayfa</option>
+                </select>
+
+                <div className="ml-auto flex gap-1.5">
+                  <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}>
+                    CSV İndir
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => batchWebEnrich.mutate(30)} disabled={batchWebEnrich.isPending}>
+                    {batchWebEnrich.isPending ? "..." : "Toplu Web (30)"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => startQualify.mutate()} disabled={startQualify.isPending}>
+                    {startQualify.isPending ? "..." : "Kalifikasyon Çalıştır"}
+                  </Button>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              {qualifiedLoading ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">Yükleniyor...</div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto -mx-1">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Domain</TableHead>
-                          <TableHead>Tier</TableHead>
-                          <TableHead className="text-right">Risk</TableHead>
-                          <TableHead>Contact Email</TableHead>
-                          <TableHead>Contact Adı</TableHead>
-                          <TableHead>Teaser</TableHead>
-                          <TableHead>İşlemler</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(filterNoContact
-                          ? (qualifiedData?.rows ?? []).filter((c) => !c.contactEmail && !c.officerName)
-                          : (qualifiedData?.rows ?? [])
-                        ).map((c) => (
-                          <TableRow key={c.id}>
-                            <TableCell>
-                              <div className="font-medium text-sm font-mono">{c.domain}</div>
-                              {(c.scrapedCompanyName ?? c.companyName) && (
-                                <div className="text-xs text-muted-foreground truncate max-w-[160px]">{c.scrapedCompanyName ?? c.companyName}</div>
-                              )}
-                              {c.webScrapedAt != null ? (
-                                c.isAlive ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200 mt-0.5">
-                                    Canli {c.responseTimeMs != null ? `${c.responseTimeMs}ms` : ""} {c.httpStatus ? `· ${c.httpStatus}` : ""}
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 border border-red-200 mt-0.5">
-                                    Erisemiyor {c.httpStatus ? `· ${c.httpStatus}` : ""}
-                                  </span>
-                                )
-                              ) : null}
-                              {c.scrapedPhone && (
-                                <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{c.scrapedPhone}</div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {c.tier ? (
-                                <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${
-                                  c.tier === "tier1"
-                                    ? "bg-green-100 text-green-700 border-green-300"
-                                    : c.tier === "tier2"
-                                    ? "bg-blue-100 text-blue-700 border-blue-300"
-                                    : "bg-orange-100 text-orange-700 border-orange-300"
-                                }`}>
-                                  {c.tier === "tier1" ? "T1" : c.tier === "tier2" ? "T2" : "T3"}
-                                </span>
-                              ) : <span className="text-[10px] text-muted-foreground">—</span>}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {c.riskScore != null ? (
-                                <div className="text-right">
-                                  <span className={`font-bold text-sm ${c.riskScore >= 70 ? "text-red-600" : c.riskScore >= 40 ? "text-orange-500" : "text-gray-500"}`}>
-                                    {c.riskScore}
-                                  </span>
-                                  {c.criticalFindings > 0 && (
-                                    <div className="text-[10px] text-red-500">{c.criticalFindings} kritik</div>
-                                  )}
-                                </div>
-                              ) : "—"}
-                              {c.wafDetected !== null && c.scanId && (() => {
-                                const b = getWafBadge(c.confidenceScore ?? null, c.wafDetected ?? null);
-                                return (
-                                  <span className={`mt-0.5 inline-flex text-[10px] px-1.5 py-0.5 rounded border ${b.color === "green" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
-                                    {b.label}
-                                  </span>
-                                );
-                              })()}
-                            </TableCell>
-                            <TableCell>
-                              {c.contactEmail ? (
-                                <span className="text-xs font-mono">{c.contactEmail}</span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200 font-medium">
-                                  ⚠ Bulunamadı
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-xs">{c.contactName ?? <span className="text-muted-foreground">—</span>}</div>
-                              {c.contactTitle && (
-                                <div className="text-[10px] text-muted-foreground">{c.contactTitle}</div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {c.teaserSentAt ? (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 font-medium">
-                                  ✓ Gönderildi
-                                </span>
-                              ) : c.teaserSubject ? (
-                                <button
-                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors"
-                                  onClick={() => setTeaserPreview(c)}
-                                >
-                                  Hazır — Önizle
-                                </button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1 min-w-[110px]">
-                                {!c.contactEmail && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs h-7 w-full"
-                                    onClick={() => reEnrich.mutate(c.id)}
-                                    disabled={reEnrich.isPending}
-                                  >
-                                    Yeniden Ara
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className={`text-xs h-7 w-full ${c.webScrapedAt ? "text-muted-foreground" : ""}`}
-                                  onClick={() => webEnrich.mutate(c.id)}
-                                  disabled={webEnrich.isPending}
-                                  title={c.webScrapedAt ? `Son scrape: ${new Date(c.webScrapedAt).toLocaleDateString("tr-TR")}` : "Web sitesini tara"}
-                                >
-                                  {c.webScrapedAt ? "Web Yenile" : "Web Scrape"}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7 w-full"
-                                  onClick={() => {
-                                    setContactEditTarget(c);
-                                    setEditEmail(c.contactEmail ?? "");
-                                    setEditName(c.contactName ?? "");
-                                    setEditTitle(c.contactTitle ?? "");
-                                  }}
-                                >
-                                  Kontak Düzenle
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7 w-full"
-                                  onClick={() => generateTeaser.mutate(c.id)}
-                                  disabled={generateTeaser.isPending}
-                                >
-                                  {c.teaserSubject ? "Yeniden Üret" : "Teaser Üret"}
-                                </Button>
-                                {c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
-                                  <Button
-                                    size="sm"
-                                    className="text-xs h-7 w-full"
-                                    onClick={() => sendTeaser.mutate(c.id)}
-                                    disabled={sendTeaser.isPending}
-                                  >
-                                    Gönderildi İşaretle
-                                  </Button>
-                                )}
-                                <a
-                                  href={buildLinkedInUrl(c)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center text-xs h-7 w-full rounded-md border border-[#0A66C2]/30 bg-[#0A66C2]/5 text-[#0A66C2] hover:bg-[#0A66C2]/10 font-medium"
-                                >
-                                  LinkedIn
-                                </a>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7 w-full"
-                                  onClick={() => { setFingerprintResult(null); setDetailCandidate(c); setIsrNotesEdit(c.isrNotes ?? ""); }}
-                                >
-                                  Detay
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {!(qualifiedData?.rows?.length) && (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8 text-sm">
-                              Henüz qualified lead yok. Pipeline veya kalifikasyonu çalıştırın.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  {(qualifiedData?.total ?? 0) > 20 && (
-                    <div className="flex justify-between items-center mt-4">
-                      <span className="text-sm text-muted-foreground">
-                        {((qualifiedPage - 1) * 20) + 1}–{Math.min(qualifiedPage * 20, qualifiedData?.total ?? 0)} / {qualifiedData?.total ?? 0}
-                      </span>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setQualifiedPage((p) => Math.max(1, p - 1))} disabled={qualifiedPage === 1}>
-                          Önceki
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setQualifiedPage((p) => p + 1)} disabled={qualifiedPage * 20 >= (qualifiedData?.total ?? 0)}>
-                          Sonraki
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
+
+              {/* Active filter tags */}
+              {(qSearch || qTier || qContact || qTeaser || qMinScore > 0) && (
+                <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800">
+                  <span className="text-[11px] text-slate-500 self-center">Aktif:</span>
+                  {qSearch && <span className="text-[11px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">"{qSearch}"</span>}
+                  {qTier && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">{qTier}</span>}
+                  {qContact && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Contact: {qContact === "has" ? "Var" : "Eksik"}</span>}
+                  {qTeaser && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Teaser: {qTeaser === "has" ? "Hazır" : qTeaser === "sent" ? "Gönderildi" : "Gönderilmedi"}</span>}
+                  {qMinScore > 0 && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Risk ≥ {qMinScore}</span>}
+                  <button
+                    className="text-[11px] text-red-400 hover:text-red-300 underline ml-1"
+                    onClick={() => { setQSearch(""); setQSearchInput(""); setQTier(""); setQContact(""); setQTeaser(""); setQMinScore(0); setQPage(1); }}
+                  >
+                    Hepsini Temizle
+                  </button>
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+              {qualifiedLoading ? (
+                <div className="text-center py-12 text-slate-500 text-sm">Yükleniyor...</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-800 hover:bg-transparent">
+                        <TableHead className="text-slate-400 w-[220px]">Domain</TableHead>
+                        <TableHead className="text-slate-400 w-12">Tier</TableHead>
+                        <TableHead className="text-slate-400 text-right w-16">Risk</TableHead>
+                        <TableHead className="text-slate-400">Contact</TableHead>
+                        <TableHead className="text-slate-400 w-28">Teaser</TableHead>
+                        <TableHead className="text-slate-400 text-right w-[200px]">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(qualifiedData?.rows ?? []).map((c) => (
+                        <TableRow key={c.id} className="border-slate-800 hover:bg-slate-800/40">
+                          {/* Domain */}
+                          <TableCell className="py-2">
+                            <div className="font-mono text-sm text-slate-200">{c.domain}</div>
+                            {(c.scrapedCompanyName ?? c.companyName) && (
+                              <div className="text-[11px] text-slate-500 truncate max-w-[200px]">{c.scrapedCompanyName ?? c.companyName}</div>
+                            )}
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {c.source && <span className="text-[10px] text-slate-600">{c.source}</span>}
+                              {c.webScrapedAt != null && (
+                                c.isAlive
+                                  ? <span className="text-[10px] px-1 py-0 rounded bg-green-900/40 text-green-400 border border-green-800/50">Canlı {c.responseTimeMs != null ? `${c.responseTimeMs}ms` : ""}</span>
+                                  : <span className="text-[10px] px-1 py-0 rounded bg-red-900/40 text-red-400 border border-red-800/50">Erişilemiyor</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* Tier */}
+                          <TableCell className="py-2">
+                            {c.tier ? (
+                              <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${
+                                c.tier === "tier1" ? "bg-green-900/40 text-green-400 border-green-800" :
+                                c.tier === "tier2" ? "bg-blue-900/40 text-blue-400 border-blue-800" :
+                                "bg-orange-900/40 text-orange-400 border-orange-800"
+                              }`}>
+                                {c.tier === "tier1" ? "T1" : c.tier === "tier2" ? "T2" : "T3"}
+                              </span>
+                            ) : <span className="text-[10px] text-slate-600">—</span>}
+                          </TableCell>
+
+                          {/* Risk */}
+                          <TableCell className="py-2 text-right">
+                            {c.riskScore != null ? (
+                              <div>
+                                <span className={`font-bold text-sm ${c.riskScore >= 70 ? "text-red-400" : c.riskScore >= 40 ? "text-orange-400" : "text-slate-400"}`}>
+                                  {c.riskScore}
+                                </span>
+                                {c.criticalFindings > 0 && (
+                                  <div className="text-[10px] text-red-500">{c.criticalFindings}K</div>
+                                )}
+                              </div>
+                            ) : <span className="text-slate-600">—</span>}
+                          </TableCell>
+
+                          {/* Contact */}
+                          <TableCell className="py-2">
+                            {c.contactEmail ? (
+                              <div>
+                                <div className="text-xs font-mono text-slate-300 truncate max-w-[180px]">{c.contactEmail}</div>
+                                {c.contactName && <div className="text-[10px] text-slate-500">{c.contactName}{c.contactTitle ? ` · ${c.contactTitle}` : ""}</div>}
+                              </div>
+                            ) : c.officerName ? (
+                              <div className="text-xs text-slate-400">{c.officerName}{c.officerTitle ? ` · ${c.officerTitle}` : ""}</div>
+                            ) : (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-900/40 text-yellow-400 border border-yellow-800/50">Eksik</span>
+                            )}
+                          </TableCell>
+
+                          {/* Teaser */}
+                          <TableCell className="py-2">
+                            {c.teaserSentAt ? (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-800/50">Gönderildi</span>
+                            ) : c.teaserSubject ? (
+                              <button
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 hover:bg-blue-800/40"
+                                onClick={() => setTeaserPreview(c)}
+                              >
+                                Hazır — Gör
+                              </button>
+                            ) : (
+                              <span className="text-slate-600 text-[10px]">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Actions — compact inline */}
+                          <TableCell className="py-2">
+                            <div className="flex flex-wrap gap-1 justify-end">
+                              <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
+                                onClick={() => { setFingerprintResult(null); setDetailCandidate(c); setIsrNotesEdit(c.isrNotes ?? ""); }}>
+                                Detay
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
+                                onClick={() => { setContactEditTarget(c); setEditEmail(c.contactEmail ?? ""); setEditName(c.contactName ?? ""); setEditTitle(c.contactTitle ?? ""); }}>
+                                Kontak
+                              </Button>
+                              {!c.contactEmail && (
+                                <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
+                                  onClick={() => reEnrich.mutate(c.id)} disabled={reEnrich.isPending}>
+                                  Ara
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
+                                onClick={() => generateTeaser.mutate(c.id)} disabled={generateTeaser.isPending}>
+                                {c.teaserSubject ? "Yeniden" : "Teaser"}
+                              </Button>
+                              {c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
+                                <Button size="sm" className="text-[10px] h-6 px-2"
+                                  onClick={() => sendTeaser.mutate(c.id)} disabled={sendTeaser.isPending}>
+                                  Gönder
+                                </Button>
+                              )}
+                              <a href={buildLinkedInUrl(c)} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center text-[10px] h-6 px-2 rounded text-[#0A66C2] hover:bg-[#0A66C2]/10">
+                                Li
+                              </a>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {!(qualifiedData?.rows?.length) && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-slate-500 py-12 text-sm">
+                            {qSearch || qTier || qContact || qTeaser || qMinScore > 0
+                              ? "Filtreyle eşleşen lead bulunamadı. Filtreleri genişletin."
+                              : "Henüz qualified lead yok. Pipeline veya kalifikasyonu çalıştırın."}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {(qualifiedData?.total ?? 0) > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800">
+                  <span className="text-xs text-slate-500">
+                    {((qPage - 1) * qPageSize) + 1}–{Math.min(qPage * qPageSize, qualifiedData?.total ?? 0)}
+                    {" "}/{" "}
+                    <span className="font-medium text-slate-300">{(qualifiedData?.total ?? 0).toLocaleString("tr-TR")}</span> sonuç
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="outline" className="border-slate-700 text-slate-400 h-7 px-2 text-xs"
+                      onClick={() => setQPage(1)} disabled={qPage === 1}>
+                      «
+                    </Button>
+                    <Button size="sm" variant="outline" className="border-slate-700 text-slate-400 h-7 px-2 text-xs"
+                      onClick={() => setQPage((p) => Math.max(1, p - 1))} disabled={qPage === 1}>
+                      Önceki
+                    </Button>
+                    {/* Page jump */}
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const n = parseInt(qPageInput);
+                      const totalPages = Math.ceil((qualifiedData?.total ?? 0) / qPageSize);
+                      if (n >= 1 && n <= totalPages) { setQPage(n); setQPageInput(""); }
+                    }} className="flex items-center gap-1">
+                      <span className="text-xs text-slate-500">Sayfa</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={Math.ceil((qualifiedData?.total ?? 0) / qPageSize)}
+                        value={qPageInput}
+                        onChange={(e) => setQPageInput(e.target.value)}
+                        placeholder={String(qPage)}
+                        className="w-14 bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-xs text-slate-200 text-center focus:outline-none"
+                      />
+                      <span className="text-xs text-slate-500">/ {Math.ceil((qualifiedData?.total ?? 0) / qPageSize)}</span>
+                    </form>
+                    <Button size="sm" variant="outline" className="border-slate-700 text-slate-400 h-7 px-2 text-xs"
+                      onClick={() => setQPage((p) => p + 1)} disabled={qPage * qPageSize >= (qualifiedData?.total ?? 0)}>
+                      Sonraki
+                    </Button>
+                    <Button size="sm" variant="outline" className="border-slate-700 text-slate-400 h-7 px-2 text-xs"
+                      onClick={() => setQPage(Math.ceil((qualifiedData?.total ?? 0) / qPageSize))}
+                      disabled={qPage * qPageSize >= (qualifiedData?.total ?? 0)}>
+                      »
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </TabsContent>
 
         {/* ── RESULTS TAB ──────────────────────────────────────────────── */}

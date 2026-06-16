@@ -367,23 +367,46 @@ router.post("/admin-panel/lead-discovery/qualify", requireAdmin, async (req: Req
 router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Request, res: Response) => {
   const minScore = parseInt(req.query["minScore"] as string ?? "0");
   const hasContact = req.query["hasContact"] === "true";
-  const notSent = req.query["notSent"] === "true";
-  const page = parseInt(req.query["page"] as string ?? "1");
-  const pageSize = parseInt(req.query["pageSize"] as string ?? "20");
+  const noContact  = req.query["noContact"]  === "true";
+  const notSent    = req.query["notSent"]    === "true";
+  const hasTeaser  = req.query["hasTeaser"]  === "true";
+  const teaserSent = req.query["teaserSent"] === "true";
+  const tier       = req.query["tier"] as string | undefined;
+  const source     = req.query["source"] as string | undefined;
+  const search     = (req.query["search"] as string ?? "").trim().toLowerCase();
+  const sortBy     = (req.query["sortBy"] as string) || "risk_desc";
+  const page       = Math.max(1, parseInt(req.query["page"] as string ?? "1"));
+  const pageSize   = Math.min(100, Math.max(10, parseInt(req.query["pageSize"] as string ?? "50")));
 
-  const conditions = [eq(leadCandidatesTable.isQualified, true)];
+  const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [
+    eq(leadCandidatesTable.isQualified, true),
+  ];
   if (minScore > 0) conditions.push(sql`${leadCandidatesTable.riskScore} >= ${minScore}`);
   if (hasContact) conditions.push(isNotNull(leadCandidatesTable.contactEmail));
-  if (notSent) conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+  if (noContact)  conditions.push(isNull(leadCandidatesTable.contactEmail));
+  if (notSent)    conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+  if (teaserSent) conditions.push(isNotNull(leadCandidatesTable.teaserSentAt));
+  if (hasTeaser)  conditions.push(isNotNull(leadCandidatesTable.teaserSubject));
+  if (tier)       conditions.push(eq(leadCandidatesTable.tier, tier));
+  if (source)     conditions.push(eq(leadCandidatesTable.source, source));
+  if (search)     conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
 
-  const rows = await db.select().from(leadCandidatesTable)
-    .where(and(...conditions))
-    .orderBy(desc(leadCandidatesTable.riskScore))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
+  const orderClause =
+    sortBy === "risk_asc"   ? leadCandidatesTable.riskScore :
+    sortBy === "domain_asc" ? leadCandidatesTable.domain :
+    sortBy === "added_desc" ? desc(leadCandidatesTable.createdAt) :
+    sortBy === "added_asc"  ? leadCandidatesTable.createdAt :
+    /* risk_desc default */   desc(leadCandidatesTable.riskScore);
 
-  const [{ total }] = await db.select({ total: count() }).from(leadCandidatesTable)
-    .where(and(...conditions));
+  const [rows, [{ total }]] = await Promise.all([
+    db.select().from(leadCandidatesTable)
+      .where(and(...conditions))
+      .orderBy(orderClause)
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db.select({ total: count() }).from(leadCandidatesTable)
+      .where(and(...conditions)),
+  ]);
 
   res.json({ rows, total, page, pageSize });
 });

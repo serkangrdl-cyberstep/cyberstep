@@ -1702,9 +1702,15 @@ router.get("/domain-scan/:id/subdomains", async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
 
-  const rows = await db.select().from(domainScanSubdomainsTable)
-    .where(eq(domainScanSubdomainsTable.scanId, id))
-    .orderBy(desc(domainScanSubdomainsTable.priorityScore));
+  const [rows, scanRow] = await Promise.all([
+    db.select().from(domainScanSubdomainsTable)
+      .where(eq(domainScanSubdomainsTable.scanId, id))
+      .orderBy(desc(domainScanSubdomainsTable.priorityScore)),
+    db.select({ ctSubdomainCount: domainScansTable.ctSubdomainCount })
+      .from(domainScansTable)
+      .where(eq(domainScansTable.id, id))
+      .then(r => r[0] ?? null),
+  ]);
 
   const summary = { web_app: 0, api: 0, redirect: 0, error_4xx: 0, error_5xx: 0, unreachable: 0, unknown: 0, total: rows.length };
   for (const r of rows) {
@@ -1721,7 +1727,12 @@ router.get("/domain-scan/:id/subdomains", async (req, res) => {
     httpStatus: r.httpStatus,
   }));
 
-  res.json({ summary, topPriority, processing: rows.length === 0 });
+  // processing=true yalnızca CT subdomainleri VAR ama henüz classify edilmemişse.
+  // ctSubdomainCount=0 ise classifier hiç çalıştırılmadı → processing=false (bitmişlik).
+  const ctCount = scanRow?.ctSubdomainCount ?? 0;
+  const processing = rows.length === 0 && ctCount > 0;
+
+  res.json({ summary, topPriority, processing });
 });
 
 // ─── GET /api/domain-scan/:id/pdf ────────────────────────────────────────────

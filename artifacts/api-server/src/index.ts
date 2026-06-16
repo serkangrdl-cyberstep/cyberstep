@@ -16,6 +16,9 @@ import { runNetcraftDiscovery } from "./services/leadDiscovery/netcraftDiscovery
 import { runBgpToolsDiscovery } from "./services/leadDiscovery/bgpToolsDiscovery";
 import { runUrlscanDiscovery } from "./services/leadDiscovery/urlscanDiscovery";
 import { runVirusTotalDiscovery } from "./services/leadDiscovery/virusTotalDiscovery";
+import { runCensysDiscovery } from "./services/leadDiscovery/censysDiscovery";
+import { runSearchDorking } from "./services/leadDiscovery/searchDorking";
+import { runCompanyRegistryDiscovery } from "./services/leadDiscovery/companyRegistryDiscovery";
 import { getSourceQualityStats } from "./routes/admin-panel/source-stats";
 import { qualifyPendingCandidates, preScreenPendingCandidates, getISOWeek } from "./services/discoveryPipeline";
 import { generateEcosystemReport } from "./services/ecosystemReportService";
@@ -2873,6 +2876,33 @@ startup()
       return result.addedToLeads;
     }), { timezone: "Europe/Istanbul" });
     logger.info("VirusTotal subdomain cron scheduled (Salı 04:00 Istanbul, limit 50)");
+
+    // ─── Lead Discovery: Censys SSL — Her gece 07:00 ──────────────────────────
+    // CENSYS_API_ID + CENSYS_API_SECRET gerekli (censys.io ücretsiz hesap); 250 sorgu/ay limit
+    cron.schedule("0 7 * * *", wrapCron("censys_discovery", "0 7 * * *", async () => {
+      if (!await cronIsEnabled("censys_discovery")) { logger.info("Censys cron devre dışı, atlanıyor"); return 0; }
+      const result = await runCensysDiscovery();
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Censys discovery cron scheduled (daily 07:00 Istanbul, 3 TLD sorgusu)");
+
+    // ─── Lead Discovery: Bing Dorking — Her gece 08:00 ────────────────────────
+    // API key gerektirmez; Bing sonuçlarından .tr domain keşfi
+    cron.schedule("0 8 * * *", wrapCron("search_dorking", "0 8 * * *", async () => {
+      if (!await cronIsEnabled("search_dorking")) { logger.info("Search dorking cron devre dışı, atlanıyor"); return 0; }
+      const result = await runSearchDorking();
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Search dorking cron scheduled (daily 08:00 Istanbul, 5 Bing sorgusu)");
+
+    // ─── Lead Discovery: OpenCorporates — Her Pazartesi 09:00 ─────────────────
+    // API key gerektirmez; Türkiye şirket kaydından domain keşfi
+    cron.schedule("0 9 * * 1", wrapCron("company_registry", "0 9 * * 1", async () => {
+      if (!await cronIsEnabled("company_registry")) { logger.info("Company registry cron devre dışı, atlanıyor"); return 0; }
+      const result = await runCompanyRegistryDiscovery();
+      return result.addedToLeads;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Company registry cron scheduled (Pazartesi 09:00 Istanbul, 5 sayfa/hafta)");
 
     // ─── Source Quality Check — Her Pazartesi 08:30 ─────────────────────────────
     // Kalifikasyon oranı düşük kaynaklara ait uyarıları logla

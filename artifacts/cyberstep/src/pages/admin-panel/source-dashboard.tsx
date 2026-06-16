@@ -19,43 +19,67 @@ const C = {
 };
 
 const SOURCE_ICONS: Record<string, string> = {
+  crtsh: "🔐",
+  ct_discovery: "🔐",
   crt_sh: "🔐",
+  "certstream-bridge": "📡",
   certstream: "📡",
+  shodan_free: "🔍",
   shodan: "🔍",
   shodan_asn: "🗄️",
+  ripe_dns: "🗺️",
+  ripestat: "🗺️",
   urlscan: "🌐",
   virustotal_subdomain: "🦠",
-  ripestat: "🗺️",
   bgptools: "🛰️",
   netcraft: "🌍",
+  censys: "🔭",
+  search_dorking: "🔎",
+  company_registry: "🏢",
   manual: "✏️",
   unknown: "❓",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
+  crtsh: "crt.sh",
+  ct_discovery: "crt.sh (CT)",
   crt_sh: "crt.sh",
+  "certstream-bridge": "Certstream Bridge",
   certstream: "Certstream",
+  shodan_free: "Shodan (Ücretsiz)",
   shodan: "Shodan",
   shodan_asn: "Shodan ASN",
+  ripe_dns: "RIPE DNS",
+  ripestat: "RIPEStat",
   urlscan: "URLScan.io",
   virustotal_subdomain: "VirusTotal",
-  ripestat: "RIPEStat",
   bgptools: "BGP.Tools",
   netcraft: "Netcraft",
+  censys: "Censys",
+  search_dorking: "Bing Dorking",
+  company_registry: "Şirket Kaydı",
   manual: "Manuel",
   unknown: "Bilinmiyor",
 };
 
 const SOURCE_COLORS: Record<string, string> = {
+  "certstream-bridge": "#00C8FF",
   certstream: "#00C8FF",
+  crtsh: "#F5A623",
+  ct_discovery: "#F5A623",
   crt_sh: "#F5A623",
+  shodan_free: "#9B59B6",
   shodan: "#9B59B6",
   shodan_asn: "#E03A3A",
+  ripe_dns: "#E67E22",
+  ripestat: "#E67E22",
   urlscan: "#2ECC71",
   virustotal_subdomain: "#00B4A6",
-  ripestat: "#E67E22",
   bgptools: "#3498DB",
   netcraft: "#1ABC9C",
+  censys: "#E91E63",
+  search_dorking: "#FF5722",
+  company_registry: "#673AB7",
   manual: "#95A5A6",
   unknown: "#7F8C8D",
 };
@@ -266,12 +290,12 @@ export default function SourceDashboard() {
             </div>
 
             {/* Orta: Tablo + Trend */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 18, marginBottom: 20 }}>
 
               {/* Kaynak Karşılaştırma Tablosu */}
               <div style={{
                 background: C.bg2, border: `1px solid ${C.border}`,
-                borderRadius: 14, overflow: "hidden",
+                borderRadius: 14, overflow: "hidden", minWidth: 0,
               }}>
                 <div style={{
                   padding: "14px 18px", fontSize: 13, fontWeight: 700,
@@ -279,61 +303,63 @@ export default function SourceDashboard() {
                 }}>
                   Kaynak Karşılaştırması
                 </div>
-                {/* Tablo başlıkları */}
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "140px 60px 60px 60px 90px 60px",
-                  padding: "8px 18px", fontSize: 11,
-                  color: C.muted, borderBottom: `1px solid ${C.border}`,
-                  gap: 4,
-                }}>
-                  <span>Kaynak</span>
-                  <span style={{ textAlign: "right" }}>Keşif</span>
-                  <span style={{ textAlign: "right" }}>Tarana</span>
-                  <span style={{ textAlign: "right" }}>Kvali.</span>
-                  <span>Oran</span>
-                  <span>Son</span>
-                </div>
-                {data.stats.length === 0 && (
-                  <div style={{ padding: "24px 18px", color: C.muted, fontSize: 13 }}>
-                    Henüz veri yok
-                  </div>
-                )}
-                {data.stats.map((row) => (
-                  <div key={row.source} style={{
+                <div style={{ overflowX: "auto" }}>
+                  {/* Tablo başlıkları */}
+                  <div style={{
                     display: "grid",
-                    gridTemplateColumns: "140px 60px 60px 60px 90px 60px",
-                    padding: "10px 18px", fontSize: 12,
-                    borderBottom: `1px solid ${C.border}`, gap: 4,
-                    alignItems: "center",
+                    gridTemplateColumns: "1fr 56px 56px 56px 88px 52px",
+                    padding: "8px 14px", fontSize: 11,
+                    color: C.muted, borderBottom: `1px solid ${C.border}`,
+                    gap: 4, minWidth: 380,
                   }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: C.text }}>
-                      <span>{SOURCE_ICONS[row.source] ?? "📌"}</span>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {SOURCE_LABELS[row.source] ?? row.source}
-                      </span>
-                    </span>
-                    <span style={{ textAlign: "right", color: C.cyan, fontWeight: 700 }}>
-                      {Number(row.total_discovered).toLocaleString("tr-TR")}
-                    </span>
-                    <span style={{ textAlign: "right", color: C.muted }}>
-                      {Number(row.total_scanned).toLocaleString("tr-TR")}
-                    </span>
-                    <span style={{ textAlign: "right", color: C.amber, fontWeight: 700 }}>
-                      {Number(row.qualified_count).toLocaleString("tr-TR")}
-                    </span>
-                    <QualificationBar rate={Number(row.qualification_rate) || 0} />
-                    <span style={{ color: C.muted, fontSize: 11 }}>
-                      {timeAgo(row.last_seen)}
-                    </span>
+                    <span>Kaynak</span>
+                    <span style={{ textAlign: "right" }}>Keşif</span>
+                    <span style={{ textAlign: "right" }}>Tarandı</span>
+                    <span style={{ textAlign: "right" }}>Kvali.</span>
+                    <span>Oran</span>
+                    <span style={{ textAlign: "right" }}>Son</span>
                   </div>
-                ))}
+                  {data.stats.length === 0 && (
+                    <div style={{ padding: "24px 18px", color: C.muted, fontSize: 13 }}>
+                      Henüz veri yok
+                    </div>
+                  )}
+                  {data.stats.map((row) => (
+                    <div key={row.source} style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 56px 56px 56px 88px 52px",
+                      padding: "10px 14px", fontSize: 12,
+                      borderBottom: `1px solid ${C.border}`, gap: 4,
+                      alignItems: "center", minWidth: 380,
+                    }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: C.text, minWidth: 0 }}>
+                        <span style={{ flexShrink: 0 }}>{SOURCE_ICONS[row.source] ?? "📌"}</span>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {SOURCE_LABELS[row.source] ?? row.source}
+                        </span>
+                      </span>
+                      <span style={{ textAlign: "right", color: C.cyan, fontWeight: 700 }}>
+                        {Number(row.total_discovered).toLocaleString("tr-TR")}
+                      </span>
+                      <span style={{ textAlign: "right", color: C.muted }}>
+                        {Number(row.total_scanned).toLocaleString("tr-TR")}
+                      </span>
+                      <span style={{ textAlign: "right", color: C.amber, fontWeight: 700 }}>
+                        {Number(row.qualified_count).toLocaleString("tr-TR")}
+                      </span>
+                      <QualificationBar rate={Number(row.qualification_rate) || 0} />
+                      <span style={{ color: C.muted, fontSize: 11, textAlign: "right" }}>
+                        {timeAgo(row.last_seen)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Trend Grafiği */}
               <div style={{
                 background: C.bg2, border: `1px solid ${C.border}`,
-                borderRadius: 14, padding: "16px 18px",
+                borderRadius: 14, padding: "16px 18px", minWidth: 0,
               }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14 }}>
                   Günlük Keşif Trendi (Son 14 Gün)

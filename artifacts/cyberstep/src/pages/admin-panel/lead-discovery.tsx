@@ -924,6 +924,25 @@ export default function AdminLeadDiscovery() {
     },
   });
 
+  const resetStaleQualified = useMutation({
+    mutationFn: (hoursAgo: number) =>
+      fetch(`${BASE}/lead-discovery/reset-stale-qualified`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hoursAgo }),
+      }).then(async (r) => {
+        const j = await r.json() as { reset: number; message: string; error?: string };
+        if (!r.ok) throw new Error(j.error ?? "Hata");
+        return j;
+      }),
+    onSuccess: (data) => {
+      toast({ description: data.message });
+      qc.invalidateQueries({ queryKey: ["lead-qualified"] });
+      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
   const startPrescreen = useMutation({
     mutationFn: () =>
       fetch(`${BASE}/lead-discovery/prescreen`, {
@@ -1587,7 +1606,7 @@ export default function AdminLeadDiscovery() {
                   <option value={100}>100 / sayfa</option>
                 </select>
 
-                <div className="ml-auto flex gap-1.5">
+                <div className="ml-auto flex flex-wrap gap-1.5">
                   <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}>
                     CSV İndir
                   </Button>
@@ -1596,6 +1615,20 @@ export default function AdminLeadDiscovery() {
                   </Button>
                   <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => startQualify.mutate()} disabled={startQualify.isPending}>
                     {startQualify.isPending ? "..." : "Kalifikasyon Çalıştır"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs border-orange-800/60 text-orange-400 hover:bg-orange-900/20"
+                    onClick={() => {
+                      if (confirm("48+ saat önce qualify edilmiş 856 lead yeniden kalifikasyona sokulacak. Mevcut qualified sayısı düşecek. Devam edilsin mi?")) {
+                        resetStaleQualified.mutate(48);
+                      }
+                    }}
+                    disabled={resetStaleQualified.isPending}
+                    title="WAF/CDN kontrolü eklenmeden önce qualify edilmiş false pozitifler için"
+                  >
+                    {resetStaleQualified.isPending ? "Sıfırlanıyor..." : "Eski Qualified Sıfırla (48s+)"}
                   </Button>
                 </div>
               </div>

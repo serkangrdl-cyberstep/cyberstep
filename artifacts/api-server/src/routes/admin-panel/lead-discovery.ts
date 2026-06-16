@@ -363,6 +363,36 @@ router.post("/admin-panel/lead-discovery/qualify", requireAdmin, async (req: Req
   });
 });
 
+// ─── POST /api/admin-panel/lead-discovery/reset-stale-qualified ───────────────
+// 48 saatten önce qualify edilmiş leadleri (WAF/CDN kontrolü öncesi false pozitifler)
+// pending+tier2+is_qualified=false olarak sıfırla; bir sonraki qualify batch'i onları tekrar değerlendirir.
+router.post("/admin-panel/lead-discovery/reset-stale-qualified", requireAdmin, async (req: Request, res: Response) => {
+  const { hoursAgo = 48 } = (req.body ?? {}) as { hoursAgo?: number };
+  const cutoff = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
+
+  const result = await db.execute(sql`
+    UPDATE lead_candidates
+    SET
+      scan_status   = 'pending',
+      tier          = 'tier2',
+      is_qualified  = false,
+      scan_id       = NULL,
+      risk_score    = NULL,
+      critical_findings = 0,
+      finding_highlights = NULL,
+      last_scanned_at = NULL,
+      updated_at    = NOW()
+    WHERE
+      is_qualified = true
+      AND scan_status = 'scanned'
+      AND (last_scanned_at < ${cutoff} OR last_scanned_at IS NULL)
+  `);
+
+  const resetCount = result.rowCount ?? 0;
+  req.log.info({ resetCount, hoursAgo }, "Eski qualified leadler yeniden kalifikasyona sokuldu");
+  res.json({ reset: resetCount, message: `${resetCount} lead sıfırlandı — şimdi Kalifikasyonu Çalıştır butonuyla batch batch işleyin.` });
+});
+
 // ─── GET /api/admin-panel/lead-discovery/qualified ───────────────────────────
 router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Request, res: Response) => {
   const minScore = parseInt(req.query["minScore"] as string ?? "0");

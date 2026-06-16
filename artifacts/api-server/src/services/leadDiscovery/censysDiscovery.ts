@@ -56,12 +56,25 @@ export interface CensysDiscoveryResult {
   addedToLeads: number;
 }
 
-export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
+function buildCensysAuth(): { auth?: { username: string; password: string }; headers?: Record<string, string> } | null {
+  const singleKey = process.env["CENSYS_API_KEY"];
   const apiId = process.env["CENSYS_API_ID"];
   const apiSecret = process.env["CENSYS_API_SECRET"];
 
-  if (!apiId || !apiSecret) {
-    logger.info("CENSYS_API_ID veya CENSYS_API_SECRET tanımlı değil — Censys discovery atlanıyor");
+  if (singleKey) {
+    return { headers: { Authorization: `Bearer ${singleKey}` } };
+  }
+  if (apiId && apiSecret) {
+    return { auth: { username: apiId, password: apiSecret } };
+  }
+  return null;
+}
+
+export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
+  const censysAuth = buildCensysAuth();
+
+  if (!censysAuth) {
+    logger.info("CENSYS_API_KEY (veya CENSYS_API_ID+SECRET) tanımlı değil — Censys discovery atlanıyor");
     return { runId: 0, domainsFound: 0, addedToLeads: 0 };
   }
 
@@ -84,8 +97,11 @@ export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
             per_page: 100,
           },
           {
-            auth: { username: apiId, password: apiSecret },
-            headers: { "User-Agent": "CyberStep-SecurityResearch/1.0" },
+            ...(censysAuth.auth ? { auth: censysAuth.auth } : {}),
+            headers: {
+              "User-Agent": "CyberStep-SecurityResearch/1.0",
+              ...(censysAuth.headers ?? {}),
+            },
             timeout: 20_000,
           },
         );

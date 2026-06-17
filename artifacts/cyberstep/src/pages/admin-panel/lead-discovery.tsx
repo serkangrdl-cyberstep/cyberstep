@@ -2456,6 +2456,90 @@ export default function AdminLeadDiscovery() {
               </CardContent>
             </Card>
 
+            {/* WAF Post-Qualification Enrichment */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">WAF Post-Qualification Enrichment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-slate-400 text-xs">
+                  Kalifikasyondan geçen lead'ler için WAF tespiti ayrı bir cron ile çalışır — kalifikasyon anında değil, sonrasında.
+                  Her 30 dakikada bir en fazla 50 satır işlenir. Timeout ile gerçek sonuç birbirinden kesinlikle ayrılır.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">Durum</th>
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">waf_enrichment_status</th>
+                        <th className="text-left py-2 text-slate-400 font-medium">Anlam</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">Bekliyor</td>
+                        <td className="py-2.5 pr-4 font-mono text-slate-500">null</td>
+                        <td className="py-2.5 text-slate-400">Henüz işlenmedi veya timeout — bir sonraki run dener</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-green-400">Tamamlandı</td>
+                        <td className="py-2.5 pr-4 font-mono text-green-400">enriched</td>
+                        <td className="py-2.5 text-slate-400">Gerçek WAF sonucu alındı, waf_enriched_at set edildi</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-orange-400">Kalıcı timeout</td>
+                        <td className="py-2.5 pr-4 font-mono text-orange-400">unknown_timeout</td>
+                        <td className="py-2.5 text-slate-400">3 denemede de timeout — bir sonraki cron run bu satırı atlar</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="rounded-lg border border-amber-800/40 bg-amber-950/20 p-3 text-xs text-amber-300 space-y-1">
+                  <div className="font-semibold">Kritik ayrım: timeout ≠ "WAF yok"</div>
+                  <div className="text-amber-400/80">
+                    <span className="font-mono">waf_enriched_at</span> yalnızca gerçek bir sonuç alındığında set edilir.
+                    Timeout olduğunda null kalır — bu, WAF olmadığı anlamına gelmez.
+                    3 timeout sonrası satır <span className="font-mono">unknown_timeout</span> olarak işaretlenir ve artık seçilmez.
+                  </div>
+                </div>
+                <div className="text-xs text-slate-500 bg-slate-800/40 rounded p-2.5">
+                  Cron: her 30 dakika — Limit: 50 satır/run — Eşzamanlılık: 3 — Toplam 886 lead için tahmini süre: ~9 saat
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Teaser anlık görüntü politikası */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">Teaser Anlık Görüntü Politikası</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-slate-400 text-xs">
+                  Teaser raporu, kalifikasyon anındaki tarama verileriyle bir kez üretilir.
+                  WAF enrichment tamamlandığında teaser yenilenmez — bu bilinçli bir tasarım kararıdır.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-blue-800/40 bg-blue-950/20 p-3 text-xs space-y-1">
+                    <div className="text-blue-300 font-semibold">Hız &gt; Kesinlik</div>
+                    <div className="text-slate-400">
+                      Teaser, kalifikasyon olur olmaz üretilebilir. WAF enrichment kuyruğunu beklersek bazı lead'ler 9 saat gecikmeli teaser alır — bu, snapshot modelinin seçilme sebebidir.
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-green-800/40 bg-green-950/20 p-3 text-xs space-y-1">
+                    <div className="text-green-300 font-semibold">Yön Güvenli</div>
+                    <div className="text-slate-400">
+                      WAF enrichment sonradan WAF bulursa bulgular azalır, artmaz — teaser her zaman gerçekte olduğundan daha kötümser kalır, asla daha iyimser değil. Satış mesajı geçerliliğini korur.
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-700 bg-slate-800/40 p-3 text-xs text-slate-400">
+                  Her teaser'ın <span className="font-mono text-slate-300">urgency_note</span> alanına sabit bir dipnot eklenir:
+                  <span className="block mt-1 italic text-slate-500">"Bu ön taramadır; bulgular tarama anındaki verileri yansıtmaktadır."</span>
+                  Bu ekleme AI çıktısından bağımsız — hata durumunda dahi garantilidir.
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         </TabsContent>
 

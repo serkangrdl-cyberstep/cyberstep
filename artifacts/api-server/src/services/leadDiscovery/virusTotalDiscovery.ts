@@ -13,7 +13,7 @@ import { inferSectorFromDomain } from "../crtshScanner";
 
 const VT_BASE = "https://www.virustotal.com/api/v3";
 
-const EXCLUDED_TLDS = [".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr"];
+const EXCLUDED_TLDS = [".gov.tr", ".k12.tr", ".mil.tr", ".pol.tr"];
 
 function isExcluded(domain: string): boolean {
   return EXCLUDED_TLDS.some(t => domain.toLowerCase().endsWith(t));
@@ -81,6 +81,7 @@ export async function runVirusTotalDiscovery(limit = 50): Promise<VirusTotalResu
             source: "virustotal_subdomain",
             sourceData: { parentDomain: domain, discoveryMethod: "vt_passive_dns" },
             scanStatus: "pending",
+            isMunicipality: sub.endsWith(".bel.tr"),
           }).onConflictDoNothing().returning();
           if (inserted.length > 0) added++;
         }

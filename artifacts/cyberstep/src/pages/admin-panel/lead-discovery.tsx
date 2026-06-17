@@ -759,6 +759,7 @@ export default function AdminLeadDiscovery() {
   const [qTeaser, setQTeaser] = useState(""); // "" | "has" | "sent" | "notsent"
   const [qMinScore, setQMinScore] = useState(0);
   const [qCriticalPort, setQCriticalPort] = useState(false);
+  const [qMunicipality, setQMunicipality] = useState<"" | "only" | "exclude">("");
   const [qPageInput, setQPageInput] = useState("");
   const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
@@ -816,7 +817,7 @@ export default function AdminLeadDiscovery() {
   const { data: qualifiedData, isLoading: qualifiedLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort],
+    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort, qMunicipality],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(qPage), pageSize: String(qPageSize), sortBy: qSort });
       if (qSearch) params.set("search", qSearch);
@@ -828,6 +829,7 @@ export default function AdminLeadDiscovery() {
       if (qTeaser === "notsent") params.set("notSent", "true");
       if (qMinScore > 0) params.set("minScore", String(qMinScore));
       if (qCriticalPort) params.set("criticalPort", "true");
+      if (qMunicipality) params.set("municipality", qMunicipality);
       return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
     },
     refetchInterval: 30_000,
@@ -1617,6 +1619,24 @@ export default function AdminLeadDiscovery() {
                   className={`px-2 py-1 rounded-md text-xs border transition-colors ${qCriticalPort ? "bg-red-900/60 border-red-600 text-red-300" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-red-600/50 hover:text-red-400"}`}
                 >
                   Kritik Port Açık
+                </button>
+
+                {/* Belediye filtresi */}
+                <button
+                  onClick={() => {
+                    setQMunicipality((v) => v === "" ? "only" : v === "only" ? "exclude" : "");
+                    setQPage(1);
+                  }}
+                  className={`px-2 py-1 rounded-md text-xs border transition-colors ${
+                    qMunicipality === "only"
+                      ? "bg-blue-900/60 border-blue-500 text-blue-300"
+                      : qMunicipality === "exclude"
+                      ? "bg-slate-700/60 border-slate-500 text-slate-300 line-through"
+                      : "bg-slate-800 border-slate-700 text-slate-400 hover:border-blue-500/50 hover:text-blue-400"
+                  }`}
+                  title={qMunicipality === "" ? "Tüm domainler (belediyeler dahil)" : qMunicipality === "only" ? "Sadece belediyeler (.bel.tr)" : "Belediyeler hariç"}
+                >
+                  {qMunicipality === "only" ? "Sadece Belediyeler" : qMunicipality === "exclude" ? "Belediyeler Hariç" : "Belediyeler"}
                 </button>
 
                 <div className="ml-auto flex flex-wrap gap-1.5">

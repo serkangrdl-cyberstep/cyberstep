@@ -398,6 +398,7 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
   const source      = req.query["source"] as string | undefined;
   const search      = (req.query["search"] as string ?? "").trim().toLowerCase();
   const sortBy      = (req.query["sortBy"] as string) || "risk_desc";
+  const municipality = req.query["municipality"] as string | undefined; // "only" | "exclude" | undefined
   const page        = Math.max(1, parseInt(req.query["page"] as string ?? "1"));
   const pageSize    = Math.min(100, Math.max(10, parseInt(req.query["pageSize"] as string ?? "50")));
 
@@ -417,6 +418,8 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
     SELECT domain FROM customer_tech_stack
     WHERE category = 'open_port' AND security_risk = 'critical' AND is_active = true
   )`);
+  if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
+  if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
 
   const orderClause =
     sortBy === "risk_asc"   ? leadCandidatesTable.riskScore :

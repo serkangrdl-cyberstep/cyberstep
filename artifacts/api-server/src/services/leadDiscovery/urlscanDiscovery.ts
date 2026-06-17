@@ -12,7 +12,7 @@ import { inferSectorFromDomain } from "../crtshScanner";
 
 const URLSCAN_BASE = "https://urlscan.io/api/v1";
 
-const EXCLUDED_TLDS = [".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr"];
+const EXCLUDED_TLDS = [".gov.tr", ".k12.tr", ".mil.tr", ".pol.tr"];
 const EXCLUDED_DOMAINS = new Set([
   "cloudflare.com", "amazonaws.com", "azure.com", "google.com",
   "microsoft.com", "github.io", "netlify.app", "vercel.app",
@@ -90,6 +90,7 @@ export async function runUrlscanDiscovery(pages = 5): Promise<URLScanResult> {
         source: "urlscan",
         sourceData: { discoveryMethod: "urlscan_search" },
         scanStatus: "pending",
+        isMunicipality: domain.endsWith(".bel.tr"),
       }).onConflictDoNothing().returning();
       if (inserted.length > 0) added++;
     }

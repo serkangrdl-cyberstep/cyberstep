@@ -16,7 +16,7 @@ import { logger } from "../../lib/logger";
 import { shouldExcludeFromPipeline } from "../leadScoringService";
 
 const CENSYS_SEARCH_URL = "https://search.censys.io/api/v2/hosts/search";
-const TR_TLDS = ["com.tr", "net.tr", "org.tr"];
+const TR_TLDS = ["com.tr", "net.tr", "org.tr", "bel.tr"];
 
 function extractRootDomain(hostname: string): string {
   const clean = hostname.replace(/^\*\./, "").toLowerCase();
@@ -132,6 +132,7 @@ export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
         source: "censys",
         sourceData: { discoveryMethod: "censys_ssl_cert" },
         scanStatus: "pending",
+        isMunicipality: domain.endsWith(".bel.tr"),
       }).onConflictDoUpdate({
         target: leadCandidatesTable.domain,
         set: {

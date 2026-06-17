@@ -16,6 +16,7 @@ import { shouldExcludeFromPipeline } from "./leadScoringService";
 export const SHODAN_FREE_QUERIES = [
   { q: "ssl.cert.subject.cn:.com.tr country:TR", label: "TR .com.tr SSL Sertifikaları", priority: 1 },
   { q: "ssl.cert.subject.cn:.net.tr country:TR", label: "TR .net.tr SSL Sertifikaları", priority: 2 },
+  { q: "ssl.cert.subject.cn:.bel.tr country:TR", label: "TR .bel.tr Belediyeleri", priority: 2 },
   { q: 'country:TR http.title:"ERP" port:443', label: "TR ERP Sistemleri (Yüksek değer)", priority: 1 },
   { q: 'country:TR http.title:"Outlook Web App"', label: "TR Microsoft Exchange", priority: 2 },
   { q: 'country:TR product:"Fortinet" port:443', label: "TR Fortinet Cihazları", priority: 1 },
@@ -187,6 +188,7 @@ export async function scanShodanFree(queryIndex: number = 0, maxResults: number 
         },
         hasFortigate: isFortigate,
         scanStatus: "pending",
+        isMunicipality: domain.endsWith(".bel.tr"),
       }).onConflictDoUpdate({
         target: leadCandidatesTable.domain,
         set: {

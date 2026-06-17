@@ -77,6 +77,7 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   wafEnrichmentAttempts: integer("waf_enrichment_attempts").notNull().default(0),
   // null=pending | 'enriched'=real result | 'unknown_timeout'=max retries exceeded
   wafEnrichmentStatus: varchar("waf_enrichment_status", { length: 30 }),
+  isMunicipality: boolean("is_municipality").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

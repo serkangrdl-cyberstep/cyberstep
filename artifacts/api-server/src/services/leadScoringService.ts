@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 // ─── Domain eleme filtresi ────────────────────────────────────────────────────
 
 const EXCLUDED_TLDS = [
-  ".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr",
+  ".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".pol.tr",
 ];
 
 const EXCLUDED_EXACT_DOMAINS = new Set([
@@ -15,9 +15,9 @@ const EXCLUDED_EXACT_DOMAINS = new Set([
 ]);
 
 const EXCLUDED_ASN_KEYWORDS = [
-  "odalar ve borsalar", "belediye", "bakanlık", "bakanlik", "bakanligi",
+  "odalar ve borsalar", "bakanlık", "bakanlik", "bakanligi",
   "üniversite", "universite", "university", "hükümeti", "hukumeti",
-  "devlet", "kamu", "municipality",
+  "devlet", "kamu",
 ];
 
 export function shouldExcludeFromPipeline(

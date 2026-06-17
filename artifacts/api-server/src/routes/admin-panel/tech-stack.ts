@@ -51,10 +51,15 @@ router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
 // GET /api/admin-panel/tech-stack/segments
 router.get("/admin-panel/tech-stack/segments", requireAdmin, async (req, res) => {
   try {
-    const fortinetM365 = await db
-      .selectDistinct({ domain: customerTechStackTable.domain })
-      .from(customerTechStackTable)
-      .where(and(eq(customerTechStackTable.vendor, "fortinet"), eq(customerTechStackTable.isActive, true)));
+    // Fortinet: hem customer_tech_stack (Shodan tespiti) hem domain_scans (WAF header tespiti)
+    const fortinetResult = await db.execute(sql`
+      SELECT DISTINCT domain FROM customer_tech_stack
+      WHERE vendor = 'fortinet' AND is_active = true
+      UNION
+      SELECT DISTINCT domain FROM domain_scans
+      WHERE waf_provider = 'fortinet'
+    `);
+    const fortinetDomainList = (fortinetResult.rows as { domain: string }[]).map((r) => r.domain);
 
     const criticalPort = await db
       .selectDistinct({ domain: customerTechStackTable.domain })
@@ -67,7 +72,7 @@ router.get("/admin-panel/tech-stack/segments", requireAdmin, async (req, res) =>
       .where(and(eq(customerTechStackTable.salesSignal, "budget_indicator_enterprise"), eq(customerTechStackTable.isActive, true)));
 
     res.json({
-      fortinetDomains: { count: fortinetM365.length, domains: fortinetM365.map((d) => d.domain) },
+      fortinetDomains: { count: fortinetDomainList.length, domains: fortinetDomainList },
       criticalPortDomains: { count: criticalPort.length, domains: criticalPort.map((d) => d.domain) },
       enterpriseDomains: { count: enterprise.length, domains: enterprise.map((d) => d.domain) },
     });

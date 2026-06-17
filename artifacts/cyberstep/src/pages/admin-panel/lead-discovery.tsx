@@ -756,6 +756,7 @@ export default function AdminLeadDiscovery() {
   const [qContact, setQContact] = useState(""); // "" | "has" | "no"
   const [qTeaser, setQTeaser] = useState(""); // "" | "has" | "sent" | "notsent"
   const [qMinScore, setQMinScore] = useState(0);
+  const [qCriticalPort, setQCriticalPort] = useState(false);
   const [qPageInput, setQPageInput] = useState("");
   const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
@@ -813,7 +814,7 @@ export default function AdminLeadDiscovery() {
   const { data: qualifiedData, isLoading: qualifiedLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore],
+    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(qPage), pageSize: String(qPageSize), sortBy: qSort });
       if (qSearch) params.set("search", qSearch);
@@ -824,6 +825,7 @@ export default function AdminLeadDiscovery() {
       if (qTeaser === "sent") params.set("teaserSent", "true");
       if (qTeaser === "notsent") params.set("notSent", "true");
       if (qMinScore > 0) params.set("minScore", String(qMinScore));
+      if (qCriticalPort) params.set("criticalPort", "true");
       return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
     },
     refetchInterval: 30_000,
@@ -1606,6 +1608,14 @@ export default function AdminLeadDiscovery() {
                   <option value={50}>50 / sayfa</option>
                   <option value={100}>100 / sayfa</option>
                 </select>
+
+                {/* Kritik Port filtresi */}
+                <button
+                  onClick={() => { setQCriticalPort((v) => !v); setQPage(1); }}
+                  className={`px-2 py-1 rounded-md text-xs border transition-colors ${qCriticalPort ? "bg-red-900/60 border-red-600 text-red-300" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-red-600/50 hover:text-red-400"}`}
+                >
+                  Kritik Port Açık
+                </button>
 
                 <div className="ml-auto flex flex-wrap gap-1.5">
                   <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}>

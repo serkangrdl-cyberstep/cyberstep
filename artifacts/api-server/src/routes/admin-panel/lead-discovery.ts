@@ -395,31 +395,36 @@ router.post("/admin-panel/lead-discovery/reset-stale-qualified", requireAdmin, a
 
 // ─── GET /api/admin-panel/lead-discovery/qualified ───────────────────────────
 router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Request, res: Response) => {
-  const minScore = parseInt(req.query["minScore"] as string ?? "0");
-  const hasContact = req.query["hasContact"] === "true";
-  const noContact  = req.query["noContact"]  === "true";
-  const notSent    = req.query["notSent"]    === "true";
-  const hasTeaser  = req.query["hasTeaser"]  === "true";
-  const teaserSent = req.query["teaserSent"] === "true";
-  const tier       = req.query["tier"] as string | undefined;
-  const source     = req.query["source"] as string | undefined;
-  const search     = (req.query["search"] as string ?? "").trim().toLowerCase();
-  const sortBy     = (req.query["sortBy"] as string) || "risk_desc";
-  const page       = Math.max(1, parseInt(req.query["page"] as string ?? "1"));
-  const pageSize   = Math.min(100, Math.max(10, parseInt(req.query["pageSize"] as string ?? "50")));
+  const minScore    = parseInt(req.query["minScore"] as string ?? "0");
+  const hasContact  = req.query["hasContact"]  === "true";
+  const noContact   = req.query["noContact"]   === "true";
+  const notSent     = req.query["notSent"]     === "true";
+  const hasTeaser   = req.query["hasTeaser"]   === "true";
+  const teaserSent  = req.query["teaserSent"]  === "true";
+  const criticalPort = req.query["criticalPort"] === "true";
+  const tier        = req.query["tier"] as string | undefined;
+  const source      = req.query["source"] as string | undefined;
+  const search      = (req.query["search"] as string ?? "").trim().toLowerCase();
+  const sortBy      = (req.query["sortBy"] as string) || "risk_desc";
+  const page        = Math.max(1, parseInt(req.query["page"] as string ?? "1"));
+  const pageSize    = Math.min(100, Math.max(10, parseInt(req.query["pageSize"] as string ?? "50")));
 
   const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [
     eq(leadCandidatesTable.isQualified, true),
   ];
-  if (minScore > 0) conditions.push(sql`${leadCandidatesTable.riskScore} >= ${minScore}`);
-  if (hasContact) conditions.push(isNotNull(leadCandidatesTable.contactEmail));
-  if (noContact)  conditions.push(isNull(leadCandidatesTable.contactEmail));
-  if (notSent)    conditions.push(isNull(leadCandidatesTable.teaserSentAt));
-  if (teaserSent) conditions.push(isNotNull(leadCandidatesTable.teaserSentAt));
-  if (hasTeaser)  conditions.push(isNotNull(leadCandidatesTable.teaserSubject));
-  if (tier)       conditions.push(eq(leadCandidatesTable.tier, tier));
-  if (source)     conditions.push(eq(leadCandidatesTable.source, source));
-  if (search)     conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
+  if (minScore > 0)   conditions.push(sql`${leadCandidatesTable.riskScore} >= ${minScore}`);
+  if (hasContact)     conditions.push(isNotNull(leadCandidatesTable.contactEmail));
+  if (noContact)      conditions.push(isNull(leadCandidatesTable.contactEmail));
+  if (notSent)        conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+  if (teaserSent)     conditions.push(isNotNull(leadCandidatesTable.teaserSentAt));
+  if (hasTeaser)      conditions.push(isNotNull(leadCandidatesTable.teaserSubject));
+  if (tier)           conditions.push(eq(leadCandidatesTable.tier, tier));
+  if (source)         conditions.push(eq(leadCandidatesTable.source, source));
+  if (search)         conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
+  if (criticalPort)   conditions.push(sql`${leadCandidatesTable.domain} IN (
+    SELECT domain FROM customer_tech_stack
+    WHERE category = 'open_port' AND security_risk = 'critical' AND is_active = true
+  )`);
 
   const orderClause =
     sortBy === "risk_asc"   ? leadCandidatesTable.riskScore :

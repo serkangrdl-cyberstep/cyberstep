@@ -86,17 +86,24 @@ function isCloudflareIp(ip: string): boolean {
   return CF_CIDRS.some(cidr => isIpInCidr(ip, cidr));
 }
 
+// ─── Yardımcı: timeout'lu Promise.race ───────────────────────────────────────
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))]);
+}
+
 // ─── DNS PTR + IP aralığı kontrolü ───────────────────────────────────────────
 async function checkDnsPtrProvider(domain: string): Promise<string | null> {
   try {
-    const addresses = await dns.resolve4(domain);
+    // dns.resolve4 sisteme bağlı timeout kullanır — max 3s ile sınırla
+    const addresses = await withTimeout(dns.resolve4(domain), 3000, [] as string[]);
     const ip = addresses[0];
     if (!ip) return null;
 
     if (isCloudflareIp(ip)) return "cloudflare";
 
     try {
-      const ptrs = await dns.reverse(ip);
+      // dns.reverse da timeout'suz — max 3s
+      const ptrs = await withTimeout(dns.reverse(ip), 3000, [] as string[]);
       const ptr = (ptrs[0] ?? "").toLowerCase();
       if (ptr.includes("cloudflare")) return "cloudflare";
       if (ptr.includes("akamai") || ptr.includes("akamaiedge")) return "akamai";

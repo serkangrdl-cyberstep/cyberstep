@@ -1431,7 +1431,16 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       checkThreatFox(domain),
       checkFeodoTracker(domain),
       checkMozillaObservatory(domain),
-      detectWAF(domain).catch(() => ({ detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[], indirectCdnProvider: null, indirectCdnNote: null, hasCdn: false, cdnProvider: null, confidenceLevel: null, detectionMethods: [] as string[] })),
+      // Genel detectWAF timeout: her adım kendi timeout'una sahip olsa da toplam 15s tavan.
+      // Bu limit canlı müşteri taramalarında (~POST /api/domain-scan) ve gelecekteki
+      // enrichment cron'larında aynı şekilde uygulanır.
+      ((): Promise<Awaited<ReturnType<typeof detectWAF>>> => {
+        const empty: Awaited<ReturnType<typeof detectWAF>> = { detected: false, provider: null, confidence: 0, headersAddedByWAF: [], indirectCdnProvider: null, indirectCdnNote: null, hasCdn: false, cdnProvider: null, confidenceLevel: null, detectionMethods: [] };
+        return Promise.race([
+          detectWAF(domain),
+          new Promise<Awaited<ReturnType<typeof detectWAF>>>(resolve => setTimeout(() => resolve(empty), 15000)),
+        ]).catch(() => empty);
+      })(),
     ]);
 
     // WAF tespit edildiyse bypass kontrolü yap

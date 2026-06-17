@@ -14,6 +14,7 @@ export const leadScanQueueTable = pgTable("lead_scan_queue", {
   highCount: integer("high_count").default(0),
   leadScore: integer("lead_score"),
   leadScoreFactors: jsonb("lead_score_factors"),
+  aiScoreStatus: varchar("ai_score_status", { length: 20 }),
   contacts: jsonb("contacts"),
   importedAt: timestamp("imported_at"),
   importedToCustomerId: integer("imported_to_customer_id"),

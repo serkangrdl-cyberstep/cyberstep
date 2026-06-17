@@ -73,8 +73,11 @@ export function computeCVEBreakdown(
   return { total: cveSummary.length, critical, high, medium, informational, cisaKev };
 }
 
+export type AiScoreStatus = "scored" | "failed" | "timeout" | "rate_limited";
+
 export interface LeadScoreResult {
-  score: number;
+  score: number | null;
+  status: AiScoreStatus;
   factors: Record<string, number | string>;
 }
 
@@ -83,6 +86,13 @@ function cleanJson(raw: string): string {
     .replace(/```json\n?/g, "")
     .replace(/```\n?/g, "")
     .trim();
+}
+
+function classifyError(err: unknown): AiScoreStatus {
+  const msg = String(err).toLowerCase();
+  if (msg.includes("timeout") || msg.includes("etimedout") || msg.includes("econnreset")) return "timeout";
+  if (msg.includes("429") || msg.includes("rate limit") || msg.includes("too many requests")) return "rate_limited";
+  return "failed";
 }
 
 export async function scoreLeadWithAI(
@@ -120,13 +130,15 @@ JSON formatında döndür (başka hiçbir şey yok):
 }`;
 
     const raw = await ai(prompt);
-    const parsed = JSON.parse(cleanJson(raw)) as LeadScoreResult;
-    return parsed;
+    const parsed = JSON.parse(cleanJson(raw)) as { score: number; factors: Record<string, number | string> };
+    return { score: parsed.score, status: "scored", factors: parsed.factors };
   } catch (err) {
-    logger.error({ err, domain }, "Lead scoring failed — using default score");
+    const status = classifyError(err);
+    logger.error({ err, domain, status }, "Lead scoring failed");
     return {
-      score: 30,
-      factors: { reasoning: "Otomatik puanlama başarısız" },
+      score: null,
+      status,
+      factors: { reasoning: `Otomatik puanlama başarısız (${status})` },
     };
   }
 }

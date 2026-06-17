@@ -843,6 +843,7 @@ async function ensureIsrTables() {
       scanned_at TIMESTAMP
     )
   `);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_status VARCHAR(20)`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS contact_enrichment_log (
       id SERIAL PRIMARY KEY,
@@ -1090,6 +1091,55 @@ function startLeadWebEnrichCron() {
     { timezone: "Europe/Istanbul" },
   );
   logger.info("Lead web enrich cron scheduled (daily 06:00 Istanbul)");
+}
+
+function startAiScoreRetryCron() {
+  cron.schedule(
+    "45 * * * *",
+    wrapCron("ai_score_retry", "45 * * * *", async () => {
+      const { scoreLeadWithAI } = await import("./services/leadScoringService");
+      const { leadScanQueueTable } = await import("@workspace/db");
+      const { eq, inArray, sql: drizzleSql, lt } = await import("drizzle-orm");
+      const pending = await db.execute(
+        sql`SELECT id, domain, company_name, domain_scan_data
+            FROM lead_scan_queue
+            WHERE ai_score_status IN ('failed','timeout','rate_limited')
+              AND scanned_at < NOW() - INTERVAL '1 hour'
+            ORDER BY scanned_at ASC
+            LIMIT 20`,
+      );
+      const rows = pending.rows as Array<{ id: number; domain: string; company_name: string | null; domain_scan_data: Record<string, unknown> | null }>;
+      let retried = 0, succeeded = 0;
+      for (const row of rows) {
+        try {
+          const scanData = row.domain_scan_data ?? { domain: row.domain };
+          const scored = await scoreLeadWithAI(row.domain, row.company_name, scanData);
+          if (scored.status === "scored") {
+            await db.update(leadScanQueueTable).set({
+              scanStatus: "scored",
+              leadScore: scored.score,
+              leadScoreFactors: scored.factors,
+              aiScoreStatus: "scored",
+              scannedAt: new Date(),
+            }).where(eq(leadScanQueueTable.id, row.id));
+            succeeded++;
+          } else {
+            await db.update(leadScanQueueTable).set({
+              aiScoreStatus: scored.status,
+              scannedAt: new Date(),
+            }).where(eq(leadScanQueueTable.id, row.id));
+          }
+          retried++;
+        } catch (err) {
+          logger.warn({ err: String(err), id: row.id }, "AI score retry hata");
+        }
+      }
+      logger.info({ retried, succeeded }, "AI score retry cron tamamlandı");
+      return succeeded;
+    }),
+    { timezone: "Europe/Istanbul" },
+  );
+  logger.info("AI score retry cron scheduled (saatte bir, :45)");
 }
 
 function startLeadTrEnrichCron() {
@@ -2326,6 +2376,7 @@ startup()
     startScanLeadDripCron();
     startLeadWebEnrichCron();
     startLeadTrEnrichCron();
+    startAiScoreRetryCron();
     startFreeScanFollowupCron();
     startIsrImapCron();
     startInflationReminderCron();

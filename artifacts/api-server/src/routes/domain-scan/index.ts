@@ -207,7 +207,7 @@ function computeConfidenceScore(
   if (bypassPossible) return 55;
   if (osintResult?.wafBypassRisk === "high") return 60;
   if (wafResult.confidenceLevel === "high") return 72;
-  if (wafResult.confidenceLevel === "medium") return 78;
+  if (wafResult.confidenceLevel === "medium") return 74;
   if (wafResult.hasCdn && !wafResult.detected) return 85;
   return 75;
 }
@@ -1462,13 +1462,14 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     const confidenceScore = computeConfidenceScore(wafResult, bypassResult.bypassPossible, osintResult);
     const confidenceNote  = computeConfidenceNote(wafResult, bypassResult.bypassPossible, osintResult);
 
-    // CVE risklerini WAF bağlamında ayarla
+    // CVE risklerini WAF bağlamında ayarla (güven seviyesine göre kademeli azaltma)
     const cveSummary = adjustCvesForWAF({
       cveSummary: cveSummaryRaw,
       wafDetected: wafResult.detected,
       wafProvider: wafResult.provider,
       bypassPossible: bypassResult.bypassPossible,
       headersAddedByWAF: wafResult.headersAddedByWAF,
+      wafConfidenceLevel: wafResult.confidenceLevel,
     });
 
     const cveSummaryWithEpss = cveSummary.length > 0 ? await enrichWithEpss(cveSummary) : [];

@@ -1,8 +1,10 @@
 // ─── WAF Bağlamında CVE Risk Ayarlayıcı ──────────────────────────────────────
-// cveSummary dizisindeki her CVE'yi WAF varlığına göre değerlendirir.
+// cveSummary dizisindeki her CVE'yi WAF varlığına ve güven seviyesine göre değerlendirir.
 // - WAF yok → değişmez
-// - WAF var + bypass mümkün → not ekle, risk düşürme
-// - WAF var + bypass yok → CVSS azalt, wafMitigated = true
+// - WAF var + bypass mümkün → not ekle, risk düşürme yok
+// - WAF var, low confidence → not ekle, risk düşürme yok ("WAF olası ama doğrulanamadı")
+// - WAF var, medium confidence → azaltmayı yarıya indir (×0.80 / ×0.825)
+// - WAF var, high confidence + bypass yok → tam azaltma (×0.60 / ×0.65)
 // - Servis WAF-bağımsız ise (SSL, e-posta) → not ekle, risk değişmez
 
 import { WAF_DISPLAY_NAMES } from "./wafDetector";
@@ -17,10 +19,16 @@ export interface AdjustedCve {
   wafMitigationNote?: string;
 }
 
-// WAF azaltma oranları (bulgu türüne göre)
-const WAF_REDUCTION: Record<string, { by: number; note: string }> = {
-  critical: { by: 0.40, note: "WAF imzaları CVE istismarını kısmen engeller" },
-  high:     { by: 0.35, note: "WAF imzaları CVE istismarını kısmen engeller" },
+// WAF azaltma oranları — güven seviyesine göre kademelendirme
+const WAF_REDUCTION: Record<"high" | "medium", Record<"critical" | "high", { by: number; note: string }>> = {
+  high: {
+    critical: { by: 0.40, note: "WAF imzaları CVE istismarını kısmen engeller (yüksek güven)" },
+    high:     { by: 0.35, note: "WAF imzaları CVE istismarını kısmen engeller (yüksek güven)" },
+  },
+  medium: {
+    critical: { by: 0.20, note: "WAF sinyali orta güvende — azaltma yarı uygulandı" },
+    high:     { by: 0.175, note: "WAF sinyali orta güvende — azaltma yarı uygulandı" },
+  },
 };
 
 // WAF'ın etkisi olmayan servis kategorileri (e-posta, SSL vb.)
@@ -47,8 +55,9 @@ export function adjustCvesForWAF(params: {
   wafProvider: string | null;
   bypassPossible: boolean;
   headersAddedByWAF: string[];
+  wafConfidenceLevel?: "high" | "medium" | "low" | null;
 }): AdjustedCve[] {
-  const { cveSummary, wafDetected, wafProvider, bypassPossible } = params;
+  const { cveSummary, wafDetected, wafProvider, bypassPossible, wafConfidenceLevel } = params;
 
   // WAF yoksa hiçbir şey değişmez
   if (!wafDetected || !wafProvider) return cveSummary;
@@ -75,18 +84,29 @@ export function adjustCvesForWAF(params: {
       };
     }
 
-    // CVSS 7.0+ → WAF azaltması uygula
+    // Low confidence → azaltma yok, sadece uyarı notu
+    if (!wafConfidenceLevel || wafConfidenceLevel === "low") {
+      return {
+        ...cve,
+        wafMitigated: false,
+        wafMitigationNote:
+          `${label} WAF sinyali düşük güvende — doğrulanamadı. CVSS ${cve.cvssScore} olduğu gibi gösteriliyor. Bağımsız doğrulama önerilir.`,
+      };
+    }
+
+    // CVSS 7.0+ → güven seviyesine göre kademeli WAF azaltması
     if (cve.cvssScore >= 7.0) {
       const criticality = scoreToCriticality(cve.cvssScore);
-      const reduction = WAF_REDUCTION[criticality === "critical" ? "critical" : "high"];
+      const tier = wafConfidenceLevel === "high" ? "high" : "medium";
+      const reduction = WAF_REDUCTION[tier][criticality === "critical" ? "critical" : "high"];
       const adjusted = parseFloat((cve.cvssScore * (1 - reduction.by)).toFixed(1));
       return {
         ...cve,
         adjustedCvssScore: adjusted,
         wafMitigated: true,
         wafMitigationNote:
-          `${label} WAF aktif — ${reduction.note}. Pratik risk: CVSS ${cve.cvssScore} → ${adjusted}. ` +
-          `Kaynak açık yamalanmadan WAF güvenilir değildir.`,
+          `${label} WAF aktif (${wafConfidenceLevel === "high" ? "yüksek" : "orta"} güven) — ${reduction.note}. ` +
+          `Pratik risk: CVSS ${cve.cvssScore} → ${adjusted}. Kaynak açık yamalanmadan WAF güvenilir değildir.`,
       };
     }
 

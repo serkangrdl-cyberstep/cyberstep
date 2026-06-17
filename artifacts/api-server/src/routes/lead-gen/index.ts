@@ -71,16 +71,28 @@ router.post("/api/lead-gen/queue/:id/score", requireAdmin, async (req: Request, 
       const scanData = row.domainScanData as Record<string, unknown> ?? { domain: row.domain };
       const scored = await scoreLeadWithAI(row.domain, row.companyName, scanData);
 
-      await db.update(leadScanQueueTable).set({
-        scanStatus: "scored",
-        leadScore: scored.score,
-        leadScoreFactors: scored.factors,
-        scannedAt: new Date(),
-      }).where(eq(leadScanQueueTable.id, id));
+      if (scored.status === "scored") {
+        await db.update(leadScanQueueTable).set({
+          scanStatus: "scored",
+          leadScore: scored.score,
+          leadScoreFactors: scored.factors,
+          aiScoreStatus: "scored",
+          scannedAt: new Date(),
+        }).where(eq(leadScanQueueTable.id, id));
+      } else {
+        // AI başarısız — skor NULL, status kaydedilir, retry kuyruğuna düşer
+        await db.update(leadScanQueueTable).set({
+          scanStatus: "score_failed",
+          leadScore: null,
+          leadScoreFactors: scored.factors,
+          aiScoreStatus: scored.status,
+          scannedAt: new Date(),
+        }).where(eq(leadScanQueueTable.id, id));
+      }
     } catch (err) {
-      logger.error({ err, id }, "Lead scoring failed");
+      logger.error({ err, id }, "Lead scoring outer error");
       await db.update(leadScanQueueTable)
-        .set({ scanStatus: "skipped", skippedReason: "Puanlama başarısız" })
+        .set({ scanStatus: "skipped", skippedReason: "Puanlama başarısız", aiScoreStatus: "failed" })
         .where(eq(leadScanQueueTable.id, id));
     }
   });

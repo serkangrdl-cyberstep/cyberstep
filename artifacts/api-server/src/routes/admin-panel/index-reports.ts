@@ -28,6 +28,12 @@ router.get("/admin-panel/index/dashboard", requireAdmin, async (req, res) => {
     }
 
     const summaryRows = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain) *
+        FROM domain_scans
+        WHERE created_at BETWEEN ${startDate} AND ${endDate}
+        ORDER BY domain, created_at DESC
+      )
       SELECT
         COUNT(*)::int as total,
         COUNT(CASE WHEN included_in_index THEN 1 END)::int as qualifying,
@@ -38,67 +44,91 @@ router.get("/admin-panel/index/dashboard", requireAdmin, async (req, res) => {
         COUNT(CASE WHEN overall_score BETWEEN 40 AND 59 THEN 1 END)::int as high_count,
         COUNT(CASE WHEN overall_score BETWEEN 60 AND 79 THEN 1 END)::int as medium_count,
         COUNT(CASE WHEN overall_score >= 80 THEN 1 END)::int as low_count
-      FROM domain_scans
-      WHERE created_at BETWEEN ${startDate} AND ${endDate}
+      FROM latest
     `);
 
     const dailyTrend = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain) *
+        FROM domain_scans
+        WHERE created_at BETWEEN ${startDate} AND ${endDate}
+        ORDER BY domain, created_at DESC
+      )
       SELECT
         DATE(created_at)::text as scan_date,
         COUNT(*)::int as count,
         ROUND(AVG(overall_score)::numeric, 1)::text as avg_score
-      FROM domain_scans
-      WHERE created_at BETWEEN ${startDate} AND ${endDate}
-        AND included_in_index = true
+      FROM latest
+      WHERE included_in_index = true
       GROUP BY DATE(created_at)
       ORDER BY scan_date ASC
     `);
 
     const emailRows = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain) *
+        FROM domain_scans
+        WHERE created_at BETWEEN ${startDate} AND ${endDate}
+        ORDER BY domain, created_at DESC
+      )
       SELECT
         ROUND(100.0 * SUM(CASE WHEN dmarc_record IS NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as dmarc_missing_pct,
         ROUND(100.0 * SUM(CASE WHEN dmarc_record LIKE '%p=none%' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as dmarc_none_pct,
         ROUND(100.0 * SUM(CASE WHEN dmarc_record LIKE '%p=reject%' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as dmarc_reject_pct,
         ROUND(100.0 * SUM(CASE WHEN spf_record IS NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as spf_missing_pct,
         ROUND(100.0 * SUM(CASE WHEN dkim_pass = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as dkim_missing_pct
-      FROM domain_scans
-      WHERE created_at BETWEEN ${startDate} AND ${endDate}
-        AND included_in_index = true
+      FROM latest
+      WHERE included_in_index = true
     `);
 
     const portRows = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain) *
+        FROM domain_scans
+        WHERE created_at BETWEEN ${startDate} AND ${endDate}
+        ORDER BY domain, created_at DESC
+      )
       SELECT
         ROUND(100.0 * SUM(CASE WHEN 3306 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(COALESCE(shodan_open_ports, '[]'::jsonb)) elem)) THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as mysql_pct,
         ROUND(100.0 * SUM(CASE WHEN 21 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(COALESCE(shodan_open_ports, '[]'::jsonb)) elem)) THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as ftp_pct,
         ROUND(100.0 * SUM(CASE WHEN 3389 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(COALESCE(shodan_open_ports, '[]'::jsonb)) elem)) THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1)::text as rdp_pct
-      FROM domain_scans
-      WHERE created_at BETWEEN ${startDate} AND ${endDate}
-        AND included_in_index = true
+      FROM latest
+      WHERE included_in_index = true
     `);
 
     const sectorStats = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain) *
+        FROM domain_scans
+        WHERE created_at BETWEEN ${startDate} AND ${endDate}
+        ORDER BY domain, created_at DESC
+      )
       SELECT
         COALESCE(sector, 'diger') as sector,
         COUNT(*)::int as count,
         ROUND(AVG(overall_score)::numeric, 1)::text as avg_score
-      FROM domain_scans
-      WHERE created_at BETWEEN ${startDate} AND ${endDate}
-        AND included_in_index = true
+      FROM latest
+      WHERE included_in_index = true
       GROUP BY sector
       ORDER BY count DESC
       LIMIT 10
     `);
 
     const scoreDistrib = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain) *
+        FROM domain_scans
+        WHERE created_at BETWEEN ${startDate} AND ${endDate}
+        ORDER BY domain, created_at DESC
+      )
       SELECT
         SUM(CASE WHEN overall_score <= 20 THEN 1 ELSE 0 END)::int as "0-20",
         SUM(CASE WHEN overall_score BETWEEN 21 AND 40 THEN 1 ELSE 0 END)::int as "21-40",
         SUM(CASE WHEN overall_score BETWEEN 41 AND 60 THEN 1 ELSE 0 END)::int as "41-60",
         SUM(CASE WHEN overall_score BETWEEN 61 AND 80 THEN 1 ELSE 0 END)::int as "61-80",
         SUM(CASE WHEN overall_score > 80 THEN 1 ELSE 0 END)::int as "81-100"
-      FROM domain_scans
-      WHERE created_at BETWEEN ${startDate} AND ${endDate}
-        AND included_in_index = true
+      FROM latest
+      WHERE included_in_index = true
     `);
 
     res.json({

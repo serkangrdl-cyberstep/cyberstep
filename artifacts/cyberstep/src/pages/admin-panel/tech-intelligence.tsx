@@ -13,6 +13,8 @@ import {
 
 interface TechStats {
   uniqueDomains: number;
+  scannedDomains: number;
+  pendingFingerprint: number;
   totalEntries: number;
   wafDetected: number;
   microsoft365: number;
@@ -167,13 +169,15 @@ export default function TechIntelligencePage() {
       <div className="space-y-6">
 
         {/* Genel Bakış */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {[
-            { icon: Globe,         label: "Analiz edilen domain", value: stats?.uniqueDomains ?? "—",      color: "text-cyan-400" },
+            { icon: Globe,         label: "Tarama yapılan",        value: stats?.scannedDomains ?? "—",     color: "text-slate-300" },
+            { icon: TrendingUp,    label: "Teknografik analiz",    value: stats?.uniqueDomains ?? "—",      color: "text-cyan-400" },
+            { icon: AlertTriangle, label: "Analiz bekleyen",       value: stats?.pendingFingerprint ?? "—", color: stats && stats.pendingFingerprint > 0 ? "text-amber-400" : "text-slate-500" },
             { icon: Shield,        label: "WAF Tespit",            value: stats?.wafDetected ?? "—",        color: "text-cyan-400" },
             { icon: Mail,          label: "Microsoft 365",         value: stats?.microsoft365 ?? "—",       color: "text-blue-400" },
             { icon: Cpu,           label: "FortiGate tespit",      value: stats?.fortinet ?? "—",           color: "text-orange-400" },
-            { icon: AlertTriangle, label: "Kritik port açık",      value: stats?.criticalOpenPorts ?? "—",  color: "text-red-400" },
+            { icon: AlertTriangle, label: "Kritik port",           value: stats?.criticalOpenPorts ?? "—",  color: "text-red-400" },
             { icon: Server,        label: "Toplam kayıt",          value: stats?.totalEntries ?? "—",       color: "text-slate-400" },
           ].map((item) => (
             <Card key={item.label} className="bg-slate-900 border-slate-800">

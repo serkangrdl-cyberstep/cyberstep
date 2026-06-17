@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { customerTechStackTable, customerSecurityMaturityTable } from "@workspace/db";
+import { customerTechStackTable, customerSecurityMaturityTable, domainScansTable } from "@workspace/db";
 import { eq, desc, sql, and, isNotNull, count } from "drizzle-orm";
 import { fingerprintDomain } from "../../services/technographics/fingerprintEngine";
 import { requireAdmin } from "./middleware";
@@ -27,8 +27,14 @@ router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
     const distinctDomains = await db.selectDistinct({ domain: customerTechStackTable.domain }).from(customerTechStackTable).where(eq(customerTechStackTable.isActive, true));
     const uniqueDomains = distinctDomains.length;
 
+    const scannedResult = await db.execute(sql`SELECT COUNT(DISTINCT domain)::int as cnt FROM domain_scans`);
+    const scannedDomains = Number((scannedResult.rows[0] as { cnt: number })?.cnt || 0);
+    const pendingFingerprint = Math.max(0, scannedDomains - uniqueDomains);
+
     res.json({
       uniqueDomains,
+      scannedDomains,
+      pendingFingerprint,
       totalEntries: Number(totalDomains),
       wafDetected: Number(wafCount),
       microsoft365: Number(microsoftCount),

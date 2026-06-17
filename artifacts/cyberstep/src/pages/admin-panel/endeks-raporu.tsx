@@ -218,7 +218,7 @@ export default function AdminEndeksRaporu() {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: "Toplam Domain",   value: dash.summary.total?.toLocaleString("tr") ?? "-", icon: Globe, color: "text-blue-600" },
+                { label: "Dönemde Taranan",  value: dash.summary.total?.toLocaleString("tr") ?? "-", icon: Globe, color: "text-blue-600" },
                 { label: "Ortalama Skor",   value: `${numPct(dash.summary.avg_score)}/100`,            icon: TrendingUp, color: riskColor(parseFloat(dash.summary.avg_score ?? "0")) },
                 { label: "DMARC Eksik",     value: `%${numPct(dash.emailSecurity?.dmarc_missing_pct)}`, icon: AlertTriangle, color: "text-red-600" },
                 { label: "MySQL Açık",      value: `%${numPct(dash.portRisk?.mysql_pct)}`,              icon: Shield, color: "text-orange-600" },

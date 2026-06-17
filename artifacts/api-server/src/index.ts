@@ -2385,34 +2385,16 @@ startup()
       const repo = "serkangrdl-cyberstep/CyberStep";
       const workflowId = "certstream-bridge.yml";
       if (!pat) { logger.warn("GITHUB_PAT eksik — certstream dispatch atlandı"); return 0; }
-      const { default: https } = await import("https");
-      await new Promise<void>((resolve) => {
-        const body = JSON.stringify({ ref: "main" });
-        const req = https.request({
-          hostname: "api.github.com",
-          path: `/repos/${repo}/actions/workflows/${workflowId}/dispatches`,
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${pat}`,
-            Accept: "application/vnd.github+json",
-            "User-Agent": "CyberStep-Server",
-            "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(body),
-          },
-        }, (res) => {
-          res.resume();
-          if (res.statusCode === 204) {
-            logger.info({ workflow: workflowId }, "Certstream dispatch tetiklendi");
-          } else {
-            logger.warn({ status: res.statusCode, workflow: workflowId }, "Certstream dispatch başarısız");
-          }
-          resolve();
-        });
-        req.on("error", (err) => { logger.warn({ err: String(err) }, "Certstream dispatch HTTP hata"); resolve(); });
-        req.write(body);
-        req.end();
-      });
-      return 1;
+      const { dispatchWorkflow, watchRunInBackground } = await import("./services/githubActionsHelper");
+      const dispatchedAt = new Date();
+      const result = await dispatchWorkflow({ pat, repo, workflowId });
+      if (result.dispatched) {
+        logger.info({ workflow: workflowId }, "Certstream dispatch tetiklendi — run izleniyor");
+        watchRunInBackground({ pat, repo, workflowId, dispatchedAt, logContext: { trigger: "cron" } });
+      } else {
+        logger.warn({ status: result.httpStatus, workflow: workflowId }, "Certstream dispatch başarısız");
+      }
+      return result.dispatched ? 1 : 0;
     }), { timezone: "Europe/Istanbul" });
     logger.info("Certstream GitHub dispatch cron scheduled (saatte bir, :05)");
 

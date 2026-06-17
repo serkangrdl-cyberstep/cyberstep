@@ -197,40 +197,32 @@ router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, asy
   const pat = process.env["GITHUB_PAT"];
   if (!pat) { res.status(503).json({ error: "GITHUB_PAT eksik — dispatch yapılamıyor" }); return; }
 
-  // Derive production ingest URL from REPLIT_DOMAINS (first domain = primary)
-  // Falls back to GitHub Secret REPLIT_INGEST_URL if not set in workflow
   const replitDomains = (process.env["REPLIT_DOMAINS"] ?? "").split(",").map(d => d.trim()).filter(Boolean);
   const primaryDomain = replitDomains[0] ?? "cyberstep.io";
   const ingestUrl = `https://${primaryDomain}/api/internal/cert-ingest`;
 
-  const { default: https } = await import("https");
-  await new Promise<void>((resolve) => {
-    const body = JSON.stringify({ ref: "main", inputs: { ingest_url: ingestUrl } });
-    const req2 = https.request({
-      hostname: "api.github.com",
-      path: "/repos/serkangrdl-cyberstep/CyberStep/actions/workflows/certstream-bridge.yml/dispatches",
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${pat}`,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "CyberStep-Server",
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(body),
-      },
-    }, (r) => {
-      r.resume();
-      if (r.statusCode === 204) {
-        logger.info("Certstream dispatch manual tetiklendi");
-      } else {
-        logger.warn({ status: r.statusCode }, "Certstream dispatch başarısız");
-      }
-      resolve();
-    });
-    req2.on("error", (e) => { logger.warn({ err: String(e) }, "Certstream dispatch hata"); resolve(); });
-    req2.write(body);
-    req2.end();
+  const { dispatchWorkflow, watchRunInBackground } = await import("../../services/githubActionsHelper");
+  const repo = "serkangrdl-cyberstep/CyberStep";
+  const workflowId = "certstream-bridge.yml";
+  const dispatchedAt = new Date();
+
+  const result = await dispatchWorkflow({
+    pat,
+    repo,
+    workflowId,
+    inputs: { ingest_url: ingestUrl },
   });
-  res.json({ ok: true, message: "GitHub Actions dispatch tetiklendi" });
+
+  if (!result.dispatched) {
+    logger.warn({ status: result.httpStatus }, "Certstream dispatch başarısız");
+    res.status(502).json({ ok: false, error: `GitHub API ${result.httpStatus} döndürdü` });
+    return;
+  }
+
+  logger.info({ trigger: "manual" }, "Certstream dispatch manual tetiklendi — run izleniyor");
+  watchRunInBackground({ pat, repo, workflowId, dispatchedAt, logContext: { trigger: "manual" } });
+
+  res.json({ ok: true, message: "GitHub Actions dispatch tetiklendi — run sonucu sunucu loglarına yazılacak" });
 });
 
 // ─── GET /api/admin-panel/lead-discovery/runs ────────────────────────────────

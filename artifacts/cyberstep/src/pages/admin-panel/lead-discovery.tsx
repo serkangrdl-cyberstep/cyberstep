@@ -242,10 +242,12 @@ function runStatusBadge(status: string) {
 
 interface TechStackItem {
   vendor: string;
-  product?: string;
+  product?: string | null;
   category: string;
   salesSignal: string | null;
   securityRisk: string | null;
+  securityNote?: string | null;
+  evidence?: Record<string, unknown> | null;
 }
 
 interface CertstreamStatusData {
@@ -2704,34 +2706,61 @@ export default function AdminLeadDiscovery() {
               )}
 
               {/* Tech Stack */}
-              {(candidateTechStack?.length ?? 0) > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5">Teknoloji Yığını</div>
-                  <div className="space-y-1">
-                    {[...candidateTechStack!]
-                      .sort((a, b) => (b.securityRisk === "Yüksek" ? 1 : 0) - (a.securityRisk === "Yüksek" ? 1 : 0))
-                      .map((t, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category)}</span>
-                          <span className="text-muted-foreground text-[10px]">{t.category}</span>
-                          {t.salesSignal && (
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              t.salesSignal === "fortinet_customer" ? "bg-red-100 text-red-700" :
-                              t.salesSignal === "cms_wordpress" ? "bg-orange-100 text-orange-700" :
-                              t.salesSignal === "cdn_user" ? "bg-blue-100 text-blue-700" :
-                              t.salesSignal === "microsoft_shop" ? "bg-purple-100 text-purple-700" :
-                              "bg-slate-100 text-slate-600"
-                            }`}>{t.salesSignal}</span>
-                          )}
-                          {t.securityRisk === "Yüksek" && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">risk</span>
-                          )}
+              {(candidateTechStack?.length ?? 0) > 0 && (() => {
+                const portItems = candidateTechStack!.filter(t => t.category === "open_port");
+                const otherItems = candidateTechStack!.filter(t => t.category !== "open_port");
+                const isHighRisk = (r: string | null) => r === "critical" || r === "high" || r === "Yüksek";
+                return (
+                  <div className="space-y-2">
+                    {portItems.length > 0 && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Açık Portlar</div>
+                        <div className="space-y-1">
+                          {portItems.sort((a, b) => (isHighRisk(b.securityRisk) ? 1 : 0) - (isHighRisk(a.securityRisk) ? 1 : 0)).map((t, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs rounded bg-slate-50 border border-slate-200 px-2 py-1">
+                              <span className="flex-1 font-mono font-medium truncate">{t.product ?? t.vendor}</span>
+                              {t.securityNote && <span className="text-muted-foreground text-[10px] truncate max-w-[140px]">{t.securityNote}</span>}
+                              <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                t.securityRisk === "critical" ? "bg-red-100 text-red-700 border border-red-200" :
+                                t.securityRisk === "high" ? "bg-orange-100 text-orange-700" :
+                                t.securityRisk === "medium" ? "bg-yellow-100 text-yellow-700" :
+                                "bg-slate-100 text-slate-500"
+                              }`}>{t.securityRisk ?? "low"}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))
-                    }
+                      </div>
+                    )}
+                    {otherItems.length > 0 && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Teknoloji Yığını</div>
+                        <div className="space-y-1">
+                          {[...otherItems]
+                            .sort((a, b) => (isHighRisk(b.securityRisk) ? 1 : 0) - (isHighRisk(a.securityRisk) ? 1 : 0))
+                            .map((t, i) => (
+                              <div key={i} className="flex items-center gap-2 text-xs">
+                                <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category)}</span>
+                                <span className="text-muted-foreground text-[10px]">{t.category}</span>
+                                {t.salesSignal && (
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                    t.salesSignal === "fortinet_customer" ? "bg-red-100 text-red-700" :
+                                    t.salesSignal === "cms_wordpress" ? "bg-orange-100 text-orange-700" :
+                                    t.salesSignal === "cdn_user" ? "bg-blue-100 text-blue-700" :
+                                    t.salesSignal === "microsoft_shop" ? "bg-purple-100 text-purple-700" :
+                                    "bg-slate-100 text-slate-600"
+                                  }`}>{t.salesSignal}</span>
+                                )}
+                                {isHighRisk(t.securityRisk) && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">risk</span>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Tech Fingerprint Sonuçları */}
               {fingerprintLead.isPending && (
@@ -2758,10 +2787,13 @@ export default function AdminLeadDiscovery() {
                   ) : (
                     <div className="space-y-1">
                       {[...fingerprintResult.stack]
-                        .sort((a, b) => (b.securityRisk === "Yüksek" ? 1 : 0) - (a.securityRisk === "Yüksek" ? 1 : 0))
+                        .sort((a, b) => {
+                          const hr = (r: string | null) => r === "critical" || r === "high" || r === "Yüksek";
+                          return (hr(b.securityRisk) ? 1 : 0) - (hr(a.securityRisk) ? 1 : 0);
+                        })
                         .map((t, i) => (
                           <div key={i} className="flex items-center gap-2 text-xs">
-                            <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category)}</span>
+                            <span className="flex-1 font-medium truncate">{t.category === "open_port" ? (t.product ?? t.vendor) : ((t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category))}</span>
                             <span className="text-muted-foreground text-[10px]">{t.category}</span>
                             {t.salesSignal && (
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
@@ -2772,8 +2804,8 @@ export default function AdminLeadDiscovery() {
                                 "bg-slate-100 text-slate-600"
                               }`}>{t.salesSignal}</span>
                             )}
-                            {t.securityRisk === "Yüksek" && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">risk</span>
+                            {(t.securityRisk === "critical" || t.securityRisk === "high" || t.securityRisk === "Yüksek") && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">{t.securityRisk === "critical" ? "kritik" : "risk"}</span>
                             )}
                           </div>
                         ))}

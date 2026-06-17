@@ -754,15 +754,30 @@ router.delete("/admin-panel/lead-discovery/candidates/:id", requireAdmin, async 
 // ─── GET /api/admin-panel/lead-discovery/candidates/:id/tech-stack ───────────
 router.get("/admin-panel/lead-discovery/candidates/:id/tech-stack", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
+  // Fingerprintler domain bazlı kaydediliyor (leadCandidateId=null olabilir)
+  // Önce candidate'in domain'ini bul, sonra domain'e göre sorgula
+  const [candidate] = await db
+    .select({ domain: leadCandidatesTable.domain })
+    .from(leadCandidatesTable)
+    .where(eq(leadCandidatesTable.id, id))
+    .limit(1);
+  if (!candidate) { res.json([]); return; }
+
   const stack = await db
     .select({
       vendor: customerTechStackTable.vendor,
+      product: customerTechStackTable.product,
       category: customerTechStackTable.category,
       salesSignal: customerTechStackTable.salesSignal,
       securityRisk: customerTechStackTable.securityRisk,
+      securityNote: customerTechStackTable.securityNote,
+      evidence: customerTechStackTable.evidence,
     })
     .from(customerTechStackTable)
-    .where(eq(customerTechStackTable.leadCandidateId, id))
+    .where(and(
+      eq(customerTechStackTable.domain, candidate.domain),
+      eq(customerTechStackTable.isActive, true),
+    ))
     .orderBy(asc(customerTechStackTable.category));
   res.json(stack);
 });

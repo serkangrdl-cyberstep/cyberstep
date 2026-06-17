@@ -112,9 +112,22 @@ TOPLAM JSON ÇIKTISI (başka hiçbir şey yok):
   ]
 }`;
 
+  // Sabit dipnot — AI'nin ürettiği urgency_note'a eklenir.
+  // Teaser, kalifikasyon anındaki anlık görüntüyü temsil eder; WAF enrichment
+  // (en fazla 9 saat sonra tamamlanır) tamamlandığında teaser yenilenmez.
+  // Bu bilinçli bir tasarım kararıdır: hız > kesinlik, yön güvenli (WAF bulunursa
+  // bulgular azalır, yani teaser her zaman gerçekte olduğundan daha kötümserdir).
+  const SNAPSHOT_NOTE = "Bu ön taramadır; bulgular tarama anındaki verileri yansıtmaktadır. Tam ve güncel rapor için CyberStep değerlendirmesini başlatın.";
+
   try {
     const raw = await ai(prompt);
     const parsed = JSON.parse(cleanJson(raw)) as TeaserReportOutput;
+    // urgency_note'a dipnotu ekle — AI çıktısı ne olursa olsun garantili olarak bulunur.
+    if (parsed.teaser?.urgency_note) {
+      parsed.teaser.urgency_note = `${parsed.teaser.urgency_note} ${SNAPSHOT_NOTE}`;
+    } else if (parsed.teaser) {
+      parsed.teaser.urgency_note = SNAPSHOT_NOTE;
+    }
     return parsed;
   } catch (err) {
     logger.error({ err, domain: params.domain }, "Teaser report generation failed");
@@ -140,7 +153,7 @@ TOPLAM JSON ÇIKTISI (başka hiçbir şey yok):
         ],
         attack_scenario_preview: "Saldırgan mevcut açıkları kullanarak sisteme sızabilir. Detaylar tam raporda.",
         locked_sections_hint: "Daha fazla kritik bulgu ve 3 saldırı senaryosu kilitli.",
-        urgency_note: "Bu tür açıklar aktif saldırı grupları tarafından kullanılmaktadır.",
+        urgency_note: `Bu tür açıklar aktif saldırı grupları tarafından kullanılmaktadır. ${SNAPSHOT_NOTE}`,
       },
       full_scenarios: [],
     };

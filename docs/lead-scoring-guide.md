@@ -136,3 +136,15 @@ Bu test Sorun 3 düzeltmesinin gerçek çalışma zamanı kanıtını verir. Typ
 ## 6. İsimlendirme Notu
 
 `riskScore` / `risk_score` alanı kodda ve DB'de "güvenlik hijyeni skoru"nu ifade eder — yüksek değer güvenli sistem anlamına gelir. "Risk" kelimesi sezgisel anlamın **tersidir**. Gelecekteki yeni alanlarda `securityHygieneScore` tercih edilmeli; mevcut alanlar geriye dönük uyumluluk için korunmaktadır.
+
+---
+
+## 7. Teaser → WAF Enrichment Sıralama Kararı
+
+**Karar:** Teaser üretimi, WAF enrichment'ın bitmesini beklemez. Kalifikasyon olur olmaz teaser tetiklenebilir; WAF enrichment ise ayrı bir cron (her 30 dakika, 50 satır/run) ile çalışır ve 886 lead için toplam ~9 saate kadar sürebilir.
+
+**Gerekçe:** Hız > Kesinlik — yön güvenli. WAF enrichment tamamlandığında `critical_findings` azalabilir (WAF korumalı sunucu = daha az gerçek risk), ama artamaz. Dolayısıyla teaser her zaman gerçek durumdan daha **kötümser** kalır; asla daha iyimser olmaz. Bu, satış sürecinde teaser'ın verdiği "tehlike var" mesajını geçersiz kılmaz, sadece güçlendirir.
+
+**Dipnot garantisi:** `teaserReportService.ts` içinde sabit `SNAPSHOT_NOTE` sabiti her teaser'ın `urgency_note` alanına eklenir (AI çıktısından bağımsız). Bu şekilde kullanıcı her zaman "Bu ön taramadır" uyarısını görür.
+
+**SKIP LOCKED eşzamanlılık testi (17 Haziran 2026):** İki eşzamanlı DB transaction ile doğrulandı. Transaction A: `{1,2,3,4,5,6,7,8,9,12}`, Transaction B (A lockteyken): `{14,15,17,18,21,22,23,24,25,26}` — kesişim boş. `FOR UPDATE SKIP LOCKED` davranışı kanıtlandı.

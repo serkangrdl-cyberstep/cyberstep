@@ -701,7 +701,7 @@ export default function Home() {
               <p className="text-muted-foreground">{t(T.home.step3sub, lang)}</p>
               <p className="text-xs text-muted-foreground/70 mt-1">
                 {lang === "en" ? "Powered by " : "Hazırlayan: "}
-                <span className="font-semibold text-primary/80">Step AI</span>
+                <span className="font-semibold text-primary/80">CyberStep AI</span>
               </p>
             </div>
 
@@ -1174,7 +1174,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Step AI */}
+      {/* CyberStep AI */}
       <section className="py-20 bg-slate-900 text-white border-t border-white/5">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -1184,7 +1184,7 @@ export default function Home() {
                   {lang === "en" ? "Meet our AI" : "Yapay zekamızla tanışın"}
                 </p>
                 <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-                  <span className="text-white">Step</span>
+                  <span className="text-white">CyberStep</span>
                   <span className="text-cyan-400"> AI</span>
                 </h2>
                 <p className="text-slate-400 mt-3 leading-relaxed">
@@ -1211,15 +1211,15 @@ export default function Home() {
               </ul>
               <p className="text-slate-500 text-xs leading-relaxed border-l-2 border-cyan-500/30 pl-3">
                 {lang === "en"
-                  ? "Step AI uses only passive OSINT methods — no direct access to your systems. All findings are reviewed by our cybersecurity team before delivery."
-                  : "Step AI yalnızca pasif OSINT yöntemleri kullanır — sistemlerinize doğrudan erişmez. Tüm bulgular uzman siber güvenlik ekibimiz tarafından teslimattan önce gözden geçirilir."}
+                  ? "CyberStep AI uses only passive OSINT methods — no direct access to your systems. All findings are reviewed by our cybersecurity team before delivery."
+                  : "CyberStep AI yalnızca pasif OSINT yöntemleri kullanır — sistemlerinize doğrudan erişmez. Tüm bulgular uzman siber güvenlik ekibimiz tarafından teslimattan önce gözden geçirilir."}
               </p>
             </div>
             <div className="flex flex-col items-center gap-4">
               <div className="relative">
                 <img
                   src="/step-ai-card.svg"
-                  alt="Step AI maskot"
+                  alt="CyberStep AI maskot"
                   className="w-full max-w-xs mx-auto drop-shadow-[0_0_40px_rgba(0,200,255,0.25)]"
                   width={400}
                   height={400}

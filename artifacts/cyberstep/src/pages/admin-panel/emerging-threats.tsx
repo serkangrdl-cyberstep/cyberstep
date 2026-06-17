@@ -76,7 +76,7 @@ export default function AdminEmergingThreats() {
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <ShieldAlert className="h-6 w-6 text-red-500" /> Acil Tehdit Bildirimleri
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Step AI tarafından tespit edilen acil CVE eşleşmeleri — gözden geçirin ve gönderin</p>
+            <p className="text-sm text-muted-foreground mt-1">CyberStep AI tarafından tespit edilen acil CVE eşleşmeleri — gözden geçirin ve gönderin</p>
           </div>
           <Button
             variant="outline"

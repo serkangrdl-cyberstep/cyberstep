@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { adminFetchJson } from "@/lib/admin-fetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,6 +103,7 @@ function fmtDate(d: string | null) {
 }
 
 export default function TechIntelligencePage() {
+  const queryClient = useQueryClient();
   const [searchDomain, setSearchDomain] = useState("");
   const [viewDomain, setViewDomain] = useState("");
   const [historyFilter, setHistoryFilter] = useState("");
@@ -139,6 +140,7 @@ export default function TechIntelligencePage() {
         headers: { "Content-Type": "application/json" },
       }),
     onSuccess: (data: DomainResult) => {
+      queryClient.invalidateQueries({ queryKey: ["tech-stack-domain", data.domain] });
       setViewDomain(data.domain);
       recentQ.refetch();
     },

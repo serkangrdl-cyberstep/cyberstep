@@ -87,6 +87,11 @@ async function saveTechStack(
           set: {
             confidence: item.confidence,
             version: item.version,
+            detectedVia: item.detectedVia,
+            evidence: item.evidence as any,
+            securityRisk: item.securityRisk,
+            securityNote: item.securityNote,
+            salesSignal: item.salesSignal,
             lastVerifiedAt: new Date(),
             isActive: true,
           },

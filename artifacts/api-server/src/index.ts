@@ -3212,6 +3212,8 @@ startup()
         { name: "scan_lead_drip",           thresholdHours: 2   },
         { name: "lead_web_enrich",           thresholdHours: 25  },
         { name: "lead_tr_enrich",           thresholdHours: 25  },
+        { name: "censys_discovery",         thresholdHours: 25  },
+        { name: "search_dorking",           thresholdHours: 25  },
         { name: "servicenow_health",        thresholdHours: 2   },
         { name: "noc_baseline",             thresholdHours: 2   },
         // Lead & pipeline (daily)

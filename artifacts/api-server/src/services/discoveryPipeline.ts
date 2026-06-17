@@ -319,14 +319,18 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
 
-      // Shadow IT → customer_tech_stack aktarımı
+      // Shadow IT + Shodan ağ cihazı → customer_tech_stack aktarımı
       try {
         const scanRow = await db
-          .select({ shadowItServices: domainScansTable.shadowItServices })
+          .select({
+            shadowItServices: domainScansTable.shadowItServices,
+            shodanOpenPorts: domainScansTable.shodanOpenPorts,
+          })
           .from(domainScansTable)
           .where(eq(domainScansTable.id, scanResult.id))
           .then((r) => r[0]);
 
+        // ── Shadow IT servisleri ─────────────────────────────────────────────
         const services = (scanRow?.shadowItServices ?? []) as Array<{
           name: string; category: string; risk: string; description: string; version?: string;
         }>;
@@ -356,8 +360,63 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
 
           logger.info({ domain: candidate.domain, count: services.length }, "Shadow IT → customer_tech_stack aktarıldı");
         }
+
+        // ── Shodan: ağ cihazı / güvenlik duvarı tespiti ──────────────────────
+        // domain_scans.shodan_open_ports içindeki product/service alanlarından
+        // FortiGate, Palo Alto, Cisco ASA vb. tespit edip customer_tech_stack'e yazar.
+        const shodanPorts = (scanRow?.shodanOpenPorts ?? []) as Array<{
+          port: number; protocol: string; service: string; product: string; version: string;
+        }>;
+
+        if (shodanPorts.length > 0) {
+          const networkProducts = [
+            { pattern: /fortinet|fortigate|fortiweb/i, vendor: "fortinet",   product: "FortiGate",   salesSignal: "has_fortinet"      },
+            { pattern: /palo alto|pan-os/i,            vendor: "paloalto",   product: "Palo Alto",   salesSignal: "has_network_device" },
+            { pattern: /cisco/i,                       vendor: "cisco",      product: "Cisco",       salesSignal: "has_network_device" },
+            { pattern: /juniper|junos/i,               vendor: "juniper",    product: "Juniper",     salesSignal: "has_network_device" },
+            { pattern: /checkpoint|check point/i,      vendor: "checkpoint", product: "Check Point", salesSignal: "has_network_device" },
+            { pattern: /sophos/i,                      vendor: "sophos",     product: "Sophos",      salesSignal: "has_network_device" },
+            { pattern: /mikrotik|routeros/i,           vendor: "mikrotik",   product: "MikroTik",    salesSignal: "has_network_device" },
+          ];
+
+          const detectedDevices = new Map<string, { vendor: string; product: string; salesSignal: string; version: string }>();
+          for (const port of shodanPorts) {
+            const haystack = `${port.product} ${port.service}`.toLowerCase();
+            for (const np of networkProducts) {
+              if (np.pattern.test(haystack) && !detectedDevices.has(np.vendor)) {
+                detectedDevices.set(np.vendor, { ...np, version: port.version ?? "" });
+              }
+            }
+          }
+
+          if (detectedDevices.size > 0) {
+            await db.delete(customerTechStackTable).where(
+              and(
+                eq(customerTechStackTable.leadCandidateId, candidate.id),
+                eq(customerTechStackTable.detectedVia, "shodan"),
+                eq(customerTechStackTable.category, "firewall"),
+              ),
+            );
+
+            for (const [, dev] of detectedDevices) {
+              await db.insert(customerTechStackTable).values({
+                domain: candidate.domain,
+                leadCandidateId: candidate.id,
+                category: "firewall",
+                vendor: dev.vendor,
+                product: dev.product,
+                version: dev.version || null,
+                salesSignal: dev.salesSignal,
+                detectedVia: "shodan",
+                confidence: 90,
+              }).onConflictDoNothing();
+            }
+
+            logger.info({ domain: candidate.domain, devices: [...detectedDevices.keys()] }, "Shodan ağ cihazı → customer_tech_stack aktarıldı");
+          }
+        }
       } catch (e) {
-        logger.warn({ domain: candidate.domain, err: String(e) }, "Shadow IT tech_stack aktarımı başarısız");
+        logger.warn({ domain: candidate.domain, err: String(e) }, "Shadow IT / Shodan tech_stack aktarımı başarısız");
       }
 
       processedCount++;

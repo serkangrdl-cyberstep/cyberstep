@@ -1666,7 +1666,7 @@ export default function AdminLeadDiscovery() {
                         <TableHead className="text-slate-400 text-right w-16">Risk</TableHead>
                         <TableHead className="text-slate-400">Contact</TableHead>
                         <TableHead className="text-slate-400 w-28">Teaser</TableHead>
-                        <TableHead className="text-slate-400 text-right w-[200px]">İşlemler</TableHead>
+                        <TableHead className="text-slate-400 text-right w-[110px]">İşlemler</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1745,36 +1745,40 @@ export default function AdminLeadDiscovery() {
                             )}
                           </TableCell>
 
-                          {/* Actions — compact inline */}
-                          <TableCell className="py-2">
-                            <div className="flex flex-wrap gap-1 justify-end">
-                              <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
-                                onClick={() => { setFingerprintResult(null); setDetailCandidate(c); setIsrNotesEdit(c.isrNotes ?? ""); }}>
-                                Detay
-                              </Button>
-                              <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
-                                onClick={() => { setContactEditTarget(c); setEditEmail(c.contactEmail ?? ""); setEditName(c.contactName ?? ""); setEditTitle(c.contactTitle ?? ""); }}>
-                                Kontak
-                              </Button>
-                              {!c.contactEmail && (
-                                <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
-                                  onClick={() => reEnrich.mutate(c.id)} disabled={reEnrich.isPending}>
-                                  Ara
+                          {/* Actions — compact vertical stack */}
+                          <TableCell className="py-1.5">
+                            <div className="flex flex-col items-end gap-0.5">
+                              <div className="flex gap-0.5">
+                                <Button size="sm" variant="ghost" className="text-[10px] h-5 px-1.5 text-slate-400 hover:text-slate-200 whitespace-nowrap"
+                                  onClick={() => { setFingerprintResult(null); setDetailCandidate(c); setIsrNotesEdit(c.isrNotes ?? ""); }}>
+                                  Detay
                                 </Button>
-                              )}
-                              <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-slate-400 hover:text-slate-200"
-                                onClick={() => generateTeaser.mutate(c.id)} disabled={generateTeaser.isPending}>
-                                {c.teaserSubject ? "Yeniden" : "Teaser"}
-                              </Button>
-                              {c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
-                                <Button size="sm" className="text-[10px] h-6 px-2"
-                                  onClick={() => sendTeaser.mutate(c.id)} disabled={sendTeaser.isPending}>
-                                  Gönder
+                                <Button size="sm" variant="ghost" className="text-[10px] h-5 px-1.5 text-slate-400 hover:text-slate-200 whitespace-nowrap"
+                                  onClick={() => { setContactEditTarget(c); setEditEmail(c.contactEmail ?? ""); setEditName(c.contactName ?? ""); setEditTitle(c.contactTitle ?? ""); }}>
+                                  Kontak
                                 </Button>
-                              )}
+                              </div>
+                              <div className="flex gap-0.5">
+                                {!c.contactEmail && (
+                                  <Button size="sm" variant="ghost" className="text-[10px] h-5 px-1.5 text-slate-400 hover:text-slate-200 whitespace-nowrap"
+                                    onClick={() => reEnrich.mutate(c.id)} disabled={reEnrich.isPending}>
+                                    Kontak Ara
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="text-[10px] h-5 px-1.5 text-slate-400 hover:text-slate-200 whitespace-nowrap"
+                                  onClick={() => generateTeaser.mutate(c.id)} disabled={generateTeaser.isPending}>
+                                  {c.teaserSubject ? "Yeniden Tara" : "Teaser"}
+                                </Button>
+                                {c.teaserSubject && !c.teaserSentAt && c.contactEmail && (
+                                  <Button size="sm" className="text-[10px] h-5 px-1.5 whitespace-nowrap"
+                                    onClick={() => sendTeaser.mutate(c.id)} disabled={sendTeaser.isPending}>
+                                    Gönder
+                                  </Button>
+                                )}
+                              </div>
                               <a href={buildLinkedInUrl(c)} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center text-[10px] h-6 px-2 rounded text-[#0A66C2] hover:bg-[#0A66C2]/10">
-                                Li
+                                className="inline-flex items-center text-[10px] h-5 px-1.5 rounded text-[#0A66C2] hover:bg-[#0A66C2]/10 whitespace-nowrap">
+                                LinkedIn
                               </a>
                             </div>
                           </TableCell>

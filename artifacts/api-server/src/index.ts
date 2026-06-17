@@ -3001,6 +3001,14 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CVE customer notification sweep cron scheduled (every 4 hours)");
 
+    // ─── EPSS + CISA KEV Intelligence Sync — Her gece 03:15 Istanbul ─────────
+    cron.schedule("15 3 * * *", wrapCron("sync_vuln_intel", "15 3 * * *", async () => {
+      const { syncVulnIntelligence } = await import("./services/cve/vulnIntelSync");
+      await syncVulnIntelligence();
+      return 0;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("EPSS + KEV intelligence sync cron kayıtlandı (03:15 günlük)");
+
     // Her Cuma 08:00 Istanbul — haftalık bülten üret
     cron.schedule("0 8 * * 5", wrapCron("haftalik_bulten", "0 8 * * 5", async () => {
       const { collectWeeklyData } = await import("./services/bulletin/weeklyDataCollector");
@@ -3197,6 +3205,7 @@ startup()
         { name: "attack_path_analysis",     thresholdHours: 25  },
         { name: "cve_feed_check",           thresholdHours: 3   },
         { name: "cve_customer_notification", thresholdHours: 5  },
+        { name: "sync_vuln_intel",           thresholdHours: 25 },
         { name: "free_scan_followup",        thresholdHours: 2  },
         { name: "cloud_cspm",               thresholdHours: 25  },
         { name: "fabric_fm_health",         thresholdHours: 25  },

@@ -1,6 +1,6 @@
 import {
   pgTable, serial, varchar, text, integer, boolean,
-  timestamp, jsonb, unique, index, numeric,
+  timestamp, jsonb, unique, index, numeric, date,
 } from "drizzle-orm/pg-core";
 import { customersTable } from "./customers";
 import { leadCandidatesTable } from "./lead-discovery";
@@ -83,5 +83,22 @@ export const cveDomainMatchesTable = pgTable("cve_domain_matches", {
   index("idx_cve_domain_notified").on(t.notificationSent),
 ]);
 
+export const cveIntelligenceTable = pgTable("cve_intelligence", {
+  id: serial("id").primaryKey(),
+  cveId: varchar("cve_id", { length: 30 }).unique().notNull(),
+  epssScore: numeric("epss_score", { precision: 5, scale: 4 }),
+  epssPercentile: numeric("epss_percentile", { precision: 5, scale: 4 }),
+  epssUpdatedAt: timestamp("epss_updated_at"),
+  isKev: boolean("is_kev").notNull().default(false),
+  kevDateAdded: date("kev_date_added"),
+  kevDueDate: date("kev_due_date"),
+  kevRansomwareUse: boolean("kev_ransomware_use").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (t) => [
+  index("idx_cve_intelligence_kev").on(t.isKev),
+]);
+
 export type CveTracker = typeof cveTrackerTable.$inferSelect;
 export type CveDomainMatch = typeof cveDomainMatchesTable.$inferSelect;
+export type CveIntelligence = typeof cveIntelligenceTable.$inferSelect;

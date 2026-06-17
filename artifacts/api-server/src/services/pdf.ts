@@ -322,6 +322,7 @@ interface DomainScanData {
     portDeduction: number; total: number;
   } | null;
   isFreeReport?: boolean;
+  kevCves?: Array<{ cveId: string; matchedProduct: string; ransomware: boolean }> | null;
 }
 
 export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
@@ -810,6 +811,32 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
       );
     }
     doc.y += 4;
+
+    // ── Aktif İstismar KEV Uyarısı (sadece ucretli, sadece kev varsa) ──────────
+    if (!data.isFreeReport && data.kevCves && data.kevCves.length > 0) {
+      sectionTitle("Aktif İstismar Tespit Edilen Zafiyetler");
+      checkPageBreak(doc, 28);
+      const kevHeaderY = doc.y;
+      doc.rect(MARGIN, kevHeaderY, CONTENT_W, 24).fill([14, 26, 46]);
+      doc.fillColor([245, 166, 35]).fontSize(8.5).font(FONT_BOLD)
+        .text("CISA KEV — Aktif Olarak İstismar Edilen Zafiyet Tespit Edildi", MARGIN + 8, kevHeaderY + 7, { width: CONTENT_W - 16, lineBreak: false });
+      doc.y = kevHeaderY + 28;
+
+      for (const kev of data.kevCves) {
+        checkPageBreak(doc, 30);
+        const ky = doc.y;
+        doc.rect(MARGIN, ky, CONTENT_W, 26).fill([14, 26, 46]);
+        doc.fillColor([245, 166, 35]).fontSize(8).font(FONT_BOLD)
+          .text(kev.cveId, MARGIN + 8, ky + 4, { width: 110, lineBreak: false });
+        doc.fillColor([232, 237, 245]).fontSize(7.5).font(FONT_REGULAR)
+          .text(kev.matchedProduct, MARGIN + 122, ky + 4, { width: 200, lineBreak: false });
+        const note = kev.ransomware ? "CISA KEV · Fidye yazılımı kampanyasında kullanıldı" : "CISA tarafından doğrulanmış · Aktif istismar";
+        doc.fillColor([245, 166, 35]).fontSize(7).font(FONT_REGULAR)
+          .text(note, MARGIN + 8, ky + 16, { width: CONTENT_W - 16, lineBreak: false });
+        doc.y = ky + 30;
+      }
+      doc.y += 6;
+    }
 
     // ── CVE Guvenlik Aciklari (sadece ucretli) ─────────────────────────────────
     if (!data.isFreeReport && data.cveSummary.length > 0) {

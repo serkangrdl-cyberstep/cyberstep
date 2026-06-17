@@ -1807,6 +1807,32 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
         const year = parseInt(cve.cveId?.split("-")[1] ?? "0");
         return (new Date().getFullYear() - year) <= 5;
       }),
+      kevCves: await (async () => {
+        const scanCveIds = ((scan.cveSummary as Array<{ cveId?: string }>) ?? [])
+          .map(c => c.cveId)
+          .filter((id): id is string => !!id);
+        if (scanCveIds.length === 0) return null;
+        try {
+          const kevRows = await db.execute(sql`
+            SELECT ci.cve_id, ci.kev_ransomware_use,
+                   cdm.matched_product
+            FROM cve_intelligence ci
+            LEFT JOIN cve_domain_matches cdm
+              ON cdm.cve_id = ci.cve_id AND cdm.domain = ${scan.domain}
+            WHERE ci.cve_id = ANY(${sql.raw(`ARRAY[${scanCveIds.map(id => `'${id.replace(/'/g, "''")}'`).join(",")}]`)})
+              AND ci.is_kev = TRUE
+          `);
+          const kevData = kevRows.rows as { cve_id: string; kev_ransomware_use: boolean; matched_product: string | null }[];
+          if (kevData.length === 0) return null;
+          return kevData.map(r => ({
+            cveId: r.cve_id,
+            matchedProduct: r.matched_product ?? "Bilinmeyen ürün",
+            ransomware: r.kev_ransomware_use,
+          }));
+        } catch {
+          return null;
+        }
+      })(),
       shodanOpenPorts: scan.shodanOpenPorts as Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null,
       shodanVulnCount: scan.shodanVulnCount,
       shodanCountry: scan.shodanCountry,

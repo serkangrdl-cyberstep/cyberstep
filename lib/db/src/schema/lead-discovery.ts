@@ -64,6 +64,7 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   isrCustomerId: integer("isr_customer_id"),
   isrFollowupD3SentAt: timestamp("isr_followup_d3_sent_at"),
   isrFollowupD7SentAt: timestamp("isr_followup_d7_sent_at"),
+  hasKevMatch: boolean("has_kev_match").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

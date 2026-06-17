@@ -122,6 +122,17 @@ Ayırt etmek mümkün değil. Temizlik için seçenekler:
 
 ---
 
-## 5. İsimlendirme Notu
+## 5. Bekleyen Manuel Test
+
+**Yapılması gereken (üretime dokunmadan):** Geliştirme ortamında `ANTHROPIC_API_KEY`'i kasıtlı hatalı bir değerle override edip tek bir domain üzerinde AI lead scoring tetikle. Beklenen davranış:
+- `score: null`
+- `ai_score_status: 'failed'` (ya da 429 ise `'rate_limited'`, timeout ise `'timeout'`)
+- DB'ye `lead_score = NULL` yazılmalı, `lead_score = 30` değil
+
+Bu test Sorun 3 düzeltmesinin gerçek çalışma zamanı kanıtını verir. Typecheck ile doğrulanamaz.
+
+---
+
+## 6. İsimlendirme Notu
 
 `riskScore` / `risk_score` alanı kodda ve DB'de "güvenlik hijyeni skoru"nu ifade eder — yüksek değer güvenli sistem anlamına gelir. "Risk" kelimesi sezgisel anlamın **tersidir**. Gelecekteki yeni alanlarda `securityHygieneScore` tercih edilmeli; mevcut alanlar geriye dönük uyumluluk için korunmaktadır.

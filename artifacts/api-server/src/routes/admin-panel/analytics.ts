@@ -555,11 +555,17 @@ router.get("/admin-panel/analytics/scans-24h", requireAdmin, async (_req: Reques
   const todayStart = new Date(Math.floor((now.getTime() + tzOffset) / 86_400_000) * 86_400_000 - tzOffset);
   const yestStart  = new Date(todayStart.getTime() - 86_400_000);
 
-  const [dbTotalRow] = await db.select({ cnt: count() }).from(domainScansTable);
+  // Sadece web sitesinden kullanıcının başlattığı taramalar — email dolu olanlar
+  const userScanFilter = isNotNull(domainScansTable.email);
+
+  const [dbTotalRow] = await db.select({ cnt: count() })
+    .from(domainScansTable)
+    .where(userScanFilter);
 
   const [yestShodanRow] = await db.select({ cnt: count() })
     .from(domainScansTable)
     .where(and(
+      userScanFilter,
       gte(domainScansTable.createdAt, yestStart),
       sql`${domainScansTable.createdAt} < ${todayStart}`,
       sql`(${domainScansTable.shodanVulnCount} > 0 OR jsonb_array_length(COALESCE(${domainScansTable.shodanOpenPorts}::jsonb, '[]'::jsonb)) > 0)`,
@@ -568,6 +574,7 @@ router.get("/admin-panel/analytics/scans-24h", requireAdmin, async (_req: Reques
   const [yestTotalRow] = await db.select({ cnt: count() })
     .from(domainScansTable)
     .where(and(
+      userScanFilter,
       gte(domainScansTable.createdAt, yestStart),
       sql`${domainScansTable.createdAt} < ${todayStart}`,
     ));
@@ -612,7 +619,7 @@ router.get("/admin-panel/analytics/scans-24h", requireAdmin, async (_req: Reques
     createdAt:         domainScansTable.createdAt,
   })
     .from(domainScansTable)
-    .where(gte(domainScansTable.createdAt, since))
+    .where(and(userScanFilter, gte(domainScansTable.createdAt, since)))
     .orderBy(asc(domainScansTable.overallScore))  // En riskli (düşük skor) önce
     .limit(200);
 

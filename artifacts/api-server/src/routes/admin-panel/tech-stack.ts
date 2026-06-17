@@ -287,4 +287,82 @@ router.post("/admin-panel/tech-stack/fingerprint", requireAdmin, async (req, res
   }
 });
 
+// POST /api/admin-panel/tech-stack/backfill-network-devices
+// Mevcut lead_candidates.source_data ve domain_scans.shodan_open_ports'tan
+// customer_tech_stack'e FortiGate + diğer ağ cihazlarını tek seferlik yazar.
+router.post("/admin-panel/tech-stack/backfill-network-devices", requireAdmin, async (req, res) => {
+  try {
+    // 1. FortiGate: lead_candidates.source_data (has_fortigate=true veya product ILIKE '%forti%')
+    const fortiResult = await db.execute(sql`
+      INSERT INTO customer_tech_stack (
+        domain, lead_candidate_id, category, vendor, product, version,
+        sales_signal, detected_via, confidence, is_active
+      )
+      SELECT
+        domain, id, 'firewall', 'fortinet',
+        CASE
+          WHEN source_data->>'product' ILIKE '%forti%' THEN source_data->>'product'
+          WHEN source_data->>'httpTitle' ILIKE '%fortigate%' THEN 'FortiGate'
+          ELSE 'FortiGate'
+        END,
+        NULL, 'has_fortinet', 'shodan', 95, true
+      FROM lead_candidates
+      WHERE has_fortigate = true
+         OR source_data->>'product' ILIKE '%forti%'
+         OR source_data->>'httpTitle' ILIKE '%fortigate%'
+      ON CONFLICT DO NOTHING
+    `);
+
+    // 2. Diğer ağ cihazları: domain_scans.shodan_open_ports (MikroTik, Cisco, Sophos vb.)
+    const networkResult = await db.execute(sql`
+      INSERT INTO customer_tech_stack (
+        domain, lead_candidate_id, category, vendor, product, version,
+        sales_signal, detected_via, confidence, is_active
+      )
+      SELECT
+        ds.domain, lc.id, 'firewall',
+        CASE
+          WHEN (elem->>'product') ILIKE '%fortinet%' OR (elem->>'product') ILIKE '%fortigate%' THEN 'fortinet'
+          WHEN (elem->>'product') ILIKE '%mikrotik%' OR (elem->>'product') ILIKE '%routeros%'  THEN 'mikrotik'
+          WHEN (elem->>'product') ILIKE '%cisco%'                                               THEN 'cisco'
+          WHEN (elem->>'product') ILIKE '%sophos%'                                              THEN 'sophos'
+          WHEN (elem->>'product') ILIKE '%palo alto%' OR (elem->>'product') ILIKE '%pan-os%'   THEN 'paloalto'
+          WHEN (elem->>'product') ILIKE '%juniper%'  OR (elem->>'product') ILIKE '%junos%'     THEN 'juniper'
+          WHEN (elem->>'product') ILIKE '%checkpoint%'                                          THEN 'checkpoint'
+        END,
+        CASE
+          WHEN (elem->>'product') ILIKE '%fortinet%' OR (elem->>'product') ILIKE '%fortigate%' THEN 'FortiGate'
+          WHEN (elem->>'product') ILIKE '%mikrotik%' OR (elem->>'product') ILIKE '%routeros%'  THEN 'MikroTik'
+          WHEN (elem->>'product') ILIKE '%cisco%'                                               THEN 'Cisco'
+          WHEN (elem->>'product') ILIKE '%sophos%'                                              THEN 'Sophos'
+          WHEN (elem->>'product') ILIKE '%palo alto%' OR (elem->>'product') ILIKE '%pan-os%'   THEN 'Palo Alto'
+          WHEN (elem->>'product') ILIKE '%juniper%'  OR (elem->>'product') ILIKE '%junos%'     THEN 'Juniper'
+          WHEN (elem->>'product') ILIKE '%checkpoint%'                                          THEN 'Check Point'
+          ELSE elem->>'product'
+        END,
+        NULLIF(elem->>'version', ''),
+        CASE
+          WHEN (elem->>'product') ILIKE '%fortinet%' OR (elem->>'product') ILIKE '%fortigate%' THEN 'has_fortinet'
+          ELSE 'has_network_device'
+        END,
+        'shodan', 90, true
+      FROM domain_scans ds
+      JOIN lead_candidates lc ON lc.scan_id = ds.id,
+        jsonb_array_elements(ds.shodan_open_ports) AS elem
+      WHERE (elem->>'product') ILIKE ANY(ARRAY['%fortinet%','%fortigate%','%mikrotik%','%routeros%','%cisco%','%sophos%','%palo alto%','%pan-os%','%juniper%','%junos%','%checkpoint%'])
+         OR (elem->>'service') ILIKE ANY(ARRAY['%fortinet%','%fortigate%','%mikrotik%','%cisco%','%sophos%'])
+      ON CONFLICT DO NOTHING
+    `);
+
+    const fortiCount   = Number((fortiResult as { rowCount?: number }).rowCount ?? 0);
+    const networkCount = Number((networkResult as { rowCount?: number }).rowCount ?? 0);
+
+    req.log.info({ fortiCount, networkCount }, "Tech stack backfill tamamlandı");
+    res.json({ ok: true, fortigate: fortiCount, networkDevices: networkCount, total: fortiCount + networkCount });
+  } catch (e) {
+    req.log.error({ err: e }, "Tech stack backfill hatası");
+    res.status(500).json({ error: "Backfill başarısız" });
+  }
+});
+
 export default router;

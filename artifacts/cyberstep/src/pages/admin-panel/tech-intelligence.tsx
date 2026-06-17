@@ -156,6 +156,18 @@ export default function TechIntelligencePage() {
     },
   });
 
+  const backfillMut = useMutation<{ ok: boolean; fortigate: number; networkDevices: number; total: number }>({
+    mutationFn: () =>
+      adminFetchJson("/api/admin-panel/tech-stack/backfill-network-devices", {
+        method: "POST",
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["tech-stack-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["tech-stack-segments"] });
+      alert(`Backfill tamamlandı: ${data.fortigate} FortiGate, ${data.networkDevices} diğer ağ cihazı eklendi.`);
+    },
+  });
+
   const stats = statsQ.data;
   const segments = segmentsQ.data;
   const domainData = domainQ.data;
@@ -179,6 +191,20 @@ export default function TechIntelligencePage() {
   return (
     <AdminLayout title="Tech Intelligence" description="Müşteri teknoloji stack tespiti ve güvenlik olgunluk analizi">
       <div className="space-y-6">
+
+        {/* Veri senkronizasyon araçları */}
+        <div className="flex items-center justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-slate-700 text-slate-300 hover:text-white"
+            onClick={() => backfillMut.mutate()}
+            disabled={backfillMut.isPending}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${backfillMut.isPending ? "animate-spin" : ""}`} />
+            {backfillMut.isPending ? "Senkronize ediliyor..." : "Ağ cihazlarını senkronize et"}
+          </Button>
+        </div>
 
         {/* Genel Bakış */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">

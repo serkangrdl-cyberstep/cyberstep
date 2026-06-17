@@ -588,8 +588,8 @@ function Taramalar24h() {
                             : <span className="text-muted-foreground/30 text-[10px]">—</span>}
                         </td>
                         <td className="p-2.5">
-                          <div className="font-mono font-medium text-foreground">{s.domain}</div>
-                          {s.email && <div className="text-muted-foreground text-[10px]">{s.email}</div>}
+                          <div className="font-mono font-medium text-slate-100">{s.domain}</div>
+                          {s.email && <div className="text-slate-400 text-[10px]">{s.email}</div>}
                         </td>
                         <td className="p-2.5 text-center">
                           <span className={`font-bold text-sm ${scoreColor(s.overallScore)}`}>{s.overallScore}</span>

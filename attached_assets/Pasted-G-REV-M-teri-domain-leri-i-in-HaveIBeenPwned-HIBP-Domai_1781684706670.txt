@@ -1,0 +1,48 @@
+GÖREV: Müşteri domain'leri için HaveIBeenPwned (HIBP) Domain Search API'si üzerinden sızan kurumsal e-posta adreslerini tespit eden bir modül ekle.
+
+BAĞLAM:
+- domain_scans tablosu her tarama için overall_score tutuyor, müşteri domain'leri KVKK onayı sonrası tarama kapsamına alınıyor.
+- HIBP Domain Search API'si sorgu öncesi domain sahipliğinin DNS TXT veya dosya yöntemiyle doğrulanmasını ŞART koşuyor.
+- Uygulamaya başlamadan önce https://haveibeenpwned.com/api/v3 dokümantasyonundaki güncel doğrulama akışı ve fiyatlandırmayı kontrol et, değişmiş olabilir; varsayımlarını özetle.
+
+YENİ ONBOARDING ADIMI:
+1. Onboarding akışına "Domain'inizi doğrulayın" adımı ekle.
+2. DNS TXT kaydı veya dosya yükleme yöntemini sun (HIBP'nin güncel desteklediği yönteme göre).
+3. domains tablosuna hibp_verified_at (timestamp, nullable) kolonu ekle.
+4. Doğrulanana kadar bu özelliği pasif tut, "Sızıntı kontrolü için domain doğrulaması gerekiyor" mesajı göster, diğer tarama özelliklerini bloklama.
+
+API ENTEGRASYONU:
+- HIBP_API_KEY'i .env'e ekle, repoya asla commit etme.
+- services/hibpService.ts oluştur:
+  - checkLatestBreach(): auth gerektirmeyen "en son sızıntı" endpoint'i, yeni sızıntı var mı kontrolü için.
+  - getDomainBreaches(domain): doğrulanmış domain için hibp-api-key header'ıyla authenticated domain search çağrısı.
+  - Rate limit'e nazik davran: domain search'ü sadece (a) müşteri ilk doğrulandığında ve (b) checkLatestBreach() yeni sızıntı bulduğunda çağır, sürekli polling yapma.
+
+ŞEMA:
+Yeni tablo domain_breach_exposures:
+- id, domain_id (FK), email_address (text), breach_name (text), breach_date (date)
+- data_classes (text[]), first_detected_at (timestamp), is_resolved (boolean, default false)
+domains tablosuna hibp_verified_at (timestamp, nullable).
+
+CRON JOB (checkBreachExposures, wrapCron, günlük):
+1. checkLatestBreach() çağır, son kontrolden beri yeni sızıntı var mı bak (son kontrol tarihini bir ayarlar tablosunda tut).
+2. Yeni sızıntı varsa hibp_verified_at IS NOT NULL olan tüm domain'ler için getDomainBreaches() çağır, yeni eşleşmeleri domain_breach_exposures'a ekle.
+3. Yeni eşleşme bulunan müşterilere mevcut bildirim altyapısıyla bildirim gönder.
+
+RAPOR (PDFKit):
+- "Sızan Kimlik Bilgisi Maruziyeti" bölümü ekle.
+- Doğrulanmamış domain'ler için: doğrulama linkine yönlendiren not.
+- Doğrulanmış+sızıntı bulunanlar için: kaç e-posta, kaç sızıntı, hangi veri sınıfları (parola, kredi kartı vb.) özetini ver. Tek tek e-posta adresini PDF'e YAZDIRMA (KVKK hassasiyeti) — sadece sayısal özet, detay dashboard'da.
+- Renk: kutu arka planı #0E1A2E, uyarı vurgusu #F5A623.
+
+SKORLAMA:
+- SCORING_RUBRIC'e yeni kalem: çözülmemiş (is_resolved=false) sızıntı varsa puan kesintisi (öneri: parola içeren sızıntı=15, sadece e-posta=5 — rubric ölçeğine göre kalibre et).
+
+KVKK NOTU:
+- Bu özellik çalışan kişisel verisini işliyor — kodda "Privacy Policy/KVKK metnine bu veri işleme amacını eklemek gerekiyor" diye TODO yorumu bırak, hukuki metni ben güncelleyeceğim.
+
+TEST/KABUL:
+- DNS TXT ile domain doğrulamasının test ortamında gerçekten çalıştığını doğrula.
+- Doğrulanmamış domain için özelliğin sessizce pasif kaldığını, hata fırlatmadığını test et.
+
+Önce HIBP API v3 dokümantasyonunu kontrol et, varsayımlarını özetle, sonra uygula.

@@ -16,7 +16,7 @@ import {
 import {
   UserPlus, Mail, Bot, Search, RefreshCw, ChevronDown, ChevronUp,
   Building2, Globe, AlertTriangle, Phone, ExternalLink, Send, Sparkles,
-  Loader2, CheckCircle2, Copy,
+  Loader2, CheckCircle2, Copy, ListChecks,
 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -42,7 +42,10 @@ interface Lead {
   teaserGeneratedAt: string | null;
   teaserSentAt: string | null;
   isrNotes: string | null;
+  isrPromotedAt: string | null;
+  isrCustomerId: number | null;
   tier: string | null;
+  source: string | null;
   createdAt: string;
 }
 
@@ -736,9 +739,215 @@ function TeaserSentTab({ leads }: { leads: Lead[] }) {
   );
 }
 
+// ─── Tab 4: Qualified Adaylar ─────────────────────────────────────────────────
+
+function QualifiedTab() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [filterContact, setFilterContact] = useState<"" | "has" | "no">("");
+  const [filterTeaser, setFilterTeaser] = useState<"" | "sent" | "notsent">("");
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [contactTarget, setContactTarget] = useState<Lead | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
+  const { data, isLoading, refetch } = useQuery<{ rows: Lead[]; total: number }>({
+    queryKey: ["isr-qualified-leads", page, filterContact, filterTeaser],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sortBy: "risk_desc" });
+      if (filterContact === "has") params.set("hasContact", "true");
+      if (filterContact === "no") params.set("noContact", "true");
+      if (filterTeaser === "sent") params.set("teaserSent", "true");
+      if (filterTeaser === "notsent") params.set("notSent", "true");
+      const r = await fetch(`/api/admin-panel/lead-discovery/qualified?${params}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Veri alınamadı");
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const promoteToIsr = useMutation({
+    mutationFn: async (lead: Lead) => {
+      const r = await fetch(`/api/admin-panel/lead-discovery/candidates/${lead.id}/promote-to-isr`, {
+        method: "POST", credentials: "include",
+      });
+      if (!r.ok) throw new Error("ISR'e eklenemedi");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["isr-qualified-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["isr-work-list"] });
+    },
+  });
+
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  const filtered = rows.filter(l => {
+    if (!search) return true;
+    const label = (l.companyName ?? l.scrapedCompanyName ?? l.domain).toLowerCase();
+    return label.includes(search.toLowerCase()) || l.domain.toLowerCase().includes(search.toLowerCase());
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Filtreler */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-48 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Domain veya şirket ara..."
+            className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+          />
+        </div>
+        <select
+          value={filterContact}
+          onChange={e => { setFilterContact(e.target.value as "" | "has" | "no"); setPage(1); }}
+          className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-300 focus:outline-none"
+        >
+          <option value="">Tüm Kontaklar</option>
+          <option value="has">Kontak Var</option>
+          <option value="no">Kontak Yok</option>
+        </select>
+        <select
+          value={filterTeaser}
+          onChange={e => { setFilterTeaser(e.target.value as "" | "sent" | "notsent"); setPage(1); }}
+          className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-300 focus:outline-none"
+        >
+          <option value="">Tüm Teaserlar</option>
+          <option value="sent">Teaser Gönderildi</option>
+          <option value="notsent">Teaser Yok</option>
+        </select>
+        <button
+          onClick={() => void refetch()}
+          className="text-slate-400 hover:text-slate-200 transition-colors"
+          title="Yenile"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+        <p className="text-xs text-slate-500 ml-auto">{total} qualified lead</p>
+      </div>
+
+      {/* Tablo */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Yüklüyor...</span>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.length === 0 && (
+            <div className="text-center text-slate-500 py-8 text-sm rounded-lg border border-slate-800">
+              {search ? "Eşleşen sonuç bulunamadı" : "Qualified lead yok"}
+            </div>
+          )}
+          {filtered.map((lead) => (
+            <div key={lead.id} className="rounded-lg border border-slate-800 bg-slate-900/60 overflow-hidden">
+              <div className="flex items-center gap-3 p-3">
+                {/* Şirket / domain */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-sm font-medium text-white truncate">{companyLabel(lead)}</p>
+                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-bold ${riskBadgeColor(lead.riskScore)}`}>
+                      {lead.riskScore ?? "?"}/100
+                    </span>
+                    {lead.tier && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">{lead.tier}</span>
+                    )}
+                    {lead.isrPromotedAt && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-700/50">ISR'de</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <a href={`https://${lead.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-slate-200 transition-colors">
+                      {lead.domain} <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                    {lead.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{lead.contactEmail}</span>}
+                    {lead.sector && <span>{lead.sector}</span>}
+                    {lead.criticalFindings > 0 && (
+                      <span className="flex items-center gap-1 text-red-400"><AlertTriangle className="h-3 w-3" />{lead.criticalFindings} kritik</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status badges */}
+                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                  {lead.teaserSentAt ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/40">
+                      Teaser gönderildi
+                    </span>
+                  ) : lead.teaserSubject ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-700/40">
+                      Teaser hazır
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Aksiyonlar */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setContactTarget(lead)}
+                    className="border-slate-600 text-slate-400 hover:bg-slate-800 text-xs h-7 px-2"
+                  >
+                    {lead.contactEmail ? "Kontak" : "Kontak Ekle"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setExpanded(expanded === lead.id ? null : lead.id)}
+                    className="bg-violet-700 hover:bg-violet-600 text-white text-xs h-7 px-2"
+                  >
+                    {expanded === lead.id ? <ChevronUp className="h-3 w-3" /> : <><Sparkles className="h-3 w-3 mr-1" />Teaser</>}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => promoteToIsr.mutate(lead)}
+                    disabled={promoteToIsr.isPending || !!lead.isrPromotedAt}
+                    className={`text-xs h-7 px-2 ${lead.isrPromotedAt ? "bg-emerald-900/40 text-emerald-300 border border-emerald-700 cursor-default" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
+                  >
+                    {lead.isrPromotedAt ? <><CheckCircle2 className="h-3 w-3 mr-1" />ISR'de</> : <><UserPlus className="h-3 w-3 mr-1" />ISR'e Ekle</>}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Teaser panel */}
+              {expanded === lead.id && (
+                <div className="px-3 pb-3">
+                  <TeaserPanel lead={lead} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sayfalama */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+            className="border-slate-700 text-slate-400 hover:bg-slate-800 h-7 px-3 text-xs">
+            Önceki
+          </Button>
+          <span className="text-xs text-slate-400">{page} / {totalPages}</span>
+          <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
+            className="border-slate-700 text-slate-400 hover:bg-slate-800 h-7 px-3 text-xs">
+            Sonraki
+          </Button>
+        </div>
+      )}
+
+      {contactTarget && <ContactModal lead={contactTarget} onClose={() => setContactTarget(null)} />}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Tab = "notContacted" | "contacted" | "teaserSent";
+type Tab = "notContacted" | "contacted" | "teaserSent" | "qualified";
 
 export default function IsrIsListesi() {
   const [activeTab, setActiveTab] = useState<Tab>("notContacted");
@@ -753,24 +962,34 @@ export default function IsrIsListesi() {
     staleTime: 60 * 1000,
   });
 
-  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode; count: number | undefined }> = [
+  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode; count: number | undefined; color: string }> = [
+    {
+      id: "qualified",
+      label: "Qualified Adaylar",
+      icon: <ListChecks className="h-4 w-4" />,
+      count: undefined,
+      color: "bg-cyan-500/20 text-cyan-400",
+    },
     {
       id: "notContacted",
       label: "Kontak Olmayanlar",
       icon: <UserPlus className="h-4 w-4" />,
       count: data?.notContacted.length,
+      color: "bg-blue-500/20 text-blue-400",
     },
     {
       id: "contacted",
       label: "Kontak Olanlar",
       icon: <Mail className="h-4 w-4" />,
       count: data?.contacted.length,
+      color: "bg-violet-500/20 text-violet-400",
     },
     {
       id: "teaserSent",
       label: "Teaser Gonderilenler",
       icon: <Send className="h-4 w-4" />,
       count: data?.teaserSent.length,
+      color: "bg-emerald-500/20 text-emerald-400",
     },
   ];
 
@@ -797,31 +1016,25 @@ export default function IsrIsListesi() {
         </div>
 
         {/* KPI row */}
-        {data && (
-          <div className="grid grid-cols-3 gap-2 sm:gap-4">
-            {tabs.map((t) => (
-              <Card
-                key={t.id}
-                className={`cursor-pointer transition-all border ${activeTab === t.id ? "bg-slate-800 border-slate-600" : "bg-slate-900/60 border-slate-800 hover:border-slate-700"}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3">
-                  <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${
-                    t.id === "notContacted" ? "bg-blue-500/20 text-blue-400" :
-                    t.id === "contacted" ? "bg-violet-500/20 text-violet-400" :
-                    "bg-emerald-500/20 text-emerald-400"
-                  }`}>
-                    {t.icon}
-                  </div>
-                  <div className="text-center sm:text-left min-w-0">
-                    <p className="text-xl sm:text-2xl font-bold text-white leading-none">{t.count ?? "—"}</p>
-                    <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">{t.label}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          {tabs.map((t) => (
+            <Card
+              key={t.id}
+              className={`cursor-pointer transition-all border ${activeTab === t.id ? "bg-slate-800 border-slate-600" : "bg-slate-900/60 border-slate-800 hover:border-slate-700"}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              <CardContent className="p-2 sm:p-3 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3">
+                <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${t.color}`}>
+                  {t.icon}
+                </div>
+                <div className="text-center sm:text-left min-w-0">
+                  <p className="text-xl sm:text-2xl font-bold text-white leading-none">{t.count ?? "—"}</p>
+                  <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">{t.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         {/* Tab bar — horizontally scrollable on mobile */}
         <div className="overflow-x-auto -mx-6 px-6">
@@ -851,7 +1064,9 @@ export default function IsrIsListesi() {
         </div>
 
         {/* Content */}
-        {isLoading ? (
+        {activeTab === "qualified" ? (
+          <QualifiedTab />
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm">Yukl&uuml;yor...</span>

@@ -44,3 +44,4 @@
 - [PDFKit bottom margin trap](pdfkit-bottom-margin.md) — always use margins:{bottom:0} with autoFirstPage:false; non-zero bottom triggers auto-page-add at y=H-margin even with explicit coords
 - [Katmanlı Tarama Mimarisi](tiered-scan-pipeline.md) — preScreenPendingCandidates (Tier3→Tier2) + qualifyPendingCandidates (Tier2→Tier1); DISABLE_APOLLO_HUNTER env flag; apiQuotaTracker.ts Shodan/VT günlük limit; ecosystem_report haftalık cron
 - [ISR Pipeline Fixes](isr-pipeline-fixes.md) — send-teaser SMTP bağlı; promote-to-isr otomatik isr_deals açıyor; D+3/D+7 cron'lar isr_leadgen_d3/d7; isNull guard tekrar gönderimi engeller
+- [WAF Enrichment Cron](waf-enrichment-cron.md) — 7 columns on lead_candidates; atomic UPDATE…RETURNING FOR UPDATE SKIP LOCKED; timeout≠result (waf_enriched_at only set on real result); 3-timeout→unknown_timeout; all proven live

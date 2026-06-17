@@ -846,6 +846,16 @@ async function ensureIsrTables() {
   await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_status VARCHAR(20)`);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_retry_count INTEGER DEFAULT 0`);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_last_retry_at TIMESTAMP`);
+  // ─── WAF Post-Qualification Enrichment columns ────────────────────────────
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_enriching_started_at TIMESTAMPTZ`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_enriched_at TIMESTAMPTZ`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_detected BOOLEAN`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_provider VARCHAR(100)`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_confidence INTEGER`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_enrichment_attempts INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_enrichment_status VARCHAR(30)`);
+  // Partial index: sadece enrichment bekleyen satırları kapsar — tablo büyüdükçe full scan önlenir.
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_lead_candidates_waf_pending ON lead_candidates (id) WHERE waf_enriched_at IS NULL AND waf_enrichment_status IS DISTINCT FROM 'unknown_timeout'`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS contact_enrichment_log (
       id SERIAL PRIMARY KEY,
@@ -2989,6 +2999,18 @@ startup()
       return result.qualified;
     }), { timezone: "Europe/Istanbul" });
     logger.info("Lead qualification cron scheduled (her 20 dakika, limit 200)");
+
+    // ─── WAF Post-Qualification Enrichment — Her 30 dakika ────────────────────
+    // Kalifikasyondan geçmiş lead'ler için WAF tespiti. Limit 50/run × 30dk = ~9 saat
+    // için 886 lead. Atomic UPDATE...RETURNING + FOR UPDATE SKIP LOCKED ile
+    // iki eşzamanlı run aynı satırı işleyemez. Timeout≠sonuç: sadece gerçek
+    // detectWAF sonuçları waf_enriched_at'i set eder.
+    cron.schedule("*/30 * * * *", wrapCron("waf_enrichment", "*/30 * * * *", async () => {
+      if (!await cronIsEnabled("waf_enrichment")) { logger.info("WAF enrichment cron devre dışı, atlanıyor"); return 0; }
+      const { runWafEnrichmentCron } = await import("./services/wafEnrichmentCron");
+      return runWafEnrichmentCron();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("WAF enrichment cron scheduled (her 30 dakika, limit 50/run)");
 
     cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
       if (!await cronIsEnabled("ecosystem_report")) { return 0; }

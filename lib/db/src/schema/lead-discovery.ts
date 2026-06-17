@@ -65,6 +65,18 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   isrFollowupD3SentAt: timestamp("isr_followup_d3_sent_at"),
   isrFollowupD7SentAt: timestamp("isr_followup_d7_sent_at"),
   hasKevMatch: boolean("has_kev_match").notNull().default(false),
+  // ─── WAF Post-Qualification Enrichment ───────────────────────────────────
+  // Atomic claim lock: SET before processing, cleared on completion or timeout-retry
+  wafEnrichingStartedAt: timestamp("waf_enriching_started_at"),
+  // Set ONLY when a real result is obtained (not on timeout). null = pending/unknown.
+  wafEnrichedAt: timestamp("waf_enriched_at"),
+  wafDetected: boolean("waf_detected"),
+  wafProvider: varchar("waf_provider", { length: 100 }),
+  wafConfidence: integer("waf_confidence"),
+  // Incremented on each timeout. After MAX_ATTEMPTS, status = 'unknown_timeout'.
+  wafEnrichmentAttempts: integer("waf_enrichment_attempts").notNull().default(0),
+  // null=pending | 'enriched'=real result | 'unknown_timeout'=max retries exceeded
+  wafEnrichmentStatus: varchar("waf_enrichment_status", { length: 30 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

@@ -1187,6 +1187,7 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="isp-gruplari">ISP Grupları</TabsTrigger>
             <TabsTrigger value="results">Sonuclar</TabsTrigger>
             <TabsTrigger value="history">Gecmis</TabsTrigger>
+            <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>
           </TabsList>
         </div>
 
@@ -2145,6 +2146,305 @@ export default function AdminLeadDiscovery() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ISP GRUPLARI TAB ─────────────────────────────────────────── */}
+        <TabsContent value="isp-gruplari">
+          <IspGroupsView />
+        </TabsContent>
+
+        {/* ── PUANLAMA REHBERİ TAB ─────────────────────────────────────── */}
+        <TabsContent value="puanlama-rehberi">
+          <div className="space-y-4 text-sm">
+
+            {/* Kalifikasyon kriteri */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">Kalifikasyon Kriteri</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-green-800/40 bg-green-950/30 p-4">
+                    <div className="text-green-400 font-semibold text-sm mb-1">Risk Skoru &lt; 60 → Qualified (Tier1)</div>
+                    <div className="text-slate-400 text-xs">Domain, kontakt aramasına ve teaser oluşturulmasına dahil edilir.</div>
+                  </div>
+                  <div className="rounded-lg border border-red-800/40 bg-red-950/30 p-4">
+                    <div className="text-red-400 font-semibold text-sm mb-1">Risk Skoru ≥ 60 → Reddedildi (Tier2 kalır)</div>
+                    <div className="text-slate-400 text-xs">Domain taranmış olarak işaretlenir, qualified olmaz. Skor güvenlik bulgularının azlığını gösterir.</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-500 bg-slate-800/40 rounded p-3">
+                  Not: Düşük risk skoru = daha az güvenlik kontrolü = siber güvenlik ihtiyacı yüksek = iyi lead. Yüksek skor = güvenli sistem = hizmet ihtiyacı düşük.
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Temel domain risk skoru */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">Temel Domain Risk Skoru (0–100)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">Bileşen</th>
+                        <th className="text-right py-2 pr-4 text-slate-400 font-medium">Max</th>
+                        <th className="text-left py-2 text-slate-400 font-medium">Puanlama Detayı</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300 font-medium">SPF Kaydı</td>
+                        <td className="py-2.5 pr-4 text-right text-blue-400 font-mono font-bold">20</td>
+                        <td className="py-2.5 text-slate-400">
+                          <span className="inline-block bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded mr-1">hardfail → 20</span>
+                          <span className="inline-block bg-yellow-900/40 text-yellow-400 px-1.5 py-0.5 rounded mr-1">softfail → 14</span>
+                          <span className="inline-block bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded mr-1">neutral → 10</span>
+                          <span className="inline-block bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded">yok → 0</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300 font-medium">DMARC Politikası</td>
+                        <td className="py-2.5 pr-4 text-right text-blue-400 font-mono font-bold">25</td>
+                        <td className="py-2.5 text-slate-400">
+                          <span className="inline-block bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded mr-1">reject → 25</span>
+                          <span className="inline-block bg-yellow-900/40 text-yellow-400 px-1.5 py-0.5 rounded mr-1">quarantine → 20</span>
+                          <span className="inline-block bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded mr-1">none (izleme) → 10</span>
+                          <span className="inline-block bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded">yok → 0</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300 font-medium">DKIM İmzası</td>
+                        <td className="py-2.5 pr-4 text-right text-blue-400 font-mono font-bold">20</td>
+                        <td className="py-2.5 text-slate-400">
+                          <span className="inline-block bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded mr-1">tespit edildi → 20</span>
+                          <span className="inline-block bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">tespit edilemedi → 8 (kısmi kredi)</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300 font-medium">MX Kaydı</td>
+                        <td className="py-2.5 pr-4 text-right text-blue-400 font-mono font-bold">10</td>
+                        <td className="py-2.5 text-slate-400">
+                          <span className="inline-block bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded mr-1">var → 10</span>
+                          <span className="inline-block bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded">yok → 0</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300 font-medium">SSL Sertifikası</td>
+                        <td className="py-2.5 pr-4 text-right text-blue-400 font-mono font-bold">25</td>
+                        <td className="py-2.5 text-slate-400 space-y-0.5">
+                          <div>
+                            <span className="inline-block bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded mr-1">60+ gün → 25</span>
+                            <span className="inline-block bg-green-900/30 text-green-300 px-1.5 py-0.5 rounded mr-1">30–59 gün → 20</span>
+                            <span className="inline-block bg-yellow-900/40 text-yellow-400 px-1.5 py-0.5 rounded mr-1">14–29 gün → 15</span>
+                            <span className="inline-block bg-orange-900/40 text-orange-400 px-1.5 py-0.5 rounded mr-1">7–13 gün → 8</span>
+                            <span className="inline-block bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded mr-1">1–6 gün → 2</span>
+                            <span className="inline-block bg-red-900/60 text-red-300 px-1.5 py-0.5 rounded">süresi dolmuş / yok → 0</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-red-400 font-medium">Port Cezası</td>
+                        <td className="py-2.5 pr-4 text-right text-red-400 font-mono font-bold">−X</td>
+                        <td className="py-2.5 text-slate-400">Yüksek riskli açık portlar için toplam skora eksi puan uygulanır.</td>
+                      </tr>
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-600">
+                        <td className="pt-2.5 pr-4 text-slate-200 font-semibold">Toplam</td>
+                        <td className="pt-2.5 pr-4 text-right text-white font-mono font-bold">100</td>
+                        <td className="pt-2.5 text-slate-500 text-xs">SPF + DMARC + DKIM + MX + SSL − Port Cezası</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* WAF/CDN güven skoru */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">WAF/CDN Güven Skoru (Tarama Güvenilirliği)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-xs mb-3">
+                  WAF/CDN varlığı taramanın ne kadar güvenilir olduğunu etkiler. Gerçek sunucuya ulaşamıyorsak bulgular eksik olabilir.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">Durum</th>
+                        <th className="text-right py-2 pr-4 text-slate-400 font-medium">Güven %</th>
+                        <th className="text-left py-2 text-slate-400 font-medium">Açıklama</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {[
+                        { durum: "WAF yok, CDN yok", gven: 95, color: "text-green-400", aciklama: "Gerçek sunucuya doğrudan erişim — en güvenilir tarama sonucu." },
+                        { durum: "Sadece CDN var (WAF yok)", gven: 85, color: "text-green-300", aciklama: "CDN arkasında ama WAF tespit edilmedi. Bazı portlar CDN'e ait olabilir." },
+                        { durum: "WAF var (düşük güven)", gven: 75, color: "text-yellow-300", aciklama: "WAF tespit edildi ancak tek yöntemle — dolaylı tespit." },
+                        { durum: "WAF var (orta güven)", gven: 78, color: "text-yellow-400", aciklama: "WAF orta kesinlikte tespit edildi (1 yöntem, yüksek skor)." },
+                        { durum: "WAF var (yüksek güven)", gven: 72, color: "text-orange-400", aciklama: "WAF yüksek kesinlikte tespit edildi (2+ yöntem). CVE skorları düşürülür." },
+                        { durum: "OSINT bypass riski yüksek", gven: 60, color: "text-orange-500", aciklama: "OSINT analizi WAF bypass ihtimalini yüksek buluyor. Risk azaltımı uygulanmaz." },
+                        { durum: "WAF bypass mümkün", gven: 55, color: "text-red-400", aciklama: "Kaynak IP'ye doğrudan erişim mümkün — WAF koruması devre dışı sayılır." },
+                      ].map((row) => (
+                        <tr key={row.durum}>
+                          <td className="py-2.5 pr-4 text-slate-300">{row.durum}</td>
+                          <td className={`py-2.5 pr-4 text-right font-mono font-bold ${row.color}`}>%{row.gven}</td>
+                          <td className="py-2.5 text-slate-400">{row.aciklama}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* CVE risk ayarlaması */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">WAF Varlığında CVE Risk Ayarlaması</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-xs mb-3">
+                  WAF tespit edildiğinde Shodan/NVD CVE skorları pratik risk yansıtacak şekilde ayarlanır.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">Durum</th>
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">Etki</th>
+                        <th className="text-left py-2 text-slate-400 font-medium">Örnek</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">WAF yok</td>
+                        <td className="py-2.5 pr-4 text-slate-400">CVE skorları değişmez</td>
+                        <td className="py-2.5 text-slate-500">CVSS 9.8 → 9.8</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">WAF var + Bypass mümkün</td>
+                        <td className="py-2.5 pr-4 text-orange-400">Risk azaltımı uygulanmaz</td>
+                        <td className="py-2.5 text-slate-500">CVSS 9.8 → 9.8 (bypass var)</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">WAF var + CVSS ≥ 9.0 (Kritik)</td>
+                        <td className="py-2.5 pr-4 text-green-400">%40 azaltma (× 0.60)</td>
+                        <td className="py-2.5 text-slate-500">CVSS 9.8 → 5.9</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">WAF var + CVSS ≥ 7.0 (Yüksek)</td>
+                        <td className="py-2.5 pr-4 text-green-400">%35 azaltma (× 0.65)</td>
+                        <td className="py-2.5 text-slate-500">CVSS 8.2 → 5.3</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">WAF var + CVSS &lt; 7.0</td>
+                        <td className="py-2.5 pr-4 text-slate-400">Sadece not eklenir</td>
+                        <td className="py-2.5 text-slate-500">CVSS 5.5 → 5.5 (not: WAF hafifletir)</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 text-slate-300">SSL / TLS / SMTP servisleri</td>
+                        <td className="py-2.5 pr-4 text-slate-400">WAF'tan bağımsız — değişmez</td>
+                        <td className="py-2.5 text-slate-500">E-posta, sertifika açıkları etkilenmez</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Lead Skoru */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">AI Lead Skoru (0–100)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-xs mb-3">
+                  Tarama verisi Claude AI ile değerlendirilir; satış öncelik sıralaması için kullanılır. Domain risk skoru ile bağımsız çalışır.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        <th className="text-left py-2 pr-4 text-slate-400 font-medium">Faktör</th>
+                        <th className="text-right py-2 pr-4 text-slate-400 font-medium">Max Puan</th>
+                        <th className="text-left py-2 text-slate-400 font-medium">Değerlendirilen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {[
+                        { faktor: "risk_score", max: 20, aciklama: "Domain risk skoru yüksekse siber güvenlik ihtiyacı fazladır" },
+                        { faktor: "critical_count", max: 20, aciklama: "Kritik bulgu sayısı" },
+                        { faktor: "urgency_signal", max: 20, aciklama: "Aktif saldırı, bilinen açıklar, CISA KEV listesi" },
+                        { faktor: "conversion_potential", max: 25, aciklama: "Dönüşüm potansiyeli (sektör, büyüklük, erişilebilirlik)" },
+                        { faktor: "company_size_signal", max: 15, aciklama: "Şirket büyüklüğü sinyali (çalışan sayısı, ASN)" },
+                      ].map((row) => (
+                        <tr key={row.faktor}>
+                          <td className="py-2.5 pr-4 font-mono text-purple-400">{row.faktor}</td>
+                          <td className="py-2.5 pr-4 text-right text-blue-400 font-mono font-bold">{row.max}</td>
+                          <td className="py-2.5 text-slate-400">{row.aciklama}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-slate-600">
+                        <td className="pt-2.5 pr-4 text-slate-200 font-semibold">Toplam</td>
+                        <td className="pt-2.5 pr-4 text-right text-white font-mono font-bold">100</td>
+                        <td className="pt-2.5 text-slate-500 text-xs">AI skoru düşük ya da hesaplanamadıysa 30 puan (varsayılan) atanır</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* WAF tespit yöntemleri */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-slate-200">WAF Tespit Yöntemleri ve Güven Seviyeleri</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wide">Tespit Yöntemleri</div>
+                    <div className="space-y-1.5 text-xs">
+                      {[
+                        { yontem: "header_signature", aciklama: "HTTP response header / cookie / body imza eşleşmesi" },
+                        { yontem: "dns_ptr_ip_range", aciklama: "DNS PTR kaydı veya Cloudflare IP CIDR aralığı" },
+                        { yontem: "tls_cert", aciklama: "TLS sertifika issuer (Cloudflare, Sucuri)" },
+                        { yontem: "indirect_cdn", aciklama: "Dolaylı CDN header sinyali (x-cache, via, x-amz-cf-id vb.)" },
+                      ].map((r) => (
+                        <div key={r.yontem} className="flex gap-2">
+                          <span className="font-mono text-purple-400 shrink-0">{r.yontem}</span>
+                          <span className="text-slate-500">— {r.aciklama}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wide">Güven Seviyesi Kuralı</div>
+                    <div className="space-y-1.5 text-xs text-slate-400">
+                      <div><span className="text-green-400 font-medium">Yüksek (high):</span> 2+ yöntem veya tek yöntem + skor ≥ 60</div>
+                      <div><span className="text-yellow-400 font-medium">Orta (medium):</span> Tek yöntem + skor 35–59</div>
+                      <div><span className="text-slate-400 font-medium">Düşük (low):</span> Tek yöntem + skor &lt; 35</div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wide">Desteklenen WAF/CDN</div>
+                      <div className="flex flex-wrap gap-1">
+                        {["Cloudflare", "F5 BIG-IP", "Akamai", "Imperva", "Sucuri", "AWS WAF", "Fortinet FortiWeb", "Fastly", "Azure CDN", "AWS CloudFront"].map((w) => (
+                          <span key={w} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">{w}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
         </TabsContent>
 
         {/* ── ISP GRUPLARI TAB ─────────────────────────────────────────── */}

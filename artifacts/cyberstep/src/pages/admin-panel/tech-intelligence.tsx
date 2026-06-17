@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Cpu, Shield, AlertTriangle, Server, Globe,
-  Search, RefreshCw, TrendingUp, Mail, History, ChevronRight,
+  Search, RefreshCw, TrendingUp, Mail, History, ChevronRight, X,
 } from "lucide-react";
 
 interface TechStats {
@@ -102,11 +102,14 @@ function fmtDate(d: string | null) {
   return dt.toLocaleDateString("tr-TR");
 }
 
+type DrillFilter = "scanned" | "analyzed" | "pending" | "waf" | "microsoft365" | "fortinet" | "criticalPorts";
+
 export default function TechIntelligencePage() {
   const queryClient = useQueryClient();
   const [searchDomain, setSearchDomain] = useState("");
   const [viewDomain, setViewDomain] = useState("");
   const [historyFilter, setHistoryFilter] = useState("");
+  const [drillFilter, setDrillFilter] = useState<DrillFilter | null>(null);
 
   const statsQ = useQuery<TechStats>({
     queryKey: ["tech-stack-stats"],
@@ -130,6 +133,13 @@ export default function TechIntelligencePage() {
     queryKey: ["tech-stack-domain", viewDomain],
     queryFn: () => adminFetchJson(`/api/admin-panel/tech-stack/${encodeURIComponent(viewDomain)}`),
     enabled: !!viewDomain,
+  });
+
+  const drillQ = useQuery<{ domains: string[]; total: number }>({
+    queryKey: ["tech-stack-drilldown", drillFilter],
+    queryFn: () => adminFetchJson(`/api/admin-panel/tech-stack/drilldown?filter=${drillFilter}`),
+    enabled: !!drillFilter,
+    staleTime: 30000,
   });
 
   const fingerprintMut = useMutation({
@@ -172,25 +182,79 @@ export default function TechIntelligencePage() {
 
         {/* Genel Bakış */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          {[
-            { icon: Globe,         label: "Tarama yapılan",        value: stats?.scannedDomains ?? "—",     color: "text-slate-300" },
-            { icon: TrendingUp,    label: "Teknografik analiz",    value: stats?.uniqueDomains ?? "—",      color: "text-cyan-400" },
-            { icon: AlertTriangle, label: "Analiz bekleyen",       value: stats?.pendingFingerprint ?? "—", color: stats && stats.pendingFingerprint > 0 ? "text-amber-400" : "text-slate-500" },
-            { icon: Shield,        label: "WAF Tespit",            value: stats?.wafDetected ?? "—",        color: "text-cyan-400" },
-            { icon: Mail,          label: "Microsoft 365",         value: stats?.microsoft365 ?? "—",       color: "text-blue-400" },
-            { icon: Cpu,           label: "FortiGate tespit",      value: stats?.fortinet ?? "—",           color: "text-orange-400" },
-            { icon: AlertTriangle, label: "Kritik port",           value: stats?.criticalOpenPorts ?? "—",  color: "text-red-400" },
-            { icon: Server,        label: "Toplam kayıt",          value: stats?.totalEntries ?? "—",       color: "text-slate-400" },
-          ].map((item) => (
-            <Card key={item.label} className="bg-slate-900 border-slate-800">
+          {([
+            { icon: Globe,         label: "Tarama yapılan",   value: stats?.scannedDomains ?? "—",     color: "text-slate-300",  drill: "scanned" as DrillFilter },
+            { icon: TrendingUp,    label: "Teknografik analiz", value: stats?.uniqueDomains ?? "—",    color: "text-cyan-400",   drill: "analyzed" as DrillFilter },
+            { icon: AlertTriangle, label: "Analiz bekleyen",  value: stats?.pendingFingerprint ?? "—", color: stats && stats.pendingFingerprint > 0 ? "text-amber-400" : "text-slate-500", drill: "pending" as DrillFilter },
+            { icon: Shield,        label: "WAF Tespit",       value: stats?.wafDetected ?? "—",        color: "text-cyan-400",   drill: "waf" as DrillFilter },
+            { icon: Mail,          label: "Microsoft 365",    value: stats?.microsoft365 ?? "—",       color: "text-blue-400",   drill: "microsoft365" as DrillFilter },
+            { icon: Cpu,           label: "FortiGate tespit", value: stats?.fortinet ?? "—",           color: "text-orange-400", drill: "fortinet" as DrillFilter },
+            { icon: AlertTriangle, label: "Kritik port",      value: stats?.criticalOpenPorts ?? "—",  color: "text-red-400",    drill: "criticalPorts" as DrillFilter },
+            { icon: Server,        label: "Toplam kayıt",     value: stats?.totalEntries ?? "—",       color: "text-slate-400",  drill: null },
+          ] as const).map((item) => (
+            <Card
+              key={item.label}
+              onClick={() => item.drill && setDrillFilter(drillFilter === item.drill ? null : item.drill)}
+              className={`bg-slate-900 border-slate-800 transition-all ${item.drill ? "cursor-pointer hover:border-slate-600" : ""} ${drillFilter === item.drill ? "border-slate-500 ring-1 ring-slate-500/30" : ""}`}
+            >
               <CardContent className="p-4">
                 <item.icon className={`h-5 w-5 ${item.color} mb-2`} />
                 <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
                 <div className="text-xs text-slate-500 mt-1">{item.label}</div>
+                {item.drill && <div className="text-[10px] text-slate-700 mt-1">tıkla → detay</div>}
               </CardContent>
             </Card>
           ))}
         </div>
+
+        {/* Drilldown Panel */}
+        {drillFilter && (
+          <Card className="bg-slate-900 border-slate-600 ring-1 ring-slate-500/20">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white text-sm flex items-center gap-2">
+                  {drillFilter === "scanned" && <><Globe className="h-4 w-4 text-slate-400" /> Tarama Yapılan Domainler</>}
+                  {drillFilter === "analyzed" && <><TrendingUp className="h-4 w-4 text-cyan-400" /> Teknografik Analiz Yapılan Domainler</>}
+                  {drillFilter === "pending" && <><AlertTriangle className="h-4 w-4 text-amber-400" /> Analiz Bekleyen Domainler</>}
+                  {drillFilter === "waf" && <><Shield className="h-4 w-4 text-cyan-400" /> WAF/CDN Korumalı Domainler</>}
+                  {drillFilter === "microsoft365" && <><Mail className="h-4 w-4 text-blue-400" /> Microsoft 365 Kullanan Domainler</>}
+                  {drillFilter === "fortinet" && <><Cpu className="h-4 w-4 text-orange-400" /> FortiGate Tespit Edilen Domainler</>}
+                  {drillFilter === "criticalPorts" && <><AlertTriangle className="h-4 w-4 text-red-400" /> Kritik Port Açık Domainler</>}
+                  {drillQ.data && (
+                    <Badge variant="outline" className="border-slate-700 text-slate-400 ml-1">{drillQ.data.total}</Badge>
+                  )}
+                </CardTitle>
+                <button onClick={() => setDrillFilter(null)} className="text-slate-600 hover:text-slate-300 transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {drillQ.isLoading && (
+                <div className="flex items-center gap-2 text-slate-500 text-sm py-4">
+                  <RefreshCw className="h-4 w-4 animate-spin" /> Yükleniyor...
+                </div>
+              )}
+              {drillQ.data && drillQ.data.domains.length === 0 && (
+                <div className="text-slate-600 text-sm py-4 text-center">Bu kategoride kayıt bulunamadı</div>
+              )}
+              {drillQ.data && drillQ.data.domains.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 max-h-64 overflow-y-auto pr-1">
+                  {drillQ.data.domains.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => selectDomain(d)}
+                      className="text-left text-xs font-mono text-slate-300 hover:text-cyan-400 hover:bg-slate-800/60 px-2 py-1.5 rounded truncate transition-colors border border-transparent hover:border-slate-700"
+                      title={d}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Domain Tarama */}
         <Card className="bg-slate-900 border-slate-800">

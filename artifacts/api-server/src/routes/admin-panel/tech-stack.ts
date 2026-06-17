@@ -31,7 +31,15 @@ router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
     `);
     const wafCount = Number((wafResult.rows[0] as { cnt: number })?.cnt || 0);
     const microsoftCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.vendor, "microsoft"), eq(customerTechStackTable.category, "mail"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
-    const fortinetCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.vendor, "fortinet"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
+    // FortiGate: hem customer_tech_stack (Shodan) hem domain_scans (WAF header) — waf_provider ILIKE '%forti%' kapsar
+    const fortinetResult = await db.execute(sql`
+      SELECT COUNT(DISTINCT domain)::int AS cnt FROM (
+        SELECT domain FROM customer_tech_stack WHERE vendor = 'fortinet' AND is_active = true
+        UNION
+        SELECT domain FROM domain_scans WHERE waf_provider ILIKE '%forti%'
+      ) sub
+    `);
+    const fortinetCount = Number((fortinetResult.rows[0] as { cnt: number })?.cnt || 0);
     const criticalPortCount = await db.select({ count: count() }).from(customerTechStackTable).where(and(eq(customerTechStackTable.category, "open_port"), eq(customerTechStackTable.securityRisk, "critical"), eq(customerTechStackTable.isActive, true))).then((r) => r[0]?.count || 0);
 
     const distinctDomains = await db.selectDistinct({ domain: customerTechStackTable.domain }).from(customerTechStackTable).where(eq(customerTechStackTable.isActive, true));
@@ -55,6 +63,73 @@ router.get("/admin-panel/tech-stack/stats", requireAdmin, async (req, res) => {
   } catch (e) {
     req.log.error({ err: e }, "Tech stack stats hatası");
     res.status(500).json({ error: "İstatistikler alınamadı" });
+  }
+});
+
+// GET /api/admin-panel/tech-stack/drilldown?filter=<type>
+// Returns domain list for a KPI card filter. Must be before /:domain wildcard.
+router.get("/admin-panel/tech-stack/drilldown", requireAdmin, async (req, res) => {
+  const filter = String(req.query["filter"] || "");
+  try {
+    let rows: { domain: string }[] = [];
+
+    if (filter === "waf") {
+      const r = await db.execute(sql`
+        SELECT DISTINCT domain FROM (
+          SELECT domain FROM customer_tech_stack WHERE is_active = true AND category IN ('waf','cdn','Güvenlik / CDN','firewall')
+          UNION
+          SELECT domain FROM domain_scans WHERE waf_detected = true
+        ) sub ORDER BY domain
+      `);
+      rows = r.rows as { domain: string }[];
+    } else if (filter === "fortinet") {
+      const r = await db.execute(sql`
+        SELECT DISTINCT domain FROM (
+          SELECT domain FROM customer_tech_stack WHERE vendor = 'fortinet' AND is_active = true
+          UNION
+          SELECT domain FROM domain_scans WHERE waf_provider ILIKE '%forti%'
+        ) sub ORDER BY domain
+      `);
+      rows = r.rows as { domain: string }[];
+    } else if (filter === "microsoft365") {
+      const r = await db.selectDistinct({ domain: customerTechStackTable.domain })
+        .from(customerTechStackTable)
+        .where(and(eq(customerTechStackTable.vendor, "microsoft"), eq(customerTechStackTable.category, "mail"), eq(customerTechStackTable.isActive, true)))
+        .orderBy(customerTechStackTable.domain);
+      rows = r;
+    } else if (filter === "criticalPorts") {
+      const r = await db.selectDistinct({ domain: customerTechStackTable.domain })
+        .from(customerTechStackTable)
+        .where(and(eq(customerTechStackTable.category, "open_port"), eq(customerTechStackTable.securityRisk, "critical"), eq(customerTechStackTable.isActive, true)))
+        .orderBy(customerTechStackTable.domain);
+      rows = r;
+    } else if (filter === "analyzed") {
+      const r = await db.selectDistinct({ domain: customerTechStackTable.domain })
+        .from(customerTechStackTable)
+        .where(eq(customerTechStackTable.isActive, true))
+        .orderBy(customerTechStackTable.domain)
+        .limit(200);
+      rows = r;
+    } else if (filter === "scanned") {
+      const r = await db.execute(sql`SELECT DISTINCT domain FROM domain_scans ORDER BY domain LIMIT 200`);
+      rows = r.rows as { domain: string }[];
+    } else if (filter === "pending") {
+      const r = await db.execute(sql`
+        SELECT DISTINCT ds.domain FROM domain_scans ds
+        WHERE ds.domain NOT IN (
+          SELECT DISTINCT domain FROM customer_tech_stack WHERE is_active = true
+        )
+        ORDER BY ds.domain LIMIT 200
+      `);
+      rows = r.rows as { domain: string }[];
+    } else {
+      res.status(400).json({ error: "Geçersiz filter" }); return;
+    }
+
+    res.json({ domains: rows.map(r => r.domain), total: rows.length });
+  } catch (e) {
+    req.log.error({ err: e }, "Tech stack drilldown hatası");
+    res.status(500).json({ error: "Drilldown alınamadı" });
   }
 });
 

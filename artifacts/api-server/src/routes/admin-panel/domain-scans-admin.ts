@@ -200,6 +200,9 @@ router.get("/admin-panel/domain-scans", requireAdmin, async (req: Request, res: 
       hibpBreachCount: domainScansTable.hibpBreachCount,
       blacklisted: domainScansTable.blacklisted,
       shadowItServices: domainScansTable.shadowItServices,
+      asnNumber: domainScansTable.asnNumber,
+      asnName: domainScansTable.asnName,
+      orphanedAssets: domainScansTable.orphanedAssets,
       createdAt: domainScansTable.createdAt,
     })
     .from(domainScansTable)

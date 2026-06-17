@@ -59,6 +59,9 @@ interface DomainScanRow {
   hibpBreachCount: number;
   blacklisted: boolean;
   shadowItServices: Array<{ name: string; category: string; risk: string; description: string }>;
+  asnNumber?: string | null;
+  asnName?: string | null;
+  orphanedAssets?: Array<{ subdomain: string; ip: string; isWafProtected: boolean; httpAccessible: boolean; httpsAccessible: boolean; risk: "high" | "medium" | "low"; reason: string }> | null;
   createdAt: string;
 }
 
@@ -423,6 +426,39 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                           <span className="text-xs text-slate-500">{s.category}</span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">{s.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ASN / Orphaned Assets */}
+            {scan.orphanedAssets && scan.orphanedAssets.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  Gölge IT / ASN Varlık Keşfi ({scan.orphanedAssets.length} varlık)
+                  {scan.asnNumber && (
+                    <span className="ml-2 font-mono font-normal text-slate-500">
+                      {scan.asnNumber}{scan.asnName ? ` · ${scan.asnName}` : ""}
+                    </span>
+                  )}
+                </h3>
+                <div className="space-y-2">
+                  {scan.orphanedAssets.map((asset, i) => (
+                    <div key={i} className={`flex items-start gap-3 p-3 rounded-lg ${asset.risk === "high" ? "bg-red-500/10 border border-red-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${asset.risk === "high" ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"}`}>
+                        {asset.risk === "high" ? "YÜK" : "ORT"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono text-white">{asset.subdomain}</span>
+                          <span className="text-xs text-slate-500 font-mono">{asset.ip}</span>
+                          {asset.isWafProtected && <span className="text-xs text-blue-400">WAF</span>}
+                          {asset.httpAccessible && <span className="text-xs text-slate-400">HTTP</span>}
+                          {asset.httpsAccessible && <span className="text-xs text-slate-400">HTTPS</span>}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">{asset.reason}</p>
                       </div>
                     </div>
                   ))}
@@ -1028,6 +1064,7 @@ export default function AdminDomainTaramalar() {
                   <th className="px-4 py-3 text-center">HIBP</th>
                   <th className="px-4 py-3 text-center">Kara Liste</th>
                   <th className="px-4 py-3 text-center">Gölge BT</th>
+                  <th className="px-4 py-3 text-center">ASN Varlık</th>
                   <th className="px-4 py-3 text-center">KEP</th>
                   <th className="px-4 py-3 text-left">Tarih</th>
                   <th className="px-4 py-3 text-center">İşlem</th>
@@ -1035,12 +1072,12 @@ export default function AdminDomainTaramalar() {
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {isLoading && (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">
+                  <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">
                     <Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Yükleniyor...
                   </td></tr>
                 )}
                 {!isLoading && (list?.rows ?? []).length === 0 && (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">Tarama bulunamadı</td></tr>
+                  <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">Tarama bulunamadı</td></tr>
                 )}
                 {(list?.rows ?? []).map(scan => {
                   const highRisk = (scan.shadowItServices ?? []).filter(s => s.risk === "Yüksek").length;
@@ -1082,6 +1119,16 @@ export default function AdminDomainTaramalar() {
                           ? <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">{highRisk} yüksek</Badge>
                           : <span className="text-slate-600 text-xs">{(scan.shadowItServices ?? []).length} servis</span>
                         }
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {(() => {
+                          const oa = scan.orphanedAssets ?? [];
+                          const highOa = oa.filter(a => a.risk === "high").length;
+                          if (oa.length === 0) return <span className="text-slate-700 text-xs">—</span>;
+                          return highOa > 0
+                            ? <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">{highOa} WAFsız</Badge>
+                            : <span className="text-amber-400 text-xs">{oa.length} varlık</span>;
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {(scan as any).kepConfigured === true

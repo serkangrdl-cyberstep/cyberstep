@@ -34,6 +34,8 @@ interface CVERow {
   notificationsSent: number | null;
   detectedAt: string | null;
   domainMatchCount?: number;
+  epssScore: string | null;
+  epssPercentile: string | null;
 }
 
 interface Stats {
@@ -108,6 +110,12 @@ function CVEDetail({ cveId, onBack }: { cveId: string; onBack: () => void }) {
         <h2 className="text-white font-bold text-lg">{cve.cveId}</h2>
         <Badge className={severityColor(cve.severity)}>CVSS {cve.cvssScore} {(cve.severity ?? "").toUpperCase()}</Badge>
         <Badge className={statusBadge(cve.status)}>{statusLabel(cve.status)}</Badge>
+        {cve.epssScore != null && (
+          <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+            EPSS {(parseFloat(cve.epssScore) * 100).toFixed(1)}%
+            {cve.epssPercentile != null && ` · P${Math.round(parseFloat(cve.epssPercentile) * 100)}`}
+          </Badge>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -303,6 +311,11 @@ function CVECard({ cve, onSelect }: { cve: CVERow; onSelect: (id: string) => voi
               {cve.cisaKev && <Badge className="bg-red-600/20 text-red-300 border-red-600/30">KEV</Badge>}
               {cve.exploitPublic && <Badge className="bg-orange-600/20 text-orange-300 border-orange-600/30">Exploit</Badge>}
               {cve.patchAvailable && <Badge className="bg-green-600/20 text-green-300 border-green-600/30">Yama</Badge>}
+              {cve.epssScore != null && (
+                <Badge className="bg-purple-600/20 text-purple-300 border-purple-600/30">
+                  EPSS {(parseFloat(cve.epssScore) * 100).toFixed(1)}%
+                </Badge>
+              )}
             </div>
             <p className="text-slate-400 text-sm truncate">{cve.title}</p>
           </div>

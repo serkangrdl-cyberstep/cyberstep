@@ -844,6 +844,8 @@ async function ensureIsrTables() {
     )
   `);
   await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_status VARCHAR(20)`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_retry_count INTEGER DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE IF EXISTS lead_scan_queue ADD COLUMN IF NOT EXISTS ai_score_last_retry_at TIMESTAMP`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS contact_enrichment_log (
       id SERIAL PRIMARY KEY,
@@ -1094,21 +1096,32 @@ function startLeadWebEnrichCron() {
 }
 
 function startAiScoreRetryCron() {
+  // Üstel backoff: retry_count=0→1h, 1→2h, 2→4h, 3→8h, 4+→16h (tavan)
+  // Bu sayede kalıcı başarısızlıklar kotadan düşer, taze hatalar önce işlenir.
   cron.schedule(
     "45 * * * *",
     wrapCron("ai_score_retry", "45 * * * *", async () => {
       const { scoreLeadWithAI } = await import("./services/leadScoringService");
       const { leadScanQueueTable } = await import("@workspace/db");
-      const { eq, inArray, sql: drizzleSql, lt } = await import("drizzle-orm");
+      const { eq } = await import("drizzle-orm");
+      // Backoff: bekleme = 2^min(retry_count,4) saat; az retry_count'lu kayıtlar önce seçilir
       const pending = await db.execute(
-        sql`SELECT id, domain, company_name, domain_scan_data
+        sql`SELECT id, domain, company_name, domain_scan_data,
+                   COALESCE(ai_score_retry_count, 0) AS retry_count
             FROM lead_scan_queue
             WHERE ai_score_status IN ('failed','timeout','rate_limited')
-              AND scanned_at < NOW() - INTERVAL '1 hour'
-            ORDER BY scanned_at ASC
+              AND COALESCE(ai_score_last_retry_at, scanned_at) <
+                  NOW() - (POWER(2, LEAST(COALESCE(ai_score_retry_count,0), 4)) || ' hours')::INTERVAL
+            ORDER BY COALESCE(ai_score_retry_count, 0) ASC, scanned_at ASC
             LIMIT 20`,
       );
-      const rows = pending.rows as Array<{ id: number; domain: string; company_name: string | null; domain_scan_data: Record<string, unknown> | null }>;
+      const rows = pending.rows as Array<{
+        id: number;
+        domain: string;
+        company_name: string | null;
+        domain_scan_data: Record<string, unknown> | null;
+        retry_count: number;
+      }>;
       let retried = 0, succeeded = 0;
       for (const row of rows) {
         try {
@@ -1120,13 +1133,16 @@ function startAiScoreRetryCron() {
               leadScore: scored.score,
               leadScoreFactors: scored.factors,
               aiScoreStatus: "scored",
+              aiScoreRetryCount: 0,
+              aiScoreLastRetryAt: new Date(),
               scannedAt: new Date(),
             }).where(eq(leadScanQueueTable.id, row.id));
             succeeded++;
           } else {
             await db.update(leadScanQueueTable).set({
               aiScoreStatus: scored.status,
-              scannedAt: new Date(),
+              aiScoreRetryCount: (row.retry_count ?? 0) + 1,
+              aiScoreLastRetryAt: new Date(),
             }).where(eq(leadScanQueueTable.id, row.id));
           }
           retried++;
@@ -1139,7 +1155,7 @@ function startAiScoreRetryCron() {
     }),
     { timezone: "Europe/Istanbul" },
   );
-  logger.info("AI score retry cron scheduled (saatte bir, :45)");
+  logger.info("AI score retry cron scheduled (saatte bir, :45, üstel backoff)");
 }
 
 function startLeadTrEnrichCron() {

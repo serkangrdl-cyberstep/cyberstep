@@ -92,9 +92,23 @@ Claude tarafından 0–100 arasında hesaplanan satış öncelik skoru.
 
 > **Önemli:** `ai_score_status IS NOT NULL AND ai_score_status != 'scored'` kayıtlar yeniden puanlama kuyruğundadır. Bunları satış önceliği sıralamasına dahil etme — gerçek puanları henüz bilinmiyor.
 
-### Retry Cron
+### Retry Cron ve Üstel Backoff
 
-`ai_score_retry` cron'u her saat :45'te çalışır. `ai_score_status IN ('failed','timeout','rate_limited')` ve `scanned_at < NOW() - 1 saat` olan kayıtları seçer, maksimum 20 kayıt/çalışma, üstel backoff yerine saatlik periyot.
+`ai_score_retry` cron'u her saat :45'te çalışır. Maksimum 20 kayıt/çalışma.
+
+Bekleme süresi `ai_score_retry_count` değerine göre katlanır:
+
+| retry_count | Minimum Bekleme |
+|-------------|----------------|
+| 0 | 1 saat |
+| 1 | 2 saat |
+| 2 | 4 saat |
+| 3 | 8 saat |
+| 4+ | 16 saat (tavan) |
+
+Sıralama: az retry_count'lu (taze hatalar) önce seçilir. Kalıcı başarısızlıklar 16 saat aralıklarla denenir, kotadan düşmez.
+
+`ai_score_last_retry_at` — son deneme zamanı (backoff hesabında `scanned_at` yerine kullanılır).
 
 ### Geriye Dönük Veri Kirliliği
 

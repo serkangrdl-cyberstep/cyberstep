@@ -15,6 +15,8 @@ export const leadScanQueueTable = pgTable("lead_scan_queue", {
   leadScore: integer("lead_score"),
   leadScoreFactors: jsonb("lead_score_factors"),
   aiScoreStatus: varchar("ai_score_status", { length: 20 }),
+  aiScoreRetryCount: integer("ai_score_retry_count").default(0),
+  aiScoreLastRetryAt: timestamp("ai_score_last_retry_at"),
   contacts: jsonb("contacts"),
   importedAt: timestamp("imported_at"),
   importedToCustomerId: integer("imported_to_customer_id"),

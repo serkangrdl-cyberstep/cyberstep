@@ -264,22 +264,20 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
     )
     .limit(limit);
 
-  logger.info({ count: pending.length }, "Derin kalifikasyon başlıyor (Tier2)");
+  // Concurrency: her batch'te kaç domain paralel taransın
+  const CONCURRENCY = 3;
+  logger.info({ count: pending.length, concurrency: CONCURRENCY }, "Derin kalifikasyon başlıyor (Tier2)");
 
   const MAX_RUNTIME_MS = 17 * 60 * 1000;
-  const SCAN_TIMEOUT_MS = 25_000;
+  const SCAN_TIMEOUT_MS = 20_000;
   const batchStart = Date.now();
   let processedCount = 0;
   let qualifiedCount = 0;
 
   const disableApolloHunter = process.env["DISABLE_APOLLO_HUNTER"] === "true";
 
-  for (const candidate of pending) {
-    if (Date.now() - batchStart > MAX_RUNTIME_MS) {
-      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (17 dk) aşıldı, batch sonlandırılıyor");
-      break;
-    }
-
+  // Tek bir adayı işler; döndürdüğü sayıları batch toplar
+  async function processOne(candidate: (typeof pending)[number]): Promise<{ processed: number; qualified: number }> {
     try {
       await db.update(leadCandidatesTable).set({
         scanStatus: "scanning",
@@ -293,9 +291,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
           scanStatus: "failed",
           updatedAt: new Date(),
         }).where(eq(leadCandidatesTable.id, candidate.id));
-        processedCount++;
-        await sleep(200);
-        continue;
+        return { processed: 1, qualified: 0 };
       }
 
       const criticals = scanResult.findings.filter((f) => f.severity === "critical");
@@ -362,8 +358,6 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         }
 
         // ── Shodan: ağ cihazı / güvenlik duvarı tespiti ──────────────────────
-        // domain_scans.shodan_open_ports içindeki product/service alanlarından
-        // FortiGate, Palo Alto, Cisco ASA vb. tespit edip customer_tech_stack'e yazar.
         const shodanPorts = (scanRow?.shodanOpenPorts ?? []) as Array<{
           port: number; protocol: string; service: string; product: string; version: string;
         }>;
@@ -419,15 +413,12 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         logger.warn({ domain: candidate.domain, err: String(e) }, "Shadow IT / Shodan tech_stack aktarımı başarısız");
       }
 
-      processedCount++;
       if (!isQualified) {
         logger.info({ domain: candidate.domain, score: scanResult.overallScore }, "Kalifikasyon reddedildi");
-        await sleep(200);
-        continue;
+        return { processed: 1, qualified: 0 };
       }
-      qualifiedCount++;
 
-      // İletişim bul: (Apollo/Hunter devre dışıysa atla) → WHOIS → Web scraping
+      // ── Qualified: iletişim bul (Apollo/Hunter → WHOIS → Web scraping) ──────
       if (!candidate.contactEmail) {
         try {
           let contactEmail: string | null = null;
@@ -503,10 +494,9 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
             updatedAt: new Date(),
           }).where(eq(leadCandidatesTable.id, candidate.id));
         }
-        await sleep(500);
       }
 
-      // Teaser üret — contactEmail olmasa da fire-and-forget
+      // Teaser üret — fire-and-forget
       setImmediate(async () => {
         try {
           await generateLeadTeaserEmail(candidate.id, scanResult);
@@ -517,16 +507,33 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       });
 
       logger.info({ domain: candidate.domain, criticals: criticals.length, score: scanResult.overallScore }, "Kalifikasyon geçti → Tier1");
+      return { processed: 1, qualified: 1 };
     } catch (e) {
-      logger.error({ domain: candidate.domain, err: String(e) }, "Kalifikasyon hatası");
+      logger.error({ domain: (candidate as { domain?: string }).domain, err: String(e) }, "Kalifikasyon hatası");
       await db.update(leadCandidatesTable).set({
         scanStatus: "failed",
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
-      processedCount++;
+      return { processed: 1, qualified: 0 };
+    }
+  }
+
+  // CONCURRENCY adet domain'i aynı anda işle
+  for (let i = 0; i < pending.length; i += CONCURRENCY) {
+    if (Date.now() - batchStart > MAX_RUNTIME_MS) {
+      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (17 dk) aşıldı, batch sonlandırılıyor");
+      break;
     }
 
-    await sleep(500);
+    const chunk = pending.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(chunk.map((c) => processOne(c)));
+    for (const r of results) {
+      processedCount += r.processed;
+      qualifiedCount += r.qualified;
+    }
+
+    // Rate limiter'lara nezaket: batch'ler arasında kısa duraklama
+    if (i + CONCURRENCY < pending.length) await sleep(100);
   }
 
   logger.info({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon batch tamamlandı");

@@ -1,6 +1,6 @@
-import { db, siteSettingsTable } from "@workspace/db";
+import { db, siteSettingsTable, discoveryRunsTable } from "@workspace/db";
 import { pool } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -111,6 +111,32 @@ export async function cleanupStaleRunningJobs(): Promise<void> {
     }
   } catch (err) {
     logger.warn({ err }, "Startup: stale cron cleanup failed");
+  }
+}
+
+// ─── Startup: stale "running" discovery_runs kayıtları ──────────────────────
+// crt.sh ve diğer discovery kaynakları (shodan, ripe, bgptools, vb.) bir run
+// başlatıp process crash/restart nedeniyle hiç sonlandıramazsa, satır kalıcı
+// olarak status='running'de kalır — 12 Haziran 2026'da bu şekilde takılı kalan
+// 3 crt.sh run'ı elle SQL ile temizlenmişti. Bu, o temizliği otomatikleştirir.
+const DISCOVERY_RUN_STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 dakika
+
+export async function cleanupStaleDiscoveryRuns(): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - DISCOVERY_RUN_STALE_THRESHOLD_MS);
+    const updated = await db.update(discoveryRunsTable)
+      .set({ status: "failed", errorMessage: "Stale on restart — cleaned up", completedAt: new Date() })
+      .where(and(eq(discoveryRunsTable.status, "running"), lt(discoveryRunsTable.startedAt, cutoff)))
+      .returning({ id: discoveryRunsTable.id, source: discoveryRunsTable.source });
+
+    if (updated.length > 0) {
+      logger.warn(
+        { count: updated.length, sources: [...new Set(updated.map((u) => u.source))] },
+        "Startup: stale 'running' discovery_runs kayıtları temizlendi",
+      );
+    }
+  } catch (err) {
+    logger.warn({ err }, "Startup: discovery_runs stale cleanup failed");
   }
 }
 

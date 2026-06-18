@@ -10,19 +10,62 @@ import { logger } from "../lib/logger";
 
 const CRTSH_BASE = "https://crt.sh";
 
+// Tek bir crt.sh run'ının (8 TLD sorgusu + işleme) normal süresinden çok daha
+// geniş bir üst sınır. Hem mutex'in zorla serbest bırakılmasında hem de
+// run-level timeout'ta kullanılır — 12 Haziran 2026'da bir run process
+// crash/restart nedeniyle hiç sonlanmadan "running"de takılı kalmıştı.
+const CRTSH_RUN_TIMEOUT_MS = 20 * 60 * 1000; // 20 dakika
+const CRTSH_RUN_TIMEOUT_MESSAGE = "Run-level timeout exceeded";
+
 // Serialise concurrent crt.sh requests so we never send more than one at a time.
 // Multiple simultaneous requests trigger 429 rate-limiting from crt.sh.
 let _crtshRunning = false;
+let _crtshAcquiredAt: number | null = null;
 const _crtshQueue: Array<() => void> = [];
+
 function _acquireCrtsh(): Promise<void> {
-  if (!_crtshRunning) { _crtshRunning = true; return Promise.resolve(); }
+  // Önceki sahip mutex'i hiç bırakmamış olabilir (process crash, sonsuz hang).
+  // CRTSH_RUN_TIMEOUT_MS'den uzun süre kilitli kalmışsa zorla serbest bırak.
+  if (_crtshRunning && _crtshAcquiredAt !== null && Date.now() - _crtshAcquiredAt > CRTSH_RUN_TIMEOUT_MS) {
+    logger.warn(
+      { heldMs: Date.now() - _crtshAcquiredAt, acquiredAt: new Date(_crtshAcquiredAt).toISOString() },
+      "crt.sh mutex zorla serbest bırakıldı — önceki run askıda kalmış olabilir",
+    );
+    _crtshRunning = false;
+    _crtshAcquiredAt = null;
+  }
+
+  if (!_crtshRunning) {
+    _crtshRunning = true;
+    _crtshAcquiredAt = Date.now();
+    return Promise.resolve();
+  }
   return new Promise(resolve => _crtshQueue.push(resolve));
 }
+
 function _releaseCrtsh(): void {
   const next = _crtshQueue.shift();
-  if (next) next();
-  else _crtshRunning = false;
+  if (next) {
+    _crtshAcquiredAt = Date.now();
+    next();
+  } else {
+    _crtshRunning = false;
+    _crtshAcquiredAt = null;
+  }
 }
+
+// Test-only: mutex'in iç durumuna dışarıdan erişim (src/scripts/validate-crtsh-*.ts kullanır).
+export const __crtshMutexTestHooks = {
+  acquire: _acquireCrtsh,
+  release: _releaseCrtsh,
+  forceState(running: boolean, acquiredAtMs: number | null): void {
+    _crtshRunning = running;
+    _crtshAcquiredAt = acquiredAtMs;
+  },
+  getState(): { running: boolean; acquiredAt: number | null; queueLength: number } {
+    return { running: _crtshRunning, acquiredAt: _crtshAcquiredAt, queueLength: _crtshQueue.length };
+  },
+};
 
 const EXCLUDED_DOMAINS = new Set([
   "cloudflare.com", "amazonaws.com", "azure.com",
@@ -182,91 +225,129 @@ export async function scanCRTSH(
   }
 }
 
+// Verilen işi runTimeoutMs içinde tamamlanmaya zorlar. Süre dolarsa veya iş
+// kendisi hata fırlatırsa discovery_runs satırını 'failed' yapar — ama satır
+// hâlâ 'running' ise (yani gecikmeli tamamlanan asıl iş üzerine yazmıyor).
+// Test-only export'u (__crtshRunTimeoutTestHooks) bu fonksiyonu doğrudan
+// kısaltılmış bir timeoutMs ile sürmek için kullanılır.
+async function _raceWithRunTimeout<T>(
+  runId: number,
+  workFn: () => Promise<T>,
+  runTimeoutMs: number,
+): Promise<T> {
+  let timeoutHandle: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error(CRTSH_RUN_TIMEOUT_MESSAGE)), runTimeoutMs);
+  });
+
+  try {
+    return await Promise.race([workFn(), timeout]);
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.message === CRTSH_RUN_TIMEOUT_MESSAGE;
+    const errorMessage = isTimeout ? CRTSH_RUN_TIMEOUT_MESSAGE : String(err);
+    await db.update(discoveryRunsTable)
+      .set({ status: "failed", errorMessage, completedAt: new Date() })
+      .where(and(eq(discoveryRunsTable.id, runId), eq(discoveryRunsTable.status, "running")));
+    if (isTimeout) {
+      logger.error({ runId, runTimeoutMs }, "crt.sh run-level timeout aşıldı — run 'failed' olarak işaretlendi");
+    }
+    throw err;
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+// Test-only: run-level timeout race'ini gerçek bir discovery_runs satırına
+// karşı kısaltılmış sürelerle tetiklemek için (src/scripts/validate-crtsh-*.ts).
+export const __crtshRunTimeoutTestHooks = {
+  raceWithRunTimeout: _raceWithRunTimeout,
+  timeoutMessage: CRTSH_RUN_TIMEOUT_MESSAGE,
+};
+
 async function _scanCRTSHInner(
   query: string,
-  { daysBack, minCorporateScore, limit }: { daysBack: number; minCorporateScore: number; limit: number },
+  opts: { daysBack: number; minCorporateScore: number; limit: number },
 ): Promise<CRTSHScanResult> {
   await loadScoringRules();
 
   const [run] = await db.insert(discoveryRunsTable).values({
     source: "crtsh",
-    runParams: { query, daysBack, minCorporateScore, limit },
+    runParams: { query, ...opts },
     status: "running",
   }).returning();
 
-  try {
-    logger.info({ query }, "crt.sh scan starting");
-    const certs = await fetchCrtsh(query, 60_000) as Array<{
-      common_name?: string;
-      name_value?: string;
-      entry_timestamp?: string;
-      issuer_name?: string;
-      not_before?: string;
-      not_after?: string;
-    }>;
+  return _raceWithRunTimeout(run.id, () => _runCRTSHScanWork(run.id, query, opts), CRTSH_RUN_TIMEOUT_MS);
+}
 
-    const cutoff = new Date(Date.now() - daysBack * 86_400_000);
-    const qualifiedDomains = new Map<string, { triggerSubdomain: string; subdomainType: string; score: number; certIssuer: string }>();
-    let skipped = 0;
+async function _runCRTSHScanWork(
+  runId: number,
+  query: string,
+  { daysBack, minCorporateScore, limit }: { daysBack: number; minCorporateScore: number; limit: number },
+): Promise<CRTSHScanResult> {
+  logger.info({ query }, "crt.sh scan starting");
+  const certs = await fetchCrtsh(query, 60_000) as Array<{
+    common_name?: string;
+    name_value?: string;
+    entry_timestamp?: string;
+    issuer_name?: string;
+    not_before?: string;
+    not_after?: string;
+  }>;
 
-    for (const cert of certs) {
-      if (qualifiedDomains.size >= limit) break;
-      if (cert.entry_timestamp && new Date(cert.entry_timestamp) < cutoff) { skipped++; continue; }
+  const cutoff = new Date(Date.now() - daysBack * 86_400_000);
+  const qualifiedDomains = new Map<string, { triggerSubdomain: string; subdomainType: string; score: number; certIssuer: string }>();
+  let skipped = 0;
 
-      // Skip short-lived certs (< 30 days) — test/staging certs, low value for lead discovery
-      if (cert.not_before && cert.not_after) {
-        const validityDays = (new Date(cert.not_after).getTime() - new Date(cert.not_before).getTime()) / 86_400_000;
-        if (validityDays < 30) { skipped++; continue; }
-      }
+  for (const cert of certs) {
+    if (qualifiedDomains.size >= limit) break;
+    if (cert.entry_timestamp && new Date(cert.entry_timestamp) < cutoff) { skipped++; continue; }
 
-      const domains = extractDomainsFromCert(cert);
-      if (domains.length === 0) { skipped++; continue; }
-
-      for (const domain of domains) {
-        if (isExcluded(domain) || !isTurkishDomain(domain)) continue;
-        const analysis = analyzeSubdomain(domain);
-        if (!analysis.rootDomain || analysis.corporateScore < minCorporateScore) continue;
-
-        const existing = qualifiedDomains.get(analysis.rootDomain);
-        if (!existing || analysis.corporateScore > existing.score) {
-          qualifiedDomains.set(analysis.rootDomain, {
-            triggerSubdomain: domain,
-            subdomainType: analysis.subdomainType,
-            score: analysis.corporateScore,
-            certIssuer: cert.issuer_name ?? "",
-          });
-        }
-      }
+    // Skip short-lived certs (< 30 days) — test/staging certs, low value for lead discovery
+    if (cert.not_before && cert.not_after) {
+      const validityDays = (new Date(cert.not_after).getTime() - new Date(cert.not_before).getTime()) / 86_400_000;
+      if (validityDays < 30) { skipped++; continue; }
     }
 
-    let added = 0;
-    for (const [domain, data] of qualifiedDomains) {
-      const inserted = await db.insert(leadCandidatesTable).values({
-        domain,
-        source: "crtsh",
-        sourceData: {
-          triggerSubdomain: data.triggerSubdomain,
-          subdomainType: data.subdomainType,
-          corporateScore: data.score,
-          certIssuer: data.certIssuer,
-        },
-        scanStatus: "pending",
-      }).onConflictDoNothing().returning();
-      if (inserted.length > 0) added++;
+    const domains = extractDomainsFromCert(cert);
+    if (domains.length === 0) { skipped++; continue; }
+
+    for (const domain of domains) {
+      if (isExcluded(domain) || !isTurkishDomain(domain)) continue;
+      const analysis = analyzeSubdomain(domain);
+      if (!analysis.rootDomain || analysis.corporateScore < minCorporateScore) continue;
+
+      const existing = qualifiedDomains.get(analysis.rootDomain);
+      if (!existing || analysis.corporateScore > existing.score) {
+        qualifiedDomains.set(analysis.rootDomain, {
+          triggerSubdomain: domain,
+          subdomainType: analysis.subdomainType,
+          score: analysis.corporateScore,
+          certIssuer: cert.issuer_name ?? "",
+        });
+      }
     }
-
-    await db.update(discoveryRunsTable).set({
-      status: "completed",
-      totalFound: qualifiedDomains.size,
-      totalAdded: added,
-      completedAt: new Date(),
-    }).where(eq(discoveryRunsTable.id, run.id));
-
-    logger.info({ runId: run.id, certsScanned: certs.length, domainsFound: qualifiedDomains.size, added, skipped }, "crt.sh scan done");
-    return { runId: run.id, certsScanned: certs.length, domainsFound: qualifiedDomains.size, addedToLeads: added, skipped };
-  } catch (err) {
-    await db.update(discoveryRunsTable).set({ status: "failed", errorMessage: String(err) })
-      .where(eq(discoveryRunsTable.id, run.id));
-    throw err;
   }
+
+  let added = 0;
+  for (const [domain, data] of qualifiedDomains) {
+    const inserted = await db.insert(leadCandidatesTable).values({
+      domain,
+      source: "crtsh",
+      sourceData: {
+        triggerSubdomain: data.triggerSubdomain,
+        subdomainType: data.subdomainType,
+        corporateScore: data.score,
+        certIssuer: data.certIssuer,
+      },
+      scanStatus: "pending",
+    }).onConflictDoNothing().returning();
+    if (inserted.length > 0) added++;
+  }
+
+  await db.update(discoveryRunsTable)
+    .set({ status: "completed", totalFound: qualifiedDomains.size, totalAdded: added, completedAt: new Date() })
+    .where(and(eq(discoveryRunsTable.id, runId), eq(discoveryRunsTable.status, "running")));
+
+  logger.info({ runId, certsScanned: certs.length, domainsFound: qualifiedDomains.size, added, skipped }, "crt.sh scan done");
+  return { runId, certsScanned: certs.length, domainsFound: qualifiedDomains.size, addedToLeads: added, skipped };
 }

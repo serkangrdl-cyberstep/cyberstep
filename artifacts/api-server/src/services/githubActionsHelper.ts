@@ -7,6 +7,7 @@ interface GhRun {
   conclusion: string | null;
   html_url: string;
   created_at: string;
+  display_title: string;
 }
 
 interface GhRunsResponse {
@@ -95,10 +96,11 @@ export function watchRunInBackground(opts: {
   repo: string;
   workflowId: string;
   dispatchedAt: Date;
+  correlationId?: string;
   logContext?: Record<string, unknown>;
   timeoutMs?: number;
 }): void {
-  const { pat, repo, workflowId, dispatchedAt, logContext = {}, timeoutMs = 10 * 60 * 1000 } = opts;
+  const { pat, repo, workflowId, dispatchedAt, correlationId, logContext = {}, timeoutMs = 10 * 60 * 1000 } = opts;
 
   setImmediate(async () => {
     try {
@@ -110,11 +112,18 @@ export function watchRunInBackground(opts: {
 
       let run: GhRun | null = null;
 
+      // correlationId (carried in the run-name via the workflow's `correlation_id`
+      // input) uniquely identifies *this* dispatch's run. Without it, two dispatches
+      // racing within the same poll window (e.g. cron + manual) could both match the
+      // same timestamp-filtered candidate. Timestamp filtering is kept as a fallback
+      // for callers that don't pass a correlationId.
       for (let attempt = 0; attempt < 3 && !run; attempt++) {
         const raw = await ghGet(pat, runsPath);
         const data = JSON.parse(raw.toString()) as GhRunsResponse;
-        const candidates = (data.workflow_runs ?? []).filter(
-          (r) => new Date(r.created_at) >= dispatchedAt,
+        const candidates = (data.workflow_runs ?? []).filter((r) =>
+          correlationId
+            ? r.display_title?.includes(correlationId)
+            : new Date(r.created_at) >= dispatchedAt,
         );
         run = candidates[0] ?? null;
         if (!run) await sleep(15_000);

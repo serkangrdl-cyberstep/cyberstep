@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import {
   leadCandidatesTable,
@@ -205,12 +206,13 @@ router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, asy
   const repo = "serkangrdl-cyberstep/CyberStep";
   const workflowId = "certstream-bridge.yml";
   const dispatchedAt = new Date();
+  const correlationId = randomUUID();
 
   const result = await dispatchWorkflow({
     pat,
     repo,
     workflowId,
-    inputs: { ingest_url: ingestUrl },
+    inputs: { ingest_url: ingestUrl, correlation_id: correlationId },
   });
 
   if (!result.dispatched) {
@@ -219,8 +221,8 @@ router.post("/admin-panel/lead-discovery/certstream/dispatch", requireAdmin, asy
     return;
   }
 
-  logger.info({ trigger: "manual" }, "Certstream dispatch manual tetiklendi — run izleniyor");
-  watchRunInBackground({ pat, repo, workflowId, dispatchedAt, logContext: { trigger: "manual" } });
+  logger.info({ trigger: "manual", correlationId }, "Certstream dispatch manual tetiklendi — run izleniyor");
+  watchRunInBackground({ pat, repo, workflowId, dispatchedAt, correlationId, logContext: { trigger: "manual" } });
 
   res.json({ ok: true, message: "GitHub Actions dispatch tetiklendi — run sonucu sunucu loglarına yazılacak" });
 });

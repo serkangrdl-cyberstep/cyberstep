@@ -1,4 +1,5 @@
 import fs from "fs";
+import { randomUUID } from "crypto";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db, pool } from "@workspace/db";
@@ -2464,10 +2465,11 @@ startup()
       if (!pat) { logger.warn("GITHUB_PAT eksik — certstream dispatch atlandı"); return 0; }
       const { dispatchWorkflow, watchRunInBackground } = await import("./services/githubActionsHelper");
       const dispatchedAt = new Date();
-      const result = await dispatchWorkflow({ pat, repo, workflowId });
+      const correlationId = randomUUID();
+      const result = await dispatchWorkflow({ pat, repo, workflowId, inputs: { correlation_id: correlationId } });
       if (result.dispatched) {
-        logger.info({ workflow: workflowId }, "Certstream dispatch tetiklendi — run izleniyor");
-        watchRunInBackground({ pat, repo, workflowId, dispatchedAt, logContext: { trigger: "cron" } });
+        logger.info({ workflow: workflowId, correlationId }, "Certstream dispatch tetiklendi — run izleniyor");
+        watchRunInBackground({ pat, repo, workflowId, dispatchedAt, correlationId, logContext: { trigger: "cron" } });
       } else {
         logger.warn({ status: result.httpStatus, workflow: workflowId }, "Certstream dispatch başarısız");
       }

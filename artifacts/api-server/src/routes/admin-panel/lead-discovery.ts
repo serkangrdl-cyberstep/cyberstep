@@ -922,4 +922,46 @@ router.post("/admin-panel/lead-discovery/isp-backfill", requireAdmin, async (_re
   res.json({ updated: result.rowCount });
 });
 
+// ─── POST /api/admin-panel/lead-discovery/bulk-import-pdf ────────────────────
+// PDF listesinden toplu domain import — body: { domains: [...] }
+// ON CONFLICT (domain) DO NOTHING — idempotent, tekrar çalıştırılabilir
+router.post("/admin-panel/lead-discovery/bulk-import-pdf", requireAdmin, async (req: Request, res: Response) => {
+  const { domains } = req.body as {
+    domains: Array<{ domain: string; industry: string; revenueUsd: number; employeeRange: string }>;
+  };
+  if (!Array.isArray(domains) || domains.length === 0) {
+    res.status(400).json({ error: "domains array gerekli" });
+    return;
+  }
+
+  let inserted = 0;
+  let skipped = 0;
+  const CHUNK = 50;
+
+  for (let i = 0; i < domains.length; i += CHUNK) {
+    const chunk = domains.slice(i, i + CHUNK);
+    const e = (s: string) => s.replace(/'/g, "''");
+    const result = await db.execute(sql`
+      INSERT INTO lead_candidates (domain, sector, source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+      SELECT * FROM unnest(
+        ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r.domain)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r.industry)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'pdf_import'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'pending'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'tier2'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.domain.endsWith(".bel.tr") ? "true" : "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(r => `'${e(JSON.stringify({ industry: r.industry, revenue_usd: r.revenueUsd, employee_range: r.employeeRange }))}'`).join(",")}]`)}::jsonb[],
+        ${sql.raw(`ARRAY[${chunk.map(() => "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(() => "0").join(",")}]`)}::int[]
+      ) AS t(domain, sector, source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+      ON CONFLICT (domain) DO NOTHING
+    `);
+    inserted += result.rowCount ?? 0;
+    skipped += chunk.length - (result.rowCount ?? 0);
+  }
+
+  logger.info({ inserted, skipped, total: domains.length }, "PDF bulk import tamamlandı");
+  res.json({ inserted, skipped, total: domains.length });
+});
+
 export default router;

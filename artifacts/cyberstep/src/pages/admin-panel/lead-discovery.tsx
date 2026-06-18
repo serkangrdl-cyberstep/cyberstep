@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -919,6 +920,22 @@ export default function AdminLeadDiscovery() {
     },
   });
 
+  const pdfImport = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`${BASE}/lead-discovery/bulk-import-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domains: pdfLeads }),
+      });
+      return r.json() as Promise<{ inserted: number; skipped: number; total: number }>;
+    },
+    onSuccess: (d) => {
+      toast({ description: `PDF import tamamlandı: ${d.inserted} eklendi, ${d.skipped} zaten vardı.` });
+      qc.invalidateQueries({ queryKey: ["lead-stats"] });
+    },
+    onError: () => toast({ description: "PDF import başarısız.", variant: "destructive" }),
+  });
+
   const startQualify = useMutation({
     mutationFn: () =>
       fetch(`${BASE}/lead-discovery/qualify`, {
@@ -1494,6 +1511,42 @@ export default function AdminLeadDiscovery() {
                     {startFull.isPending ? "Başlatılıyor..." : "Tam Pipeline Başlat"}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* PDF Toplu Import */}
+            <Card className="border-violet-200 dark:border-violet-900">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 rounded px-2 py-0.5">Manuel</span>
+                  <CardTitle className="text-base">PDF Lead Listesi Toplu Import</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  Haziran 2026 PDF listesinden 859 domain — tier2/pending olarak eklenir. Zaten mevcut domainler atlanır (idempotent).
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 text-xs text-muted-foreground space-y-0.5">
+                    <div>Kaynak: <span className="font-medium text-foreground/70">pdf-leads-2026-06.json</span> ({pdfLeads.length} domain)</div>
+                    <div>Tier: tier2 · Durum: pending · Kaynak kodu: pdf_import</div>
+                    <div>Belediyeler (.bel.tr): is_municipality=true olarak işaretlenir</div>
+                  </div>
+                  <Button
+                    onClick={() => pdfImport.mutate()}
+                    disabled={pdfImport.isPending}
+                    size="sm"
+                    variant="outline"
+                    className="border-violet-400 text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 shrink-0"
+                  >
+                    {pdfImport.isPending ? "Import ediliyor..." : "PDF Listesini Import Et"}
+                  </Button>
+                </div>
+                {pdfImport.isSuccess && (
+                  <div className="mt-3 text-xs bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded px-3 py-2 text-green-700 dark:text-green-400">
+                    Tamamlandı: {pdfImport.data.inserted} eklendi, {pdfImport.data.skipped} zaten mevcuttu.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

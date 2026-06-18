@@ -443,14 +443,21 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
 
 // ─── GET /api/admin-panel/lead-discovery/candidates ──────────────────────────
 router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: Request, res: Response) => {
-  const status = req.query["status"] as string | undefined;
-  const tier = req.query["tier"] as string | undefined;
-  const page = parseInt(req.query["page"] as string ?? "1");
-  const pageSize = parseInt(req.query["pageSize"] as string ?? "50");
+  const status       = req.query["status"] as string | undefined;
+  const tier         = req.query["tier"] as string | undefined;
+  const hasContact   = req.query["hasContact"] === "true";
+  const notSent      = req.query["notSent"]    === "true";
+  const municipality = req.query["municipality"] as string | undefined; // "only" | "exclude" | undefined
+  const page         = parseInt(req.query["page"] as string ?? "1");
+  const pageSize     = parseInt(req.query["pageSize"] as string ?? "50");
 
-  const conditions: ReturnType<typeof eq>[] = [];
+  const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [];
   if (status) conditions.push(eq(leadCandidatesTable.scanStatus, status));
   if (tier) conditions.push(eq(leadCandidatesTable.tier, tier));
+  if (hasContact) conditions.push(isNotNull(leadCandidatesTable.contactEmail));
+  if (notSent)    conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+  if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
+  if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
 
   const rows = await db.select().from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined)

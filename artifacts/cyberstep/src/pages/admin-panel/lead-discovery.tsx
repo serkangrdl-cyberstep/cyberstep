@@ -762,6 +762,7 @@ export default function AdminLeadDiscovery() {
   const [qMunicipality, setQMunicipality] = useState<"" | "only" | "exclude">("");
   const [qPageInput, setQPageInput] = useState("");
   const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
+  const [filterMunicipality, setFilterMunicipality] = useState<"" | "only" | "exclude">("");
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
@@ -838,11 +839,12 @@ export default function AdminLeadDiscovery() {
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier],
+    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filterHasContact) params.set("hasContact", "true");
       if (filterNotSent) params.set("notSent", "true");
+      if (filterMunicipality) params.set("municipality", filterMunicipality);
       if (filterQualified) {
         return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
       }
@@ -1926,6 +1928,24 @@ export default function AdminLeadDiscovery() {
                       <option value="tier1">Tier 1 — Qualified</option>
                     </select>
                   )}
+
+                  {/* Belediye filtresi */}
+                  <button
+                    onClick={() => {
+                      setFilterMunicipality((v) => v === "" ? "only" : v === "only" ? "exclude" : "");
+                      setPage(1);
+                    }}
+                    className={`px-2 py-1 rounded-md text-xs border transition-colors ${
+                      filterMunicipality === "only"
+                        ? "bg-blue-900/60 border-blue-500 text-blue-300"
+                        : filterMunicipality === "exclude"
+                        ? "bg-slate-700/60 border-slate-500 text-slate-300 line-through"
+                        : "bg-slate-800 border-slate-700 text-slate-400 hover:border-blue-500/50 hover:text-blue-400"
+                    }`}
+                    title={filterMunicipality === "" ? "Tüm domainler (belediyeler dahil)" : filterMunicipality === "only" ? "Sadece belediyeler (.bel.tr)" : "Belediyeler hariç"}
+                  >
+                    {filterMunicipality === "only" ? "Sadece Belediyeler" : filterMunicipality === "exclude" ? "Belediyeler Hariç" : "Belediyeler"}
+                  </button>
                 </div>
               </div>
             </CardHeader>

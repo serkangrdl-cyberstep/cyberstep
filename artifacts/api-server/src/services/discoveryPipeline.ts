@@ -266,7 +266,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
 
   logger.info({ count: pending.length }, "Derin kalifikasyon başlıyor (Tier2)");
 
-  const MAX_RUNTIME_MS = 25 * 60 * 1000;
+  const MAX_RUNTIME_MS = 17 * 60 * 1000;
   const SCAN_TIMEOUT_MS = 25_000;
   const batchStart = Date.now();
   let processedCount = 0;
@@ -276,7 +276,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
 
   for (const candidate of pending) {
     if (Date.now() - batchStart > MAX_RUNTIME_MS) {
-      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (25 dk) aşıldı, batch sonlandırılıyor");
+      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (17 dk) aşıldı, batch sonlandırılıyor");
       break;
     }
 
@@ -294,7 +294,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
           updatedAt: new Date(),
         }).where(eq(leadCandidatesTable.id, candidate.id));
         processedCount++;
-        await sleep(1000);
+        await sleep(200);
         continue;
       }
 
@@ -422,7 +422,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       processedCount++;
       if (!isQualified) {
         logger.info({ domain: candidate.domain, score: scanResult.overallScore }, "Kalifikasyon reddedildi");
-        await sleep(1000);
+        await sleep(200);
         continue;
       }
       qualifiedCount++;
@@ -526,7 +526,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       processedCount++;
     }
 
-    await sleep(1500);
+    await sleep(500);
   }
 
   logger.info({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon batch tamamlandı");

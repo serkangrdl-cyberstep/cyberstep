@@ -9,13 +9,19 @@
 ## 1. Domain Risk Skoru (Güvenlik Hijyeni Skoru)
 
 Tarama sırasında hesaplanan bileşik güvenlik skoru. Yüksek = güvenli sistem.
+Kaynak: `artifacts/api-server/src/routes/domain-scan/index.ts`, `calcScore` fonksiyonu (satır 158+).
 
 | Bileşen | Ağırlık | Açıklama |
 |---------|---------|----------|
-| SPF | 25 puan | E-posta spoofing koruması |
-| DMARC | 30 puan | E-posta kimlik doğrulama politikası |
-| MX | 10 puan | Mail sunucusu yapılandırması |
-| SSL | 35 puan | HTTPS sertifikası geçerliliği |
+| SPF | 20 puan | hardfail=20, softfail=14, neutral=10, yok=0 |
+| DMARC | 25 puan | reject=25, quarantine=20, none=10, yok=0 |
+| DKIM | 20 puan | pass=20, fail=8 (kısmi kredi) |
+| MX | 10 puan | pass=10, fail=0 |
+| SSL | 25 puan | >59 gün=25, ≤59=20, ≤29=15, ≤13=8, ≤6=2, ≤0/yok=0 |
+| Port cezası | −N | shodan port risk tespitinden düşülür |
+
+Toplam: max 100 (mükemmel yapılandırma, port cezası yok).
+`lead_candidates.risk_score`, `domain_scans.overall_score`'un (`discoveryPipeline.ts:311`) doğrudan kopyasıdır — ayrı bir hesaplama yoktur.
 
 **Kalifikasyon eşiği:** Risk Skoru < 60 → Tier 1 (qualified lead)
 

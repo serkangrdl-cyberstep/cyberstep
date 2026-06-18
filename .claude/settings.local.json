@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(env)",
+      "Bash(pnpm exec *)",
+      "Bash(node *)",
+      "Bash(xargs -I{} grep -n \"dispatchWorkflow\\(\\\\|watchRunInBackground\\(\" {})",
+      "Bash(xargs -I{} echo {})",
+      "Bash(grep -E \"^tsx$|^ts-node$\")",
+      "Bash(AI_INTEGRATIONS_ANTHROPIC_API_KEY=\"sk-ant-deliberately-invalid-test-key-0000\" pnpm exec tsx src/scripts/_manual-test-ai-score.ts)",
+      "Bash(netstat -tlnp)",
+      "Bash(AI_INTEGRATIONS_ANTHROPIC_BASE_URL=\"http://localhost:1\" pnpm exec *)",
+      "Bash(pnpm run *)",
+      "Bash(git log *)",
+      "Bash(grep -rn \"cron\\\\.\\\\${.*}\\\\.enabled\\\\|cron\\\\..*\\\\.enabled\\\\|siteSettingsTable\" artifacts/api-server/src/routes/admin-panel/cron.ts)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5000/)",
+      "Bash(curl *)",
+      "Bash(psql \"postgresql://postgres:password@helium/heliumdb?sslmode=disable\" -c \"SELECT id, email FROM admin_users LIMIT 5;\")",
+      "Bash(psql postgresql://postgres:password@helium/heliumdb?sslmode=disable -c ' *)"
+    ]
+  }
+}

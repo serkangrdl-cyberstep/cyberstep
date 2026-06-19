@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import * as XLSX from "xlsx";
 import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert } from "lucide-react";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
@@ -806,6 +807,14 @@ export default function AdminLeadDiscovery() {
   const [editTitle, setEditTitle] = useState("");
   // ─── CVE Raporu tab ───────────────────────────────────────────────────────
   const [cveMinCvss, setCveMinCvss] = useState("9.0");
+
+  // ── Lead Import Merkezi ────────────────────────────────────────────────────
+  const [importTab, setImportTab] = useState("excel");
+  const [manualInput, setManualInput] = useState("");
+  const [singleDomain, setSingleDomain] = useState("");
+  const [excelParsed, setExcelParsed] = useState<{ domain: string }[]>([]);
+  const [excelFileName, setExcelFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [cveSeverity, setCveSeverity] = useState("");
   const [cveOnlyExploit, setCveOnlyExploit] = useState(false);
   const [cveOnlyKev, setCveOnlyKev] = useState(false);
@@ -982,6 +991,81 @@ export default function AdminLeadDiscovery() {
     },
     onError: () => toast({ description: "PDF import başarısız.", variant: "destructive" }),
   });
+
+  type DomainAddResult = { inserted: number; skipped: number; total: number; results: { domain: string; status: "inserted" | "exists" }[] };
+
+  const batchImport = useMutation({
+    mutationFn: async ({ domains, source, sector, label }: { domains: string[]; source: string; sector?: string; label?: string }) => {
+      const r = await fetch(`${BASE}/lead-discovery/domain-add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domains, source, sector, label }),
+      });
+      if (!r.ok) throw new Error("İstek başarısız");
+      return r.json() as Promise<DomainAddResult>;
+    },
+    onSuccess: (d) => {
+      toast({ description: `Import tamamlandı: ${d.inserted} eklendi, ${d.skipped} zaten vardı.` });
+      qc.invalidateQueries({ queryKey: ["lead-stats"] });
+    },
+    onError: () => toast({ description: "Import başarısız.", variant: "destructive" }),
+  });
+
+  const singleAdd = useMutation({
+    mutationFn: async (domain: string) => {
+      const r = await fetch(`${BASE}/lead-discovery/domain-add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domains: [domain], source: "manual_single" }),
+      });
+      if (!r.ok) throw new Error("İstek başarısız");
+      return r.json() as Promise<DomainAddResult>;
+    },
+    onSuccess: (d) => {
+      if (d.results[0]?.status === "inserted") {
+        setSingleDomain("");
+        qc.invalidateQueries({ queryKey: ["lead-stats"] });
+      }
+    },
+    onError: () => toast({ description: "Domain eklenemedi.", variant: "destructive" }),
+  });
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExcelFileName(file.name);
+    setExcelParsed([]);
+    batchImport.reset();
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target?.result, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { header: "A", defval: "" });
+        const urlRe = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z]{2,})+/i;
+        const seen = new Set<string>();
+        const results: { domain: string }[] = [];
+        for (const row of rows) {
+          for (const val of Object.values(row)) {
+            const v = String(val ?? "").trim();
+            if (!v || v.length < 4) continue;
+            if (urlRe.test(v)) {
+              const d = v.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
+              if (d && !seen.has(d)) { seen.add(d); results.push({ domain: d }); }
+              break;
+            }
+          }
+        }
+        setExcelParsed(results);
+        if (results.length === 0) toast({ description: "Hiç domain algılanamadı. URL içeren bir sütun olmalı.", variant: "destructive" });
+      } catch {
+        toast({ description: "Dosya okunamadı.", variant: "destructive" });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // input reset — aynı dosyayı tekrar seçebilmek için
+    e.target.value = "";
+  };
 
   const startQualify = useMutation({
     mutationFn: () =>
@@ -1562,39 +1646,185 @@ export default function AdminLeadDiscovery() {
               </CardContent>
             </Card>
 
-            {/* PDF Toplu Import */}
+            {/* Lead Import Merkezi */}
             <Card className="border-violet-200 dark:border-violet-900">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 rounded px-2 py-0.5">Manuel</span>
-                  <CardTitle className="text-base">PDF Lead Listesi Toplu Import</CardTitle>
+                  <CardTitle className="text-base">Lead Import Merkezi</CardTitle>
                 </div>
                 <CardDescription className="text-xs">
-                  Haziran 2026 PDF listesinden 859 domain — tier2/pending olarak eklenir. Zaten mevcut domainler atlanır (idempotent).
+                  Excel/CSV yükle, domain listesi yapıştır veya tek tek ekle. Mevcut domainler atlanır (idempotent). .bel.tr ve .gov.tr is_municipality=true olarak işaretlenir.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 text-xs text-muted-foreground space-y-0.5">
-                    <div>Kaynak: <span className="font-medium text-foreground/70">pdf-leads-2026-06.json</span> ({pdfLeads.length} domain)</div>
-                    <div>Tier: tier2 · Durum: pending · Kaynak kodu: pdf_import</div>
-                    <div>Belediyeler (.bel.tr): is_municipality=true olarak işaretlenir</div>
-                  </div>
-                  <Button
-                    onClick={() => pdfImport.mutate()}
-                    disabled={pdfImport.isPending}
-                    size="sm"
-                    variant="outline"
-                    className="border-violet-400 text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 shrink-0"
-                  >
-                    {pdfImport.isPending ? "Import ediliyor..." : "PDF Listesini Import Et"}
-                  </Button>
-                </div>
-                {pdfImport.isSuccess && (
-                  <div className="mt-3 text-xs bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded px-3 py-2 text-green-700 dark:text-green-400">
-                    Tamamlandı: {pdfImport.data.inserted} eklendi, {pdfImport.data.skipped} zaten mevcuttu.
-                  </div>
-                )}
+                <Tabs value={importTab} onValueChange={(v) => { setImportTab(v); batchImport.reset(); singleAdd.reset(); }}>
+                  <TabsList className="grid grid-cols-3 h-8 mb-4">
+                    <TabsTrigger value="excel" className="text-xs">Excel / CSV</TabsTrigger>
+                    <TabsTrigger value="manual" className="text-xs">Manuel Giriş</TabsTrigger>
+                    <TabsTrigger value="pdf" className="text-xs">PDF Listesi</TabsTrigger>
+                  </TabsList>
+
+                  {/* ── Excel / CSV ────────────────────────────────────────── */}
+                  <TabsContent value="excel" className="mt-0">
+                    <div className="space-y-3">
+                      <div
+                        className="border-2 border-dashed border-slate-700 hover:border-violet-500 rounded-lg p-5 text-center cursor-pointer transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".xlsx,.xls,.csv"
+                          className="hidden"
+                          onChange={handleExcelUpload}
+                        />
+                        <div className="text-sm font-medium text-slate-300">
+                          {excelFileName ? excelFileName : "Excel (.xlsx / .xls) veya CSV dosyası seç"}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {excelParsed.length > 0
+                            ? `${excelParsed.length} domain algılandı`
+                            : "URL içeren sütun otomatik algılanır — tıkla veya sürükle"}
+                        </div>
+                      </div>
+
+                      {excelParsed.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground font-mono bg-slate-900 rounded px-3 py-2 max-h-24 overflow-y-auto">
+                            {excelParsed.slice(0, 8).map(d => d.domain).join(" · ")}
+                            {excelParsed.length > 8 && <span className="text-slate-500"> · +{excelParsed.length - 8} daha</span>}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => batchImport.mutate({ domains: excelParsed.map(d => d.domain), source: "excel_import", label: excelFileName })}
+                              disabled={batchImport.isPending}
+                            >
+                              {batchImport.isPending ? "Import ediliyor..." : `${excelParsed.length} Domaini Import Et`}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-slate-400" onClick={() => { setExcelParsed([]); setExcelFileName(""); batchImport.reset(); }}>
+                              Temizle
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {batchImport.isSuccess && batchImport.data && (
+                        <div className="text-xs bg-green-950/40 border border-green-800 rounded px-3 py-2 text-green-400">
+                          Tamamlandı: <strong>{batchImport.data.inserted}</strong> eklendi, {batchImport.data.skipped} zaten mevcuttu.
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  {/* ── Manuel Giriş ───────────────────────────────────────── */}
+                  <TabsContent value="manual" className="mt-0">
+                    <div className="space-y-4">
+                      {/* Tek domain hızlı ekle */}
+                      <div>
+                        <div className="text-xs font-medium mb-1.5 text-muted-foreground uppercase tracking-wide">Tek Domain Ekle</div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="örn: sirket.com veya https://www.sirket.com.tr"
+                            value={singleDomain}
+                            onChange={(e) => { setSingleDomain(e.target.value); singleAdd.reset(); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" && singleDomain.trim()) singleAdd.mutate(singleDomain.trim()); }}
+                            className="flex-1 h-8 text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-8 shrink-0"
+                            onClick={() => singleAdd.mutate(singleDomain.trim())}
+                            disabled={singleAdd.isPending || !singleDomain.trim()}
+                          >
+                            Ekle
+                          </Button>
+                        </div>
+                        {singleAdd.isSuccess && singleAdd.data?.results[0] && (
+                          <div className={`mt-1.5 text-xs rounded px-2 py-1 ${singleAdd.data.results[0].status === "inserted" ? "text-green-400 bg-green-950/40 border border-green-800" : "text-slate-400 bg-slate-800 border border-slate-700"}`}>
+                            {singleAdd.data.results[0].status === "inserted"
+                              ? `Eklendi: ${singleAdd.data.results[0].domain}`
+                              : `Zaten mevcut: ${singleAdd.data.results[0].domain}`}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Toplu yapıştır */}
+                      <div>
+                        <div className="text-xs font-medium mb-1.5 text-muted-foreground uppercase tracking-wide">Toplu Yapıştır</div>
+                        <textarea
+                          rows={7}
+                          value={manualInput}
+                          onChange={(e) => { setManualInput(e.target.value); batchImport.reset(); }}
+                          placeholder={"Her satıra bir domain:\nsirket1.com\nsirket2.com.tr\nhttps://www.sirket3.net\n..."}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 font-mono text-xs resize-none"
+                        />
+                        {manualInput.trim() && (
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-muted-foreground">
+                              {manualInput.trim().split("\n").filter(l => l.trim()).length} domain
+                            </span>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-slate-400"
+                                onClick={() => { setManualInput(""); batchImport.reset(); }}
+                              >
+                                Temizle
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-7"
+                                onClick={() =>
+                                  batchImport.mutate({
+                                    domains: manualInput.trim().split("\n").filter(l => l.trim()).map(d => d.trim()),
+                                    source: "manual_import",
+                                  })
+                                }
+                                disabled={batchImport.isPending}
+                              >
+                                {batchImport.isPending ? "İşleniyor..." : "Hepsini Ekle"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {batchImport.isSuccess && batchImport.data && (
+                          <div className="mt-2 text-xs bg-green-950/40 border border-green-800 rounded px-3 py-2 text-green-400">
+                            Tamamlandı: <strong>{batchImport.data.inserted}</strong> eklendi, {batchImport.data.skipped} zaten mevcuttu.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* ── PDF Listesi ────────────────────────────────────────── */}
+                  <TabsContent value="pdf" className="mt-0">
+                    <div className="space-y-3">
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <div>Kaynak: <span className="font-medium text-foreground/70">pdf-leads-2026-06.json</span> ({pdfLeads.length} domain)</div>
+                        <div>Tier: tier2 · Durum: pending · Kaynak kodu: pdf_import</div>
+                        <div>Belediyeler (.bel.tr): is_municipality=true olarak işaretlenir</div>
+                      </div>
+                      <Button
+                        onClick={() => pdfImport.mutate()}
+                        disabled={pdfImport.isPending}
+                        size="sm"
+                        variant="outline"
+                        className="border-violet-400 text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                      >
+                        {pdfImport.isPending ? "Import ediliyor..." : "PDF Listesini Import Et"}
+                      </Button>
+                      {pdfImport.isSuccess && (
+                        <div className="text-xs bg-green-950/40 border border-green-800 rounded px-3 py-2 text-green-400">
+                          Tamamlandı: <strong>{pdfImport.data.inserted}</strong> eklendi, {pdfImport.data.skipped} zaten mevcuttu.
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>

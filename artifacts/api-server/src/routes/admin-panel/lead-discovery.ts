@@ -966,6 +966,73 @@ router.post("/admin-panel/lead-discovery/bulk-import-pdf", requireAdmin, async (
   res.json({ inserted, skipped, total: domains.length });
 });
 
+// ─── POST /api/admin-panel/lead-discovery/domain-add ─────────────────────────
+// Domain(lar) ekle — DB'de yoksa insert, varsa atla. Per-domain sonuç döner.
+router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: Request, res: Response) => {
+  const { domains, source, sector, label } = req.body as {
+    domains: string[];
+    source?: string;
+    sector?: string;
+    label?: string;
+  };
+  if (!Array.isArray(domains) || domains.length === 0) {
+    res.status(400).json({ error: "domains array gerekli" });
+    return;
+  }
+
+  const normalize = (d: string) =>
+    d.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
+
+  const cleaned = [...new Set(domains.map(normalize).filter(Boolean))];
+  if (cleaned.length === 0) {
+    res.status(400).json({ error: "Geçerli domain bulunamadı" });
+    return;
+  }
+
+  // Mevcut olanları bul
+  const existing = await db
+    .select({ domain: leadCandidatesTable.domain })
+    .from(leadCandidatesTable)
+    .where(inArray(leadCandidatesTable.domain, cleaned));
+  const existingSet = new Set(existing.map(r => r.domain));
+  const toInsert = cleaned.filter(d => !existingSet.has(d));
+
+  let inserted = 0;
+  const CHUNK = 50;
+  const src = source ?? "manual_import";
+  const sec = sector ?? "kamu";
+
+  for (let i = 0; i < toInsert.length; i += CHUNK) {
+    const chunk = toInsert.slice(i, i + CHUNK);
+    const e = (s: string) => s.replace(/'/g, "''");
+    const meta = JSON.stringify({ label: label ?? src });
+    const result = await db.execute(sql`
+      INSERT INTO lead_candidates (domain, sector, source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+      SELECT * FROM unnest(
+        ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'${e(sec)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'${e(src)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'pending'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'tier2'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.endsWith(".bel.tr") || r.includes(".gov.tr") ? "true" : "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(() => `'${e(meta)}'`).join(",")}]`)}::jsonb[],
+        ${sql.raw(`ARRAY[${chunk.map(() => "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(() => "0").join(",")}]`)}::int[]
+      ) AS t(domain, sector, source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+      ON CONFLICT (domain) DO NOTHING
+    `);
+    inserted += result.rowCount ?? 0;
+  }
+
+  const results = cleaned.map(d => ({
+    domain: d,
+    status: existingSet.has(d) ? ("exists" as const) : ("inserted" as const),
+  }));
+
+  logger.info({ inserted, skipped: existingSet.size, total: cleaned.length, src }, "domain-add tamamlandı");
+  res.json({ inserted, skipped: existingSet.size, total: cleaned.length, results });
+});
+
 // ─── CVE RAPORU ─────────────────────────────────────────────────────────────
 // GET /api/admin-panel/lead-discovery/cve-report/export — CSV indirme (önce gelecek)
 router.get("/admin-panel/lead-discovery/cve-report/export", requireAdmin, async (req: Request, res: Response) => {

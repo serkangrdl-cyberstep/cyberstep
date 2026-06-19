@@ -120,7 +120,9 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
 
         const matched = services.find(s => {
           const sLower = s.name.toLowerCase();
-          return (pLower && sLower.includes(pLower)) || (vLower && sLower.includes(vLower));
+          // Sadece ürün adı eşleştirmesi — vendor-only match "microsoft" gibi geniş vendor'ları
+          // SaaS ürünlerine (Microsoft 365 vb.) yanlış bağlar, false positive üretir.
+          return pLower.length > 3 && sLower.includes(pLower);
         });
         if (!matched) continue;
 
@@ -251,8 +253,9 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
 
         const matched = services.find(s => {
           const sLower = s.name.toLowerCase();
-          return (pLower.length > 2 && sLower.includes(pLower)) ||
-                 (vLower.length > 2 && sLower.includes(vLower));
+          // Sadece ürün adı eşleştirmesi — vendor-only match false positive üretir
+          // (örn: "Microsoft 365" vendor="microsoft" olan tüm CVE'leri yakalar)
+          return pLower.length > 3 && sLower.includes(pLower);
         });
         if (!matched) continue;
 

@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import * as XLSX from "xlsx";
 import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert } from "lucide-react";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
@@ -1037,8 +1036,9 @@ export default function AdminLeadDiscovery() {
     setExcelParsed([]);
     batchImport.reset();
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await import("xlsx");
         const wb = XLSX.read(evt.target?.result, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { header: "A", defval: "" });
@@ -1063,7 +1063,6 @@ export default function AdminLeadDiscovery() {
       }
     };
     reader.readAsArrayBuffer(file);
-    // input reset — aynı dosyayı tekrar seçebilmek için
     e.target.value = "";
   };
 

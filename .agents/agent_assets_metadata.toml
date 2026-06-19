@@ -90,3 +90,9 @@ id = "dyPg4l7FYTkvzFQTKzHaq"
 uri = "file://.local/lead-magnet-kontrol-raporu.md"
 type = "text"
 title = "Risk Skoru Rozeti — Ön Kontrol Raporu"
+
+[[outputs]]
+id = "bFU484MhAGzlLHJdZjk22"
+uri = "file://attached_assets/waf_cve_analiz_raporu.md"
+type = "text"
+title = "WAF/CVE Çapraz Referans — Mevcut Durum Analizi"

@@ -1101,93 +1101,73 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
   if (onlyExploit) conditions.push(eq(cveTrackerTable.exploitPublic, true));
   if (onlyKev) conditions.push(eq(cveTrackerTable.cisaKev, true));
 
-  // CVE özet listesi
-  const cveList = await db
-    .select({
-      cveId: cveTrackerTable.cveId,
-      cvssScore: cveTrackerTable.cvssScore,
-      severity: cveTrackerTable.severity,
-      title: cveTrackerTable.title,
-      exploitPublic: cveTrackerTable.exploitPublic,
-      cisaKev: cveTrackerTable.cisaKev,
-      patchAvailable: cveTrackerTable.patchAvailable,
-      status: cveTrackerTable.status,
-      detectedAt: cveTrackerTable.detectedAt,
-      affectedDomainCount: count(cveDomainMatchesTable.id),
-    })
-    .from(cveTrackerTable)
-    .innerJoin(cveDomainMatchesTable, eq(cveDomainMatchesTable.cveId, cveTrackerTable.cveId))
-    .where(and(...conditions))
-    .groupBy(cveTrackerTable.id)
-    .orderBy(desc(cveTrackerTable.cvssScore), desc(count(cveDomainMatchesTable.id)))
-    .limit(200);
+  try {
+    // CVE özet listesi — sadece eşleşmesi olan CVE'ler (INNER JOIN)
+    const cveList = await db
+      .select({
+        cveId: cveTrackerTable.cveId,
+        cvssScore: cveTrackerTable.cvssScore,
+        severity: cveTrackerTable.severity,
+        title: cveTrackerTable.title,
+        exploitPublic: cveTrackerTable.exploitPublic,
+        cisaKev: cveTrackerTable.cisaKev,
+        patchAvailable: cveTrackerTable.patchAvailable,
+        status: cveTrackerTable.status,
+        detectedAt: cveTrackerTable.detectedAt,
+        affectedDomainCount: count(cveDomainMatchesTable.id),
+      })
+      .from(cveTrackerTable)
+      .innerJoin(cveDomainMatchesTable, eq(cveDomainMatchesTable.cveId, cveTrackerTable.cveId))
+      .where(and(...conditions))
+      .groupBy(cveTrackerTable.id)
+      .orderBy(desc(cveTrackerTable.cvssScore), desc(count(cveDomainMatchesTable.id)))
+      .limit(200);
 
-  if (cveList.length === 0) {
-    res.json({ total: 0, cves: [] });
-    return;
+    if (cveList.length === 0) {
+      res.json({ total: 0, cves: [] });
+      return;
+    }
+
+    // Etkilenen domain detayları — correlated subquery yerine basit JOIN
+    // (domain_scans subquery'leri kaldırıldı: domain_scans.domain indexi olmadığında
+    //  her eşleşme için full table scan → 5 dk timeout'a yol açıyordu)
+    const cveIds = cveList.map(c => c.cveId);
+    const domainRows = await db
+      .select({
+        cveId: cveDomainMatchesTable.cveId,
+        domain: cveDomainMatchesTable.domain,
+        matchedProduct: cveDomainMatchesTable.matchedProduct,
+        matchedVersion: cveDomainMatchesTable.matchedVersion,
+        confidence: cveDomainMatchesTable.confidence,
+        isPatched: cveDomainMatchesTable.isPatched,
+        wafDetected: leadCandidatesTable.wafDetected,
+        wafProvider: leadCandidatesTable.wafProvider,
+      })
+      .from(cveDomainMatchesTable)
+      .leftJoin(leadCandidatesTable, eq(leadCandidatesTable.id, cveDomainMatchesTable.leadCandidateId))
+      .where(inArray(cveDomainMatchesTable.cveId, cveIds))
+      .orderBy(cveDomainMatchesTable.domain);
+
+    // domain listesini CVE'lere bağla
+    const domainMap = new Map<string, typeof domainRows>();
+    for (const row of domainRows) {
+      if (!row.cveId) continue;
+      const list = domainMap.get(row.cveId) ?? [];
+      list.push(row);
+      domainMap.set(row.cveId, list);
+    }
+
+    const cves = cveList.map(c => ({
+      ...c,
+      cvssScore: c.cvssScore != null ? Number(c.cvssScore) : null,
+      domains: domainMap.get(c.cveId) ?? [],
+    }));
+
+    res.json({ total: cves.length, cves });
+  } catch (err: unknown) {
+    req.log.error({ err }, "CVE raporu sorgusu başarısız");
+    res.status(500).json({ error: "CVE raporu alınamadı." });
   }
-
-  // Etkilenen domain detayları — WAF bilgisiyle birlikte tek sorguda
-  const cveIds = cveList.map(c => c.cveId);
-  const domainRows = await db
-    .select({
-      cveId: cveDomainMatchesTable.cveId,
-      domain: cveDomainMatchesTable.domain,
-      matchedProduct: cveDomainMatchesTable.matchedProduct,
-      matchedVersion: cveDomainMatchesTable.matchedVersion,
-      confidence: cveDomainMatchesTable.confidence,
-      isPatched: cveDomainMatchesTable.isPatched,
-      // WAF bilgisi: iki kaynaktan birinde true varsa true döner
-      // COALESCE(false, ...) hatası: false NULL değil, subquery'yi engelliyor.
-      // CASE ile önce her iki kaynakta true kontrolü yapıyoruz.
-      wafDetected: sql<boolean | null>`
-        CASE
-          WHEN ${leadCandidatesTable.wafDetected} = true THEN true
-          WHEN (SELECT ds.waf_detected FROM domain_scans ds
-                WHERE ds.domain = ${cveDomainMatchesTable.domain}
-                ORDER BY ds.created_at DESC LIMIT 1) = true THEN true
-          ELSE COALESCE(
-            ${leadCandidatesTable.wafDetected},
-            (SELECT ds.waf_detected FROM domain_scans ds
-             WHERE ds.domain = ${cveDomainMatchesTable.domain}
-             ORDER BY ds.created_at DESC LIMIT 1)
-          )
-        END
-      `,
-      wafProvider: sql<string | null>`
-        COALESCE(
-          CASE WHEN ${leadCandidatesTable.wafDetected} = true THEN ${leadCandidatesTable.wafProvider} ELSE NULL END,
-          (SELECT ds.waf_provider FROM domain_scans ds
-           WHERE ds.domain = ${cveDomainMatchesTable.domain} AND ds.waf_detected = true
-           ORDER BY ds.created_at DESC LIMIT 1),
-          ${leadCandidatesTable.wafProvider},
-          (SELECT ds.waf_provider FROM domain_scans ds
-           WHERE ds.domain = ${cveDomainMatchesTable.domain}
-           ORDER BY ds.created_at DESC LIMIT 1)
-        )
-      `,
-    })
-    .from(cveDomainMatchesTable)
-    .leftJoin(leadCandidatesTable, eq(leadCandidatesTable.id, cveDomainMatchesTable.leadCandidateId))
-    .where(inArray(cveDomainMatchesTable.cveId, cveIds))
-    .orderBy(cveDomainMatchesTable.domain);
-
-  // domain listesini CVE'lere bağla
-  const domainMap = new Map<string, typeof domainRows>();
-  for (const row of domainRows) {
-    if (!row.cveId) continue;
-    const list = domainMap.get(row.cveId) ?? [];
-    list.push(row);
-    domainMap.set(row.cveId, list);
-  }
-
-  const cves = cveList.map(c => ({
-    ...c,
-    cvssScore: c.cvssScore != null ? Number(c.cvssScore) : null,
-    domains: domainMap.get(c.cveId) ?? [],
-  }));
-
-  res.json({ total: cves.length, cves });
 });
 
 // POST /api/admin-panel/lead-discovery/rescan-manual-domains

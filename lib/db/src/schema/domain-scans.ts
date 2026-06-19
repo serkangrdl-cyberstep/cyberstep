@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -121,7 +121,9 @@ export const domainScansTable = pgTable("domain_scans", {
   censysTotalFound: integer("censys_total_found"),
   letterGrade: text("letter_grade"),
   isPubliclyShared: boolean("is_publicly_shared").notNull().default(false),
-});
+}, (t) => [
+  index("domain_scans_domain_idx").on(t.domain),
+]);
 
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });
 export type InsertDomainScan = z.infer<typeof insertDomainScanSchema>;

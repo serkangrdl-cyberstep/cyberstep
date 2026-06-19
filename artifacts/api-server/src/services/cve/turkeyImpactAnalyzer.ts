@@ -69,11 +69,11 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
     }).from(customerTechStackTable).where(
       and(
         or(...conditions),
+        // .tr filtresi YOK — sistemde kayıtlı her domain kapsanır
+        // (leadCandidateId veya customerId varsa Türkiye için keşfedilmiştir)
         or(
-          like(customerTechStackTable.domain, "%.tr"),
-          like(customerTechStackTable.domain, "%.com.tr"),
-          like(customerTechStackTable.domain, "%.org.tr"),
-          like(customerTechStackTable.domain, "%.net.tr"),
+          sql`${customerTechStackTable.leadCandidateId} IS NOT NULL`,
+          sql`${customerTechStackTable.customerId} IS NOT NULL`,
         ),
       )
     );
@@ -101,19 +101,12 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
   // ── domain_scans.shadow_it_services'ten ek eşleşme ────────────────────────
   // customer_tech_stack'e girmeyen (manuel taranmış) domain'leri de kapsar.
   {
+    // domain_scans tablosundaki tüm kayıtlar sistemde kayıtlı domainlerdir —
+    // .tr filtresi olmadan alıyoruz; .net, .com, .io gibi uzantılar da kapsar.
     const trDomains = await db.select({
       domain: domainScansTable.domain,
       shadowItServices: domainScansTable.shadowItServices,
-    }).from(domainScansTable).where(
-      or(
-        like(domainScansTable.domain, "%.tr"),
-        like(domainScansTable.domain, "%.com.tr"),
-        like(domainScansTable.domain, "%.org.tr"),
-        like(domainScansTable.domain, "%.net.tr"),
-        like(domainScansTable.domain, "%.gov.tr"),
-        like(domainScansTable.domain, "%.edu.tr"),
-      )
-    );
+    }).from(domainScansTable);
 
     for (const scan of trDomains) {
       if (!scan.domain || matchMap.has(scan.domain)) continue; // zaten eşleşmiş

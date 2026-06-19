@@ -287,11 +287,11 @@ export default function AdminCVEPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                if (confirm("Browser/OS CVE'lerinin false positive domain eşleşmeleri silinecek. Devam?")) cleanupMut.mutate();
+                if (confirm("Browser + Mobil uygulama CVE'leri (WhatsApp, Android, Chrome vb.) silinecek — hem domain eşleşmeleri hem cve_tracker kayıtları. Devam?")) cleanupMut.mutate();
               }}
               disabled={cleanupMut.isPending}
               className="border-orange-700/50 text-orange-400 hover:text-orange-300 hover:border-orange-600"
-              title="Browser/OS CVE'lerinin yanlış shadow IT eşleşmelerini temizle"
+              title="Browser + Mobil CVE false positive'lerini temizle (WhatsApp, Android, iOS, Chrome vb.)"
             >
               {cleanupMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}False Positive Temizle
             </Button>

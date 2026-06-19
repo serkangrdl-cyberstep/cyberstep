@@ -1,6 +1,23 @@
 import { db, cveTrackerTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { classifyCveProduct } from "./turkeyImpactAnalyzer";
+
+/**
+ * CISA KEV kaydının sunucu/web altyapısıyla alakalı olmadığını tespit eder.
+ * Mobil uygulama, tarayıcı, donanım ve mobil OS CVE'lerini filtreler.
+ * Android/iOS ise bu bir mobil OS CVE'sidir — sunucu Linux/Windows için değil.
+ */
+function isClientSideKevEntry(vendor: string, product: string): boolean {
+  const cat = classifyCveProduct(vendor, product);
+  if (cat === "browser" || cat === "hardware" || cat === "mobile") return true;
+  // OS kategorisinde: android/ios → mobil OS → filtrele; linux/windows → sunucu OS → tut
+  if (cat === "os") {
+    const t = `${vendor} ${product}`.toLowerCase().replace(/_/g, " ");
+    if (/\b(android|ios\b|iphone|ipad)\b/.test(t)) return true;
+  }
+  return false;
+}
 
 export interface CVEEntry {
   cveId: string;
@@ -44,6 +61,12 @@ export async function checkNewCVEs(): Promise<CVEEntry[]> {
       const kevList = data.vulnerabilities ?? [];
       for (const kev of kevList) {
         if (await isAlreadyTracked(kev.cveID)) continue;
+        // Mobil uygulama, tarayıcı, donanım ve mobil OS CVE'leri domain taraması
+        // kapsamı dışındadır (WhatsApp, Android, iOS, Chrome vb.).
+        if (isClientSideKevEntry(kev.vendorProject, kev.product)) {
+          logger.debug({ cveId: kev.cveID, vendor: kev.vendorProject, product: kev.product }, "CISA KEV — client-side CVE atlandı");
+          continue;
+        }
         newCVEs.push({
           cveId: kev.cveID,
           cvssScore: null,

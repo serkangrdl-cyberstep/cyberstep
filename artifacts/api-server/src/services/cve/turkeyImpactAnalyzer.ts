@@ -21,6 +21,7 @@ type CveProdCategory =
   | "database"      // MySQL, PostgreSQL, MongoDB, Redis, Oracle
   | "cms"           // WordPress, Drupal, Joomla, Magento
   | "library"       // OpenSSL, log4j, Spring, curl, Jackson
+  | "mobile"        // WhatsApp, Instagram, Facebook, Telegram, Signal — mobil uygulama CVE'leri
   | "application";  // genel uygulama (catch-all)
 
 /**
@@ -28,7 +29,7 @@ type CveProdCategory =
  * Vendor + product birleşimindeki anahtar kelimelere göre sınıflandırır.
  * CPE part (a/o/h) şemada tutulmadığından kelimelere dayalı buluşsal yaklaşım kullanılır.
  */
-function classifyCveProduct(vendor: string, product: string): CveProdCategory {
+export function classifyCveProduct(vendor: string, product: string): CveProdCategory {
   const t = `${vendor} ${product}`.toLowerCase().replace(/_/g, " ");
 
   if (/\b(chrome|chromium|v8|gecko|webkit|firefox|safari|edge|opera|internet.?explorer|trident|blink)\b/.test(t))
@@ -54,6 +55,12 @@ function classifyCveProduct(vendor: string, product: string): CveProdCategory {
 
   if (/\b(openssl|libssl|curl\b|log4j|log4shell|spring|struts|jackson|zlib|libpng|freetype|shiro|xstream|bouncycastle|bouncy.castle)\b/.test(t))
     return "library";
+
+  // Bilinen mobil uygulama CVE'leri — sunucu tarafı bir web hizmetiyle eşleşemez.
+  // WhatsApp VOIP/RCE açıkları (CVE-2019-3568 vb.), Facebook, Instagram, Signal,
+  // Telegram, TikTok gibi uygulamalar domain taraması kapsamı dışındadır.
+  if (/\b(whatsapp|instagram|facebook\b|messenger\b|signal\b|telegram\b|tiktok|snapchat|twitter\b|wechat|viber|skype\b|line\s+messenger)\b/.test(t))
+    return "mobile";
 
   return "application";
 }
@@ -90,7 +97,7 @@ function checkCategoryCompatibility(
   cveCategory: CveProdCategory,
   shadowType: string,
 ): { compatible: boolean; confidenceDelta: number; note?: string } {
-  // ── Kesinlikle uyumsuz: browser/OS/hardware/ağ cihazı CVE'si
+  // ── Kesinlikle uyumsuz: browser/OS/hardware/mobil uygulama/ağ cihazı CVE'si
   //    web teknoloji shadow IT servisiyle eşleşemez
   if (cveCategory === "browser") {
     return { compatible: false, confidenceDelta: -100,
@@ -103,6 +110,10 @@ function checkCategoryCompatibility(
   if (cveCategory === "hardware") {
     return { compatible: false, confidenceDelta: -100,
       note: "DONANIM/FİRMWARE CVE — web servisi eşleşmesi geçersiz" };
+  }
+  if (cveCategory === "mobile") {
+    return { compatible: false, confidenceDelta: -100,
+      note: "MOBİL UYGULAMA CVE — WhatsApp/Facebook/Instagram gibi mobil uygulamalar web servisi kapsamı dışında" };
   }
   if (cveCategory === "network-device") {
     // Ağ cihazı CVE'si yalnızca güvenlik/CDN kategorisinde bir anlam taşıyabilir
@@ -191,8 +202,8 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
 
     const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
 
-    // Browser/OS/hardware CVE'leri tech stack'te hiç eşleştirilmez
-    if (["browser", "os", "hardware"].includes(cveCategory)) continue;
+    // Browser/OS/hardware/mobile CVE'leri tech stack'te hiç eşleştirilmez
+    if (["browser", "os", "hardware", "mobile"].includes(cveCategory)) continue;
 
     const rows = await db.select({
       domain: customerTechStackTable.domain,

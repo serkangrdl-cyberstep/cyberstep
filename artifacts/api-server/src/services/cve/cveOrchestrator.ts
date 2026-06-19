@@ -2,7 +2,7 @@ import { db, cveTrackerTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { checkNewCVEs, enrichWithNVD } from "./cveFeedReader";
-import { analyzeTurkeyImpact } from "./turkeyImpactAnalyzer";
+import { analyzeTurkeyImpact, classifyCveProduct } from "./turkeyImpactAnalyzer";
 import { generateCVEContent } from "./cveContentGenerator";
 import { notifyAffectedDomains } from "./cveNotifier";
 import { sendMail } from "../email";
@@ -94,8 +94,18 @@ export async function runCVEFeedCheck(): Promise<void> {
   logger.info("CVE feed kontrol ediliyor");
   let newCVEs = await checkNewCVEs();
 
-  // CVSS < MIN_CVSS olanları filtrele
+  // CVSS < MIN_CVSS olanları filtrele (CISA KEV bypass)
   newCVEs = newCVEs.filter(c => !c.cvssScore || c.cvssScore >= MIN_CVSS || c.cisaKev);
+
+  // Ürün kategorisi filtresi: browser/hardware/mobile CVE'leri hiçbir zaman işleme
+  // Not: CISA KEV mobile filtrelemesi cveFeedReader'da yapılır; bu katman ek güvence sağlar.
+  newCVEs = newCVEs.filter(c => {
+    if (c.affectedProducts.length === 0) return true; // ürün bilgisi yoksa geç
+    return c.affectedProducts.some(p => {
+      const cat = classifyCveProduct(p.vendor ?? "", p.product ?? "");
+      return !["browser", "hardware", "mobile"].includes(cat);
+    });
+  });
 
   if (newCVEs.length === 0) {
     logger.info("Yeni CVE bulunamadı");

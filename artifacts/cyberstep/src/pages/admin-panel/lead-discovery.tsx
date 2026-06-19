@@ -805,7 +805,7 @@ export default function AdminLeadDiscovery() {
   const [editName, setEditName] = useState("");
   const [editTitle, setEditTitle] = useState("");
   // ─── CVE Raporu tab ───────────────────────────────────────────────────────
-  const [cveMinCvss, setCveMinCvss] = useState("9.0");
+  const [cveMinCvss, setCveMinCvss] = useState("7.0");
 
   // ── Lead Import Merkezi ────────────────────────────────────────────────────
   const [importTab, setImportTab] = useState("excel");

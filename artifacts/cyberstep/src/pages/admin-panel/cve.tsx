@@ -219,6 +219,15 @@ export default function AdminCVEPage() {
     onSuccess: () => { toast({ title: "Feed kontrolü başlatıldı" }); setTimeout(() => refetch(), 5000); },
   });
 
+  const rematchMut = useMutation({
+    mutationFn: () => adminFetchJson("/api/admin-panel/cve/rematch-domains", { method: "POST" }),
+    onSuccess: (d: { newMatches: number; cveCount: number }) => {
+      toast({ title: `Re-match tamamlandı: ${d.newMatches} yeni eşleşme, ${d.cveCount} CVE işlendi` });
+      setTimeout(() => refetch(), 3000);
+    },
+    onError: () => toast({ title: "Re-match başarısız", variant: "destructive" }),
+  });
+
   if (selectedCVE) {
     return (
       <AdminLayout title="CVE Detay" description="İçerik düzenle ve yayınla">
@@ -260,6 +269,9 @@ export default function AdminCVEPage() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()} className="border-slate-700 text-slate-400 hover:text-white">
               <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button size="sm" onClick={() => rematchMut.mutate()} disabled={rematchMut.isPending} className="bg-slate-600 hover:bg-slate-500 text-white">
+              {rematchMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Domain Re-Match
             </Button>
             <Button size="sm" onClick={() => checkNowMut.mutate()} disabled={checkNowMut.isPending} className="bg-cyan-700 hover:bg-cyan-600 text-white">
               {checkNowMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Feed Kontrol Et

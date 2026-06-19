@@ -1,61 +1,105 @@
-# WAF/CVE Çapraz Referans — Mevcut Durum Analizi
+# WAF/CVE Çapraz Referans — Mevcut Durum Analizi (Düzeltilmiş)
 
-> **Rapor tarihi:** 18 Haziran 2026  
+> **Rapor tarihi:** 19 Haziran 2026  
 > **Kapsam:** Production veritabanı (read-only sorgular) + kaynak kod incelemesi  
-> **Amaç:** WAF arkasındaki CVE eşleşmelerinin doğruluk sorununu değerlendirmek
+> **Düzeltme notu:** İlk rapor yalnızca `domain_scans.waf_detected` kolonuna baktı. Asıl WAF sayımı `customer_tech_stack` + `domain_scans` UNION'ından geliyor (Tech Intelligence panelindeki kaynak).
 
 ---
 
-## 1. WAF Tespit Mekanizması
+## 1. WAF Korumalı Domain Sayımı — Doğru Kaynak
 
-### Sinyal Kaynakları (`artifacts/api-server/src/services/wafDetector.ts`)
-
-Tespit çok katmanlıdır; şu sinyallerin kombinasyonu kullanılır:
-
-| Sinyal | Örnekler |
-|---|---|
-| **HTTP header imzaları** | `cf-ray` (Cloudflare), `x-wa-info` (F5 BIG-IP), `x-akamai-transformed`, `x-fortigate`, `x-fortiwaf-rule-id` |
-| **Cookie imzaları** | `__cfduid`, `bigipserver`, `ak_bmsc`, `FORTIWAFSID`, `aws-waf-token` |
-| **Yanıt gövdesi** | "sucuri website firewall", "the requested url was rejected", "fortigate-challenge" |
-| **Davranışsal probe** | `/?id=1%20OR%201%3D1&q=<script>alert(1)</script>` isteği gönderilir; WAF blok sayfası aranır |
-| **IP altyapısı** | Cloudflare CIDR aralıklarıyla eşleşme; DNS PTR kaydında `cloudfront.net`, `akamaiedge` |
-| **TLS sertifikası** | Issuer'da "Cloudflare Inc", "Sucuri" varlığı |
-
-Desteklenen provider'lar: `cloudflare`, `f5`, `akamai`, `imperva`, `sucuri`, `aws_waf`, `fortinet`
-
-### `domain_scans` Tablosundaki WAF Alanları
+Tech Intelligence panelindeki **"WAF Tespit"** kartı şu sorguyu çalıştırır:
 
 ```sql
-waf_detected        boolean           -- tespit var/yok
-waf_provider        character varying -- hangi ürün (cloudflare, fortinet…)
-waf_confidence      integer           -- 0-100 güven skoru
-waf_bypass_possible boolean           -- kaynak IP'ye direkt erişim mümkün mü
-waf_headers_added   jsonb             -- ham header kanıtları
+SELECT COUNT(DISTINCT domain)::int AS cnt FROM (
+  SELECT domain FROM customer_tech_stack
+  WHERE is_active = true
+    AND category IN ('waf', 'cdn', 'Güvenlik / CDN', 'firewall')
+  UNION
+  SELECT domain FROM domain_scans WHERE waf_detected = true
+) sub
 ```
 
-### Doluluk Oranı (Production DB, 18.06.2026)
+**Sonuç: 3.268 benzersiz domain WAF/CDN korumalı.**
 
-```sql
-SELECT waf_detected, COUNT(*) FROM domain_scans GROUP BY waf_detected;
-```
+### Kaynak Katkısı
 
-| `waf_detected` | Adet | Oran |
+| Kaynak | Benzersiz Domain | Yöntem |
 |---|---|---|
-| `false` | 14.408 | %99,89 |
-| `true` | **16** | %0,11 |
-| `NULL` | 0 | — |
-| **Toplam** | **14.424** | %100 dolu |
+| `customer_tech_stack` (waf/cdn/firewall kategorisi) | **3.265** | Shodan + HTTP header fingerprint |
+| `domain_scans` (waf_detected=true) | 5 (union sonrası net ek) | Aktif WAF probe + header imzası |
+| **Toplam (UNION)** | **3.268** | — |
 
-**WAF tespit edilen 16 domain'in tamamı Cloudflare, ortalama güven skoru: 90 (yüksek).**  
-**Kritik bulgu: `waf_bypass_possible = true` olan domain sayısı da 16 — yani WAF tespit edilen her domain için bypass kanalı da tespit edilmiş.**
+### `customer_tech_stack` Vendor/Kategori Dağılımı
+
+| Kategori | Vendor | Benzersiz Domain | Kayıt |
+|---|---|---|---|
+| Güvenlik / CDN | **Cloudflare** | **3.248** | 3.249 |
+| firewall | Fortinet | 18 | 18 |
+| cdn | Cloudflare | 7 | 13 |
+| waf | Cloudflare | 7 | 7 |
+| firewall | MikroTik | 4 | 4 |
+| cdn | Imperva | 1 | 1 |
+| waf | Imperva | 1 | 1 |
+
+Cloudflare hakimiyeti **%99,4** — 3.265 WAF/CDN domain'in 3.262'si Cloudflare.
 
 ---
 
-## 2. CVE Eşleştirmede WAF Kullanımı
+## 2. WAF Tespit Mekanizması — İki Ayrı Katman
+
+### Katman 1: `customer_tech_stack` (Technographic Fingerprint — 3.265 domain)
+
+`fingerprintEngine.ts` servisi her taramada domain'in HTTP response header'larını, Shodan verilerini ve HTML içeriğini analiz eder; tespit edilen ürünleri category + vendor olarak `customer_tech_stack` tablosuna yazar. Cloudflare `cf-ray` header'ı → kategori `"Güvenlik / CDN"`, vendor `"Cloudflare"`.
+
+### Katman 2: `domain_scans.waf_detected` (Aktif WAF Probe — 16 domain)
+
+`wafDetector.ts` aktif probe gönderir (`/?id=1 OR 1=1&q=<script>`), TLS issuer, cookie imzası, IP CIDR ve DNS PTR'a bakar. Alanlar:
+
+| Alan | Tip |
+|---|---|
+| `waf_detected` | boolean |
+| `waf_provider` | varchar (cloudflare, fortinet…) |
+| `waf_confidence` | integer (0–100) |
+| `waf_bypass_possible` | boolean |
+| `waf_headers_added` | jsonb |
+
+**İki katmanın örtüşmesi:** 16 domain `waf_detected=true`, bunların 11'i zaten `customer_tech_stack`'te mevcut → net ek 5 domain.
+
+---
+
+## 3. `overall_score` Formülünde WAF Etkisi
+
+`calcScore()` fonksiyonu (`domain-scan/index.ts:158`):
+
+```
+overall_score = SPF(0–20) + DMARC(0–25) + DKIM(8–20) + MX(0–10) + SSL(0–25) − portDeduction
+```
+
+**`waf_detected` bu formüle girmiyor.** WAF'ın dolaylı etkileri:
+1. `confidenceScore` — WAF var + bypass yok → 72; bypass var → 55
+2. CDN port risk azaltımı — WAF proxy'si arkasındaki portlar `none` riskle işaretleniyor
+3. CVE CVSS görsel azaltımı (`riskAdjuster.ts`) — ayrıntı §4'te
+
+### Skor Karşılaştırması (domain_scans eşleşmesi olan WAF domain'leri)
+
+```sql
+-- WAF korumalı: customer_tech_stack WAF/CDN ∪ domain_scans waf_detected=true
+-- WAF korumasız: kalan domain_scans
+```
+
+| Durum | Domain (domain_scans eşleşmesi) | Ort. Skor | Min | Max | Skor < 60 |
+|---|---|---|---|---|---|
+| **WAF korumalı** | 3.711 | **57,8** | 8,0 | 100,0 | 2.064 (%55,6) |
+| **WAF korumasız** | 10.732 | **62,0** | 0,0 | 100,0 | 4.550 (%42,4) |
+
+**WAF korumalı domainlerin ortalama skoru 4,2 puan daha düşük (57,8 vs 62,0).** Bu ilk bakışta sürpriz görünüyor; açıklaması şu: CDN/WAF kullanan domain'ler arasında Cloudflare'e taşınmış ama e-posta güvenliğini (SPF/DMARC/DKIM) configure etmemiş KOBİ'ler çok. Skor formülünün %75'i e-posta güvenliğinden geldiği için WAF varlığı skora yansımıyor, aksine bu segment daha düşük e-posta güvenlik olgunluğuna sahip.
+
+---
+
+## 4. CVE Eşleştirmede WAF Kullanımı
 
 ### `riskAdjuster.ts` → `adjustCvesForWAF()` Fonksiyonu
-
-Fonksiyon mevcuttur ve güven seviyesine göre kademeli CVSS azaltımı uygular:
 
 ```
 WAF yok                          → değişmez
@@ -66,151 +110,73 @@ WAF var + high confidence        → CVSS × 0.60 (critical), × 0.65 (high)
 Servis WAF-bağımsız (SSL, email) → azaltma YOK, not eklenir
 ```
 
-Fonksiyon çağrısı (`domain-scan/index.ts:1475`):
+**Önemli kısıt:** Bu azaltım yalnızca aktif probe (`waf_detected=true`, 16 domain) bilgisini kullanır. `customer_tech_stack`'teki 3.265 Cloudflare domain'i için `adjustCvesForWAF()` çalışmaz — çünkü `domain_scans.waf_detected` zaten doğrulama sırasında set edilmiyor olabilir veya bu domain'ler henüz tam taranmamış.
 
-```typescript
-const cveSummary = adjustCvesForWAF({
-  cveSummary: cveSummaryRaw,
-  wafDetected: wafResult.detected,
-  wafProvider: wafResult.provider,
-  bypassPossible: bypassResult.bypassPossible,
-  wafConfidenceLevel: wafResult.confidenceLevel,
-});
-```
+### `cve_domain_matches`'te WAF Bilgisi Yok
 
-### Kritik Bulgu: Azaltım Pratikte Hiç Uygulanmıyor
-
-Production'da WAF tespit edilen **16 domain'in tamamında `waf_bypass_possible = true`** olduğundan, `adjustCvesForWAF()` her zaman "bypass mümkün → azaltma yok" dalına düşüyor. Yüksek güven skoru (90) fonksiyon içinde bypass kontrolünden **sonra** değerlendiriliyor:
-
-```typescript
-if (bypassPossible) {
-  return { ...cve, wafMitigated: false,
-    wafMitigationNote: "WAF bypass riski yüksek. Risk azaltımı uygulanmadı." };
-}
-```
-
-Dolayısıyla mevcut veride **WAF azaltımı fiilen sıfır kez devreye girmiş.**
-
-### `cve_domain_matches` Tablosunda WAF Bilgisi Yok
-
-```sql
--- cve_domain_matches kolonları (WAF ile ilgili ALAN YOK):
-id, cve_id, domain, customer_id, lead_candidate_id,
-matched_product, matched_version, confidence,
-is_patched, patched_at, notification_sent, ...
-```
-
-`adjustedCvssScore` ve `wafMitigated` değerleri hesaplanıyor ama **tabloya yazılmıyor** — bellekte kalıp atılıyor. Sorgu bazlı anlık azaltım yapılabilir, ancak kalıcı kayıt yok.
-
-### `overall_score` Formülünde WAF Etkisi
-
-`calcScore()` fonksiyonu (`domain-scan/index.ts:158`):
-
-```
-overall_score = SPF(0-20) + DMARC(0-25) + DKIM(8-20) + MX(0-10) + SSL(0-25) - portDeduction
-```
-
-**`waf_detected` bu formüle girmiyor.** WAF'ın dolaylı etkileri:
-
-1. `confidenceScore` hesabında kullanılıyor (WAF var + bypass yok → 72 puan; bypass var → 55 puan)
-2. CDN portu risk hesabında (`waf_bypass_possible` false ise bazı portlar `none` riskle işaretleniyor)
-3. CVE görsel azaltımında (yukarıda açıklandığı üzere pratikte devreye girmiyor)
+Tablo şemasında `waf_mitigated`, `waf_adjusted_score` gibi alanlar yok. `adjustedCvssScore` bellekte kalıp tabloya yazılmıyor — veri kaybı bu noktada.
 
 ---
 
-## 3. CVE Kategori Dağılımı (Web Katmanı vs Ağ Katmanı)
-
-### CVSS Attack Vector Analizi (cve_tracker, n=1.623)
+## 5. WAF + CVE Kesişimi (Düzeltilmiş)
 
 ```sql
-SELECT attack_vector, COUNT(*) AS cve_sayisi, ROUND(AVG(cvss_score), 1) AS ort_cvss
-FROM cve_tracker GROUP BY attack_vector;
-```
-
-| Attack Vector | CVE Sayısı | Oran | Ort. CVSS |
-|---|---|---|---|
-| **Network (AV:N)** | 1.173 | %72,3 | **8.7** |
-| **Local (AV:L)** | 404 | %24,9 | 7.5 |
-| Adjacent (AV:A) | 27 | %1,7 | 7.6 |
-| Physical (AV:P) | 7 | %0,4 | 5.7 |
-| Vektör yok | 12 | %0,7 | — |
-
-**AV:N (Network) = 1.173 CVE, CVSS ort. 8.7** — bunlar HTTP/HTTPS üzerinden istismar edilebilir, teorik olarak WAF'ın kapsama alanına girer.  
-**AV:L + AV:A (Local/Adjacent) = 431 CVE** — SSH, RDP, doğrudan TCP servisleri; WAF'ın kapsamı dışında.
-
-### CWE Ayrımı
-
-`cve_domain_matches` tablosunda **CWE ID alanı yok** — sadece `cve_id`, `matched_product`, `matched_version` var. `cve_tracker`'da da CWE ID saklanmıyor. Web katmanı (SQLi, XSS, path traversal) ile ağ katmanı (buffer overflow, RCE via SSH) ayrımı mevcut veride **yapılamıyor**.
-
----
-
-## 4. Skor Dağılımı Karşılaştırması
-
-```sql
-SELECT waf_detected, COUNT(*), ROUND(AVG(overall_score),1) AS ort,
-       ROUND(MIN(overall_score),1) AS min, ROUND(MAX(overall_score),1) AS max,
-       COUNT(*) FILTER (WHERE overall_score < 60) AS dusuk_skorlu
-FROM domain_scans WHERE overall_score IS NOT NULL
-GROUP BY waf_detected;
-```
-
-| `waf_detected` | Domain | Ort. Skor | Min | Max | Skor < 60 |
-|---|---|---|---|---|---|
-| `false` | 14.408 | **60,9** | 0,0 | 100,0 | 6.603 (%45,8) |
-| `true` | **16** | **81,8** | 28,0 | 100,0 | 1 (%6,3) |
-
-**WAF tespit edilen domainlerin ortalama skoru 21 puan daha yüksek (81,8 vs 60,9).** Ancak bu fark WAF'ın formüle etkisinden değil; Cloudflare gibi büyük CDN kullanan şirketlerin genellikle daha olgun IT yönetimine (iyi SPF/DMARC/DKIM konfigürasyonu) sahip olmasından kaynaklanıyor. 16 domainlik örneklem istatistiksel olarak da kırılgan.
-
----
-
-## 5. Etkilenen Domain Ölçeği
-
-```sql
-SELECT COUNT(DISTINCT ds.id), COUNT(DISTINCT cdm.id), COUNT(cdm.id)
-FROM domain_scans ds
-LEFT JOIN cve_domain_matches cdm ON cdm.domain = ds.domain
-WHERE ds.waf_detected = true;
+-- WAF korumalı 3.268 domain ∩ cve_domain_matches
 ```
 
 | Metrik | Değer |
 |---|---|
-| WAF tespit edilen toplam domain | 16 |
-| CVE eşleşmesi olan WAF domain | **0** |
-| Toplam eşleşme sayısı | **0** |
+| WAF korumalı domain (toplam) | 3.268 |
+| CVE eşleşmesi olan WAF domain | **25** |
+| Benzersiz CVE | **1** (CVE-2026-11645) |
+| Toplam eşleşme kaydı | **34** |
+| CVSS skoru | **8,8** (Critical) |
+| Exploit mevcut | **25/25** |
+| CISA KEV listesinde | **25/25** |
+| Yama mevcut | **0/25** |
 
-**Mevcut veride kesişim sıfır.** Bağlam için `cve_domain_matches` toplam durumu:
+**İlk raporun "0 kesişim" iddiası yanlıştı** — 25 WAF korumalı domain, aktif exploiti olan bir CISA KEV CVE ile eşleşmiş durumda.
 
-```sql
-SELECT COUNT(*), COUNT(DISTINCT cve_id), COUNT(DISTINCT domain), COUNT(*) FILTER (WHERE is_patched)
-FROM cve_domain_matches;
-```
+### CVE-2026-11645 Ayrıntısı
 
-| Toplam eşleşme | Benzersiz CVE | Benzersiz domain | Yamalanmış |
+| Alan | Değer |
+|---|---|
+| CVSS | 8.8 (Critical) |
+| Exploit | Kamuya açık |
+| CISA KEV | Evet |
+| Yama | Mevcut değil |
+| Eşleşen ürünler | Google Analytics / Tag Manager, Google Fonts, Google reCAPTCHA |
+| Etkilenen WAF domain örnekleri | albarakaturk.com.tr, somposigorta.com.tr, aksa.com.tr, euronet.net.tr |
+
+**Kritik Bağlam:** Bu eşleşmeler Cloudflare WAF'ın **doğrudan koruyamadığı** üçüncü taraf JavaScript kaynaklarına (Google CDN'den yüklenen Analytics/Fonts/reCAPTCHA) dayanıyor. WAF, gelen HTTP isteklerini filtreler; ama bu CVE client-side JS supply chain saldırısı senaryosu — WAF azaltımı `adjustCvesForWAF()` bu ürün tipi için `isWafIrrelevant()` kontrolüne takılmasa bile pratikte etkisiz olurdu.
+
+---
+
+## 6. CVSS Attack Vector Dağılımı (tüm CVE stoku)
+
+| Attack Vector | CVE Sayısı | Oran | Ort. CVSS |
 |---|---|---|---|
-| 1.886 | 453 | 88 | **0** |
+| **Network (AV:N)** | 1.173 | %72,3 | **8,7** |
+| Local (AV:L) | 404 | %24,9 | 7,5 |
+| Adjacent (AV:A) | 27 | %1,7 | 7,6 |
+| Physical (AV:P) | 7 | %0,4 | 5,7 |
+| Vektör yok | 12 | %0,7 | — |
 
-Kesişimin sıfır çıkması iki nedenle açıklanabilir: (1) WAF kullanan 16 domain muhtemelen büyük/kurumsal kuruluşlar — eski/yamasız yazılım çalıştırmıyor olabilirler; (2) WAF penetrasyonu %0,11 ile son derece düşük, rastlantısal boşluk normal.
-
----
-
-## 6. Mevcut Kullanıcı Arayüzü/Rapor Yansıması
-
-`riskAdjuster.ts`'in ürettiği `wafMitigationNote` ve `adjustedCvssScore` değerleri tarama raporu UI'ında CVE kartlarına yansıtılıyor (**var**). Ancak:
-
-- `cve_domain_matches` tablosuna **yazılmıyor** — sorgu sırasında hesaplanıp bellekte tutuluyor
-- PDF raporlarında CVE yanında "WAF arkasında — azaltılmış risk" gibi kalıcı bir bağlamsal bölüm **yok**
-- `is_patched` alanı WAF varlığıyla ilişkilendirilmiyor; tüm 1.886 eşleşmede `is_patched = false`
+`cve_domain_matches` tablosunda CWE ID alanı yok — web katmanı (SQLi/XSS) ile ağ katmanı (RCE via SSH) ayrımı şemada tutulmuyor.
 
 ---
 
-## Genel Değerlendirme
+## 7. Mimari Boşluklar (Güncellenmiş)
 
-Sorun **teorik olarak gerçek, pratik ölçeği şu an sıfır.** Mevcut veride WAF tespit edilen 16 domain'de CVE eşleşmesi bulunmuyor; dolayısıyla yanlış önceliklendirme bugün yaşanmıyor. Bununla birlikte iki mimari boşluk tespit edildi:
+**Boşluk 1 — WAF azaltımı yalnızca 16 domain'e uygulanıyor, 3.268'e değil:**  
+`adjustCvesForWAF()` `domain_scans.waf_detected` bilgisini kullanıyor. `customer_tech_stack`'teki 3.265 Cloudflare domain için bu azaltım mekanizması devreye girmiyor. `customer_tech_stack`'te category=waf/cdn olan domain'ler için de WAF-aware CVSS azaltımı yapılması gerekir.
 
-**Boşluk 1 — Bypass her zaman aktif:** `waf_bypass_possible = true` olan domain sayısı WAF tespit edilen domain sayısına eşit (16/16). Bu durum `adjustCvesForWAF()` fonksiyonunun WAF azaltımını hiçbir zaman uygulamadığı anlamına geliyor; bypass tespitinin false positive üretip üretmediği kontrol edilmeli.
+**Boşluk 2 — Azaltım bilgisi persist edilmiyor:**  
+`adjustedCvssScore` ve `wafMitigated` değerleri `cve_domain_matches` tablosuna yazılmıyor. `cve_domain_matches`'e `waf_mitigated boolean` + `effective_cvss numeric` eklenmeli; aksi hâlde `is_patched` kararları ve bildirim önceliklendirmesi bu bilgiden yararlanamıyor.
 
-**Boşluk 2 — Azaltım bilgisi persist edilmiyor:** `adjustedCvssScore` ve `wafMitigated` değerleri `cve_domain_matches` tablosuna yazılmıyor. WAF azaltımının etkin olduğu bir senaryoda bu eksiklik, `is_patched` kararları, önceliklendirme ve müşteri bildirim mantığını etkiler. Düzeltmek için `cve_domain_matches` tablosuna `waf_mitigated boolean` + `effective_cvss numeric` kolonları eklenmesi, `riskAdjuster.ts`'in döndürdüğü değerlerin `domain-scan/index.ts:1484` sonrasında bu tabloya yazılması gerekir.
+**Boşluk 3 — domain_scans'ta bypass=true tüm WAF kayıtlarını etkiliyor:**  
+`domain_scans.waf_detected=true` olan 16 domain'in tamamında `waf_bypass_possible=true` — yani aktif probe WAF'ı tespit etmiş ama doğrudan IP erişimini de doğrulamış. Bu durumda `adjustCvesForWAF()` "bypass mümkün → azaltma yok" dalına düşüyor; fonksiyon fiilen sıfır kez CVSS indirimi uyguluyor. Bypass tespitinin false positive üretip üretmediği kontrol edilmeli.
 
 ---
 
-*Kaynak: Production PostgreSQL (read-only), `artifacts/api-server/src/services/riskAdjuster.ts`, `wafDetector.ts`, `domain-scan/index.ts`*
+*Kaynak: Production PostgreSQL (read-only) — `customer_tech_stack`, `domain_scans`, `cve_domain_matches`, `cve_tracker` tabloları + `artifacts/api-server/src/routes/admin-panel/tech-stack.ts` + `riskAdjuster.ts`*

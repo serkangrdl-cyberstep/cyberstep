@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertTriangle, CheckCircle, SkipForward, RefreshCw,
-  ExternalLink, ShieldAlert, Globe, Loader2, ChevronLeft,
+  ExternalLink, ShieldAlert, Globe, Loader2, ChevronLeft, Trash2,
 } from "lucide-react";
 
 interface CVERow {
@@ -228,6 +228,16 @@ export default function AdminCVEPage() {
     onError: () => toast({ title: "Re-match başarısız", variant: "destructive" }),
   });
 
+  const cleanupMut = useMutation({
+    mutationFn: () => adminFetchJson("/api/admin-panel/cve/cleanup-clientside", { method: "POST" }),
+    onSuccess: (d: { deletedCount: number; cveCount: number; cveIds: string[] }) => {
+      toast({ title: `Temizlik tamamlandı: ${d.deletedCount} false positive silindi (${d.cveCount} browser/OS CVE)` });
+      queryClient.invalidateQueries({ queryKey: ["cve-list"] });
+      queryClient.invalidateQueries({ queryKey: ["cve-stats"] });
+    },
+    onError: () => toast({ title: "Temizlik başarısız", variant: "destructive" }),
+  });
+
   if (selectedCVE) {
     return (
       <AdminLayout title="CVE Detay" description="İçerik düzenle ve yayınla">
@@ -272,6 +282,18 @@ export default function AdminCVEPage() {
             </Button>
             <Button size="sm" onClick={() => rematchMut.mutate()} disabled={rematchMut.isPending} className="bg-slate-600 hover:bg-slate-500 text-white">
               {rematchMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Domain Re-Match
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (confirm("Browser/OS CVE'lerinin false positive domain eşleşmeleri silinecek. Devam?")) cleanupMut.mutate();
+              }}
+              disabled={cleanupMut.isPending}
+              className="border-orange-700/50 text-orange-400 hover:text-orange-300 hover:border-orange-600"
+              title="Browser/OS CVE'lerinin yanlış shadow IT eşleşmelerini temizle"
+            >
+              {cleanupMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}False Positive Temizle
             </Button>
             <Button size="sm" onClick={() => checkNowMut.mutate()} disabled={checkNowMut.isPending} className="bg-cyan-700 hover:bg-cyan-600 text-white">
               {checkNowMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Feed Kontrol Et

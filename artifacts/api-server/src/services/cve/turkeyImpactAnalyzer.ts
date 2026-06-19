@@ -11,6 +11,20 @@ export interface TurkeyImpactResult {
   topDomains: Array<{ domain: string; matchedProduct: string; confidence: number }>;
 }
 
+/**
+ * Browser/istemci tarafı CVE tespiti.
+ * Chromium, Chrome, Firefox, Edge, Safari, WebKit, V8 gibi tarayıcı/runtime açıklarını
+ * shadow IT (sunucu tarafı) eşleştirmesinden çıkarmak için kullanılır.
+ * Bu CVE'ler son kullanıcıların tarayıcısını etkiler, web sunucularını değil.
+ */
+function isClientSideCve(affectedProducts: Array<{ vendor?: string; product?: string }>): boolean {
+  const CLIENT_SIDE = ["chromium", "chrome", "firefox", "safari", "edge", "webkit", "v8", "electron", "gecko", "internet explorer", "opera"];
+  return affectedProducts.some(p => {
+    const prod = (p.product ?? "").toLowerCase().replace(/_/g, " ");
+    return CLIENT_SIDE.some(k => prod.includes(k));
+  });
+}
+
 /** Simple version comparison without semver — returns true if currentVersion falls in [start, end) */
 function isVersionVulnerable(
   currentVersion: string,
@@ -100,7 +114,9 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
 
   // ── domain_scans.shadow_it_services'ten ek eşleşme ────────────────────────
   // customer_tech_stack'e girmeyen (manuel taranmış) domain'leri de kapsar.
-  {
+  // Browser/istemci tarafı CVE'ler için bu blok atlanır: Chrome, Firefox vb. açıkları
+  // sunucu tarafı shadow IT servisleriyle eşleştirilmez (false positive önleme).
+  if (!isClientSideCve(cve.affectedProducts)) {
     // domain_scans tablosundaki tüm kayıtlar sistemde kayıtlı domainlerdir —
     // .tr filtresi olmadan alıyoruz; .net, .com, .io gibi uzantılar da kapsar.
     const trDomains = await db.select({
@@ -234,6 +250,9 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
 
   for (const cve of cves) {
     const products = (cve.affectedProducts ?? []) as AffectedProduct[];
+    // Browser/client-side CVE'leri shadow IT ile eşleştirilmez
+    if (isClientSideCve(products)) continue;
+
     const toInsert: Array<{
       cveId: string;
       domain: string;

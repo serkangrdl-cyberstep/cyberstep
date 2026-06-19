@@ -1002,6 +1002,105 @@ router.post("/admin-panel/isr/leads/:id/lead-copilot", requireAdmin, async (req:
   res.json({ copilot });
 });
 
+// ─── WEB LEADLERİ (Manuel ISR domain ekle + pipeline) ───────────────────────
+
+// GET /api/admin-panel/isr/web-leads — web kaynakli lead listesi
+router.get("/admin-panel/isr/web-leads", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db
+    .select({
+      id: leadCandidatesTable.id,
+      domain: leadCandidatesTable.domain,
+      sector: leadCandidatesTable.sector,
+      scanStatus: leadCandidatesTable.scanStatus,
+      contactEmail: leadCandidatesTable.contactEmail,
+      contactName: leadCandidatesTable.contactName,
+      riskScore: leadCandidatesTable.riskScore,
+      isrNotes: leadCandidatesTable.isrNotes,
+      createdAt: leadCandidatesTable.createdAt,
+      hasDomainScan: sql<boolean>`EXISTS (SELECT 1 FROM domain_scans ds WHERE ds.domain = ${leadCandidatesTable.domain})`,
+    })
+    .from(leadCandidatesTable)
+    .where(eq(leadCandidatesTable.source, "website_lead"))
+    .orderBy(desc(leadCandidatesTable.createdAt));
+
+  res.json(rows);
+});
+
+// POST /api/admin-panel/isr/web-leads — domain ekle, yoksa pipeline'a sok
+router.post("/admin-panel/isr/web-leads", requireAdmin, async (req: Request, res: Response) => {
+  let { domain, sector, notes } = req.body as { domain?: string; sector?: string; notes?: string };
+  if (!domain || typeof domain !== "string") {
+    res.status(400).json({ error: "domain gerekli" });
+    return;
+  }
+  domain = domain.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0].toLowerCase().trim();
+  if (!domain) { res.status(400).json({ error: "Geçersiz domain" }); return; }
+
+  // Aynı domain zaten var mı?
+  const [existing] = await db
+    .select({ id: leadCandidatesTable.id })
+    .from(leadCandidatesTable)
+    .where(and(eq(leadCandidatesTable.domain, domain), eq(leadCandidatesTable.source, "website_lead")))
+    .limit(1);
+  if (existing) {
+    res.status(409).json({ error: "Bu domain zaten web lead listesinde", id: existing.id });
+    return;
+  }
+
+  const [inserted] = await db.insert(leadCandidatesTable).values({
+    domain,
+    sector: sector ?? null,
+    source: "website_lead",
+    scanStatus: "pending",
+    tier: "tier1",
+    isMunicipality: domain.endsWith(".bel.tr"),
+    sourceData: { addedBy: "isr_manual" },
+    isrNotes: notes ?? null,
+    hasKevMatch: false,
+    wafEnrichmentAttempts: 0,
+  }).returning({ id: leadCandidatesTable.id });
+
+  // domain_scans'ta bu domain var mı?
+  const [scanRow] = await db.execute<{ exists: boolean }>(
+    sql`SELECT EXISTS (SELECT 1 FROM domain_scans WHERE domain = ${domain}) AS exists`
+  ).then(r => r.rows);
+  const hasDomainScan = scanRow?.exists === true;
+
+  // Yoksa fire-and-forget: pipeline scan + qualify
+  if (!hasDomainScan) {
+    setImmediate(async () => {
+      try {
+        const { qualifyPendingCandidates } = await import("../../services/discoveryPipeline");
+        await qualifyPendingCandidates(5);
+      } catch (e) {
+        console.error("[web-lead pipeline]", e);
+      }
+    });
+  }
+
+  res.json({ id: inserted.id, domain, domainScanTriggered: !hasDomainScan, alreadyHadScan: hasDomainScan });
+});
+
+// PATCH /api/admin-panel/isr/web-leads/:id/notes — ISR notları güncelle
+router.patch("/admin-panel/isr/web-leads/:id/notes", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? ""));
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz id" }); return; }
+  const { notes } = req.body as { notes?: string };
+  await db.update(leadCandidatesTable)
+    .set({ isrNotes: notes ?? null, updatedAt: new Date() })
+    .where(and(eq(leadCandidatesTable.id, id), eq(leadCandidatesTable.source, "website_lead")));
+  res.json({ ok: true });
+});
+
+// DELETE /api/admin-panel/isr/web-leads/:id — web lead sil
+router.delete("/admin-panel/isr/web-leads/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? ""));
+  if (isNaN(id)) { res.status(400).json({ error: "Geçersiz id" }); return; }
+  await db.delete(leadCandidatesTable)
+    .where(and(eq(leadCandidatesTable.id, id), eq(leadCandidatesTable.source, "website_lead")));
+  res.json({ ok: true });
+});
+
 // Suppress unused import warning
 void getTenantId;
 

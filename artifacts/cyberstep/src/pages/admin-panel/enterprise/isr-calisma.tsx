@@ -95,6 +95,19 @@ interface ReplyRow {
   } | null;
 }
 
+interface WebLead {
+  id: number;
+  domain: string;
+  sector: string | null;
+  scanStatus: string;
+  contactEmail: string | null;
+  contactName: string | null;
+  riskScore: number | null;
+  isrNotes: string | null;
+  createdAt: string;
+  hasDomainScan: boolean;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function statusBadge(status: string) {
@@ -425,6 +438,63 @@ export default function IsrCalisma() {
   const [teaserModal, setTeaserModal] = useState<ProspectDashRow | null>(null);
   const [replyModal, setReplyModal] = useState<ReplyRow | null>(null);
   const [unhandledCount, setUnhandledCount] = useState(0);
+  // ─── Web Leadleri state ──────────────────────────────────────────────────
+  const [webLeads, setWebLeads] = useState<WebLead[]>([]);
+  const [webLeadsLoading, setWebLeadsLoading] = useState(false);
+  const [webDomainInput, setWebDomainInput] = useState("");
+  const [webSectorInput, setWebSectorInput] = useState("");
+  const [webNotesInput, setWebNotesInput] = useState("");
+  const [webLeadAdding, setWebLeadAdding] = useState(false);
+  const [webLeadError, setWebLeadError] = useState<string | null>(null);
+  const [webNoteEdit, setWebNoteEdit] = useState<{ id: number; notes: string } | null>(null);
+
+  const loadWebLeads = useCallback(async () => {
+    setWebLeadsLoading(true);
+    const r = await fetch("/api/admin-panel/isr/web-leads", { credentials: "include" }).then(r => r.json());
+    setWebLeads(Array.isArray(r) ? r as WebLead[] : []);
+    setWebLeadsLoading(false);
+  }, []);
+
+  const addWebLead = async () => {
+    if (!webDomainInput.trim()) return;
+    setWebLeadAdding(true);
+    setWebLeadError(null);
+    const r = await fetch("/api/admin-panel/isr/web-leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ domain: webDomainInput.trim(), sector: webSectorInput.trim() || undefined, notes: webNotesInput.trim() || undefined }),
+    });
+    if (r.status === 409) {
+      setWebLeadError("Bu domain zaten listede.");
+    } else if (!r.ok) {
+      const err = await r.json().catch(() => ({})) as { error?: string };
+      setWebLeadError(err.error ?? "Bir hata oluştu.");
+    } else {
+      setWebDomainInput("");
+      setWebSectorInput("");
+      setWebNotesInput("");
+      await loadWebLeads();
+    }
+    setWebLeadAdding(false);
+  };
+
+  const deleteWebLead = async (id: number) => {
+    await fetch(`/api/admin-panel/isr/web-leads/${id}`, { method: "DELETE", credentials: "include" });
+    await loadWebLeads();
+  };
+
+  const saveWebNote = async () => {
+    if (!webNoteEdit) return;
+    await fetch(`/api/admin-panel/isr/web-leads/${webNoteEdit.id}/notes`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ notes: webNoteEdit.notes }),
+    });
+    setWebNoteEdit(null);
+    await loadWebLeads();
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -500,9 +570,10 @@ export default function IsrCalisma() {
           ))}
         </div>
 
-        <Tabs defaultValue="prospects">
+        <Tabs defaultValue="prospects" onValueChange={v => { if (v === "web-leadleri") void loadWebLeads(); }}>
           <TabsList>
             <TabsTrigger value="prospects">Nitelikli Adaylar</TabsTrigger>
+            <TabsTrigger value="web-leadleri">Web Leadleri</TabsTrigger>
             <TabsTrigger value="replies" className="relative">
               Gelen Yanıtlar
               {unhandledCount > 0 && (
@@ -512,6 +583,160 @@ export default function IsrCalisma() {
               )}
             </TabsTrigger>
           </TabsList>
+
+          {/* ── Tab: Web Leadleri ─────────────────────────────────────── */}
+          <TabsContent value="web-leadleri" className="mt-4">
+            {/* Domain ekleme formu */}
+            <div className="rounded-lg border bg-card p-4 mb-4 space-y-3">
+              <p className="text-sm font-semibold">Yeni Domain Ekle</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  placeholder="sirket.com.tr"
+                  value={webDomainInput}
+                  onChange={e => { setWebDomainInput(e.target.value); setWebLeadError(null); }}
+                  onKeyDown={e => { if (e.key === "Enter") void addWebLead(); }}
+                  className="h-8 text-sm flex-1"
+                />
+                <Input
+                  placeholder="Sektör (opsiyonel)"
+                  value={webSectorInput}
+                  onChange={e => setWebSectorInput(e.target.value)}
+                  className="h-8 text-sm w-40"
+                />
+                <Input
+                  placeholder="Not (opsiyonel)"
+                  value={webNotesInput}
+                  onChange={e => setWebNotesInput(e.target.value)}
+                  className="h-8 text-sm w-48"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => void addWebLead()}
+                  disabled={webLeadAdding || !webDomainInput.trim()}
+                  className="h-8 shrink-0"
+                >
+                  {webLeadAdding ? "Ekleniyor..." : "Ekle"}
+                </Button>
+              </div>
+              {webLeadError && <p className="text-xs text-destructive">{webLeadError}</p>}
+              <p className="text-xs text-muted-foreground">
+                Domain domain_scans tablosunda yoksa otomatik olarak tarama pipeline'ına sokulur.
+              </p>
+            </div>
+
+            {/* Not düzenleme */}
+            {webNoteEdit && (
+              <div className="rounded-lg border bg-card p-3 mb-4 flex gap-2 items-start">
+                <Textarea
+                  value={webNoteEdit.notes}
+                  onChange={e => setWebNoteEdit(n => n ? { ...n, notes: e.target.value } : n)}
+                  rows={2}
+                  placeholder="Not..."
+                  className="text-sm flex-1"
+                />
+                <div className="flex flex-col gap-1 shrink-0">
+                  <Button size="sm" className="h-7 text-xs" onClick={() => void saveWebNote()}>Kaydet</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setWebNoteEdit(null)}>Vazgec</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Lead tablosu */}
+            {webLeadsLoading ? (
+              <div className="text-center py-16 text-muted-foreground text-sm">Yükleniyor...</div>
+            ) : webLeads.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground text-sm">
+                Henüz web lead eklenmedi. Yukarıdaki formu kullanarak domain ekleyin.
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead>Domain</TableHead>
+                      <TableHead>Sektör</TableHead>
+                      <TableHead>Tarama</TableHead>
+                      <TableHead>Risk Skoru</TableHead>
+                      <TableHead>Not</TableHead>
+                      <TableHead>Eklendi</TableHead>
+                      <TableHead className="text-right">İşlemler</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {webLeads.map(wl => (
+                      <TableRow key={wl.id} className="hover:bg-muted/20">
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm font-mono">{wl.domain}</p>
+                            {wl.contactEmail && <p className="text-xs text-muted-foreground">{wl.contactEmail}</p>}
+                            {!wl.hasDomainScan && wl.scanStatus === "pending" && (
+                              <span className="text-[10px] text-amber-600 font-medium">Tarama bekleniyor...</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">{wl.sector ?? "—"}</span>
+                        </TableCell>
+                        <TableCell>
+                          {statusBadge(wl.scanStatus)}
+                        </TableCell>
+                        <TableCell>
+                          {wl.riskScore != null ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-sm">{wl.riskScore}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground max-w-[140px] line-clamp-1">
+                            {wl.isrNotes ?? "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(wl.createdAt).toLocaleDateString("tr-TR")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => setWebNoteEdit({ id: wl.id, notes: wl.isrNotes ?? "" })}
+                            >
+                              Not
+                            </Button>
+                            {wl.riskScore != null && (
+                              <a
+                                href={`/domain-scan?domain=${encodeURIComponent(wl.domain)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
+                                  Rapor
+                                </Button>
+                              </a>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => { if (confirm(`"${wl.domain}" listeden çıkarılsın mı?`)) void deleteWebLead(wl.id); }}
+                            >
+                              Sil
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
 
           {/* ── Tab 1: Nitelikli Adaylar ──────────────────────────────── */}
           <TabsContent value="prospects" className="mt-4">

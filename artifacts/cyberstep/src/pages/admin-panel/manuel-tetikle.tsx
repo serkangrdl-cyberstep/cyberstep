@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
-import { Play, CheckCircle, AlertCircle } from "lucide-react";
+import { Play, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 
 interface Customer { id: number; company_name: string; email: string; domain: string | null; }
 
@@ -22,10 +22,19 @@ const SERVICES = [
 
 interface TriggerResult { slug: string; ok: boolean; message: string; }
 
+interface RescanResult {
+  inserted: number;
+  reset: number;
+  total: number;
+  domains: string[];
+}
+
 export default function AdminManuelTetikle() {
   const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
   const [results, setResults] = useState<TriggerResult[]>([]);
   const [triggering, setTriggering] = useState<string | null>(null);
+  const [rescanResult, setRescanResult] = useState<RescanResult | null>(null);
+  const [rescanError, setRescanError] = useState<string | null>(null);
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["admin-customers-list"],
@@ -38,6 +47,21 @@ export default function AdminManuelTetikle() {
   });
 
   const customer = customers.find(c => c.id === selectedCustomer);
+
+  const rescanMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin-panel/lead-discovery/rescan-manual-domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Hata");
+      return d as RescanResult;
+    },
+    onSuccess: (d) => { setRescanResult(d); setRescanError(null); },
+    onError: (e: Error) => { setRescanError(e.message); setRescanResult(null); },
+  });
 
   const trigger = async (service: typeof SERVICES[0]) => {
     if (!selectedCustomer) return;
@@ -127,6 +151,55 @@ export default function AdminManuelTetikle() {
               );
             })}
           </div>
+        </div>
+
+        {/* Domain Taramalarını Yeniden Tarat */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-700">
+            <p className="text-sm font-medium text-slate-300">Manuel Domain Taramaları — Lead Adayları Senkronizasyonu</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              domain_scans tablosundaki tüm domain'leri lead_candidates'a ekler (yoksa) ve WAF + kalifikasyon için yeniden sıraya alır.
+            </p>
+          </div>
+          <div className="px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-white text-sm font-medium">Tüm Manuel Taramaları Senkronize Et</p>
+              <p className="text-slate-500 text-xs">POST /api/admin-panel/lead-discovery/rescan-manual-domains</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {rescanResult && (
+                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  {rescanResult.total} domain: {rescanResult.inserted} eklendi, {rescanResult.reset} sıraya alındı
+                </span>
+              )}
+              {rescanError && (
+                <span className="flex items-center gap-1 text-xs font-medium text-red-400">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {rescanError}
+                </span>
+              )}
+              <Button
+                size="sm"
+                disabled={rescanMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs gap-1.5"
+                onClick={() => rescanMutation.mutate()}
+              >
+                <RefreshCw className={`h-3 w-3 ${rescanMutation.isPending ? "animate-spin" : ""}`} />
+                {rescanMutation.isPending ? "Çalışıyor..." : "Senkronize Et"}
+              </Button>
+            </div>
+          </div>
+          {rescanResult && rescanResult.domains.length > 0 && (
+            <div className="px-5 pb-4">
+              <p className="text-xs text-slate-500 mb-1">İşlenen domain'ler:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {rescanResult.domains.map(d => (
+                  <span key={d} className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">{d}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sonuç Geçmişi */}

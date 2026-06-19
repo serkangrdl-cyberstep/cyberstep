@@ -1190,4 +1190,96 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
   res.json({ total: cves.length, cves });
 });
 
+// POST /api/admin-panel/lead-discovery/rescan-manual-domains
+// domain_scans tablosundaki tüm domain'leri lead_candidates'a kopyalar (yoksa) ve
+// WAF enrichment + kalifikasyon için sıraya alır. Admin panelden tek tıkla tetiklenir.
+router.post("/admin-panel/lead-discovery/rescan-manual-domains", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Distinct domain listesi — test domain'lerini ve geçersiz kayıtları çıkar
+    const dsRows = await db.execute(sql`
+      SELECT DISTINCT ON (domain) domain, overall_score, waf_detected, waf_provider, waf_confidence, id as scan_id
+      FROM domain_scans
+      WHERE overall_score > 0
+        AND domain NOT LIKE '%.nip.io'
+        AND domain NOT LIKE '192%'
+        AND domain NOT LIKE '10.%'
+      ORDER BY domain, created_at DESC
+    `);
+
+    const domains = (dsRows.rows ?? []) as Array<{
+      domain: string;
+      overall_score: number;
+      waf_detected: boolean;
+      waf_provider: string | null;
+      waf_confidence: number | null;
+      scan_id: number;
+    }>;
+
+    if (domains.length === 0) {
+      res.json({ inserted: 0, reset: 0, total: 0, domains: [] });
+      return;
+    }
+
+    // lead_candidates'ta olmayan domain'leri bul
+    const domainList = domains.map(d => d.domain);
+    const existingRows = await db.execute(sql`
+      SELECT domain FROM lead_candidates WHERE domain = ANY(${domainList})
+    `);
+    const existingSet = new Set((existingRows.rows as { domain: string }[]).map(r => r.domain));
+
+    let inserted = 0;
+    let reset = 0;
+
+    for (const row of domains) {
+      const isQualified = row.overall_score < 60;
+
+      if (!existingSet.has(row.domain)) {
+        // Yoksa ekle — tier2: tekrar tam tarama yapılacak
+        await db.execute(sql`
+          INSERT INTO lead_candidates
+            (domain, source, scan_status, scan_id, risk_score,
+             is_qualified, tier, scan_depth, last_scanned_at,
+             waf_detected, waf_provider, waf_confidence, waf_enriched_at, waf_enrichment_status,
+             created_at, updated_at)
+          VALUES
+            (${row.domain}, 'manual_scan', 'pending', ${row.scan_id}, ${row.overall_score},
+             ${isQualified}, 'tier2', 'full', NOW(),
+             ${row.waf_detected ?? null}, ${row.waf_provider ?? null}, ${row.waf_confidence ?? null},
+             ${row.waf_detected != null ? sql`NOW()` : sql`NULL`},
+             ${row.waf_detected != null ? 'enriched' : null},
+             NOW(), NOW())
+          ON CONFLICT (domain) DO NOTHING
+        `);
+        inserted++;
+      } else {
+        // Var ise scan_status'ı pending'e al (tier2) — yeniden taranacak
+        await db.execute(sql`
+          UPDATE lead_candidates SET
+            scan_status          = 'pending',
+            tier                 = 'tier2',
+            updated_at           = NOW()
+          WHERE domain = ${row.domain}
+            AND scan_status NOT IN ('scanning', 'prescreening')
+        `);
+        reset++;
+      }
+    }
+
+    res.json({ inserted, reset, total: domains.length, domains: domainList });
+
+    // Arka planda kalifikasyon başlat
+    setImmediate(async () => {
+      try {
+        await qualifyPendingCandidates(domains.length + 10);
+        logger.info({ count: domains.length }, "rescan-manual-domains: kalifikasyon tamamlandı");
+      } catch (err) {
+        logger.error({ err }, "rescan-manual-domains: kalifikasyon hatası");
+      }
+    });
+  } catch (err) {
+    logger.error({ err }, "rescan-manual-domains error");
+    res.status(500).json({ error: "İşlem başarısız" });
+  }
+});
+
 export default router;

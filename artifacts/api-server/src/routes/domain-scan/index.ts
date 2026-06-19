@@ -1303,8 +1303,27 @@ export async function performDomainScan(domain: string): Promise<{
         badgeToken: randomUUID(),
         referralSource: "discovery_pipeline",
         kepConfigured: false, kepRelays: [], kepSecure: false,
-        wafDetected: false, wafProvider: null, wafBypassPossible: false,
-        originIp: null, originIpSource: null, wafHeadersAdded: [], wafConfidence: 0,
+        // WAF detection: discovery pipeline'da da gerçek WAF kontrolü yapılır
+        ...(await (async () => {
+          try {
+            const { detectWAF } = await import("../../services/wafDetector");
+            const empty = { detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[] };
+            const wafRes = await Promise.race([
+              detectWAF(domain),
+              new Promise<typeof empty>(resolve => setTimeout(() => resolve(empty), 10_000)),
+            ]).catch(() => empty);
+            return {
+              wafDetected: wafRes.detected,
+              wafProvider: wafRes.provider,
+              wafConfidence: wafRes.confidence ?? 0,
+              wafHeadersAdded: wafRes.headersAddedByWAF,
+              wafBypassPossible: false,
+            };
+          } catch {
+            return { wafDetected: false, wafProvider: null, wafConfidence: 0, wafHeadersAdded: [] as string[], wafBypassPossible: false };
+          }
+        })()),
+        originIp: null, originIpSource: null,
         letterGrade: calculateLetterGrade(scoreResult.total),
       })
       .returning();
@@ -1649,6 +1668,74 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
             logger.info({ domain: scan.domain, finalDomain, scanId: scan.id }, "Redirect hedefi tespit edildi ve kaydedildi");
           }
         } catch (e) { logger.warn({ e }, "Redirect detection failed"); }
+      });
+
+      // Fire-and-forget: lead_candidates WAF + kalifikasyon güncelleme
+      // Manuel web taraması da cron pipeline ile aynı WAF/kalifikasyon kurallarını uygular.
+      setImmediate(async () => {
+        try {
+          const isQualified = overallScore < 60;
+          const criticals = (scan.cveSummary as Array<{ cvssScore?: number; cveId?: string }> | null ?? [])
+            .filter(c => (c.cvssScore ?? 0) >= 9);
+
+          const existing = await db.execute(sql`
+            SELECT id FROM lead_candidates WHERE domain = ${scan.domain} LIMIT 1
+          `);
+
+          if ((existing.rows?.length ?? 0) > 0) {
+            const lcId = (existing.rows[0] as { id: number }).id;
+            await db.execute(sql`
+              UPDATE lead_candidates SET
+                waf_detected         = ${wafResult.detected},
+                waf_provider         = ${wafResult.provider},
+                waf_confidence       = ${wafResult.confidence ?? 0},
+                waf_enriched_at      = NOW(),
+                waf_enrichment_status = 'enriched',
+                risk_score           = ${overallScore},
+                critical_findings    = ${criticals.length},
+                is_qualified         = ${isQualified},
+                tier                 = ${isQualified ? "tier1" : "tier2"},
+                scan_status          = 'scanned',
+                scan_id              = ${scan.id},
+                last_scanned_at      = NOW(),
+                scan_depth           = 'full',
+                updated_at           = NOW()
+              WHERE id = ${lcId}
+            `);
+            logger.info({ domain: scan.domain, isQualified, waf: wafResult.detected }, "Manuel tarama → lead_candidates güncellendi");
+          } else {
+            // Domain adaylar tablosunda yoksa ekle (kaynak: manual_scan)
+            await db.execute(sql`
+              INSERT INTO lead_candidates
+                (domain, source, scan_status, scan_id, risk_score, critical_findings,
+                 is_qualified, tier, scan_depth, last_scanned_at,
+                 waf_detected, waf_provider, waf_confidence, waf_enriched_at, waf_enrichment_status,
+                 created_at, updated_at)
+              VALUES
+                (${scan.domain}, 'manual_scan', 'scanned', ${scan.id}, ${overallScore}, ${criticals.length},
+                 ${isQualified}, ${isQualified ? "tier1" : "tier2"}, 'full', NOW(),
+                 ${wafResult.detected}, ${wafResult.provider ?? null}, ${wafResult.confidence ?? 0}, NOW(), 'enriched',
+                 NOW(), NOW())
+              ON CONFLICT (domain) DO UPDATE SET
+                waf_detected          = EXCLUDED.waf_detected,
+                waf_provider          = EXCLUDED.waf_provider,
+                waf_confidence        = EXCLUDED.waf_confidence,
+                waf_enriched_at       = NOW(),
+                waf_enrichment_status = 'enriched',
+                risk_score            = EXCLUDED.risk_score,
+                is_qualified          = EXCLUDED.is_qualified,
+                tier                  = EXCLUDED.tier,
+                scan_status           = 'scanned',
+                scan_id               = EXCLUDED.scan_id,
+                last_scanned_at       = NOW(),
+                scan_depth            = 'full',
+                updated_at            = NOW()
+            `);
+            logger.info({ domain: scan.domain, isQualified }, "Manuel tarama → lead_candidates yeni kayıt eklendi");
+          }
+        } catch (err) {
+          logger.warn({ err, domain: scan.domain }, "lead_candidates WAF/kalifikasyon güncelleme hatası");
+        }
       });
     }
 

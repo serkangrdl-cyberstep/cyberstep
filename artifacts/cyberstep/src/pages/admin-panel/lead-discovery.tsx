@@ -828,7 +828,7 @@ export default function AdminLeadDiscovery() {
 
   const { data: cveReport, isLoading: cveLoading } = useQuery<CveReport>({
     queryKey: ["lead-discovery-cve-report", cveMinCvss, cveSeverity, cveOnlyExploit, cveOnlyKev],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams({ minCvss: cveMinCvss });
       if (cveSeverity) params.set("severity", cveSeverity);
       if (cveOnlyExploit) params.set("exploit", "1");

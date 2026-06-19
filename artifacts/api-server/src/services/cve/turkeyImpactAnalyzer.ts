@@ -1,5 +1,5 @@
 import { db, cveTrackerTable, cveDomainMatchesTable, customerTechStackTable, domainScansTable } from "@workspace/db";
-import { eq, or, ilike, and, sql, isNotNull } from "drizzle-orm";
+import { eq, ilike, and, sql, isNotNull } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import type { CVEEntry } from "./cveFeedReader";
 
@@ -11,18 +11,133 @@ export interface TurkeyImpactResult {
   topDomains: Array<{ domain: string; matchedProduct: string; confidence: number }>;
 }
 
+// ── CVE Ürün Kategorisi ────────────────────────────────────────────────────
+type CveProdCategory =
+  | "browser"       // Chrome, Firefox, Safari, Edge, V8, Gecko, WebKit
+  | "os"            // Windows, Linux, Android, iOS, macOS, kernel
+  | "hardware"      // Firmware, BIOS, UEFI, router, switch
+  | "network-device"// FortiGate, Palo Alto, Cisco IOS, Junos
+  | "web-server"    // Apache, Nginx, IIS, Tomcat, JBoss
+  | "database"      // MySQL, PostgreSQL, MongoDB, Redis, Oracle
+  | "cms"           // WordPress, Drupal, Joomla, Magento
+  | "library"       // OpenSSL, log4j, Spring, curl, Jackson
+  | "application";  // genel uygulama (catch-all)
+
 /**
- * Browser/istemci tarafı CVE tespiti.
- * Chromium, Chrome, Firefox, Edge, Safari, WebKit, V8 gibi tarayıcı/runtime açıklarını
- * shadow IT (sunucu tarafı) eşleştirmesinden çıkarmak için kullanılır.
- * Bu CVE'ler son kullanıcıların tarayıcısını etkiler, web sunucularını değil.
+ * CVE affected product'ı kategorilendirir.
+ * Vendor + product birleşimindeki anahtar kelimelere göre sınıflandırır.
+ * CPE part (a/o/h) şemada tutulmadığından kelimelere dayalı buluşsal yaklaşım kullanılır.
  */
-function isClientSideCve(affectedProducts: Array<{ vendor?: string; product?: string }>): boolean {
-  const CLIENT_SIDE = ["chromium", "chrome", "firefox", "safari", "edge", "webkit", "v8", "electron", "gecko", "internet explorer", "opera"];
-  return affectedProducts.some(p => {
-    const prod = (p.product ?? "").toLowerCase().replace(/_/g, " ");
-    return CLIENT_SIDE.some(k => prod.includes(k));
-  });
+function classifyCveProduct(vendor: string, product: string): CveProdCategory {
+  const t = `${vendor} ${product}`.toLowerCase().replace(/_/g, " ");
+
+  if (/\b(chrome|chromium|v8|gecko|webkit|firefox|safari|edge|opera|internet.?explorer|trident|blink)\b/.test(t))
+    return "browser";
+
+  if (/\b(windows|linux|android|ios\b|macos|mac os|ubuntu|debian|centos|red.?hat|rhel|fedora|kernel|freebsd|openbsd|solaris)\b/.test(t))
+    return "os";
+
+  if (/\b(firmware|bios|uefi|bootloader|baseboard|ipmi|idrac|ilo)\b/.test(t))
+    return "hardware";
+
+  if (/\b(fortigate|fortios|fortiweb|fortimanager|palo.?alto|panorama|cisco (ios|asa|nx-os)|junos|juniper|aruba|extreme)\b/.test(t))
+    return "network-device";
+
+  if (/\b(apache|nginx|iis|tomcat|jboss|weblogic|websphere|lighttpd|caddy|gunicorn|httpd)\b/.test(t))
+    return "web-server";
+
+  if (/\b(mysql|postgresql|mongodb|redis|elasticsearch|oracle (database|db)|mssql|sql server|sqlite|mariadb|influxdb|cassandra|couchdb)\b/.test(t))
+    return "database";
+
+  if (/\b(wordpress|drupal|joomla|magento|typo3|prestashop|opencart|woocommerce)\b/.test(t))
+    return "cms";
+
+  if (/\b(openssl|libssl|curl\b|log4j|log4shell|spring|struts|jackson|zlib|libpng|freetype|shiro|xstream|bouncycastle|bouncy.castle)\b/.test(t))
+    return "library";
+
+  return "application";
+}
+
+/**
+ * Shadow IT servis kategorisini (Türkçe DB değeri) genel türe çevirir.
+ * domain_scans.shadow_it_services[].category alanı Türkçe saklanıyor.
+ */
+function normalizeShadowCategory(shadowCategory: string): string {
+  const c = (shadowCategory ?? "").toLowerCase();
+  if (c.includes("kütüphane")) return "library";
+  if (c.includes("analitik")) return "analytics";
+  if (c.includes("cdn") || c.includes("güvenlik / cdn")) return "cdn";
+  if (c.includes("güvenlik")) return "security";
+  if (c.includes("cms")) return "cms";
+  if (c.includes("e-ticaret")) return "ecommerce";
+  if (c.includes("pazarlama")) return "marketing";
+  if (c.includes("tasarım")) return "design";
+  if (c.includes("iletişim") || c.includes("medya") || c.includes("canlı destek")) return "communication";
+  if (c.includes("yapay zeka") || c.includes("ai")) return "ai";
+  if (c.includes("ödeme") || c.includes("randevu")) return "payment";
+  return "other";
+}
+
+/**
+ * CVE kategorisi ile shadow IT servis kategorisi uyumlu mu?
+ *
+ * Dönen değerler:
+ *   compatible: false → eşleşme tamamen reddet
+ *   confidenceDelta: negatif → confidence'ı düşür
+ *   note: string → cve_domain_matches.match_note alanına yaz
+ */
+function checkCategoryCompatibility(
+  cveCategory: CveProdCategory,
+  shadowType: string,
+): { compatible: boolean; confidenceDelta: number; note?: string } {
+  // ── Kesinlikle uyumsuz: browser/OS/hardware/ağ cihazı CVE'si
+  //    web teknoloji shadow IT servisiyle eşleşemez
+  if (cveCategory === "browser") {
+    return { compatible: false, confidenceDelta: -100,
+      note: "BROWSER CVE — sunucu tarafı shadow IT eşleşmesi geçersiz" };
+  }
+  if (cveCategory === "os") {
+    return { compatible: false, confidenceDelta: -100,
+      note: "İŞLETİM SİSTEMİ CVE — web servisi shadow IT eşleşmesi geçersiz" };
+  }
+  if (cveCategory === "hardware") {
+    return { compatible: false, confidenceDelta: -100,
+      note: "DONANIM/FİRMWARE CVE — web servisi eşleşmesi geçersiz" };
+  }
+  if (cveCategory === "network-device") {
+    // Ağ cihazı CVE'si yalnızca güvenlik/CDN kategorisinde bir anlam taşıyabilir
+    if (shadowType === "cdn" || shadowType === "security") {
+      return { compatible: true, confidenceDelta: -20,
+        note: "AĞ CİHAZI CVE — CDN/güvenlik eşleşmesi — manuel doğrulama önerilir" };
+    }
+    return { compatible: false, confidenceDelta: -100,
+      note: "AĞ CİHAZI CVE — web servisi shadow IT eşleşmesi geçersiz" };
+  }
+
+  // ── Tam uyumlu kombinasyonlar
+  if (cveCategory === "cms" && shadowType === "cms") {
+    return { compatible: true, confidenceDelta: +10 }; // bonus: kesin eşleşme
+  }
+  if (cveCategory === "library" && shadowType === "library") {
+    return { compatible: true, confidenceDelta: +5 };
+  }
+  if (cveCategory === "web-server" && (shadowType === "cdn" || shadowType === "security")) {
+    return { compatible: true, confidenceDelta: 0 };
+  }
+
+  // ── Kısmen uyumlu / belirsiz kombinasyonlar — düşük güven + not
+  if (cveCategory === "database" && ["library", "cms", "ecommerce"].includes(shadowType)) {
+    return { compatible: true, confidenceDelta: -15,
+      note: "VERİTABANI CVE — dolaylı eşleşme, manuel doğrulama gerekli" };
+  }
+  if (cveCategory === "application") {
+    return { compatible: true, confidenceDelta: -15,
+      note: "Genel uygulama CVE — kategori belirsiz, manuel doğrulama önerilir" };
+  }
+
+  // ── Diğer tüm kombinasyonlar: uyumsuz ama agresif reddetme
+  return { compatible: true, confidenceDelta: -25,
+    note: `${cveCategory.toUpperCase()} CVE — ${shadowType} kategorisi uyuşmuyor, doğrulama gerekli` };
 }
 
 /** Simple version comparison without semver — returns true if currentVersion falls in [start, end) */
@@ -63,14 +178,21 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
     matchedProduct: string;
     matchedVersion: string | null;
     confidence: number;
+    matchNote: string | null;
   }>();
 
+  // ── 1. customer_tech_stack eşleştirmesi ───────────────────────────────────
+  // Önemli: customer_tech_stack.vendor = servis adı ("Google Analytics / Tag Manager"),
+  // CVE.vendor = firma adı ("Google"). Bunları ilike ile çapraz eşleştirmek yanlış.
+  // Çözüm: sadece CVE.product ile tech stack vendor (servis adı) eşleştirilir.
   for (const product of cve.affectedProducts) {
-    if (!product.vendor && !product.product) continue;
+    const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
+    if (pLower.length < 4) continue; // Çok kısa ürün adları çok geniş eşleşir
 
-    const conditions = [];
-    if (product.vendor) conditions.push(ilike(customerTechStackTable.vendor, `%${product.vendor.replace(/_/g, " ")}%`));
-    if (product.product) conditions.push(ilike(customerTechStackTable.product, `%${product.product.replace(/_/g, " ")}%`));
+    const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
+
+    // Browser/OS/hardware CVE'leri tech stack'te hiç eşleştirilmez
+    if (["browser", "os", "hardware"].includes(cveCategory)) continue;
 
     const rows = await db.select({
       domain: customerTechStackTable.domain,
@@ -82,12 +204,10 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
       confidence: customerTechStackTable.confidence,
     }).from(customerTechStackTable).where(
       and(
-        or(...conditions),
-        // .tr filtresi YOK — sistemde kayıtlı her domain kapsanır
-        // (leadCandidateId veya customerId varsa Türkiye için keşfedilmiştir)
-        or(
-          sql`${customerTechStackTable.leadCandidateId} IS NOT NULL`,
-          sql`${customerTechStackTable.customerId} IS NOT NULL`,
+        // Sadece ürün adı eşleştirmesi — vendor-match çok geniş, false positive üretir
+        ilike(customerTechStackTable.vendor, `%${product.product!.replace(/_/g, " ")}%`),
+        and(
+          sql`${customerTechStackTable.leadCandidateId} IS NOT NULL OR ${customerTechStackTable.customerId} IS NOT NULL`,
         ),
       )
     );
@@ -107,40 +227,46 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
           matchedProduct: `${row.vendor ?? ""} ${row.product ?? ""}`.trim(),
           matchedVersion: row.version ?? null,
           confidence: conf,
+          matchNote: null,
         });
       }
     }
   }
 
-  // ── domain_scans.shadow_it_services'ten ek eşleşme ────────────────────────
+  // ── 2. domain_scans.shadow_it_services eşleştirmesi ──────────────────────
   // customer_tech_stack'e girmeyen (manuel taranmış) domain'leri de kapsar.
-  // Browser/istemci tarafı CVE'ler için bu blok atlanır: Chrome, Firefox vb. açıkları
-  // sunucu tarafı shadow IT servisleriyle eşleştirilmez (false positive önleme).
-  if (!isClientSideCve(cve.affectedProducts)) {
-    // domain_scans tablosundaki tüm kayıtlar sistemde kayıtlı domainlerdir —
-    // .tr filtresi olmadan alıyoruz; .net, .com, .io gibi uzantılar da kapsar.
+  {
     const trDomains = await db.select({
       domain: domainScansTable.domain,
       shadowItServices: domainScansTable.shadowItServices,
     }).from(domainScansTable);
 
     for (const scan of trDomains) {
-      if (!scan.domain || matchMap.has(scan.domain)) continue; // zaten eşleşmiş
+      if (!scan.domain || matchMap.has(scan.domain)) continue;
       const services = (scan.shadowItServices ?? []) as Array<{ name: string; category: string; version?: string }>;
       if (services.length === 0) continue;
 
       for (const product of cve.affectedProducts) {
-        const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ");
-        const vLower = (product.vendor ?? "").toLowerCase().replace(/_/g, " ");
-        if (!pLower && !vLower) continue;
+        const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
+        if (pLower.length < 4) continue;
 
-        const matched = services.find(s => {
-          const sLower = s.name.toLowerCase();
-          // Sadece ürün adı eşleştirmesi — vendor-only match "microsoft" gibi geniş vendor'ları
-          // SaaS ürünlerine (Microsoft 365 vb.) yanlış bağlar, false positive üretir.
-          return pLower.length > 3 && sLower.includes(pLower);
-        });
+        const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
+
+        const matched = services.find(s => s.name.toLowerCase().includes(pLower));
         if (!matched) continue;
+
+        const shadowType = normalizeShadowCategory(matched.category ?? "");
+        const compat = checkCategoryCompatibility(cveCategory, shadowType);
+
+        if (!compat.compatible) {
+          logger.debug(
+            { domain: scan.domain, cveCategory, shadowType, note: compat.note },
+            "CVE-shadow IT kategori uyumsuzluğu — eşleşme reddedildi",
+          );
+          continue;
+        }
+
+        const finalConfidence = Math.max(0, Math.min(100, 75 + compat.confidenceDelta));
 
         matchMap.set(scan.domain, {
           domain: scan.domain,
@@ -148,16 +274,16 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
           leadCandidateId: null,
           matchedProduct: matched.name,
           matchedVersion: matched.version ?? null,
-          confidence: 75,
+          confidence: finalConfidence,
+          matchNote: compat.note ?? null,
         });
-        break; // bu domain için bir product yetti
+        break;
       }
     }
   }
 
   const matches = Array.from(matchMap.values());
 
-  // Save matches to DB
   if (matches.length > 0) {
     await db.insert(cveDomainMatchesTable).values(
       matches.map(m => ({
@@ -168,6 +294,7 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
         matchedProduct: m.matchedProduct,
         matchedVersion: m.matchedVersion ?? undefined,
         confidence: m.confidence,
+        matchNote: m.matchNote ?? undefined,
       }))
     ).onConflictDoNothing();
   }
@@ -210,15 +337,10 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
 
 /**
  * Retroaktif CVE–domain eşleştirme:
- * Mevcut cve_tracker kayıtlarını (stored affected_products) domain_scans.shadow_it_services
- * ile tekrar eşleştirir ve eksik cve_domain_matches kayıtlarını ekler.
- *
- * Neden gerekli: CVE analizi yapıldığında henüz sistemde olmayan domain_scans kayıtları
- * (cron/lead-discovery taramaları) eşleşmeye giremiyor. Bu fonksiyon günlük cron ile çalışarak
- * yeni eklenen domain_scans kayıtlarını mevcut CVE'lerle eşleştirir.
+ * Mevcut cve_tracker kayıtlarını domain_scans.shadow_it_services ile tekrar eşleştirir.
+ * Günlük cron ile çalışarak yeni eklenen domain_scans kayıtlarını mevcut CVE'lerle eşleştirir.
  */
 export async function rematchCveDomains(): Promise<{ newMatches: number; cveCount: number }> {
-  // Affected products JSONB'si olan tüm CVE'leri al (detected dışında)
   const cves = await db.select({
     cveId: cveTrackerTable.cveId,
     affectedProducts: cveTrackerTable.affectedProducts,
@@ -231,7 +353,6 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
 
   if (cves.length === 0) return { newMatches: 0, cveCount: 0 };
 
-  // shadow_it_services verisi olan tüm domain_scans'ı al
   const domainScans = await db.select({
     domain: domainScansTable.domain,
     shadowItServices: domainScansTable.shadowItServices,
@@ -250,8 +371,6 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
 
   for (const cve of cves) {
     const products = (cve.affectedProducts ?? []) as AffectedProduct[];
-    // Browser/client-side CVE'leri shadow IT ile eşleştirilmez
-    if (isClientSideCve(products)) continue;
 
     const toInsert: Array<{
       cveId: string;
@@ -259,6 +378,7 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
       matchedProduct: string;
       matchedVersion?: string;
       confidence: number;
+      matchNote?: string;
     }> = [];
 
     for (const scan of domainScans) {
@@ -267,25 +387,28 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
 
       for (const product of products) {
         const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
-        const vLower = (product.vendor ?? "").toLowerCase().replace(/_/g, " ").trim();
-        if (!pLower && !vLower) continue;
+        if (pLower.length < 4) continue;
 
-        const matched = services.find(s => {
-          const sLower = s.name.toLowerCase();
-          // Sadece ürün adı eşleştirmesi — vendor-only match false positive üretir
-          // (örn: "Microsoft 365" vendor="microsoft" olan tüm CVE'leri yakalar)
-          return pLower.length > 3 && sLower.includes(pLower);
-        });
+        const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
+
+        const matched = services.find(s => s.name.toLowerCase().includes(pLower));
         if (!matched) continue;
+
+        const shadowType = normalizeShadowCategory(matched.category ?? "");
+        const compat = checkCategoryCompatibility(cveCategory, shadowType);
+        if (!compat.compatible) continue;
+
+        const finalConfidence = Math.max(0, Math.min(100, 70 + compat.confidenceDelta));
 
         toInsert.push({
           cveId: cve.cveId,
           domain: scan.domain,
           matchedProduct: matched.name,
           matchedVersion: matched.version,
-          confidence: 70,
+          confidence: finalConfidence,
+          matchNote: compat.note,
         });
-        break; // bu domain için ilk eşleşme yetti
+        break;
       }
     }
 
@@ -293,10 +416,8 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
       const result = await db.insert(cveDomainMatchesTable)
         .values(toInsert)
         .onConflictDoNothing();
-      // rowCount only on PG driver with returning() — use toInsert.length as approximation
       totalNew += toInsert.length;
 
-      // tr_affected_domains sayacını güncelle
       await db.update(cveTrackerTable)
         .set({ trAffectedDomains: sql`(SELECT COUNT(*)::int FROM cve_domain_matches WHERE cve_id = ${cve.cveId})` })
         .where(eq(cveTrackerTable.cveId, cve.cveId));
@@ -305,6 +426,6 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
     }
   }
 
-  logger.info({ totalNew, cveCount: cves.length, domainScansCount: domainScans.length }, "CVE domain retroaktif re-match tamamlandı");
+  logger.info({ totalNew, cveCount: cves.length }, "CVE domain retroaktif re-match tamamlandı");
   return { newMatches: totalNew, cveCount: cves.length };
 }

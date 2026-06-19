@@ -71,6 +71,7 @@ export const cveDomainMatchesTable = pgTable("cve_domain_matches", {
   matchedProduct: varchar("matched_product", { length: 150 }),
   matchedVersion: varchar("matched_version", { length: 50 }),
   confidence: integer("confidence"),
+  matchNote: text("match_note"),
   isPatched: boolean("is_patched").default(false),
   patchedAt: timestamp("patched_at"),
   notificationSent: boolean("notification_sent").default(false),

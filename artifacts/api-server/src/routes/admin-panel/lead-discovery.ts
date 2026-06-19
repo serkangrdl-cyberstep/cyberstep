@@ -1137,16 +1137,16 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
       matchedVersion: cveDomainMatchesTable.matchedVersion,
       confidence: cveDomainMatchesTable.confidence,
       isPatched: cveDomainMatchesTable.isPatched,
-      // WAF bilgisi: önce lead_candidates'tan, yoksa domain_scans'tan
+      // WAF bilgisi: önce lead_candidates'tan (Drizzle col ref), yoksa domain_scans subquery
       wafDetected: sql<boolean | null>`
         COALESCE(
-          lc.waf_detected,
+          ${leadCandidatesTable.wafDetected},
           (SELECT ds.waf_detected FROM domain_scans ds WHERE ds.domain = ${cveDomainMatchesTable.domain} ORDER BY ds.created_at DESC LIMIT 1)
         )
       `,
       wafProvider: sql<string | null>`
         COALESCE(
-          lc.waf_provider,
+          ${leadCandidatesTable.wafProvider},
           (SELECT ds.waf_provider FROM domain_scans ds WHERE ds.domain = ${cveDomainMatchesTable.domain} ORDER BY ds.created_at DESC LIMIT 1)
         )
       `,

@@ -1137,17 +1137,33 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
       matchedVersion: cveDomainMatchesTable.matchedVersion,
       confidence: cveDomainMatchesTable.confidence,
       isPatched: cveDomainMatchesTable.isPatched,
-      // WAF bilgisi: önce lead_candidates'tan (Drizzle col ref), yoksa domain_scans subquery
+      // WAF bilgisi: iki kaynaktan birinde true varsa true döner
+      // COALESCE(false, ...) hatası: false NULL değil, subquery'yi engelliyor.
+      // CASE ile önce her iki kaynakta true kontrolü yapıyoruz.
       wafDetected: sql<boolean | null>`
-        COALESCE(
-          ${leadCandidatesTable.wafDetected},
-          (SELECT ds.waf_detected FROM domain_scans ds WHERE ds.domain = ${cveDomainMatchesTable.domain} ORDER BY ds.created_at DESC LIMIT 1)
-        )
+        CASE
+          WHEN ${leadCandidatesTable.wafDetected} = true THEN true
+          WHEN (SELECT ds.waf_detected FROM domain_scans ds
+                WHERE ds.domain = ${cveDomainMatchesTable.domain}
+                ORDER BY ds.created_at DESC LIMIT 1) = true THEN true
+          ELSE COALESCE(
+            ${leadCandidatesTable.wafDetected},
+            (SELECT ds.waf_detected FROM domain_scans ds
+             WHERE ds.domain = ${cveDomainMatchesTable.domain}
+             ORDER BY ds.created_at DESC LIMIT 1)
+          )
+        END
       `,
       wafProvider: sql<string | null>`
         COALESCE(
+          CASE WHEN ${leadCandidatesTable.wafDetected} = true THEN ${leadCandidatesTable.wafProvider} ELSE NULL END,
+          (SELECT ds.waf_provider FROM domain_scans ds
+           WHERE ds.domain = ${cveDomainMatchesTable.domain} AND ds.waf_detected = true
+           ORDER BY ds.created_at DESC LIMIT 1),
           ${leadCandidatesTable.wafProvider},
-          (SELECT ds.waf_provider FROM domain_scans ds WHERE ds.domain = ${cveDomainMatchesTable.domain} ORDER BY ds.created_at DESC LIMIT 1)
+          (SELECT ds.waf_provider FROM domain_scans ds
+           WHERE ds.domain = ${cveDomainMatchesTable.domain}
+           ORDER BY ds.created_at DESC LIMIT 1)
         )
       `,
     })

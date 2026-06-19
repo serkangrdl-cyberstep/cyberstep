@@ -1,5 +1,5 @@
 import { db, cveTrackerTable, cveDomainMatchesTable, customerTechStackTable, domainScansTable } from "@workspace/db";
-import { eq, or, ilike, like, and, sql } from "drizzle-orm";
+import { eq, or, ilike, and, sql, isNotNull } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import type { CVEEntry } from "./cveFeedReader";
 
@@ -188,4 +188,101 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
   logger.info({ cveId: cve.cveId, totalAffected: matches.length, criticalAffected }, "Türkiye etki analizi tamamlandı");
 
   return { totalAffected: matches.length, criticalAffected, sectorBreakdown, cityBreakdown, topDomains };
+}
+
+/**
+ * Retroaktif CVE–domain eşleştirme:
+ * Mevcut cve_tracker kayıtlarını (stored affected_products) domain_scans.shadow_it_services
+ * ile tekrar eşleştirir ve eksik cve_domain_matches kayıtlarını ekler.
+ *
+ * Neden gerekli: CVE analizi yapıldığında henüz sistemde olmayan domain_scans kayıtları
+ * (cron/lead-discovery taramaları) eşleşmeye giremiyor. Bu fonksiyon günlük cron ile çalışarak
+ * yeni eklenen domain_scans kayıtlarını mevcut CVE'lerle eşleştirir.
+ */
+export async function rematchCveDomains(): Promise<{ newMatches: number; cveCount: number }> {
+  // Affected products JSONB'si olan tüm CVE'leri al (detected dışında)
+  const cves = await db.select({
+    cveId: cveTrackerTable.cveId,
+    affectedProducts: cveTrackerTable.affectedProducts,
+  }).from(cveTrackerTable)
+    .where(and(
+      sql`${cveTrackerTable.status} != 'detected'`,
+      isNotNull(cveTrackerTable.affectedProducts),
+      sql`jsonb_array_length(${cveTrackerTable.affectedProducts}) > 0`,
+    ));
+
+  if (cves.length === 0) return { newMatches: 0, cveCount: 0 };
+
+  // shadow_it_services verisi olan tüm domain_scans'ı al
+  const domainScans = await db.select({
+    domain: domainScansTable.domain,
+    shadowItServices: domainScansTable.shadowItServices,
+  }).from(domainScansTable)
+    .where(and(
+      isNotNull(domainScansTable.shadowItServices),
+      sql`jsonb_array_length(${domainScansTable.shadowItServices}::jsonb) > 0`,
+    ));
+
+  if (domainScans.length === 0) return { newMatches: 0, cveCount: cves.length };
+
+  type AffectedProduct = { vendor?: string; product?: string; versionStartIncluding?: string; versionEndExcluding?: string };
+  type ShadowService = { name: string; category?: string; version?: string };
+
+  let totalNew = 0;
+
+  for (const cve of cves) {
+    const products = (cve.affectedProducts ?? []) as AffectedProduct[];
+    const toInsert: Array<{
+      cveId: string;
+      domain: string;
+      matchedProduct: string;
+      matchedVersion?: string;
+      confidence: number;
+    }> = [];
+
+    for (const scan of domainScans) {
+      const services = (scan.shadowItServices ?? []) as ShadowService[];
+      if (services.length === 0) continue;
+
+      for (const product of products) {
+        const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
+        const vLower = (product.vendor ?? "").toLowerCase().replace(/_/g, " ").trim();
+        if (!pLower && !vLower) continue;
+
+        const matched = services.find(s => {
+          const sLower = s.name.toLowerCase();
+          return (pLower.length > 2 && sLower.includes(pLower)) ||
+                 (vLower.length > 2 && sLower.includes(vLower));
+        });
+        if (!matched) continue;
+
+        toInsert.push({
+          cveId: cve.cveId,
+          domain: scan.domain,
+          matchedProduct: matched.name,
+          matchedVersion: matched.version,
+          confidence: 70,
+        });
+        break; // bu domain için ilk eşleşme yetti
+      }
+    }
+
+    if (toInsert.length > 0) {
+      const result = await db.insert(cveDomainMatchesTable)
+        .values(toInsert)
+        .onConflictDoNothing();
+      // rowCount only on PG driver with returning() — use toInsert.length as approximation
+      totalNew += toInsert.length;
+
+      // tr_affected_domains sayacını güncelle
+      await db.update(cveTrackerTable)
+        .set({ trAffectedDomains: sql`(SELECT COUNT(*)::int FROM cve_domain_matches WHERE cve_id = ${cve.cveId})` })
+        .where(eq(cveTrackerTable.cveId, cve.cveId));
+
+      void result;
+    }
+  }
+
+  logger.info({ totalNew, cveCount: cves.length, domainScansCount: domainScans.length }, "CVE domain retroaktif re-match tamamlandı");
+  return { newMatches: totalNew, cveCount: cves.length };
 }

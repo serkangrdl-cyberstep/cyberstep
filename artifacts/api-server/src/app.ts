@@ -215,6 +215,12 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
+// ─── Health check probe ──────────────────────────────────────────────────────
+// Must come before all rate limiters; used by Cloud Run startup probe.
+app.get("/api/healthz", (_req: Request, res: Response) => {
+  res.json({ status: "ok", ts: Date.now() });
+});
+
 // ─── Rate limiters ───────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

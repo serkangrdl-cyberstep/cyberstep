@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertTriangle, CheckCircle, SkipForward, RefreshCw,
@@ -203,7 +202,6 @@ export default function AdminCVEPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedCVE, setSelectedCVE] = useState<string | null>(null);
-  const [domainToDelete, setDomainToDelete] = useState("");
 
   const { data: cves = [], isLoading, refetch } = useQuery<CVERow[]>({
     queryKey: ["cve-list"],
@@ -228,21 +226,6 @@ export default function AdminCVEPage() {
       setTimeout(() => refetch(), 3000);
     },
     onError: () => toast({ title: "Re-match başarısız", variant: "destructive" }),
-  });
-
-  const deleteDomainMut = useMutation({
-    mutationFn: (domain: string) => adminFetchJson("/api/admin-panel/cve/domain-matches", {
-      method: "DELETE",
-      body: JSON.stringify({ domain }),
-      headers: { "Content-Type": "application/json" },
-    }),
-    onSuccess: (d: { deletedCount: number; domain: string }) => {
-      toast({ title: `${d.domain} temizlendi — ${d.deletedCount} eşleşme silindi` });
-      setDomainToDelete("");
-      queryClient.invalidateQueries({ queryKey: ["cve-list"] });
-      queryClient.invalidateQueries({ queryKey: ["cve-stats"] });
-    },
-    onError: () => toast({ title: "Silme başarısız", variant: "destructive" }),
   });
 
   if (selectedCVE) {
@@ -295,38 +278,6 @@ export default function AdminCVEPage() {
             </Button>
           </div>
         </div>
-
-        <Card className="bg-slate-900 border-slate-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-400" />
-              Domain Eşleşme Temizleme
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-slate-500 text-xs mb-3">
-              Test veya hatalı eşleşen bir domain'i tüm CVE kayıtlarından silin. Production'daki yanlış eşleşmeleri düzeltmek için kullanın.
-            </p>
-            <div className="flex gap-2">
-              <Input
-                placeholder="örn: netsys.com.tr"
-                value={domainToDelete}
-                onChange={e => setDomainToDelete(e.target.value)}
-                className="bg-slate-800 border-slate-700 text-slate-200 text-sm h-8 flex-1"
-                onKeyDown={e => { if (e.key === "Enter" && domainToDelete.length > 3) deleteDomainMut.mutate(domainToDelete); }}
-              />
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={domainToDelete.length < 3 || deleteDomainMut.isPending}
-                onClick={() => deleteDomainMut.mutate(domainToDelete)}
-                className="h-8"
-              >
-                {deleteDomainMut.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Sil
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
         {isLoading && <div className="text-slate-500 text-center py-8"><Loader2 className="animate-spin inline mr-2" />Yükleniyor...</div>}
 

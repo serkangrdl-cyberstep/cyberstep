@@ -98,6 +98,67 @@ async function processRow(row: ClaimedRow): Promise<void> {
   );
 }
 
+// ─── domain_scans WAF backfill ────────────────────────────────────────────────
+// Eski taramalarda (WAF kontrol entegre edilmeden önce yapılan) waf_confidence
+// NULL kalan kayıtları sonradan zenginleştirir. Lead_candidates cron'undan
+// ayrı tutulur — domain_scans tablosunda lock kolonu olmadığından "claim" için
+// waf_confidence = -1 sentineli kullanılır, işlem sonunda gerçek değer yazılır.
+const DS_BATCH_LIMIT = 20;
+
+export async function runDomainScanWafEnrichment(): Promise<number> {
+  // Claim: waf_confidence IS NULL olan taranmış domain'leri atomik olarak işaretle
+  const claimResult = await db.execute(sql`
+    UPDATE domain_scans
+    SET waf_confidence = -1
+    WHERE id IN (
+      SELECT id FROM domain_scans
+      WHERE waf_confidence IS NULL
+        AND overall_score > 0
+      ORDER BY created_at DESC
+      LIMIT ${DS_BATCH_LIMIT}
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id, domain
+  `);
+
+  const rows = (claimResult.rows ?? []) as unknown as ClaimedRow[];
+  if (rows.length === 0) {
+    logger.info("domain_scans WAF backfill: bekleyen kayıt yok");
+    return 0;
+  }
+
+  logger.info({ count: rows.length }, "domain_scans WAF backfill: başladı");
+
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const batch = rows.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (row) => {
+      const { timedOut, detected, provider, confidence } = await detectWafWithStatus(row.domain);
+
+      if (timedOut) {
+        // Timeout → claim geri al (NULL'a döndür, sonraki run tekrar dener)
+        await db.execute(sql`
+          UPDATE domain_scans SET waf_confidence = NULL WHERE id = ${row.id}
+        `);
+        return;
+      }
+
+      await db.execute(sql`
+        UPDATE domain_scans
+        SET
+          waf_detected   = ${detected ?? false},
+          waf_provider   = ${provider},
+          waf_confidence = ${confidence ?? 0}
+        WHERE id = ${row.id}
+      `);
+
+      logger.info({ domain: row.domain, detected, provider }, "domain_scans WAF backfill: tamamlandı");
+    }));
+  }
+
+  logger.info({ count: rows.length }, "domain_scans WAF backfill: batch bitti");
+  return rows.length;
+}
+
 // ─── Ana cron fonksiyonu ──────────────────────────────────────────────────────
 export async function runWafEnrichmentCron(): Promise<number> {
   // Atomik claim: SELECT ... FOR UPDATE SKIP LOCKED + UPDATE tek sorguda.

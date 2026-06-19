@@ -1060,7 +1060,7 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
     return;
   }
 
-  // Etkilenen domain detayları — tüm CVE'ler için tek sorguda
+  // Etkilenen domain detayları — WAF bilgisiyle birlikte tek sorguda
   const cveIds = cveList.map(c => c.cveId);
   const domainRows = await db
     .select({
@@ -1070,8 +1070,22 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
       matchedVersion: cveDomainMatchesTable.matchedVersion,
       confidence: cveDomainMatchesTable.confidence,
       isPatched: cveDomainMatchesTable.isPatched,
+      // WAF bilgisi: önce lead_candidates'tan, yoksa domain_scans'tan
+      wafDetected: sql<boolean | null>`
+        COALESCE(
+          lc.waf_detected,
+          (SELECT ds.waf_detected FROM domain_scans ds WHERE ds.domain = ${cveDomainMatchesTable.domain} ORDER BY ds.created_at DESC LIMIT 1)
+        )
+      `,
+      wafProvider: sql<string | null>`
+        COALESCE(
+          lc.waf_provider,
+          (SELECT ds.waf_provider FROM domain_scans ds WHERE ds.domain = ${cveDomainMatchesTable.domain} ORDER BY ds.created_at DESC LIMIT 1)
+        )
+      `,
     })
     .from(cveDomainMatchesTable)
+    .leftJoin(leadCandidatesTable, eq(leadCandidatesTable.id, cveDomainMatchesTable.leadCandidateId))
     .where(inArray(cveDomainMatchesTable.cveId, cveIds))
     .orderBy(cveDomainMatchesTable.domain);
 

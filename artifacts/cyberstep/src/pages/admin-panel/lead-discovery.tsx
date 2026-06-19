@@ -69,6 +69,8 @@ interface CveDomainEntry {
   matchedVersion: string | null;
   confidence: number | null;
   isPatched: boolean | null;
+  wafDetected: boolean | null;
+  wafProvider: string | null;
 }
 
 interface CveReportEntry {
@@ -2839,13 +2841,20 @@ export default function AdminLeadDiscovery() {
                                       {cve.domains.map((d, i) => (
                                         <div key={i} className="flex items-center justify-between gap-2 rounded border px-2 py-1 bg-background">
                                           <span className="font-mono text-[11px] truncate max-w-[160px]">{d.domain}</span>
-                                          <div className="flex items-center gap-1.5 shrink-0">
+                                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                                             {d.matchedProduct && (
                                               <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{d.matchedProduct}{d.matchedVersion ? ` ${d.matchedVersion}` : ""}</span>
                                             )}
                                             {d.confidence != null && (
                                               <Badge variant="outline" className="text-[9px] px-1 py-0">{d.confidence}%</Badge>
                                             )}
+                                            {d.wafDetected === true ? (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-blue-600 border-blue-400">
+                                                WAF{d.wafProvider ? `: ${d.wafProvider}` : ""}
+                                              </Badge>
+                                            ) : d.wafDetected === false ? (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-slate-400">WAF yok</Badge>
+                                            ) : null}
                                             {d.isPatched ? (
                                               <Badge variant="outline" className="text-[9px] px-1 py-0 text-green-600">Yamalı</Badge>
                                             ) : (

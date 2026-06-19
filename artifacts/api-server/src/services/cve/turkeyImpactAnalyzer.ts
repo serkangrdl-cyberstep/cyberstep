@@ -1,5 +1,5 @@
-import { db, cveTrackerTable, cveDomainMatchesTable, customerTechStackTable } from "@workspace/db";
-import { eq, or, ilike, like, and } from "drizzle-orm";
+import { db, cveTrackerTable, cveDomainMatchesTable, customerTechStackTable, domainScansTable } from "@workspace/db";
+import { eq, or, ilike, like, and, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import type { CVEEntry } from "./cveFeedReader";
 
@@ -94,6 +94,52 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
           matchedVersion: row.version ?? null,
           confidence: conf,
         });
+      }
+    }
+  }
+
+  // ── domain_scans.shadow_it_services'ten ek eşleşme ────────────────────────
+  // customer_tech_stack'e girmeyen (manuel taranmış) domain'leri de kapsar.
+  {
+    const trDomains = await db.select({
+      domain: domainScansTable.domain,
+      shadowItServices: domainScansTable.shadowItServices,
+    }).from(domainScansTable).where(
+      or(
+        like(domainScansTable.domain, "%.tr"),
+        like(domainScansTable.domain, "%.com.tr"),
+        like(domainScansTable.domain, "%.org.tr"),
+        like(domainScansTable.domain, "%.net.tr"),
+        like(domainScansTable.domain, "%.gov.tr"),
+        like(domainScansTable.domain, "%.edu.tr"),
+      )
+    );
+
+    for (const scan of trDomains) {
+      if (!scan.domain || matchMap.has(scan.domain)) continue; // zaten eşleşmiş
+      const services = (scan.shadowItServices ?? []) as Array<{ name: string; category: string; version?: string }>;
+      if (services.length === 0) continue;
+
+      for (const product of cve.affectedProducts) {
+        const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ");
+        const vLower = (product.vendor ?? "").toLowerCase().replace(/_/g, " ");
+        if (!pLower && !vLower) continue;
+
+        const matched = services.find(s => {
+          const sLower = s.name.toLowerCase();
+          return (pLower && sLower.includes(pLower)) || (vLower && sLower.includes(vLower));
+        });
+        if (!matched) continue;
+
+        matchMap.set(scan.domain, {
+          domain: scan.domain,
+          customerId: null,
+          leadCandidateId: null,
+          matchedProduct: matched.name,
+          matchedVersion: matched.version ?? null,
+          confidence: 75,
+        });
+        break; // bu domain için bir product yetti
       }
     }
   }

@@ -3009,8 +3009,10 @@ startup()
     // detectWAF sonuçları waf_enriched_at'i set eder.
     cron.schedule("*/30 * * * *", wrapCron("waf_enrichment", "*/30 * * * *", async () => {
       if (!await cronIsEnabled("waf_enrichment")) { logger.info("WAF enrichment cron devre dışı, atlanıyor"); return 0; }
-      const { runWafEnrichmentCron } = await import("./services/wafEnrichmentCron");
-      return runWafEnrichmentCron();
+      const { runWafEnrichmentCron, runDomainScanWafEnrichment } = await import("./services/wafEnrichmentCron");
+      const n1 = await runWafEnrichmentCron();
+      const n2 = await runDomainScanWafEnrichment();
+      return n1 + n2;
     }), { timezone: "Europe/Istanbul" });
     logger.info("WAF enrichment cron scheduled (her 30 dakika, limit 50/run)");
 

@@ -10,9 +10,11 @@ import {
   domainScansTable,
   isrCustomersTable,
   isrDealsTable,
+  cveTrackerTable,
+  cveDomainMatchesTable,
 } from "@workspace/db";
 import {
-  eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or, inArray,
+  eq, desc, sql, and, count, isNull, isNotNull, asc, ilike, or, inArray, gte,
 } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { scanCRTSH } from "../../services/crtshScanner";
@@ -962,6 +964,133 @@ router.post("/admin-panel/lead-discovery/bulk-import-pdf", requireAdmin, async (
 
   logger.info({ inserted, skipped, total: domains.length }, "PDF bulk import tamamlandı");
   res.json({ inserted, skipped, total: domains.length });
+});
+
+// ─── CVE RAPORU ─────────────────────────────────────────────────────────────
+// GET /api/admin-panel/lead-discovery/cve-report/export — CSV indirme (önce gelecek)
+router.get("/admin-panel/lead-discovery/cve-report/export", requireAdmin, async (req: Request, res: Response) => {
+  const minCvss = parseFloat(String(req.query["minCvss"] ?? "7.0"));
+  const severityFilter = String(req.query["severity"] ?? "");
+  const onlyExploit = req.query["exploit"] === "1";
+  const onlyKev = req.query["kev"] === "1";
+
+  const conditions = [gte(cveTrackerTable.cvssScore, String(minCvss))];
+  if (severityFilter) conditions.push(eq(cveTrackerTable.severity, severityFilter));
+  if (onlyExploit) conditions.push(eq(cveTrackerTable.exploitPublic, true));
+  if (onlyKev) conditions.push(eq(cveTrackerTable.cisaKev, true));
+
+  const rows = await db
+    .select({
+      cveId: cveTrackerTable.cveId,
+      cvssScore: cveTrackerTable.cvssScore,
+      severity: cveTrackerTable.severity,
+      title: cveTrackerTable.title,
+      exploitPublic: cveTrackerTable.exploitPublic,
+      cisaKev: cveTrackerTable.cisaKev,
+      patchAvailable: cveTrackerTable.patchAvailable,
+      domain: cveDomainMatchesTable.domain,
+      matchedProduct: cveDomainMatchesTable.matchedProduct,
+      matchedVersion: cveDomainMatchesTable.matchedVersion,
+      confidence: cveDomainMatchesTable.confidence,
+      isPatched: cveDomainMatchesTable.isPatched,
+    })
+    .from(cveTrackerTable)
+    .innerJoin(cveDomainMatchesTable, eq(cveDomainMatchesTable.cveId, cveTrackerTable.cveId))
+    .where(and(...conditions))
+    .orderBy(desc(cveTrackerTable.cvssScore), cveTrackerTable.cveId, cveDomainMatchesTable.domain);
+
+  const header = "CVE ID,CVSS,Severity,Baslik,Exploit,CISA KEV,Yama,Domain,Urun,Versiyon,Guven,Yamalanmis\n";
+  const body = rows.map(r =>
+    [
+      r.cveId,
+      r.cvssScore ?? "",
+      r.severity ?? "",
+      `"${(r.title ?? "").replace(/"/g, '""')}"`,
+      r.exploitPublic ? "Evet" : "Hayir",
+      r.cisaKev ? "Evet" : "Hayir",
+      r.patchAvailable ? "Evet" : "Hayir",
+      r.domain,
+      `"${(r.matchedProduct ?? "").replace(/"/g, '""')}"`,
+      r.matchedVersion ?? "",
+      r.confidence ?? "",
+      r.isPatched ? "Evet" : "Hayir",
+    ].join(",")
+  ).join("\n");
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="cve-raporu-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send("\uFEFF" + header + body); // BOM for Excel Turkish charset
+});
+
+// GET /api/admin-panel/lead-discovery/cve-report — CVE listesi + domain detayları
+router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: Request, res: Response) => {
+  const minCvss = parseFloat(String(req.query["minCvss"] ?? "7.0"));
+  const severityFilter = String(req.query["severity"] ?? "");
+  const onlyExploit = req.query["exploit"] === "1";
+  const onlyKev = req.query["kev"] === "1";
+
+  const conditions = [gte(cveTrackerTable.cvssScore, String(minCvss))];
+  if (severityFilter) conditions.push(eq(cveTrackerTable.severity, severityFilter));
+  if (onlyExploit) conditions.push(eq(cveTrackerTable.exploitPublic, true));
+  if (onlyKev) conditions.push(eq(cveTrackerTable.cisaKev, true));
+
+  // CVE özet listesi
+  const cveList = await db
+    .select({
+      cveId: cveTrackerTable.cveId,
+      cvssScore: cveTrackerTable.cvssScore,
+      severity: cveTrackerTable.severity,
+      title: cveTrackerTable.title,
+      exploitPublic: cveTrackerTable.exploitPublic,
+      cisaKev: cveTrackerTable.cisaKev,
+      patchAvailable: cveTrackerTable.patchAvailable,
+      status: cveTrackerTable.status,
+      detectedAt: cveTrackerTable.detectedAt,
+      affectedDomainCount: count(cveDomainMatchesTable.id),
+    })
+    .from(cveTrackerTable)
+    .innerJoin(cveDomainMatchesTable, eq(cveDomainMatchesTable.cveId, cveTrackerTable.cveId))
+    .where(and(...conditions))
+    .groupBy(cveTrackerTable.id)
+    .orderBy(desc(cveTrackerTable.cvssScore), desc(count(cveDomainMatchesTable.id)))
+    .limit(200);
+
+  if (cveList.length === 0) {
+    res.json({ total: 0, cves: [] });
+    return;
+  }
+
+  // Etkilenen domain detayları — tüm CVE'ler için tek sorguda
+  const cveIds = cveList.map(c => c.cveId);
+  const domainRows = await db
+    .select({
+      cveId: cveDomainMatchesTable.cveId,
+      domain: cveDomainMatchesTable.domain,
+      matchedProduct: cveDomainMatchesTable.matchedProduct,
+      matchedVersion: cveDomainMatchesTable.matchedVersion,
+      confidence: cveDomainMatchesTable.confidence,
+      isPatched: cveDomainMatchesTable.isPatched,
+    })
+    .from(cveDomainMatchesTable)
+    .where(inArray(cveDomainMatchesTable.cveId, cveIds))
+    .orderBy(cveDomainMatchesTable.domain);
+
+  // domain listesini CVE'lere bağla
+  const domainMap = new Map<string, typeof domainRows>();
+  for (const row of domainRows) {
+    if (!row.cveId) continue;
+    const list = domainMap.get(row.cveId) ?? [];
+    list.push(row);
+    domainMap.set(row.cveId, list);
+  }
+
+  const cves = cveList.map(c => ({
+    ...c,
+    cvssScore: c.cvssScore != null ? Number(c.cvssScore) : null,
+    domains: domainMap.get(c.cveId) ?? [],
+  }));
+
+  res.json({ total: cves.length, cves });
 });
 
 export default router;

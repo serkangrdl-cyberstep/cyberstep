@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert } from "lucide-react";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -60,6 +60,34 @@ interface CVEBreakdown {
   medium: number;
   informational: number;
   cisaKev: number;
+}
+
+interface CveDomainEntry {
+  cveId: string;
+  domain: string;
+  matchedProduct: string | null;
+  matchedVersion: string | null;
+  confidence: number | null;
+  isPatched: boolean | null;
+}
+
+interface CveReportEntry {
+  cveId: string;
+  cvssScore: number | null;
+  severity: string | null;
+  title: string | null;
+  exploitPublic: boolean | null;
+  cisaKev: boolean | null;
+  patchAvailable: boolean | null;
+  status: string | null;
+  detectedAt: string | null;
+  affectedDomainCount: number;
+  domains: CveDomainEntry[];
+}
+
+interface CveReport {
+  total: number;
+  cves: CveReportEntry[];
 }
 
 interface SourceData {
@@ -774,12 +802,29 @@ export default function AdminLeadDiscovery() {
   const [editEmail, setEditEmail] = useState("");
   const [editName, setEditName] = useState("");
   const [editTitle, setEditTitle] = useState("");
+  // ─── CVE Raporu tab ───────────────────────────────────────────────────────
+  const [cveMinCvss, setCveMinCvss] = useState("9.0");
+  const [cveSeverity, setCveSeverity] = useState("");
+  const [cveOnlyExploit, setCveOnlyExploit] = useState(false);
+  const [cveOnlyKev, setCveOnlyKev] = useState(false);
+  const [cveExpanded, setCveExpanded] = useState<Set<string>>(new Set());
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: stats } = useQuery<Stats>({
     queryKey: ["lead-discovery-stats"],
     queryFn: () => fetch(`${BASE}/lead-discovery/stats`).then((r) => r.json()),
     refetchInterval: 15_000,
+  });
+
+  const { data: cveReport, isLoading: cveLoading } = useQuery<CveReport>({
+    queryKey: ["lead-discovery-cve-report", cveMinCvss, cveSeverity, cveOnlyExploit, cveOnlyKev],
+    queryFn: () => {
+      const params = new URLSearchParams({ minCvss: cveMinCvss });
+      if (cveSeverity) params.set("severity", cveSeverity);
+      if (cveOnlyExploit) params.set("exploit", "1");
+      if (cveOnlyKev) params.set("kev", "1");
+      return fetch(`${BASE}/lead-discovery/cve-report?${params}`, { credentials: "include" }).then(r => r.json());
+    },
   });
 
   const { data: runs } = useQuery<DiscoveryRun[]>({
@@ -1213,6 +1258,7 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="results">Sonuclar</TabsTrigger>
             <TabsTrigger value="history">Gecmis</TabsTrigger>
             <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>
+            <TabsTrigger value="cve-raporu">CVE Raporu</TabsTrigger>
           </TabsList>
         </div>
 
@@ -2633,6 +2679,194 @@ export default function AdminLeadDiscovery() {
               </CardContent>
             </Card>
 
+          </div>
+        </TabsContent>
+
+        {/* ── CVE RAPORU TAB ───────────────────────────────────────────── */}
+        <TabsContent value="cve-raporu">
+          <div className="space-y-4">
+            {/* Filtreler */}
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs shrink-0">Min CVSS</Label>
+                    <Select value={cveMinCvss} onValueChange={v => { setCveMinCvss(v); setCveExpanded(new Set()); }}>
+                      <SelectTrigger className="h-8 w-24 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["7.0","8.0","9.0","9.5","10.0"].map(v => (
+                          <SelectItem key={v} value={v} className="text-xs">{v}+</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs shrink-0">Severity</Label>
+                    <Select value={cveSeverity || "__all__"} onValueChange={v => { setCveSeverity(v === "__all__" ? "" : v); setCveExpanded(new Set()); }}>
+                      <SelectTrigger className="h-8 w-28 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__" className="text-xs">Tümü</SelectItem>
+                        <SelectItem value="critical" className="text-xs">Critical</SelectItem>
+                        <SelectItem value="high" className="text-xs">High</SelectItem>
+                        <SelectItem value="medium" className="text-xs">Medium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <Checkbox checked={cveOnlyExploit} onCheckedChange={v => { setCveOnlyExploit(!!v); setCveExpanded(new Set()); }} className="h-4 w-4" />
+                    <span className="text-xs">Exploit var</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <Checkbox checked={cveOnlyKev} onCheckedChange={v => { setCveOnlyKev(!!v); setCveExpanded(new Set()); }} className="h-4 w-4" />
+                    <span className="text-xs">CISA KEV</span>
+                  </label>
+                  <div className="ml-auto">
+                    <a
+                      href={`${BASE}/lead-discovery/cve-report/export?minCvss=${cveMinCvss}${cveSeverity ? `&severity=${cveSeverity}` : ""}${cveOnlyExploit ? "&exploit=1" : ""}${cveOnlyKev ? "&kev=1" : ""}`}
+                      download
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      CSV indir
+                    </a>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Özet istatistikler */}
+            {cveReport && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Eşleşen CVE", value: cveReport.total, icon: <ShieldAlert className="h-4 w-4 text-red-500" /> },
+                  { label: "Etkilenen Domain", value: new Set(cveReport.cves.flatMap(c => c.domains.map(d => d.domain))).size, icon: <AlertTriangle className="h-4 w-4 text-orange-500" /> },
+                  { label: "Yama Yok", value: cveReport.cves.filter(c => c.patchAvailable === false).length, icon: <AlertTriangle className="h-4 w-4 text-red-600" /> },
+                  { label: "CISA KEV", value: cveReport.cves.filter(c => c.cisaKev).length, icon: <ShieldAlert className="h-4 w-4 text-purple-600" /> },
+                ].map(s => (
+                  <Card key={s.label}>
+                    <CardContent className="pt-3 pb-3 flex items-center gap-2">
+                      {s.icon}
+                      <div>
+                        <div className="text-lg font-bold leading-none">{s.value}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">{s.label}</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* CVE tablosu */}
+            <Card>
+              <CardContent className="p-0">
+                {cveLoading ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">Yükleniyor...</div>
+                ) : !cveReport || cveReport.cves.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">Bu filtrede CVE bulunamadı.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead className="text-xs">CVE ID</TableHead>
+                        <TableHead className="text-xs text-right">CVSS</TableHead>
+                        <TableHead className="text-xs">Severity</TableHead>
+                        <TableHead className="text-xs">Baslik</TableHead>
+                        <TableHead className="text-xs text-center">Exploit</TableHead>
+                        <TableHead className="text-xs text-center">KEV</TableHead>
+                        <TableHead className="text-xs text-center">Yama</TableHead>
+                        <TableHead className="text-xs text-right">Domain</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cveReport.cves.map(cve => {
+                        const isOpen = cveExpanded.has(cve.cveId);
+                        const severityColor =
+                          cve.severity === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+                          cve.severity === "high" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" :
+                          "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+                        return (
+                          <>
+                            <TableRow
+                              key={cve.cveId}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => setCveExpanded(prev => {
+                                const next = new Set(prev);
+                                if (next.has(cve.cveId)) next.delete(cve.cveId); else next.add(cve.cveId);
+                                return next;
+                              })}
+                            >
+                              <TableCell className="py-2 pr-0">
+                                {isOpen ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </TableCell>
+                              <TableCell className="py-2 font-mono text-xs font-semibold">{cve.cveId}</TableCell>
+                              <TableCell className="py-2 text-right text-xs font-bold">
+                                <span className={cve.cvssScore != null && cve.cvssScore >= 9 ? "text-red-600" : "text-orange-600"}>
+                                  {cve.cvssScore?.toFixed(1) ?? "—"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <Badge className={`text-[10px] px-1.5 py-0 ${severityColor}`} variant="outline">
+                                  {cve.severity ?? "—"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="py-2 text-xs max-w-xs">
+                                <span className="line-clamp-1">{cve.title ?? "—"}</span>
+                              </TableCell>
+                              <TableCell className="py-2 text-center text-xs">
+                                {cve.exploitPublic ? <span className="text-red-600 font-bold">Evet</span> : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="py-2 text-center text-xs">
+                                {cve.cisaKev ? <span className="text-purple-600 font-bold">KEV</span> : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="py-2 text-center text-xs">
+                                {cve.patchAvailable === false ? <span className="text-red-500 font-semibold">Yok</span> : cve.patchAvailable ? <span className="text-green-600">Var</span> : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="py-2 text-right text-xs font-semibold">{cve.affectedDomainCount}</TableCell>
+                            </TableRow>
+                            {isOpen && (
+                              <TableRow key={`${cve.cveId}-detail`} className="bg-muted/30">
+                                <TableCell colSpan={9} className="py-0 px-4 pb-3">
+                                  <div className="pt-2 text-xs space-y-1">
+                                    <div className="font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide text-[10px]">
+                                      Etkilenen Domainler ({cve.domains.length})
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                      {cve.domains.map((d, i) => (
+                                        <div key={i} className="flex items-center justify-between gap-2 rounded border px-2 py-1 bg-background">
+                                          <span className="font-mono text-[11px] truncate max-w-[160px]">{d.domain}</span>
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            {d.matchedProduct && (
+                                              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{d.matchedProduct}{d.matchedVersion ? ` ${d.matchedVersion}` : ""}</span>
+                                            )}
+                                            {d.confidence != null && (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0">{d.confidence}%</Badge>
+                                            )}
+                                            {d.isPatched ? (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-green-600">Yamalı</Badge>
+                                            ) : (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-red-600">Açık</Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

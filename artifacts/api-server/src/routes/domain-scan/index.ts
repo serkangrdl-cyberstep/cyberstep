@@ -597,6 +597,57 @@ const NVD_SERVICE_KEYWORDS: Record<string, string> = {
 
 interface NvdCveEntry { service: string; cveId: string; description: string; cvssScore: number; }
 
+// ─── Firmware / Network Device Extraction ─────────────────────────────────────
+
+type FirmwareDevice = {
+  vendor: string;
+  model: string;
+  firmwareVersion: string | null;
+  port: number;
+  confidence: "high" | "medium";
+};
+
+const FIRMWARE_VENDOR_PATTERNS: Array<{ pattern: RegExp; vendor: string }> = [
+  { pattern: /fortinet|fortigate|fortios/i, vendor: "Fortinet" },
+  { pattern: /cisco/i, vendor: "Cisco" },
+  { pattern: /palo.?alto|pan-?os/i, vendor: "Palo Alto Networks" },
+  { pattern: /juniper|junos/i, vendor: "Juniper" },
+  { pattern: /check.?point/i, vendor: "Check Point" },
+  { pattern: /sonicwall/i, vendor: "SonicWall" },
+  { pattern: /watchguard/i, vendor: "WatchGuard" },
+  { pattern: /mikrotik/i, vendor: "MikroTik" },
+  { pattern: /ubiquiti|unifi|edgemax/i, vendor: "Ubiquiti" },
+  { pattern: /f5.*(big.?ip|ltm|gtm|asm)|big.?ip/i, vendor: "F5 Networks" },
+  { pattern: /barracuda/i, vendor: "Barracuda" },
+  { pattern: /netscaler|citrix.*adc/i, vendor: "Citrix ADC" },
+];
+
+function extractFirmwareDevices(
+  openPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null | undefined
+): FirmwareDevice[] {
+  if (!openPorts || openPorts.length === 0) return [];
+  const seen = new Set<string>();
+  const devices: FirmwareDevice[] = [];
+  for (const p of openPorts) {
+    const searchText = `${p.product ?? ""} ${p.service ?? ""}`.trim();
+    if (!searchText) continue;
+    for (const { pattern, vendor } of FIRMWARE_VENDOR_PATTERNS) {
+      if (!pattern.test(searchText)) continue;
+      const key = `${vendor}:${p.product ?? p.service}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      devices.push({
+        vendor,
+        model: p.product || p.service || vendor,
+        firmwareVersion: p.version || null,
+        port: p.port,
+        confidence: p.version ? "high" : "medium",
+      });
+    }
+  }
+  return devices;
+}
+
 async function checkNvdCve(services: Array<{ name: string; risk: string; version?: string }>): Promise<NvdCveEntry[]> {
   const targets = services
     .filter(s => NVD_SERVICE_KEYWORDS[s.name] && (s.risk === "Yüksek" || s.risk === "Orta"))
@@ -1333,6 +1384,7 @@ export async function performDomainScan(domain: string): Promise<{
         shodanVulnCount: shodan?.vulnCount ?? 0,
         shodanCountry: shodan?.country ?? null,
         shodanIsp: shodan?.isp ?? null,
+        shodanFirmwareDevices: extractFirmwareDevices(shodan?.openPorts),
         virusTotalReputation: null, virusTotalMalicious: 0, virusTotalSuspicious: 0,
         abuseIpdbScore: null, abuseIpdbTotalReports: 0, abuseIpdbCountry: null, abuseIpdbIsp: null,
         safeBrowsingFlagged: null, safeBrowsingThreats: [],
@@ -1575,6 +1627,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         shodanVulnCount: shodan?.vulnCount ?? 0,
         shodanCountry: shodan?.country ?? null,
         shodanIsp: shodan?.isp ?? null,
+        shodanFirmwareDevices: extractFirmwareDevices(shodan?.openPorts),
         virusTotalReputation: virusTotal?.reputation ?? null,
         virusTotalMalicious: virusTotal?.malicious ?? 0,
         virusTotalSuspicious: virusTotal?.suspicious ?? 0,
@@ -1971,6 +2024,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       shodanVulnCount: scan.shodanVulnCount,
       shodanCountry: scan.shodanCountry,
       shodanIsp: scan.shodanIsp,
+      shodanFirmwareDevices: scan.shodanFirmwareDevices as Array<{ vendor: string; model: string; firmwareVersion: string | null; port: number; confidence: "high" | "medium" }> | null,
       virusTotalReputation: scan.virusTotalReputation,
       virusTotalMalicious: scan.virusTotalMalicious,
       virusTotalSuspicious: scan.virusTotalSuspicious,

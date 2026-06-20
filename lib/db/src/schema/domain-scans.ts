@@ -58,6 +58,7 @@ export const domainScansTable = pgTable("domain_scans", {
   shodanVulnCount: integer("shodan_vuln_count").notNull().default(0),
   shodanCountry: text("shodan_country"),
   shodanIsp: text("shodan_isp"),
+  shodanFirmwareDevices: jsonb("shodan_firmware_devices").$type<Array<{ vendor: string; model: string; firmwareVersion: string | null; port: number; confidence: "high" | "medium" }>>(),
   virusTotalReputation: integer("virustotal_reputation"),
   virusTotalMalicious: integer("virustotal_malicious").notNull().default(0),
   virusTotalSuspicious: integer("virustotal_suspicious").notNull().default(0),

@@ -270,6 +270,7 @@ interface DomainScanData {
   shodanVulnCount: number;
   shodanCountry: string | null;
   shodanIsp: string | null;
+  shodanFirmwareDevices?: Array<{ vendor: string; model: string; firmwareVersion: string | null; port: number; confidence: "high" | "medium" }> | null;
   virusTotalReputation: number | null;
   virusTotalMalicious: number;
   virusTotalSuspicious: number;

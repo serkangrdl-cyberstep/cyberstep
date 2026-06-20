@@ -88,6 +88,7 @@ interface DomainScanDetail extends DomainScanRow {
   abuseIpdbTotalReports: number;
   shodanVulnCount: number;
   shodanOpenPorts: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
+  shodanFirmwareDevices?: Array<{ vendor: string; model: string; firmwareVersion: string | null; port: number; confidence: "high" | "medium" }> | null;
   cveSummary: Array<{ service: string; cveId: string; description: string; cvssScore: number }>;
   safeBrowsingFlagged: boolean | null;
   safeBrowsingThreats: string[];
@@ -537,6 +538,43 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* Ağ Cihazı / Firmware Tespiti */}
+            {(scan.shodanFirmwareDevices ?? []).length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Ağ Cihazı Tespiti ({(scan.shodanFirmwareDevices ?? []).length})
+                </h3>
+                <div className="space-y-2">
+                  {(scan.shodanFirmwareDevices ?? []).map((d, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800 border border-amber-500/20">
+                      <div className="shrink-0 mt-0.5">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${d.confidence === "high" ? "bg-amber-500/20 text-amber-400" : "bg-slate-600/40 text-slate-400"}`}>
+                          {d.vendor}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-medium text-slate-200">{d.model}</span>
+                          <span className="text-xs text-slate-500">Port {d.port}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          {d.firmwareVersion ? (
+                            <span className="text-xs font-mono text-emerald-400">Firmware: {d.firmwareVersion}</span>
+                          ) : (
+                            <span className="text-xs text-slate-500 italic">Firmware sürümü tespit edilemedi</span>
+                          )}
+                          <span className={`text-xs ${d.confidence === "high" ? "text-amber-500" : "text-slate-500"}`}>
+                            {d.confidence === "high" ? "Yüksek güven" : "Orta güven"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Shodan verilerinden tespit edildi. Firmware sürümü mevcut ise bilinen CVE'lerle eşleştirilebilir.</p>
               </div>
             )}
 

@@ -140,7 +140,7 @@ async function classifyWithClaude(
   }
 
   try {
-    const ai = getClaudeAiFn("claude-sonnet-4-6");
+    const ai = getClaudeAiFn();
     const result = await ai(`Feed öğesi CyberStep.io için alakalı mı?
 CyberStep: Türkiye işletme siber güvenlik SaaS platformu.
 Müşteriler: SOC/NOC servisi, CVE izleme, Fortinet entegrasyonu, KVKK uyum.

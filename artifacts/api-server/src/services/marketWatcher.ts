@@ -136,7 +136,7 @@ export async function sendWeeklyMarketSummary(): Promise<void> {
     return;
   }
 
-  const ai = getClaudeAiFn("claude-haiku-4-5");
+  const ai = getClaudeAiFn("market-watch");
 
   const prompt = `Bu hafta Türkiye siber güvenlik piyasasında şu gelişmeler oldu:
 

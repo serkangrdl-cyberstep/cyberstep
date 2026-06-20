@@ -34,7 +34,13 @@ export type ModelTask =
   | "ai-tools-report"
   | "ciso-weekly-digest"
   | "noc-triage"
-  | "noc-deep";
+  | "noc-deep"
+  // ── Faz C (devam) ────────────────────────────────────────────────────────
+  | "lead-scoring"
+  | "market-watch"
+  | "ioc-query"
+  | "onboarding-email"
+  | "teaser-report";
 
 export interface ModelEntry {
   model: string;
@@ -70,6 +76,12 @@ export const MODEL_CONFIG: Record<ModelTask, ModelEntry> = {
   "ciso-weekly-digest": { model: "claude-haiku-4-5" },
   "noc-triage":        { model: "claude-haiku-4-5" },
   "noc-deep":          { model: "claude-sonnet-4-6" },
+  // ── Faz C (devam) ────────────────────────────────────────────────────────
+  "lead-scoring":      { model: "claude-sonnet-4-6" },
+  "market-watch":      { model: "claude-haiku-4-5" },
+  "ioc-query":         { model: "claude-haiku-4-5" },
+  "onboarding-email":  { model: "claude-haiku-4-5" },
+  "teaser-report":     { model: "claude-sonnet-4-20250514", stale: true }, // STALE: dated pin, ayrı PR ile güncel versiyona yükselt
 };
 
 export function getModel(task: ModelTask): string {

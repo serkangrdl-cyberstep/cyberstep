@@ -18,7 +18,7 @@ const BASE_URL = process.env["REPLIT_DOMAINS"]
   ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
   : "http://localhost:80";
 
-const ai = getClaudeAiFn("claude-haiku-4-5");
+const ai = getClaudeAiFn("onboarding-email");
 
 function escapeHtml(text: string): string {
   return text

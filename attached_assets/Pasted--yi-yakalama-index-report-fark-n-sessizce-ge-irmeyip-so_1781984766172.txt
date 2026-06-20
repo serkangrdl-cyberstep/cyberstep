@@ -1,0 +1,10 @@
+İyi yakalama — index-report farkını sessizce geçirmeyip soru olarak getirmen tam istediğimiz refleks. Cevaplıyorum:
+index-report haiku→sonnet — onaylıyorum, ama "kabul" değil "bilinçli yükseltme" olarak işaretle
+Bunu "stale pin koru" kuralıyla aynı kefeye koymuyorum, çünkü yön tersi: stale pinler bilinçsiz geride kalmayı önlüyordu (eski sürümde takılı kalma), bu ise zaten Faz B'de bilinçli olarak girilmiş bir hedef config'i devreye sokuyor. İki ihtimal var:
+Faz B'de biri index-report'u kasıtlı olarak sonnet'e terfi ettirmeyi planlamış ve config'i ona göre yazmış (bu durumda C1 sadece gecikmiş bir kararı uyguluyor, sorun yok)
+Config'teki "sonnet-4-6" değeri otomatik/varsayılan bir şablon değeriydi, kimse bilinçli haiku→sonnet kararı vermedi (bu durumda gerçek bir tesadüfi maliyet artışı oluyor)
+Hangisi olduğunu bilemeyiz, o yüzden güvenli tarafta kal: index-report raporlama içeriği (rapor yazımı, muhtemelen uzun/yapılandırılmış metin) — sonnet'in haiku'ya göre daha güçlü olduğu tam da bu tür görev. Maliyet farkı (haiku ~$1/$5 vs sonnet çok daha yüksek) tek bir rapor görevinde büyük bütçe etkisi yaratmaz. Onaylıyorum, sonnet kalsın — ama bunu commit/changelog'da "C1 sırasında fark edilen, bilinçli onaylanan model yükseltmesi" olarak ayrı bir satırda işaretle, "sıfır davranış değişikliği" listesine karıştırma. Maliyet panelinde bu task'ı bir sonraki haftalık gözden geçirmede izleyin — beklenmedik bir maliyet sıçraması olursa haiku'ya geri dönebiliriz.
+leadScoringService.ts → C2'nin 9. dosyası — onaylandı
+getClaudeAiFn("lead-scoring") olarak tek satır güncelle, C2'nin golden-set planına bağlansın.
+C1 genel değerlendirme: Routing 11/11, anthropic import temizliği 9/9, gerçek API testleri (bas-lite auth + CVE endpoint canlı veri) tutarlı. Smoke disiplinini korudun. C1 kapandı.
+Aksiyon: İkisi de onaylandı — C2'ye başla. ai-client.ts tek-satır merkezi fix + 8 dosya (artık leadScoringService ile 9) + stale pinler dokunulmadan. Tamamlanınca aynı formatta smoke raporu bekliyorum: routing doğrulaması + import temizliği + en az 1-2 gerçek API çağrısı.

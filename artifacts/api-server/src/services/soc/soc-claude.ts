@@ -11,12 +11,13 @@
 
 import { createHash } from "crypto";
 import { getClaudeAiFn } from "../ai-client";
+import { getModel, type ModelTask } from "@workspace/ai";
 import { logger } from "../../lib/logger";
 import { socCacheGet, socCacheSet, socCacheKey } from "./soc-cache";
 import { estimateTokens, computeCost, logAIUsage } from "./soc-cost";
 
-export const SOC_MODEL_FAST = "claude-haiku-4-5";
-export const SOC_MODEL_DEEP = "claude-sonnet-4-6";
+export const SOC_MODEL_FAST = "noc-triage";   // task name → claude-haiku-4-5
+export const SOC_MODEL_DEEP = "noc-deep";      // task name → claude-sonnet-4-6
 
 export interface CostInfo {
   model: string;
@@ -55,38 +56,40 @@ export async function callClaudeWithCost(
   if (useCache) {
     const hit = socCacheGet(cacheKey);
     if (hit !== null) {
-      const info: CostInfo = { model, inputTokens: 0, outputTokens: 0, costUsd: 0, cached: true };
+      const resolvedModel = getModel(model as ModelTask);
+      const info: CostInfo = { model: resolvedModel, inputTokens: 0, outputTokens: 0, costUsd: 0, cached: true };
       await logAIUsage({
-        customerId: opts.customerId, caseId: opts.caseId, model,
+        customerId: opts.customerId, caseId: opts.caseId, model: resolvedModel,
         useCase: opts.useCase ?? "triage", inputTokens: 0, outputTokens: 0, costUsd: 0, cached: true,
       });
       return [hit, info];
     }
   }
 
-  let usedModel = model;
+  let usedTask = model;
   let text = "";
   try {
     text = await getClaudeAiFn(model)(fullPrompt);
   } catch (err) {
     if (model !== SOC_MODEL_DEEP) {
-      logger.warn({ err, model }, "SOC AI model unavailable, falling back to Sonnet");
-      usedModel = SOC_MODEL_DEEP;
+      logger.warn({ err, model }, "SOC AI model unavailable, falling back to noc-deep");
+      usedTask = SOC_MODEL_DEEP;
       text = await getClaudeAiFn(SOC_MODEL_DEEP)(fullPrompt);
     } else {
       throw err;
     }
   }
 
+  const resolvedModel = getModel(usedTask as ModelTask);
   const inputTokens = estimateTokens(fullPrompt);
   const outputTokens = estimateTokens(text);
-  const costUsd = computeCost(usedModel, inputTokens, outputTokens);
-  const info: CostInfo = { model: usedModel, inputTokens, outputTokens, costUsd, cached: false };
+  const costUsd = computeCost(resolvedModel, inputTokens, outputTokens);
+  const info: CostInfo = { model: resolvedModel, inputTokens, outputTokens, costUsd, cached: false };
 
   if (useCache && text) socCacheSet(cacheKey, text, opts.cacheTtlSeconds);
 
   await logAIUsage({
-    customerId: opts.customerId, caseId: opts.caseId, model: usedModel,
+    customerId: opts.customerId, caseId: opts.caseId, model: resolvedModel,
     useCase: opts.useCase ?? "triage", inputTokens, outputTokens, costUsd, cached: false,
   });
 

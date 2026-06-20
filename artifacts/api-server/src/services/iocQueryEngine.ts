@@ -183,7 +183,7 @@ async function analyzeWithClaude(
   indicators: unknown[];
 }> {
   try {
-    const ai = getClaudeAiFn("claude-haiku-4-5");
+    const ai = getClaudeAiFn("ioc-query");
     const prompt = `Sen bir siber güvenlik analistisin. Türk işletmelere danışmanlık yapıyorsun.
 Aşağıdaki IOC sorgu sonuçlarını analiz et.
 

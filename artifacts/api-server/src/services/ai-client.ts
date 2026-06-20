@@ -17,7 +17,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { ai as replitAi } from "@workspace/integrations-gemini-ai";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { getModel } from "@workspace/ai";
+import { getModel, MODEL_CONFIG, type ModelTask } from "@workspace/ai";
 import { db } from "@workspace/db";
 import { tenantsTable, aiUsageLogTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -161,7 +161,10 @@ function makeAnthropic(apiKey: string, model = "claude-sonnet-4-6"): AiGenerateF
  *
  * Custom aiProvider settings always override plan-based routing.
  */
-export function getClaudeAiFn(model = "claude-sonnet-4-6"): AiGenerateFn {
+export function getClaudeAiFn(modelOrTask?: string): AiGenerateFn {
+  const model = modelOrTask !== undefined
+    ? (modelOrTask in MODEL_CONFIG ? getModel(modelOrTask as ModelTask) : modelOrTask)
+    : getModel("ai-client-claude");
   return makeReplitClaude(model);
 }
 

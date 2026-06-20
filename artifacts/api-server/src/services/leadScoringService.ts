@@ -101,7 +101,7 @@ export async function scoreLeadWithAI(
   scanData: Record<string, unknown>
 ): Promise<LeadScoreResult> {
   try {
-    const ai = getClaudeAiFn();
+    const ai = getClaudeAiFn("lead-scoring");
     const prompt = `Bir siber güvenlik satış temsilcisi için potansiyel müşteri değerlendirmesi yap.
 
 Şirket: ${companyName ?? domain}

@@ -49,7 +49,7 @@ export async function generateTeaserReport(params: {
   sector: string;
   scanData: Record<string, unknown>;
 }): Promise<TeaserReportOutput> {
-  const ai = getClaudeAiFn("claude-sonnet-4-20250514");
+  const ai = getClaudeAiFn("teaser-report");
 
   const prompt = `Sen bir siber güvenlik uzmanısın ve potansiyel enterprise müşteriye satış amaçlı bir teaser rapor hazırlıyorsun.
 

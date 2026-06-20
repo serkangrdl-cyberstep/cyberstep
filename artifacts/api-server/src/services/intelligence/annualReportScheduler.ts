@@ -91,7 +91,7 @@ export async function analyzeAnnualReport(params: {
   content: string;
   reportYear: number;
 }): Promise<void> {
-  const ai = getClaudeAiFn("claude-sonnet-4-6");
+  const ai = getClaudeAiFn();
 
   const prompt = `Sen CyberStep.io'nun tehdit istihbarat analistisın.
 Türkiye'nin siber güvenlik ekosistemini çok iyi biliyorsun.
@@ -229,7 +229,7 @@ export async function getGlobalContextForMonthlyReport(month: string): Promise<s
     .where(gte(vulncheckKevTable.dateAdded, since30d.toISOString().slice(0, 10)));
   const edgeCVECount = edgeCVERow?.count ?? 0;
 
-  const ai = getClaudeAiFn("claude-sonnet-4-6");
+  const ai = getClaudeAiFn();
 
   const context = await ai(`Türkiye Siber Güvenlik Endeksi ${month} için "Küresel Bağlam" bölümü yaz.
 

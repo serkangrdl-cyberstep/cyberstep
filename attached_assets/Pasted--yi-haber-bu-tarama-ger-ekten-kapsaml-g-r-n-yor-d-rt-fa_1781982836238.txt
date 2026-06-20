@@ -1,0 +1,18 @@
+İyi haber: bu tarama gerçekten kapsamlı görünüyor — dört farklı pattern'i (anthropic.messages.create, getClaudeAiFn, callModel, getModel) tek seferde taramış olman ve isr-ai.ts'i (Gemini, kapsam dışı) ayrı tutman güven veriyor. Bu sayıyı nihai kabul ediyorum, beşinci bir tur istemiyorum — ama onaylamadan önce mimari bir öneri ve bir bölümleme talebi var:
+1. getClaudeAiFn migrasyonunu 19 ayrı dosya değil, TEK noktadan yap
+Soru: getClaudeAiFn kaç yerde tanımlı — tek bir fonksiyon mu? Eğer öyleyse, 19 dosyayı tek tek callModel'e geçirmek yerine, getClaudeAiFn'in kendi içini callModel/modelConfig'e yönlendirecek şekilde değiştir. Fonksiyon imzası (caller'lar için) aynı kalsın, içi merkezi router'a baksın. Bu:
+19 ayrı PR/dosya değişikliği yerine 1 değişiklik + 1 kapsamlı test olur
+Risk yüzeyini drastik azaltır — 19 yerde "aynı refactor'ü 19 kez doğru yapma" riski yerine tek noktada bir kez doğru yapma
+Faz C'yi haftalar değil günler mertebesine indirir
+Bunun mümkün olup olmadığını (örn. her caller'ın system prompt'u farklı şekilde geçiyor olabilir, bu da merkezi yönlendirmeyi zorlaştırabilir) kontrol et ve raporla. Mümkünse, kalan sadece 12 dosya (11 direct-file + 1 inline) tek tek migrate edilecek demektir — çok daha yönetilebilir bir sayı.
+2. Faz C'yi tek 30-dosyalık blok olarak değil, riske göre 3 alt-fazda yap
+Faz A 7 dosya, Faz B 8-9 dosyaydı — kademeli ilerleme disiplinimizdi. 30 dosyayı tek seferde "Faz C" demek bu disiplini bozar, tam da bu sürecin önlemeye çalıştığı şeyi (büyük, az test edilmiş tek seferlik değişiklik) yeniden yaratır. Önerilen bölünme:
+C1 — Düşük risk, uyumluluk-dışı içerik üretimi: bas-lite, attack-scenarios, attackPathAnalyzer, growth-engine, observabilityCorrelation, indexReportWriter, demoReportGenerator, noc-service, generateSecurityReport, social-media (raw create temizliği), blog-autopilot (raw create temizliği), src/index.ts:3189 (ciso-weekly-digest)
+C2 — getClaudeAiFn merkezi migrasyonu (madde 1 mümkünse): ai-tool-monitor, fabric-correlation, annualReportScheduler, intelFeedWatcher, iocQueryEngine, marketWatcher, onboardingEmailSeries, policy-generator, soc-claude, teaserReportService, ai-assessment, assessments
+C3 — Uyumluluk/hukuki hassasiyeti olan dosyalar, ekstra dikkatle: eu-aiact, kvkkAssessor, red-team, phishing-sim, deepfake, doc-scan, leadScoringService (öncelikli golden set'iyle birlikte, bu grupta ama en üstte)
+C3'ü ayrı tutmamın sebebi: bunlar yanlış gittiğinde sonuç "kötü formatlanmış metin" değil, potansiyel KVKK/AB AI Act uyumluluk hatası, yanlış red-team/phishing simülasyon çıktısı veya deepfake-tespit yanlış pozitifi/negatifi — marka ve hukuki risk daha yüksek. Bu grup için golden set + manuel inceleme, diğer gruplardan daha sıkı olmalı.
+Onaylanan kısımlar:
+XSS: onboardingEmailSeries.ts (escapeHtml), src/index.ts:3199 (introSafe), teaserReportService.ts (JSON.parse, HTML pipeline'a hiç girmiyor) — üçü de net, kabul edildi.
+leadScoringService.ts önceliklendirmesi ve önerdiğin golden set tasarımı (qualified/disqualified/borderline + skor aralığı + reason alanı) doğru — aynen bu şekilde kur.
+30 callsite'lık nihai sayım kabul edildi, tekrar sorgulanmayacak.
+Aksiyon: Önce getClaudeAiFn'in merkezi migrasyona uygun olup olmadığını kontrol et ve raporla (madde 1). Sonuca göre C1/C2/C3 bölünmesini teyit et veya düzelt. Onayı C1'in kapsamı netleşince veriyorum — C1'den başla, her alt-faz kendi smoke testleriyle kapanmadan bir sonrakine geçme.

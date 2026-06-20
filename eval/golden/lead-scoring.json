@@ -129,5 +129,13 @@
         }
       ]
     }
-  ]
+  ],
+  "outstandingDebt": {
+    "expand-to-10-cases": {
+      "status": "backlog",
+      "description": "3 case'i 8-10'a genişlet: sektör bazlı vakalar (sağlık/finans/kamu), hibp breachCount yüksek, shadowIt servisleri çok sayıda, ASN orphaned asset'li domain, blacklist+CVE kombinasyonu, Shodan açık port sayısı eşik testi",
+      "why": "leadScoringService 200+ KOBİ qualification motorunun kalbi — kapsamlı golden set regresyon güvencesi için kritik",
+      "plannedIn": "Faz C kapanışı sonrası"
+    }
+  }
 }

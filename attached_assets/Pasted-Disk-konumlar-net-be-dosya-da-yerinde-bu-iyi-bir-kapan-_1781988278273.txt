@@ -1,0 +1,15 @@
+Disk konumları net, beş dosya da yerinde — bu iyi bir kapanış. Ama kapatmadan önce, eval setinin asıl işe yarayıp yaramayacağını belirleyen tek bir metodolojik soru var:
+"Expected" değerler nasıl belirlendi — önceden tanımlanmış kriter mi, yoksa modelin verdiği cevabın kendisi mi?
+goldenRunResult bloğunu case'lere gömdüğünü söylüyorsun. Burada iki farklı şey olabilir:
+(A) Doğru yöntem: Önce "skor X-Y aralığında olmalı, reason alanı Z'den bahsetmeli" gibi bağımsız bir beklenti yazıldı, sonra gerçek API çalıştırıldı, sonuç bu beklentiye göre PASS/FAIL olarak işaretlendi.
+(B) Yanlış pozitif risk: Gerçek API bir kez çalıştırıldı, çıkan cevap aynen "expected" olarak gömüldü. Bu durumda golden set hiçbir zaman FAIL veremez — sadece "model bugün dünkü kendisiyle aynı şeyi söylüyor mu" testi yapar, "model doğru şeyi söylüyor mu" testi yapmaz.
+Bu fark özellikle kvkk-assess ve eu-aiact için kritik — buradaki risk "garip metin" değil "yanlış uyumluluk tavsiyesi", ve (B) yöntemiyse bu iki dosya o riski hiç yakalamıyor demektir, sadece öyle göründüğü için güven veriyor. Net cevap: hangisi?
+İkinci, blocking olmayan not: lead-scoring.json için daha önce "5-10 domain örneği" istemiştik, 3 case geldi. Bu, mimari/format olarak doğru ve genişletilebilir olduğu için kapanışı engellemiyorum — ama backlog'a "lead-scoring golden set'i 3'ten 8-10'a genişlet" diye ekle, çünkü bu dosya 200 KOBİ'lik qualification motorunun kalbi, ileride en çok dokunulacak yer.
+Aksiyon: Sadece methodoloji sorusuna cevap ver (A mı B mi). (A) ise Faz C'yi şimdi resmen kapatıyorum. (B) ise, en azından kvkk-assess.json ve eu-aiact.json'daki beklenti kriterlerini bağımsız olarak (modelin cevabından önce) yeniden yazmanı isteyeceğim — diğer üç dosya için (B) olsa bile şu an için kabul edilebilir, sadece bu iki uyumluluk dosyası için (A) şart.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001 (Zero-Day CVE Hızlı Kontrol Widget) — implement edildi, doğrulandı
+T002 (Shadow IT / ASN Orphaned Asset Keşfi) — implement edildi, doğrulandı
+T003 (Cleanup + typecheck) — temiz, doğrulandı
+Faz A, Faz B, C1, C2 (model router migrasyonu, XSS fix'leri, stale pin'ler) — tamamlandı, doğrulandı
+eval/golden/ altındaki 5 dosyanın disk konumu — doğrulandı, dosyaları yeniden oluşturma
+Bu maddeleri yeniden uygulama, yeniden doğrulama, yeniden dosya okuma/yazma yapma. Sadece açıkça istenirse dokun. Şu anki odak: golden-set "expected" değerlerinin tanımlanma yöntemini (A/B) netleştirmek.

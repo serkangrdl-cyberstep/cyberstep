@@ -3193,10 +3193,11 @@ startup()
           });
           const block = msg.content[0];
           const intro = block?.type === "text" ? block.text.trim() : "";
+          const introSafe = intro.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
           await sendMailFn({
             to: customer.email,
             subject: `Haftalık Siber Tehdit Özeti — ${new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`,
-            html: `<p>Merhaba ${customer.companyName ?? ""},</p><p>${intro}</p>${latestBulletin?.emailHtml ? `<hr style="margin:16px 0">${latestBulletin.emailHtml}` : ""}<br><small style="color:#888">CyberStep CISO Asistan — <a href="mailto:info@cyberstep.io">info@cyberstep.io</a></small>`,
+            html: `<p>Merhaba ${customer.companyName ?? ""},</p><p>${introSafe}</p>${latestBulletin?.emailHtml ? `<hr style="margin:16px 0">${latestBulletin.emailHtml}` : ""}<br><small style="color:#888">CyberStep CISO Asistan — <a href="mailto:info@cyberstep.io">info@cyberstep.io</a></small>`,
           });
           await new Promise(r => setTimeout(r, 2000));
         } catch (err) { logger.error({ err, customerId: sub.customerId }, "Haftalık tehdit özeti hatası"); }

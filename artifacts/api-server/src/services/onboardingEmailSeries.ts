@@ -20,6 +20,15 @@ const BASE_URL = process.env["REPLIT_DOMAINS"]
 
 const ai = getClaudeAiFn("claude-haiku-4-5");
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // ─── Onboarding durumu yardımcısı ─────────────────────────────────────────────
 
 async function getOnboarding(customerId: number) {
@@ -223,7 +232,7 @@ Tamamlanan adım: ${completedCount}/6. Türkçe, kısa, max 4 cümle.`;
       subject: "CyberStep — 1. gün hatırlatması",
       html: `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
 <p>Sayın ${customer.fullName},</p>
-<p>${content.replace(/\n/g, "<br>")}</p>
+<p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>
 ${extraBlock}
 ${expectBlock}
 <p style="margin-top:20px"><a href="${BASE_URL}/portal" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portale Git</a></p>

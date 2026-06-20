@@ -280,7 +280,14 @@ router.post("/admin-panel/tech-stack/fingerprint", requireAdmin, async (req, res
 
     const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
     const result = await fingerprintDomain(cleanDomain, { useShodan: !!process.env.SHODAN_API_KEY });
-    res.json({ domain: cleanDomain, stackCount: result.stack.length, maturity: result.maturity, stack: result.stack });
+    res.json({
+      domain: cleanDomain,
+      stackCount: result.stack.length,
+      maturity: result.maturity
+        ? { score: result.maturity.maturityScore, level: result.maturity.maturityLevel }
+        : null,
+      stack: result.stack,
+    });
   } catch (e) {
     req.log.error({ err: e }, "Fingerprint hatası");
     res.status(500).json({ error: "Fingerprint başarısız" });

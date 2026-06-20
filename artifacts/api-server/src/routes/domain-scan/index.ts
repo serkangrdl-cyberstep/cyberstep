@@ -187,8 +187,9 @@ function calcScore(
     dmarcPolicy === "none"       ? 10 :
     0;
 
-  // DKIM — 8 puan kısmi kredi (bulunamıyor olabilir ama aktif olabilir)
-  const dkimScore = dkim ? 20 : 8;
+  // DKIM — MX yoksa domain mail göndermez, DKIM N/A → tam kredi (ceza yok)
+  // MX varsa: tespit edilebildiyse 20, edilemeyebilirse 8 kısmi kredi
+  const dkimScore = (!mx || dkim) ? 20 : 8;
 
   const mxScore = mx ? 10 : 0;
 

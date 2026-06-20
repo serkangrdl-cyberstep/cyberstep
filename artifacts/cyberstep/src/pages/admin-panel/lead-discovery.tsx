@@ -156,11 +156,31 @@ interface SubdomainSummary {
   processing: boolean;
 }
 
-function getWafBadge(confidenceScore: number | null, wafDetected: boolean | null): { label: string; color: "green" | "amber" } {
-  if (!wafDetected || (confidenceScore ?? 100) >= 85) return { label: "Tam Görünürlük", color: "green" };
+function getWafBadge(confidenceScore: number | null, wafDetected: boolean | null): { label: string; color: "blue" | "amber" } {
+  if (!wafDetected || (confidenceScore ?? 100) >= 85) return { label: "Tarama Engellenmedi", color: "blue" };
   if ((confidenceScore ?? 0) >= 70) return { label: "Kısmi Görünürlük", color: "amber" };
   return { label: "WAF Arkası", color: "amber" };
 }
+
+const SIGNAL_LABELS: Record<string, string> = {
+  fortinet_customer:    "Fortinet Müşterisi",
+  cms_wordpress:        "WordPress",
+  cdn_user:             "CDN Kullanıcısı",
+  microsoft_shop:       "Microsoft/Azure",
+  budget_indicator_high:"Yüksek Bütçe",
+  is_ecommerce:         "E-ticaret",
+  mail_security:        "Mail Güvenliği",
+  has_fortinet:         "Fortinet",
+  has_waf:              "WAF Aktif",
+  open_rdp:             "Açık RDP",
+  cloud_hosted:         "Bulut Altyapı",
+  has_citrix:           "Citrix",
+  has_cisco:            "Cisco",
+  has_paloalto:         "Palo Alto",
+  has_checkpoint:       "Check Point",
+  legacy_iis:           "Eski IIS",
+  exposed_phpmyadmin:   "phpMyAdmin Açık",
+};
 
 const CLASSIFICATION_LABELS: Record<string, string> = {
   web_app: "Web Uygulaması", api: "API", redirect: "Yönlendirme (3xx)",
@@ -3297,7 +3317,10 @@ export default function AdminLeadDiscovery() {
                   return (
                     <div>
                       <div className="text-xs text-muted-foreground">Tarama Güveni</div>
-                      <span className={`px-2 py-0.5 text-xs rounded-full border ${b.color === "green" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+                      <span
+                        title={b.color === "blue" ? "WAF veya CDN engeli tespit edilmedi — tarama verileri tam olarak alındı. Bu badge güvenlik durumunu değil, tarama kalitesini gösterir." : undefined}
+                        className={`px-2 py-0.5 text-xs rounded-full border cursor-default ${b.color === "blue" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-amber-50 text-amber-800 border-amber-300"}`}
+                      >
                         {b.label}
                       </span>
                     </div>
@@ -3409,7 +3432,7 @@ export default function AdminLeadDiscovery() {
                                     t.salesSignal === "cdn_user" ? "bg-blue-100 text-blue-700" :
                                     t.salesSignal === "microsoft_shop" ? "bg-purple-100 text-purple-700" :
                                     "bg-slate-100 text-slate-600"
-                                  }`}>{t.salesSignal}</span>
+                                  }`}>{SIGNAL_LABELS[t.salesSignal] ?? t.salesSignal.replace(/_/g, " ")}</span>
                                 )}
                                 {isHighRisk(t.securityRisk) && (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">risk</span>
@@ -3463,7 +3486,7 @@ export default function AdminLeadDiscovery() {
                                 t.salesSignal === "cdn_user" ? "bg-blue-100 text-blue-700" :
                                 t.salesSignal === "microsoft_shop" ? "bg-purple-100 text-purple-700" :
                                 "bg-slate-100 text-slate-600"
-                              }`}>{t.salesSignal}</span>
+                              }`}>{SIGNAL_LABELS[t.salesSignal] ?? t.salesSignal.replace(/_/g, " ")}</span>
                             )}
                             {(t.securityRisk === "critical" || t.securityRisk === "high" || t.securityRisk === "Yüksek") && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200">{t.securityRisk === "critical" ? "kritik" : "risk"}</span>

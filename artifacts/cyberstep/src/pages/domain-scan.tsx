@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { StepAiSelfie } from "@/components/step-ai-selfie";
 import { SecurityScoreCard } from "@/components/security-score-card";
-import { Download } from "lucide-react";
+import { Download, MinusCircle } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useLanguage } from "@/contexts/language-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -2531,23 +2531,46 @@ export default function DomainScanPage() {
                     <Mail className="h-4 w-4 text-blue-500" />
                     <p className="text-sm font-semibold">E-posta & SSL Güvenliği</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      { label: "SPF", pass: result.spfPass, detail: result.spfRecord ?? "Kayıt yok" },
-                      { label: "DMARC", pass: result.dmarcPass, detail: result.dmarcRecord ?? "Kayıt yok" },
-                      { label: "DKIM", pass: result.dkimPass, detail: result.dkimSelectors.length > 0 ? result.dkimSelectors.join(", ") : "Tespit edilemedi" },
-                      { label: "MX", pass: result.mxPass, detail: result.mxRecords.length > 0 ? result.mxRecords[0].exchange : "Kayıt yok" },
-                      { label: "SSL", pass: result.sslPass, detail: result.sslExpiry ? `Son: ${new Date(result.sslExpiry).toLocaleDateString("tr-TR")}${result.sslDaysUntilExpiry !== null ? ` (${result.sslDaysUntilExpiry} gün)` : ""}` : (result.sslNote ?? "Sertifika alınamadı") },
-                    ].map(({ label, pass, detail }) => (
-                      <div key={label} className={`rounded-lg p-3 text-xs border ${pass ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40"}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {pass ? <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" /> : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
-                          <span className="font-semibold">{label}</span>
-                        </div>
-                        <p className="text-muted-foreground truncate" title={detail}>{detail}</p>
+                  {(() => {
+                    const mxAbsent = !result.mxPass && result.mxRecords.length === 0;
+                    const cards: { label: string; pass: boolean; detail: string; na?: boolean }[] = [
+                      { label: "SPF",   pass: result.spfPass,   detail: result.spfRecord ?? "Kayıt yok",   na: mxAbsent },
+                      { label: "DMARC", pass: result.dmarcPass, detail: result.dmarcRecord ?? "Kayıt yok",  na: mxAbsent },
+                      { label: "DKIM",  pass: result.dkimPass,  detail: result.dkimSelectors.length > 0 ? result.dkimSelectors.join(", ") : "Tespit edilemedi", na: mxAbsent },
+                      { label: "MX",    pass: result.mxPass,    detail: result.mxRecords.length > 0 ? result.mxRecords[0].exchange : "Kayıt yok" },
+                      { label: "SSL",   pass: result.sslPass,   detail: result.sslExpiry ? `Son: ${new Date(result.sslExpiry).toLocaleDateString("tr-TR")}${result.sslDaysUntilExpiry !== null ? ` (${result.sslDaysUntilExpiry} gün)` : ""}` : (result.sslNote ?? "Sertifika alınamadı") },
+                    ];
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {mxAbsent && (
+                          <div className="col-span-2 sm:col-span-3 rounded-lg px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 flex items-center gap-2 text-slate-500">
+                            <MinusCircle className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            <span>Bu domain e-posta almıyor (MX kaydı yok) — SPF, DMARC ve DKIM uygulanamaz olarak işaretlendi.</span>
+                          </div>
+                        )}
+                        {cards.map(({ label, pass, detail, na }) =>
+                          na ? (
+                            <div key={label} className="rounded-lg p-3 text-xs border bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <MinusCircle className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span className="font-semibold text-slate-500">{label}</span>
+                                <span className="ml-auto text-[10px] text-slate-400">N/A</span>
+                              </div>
+                              <p className="text-slate-400">Mail sunucusu yok</p>
+                            </div>
+                          ) : (
+                            <div key={label} className={`rounded-lg p-3 text-xs border ${pass ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40"}`}>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                {pass ? <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" /> : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                                <span className="font-semibold">{label}</span>
+                              </div>
+                              <p className="text-muted-foreground truncate" title={detail}>{detail}</p>
+                            </div>
+                          )
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* HTTP Başlıkları */}
@@ -3102,9 +3125,14 @@ export default function DomainScanPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Raporunuzdaki{" "}
                   <span className="font-semibold text-foreground">
-                    {result.cveSummary.filter(c => (c.adjustedCvssScore ?? c.cvssScore) >= 7).length +
-                      (!result.spfPass ? 1 : 0) + (!result.dmarcPass ? 1 : 0) +
-                      (result.hibpBreachCount > 0 ? 1 : 0) + (result.blacklisted ? 1 : 0)} bulgu
+                    {(() => {
+                      const mxAbsent = !result.mxPass && result.mxRecords.length === 0;
+                      return result.cveSummary.filter(c => (c.adjustedCvssScore ?? c.cvssScore) >= 7).length +
+                        (!mxAbsent && !result.spfPass ? 1 : 0) +
+                        (!mxAbsent && !result.dmarcPass ? 1 : 0) +
+                        (result.hibpBreachCount > 0 ? 1 : 0) +
+                        (result.blacklisted ? 1 : 0);
+                    })()} bulgu
                   </span>
                   {", "}
                   <span className="font-mono text-sm">{result.domain}</span> için doğrudan aksiyon gerektiren güvenlik açıklarını gösteriyor. CyberStep, bu bulguları kapatmanıza yardımcı olacak somut adımlar sunan hizmetler sağlıyor:

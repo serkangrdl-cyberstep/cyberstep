@@ -103,19 +103,20 @@ function GradeBar({ grade }: { grade: string }) {
 }
 
 function MetricBox({ label, count, color }: { label: string; count: number; color: string }) {
+  const empty = count === 0;
   return (
     <div
       style={{
         flex: 1,
         borderRadius: 8,
         padding: "10px 8px",
-        background: `${color}12`,
-        border: `1px solid ${color}30`,
+        background: empty ? "rgba(255,255,255,0.04)" : `${color}12`,
+        border: `1px solid ${empty ? "rgba(255,255,255,0.08)" : color + "30"}`,
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1 }}>{count}</div>
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 3, whiteSpace: "nowrap" }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 900, color: empty ? "rgba(255,255,255,0.22)" : color, lineHeight: 1 }}>{count}</div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3, whiteSpace: "nowrap" }}>{label}</div>
     </div>
   );
 }

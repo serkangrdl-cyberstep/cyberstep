@@ -1,0 +1,15 @@
+Plan genel olarak sağlam — staged rollout, smoke test'ler ve stale versiyonları "ayrı PR" diye ayırman iyi disiplin. Ama onaylamadan önce bir aritmetik hatası var, düzeltmen lazım:
+Kritik: 2 dosya hiçbir fazda yok
+Orijinal 23 dosyalık listeyi (ai-client hub + 22 refactor hedefi) üç fazda topladın:
+Faz A: 5 dosya
+Faz B: 8 dosya
+Faz C: header'da "7 dosya" diyorsun ama liste 8 satır
+Toplam = 21. noc-service.ts ve pentest-lite/index.ts hiçbir fazda yok. noc-service zaten "cache_control eklenecek 14 çağrı" listende açıkça sayılmış (noc-service (callClaude içi)) — yani sistem promptu var, boş yere atlanmış olamaz. pentest-lite ise ne 14'lük cache listesinde ne 8'lik no-cache listesinde geçiyor — hangi kovaya girdiği hiç netleşmemiş.
+Şimdi düzeltilmezse, 35 dosyalık planın 2 parçası "birileri hatırlar" varsayımıyla limbo'da kalır.
+İkinci nokta — cache_control gerekçesi "system: yok" ile sınırlı kalmasın
+growth-engine (512 token) ve observabilityCorrelation (300 token) için net token sayısı verdin, kabul — eşiğin altında zaten cache'lenemez. Ama attack-scenarios, bas-lite, attackPathAnalyzer, indexReportWriter, demoReportGenerator için token sayısı vermedin, sadece "system: alanı yok" dedin. Anthropic'te cache_control sadece system parametresine değil, herhangi bir mesaj içeriği bloğuna eklenebilir — yani user mesajının başında sabit bir talimat/şablon bloğu varsa (system field olarak formatlanmasa bile), o blok ayrıca cache'lenebilir. Bu 5 dosya için: user mesajının içinde tekrarlayan, statik bir talimat/şablon parçası var mı, varsa kaç token, tekrar kontrol et — "system field yok" tek başına yeterli gerekçe değil.
+Onay:
+Faz A'ya başla — bu fazdaki 7 dosyada sorun yok, smoke testler (özellikle JSON şekli + HTTP/format kontrolleri) yeterli bir ilk güvenlik ağı. Ama başlamadan önce şunları netleştir:
+noc-service.ts ve pentest-lite/index.ts'i hangi faza (muhtemelen B) atadığını belirt, Faz B planına ekle
+Faz C "7 dosya" mı "8 dosya" mı, listeyi düzelt
+Bunlar Faz A kapsamını değiştirmiyor, sadece B/C planının eksiksiz olduğundan emin olmak için — onları görmeden "tüm 35 dosya hesaba katıldı" diyemeyiz. Düzelttikten sonra Faz A'ya başla.

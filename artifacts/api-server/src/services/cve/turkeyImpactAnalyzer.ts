@@ -62,6 +62,15 @@ export function classifyCveProduct(vendor: string, product: string): CveProdCate
   if (/\b(whatsapp|instagram|facebook\b|messenger\b|signal\b|telegram\b|tiktok|snapchat|twitter\b|wechat|viber|skype\b|line\s+messenger)\b/.test(t))
     return "mobile";
 
+  // Google Pixel — mobil cihaz; GPU/kernel driver açıkları sunucu altyapısıyla ilgisiz.
+  if (/\bgoogle\s+pixel\b|\bpixel\s+\d|\bgpixel\b/.test(t))
+    return "mobile";
+
+  // Microsoft masaüstü Office uygulamaları — web sunucusu kapsamı dışında.
+  // NOT: "Exchange Server" ve "SharePoint Server" sunucu ürünüdür — bu listede YOK.
+  if (/\bmicrosoft\s+(word|excel|powerpoint|onenote|visio|access\b|publisher)\b/.test(t))
+    return "mobile"; // client-side desktop uygulama olarak işaretle
+
   return "application";
 }
 

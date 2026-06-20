@@ -265,10 +265,10 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
     .limit(limit);
 
   // Concurrency: her batch'te kaç domain paralel taransın
-  const CONCURRENCY = 3;
+  const CONCURRENCY = 5;
   logger.info({ count: pending.length, concurrency: CONCURRENCY }, "Derin kalifikasyon başlıyor (Tier2)");
 
-  const MAX_RUNTIME_MS = 17 * 60 * 1000;
+  const MAX_RUNTIME_MS = 13 * 60 * 1000;
   const SCAN_TIMEOUT_MS = 20_000;
   const batchStart = Date.now();
   let processedCount = 0;

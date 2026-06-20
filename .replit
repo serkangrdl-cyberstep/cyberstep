@@ -52,6 +52,7 @@ ISR_IMAP_USER = "serkangrdl@yahoo.com"
 ISR_SMTP_USER = "serkangrdl@yahoo.com"
 ISR_SMTP_HOST = "smtp.mail.yahoo.com"
 ISR_SMTP_PORT = "587"
+DISABLE_APOLLO_HUNTER = "true"
 
 [userenv.production]
 

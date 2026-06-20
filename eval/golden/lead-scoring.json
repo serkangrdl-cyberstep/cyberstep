@@ -1,0 +1,133 @@
+{
+  "_meta": {
+    "purpose": "leadScoringService.ts AI çıktı kalitesi — routing/config testi DEĞİL",
+    "targetFunction": "scoreLeadWithAI(domain, companyName, scanData) → callModel({task:'lead-scoring', ...})",
+    "sourceFile": "artifacts/api-server/src/services/leadScoringService.ts",
+    "createdAt": "2026-06-20",
+    "routing": "lead-scoring → claude-sonnet-4-6 (modelConfig.ts)",
+    "howToRun": "eval/runEval.ts'e lead-scoring runner eklenmeli",
+    "note": "3 case: disqualified (sıfır veri), borderline (kısmi veri), qualified (zengin bulgular). JSON yapısı + semantic range doğrulanır."
+  },
+  "cases": [
+    {
+      "id": "ls-1-empty-scan-cold",
+      "description": "Sıfır scan verisi → cold tier, düşük skor",
+      "input": {
+        "task": "lead-scoring",
+        "system": null,
+        "userPrompt": "Bir siber güvenlik satış temsilcisi için potansiyel müşteri değerlendirmesi yap.\n\nŞirket: bos-veri-test.com.tr\nDomain: bos-veri-test.com.tr\nTarama verisi özeti:\n{}\n\nAşağıdaki JSON formatında yanıt ver:\n{\"score\":<0-100 arası puan>,\"tier\":\"hot|warm|cold\",\"reason\":\"kısa Türkçe gerekçe\",\"recommended_action\":\"satış temsilcisi için öneri\",\"estimated_deal_size\":<TL cinsinden tahmin>}\nSadece JSON döndür, başka hiçbir şey yazma.",
+        "maxTokens": 400
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "score",
+          "op": "range",
+          "min": 0,
+          "max": 30,
+          "description": "Sıfır veri → skor 30'un altında olmalı"
+        },
+        {
+          "field": "tier",
+          "op": "equals",
+          "value": "cold",
+          "description": "Veri yokken tier=cold beklenir"
+        },
+        {
+          "field": "reason",
+          "op": "min_length",
+          "value": 10,
+          "description": "Gerekçe boş olmamalı"
+        }
+      ],
+      "goldenRunResult": {
+        "score": 5,
+        "tier": "cold",
+        "runDate": "2026-06-20",
+        "model": "claude-sonnet-4-6",
+        "pass": true
+      }
+    },
+    {
+      "id": "ls-2-partial-data-borderline",
+      "description": "Kısmi veri (SSL hatası var, SPF yok) → warm/cold sınırı, JSON yapısı geçerli",
+      "input": {
+        "task": "lead-scoring",
+        "system": null,
+        "userPrompt": "Bir siber güvenlik satış temsilcisi için potansiyel müşteri değerlendirmesi yap.\n\nŞirket: orta-olcekli-firma.com.tr\nDomain: orta-olcekli-firma.com.tr\nTarama verisi özeti:\n{\"sslPass\":false,\"sslDaysUntilExpiry\":-5,\"spfPass\":false,\"dmarcPass\":true,\"blacklisted\":false,\"shadowItServices\":[{\"name\":\"Dropbox\",\"risk\":\"medium\"}]}\n\nAşağıdaki JSON formatında yanıt ver:\n{\"score\":<0-100 arası puan>,\"tier\":\"hot|warm|cold\",\"reason\":\"kısa Türkçe gerekçe\",\"recommended_action\":\"satış temsilcisi için öneri\",\"estimated_deal_size\":<TL cinsinden tahmin>}\nSadece JSON döndür, başka hiçbir şey yazma.",
+        "maxTokens": 400
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "score",
+          "op": "range",
+          "min": 0,
+          "max": 100,
+          "description": "Skor 0-100 aralığında olmalı"
+        },
+        {
+          "field": "tier",
+          "op": "one_of",
+          "values": ["hot", "warm", "cold"],
+          "description": "tier hot/warm/cold'dan biri olmalı"
+        },
+        {
+          "field": "reason",
+          "op": "min_length",
+          "value": 20,
+          "description": "Gerekçe en az 20 karakter olmalı"
+        },
+        {
+          "field": "recommended_action",
+          "op": "exists",
+          "description": "recommended_action alanı mevcut olmalı"
+        }
+      ]
+    },
+    {
+      "id": "ls-3-rich-findings-hot",
+      "description": "Zengin bulgular (blacklisted, CVSS 9.8, açık portlar) → hot/warm tier, yüksek skor",
+      "input": {
+        "task": "lead-scoring",
+        "system": null,
+        "userPrompt": "Bir siber güvenlik satış temsilcisi için potansiyel müşteri değerlendirmesi yap.\n\nŞirket: Kritik A.Ş.\nDomain: kritik-firma.com.tr\nTarama verisi özeti:\n{\"sslPass\":false,\"blacklisted\":true,\"blacklistCount\":3,\"cveSummary\":[{\"cveId\":\"CVE-2024-12345\",\"cvssScore\":9.8,\"service\":\"nginx\"}],\"shodanOpenPorts\":[80,443,22,3389,8080],\"shodanVulnCount\":4,\"shadowItServices\":[{\"name\":\"TeamViewer\",\"risk\":\"high\"},{\"name\":\"Mega.nz\",\"risk\":\"high\"}],\"hibpBreachCount\":2}\n\nAşağıdaki JSON formatında yanıt ver:\n{\"score\":<0-100 arası puan>,\"tier\":\"hot|warm|cold\",\"reason\":\"kısa Türkçe gerekçe\",\"recommended_action\":\"satış temsilcisi için öneri\",\"estimated_deal_size\":<TL cinsinden tahmin>}\nSadece JSON döndür, başka hiçbir şey yazma.",
+        "maxTokens": 400
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "score",
+          "op": "range",
+          "min": 50,
+          "max": 100,
+          "description": "Zengin bulgularla skor 50'nin üzerinde beklenir"
+        },
+        {
+          "field": "tier",
+          "op": "one_of",
+          "values": ["hot", "warm"],
+          "description": "Kritik bulgular varken tier cold olmamalı"
+        },
+        {
+          "field": "reason",
+          "op": "min_length",
+          "value": 30,
+          "description": "Gerekçe yeterince açıklayıcı olmalı"
+        }
+      ]
+    }
+  ]
+}

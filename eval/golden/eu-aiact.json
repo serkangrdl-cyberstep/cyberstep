@@ -1,0 +1,105 @@
+{
+  "_meta": {
+    "purpose": "eu-aiact route AI çıktı kalitesi — AB Yapay Zeka Yasası uyum raporu yapı doğrulaması",
+    "targetFunction": "generateEuAiActReport(answers, category, score) → getClaudeAiFn('eu-aiact')",
+    "sourceFile": "artifacts/api-server/src/routes/eu-aiact/index.ts",
+    "createdAt": "2026-06-20",
+    "routing": "eu-aiact → claude-sonnet-4-6, compliance-critical (modelConfig.ts)",
+    "howToRun": "eval/runEval.ts'e eu-aiact runner eklenmeli (maxTokens: 2000 — model 1989 token üretiyor)",
+    "note": "Compliance-critical: JSON yapısı zorunlu. 'Bilinmiyor' dolu edge case özellikle önemli — eksik veriyle bile makul çıktı üretilmeli."
+  },
+  "cases": [
+    {
+      "id": "euaiact-1-all-unknown-high-risk",
+      "description": "Tüm cevaplar 'Bilinmiyor'/'Hayır', Yüksek Risk, %25 uyum → geçerli JSON, dolu obligations/priority_actions",
+      "input": {
+        "task": "eu-aiact",
+        "system": null,
+        "userPrompt": "AB Yapay Zeka Yasası uzmanısın. Türkçe. Çıktı: sadece geçerli JSON.\n\nŞirket: Eksik Veri A.Ş. | Risk: Yüksek Risk | Skor: 25% | Tüm sorulara 'Bilinmiyor'/'Hayır' cevabı verildi.\n\nKısa JSON (tüm string değerler max 20 kelime):\n{\"risk_category\":\"Yüksek Risk\",\"executive_summary\":\"tek cümle özet\",\"applicable_articles\":[{\"article\":\"Madde 10\",\"title\":\"Veri Yönetimi\",\"applies\":true,\"explanation\":\"kısa\"}],\"obligations\":[{\"obligation\":\"Risk Değerlendirmesi\",\"deadline\":\"2026\",\"effort\":\"zor\",\"description\":\"kısa\",\"penalty\":\"35M EUR veya ciro %7\"}],\"prohibited_alert\":null,\"kvkk_overlap\":\"kısa\",\"priority_actions\":[{\"action\":\"Risk analizi yap\",\"timeframe\":\"3 ay\",\"why\":\"kısa\"}],\"penalty_exposure\":{\"max_fine_eur\":35000000,\"max_fine_tl_approx\":1000000000,\"basis\":\"Madde 71 - Yüksek Risk\"}}",
+        "maxTokens": 2000
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "executive_summary",
+          "op": "min_length",
+          "value": 30,
+          "description": "executive_summary en az 30 karakter olmalı"
+        },
+        {
+          "field": "obligations",
+          "op": "array_min_length",
+          "value": 1,
+          "description": "En az 1 yükümlülük listelenmeli",
+          "severity": "error"
+        },
+        {
+          "field": "priority_actions",
+          "op": "array_min_length",
+          "value": 1,
+          "description": "En az 1 öncelikli aksiyon olmalı",
+          "severity": "error"
+        },
+        {
+          "field": "penalty_exposure",
+          "op": "exists",
+          "description": "penalty_exposure alanı mevcut olmalı"
+        },
+        {
+          "field": "risk_category",
+          "op": "equals",
+          "value": "Yüksek Risk",
+          "description": "Girilen risk kategorisi raporda korunmalı"
+        }
+      ],
+      "goldenRunResult": {
+        "obligations_count": 7,
+        "priority_actions_count": 5,
+        "executive_summary_length": 210,
+        "runDate": "2026-06-20",
+        "model": "claude-sonnet-4-6",
+        "outputTokens": 1989,
+        "pass": true,
+        "note": "maxTokens=2000 zorunlu — model neredeyse limiti dolduruyor"
+      }
+    },
+    {
+      "id": "euaiact-2-complete-data-low-risk",
+      "description": "Düşük Risk, %85 uyum, eksiksiz cevaplar → obligations minimal veya boş olabilir, penalty_exposure küçük",
+      "input": {
+        "task": "eu-aiact",
+        "system": null,
+        "userPrompt": "AB Yapay Zeka Yasası uzmanısın. Türkçe. Çıktı: sadece geçerli JSON.\n\nŞirket: İyi Hazırlanmış A.Ş. | Risk: Düşük Risk | Skor: 85% | Tüm sorular dolu cevaplandı.\nAI sistemi: sadece dahili iş süreçleri, insan denetimi var, kişisel veri kullanılmıyor, risk analizi yapıldı.\n\nJSON:\n{\"risk_category\":\"Düşük Risk\",\"executive_summary\":\"...\",\"applicable_articles\":[{\"article\":\"Madde 52\",\"title\":\"Şeffaflık\",\"applies\":true,\"explanation\":\"kısa\"}],\"obligations\":[],\"prohibited_alert\":null,\"kvkk_overlap\":\"kısa\",\"priority_actions\":[{\"action\":\"Belgeleri güncel tut\",\"timeframe\":\"yıllık\",\"why\":\"kısa\"}],\"penalty_exposure\":{\"max_fine_eur\":15000000,\"max_fine_tl_approx\":500000000,\"basis\":\"Madde 71 - Düşük Risk\"}}",
+        "maxTokens": 1200
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "risk_category",
+          "op": "equals",
+          "value": "Düşük Risk",
+          "description": "Risk kategorisi korunmalı"
+        },
+        {
+          "field": "executive_summary",
+          "op": "min_length",
+          "value": 20,
+          "description": "executive_summary dolu olmalı"
+        },
+        {
+          "field": "penalty_exposure",
+          "op": "exists",
+          "description": "penalty_exposure mevcut olmalı"
+        }
+      ]
+    }
+  ]
+}

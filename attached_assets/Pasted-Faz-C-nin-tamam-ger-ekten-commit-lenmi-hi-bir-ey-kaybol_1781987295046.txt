@@ -1,0 +1,13 @@
+Faz C'nin tamamı gerçekten commit'lenmiş, hiçbir şey kaybolmamış — kesintinin sadece commit mesajı yazımı sırasında olduğu, kodun zaten güvende olduğu doğrulandı. Bu iyi haber.
+İki küçük nokta var, ikisi de blocking değil:
+1. Commit mesajı düzeltmesi gerekli değil
+bc6c885'in sadece transcript dosyası taşıması ve 0d0fd29 + 13b2cf4'ün gerçek Faz C kodunu içermesi yeterince açık — git commit --amend gibi yıkıcı bir işleme gerek yok. Geçmişi karıştırmaktansa olduğu gibi bırak, bir sonraki commit mesajında (Faz C kapanış commit'i varsa) bu üçünü tek bir özet cümleyle bağla, yeter.
+2. Golden-set "runtime test, kod değişikliği yok" — bunu doğrula, varsayma
+Bu cümleyi iki kez tekrarladın ama hiçbir commit'te eval/golden/lead-scoring.json, eval/golden/kvkk-assess.json, eval/golden/eu-aiact.json gibi dosyaların oluşturulduğuna dair bir satır yok. Önceki turda C3 için istediğimiz şey: leadScoringService için qualified/disqualified/borderline golden set + kvkk-assess/eu-aiact için en az birer "sınırda girdi" test case'i. Net soru: bu golden set dosyaları diskte var mı (hangi path'te), yoksa "runtime test" dediğin şey sadece elle bir kez çalıştırıp sonucu sohbette paylaşmak mıydı? İkincisiyse, bu testler bir sonraki session'da tekrarlanabilir değil — tam da şimdi önlemeye çalıştığımız "kayıp iş" riskini taşıyor.
+Aksiyon: Golden-set dosyalarının disk üzerindeki kesin path'lerini listele. Yoksa şimdi oluştur (en azından leadScoringService için). Bu netleşince Faz C'yi resmen kapatıyorum.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001 (Zero-Day CVE Hızlı Kontrol Widget) — implement edildi, doğrulandı
+T002 (Shadow IT / ASN Orphaned Asset Keşfi) — implement edildi, doğrulandı
+T003 (Cleanup + typecheck) — temiz, doğrulandı
+Faz A, Faz B, C1, C2 (model router migrasyonu, XSS fix'leri, stale pin'ler) — tamamlandı, doğrulandı
+Bu maddeleri yeniden uygulama, yeniden doğrulama, yeniden dosya okuma/yazma yapma. Sadece açıkça istenirse dokun. Şu anki odak: Faz C golden-set dosyalarının disk durumunu netleştirmek.

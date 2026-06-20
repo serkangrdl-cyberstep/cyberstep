@@ -43,5 +43,23 @@
     "hasCacheControl": false,
     "testSystem": null,
     "testUser": "Test."
+  },
+  {
+    "id": "c-kvkk-assess-model",
+    "task": "kvkk-assess",
+    "description": "kvkk-assess görevi compliance-critical modeli seçmeli (Faz C)",
+    "expectedModel": "claude-sonnet-4-6",
+    "hasCacheControl": true,
+    "testSystem": "Sen Türkiye'nin KVKK uzmanı bir siber güvenlik hukuk asistanısın.",
+    "testUser": "{\"caseTitle\":\"Test ihlali\",\"severity\":\"high\",\"category\":\"malware\"}"
+  },
+  {
+    "id": "c-eu-aiact-model",
+    "task": "eu-aiact",
+    "description": "eu-aiact görevi compliance-critical modeli seçmeli (Faz C)",
+    "expectedModel": "claude-sonnet-4-6",
+    "hasCacheControl": true,
+    "testSystem": null,
+    "testUser": "{\"category\":\"Yüksek Risk\",\"score\":25,\"answers\":{}}"
   }
 ]

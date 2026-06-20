@@ -1,0 +1,99 @@
+{
+  "_meta": {
+    "purpose": "kvkkAssessor.ts AI çıktı kalitesi — KVKK 12. Madde bildirim kararı doğrulaması",
+    "targetFunction": "assessKvkkObligation(socCase, customerSector) → getClaudeAiFn('kvkk-assess')",
+    "sourceFile": "artifacts/api-server/src/services/kvkkAssessor.ts",
+    "createdAt": "2026-06-20",
+    "routing": "kvkk-assess → claude-sonnet-4-6, compliance-critical (modelConfig.ts)",
+    "howToRun": "eval/runEval.ts'e kvkk-assess runner eklenmeli",
+    "note": "Compliance-critical: JSON yapısı + semantic doğruluk ikisi birden zorunlu. Belirsiz vakada 'immediate' kararı vermek false positive — uyarı eşiği olarak işaretlendi."
+  },
+  "cases": [
+    {
+      "id": "kvkk-1-ambiguous-malware-conservative",
+      "description": "Malware tespiti ama veri ihlali kanıtsız → model konservatif karar vermeli (not_required veya within_72h), immediate OLMAMALI",
+      "input": {
+        "task": "kvkk-assess",
+        "system": "Sen Türkiye'nin KVKK (Kişisel Verilerin Korunması Kanunu) ve BTK bildirim yükümlülükleri konusunda uzman bir siber güvenlik hukuk asistanısın. Her zaman JSON formatında yanıt ver.",
+        "userPrompt": "Aşağıdaki SOC vakası için KVKK 12. Madde bildirim yükümlülüğünü değerlendir:\n\nVaka Numarası: SOC-EDGE-001\nBaşlık: Şüpheli Ağ Trafiği Anomalisi\nAçıklama: Bilinmiyor\nSaldırı Anlatısı: Malware imzası tespit edildi, veri ihlali HENÜZ DOĞRULANMADI\nÖnem Seviyesi: high\nKategori: malware\nEtkilenen Varlıklar: Belirsiz\nMüşteri Sektörü: Genel\n\n{\"requiresNotification\":true/false,\"reason\":\"2 cümle max\",\"affectedDataTypes\":[\"kimlik\"],\"urgency\":\"immediate|within_24h|within_72h|not_required\",\"letterDraft\":\"\"}\nSadece JSON.",
+        "maxTokens": 400
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "requiresNotification",
+          "op": "type",
+          "expected": "boolean",
+          "description": "requiresNotification boolean olmalı"
+        },
+        {
+          "field": "urgency",
+          "op": "one_of",
+          "values": ["not_required", "within_72h", "within_24h"],
+          "description": "Kanıtsız ihlalde 'immediate' seçimi false positive — kabul edilmez",
+          "severity": "error"
+        },
+        {
+          "field": "reason",
+          "op": "min_length",
+          "value": 10,
+          "description": "Gerekçe boş olmamalı"
+        },
+        {
+          "field": "affectedDataTypes",
+          "op": "is_array",
+          "description": "affectedDataTypes array olmalı"
+        }
+      ],
+      "goldenRunResult": {
+        "requiresNotification": false,
+        "urgency": "not_required",
+        "runDate": "2026-06-20",
+        "model": "claude-sonnet-4-6",
+        "pass": true,
+        "note": "Model belirsiz vakada konservatif karar verdi — doğru davranış"
+      }
+    },
+    {
+      "id": "kvkk-2-confirmed-breach-financial-notify",
+      "description": "Finansal veri sızdırılmış, ihlal kesinleşmiş → requiresNotification=true, urgency within_72h veya immediate",
+      "input": {
+        "task": "kvkk-assess",
+        "system": "Sen Türkiye'nin KVKK (Kişisel Verilerin Korunması Kanunu) ve BTK bildirim yükümlülükleri konusunda uzman bir siber güvenlik hukuk asistanısın. Her zaman JSON formatında yanıt ver.",
+        "userPrompt": "Aşağıdaki SOC vakası için KVKK 12. Madde bildirim yükümlülüğünü değerlendir:\n\nVaka Numarası: SOC-CONFIRMED-002\nBaşlık: Müşteri Finansal Verisi Sızdırıldı\nAçıklama: Saldırgan veritabanından 15.000 müşterinin IBAN ve kredi kartı numaralarını çekmiş. Dark web'de satışa çıkarıldığı tespit edildi.\nSaldırı Anlatısı: SQL injection → DB dump → exfiltration. İhlal kesinleşti.\nÖnem Seviyesi: critical\nKategori: data-breach\nEtkilenen Varlıklar: Müşteri finansal veritabanı (15.000 kayıt)\nMüşteri Sektörü: finans\n\n{\"requiresNotification\":true/false,\"reason\":\"Türkçe gerekçe\",\"affectedDataTypes\":[\"finansal\",\"kimlik\"],\"urgency\":\"immediate|within_24h|within_72h|not_required\",\"letterDraft\":\"\"}\nSadece JSON.",
+        "maxTokens": 500
+      },
+      "checks": [
+        {
+          "field": "json_valid",
+          "op": "json_parse",
+          "description": "Geçerli JSON döndürmeli"
+        },
+        {
+          "field": "requiresNotification",
+          "op": "equals",
+          "value": true,
+          "description": "Kesinleşmiş finansal veri ihlalinde bildirim zorunlu",
+          "severity": "error"
+        },
+        {
+          "field": "urgency",
+          "op": "one_of",
+          "values": ["immediate", "within_24h", "within_72h"],
+          "description": "Kesinleşmiş ihlalde 'not_required' kabul edilmez",
+          "severity": "error"
+        },
+        {
+          "field": "affectedDataTypes",
+          "op": "contains_any",
+          "values": ["finansal", "kimlik", "iletişim"],
+          "description": "Finansal veri türü listede olmalı"
+        }
+      ]
+    }
+  ]
+}

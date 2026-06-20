@@ -844,11 +844,14 @@ async function checkHTTPHeaders(domain: string): Promise<{
   type ReqOpts = { hostname: string; port: number; method: string; path?: string };
 
   // Önce HTTPS HEAD — başarısız olursa HTTPS GET, o da olmazsa HTTP GET
-  const tryRequest = (opts: ReqOpts, mod: typeof https | typeof http): Promise<ReturnType<typeof parseHeaders> | null> =>
+  type TryResult = ReturnType<typeof parseHeaders> & { _statusCode?: number };
+  const tryRequest = (opts: ReqOpts, mod: typeof https | typeof http): Promise<TryResult | null> =>
     new Promise((resolve) => {
       const req = mod.request({ ...opts, timeout: 6000, rejectUnauthorized: false }, (res) => {
         res.resume();
-        resolve(parseHeaders(res.headers));
+        const parsed = parseHeaders(res.headers) as TryResult;
+        parsed._statusCode = res.statusCode ?? 0;
+        resolve(parsed);
       });
       req.on("error", () => resolve(null));
       req.on("timeout", () => { req.destroy(); resolve(null); });
@@ -856,14 +859,24 @@ async function checkHTTPHeaders(domain: string): Promise<{
     });
 
   const httpsHead = await tryRequest({ hostname: domain, port: 443, method: "HEAD" }, https);
-  if (httpsHead) return httpsHead;
+  if (httpsHead) {
+    logger.info({ domain, step: "https_head", status: httpsHead._statusCode, score: httpsHead.score }, "checkHTTPHeaders ok");
+    return httpsHead;
+  }
 
-  const httpsGet  = await tryRequest({ hostname: domain, port: 443, method: "GET", path: "/" }, https);
-  if (httpsGet) return httpsGet;
+  const httpsGet = await tryRequest({ hostname: domain, port: 443, method: "GET", path: "/" }, https);
+  if (httpsGet) {
+    logger.info({ domain, step: "https_get", status: httpsGet._statusCode, score: httpsGet.score }, "checkHTTPHeaders ok");
+    return httpsGet;
+  }
 
-  const httpGet   = await tryRequest({ hostname: domain, port: 80,  method: "GET", path: "/" }, http);
-  if (httpGet) return httpGet;
+  const httpGet = await tryRequest({ hostname: domain, port: 80, method: "GET", path: "/" }, http);
+  if (httpGet) {
+    logger.info({ domain, step: "http_get", status: httpGet._statusCode, score: httpGet.score }, "checkHTTPHeaders ok");
+    return httpGet;
+  }
 
+  logger.warn({ domain }, "checkHTTPHeaders: all attempts failed — checkFailed=true");
   return failed;
 }
 

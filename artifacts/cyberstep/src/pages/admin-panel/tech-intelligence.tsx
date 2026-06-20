@@ -131,6 +131,7 @@ const SIGNAL_LABELS_TI: Record<string, string> = {
   mail_security:          "Mail Güvenliği",
   has_fortinet:           "Fortinet",
   has_waf:                "WAF Aktif",
+  waf_detected:           "WAF Tespit Edildi",
   open_rdp:               "Açık RDP",
   cloud_hosted:           "Bulut Altyapı",
   has_citrix:             "Citrix",
@@ -139,6 +140,11 @@ const SIGNAL_LABELS_TI: Record<string, string> = {
   has_checkpoint:         "Check Point",
   legacy_iis:             "Eski IIS",
   exposed_phpmyadmin:     "phpMyAdmin Açık",
+  cdn:                    "CDN",
+  analytics:              "Analitik Aracı",
+  dns_provider:           "DNS Sağlayıcı",
+  missing_header:         "Eksik HTTP Başlığı",
+  waf:                    "WAF / Güvenlik Duvarı",
 };
 
 function fmtDate(d: string | null) {

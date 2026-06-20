@@ -1,0 +1,15 @@
+Bu, önceki euronet taramasının üstüne gerçek bir iyileştirme — ama tam bitmemiş.
+✅ Doğrulanan düzeltmeler
+SPF/DMARC/DKIM/MX artık iki panelde de tutarlı — Tech Fingerprint artık "pass/fail" iddiası yapmıyor, sadece "kayıt tespit edildi" diyor; Domain Tarama Sonuçları kesin pass/fail veriyor. Önceki çelişki (bir panelde ✓ diğerinde "tespit edildi") tamamen gitmiş.
+"Shadow IT (1): Cloudflare" rozeti kaybolmuş — tam önerdiğimiz gibi, zaten tespit edilen WAF/CDN sağlayıcısı artık ayrıca "gölge IT" diye işaretlenmiyor.
+"Tarama Engellenmedi" etiketi kalıcı, doğru çalışıyor.
+⚠️ Yarım kalan: etiket mapping'i kısmi
+mail_security → "Mail Güvenliği" olmuş, gerçek Türkçe çeviri — güzel. Ama aynı satırda diğerleri hâlâ yarım:
+dns_provider → sadece "dns provider" (alt çizgi boşluğa çevrilmiş, çevrilmemiş)
+missing_header → "missing header" (aynı durum)
+cdn, analytics, waf detected → hâlâ İngilizce/ham
+Yani Replit muhtemelen genel bir "alt çizgiyi boşlukla değiştir" regex'i uyguladı ve sadece mail_security için özel bir mapping ekledi, geri kalanlar için tam CATEGORY_LABELS tablosunu tamamlamadı. Bunu şöyle netleştirin: "Tüm category/salesSignal değerleri için CATEGORY_LABELS tablosunu tamamla — sadece mail_security değil, dns_provider→'DNS Sağlayıcı', missing_header→'Eksik Güvenlik Başlığı', cdn→'CDN', analytics→'Analitik Aracı', waf_detected→'WAF Tespit Edildi' gibi hepsini ekle." Az önce verdiğim port-service-map'teki gibi, bu da tek seferlik tam bir sözlük olmalı, parça parça değil.
+Hâlâ açık duran soru: HTTP Başlıkları 0/100
+Bu aynı domain'in tekrar taraması olduğu için (yeni bir domain değil), aynı sonucu vermesi başlı başına yeni bir kanıt değil — ama daha önce netin ve netbudur'da da birebir aynı 5 başlık, birebir aynı sıra, birebir 0/100 çıkmıştı. Üç farklı organizasyonda hâlâ doğrulanmamış bu şüphe duruyor. Bunu kapatmadan demoda "HTTP güvenlik başlıklarınız sıfır" demek riskli — Replit'e gerçek bir HTTP isteğinin başarıyla tamamlanıp tamamlanmadığını (status code, response time) loglatın, bu hâlâ yapılmadı.
+Yeni fırsat — Fortinet FortiGate-200F banner'ı
+Shodan ürün/yazılım alanında net model bilgisi var: "Fortinet FortiGate-200F". Eğer Shodan banner'ında firmware versiyonu da yakalanabiliyorsa (genelde HTTP başlığında veya SSL sertifika CN'inde sızar), bu spesifik cihazın FortiOS sürümünü bilinen CVE'lerle (özellikle SSL-VPN/yönetim arayüzü CVE'leri) eşleştirmek, bu lead için CVE tabanlı somut bir bulgu üretebilir — şu an sadece "Fortinet cihazı var" diyor, "hangi sürüm, hangi CVE'ye açık" demiyor. Bu, Netsys'e gösterilecek en güçlü örnek olabilir çünkü hem Fortinet ekosistemi hem de gerçek CVE somutluğu bir arada.

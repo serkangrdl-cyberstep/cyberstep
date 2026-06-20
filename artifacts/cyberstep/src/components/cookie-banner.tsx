@@ -49,6 +49,17 @@ export function CookieBanner() {
     return undefined;
   }, []);
 
+  useEffect(() => {
+    if (visible) {
+      document.body.style.paddingBottom = "200px";
+    } else {
+      document.body.style.paddingBottom = "";
+    }
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   const accept = (all: boolean) => {

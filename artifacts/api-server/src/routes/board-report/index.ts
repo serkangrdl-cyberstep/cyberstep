@@ -9,7 +9,7 @@ import {
 import { eq, desc, and, or, isNull, lt } from "drizzle-orm";
 import { requireCustomer, getCustomerId, requireAdmin } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { sendMail } from "../../services/email";
 
 const router = Router();
@@ -62,9 +62,8 @@ interface BoardReportAI {
 }
 
 async function generateBoardReportAI(reportData: Record<string, unknown>): Promise<BoardReportAI> {
-  const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 3000,
+  const text = await callModel({
+    task: "board-report",
     system: `Sen kurumsal bir siber guvenlik danismanisin. Sirkette Yonetim Kurulu icin aylik siber guvenlik brifingini hazirliyor.
 KURAL: Teknik jargon yasak. Port, CVE, DMARC gibi terimler kullanma. Her teknik terimi is etkisiyle acikla. Yalnizca JSON don.`,
     messages: [{
@@ -84,10 +83,9 @@ JSON formatinda rapor uret:
   "nextMonthFocus": "Gelecek ay odak noktasi."
 }`
     }],
+    maxTokens: 3000,
   });
 
-  const block = msg.content[0];
-  const text = block?.type === "text" ? block.text : "";
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("AI parse failed");
   return JSON.parse(jsonMatch[0]) as BoardReportAI;

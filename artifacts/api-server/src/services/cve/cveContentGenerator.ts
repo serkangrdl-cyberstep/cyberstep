@@ -1,4 +1,4 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { db, cveTrackerTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
@@ -14,14 +14,12 @@ Emoji kullanmıyorsun.`;
 
 async function callClaude(userPrompt: string, maxTokens = 800): Promise<string> {
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: maxTokens,
+    return await callModel({
+      task: "cve-content",
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
+      maxTokens,
     });
-    const block = message.content[0];
-    return block?.type === "text" ? block.text.trim() : "";
   } catch (err) {
     logger.warn({ err }, "Claude çağrısı başarısız");
     return "";

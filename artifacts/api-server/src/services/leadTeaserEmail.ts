@@ -11,7 +11,7 @@
 import { db } from "@workspace/db";
 import { leadCandidatesTable, domainScansTable, domainScanSubdomainsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { logger } from "../lib/logger";
 
 function getBaseUrl(): string {
@@ -65,13 +65,11 @@ Kurallar:
 - Yalnızca açıklama metnini yaz`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+    const text = await callModel({
+      task: "lead-teaser",
       messages: [{ role: "user", content: prompt }],
+      maxTokens: 150,
     });
-    const text =
-      msg.content[0]?.type === "text" ? msg.content[0].text.trim() : "";
     return (
       text ||
       `Bu bulgu, ${domain} için doğrudan iş sürekliliğini ve itibarı etkileyen bir güvenlik riskine işaret etmektedir.`

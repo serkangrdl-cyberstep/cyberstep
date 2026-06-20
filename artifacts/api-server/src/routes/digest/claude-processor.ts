@@ -1,23 +1,19 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { db } from "@workspace/db";
 import { newsItemsTable, weeklyDigestsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { getISOWeek } from "./rss-collector";
 
-const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 8192;
 
 async function callClaude(systemPrompt: string, userPrompt: string): Promise<string> {
-  const msg = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
+  return callModel({
+    task: "digest",
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
+    maxTokens: MAX_TOKENS,
   });
-  const block = msg.content[0];
-  if (block?.type === "text") return block.text;
-  return "";
 }
 
 async function scoreNewsItems(

@@ -3036,7 +3036,17 @@ export default function AdminLeadDiscovery() {
                               <TableCell className="py-2 pr-0">
                                 {isOpen ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                               </TableCell>
-                              <TableCell className="py-2 font-mono text-xs font-semibold">{cve.cveId}</TableCell>
+                              <TableCell className="py-2 font-mono text-xs font-semibold">
+                                <a
+                                  href={`https://www.cve.org/CVERecord?id=${cve.cveId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:underline text-cyan-400 hover:text-cyan-300"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  {cve.cveId}
+                                </a>
+                              </TableCell>
                               <TableCell className="py-2 text-right text-xs font-bold">
                                 <span className={cve.cvssScore != null && cve.cvssScore >= 9 ? "text-red-600" : "text-orange-600"}>
                                   {cve.cvssScore?.toFixed(1) ?? "—"}

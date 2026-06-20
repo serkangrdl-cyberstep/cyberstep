@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
@@ -238,11 +238,22 @@ export default function AdminCVEPage() {
     onError: () => toast({ title: "Temizlik başarısız", variant: "destructive" }),
   });
 
+  // Polling state — re-enrich arka planda çalıştığı için 15s aralıklarla max 10dk otomatik günceller
+  const enrichPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopEnrichPoll = () => { if (enrichPollRef.current) { clearInterval(enrichPollRef.current); enrichPollRef.current = null; } };
+  useEffect(() => stopEnrichPoll, []); // unmount cleanup
+
   const reenrichMut = useMutation({
     mutationFn: () => adminFetchJson("/api/admin-panel/cve/re-enrich-patches", { method: "POST" }),
     onSuccess: () => {
-      toast({ title: "Yama durumu yenileme başlatıldı", description: "NVD'den güncel veri çekiliyor, birkaç dakika içinde tamamlanır." });
-      setTimeout(() => refetch(), 30000);
+      toast({ title: "Yama durumu yenileme başlatıldı", description: "NVD'den güncel veri çekiliyor — liste otomatik güncellenecek." });
+      stopEnrichPoll();
+      let ticks = 0;
+      enrichPollRef.current = setInterval(() => {
+        refetch();
+        ticks++;
+        if (ticks >= 40) stopEnrichPoll(); // 40 × 15s = 10 dk
+      }, 15000);
     },
     onError: () => toast({ title: "Yenileme başarısız", variant: "destructive" }),
   });
@@ -281,16 +292,16 @@ export default function AdminCVEPage() {
           </div>
         )}
 
-        <div className="flex justify-between items-center">
-          <p className="text-slate-400 text-sm">
+        <div className="flex flex-wrap justify-between items-center gap-y-2">
+          <p className="text-slate-400 text-sm shrink-0">
             {analyzed.length > 0 ? <span className="text-cyan-400 font-medium">{analyzed.length} CVE onay bekliyor</span> : "Onay bekleyen CVE yok"}
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             <Button variant="outline" size="sm" onClick={() => refetch()} className="border-slate-700 text-slate-400 hover:text-white">
               <RefreshCw className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={() => rematchMut.mutate()} disabled={rematchMut.isPending} className="bg-slate-600 hover:bg-slate-500 text-white">
-              {rematchMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Domain Re-Match
+              {rematchMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Re-Match
             </Button>
             <Button
               size="sm"
@@ -302,7 +313,7 @@ export default function AdminCVEPage() {
               className="border-orange-700/50 text-orange-400 hover:text-orange-300 hover:border-orange-600"
               title="Browser + Mobil CVE false positive'lerini temizle (WhatsApp, Android, iOS, Chrome vb.)"
             >
-              {cleanupMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}False Positive Temizle
+              {cleanupMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}FP Temizle
             </Button>
             <Button
               size="sm"
@@ -312,10 +323,10 @@ export default function AdminCVEPage() {
               className="border-green-700/50 text-green-400 hover:text-green-300 hover:border-green-600"
               title="patch_available=false olan CVE'leri NVD'den yeniden sorgular — yeni yayınlanan yamalar için kullanın"
             >
-              {reenrichMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Yama Durumunu Yenile
+              {reenrichMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Yama Yenile
             </Button>
             <Button size="sm" onClick={() => checkNowMut.mutate()} disabled={checkNowMut.isPending} className="bg-cyan-700 hover:bg-cyan-600 text-white">
-              {checkNowMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Feed Kontrol Et
+              {checkNowMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Feed Kontrol
             </Button>
           </div>
         </div>

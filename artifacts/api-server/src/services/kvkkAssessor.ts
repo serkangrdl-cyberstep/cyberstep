@@ -65,7 +65,7 @@ export async function assessKvkkCompliance(
   caseInfo: CaseInfo,
   customerSector: string | null,
 ): Promise<KvkkAiResult> {
-  const ai = getClaudeAiFn();
+  const ai = getClaudeAiFn("kvkk-assess");
 
   const prompt = `${KVKK_SYSTEM_CONTEXT}
 

@@ -7,7 +7,7 @@ import { logger } from "../../lib/logger";
 import { getClaudeAiFn } from "../../services/ai-client";
 
 const router = Router();
-const claudeFn = getClaudeAiFn();
+const claudeFn = getClaudeAiFn("eu-aiact");
 
 function sess(req: Request) { return req.session as unknown as Record<string, unknown>; }
 function addToSession(req: Request, id: number) {

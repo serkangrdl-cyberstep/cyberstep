@@ -40,7 +40,10 @@ export type ModelTask =
   | "market-watch"
   | "ioc-query"
   | "onboarding-email"
-  | "teaser-report";
+  | "teaser-report"
+  // ── Faz C (compliance-sensitive) ─────────────────────────────────────────
+  | "kvkk-assess"
+  | "eu-aiact";
 
 export interface ModelEntry {
   model: string;
@@ -82,6 +85,9 @@ export const MODEL_CONFIG: Record<ModelTask, ModelEntry> = {
   "ioc-query":         { model: "claude-haiku-4-5" },
   "onboarding-email":  { model: "claude-haiku-4-5" },
   "teaser-report":     { model: "claude-sonnet-4-20250514", stale: true }, // STALE: dated pin, ayrı PR ile güncel versiyona yükselt
+  // ── Faz C (compliance-sensitive) ─────────────────────────────────────────
+  "kvkk-assess":       { model: "claude-sonnet-4-6" }, // KVKK 12. Madde & BTK bildirim — compliance-critical, sonnet zorunlu
+  "eu-aiact":          { model: "claude-sonnet-4-6" }, // AB Yapay Zeka Yasası uyum raporu — compliance-critical, sonnet zorunlu
 };
 
 export function getModel(task: ModelTask): string {

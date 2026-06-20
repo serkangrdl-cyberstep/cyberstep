@@ -1194,43 +1194,6 @@ export default function AdminLeadDiscovery() {
     },
   });
 
-  const requalifyAllScanned = useMutation({
-    mutationFn: () =>
-      fetch(`${BASE}/lead-discovery/requalify-all-scanned`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then(async (r) => {
-        const j = await r.json() as { reset: number; message: string; error?: string };
-        if (!r.ok) throw new Error(j.error ?? "Hata");
-        return j;
-      }),
-    onSuccess: (data) => {
-      alert(`Tamamlandı: ${data.message}`);
-      qc.invalidateQueries({ queryKey: ["lead-candidates"] });
-      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
-    },
-    onError: (err: Error) => alert("Hata: " + err.message),
-  });
-
-  const resetStaleQualified = useMutation({
-    mutationFn: (hoursAgo: number) =>
-      fetch(`${BASE}/lead-discovery/reset-stale-qualified`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hoursAgo }),
-      }).then(async (r) => {
-        const j = await r.json() as { reset: number; message: string; error?: string };
-        if (!r.ok) throw new Error(j.error ?? "Hata");
-        return j;
-      }),
-    onSuccess: (data) => {
-      toast({ description: data.message });
-      qc.invalidateQueries({ queryKey: ["lead-qualified"] });
-      qc.invalidateQueries({ queryKey: ["lead-discovery-stats"] });
-    },
-    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
-  });
-
   const startPrescreen = useMutation({
     mutationFn: () =>
       fetch(`${BASE}/lead-discovery/prescreen`, {
@@ -2113,34 +2076,6 @@ export default function AdminLeadDiscovery() {
                   </Button>
                   <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => startQualify.mutate()} disabled={startQualify.isPending}>
                     {startQualify.isPending ? "..." : "Kalifikasyon Çalıştır"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs border-orange-800/60 text-orange-400 hover:bg-orange-900/20"
-                    onClick={() => {
-                      if (confirm("48+ saat önce qualify edilmiş leadler yeniden kalifikasyona sokulacak. Mevcut qualified sayısı düşecek. Devam edilsin mi?")) {
-                        resetStaleQualified.mutate(48);
-                      }
-                    }}
-                    disabled={resetStaleQualified.isPending}
-                    title="WAF/CDN kontrolü eklenmeden önce qualify edilmiş false pozitifler için"
-                  >
-                    {resetStaleQualified.isPending ? "Sıfırlanıyor..." : "Eski Qualified Sıfırla (48s+)"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                    onClick={() => {
-                      if (confirm("Tüm 'scanned' leadler (qualified + non-qualified) yeni mantıkla tekrar kalifikasyona sokulacak.\n\nBu işlem ~1800 kaydı sıfırlar; ardından 'Kalifikasyonu Çalıştır' ile batch batch işlemeniz gerekir.\n\nDevam edilsin mi?")) {
-                        requalifyAllScanned.mutate();
-                      }
-                    }}
-                    disabled={requalifyAllScanned.isPending}
-                    title="Yeni kalifikasyon mantığını (DKIM/WAF/skor güncellemeleri) mevcut tüm adaylara uygular"
-                  >
-                    {requalifyAllScanned.isPending ? "Sıfırlanıyor..." : "Tümünü Yeniden Nitelendir"}
                   </Button>
                 </div>
               </div>

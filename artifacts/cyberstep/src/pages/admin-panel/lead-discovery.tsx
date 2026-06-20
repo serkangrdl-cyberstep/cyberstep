@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw } from "lucide-react";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -846,7 +846,7 @@ export default function AdminLeadDiscovery() {
     refetchInterval: 15_000,
   });
 
-  const { data: cveReport, isLoading: cveLoading } = useQuery<CveReport>({
+  const { data: cveReport, isLoading: cveLoading, isFetching: cveFetching, refetch: cveRefetch } = useQuery<CveReport>({
     queryKey: ["lead-discovery-cve-report", cveMinCvss, cveSeverity, cveOnlyExploit, cveOnlyKev],
     queryFn: async () => {
       const params = new URLSearchParams({ minCvss: cveMinCvss });
@@ -857,6 +857,7 @@ export default function AdminLeadDiscovery() {
       if (!r.ok) throw new Error(`CVE raporu alınamadı: ${r.status}`);
       return r.json() as Promise<CveReport>;
     },
+    refetchInterval: 30_000,
   });
 
   const { data: runs } = useQuery<DiscoveryRun[]>({
@@ -3009,7 +3010,16 @@ export default function AdminLeadDiscovery() {
                     <Checkbox checked={cveOnlyKev} onCheckedChange={v => { setCveOnlyKev(!!v); setCveExpanded(new Set()); }} className="h-4 w-4" />
                     <span className="text-xs">CISA KEV</span>
                   </label>
-                  <div className="ml-auto">
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={() => { void cveRefetch(); }}
+                      disabled={cveFetching}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
+                      title="Yama Yenileme arka planda çalışıyorsa güncel veriyi çeker"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${cveFetching ? "animate-spin" : ""}`} />
+                      {cveFetching ? "Yükleniyor..." : "Veriyi Yenile"}
+                    </button>
                     <a
                       href={`${BASE}/lead-discovery/cve-report/export?minCvss=${cveMinCvss}${cveSeverity ? `&severity=${cveSeverity}` : ""}${cveOnlyExploit ? "&exploit=1" : ""}${cveOnlyKev ? "&kev=1" : ""}`}
                       download

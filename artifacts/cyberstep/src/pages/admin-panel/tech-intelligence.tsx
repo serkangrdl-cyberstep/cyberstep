@@ -91,6 +91,56 @@ const CATEGORY_ICONS: Record<string, string> = {
   monitoring: "👁️", tag_manager: "🏷️", company_name_from_cert: "🏢",
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  waf:                    "WAF / Güvenlik Duvarı",
+  cdn:                    "CDN / İçerik Dağıtımı",
+  mail:                   "E-posta Altyapısı",
+  mail_security:          "E-posta Güvenliği",
+  cms:                    "İçerik Yönetimi (CMS)",
+  ecommerce:              "E-ticaret",
+  webserver:              "Web Sunucusu",
+  hosting:                "Hosting / Barındırma",
+  ssl_ca:                 "SSL Sertifikası",
+  analytics:              "Web Analitiği",
+  crm:                    "CRM",
+  support:                "Canlı Destek",
+  payment:                "Ödeme Altyapısı",
+  firewall:               "Güvenlik Duvarı",
+  open_port:              "Açık Port",
+  missing_header:         "Eksik HTTP Başlığı",
+  dns_provider:           "DNS Sağlayıcı",
+  language:               "Programlama Dili",
+  framework:              "Framework",
+  tls_version:            "TLS Sürümü",
+  mail_marketing:         "E-posta Pazarlama",
+  monitoring:             "İzleme / Monitoring",
+  tag_manager:            "Etiket Yöneticisi",
+  company_name_from_cert: "Şirket (Sertifikadan)",
+};
+
+const SIGNAL_LABELS_TI: Record<string, string> = {
+  fortinet_customer:      "Fortinet Müşterisi",
+  cms_wordpress:          "WordPress",
+  cdn_user:               "CDN Kullanıcısı",
+  microsoft_shop:         "Microsoft/Azure",
+  budget_indicator_high:  "Yüksek Bütçe",
+  budget_indicator_medium:"Orta Bütçe",
+  budget_indicator_low:   "Düşük Bütçe",
+  budget_indicator_enterprise: "Kurumsal Bütçe",
+  is_ecommerce:           "E-ticaret",
+  mail_security:          "Mail Güvenliği",
+  has_fortinet:           "Fortinet",
+  has_waf:                "WAF Aktif",
+  open_rdp:               "Açık RDP",
+  cloud_hosted:           "Bulut Altyapı",
+  has_citrix:             "Citrix",
+  has_cisco:              "Cisco",
+  has_paloalto:           "Palo Alto",
+  has_checkpoint:         "Check Point",
+  legacy_iis:             "Eski IIS",
+  exposed_phpmyadmin:     "phpMyAdmin Açık",
+};
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
   const dt = new Date(d);
@@ -357,8 +407,8 @@ export default function TechIntelligencePage() {
                               {item.version && <span className="text-slate-500 text-xs">{item.version}</span>}
                               <span className="text-slate-600 text-xs">%{item.confidence}</span>
                             </div>
-                            <div className="text-slate-500 text-xs capitalize">
-                              {item.category}{item.vendor !== "none" ? ` · ${item.detectedVia ?? item.vendor}` : ""}
+                            <div className="text-slate-500 text-xs">
+                              {CATEGORY_LABELS[item.category] ?? item.category}{item.vendor !== "none" ? ` · ${item.detectedVia ?? item.vendor}` : ""}
                             </div>
                             {item.securityNote && (
                               <div className={`text-xs mt-1 px-2 py-0.5 rounded border inline-block ${RISK_COLOR[item.securityRisk || "low"]}`}>
@@ -366,7 +416,7 @@ export default function TechIntelligencePage() {
                               </div>
                             )}
                             {item.salesSignal && (
-                              <div className="text-xs mt-1 text-cyan-400/70">{item.salesSignal}</div>
+                              <div className="text-xs mt-1 text-cyan-400/70">{SIGNAL_LABELS_TI[item.salesSignal] ?? item.salesSignal.replace(/_/g, " ")}</div>
                             )}
                           </div>
                         </div>
@@ -485,7 +535,7 @@ export default function TechIntelligencePage() {
                 {stats.byCategory.slice(0, 16).map((item, i) => (
                   <div key={i} className="flex items-center justify-between p-2 rounded bg-slate-800/50 border border-slate-700/50">
                     <div>
-                      <div className="text-xs text-slate-500 capitalize">{item.category}</div>
+                      <div className="text-xs text-slate-500">{CATEGORY_LABELS[item.category] ?? item.category}</div>
                       <div className="text-sm text-white">{item.vendor !== "none" ? item.vendor : "—"}</div>
                     </div>
                     <Badge variant="outline" className="border-slate-700 text-slate-300 text-xs">{Number(item.cnt)}</Badge>

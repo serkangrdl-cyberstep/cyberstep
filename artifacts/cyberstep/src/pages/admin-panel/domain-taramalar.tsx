@@ -303,7 +303,7 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                     <div className="text-sm font-medium text-white">DKIM</div>
                     {(scan.dkimSelectors ?? []).length > 0
                       ? <div className="flex flex-wrap gap-1 mt-1">{(scan.dkimSelectors ?? []).map(s => <span key={s} className="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-0.5 rounded font-mono">{s}</span>)}</div>
-                      : <p className="text-xs text-red-400 mt-0.5">Bilinen DKIM selektörleri bulunamadı</p>
+                      : <p className="text-xs text-red-400 mt-0.5">Yaygın DKIM selektörleri (default, google, selector1…) bulunamadı — kuruma özgü selektör kullanılıyorsa manuel doğrulama önerilir</p>
                     }
                   </div>
                 </div>
@@ -497,12 +497,15 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
             {/* Açık Portlar — Shodan */}
             {scan.shodanOpenPorts && scan.shodanOpenPorts.length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Açık Portlar — Shodan ({scan.shodanOpenPorts.length})
                   {scan.shodanVulnCount > 0 && (
                     <span className="ml-2 text-red-400 font-bold">{scan.shodanVulnCount} CVE</span>
                   )}
                 </h3>
+                {scan.shodanOpenPorts.some(p => [8080,8880,2052,2053,2082,2083,2086,2087,2095,2096,8443].includes(p.port)) && (
+                  <p className="text-xs text-slate-500 mb-2">Listede Cloudflare proxy portları bulunuyor (2052, 2087, 2095, 8080, 8443, 8880 vb.) — bunlar Cloudflare kullanan her sitede görünür, risk puanına dahil edilmez.</p>
+                )}
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>

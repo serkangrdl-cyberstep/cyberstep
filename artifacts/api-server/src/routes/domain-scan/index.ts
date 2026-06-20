@@ -331,6 +331,9 @@ async function fetchHomepage(domain: string): Promise<string> {
   });
 }
 
+// Güvenlik altyapısı kategorileri — bilinçli kurulmuş araçlardır, "gölge BT" değildir
+const SHADOW_IT_EXCLUDED_CATEGORIES = new Set(["Güvenlik / CDN", "Güvenlik"]);
+
 async function checkShadowIT(domain: string): Promise<{ services: ShadowItService[] }> {
   try {
     const html = await fetchHomepage(domain);
@@ -338,6 +341,8 @@ async function checkShadowIT(domain: string): Promise<{ services: ShadowItServic
     const detected: ShadowItService[] = [];
     for (const svc of SHADOW_IT_CATALOG) {
       if (svc.pattern.test(html)) {
+        // CDN/WAF ve güvenlik altyapısı araçları Shadow IT değil — çıkart
+        if (SHADOW_IT_EXCLUDED_CATEGORIES.has(svc.category)) continue;
         const entry: ShadowItService = { name: svc.name, category: svc.category, risk: svc.risk, description: svc.desc };
         if (svc.versionExtract) {
           const m = html.match(svc.versionExtract);

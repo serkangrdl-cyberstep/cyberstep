@@ -110,7 +110,7 @@ function buildConfidenceDisclaimer(scan: {
   </div>`;
 }
 
-function buildHtmlEmail(params: {
+export function buildHtmlEmail(params: {
   salutation: string;
   domain: string;
   score: number;

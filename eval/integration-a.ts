@@ -226,6 +226,49 @@ try {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// İ3b — lead-teaser: tam HTML email pipeline (buildHtmlEmail)
+// Production akışı: generateLeadTeaserEmail → generateImpactExplanation (İ3'te
+// gerçek API ile test edildi) → buildHtmlEmail → teaserBody olarak DB'ye kayıt.
+// Burada gerçek AI çıktısını (teaserText) buildHtmlEmail'e geçirip tam email
+// doğruluyoruz. Kriterler: 500+ karakter, domain var, impactExplanation HTML
+// tag içermiyor.
+// ─────────────────────────────────────────────────────────────────────────────
+console.log(`\n${"─".repeat(60)}`);
+console.log("[İ3b] lead-teaser — buildHtmlEmail tam pipeline (saf fonksiyon)");
+console.log("─".repeat(60));
+
+if (teaserText) {
+  const { buildHtmlEmail } = await import(
+    "../artifacts/api-server/src/services/leadTeaserEmail.js"
+  );
+  const htmlEmail = buildHtmlEmail({
+    salutation: "Sayın Test A.Ş. Yöneticisi,",
+    domain: testDomain,
+    score: 42,
+    findingTitle: "SSL sertifikası süresi dolmuş",
+    findingSeverity: "critical",
+    impactExplanation: teaserText,
+    reportUrl: `https://cyberstep.io/tarama?domain=${encodeURIComponent(testDomain)}`,
+    wafDetected: false,
+    wafProvider: null,
+    confidenceScore: 90,
+    assetSummaryLine: null,
+  });
+
+  console.log(`  → HTML email uzunluğu: ${htmlEmail.length} karakter`);
+  console.log(`  → impactExplanation içeriği: "${teaserText.slice(0, 80)}..."\n`);
+
+  check("tam email 500+ karakter", htmlEmail.length >= 500, htmlEmail.length, "≥ 500");
+  check("domain email içinde var", htmlEmail.includes(testDomain), htmlEmail.includes(testDomain) ? "var" : "yok", "var");
+  check("CyberStep markası var", htmlEmail.includes("CyberStep"), htmlEmail.includes("CyberStep") ? "var" : "yok", "var");
+  // impactExplanation (AI metni) email template'e raw inject ediliyor — HTML tag varsa XSS riski
+  check("impactExplanation HTML tag yok", !/<[^>]+>/.test(teaserText), /<[^>]+>/.test(teaserText) ? "HTML TAG VAR" : "temiz", "temiz");
+  check("tam email HTML yapısı", htmlEmail.includes("<div") && htmlEmail.includes("</div>"), "HTML div var", "true");
+} else {
+  warn("İ3b atlandı", "İ3 API çağrısı başarısız olduğu için teaserText boş — buildHtmlEmail testi yapılamadı");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Özet
 // ─────────────────────────────────────────────────────────────────────────────
 const passCount = results.filter(r => r.pass).length;

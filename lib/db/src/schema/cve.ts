@@ -18,6 +18,7 @@ export const cveTrackerTable = pgTable("cve_tracker", {
   detectedAt: timestamp("detected_at").defaultNow(),
   patchAvailable: boolean("patch_available").default(false),
   patchUrl: varchar("patch_url", { length: 500 }),
+  patchBecameAvailableAt: timestamp("patch_became_available_at"),
   exploitPublic: boolean("exploit_public").default(false),
   cisaKev: boolean("cisa_kev").default(false),
 

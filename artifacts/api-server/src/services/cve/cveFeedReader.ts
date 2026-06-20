@@ -171,7 +171,29 @@ export async function enrichWithNVD(cveId: string): Promise<Partial<CVEEntry>> {
     const cve = data.vulnerabilities?.[0]?.cve;
     if (!cve) return {};
     const metric = cve.metrics?.cvssMetricV31?.[0] ?? cve.metrics?.cvssMetricV30?.[0];
-    const patchRef = cve.references?.find(r => r.tags?.includes("Patch"));
+    // "Patch" tag: NVD'nin resmi patch işareti
+    // "Vendor Advisory": vendor advisory yayınlandı — NVD Patch tag'inden önce işaretlenir
+    // URL pattern: NVD gecikmesi olsa bile bilinen vendor advisory domain'leri
+    const VENDOR_ADVISORY_PATTERNS = [
+      /msrc\.microsoft\.com/,
+      /microsoft\.com\/en-us\/msrc/,
+      /support\.microsoft\.com/,
+      /litespeedtech\.com.*security/,
+      /httpd\.apache\.org\/security/,
+      /nginx\.org.*security/,
+      /access\.redhat\.com.*security/,
+      /ubuntu\.com.*security/,
+      /debian\.org\/security/,
+      /wordpress\.org\/news.*security/,
+      /fortinet\.com.*psirt/,
+      /github\.com.*security.*advisories/,
+      /kb\.cert\.org/,
+    ];
+    const patchRef = cve.references?.find(r =>
+      r.tags?.includes("Patch") ||
+      r.tags?.includes("Vendor Advisory") ||
+      VENDOR_ADVISORY_PATTERNS.some(p => p.test(r.url ?? ""))
+    );
     return {
       cvssScore: metric?.cvssData.baseScore ?? null,
       cvssVector: metric?.cvssData.vectorString,

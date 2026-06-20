@@ -3076,6 +3076,15 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CVE customer notification sweep cron scheduled (every 4 hours)");
 
+    // ─── CVE patch recheck — patch_available=false, son 60 gün, günlük 06:00 ──
+    // Yeni CVE'lerde patch ilk haftalar içinde çıkıyor; 60 gün sonra ihtimal düşüyor.
+    cron.schedule("0 6 * * *", wrapCron("cve_patch_recheck", "0 6 * * *", async () => {
+      const { recheckPatchStatus } = await import("./services/cve/cvePatchRecheck");
+      const r = await recheckPatchStatus({ maxAgeDays: 60 });
+      return r.updated;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("CVE patch recheck cron kayıtlandı (günlük 06:00, 60 günlük pencere)");
+
     // ─── EPSS + CISA KEV Intelligence Sync — Her gece 03:15 Istanbul ─────────
     cron.schedule("15 3 * * *", wrapCron("sync_vuln_intel", "15 3 * * *", async () => {
       const { syncVulnIntelligence } = await import("./services/cve/vulnIntelSync");
@@ -3281,6 +3290,7 @@ startup()
         { name: "attack_path_analysis",     thresholdHours: 25  },
         { name: "cve_feed_check",           thresholdHours: 3   },
         { name: "cve_customer_notification", thresholdHours: 5  },
+        { name: "cve_patch_recheck",         thresholdHours: 25 },
         { name: "sync_vuln_intel",           thresholdHours: 25 },
         { name: "free_scan_followup",        thresholdHours: 2  },
         { name: "cloud_cspm",               thresholdHours: 25  },

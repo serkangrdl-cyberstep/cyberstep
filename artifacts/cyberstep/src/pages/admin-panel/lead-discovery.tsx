@@ -19,6 +19,69 @@ import { useToast } from "@/hooks/use-toast";
 
 const BASE = "/api/admin-panel";
 
+const PORT_INFO_MAP: Record<number, { note: string; risk: "critical" | "high" | "medium" | "low" }> = {
+  22:    { note: "Şifreli; ama internete açıksa brute-force hedefi — anahtar kimlik doğrulama + IP kısıtlama önerilir", risk: "low" },
+  25:    { note: "Mail sunucu-sunucu iletişimi — açık olması normal; open relay taraması önerilir", risk: "low" },
+  53:    { note: "İsim sunucusu ise normal; open resolver ise DDoS amplifikasyon riski — zone transfer (AXFR) denetimi önerilir", risk: "low" },
+  110:   { note: "Şifresiz olabilir — TLS zorunlu önerilir (POP3S/995 tercih edilmeli)", risk: "medium" },
+  143:   { note: "Şifresiz olabilir — STARTTLS/IMAPS önerilir", risk: "medium" },
+  161:   { note: "Varsayılan community string'lerle (public/private) sıkça istismar edilir", risk: "high" },
+  389:   { note: "Şifresiz dizin servisi — internete açıksa AD bilgisi sızabilir", risk: "critical" },
+  443:   { note: "Standart HTTPS — beklenen", risk: "low" },
+  445:   { note: "İnternete asla açık olmamalı — EternalBlue/WannaCry risk vektörü", risk: "critical" },
+  465:   { note: "Şifreli mail gönderimi (implicit TLS) — standart ve beklenen", risk: "low" },
+  500:   { note: "Site-to-site VPN — beklenen açıklık", risk: "low" },
+  587:   { note: "İstemci mail gönderimi (STARTTLS) — standart ve beklenen", risk: "low" },
+  636:   { note: "Şifreli LDAP — yine de internete açık olması istisnai olmalı", risk: "high" },
+  989:   { note: "Şifreli FTP veri kanalı", risk: "low" },
+  990:   { note: "Şifreli FTP kontrol kanalı", risk: "low" },
+  993:   { note: "Şifreli IMAP — standart ve beklenen", risk: "low" },
+  995:   { note: "Şifreli POP3 — standart ve beklenen", risk: "low" },
+  1433:  { note: "Microsoft SQL Server doğrudan internete açık — güvenlik duvarı ile kısıtlayın", risk: "critical" },
+  1521:  { note: "Oracle veritabanı internete açık", risk: "critical" },
+  1723:  { note: "Eski, kriptografik olarak kırılmış VPN protokolü — modern alternatiflere geçin", risk: "high" },
+  1883:  { note: "IoT mesajlaşma — genelde kimlik doğrulamasız; internete açık olmamalı", risk: "high" },
+  2375:  { note: "Docker daemon TLS olmadan açık — kimlik doğrulamasız; anında container ele geçirme riski", risk: "critical" },
+  2376:  { note: "Docker daemon TLS ile açık — yine de internete açık olmamalı", risk: "high" },
+  3000:  { note: "Node/React dev sunucusu tipik portu — production'da açık olmamalı", risk: "medium" },
+  3306:  { note: "Veritabanı doğrudan internete açık — veri sızıntısı riski; güvenlik duvarı ile kısıtlayın", risk: "critical" },
+  3389:  { note: "İnternete doğrudan açık RDP — en sık fidye yazılımı giriş noktası; VPN arkasına alın", risk: "critical" },
+  4443:  { note: "FortiGate/firewall admin paneli sık kullanır — internete açıksa IP allowlist zorunlu", risk: "high" },
+  4500:  { note: "VPN NAT traversal — beklenen açıklık", risk: "low" },
+  5060:  { note: "Şifresiz VoIP sinyalleşmesi — toll-fraud riski", risk: "medium" },
+  5061:  { note: "Şifreli VoIP sinyalleşmesi", risk: "low" },
+  5432:  { note: "Veritabanı doğrudan internete açık — güvenlik duvarı zorunlu", risk: "critical" },
+  5672:  { note: "Mesaj kuyruğu — internete açıksa veri/komut enjeksiyonu riski", risk: "high" },
+  5900:  { note: "Genelde zayıf/şifresiz kimlik doğrulama — internete açık olmamalı", risk: "critical" },
+  5984:  { note: "CouchDB HTTP API internete açık", risk: "critical" },
+  6379:  { note: "Sıklıkla kimlik doğrulamasız çalışır — internete açıksa acil müdahale gerekir", risk: "critical" },
+  6443:  { note: "İnternete açıksa küme tamamen ele geçirilebilir", risk: "critical" },
+  8000:  { note: "Sıklıkla geliştirme ortamı — production'da açık olmamalı", risk: "medium" },
+  8080:  { note: "Genelde proxy/dev sunucu — doğrudan internete açıksa kontrol edilmeli", risk: "low" },
+  8443:  { note: "CDN varsa normal; yoksa FortiGate/yönetim arayüzü olabilir — context kontrolü şart", risk: "low" },
+  8880:  { note: "Yalnızca tespit edilen CDN Cloudflare ise normal say — port numarasına güvenme", risk: "low" },
+  8888:  { note: "Yönetim paneli portu internete açık", risk: "medium" },
+  9090:  { note: "İzleme/yönetim paneli — genelde kimlik doğrulamasız; internete açık olmamalı", risk: "medium" },
+  9200:  { note: "Varsayılan kurulumda kimlik doğrulama yoktur — indeks verileri herkese açık olabilir", risk: "critical" },
+  10000: { note: "Webmin yönetim paneli internete açık — güvenlik duvarı önerilir", risk: "high" },
+  10443: { note: "Alternatif admin GUI — internete açık olmamalı", risk: "high" },
+  11211: { note: "DDoS amplifikasyon ve veri sızıntısı riski — internete kapalı olmalı", risk: "high" },
+  27017: { note: "Geçmişte kitlesel veri sızıntılarının başlıca kaynağı — kimlik doğrulama zorunlu", risk: "critical" },
+};
+
+function resolvePortNote(product: string | null | undefined, storedNote: string | null | undefined, storedRisk: string | null | undefined): { note: string | null; risk: string | null } {
+  const STALE = "Bilinmeyen servis — manuel doğrulama önerilir";
+  if (!storedNote || storedNote === STALE) {
+    const match = (product ?? "").match(/Port\s+(\d+)/i);
+    if (match) {
+      const portNum = parseInt(match[1]!, 10);
+      const info = PORT_INFO_MAP[portNum];
+      if (info) return { note: info.note, risk: info.risk };
+    }
+  }
+  return { note: storedNote ?? null, risk: storedRisk ?? null };
+}
+
 interface Stats {
   total: number;
   pending: number;
@@ -3471,18 +3534,21 @@ export default function AdminLeadDiscovery() {
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Açık Portlar</div>
                         <div className="space-y-1">
-                          {portItems.sort((a, b) => (isHighRisk(b.securityRisk) ? 1 : 0) - (isHighRisk(a.securityRisk) ? 1 : 0)).map((t, i) => (
+                          {portItems.sort((a, b) => (isHighRisk(b.securityRisk) ? 1 : 0) - (isHighRisk(a.securityRisk) ? 1 : 0)).map((t, i) => {
+                            const resolved = resolvePortNote(t.product, t.securityNote, t.securityRisk);
+                            return (
                             <div key={i} className="flex items-center gap-2 text-xs rounded bg-slate-50 border border-slate-200 px-2 py-1">
                               <span className="flex-1 font-mono font-medium truncate">{t.product ?? t.vendor}</span>
-                              {t.securityNote && <span className="text-muted-foreground text-[10px] truncate max-w-[140px]">{t.securityNote}</span>}
+                              {resolved.note && <span className="text-muted-foreground text-[10px] truncate max-w-[140px]">{resolved.note}</span>}
                               <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                t.securityRisk === "critical" ? "bg-red-100 text-red-700 border border-red-200" :
-                                t.securityRisk === "high" ? "bg-orange-100 text-orange-700" :
-                                t.securityRisk === "medium" ? "bg-yellow-100 text-yellow-700" :
+                                resolved.risk === "critical" ? "bg-red-100 text-red-700 border border-red-200" :
+                                resolved.risk === "high" ? "bg-orange-100 text-orange-700" :
+                                resolved.risk === "medium" ? "bg-yellow-100 text-yellow-700" :
                                 "bg-slate-100 text-slate-500"
-                              }`}>{t.securityRisk ?? "low"}</span>
+                              }`}>{resolved.risk ?? "low"}</span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}

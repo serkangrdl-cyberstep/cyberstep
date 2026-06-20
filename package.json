@@ -8,7 +8,8 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "smoke": "artifacts/api-server/node_modules/.bin/tsx --tsconfig tsconfig.base.json eval/smoke-a.ts",
-    "eval": "artifacts/api-server/node_modules/.bin/tsx --tsconfig tsconfig.base.json eval/runEval.ts"
+    "eval": "artifacts/api-server/node_modules/.bin/tsx --tsconfig tsconfig.base.json eval/runEval.ts",
+    "integration": "artifacts/api-server/node_modules/.bin/tsx --tsconfig tsconfig.base.json eval/integration-a.ts"
   },
   "private": true,
   "devDependencies": {

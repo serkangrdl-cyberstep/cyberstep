@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import { attackPathsTable, domainScansTable, customersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { logger } from "../lib/logger";
 import type { AttackPathStage } from "@workspace/db";
 
@@ -124,12 +124,11 @@ Sadece JSON array döndür, başka hiçbir şey yazma.`;
 
   let raw: string;
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 3000,
+    raw = await callModel({
+      task: "attack-path",
       messages: [{ role: "user", content: prompt }],
+      maxTokens: 3000,
     });
-    raw = msg.content.map(b => ("text" in b ? b.text : "")).join("");
   } catch (err) {
     logger.error({ err, customerId, scanId }, "analyzeAttackPaths: Claude error");
     return;

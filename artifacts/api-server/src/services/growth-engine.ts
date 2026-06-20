@@ -9,7 +9,7 @@ import {
   growthEngineSettingsTable,
 } from "@workspace/db";
 import { eq, and, gte, desc, count } from "drizzle-orm";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { sendMail } from "./email";
 import { logger } from "../lib/logger";
 
@@ -243,12 +243,11 @@ Format JSON: {"subject":"...","body":"..."}`,
   const prompt = prompts[params.type] ?? `${params.domain} için siber güvenlik outreach e-postası yaz. 4-5 cümle Türkçe. Format JSON: {"subject":"...","body":"..."}`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 512,
+    const text = (await callModel({
+      task: "growth-engine",
       messages: [{ role: "user", content: prompt }],
-    });
-    const text = (msg.content[0] as { type: string; text: string }).text.trim();
+      maxTokens: 512,
+    })).trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);

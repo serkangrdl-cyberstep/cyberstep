@@ -5,7 +5,7 @@ import { demoReportsTable, demoLeadsTable, domainScansTable } from "@workspace/d
 import { eq, and, between, gte, or, like, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import PDFDocument from "pdfkit";
 
 const DEMO_DOMAIN  = "abc.com.tr";
@@ -96,19 +96,9 @@ function anonymizeScan(scan: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
-async function callClaude(
-  prompt: string,
-  model = "claude-haiku-4-5",
-  maxTokens = 400,
-): Promise<string> {
+async function callClaude(prompt: string, maxTokens = 400): Promise<string> {
   try {
-    const msg = await anthropic.messages.create({
-      model,
-      max_tokens: maxTokens,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const block = msg.content[0];
-    return block?.type === "text" ? block.text : "";
+    return await callModel({ task: "demo-report", messages: [{ role: "user", content: prompt }], maxTokens });
   } catch (err) {
     logger.warn({ err }, "Demo AI call failed, using fallback");
     return "Bu örnek rapor, gerçek müşteri verilerinden anonimleştirilerek hazırlanmıştır.";
@@ -610,7 +600,7 @@ Sirket: Ornek A.S. | Risk skoru: ${score}/100
 7545 Kanunu uyum: %${compliance7545} | KVKK: %${kvkkPct}
 Finansal risk: ${riskLow} — ${riskHigh} TL
 3 kisa paragraf, CEO/CFO diline uygun, Turkce, duz metin (markdown kullanma).
-`, "claude-haiku-4-5", 500);
+`, 500);
 
   const sections: PDFSection[] = [
     {

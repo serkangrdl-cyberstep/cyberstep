@@ -1,4 +1,4 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { logger } from "../lib/logger";
 import type { IndexStats } from "./indexReportCalculator";
 
@@ -8,13 +8,8 @@ export interface IndexContent {
   globalContext: string;
 }
 
-async function callClaude(prompt: string, model = "claude-haiku-4-5", maxTokens = 600): Promise<string> {
-  const msg = await anthropic.messages.create({
-    model,
-    max_tokens: maxTokens,
-    messages: [{ role: "user", content: prompt }],
-  });
-  return msg.content.find(b => b.type === "text")?.text ?? "";
+async function callClaude(prompt: string, maxTokens = 600): Promise<string> {
+  return callModel({ task: "index-report", messages: [{ role: "user", content: prompt }], maxTokens });
 }
 
 export async function generateIndexContent(
@@ -66,7 +61,7 @@ Yönetici özeti kuralları:
   Dördüncü: öneri ve çağrı
   Sayıları doğrudan kullan
   CyberStep'ten bahset ama satış tonu yok
-`, "claude-haiku-4-5", 700);
+`, 700);
 
   const keyFindingsRaw = await callClaude(`
 Aşağıdaki verilerden en önemli 5 bulguyu üret.
@@ -91,7 +86,7 @@ Her bulgu için JSON döndür:
   }
 ]
 Sadece JSON dizisi döndür. 5 madde. Türkçe.
-`, "claude-haiku-4-5", 600);
+`, 600);
 
   const globalContextRaw = await callClaude(`
 Türkiye Siber Güvenlik Endeksi için küresel bağlam paragrafı yaz (100-150 kelime):
@@ -101,7 +96,7 @@ VulnCheck 2026: KEV'lerin %28.96'sı CVE öncesi istismar, network edge cihazlar
 
 Türkiye verisi (${stats.avgScore}/100 ortalama skor, %${stats.email.dmarcMissing} DMARC eksik) ile küresel tabloyu karşılaştır.
 Türkçe, profesyonel.
-`, "claude-haiku-4-5", 300);
+`, 300);
 
   let keyFindings: IndexContent["keyFindings"] = [];
   try {

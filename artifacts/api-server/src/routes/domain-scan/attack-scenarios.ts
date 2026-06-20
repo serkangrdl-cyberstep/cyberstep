@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { domainScansTable } from "@workspace/db";
 import { eq, and, or, isNull, lt, inArray } from "drizzle-orm";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { logger } from "../../lib/logger";
 import type { AttackScenariosResult } from "@workspace/db";
 import { progressBus } from "./progress-bus";
@@ -144,17 +144,14 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
     progressBus.emit(scanId, { step: 0, pct: 30, label: "Tarama verileri hazırlanıyor" });
     progressBus.emit(scanId, { step: 1, pct: 42, label: "Tehdit modeli oluşturuluyor" });
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 3500,
+    const rawText = await callModel({
+      task: "attack-scenarios",
       messages: [{ role: "user", content: prompt }],
+      maxTokens: 3500,
     });
 
     // Milestone 3: AI response received, parsing
     progressBus.emit(scanId, { step: 1, pct: 65, label: "Tehdit modeli oluşturuluyor" });
-
-    const block = message.content[0];
-    const rawText = block?.type === "text" ? block.text.trim() : "";
 
     // Extract JSON from response (Claude may wrap in ```json blocks or add surrounding text)
     let jsonStr =

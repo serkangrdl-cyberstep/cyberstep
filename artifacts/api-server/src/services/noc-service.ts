@@ -22,7 +22,7 @@ import {
   type NocCase,
 } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { encryptSecret, decryptSecret } from "./fabric-crypto";
 import { logger } from "../lib/logger";
 import { sendMail } from "./email";
@@ -57,16 +57,10 @@ async function generateNOCCaseNumber(): Promise<string> {
 
 async function callClaude(
   prompt: string,
-  model: "claude-haiku-4-5" | "claude-sonnet-4-6" = "claude-sonnet-4-6",
+  task: "noc-triage" | "noc-deep" = "noc-deep",
   maxTokens = 600,
 ): Promise<string> {
-  const msg = await anthropic.messages.create({
-    model,
-    max_tokens: maxTokens,
-    messages: [{ role: "user", content: prompt }],
-  });
-  const block = msg.content[0];
-  return block.type === "text" ? block.text.trim() : "";
+  return callModel({ task, messages: [{ role: "user", content: prompt }], maxTokens });
 }
 
 function extractJson(raw: string): Record<string, unknown> {
@@ -527,7 +521,7 @@ Severity: ${event.severity}
 
 Gerçek sorun mu, gürültü mü? JSON: {"real": true/false, "confidence": 0-100, "reason": "tek cümle"}`;
 
-    const haikuRaw = await callClaude(haikuPrompt, "claude-haiku-4-5", 100);
+    const haikuRaw = await callClaude(haikuPrompt, "noc-triage", 100);
     const haikuResult = extractJson(haikuRaw) as { real?: boolean; confidence?: number };
     if (haikuResult.real === false && (haikuResult.confidence ?? 0) > 75) {
       shouldEscalate = false;
@@ -594,7 +588,7 @@ JSON YANIT (başka hiçbir şey yazma):
   "auto_resolve_minutes": 30
 }`;
 
-    const sonnetRaw = await callClaude(sonnetPrompt, "claude-sonnet-4-6", 700);
+    const sonnetRaw = await callClaude(sonnetPrompt, "noc-deep", 700);
     analysis = extractJson(sonnetRaw);
   } catch (e) {
     logger.error({ err: e }, "NOC Sonnet triage failed");

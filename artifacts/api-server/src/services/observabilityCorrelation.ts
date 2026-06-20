@@ -1,6 +1,6 @@
 import { db, pool } from "@workspace/db";
 import { observabilityEventsTable } from "@workspace/db";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { createCaseWithNumber } from "./soc/soc-cases";
 import { logger } from "../lib/logger";
 
@@ -412,12 +412,11 @@ JSON formatında cevap ver: { "correlated": true/false, "confidence": 0-100, "na
 
   let result: { correlated: boolean; confidence: number; narrative: string; severity: string };
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 300,
+    const raw = await callModel({
+      task: "observability",
       messages: [{ role: "user", content: prompt }],
+      maxTokens: 300,
     });
-    const raw = msg.content.map((b) => ("text" in b ? b.text : "")).join("");
     const match = raw.match(/\{[\s\S]*\}/);
     result = JSON.parse(match ? match[0] : raw) as typeof result;
   } catch (err) {

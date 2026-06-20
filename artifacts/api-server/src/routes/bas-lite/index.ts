@@ -4,7 +4,7 @@ import { basSimulationsTable, customersTable, domainScansTable } from "@workspac
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 
 const router = Router();
 
@@ -227,16 +227,11 @@ Yanıtını YALNIZCA aşağıdaki JSON formatında ver (başka metin ekleme):
   "topRemediation": ["En önemli 3 aksiyon", "İkinci aksiyon", "Üçüncü aksiyon"]
 }`;
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2000,
+    const rawText = await callModel({
+      task: "bas-lite",
       messages: [{ role: "user", content: prompt }],
+      maxTokens: 2000,
     });
-
-    const rawText = message.content
-      .filter(b => b.type === "text")
-      .map(b => (b as { type: "text"; text: string }).text)
-      .join("");
 
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("JSON parse edilemedi: " + rawText.slice(0, 200));

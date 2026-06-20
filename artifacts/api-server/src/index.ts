@@ -3186,13 +3186,13 @@ startup()
           if (!customer) continue;
           const [scan] = await cisoDb.select().from(scanTable).where(eqFn(scanTable.email, customer.email)).orderBy(descFn(scanTable.id)).limit(1);
           const scoreText = scan ? `Güvenlik skoru: ${scan.overallScore}/100` : "";
-          const msg = await anthropicClient.messages.create({
-            model: "claude-haiku-4-5", max_tokens: 200,
+          const { callModel: callAiModel } = await import("@workspace/ai");
+          const intro = await callAiModel({
+            task: "ciso-weekly-digest",
             system: "Türk KOBİ için kişiselleştirilmiş siber güvenlik haftalık özeti yaz. Kısa, akıcı Türkçe.",
             messages: [{ role: "user", content: `${customer.companyName ?? customer.email} için haftalık tehdit özeti. ${scoreText}. Bu hafta yapılması gereken 1 şeyi belirt.` }],
+            maxTokens: 200,
           });
-          const block = msg.content[0];
-          const intro = block?.type === "text" ? block.text.trim() : "";
           const introSafe = intro.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
           await sendMailFn({
             to: customer.email,

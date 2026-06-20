@@ -1,0 +1,15 @@
+ine tekrarlayan bir desen ve birkaç yeni nüans var.
+✅ Gerçek, ciddi riskler — bu lead için güçlü açılış
+Port 3306 (MySQL) doğrudan internete açık — kritik, gerçek veri sızıntısı riski. "Kritik Bulgu: 1" burada ilk kez sıfırdan farklı çıktı; Replit'in daha önce açıkladığı criticalCveCount = CVE(CVSS≥9) + kara liste mantığıyla tutarlı (kara liste kaydı var → 1). Bu, o mantığın doğru çalıştığının kanıtı.
+Port 21 (FTP) şifresiz — kimlik bilgileri açık metin gidiyor, gerçek risk.
+Kara listede — somut, doğrulanabilir bulgu.
+Tech Fingerprint artık her port için aksiyon önerisi metni üretiyor ("güvenlik duvarı ile kısıtlayın", "SFTP/FTPS kullanın") — bu ISR için gerçekten kullanılabilir, önceki ham slug listesinden çok daha iyi bir yön.
+⚠️ Yine aynı şüpheli desen — HTTP Güvenlik Başlıkları
+Bu üçüncü farklı domain (euronet, netin, şimdi netbudur) ve yine HSTS✗ X-Frame✗ X-Content-Type✗ CSP✗ Referrer✗, skor tam olarak 0/100. Tamamen alakasız altyapılarda bu kontrolün hep "tam başarısız, sıfır" çıkması artık tesadüf gibi durmuyor. Replit'e bunu somut sorun: bu domainlere gerçek bir HTTP isteği gidip 200 dönüyor mu, yoksa istek hata/timeout alıp sessizce "hepsi fail" mı dönüyor? Bunu doğrulamadan bu kontrolü satış konuşmasında kullanmak riskli.
+🆕 Yeni gözlem — "Bilinmeyen servis" etiketi yanlış kullanılıyor
+Port 993, 995, 465 için "Bilinmeyen servis — manuel doğrulama önerilir" yazıyor. Ama bunlar hiç bilinmeyen değil — 993 = IMAPS, 995 = POP3S, 465 = SMTP Submission (TLS), üçü de endüstri standardı mail portları. Servis tanıma tablosuna bu well-known portları eklemek küçük ama görünür bir iyileştirme — bir teknik karar verici "bilinmeyen servis" yazısını görünce motorun yüzeysel olduğunu düşünebilir.
+🆕 Hardcoded CDN varsayımı — bu domain'de CDN tespit edilmemişken
+Port 8880 için "Cloudflare proxy portu", 8443 için "CDN üzerinde normal" deniyor — ama bu domain'in Teknoloji Yığını'nda hiç Cloudflare/CDN sinyali yok (euronet örneğinde olduğu gibi). Yani sistem, gerçekten bu domain Cloudflare arkasında mı diye bakmadan, sadece port numarasına göre "muhtemelen CDN" varsayıyor. Bu yanlış olabilir — Netbudur bir telekom/hosting şirketi, kendi servisleri için bu portları başka amaçla açmış olabilir. Replit'e: bu etiketleme gerçek CDN tespitine bağlı mı, yoksa sabit port→açıklama eşlemesi mi, sorun.
+🆕 "2 CVE" etiketi — detayını görmek lazım
+Açık Portlar başlığının yanında "2 CVE" yazıyor ama hangi CVE'ler, hangi servise (muhtemelen eski bir mail/DB sürümüne) bağlı olduğu bu görünümde yok. MySQL+FTP+eski mail portları kombinasyonunda gerçek CVE eşleşmesi varsa, bu en güçlü satış argümanı olur — LiteSpeed/Exchange örneklerindeki gibi somut CVE ID + CVSS gösterilmeli, sadece sayı değil.
+Küçük tutarsızlık: Shodan tetikleyici sorgusu ".net.tr SSL Sertifikaları" yani Shodan bu domaini bir SSL sertifikası üzerinden bulmuş, ama Domain Tarama Sonuçları'nda SSL "Geçersiz/Eksik" diyor. Muhtemelen Shodan'ın gördüğü sertifika 443 dışında bir portta (örn. 995/8443 mail sertifikası) — domain-level kontrol sadece 443'e bakıyor olabilir. Hangi portun sertifikasının kontrol edildiğini UI'da belirtmek karışıklığı önler.

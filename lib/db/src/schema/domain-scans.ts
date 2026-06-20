@@ -47,7 +47,7 @@ export const domainScansTable = pgTable("domain_scans", {
   blacklistResults: jsonb("blacklist_results").$type<Array<{ list: string; listed: boolean }>>().notNull().default([]),
   shadowItServices: jsonb("shadow_it_services").$type<Array<{ name: string; category: string; risk: string; description: string; version?: string }>>().notNull().default([]),
   httpHeadersScore: integer("http_headers_score").notNull().default(0),
-  httpHeadersDetails: jsonb("http_headers_details").$type<{ hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean }>().default({ hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false }),
+  httpHeadersDetails: jsonb("http_headers_details").$type<{ hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; checkFailed?: boolean }>().default({ hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false }),
   urlhausListed: boolean("urlhaus_listed").notNull().default(false),
   urlhausThreat: text("urlhaus_threat"),
   usomListed: boolean("usom_listed").notNull().default(false),

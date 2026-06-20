@@ -11,6 +11,7 @@ export interface PortClassification {
   baseRisk: PortRisk;
   note: string;
   cdnDowngradeable: boolean;
+  wellKnown?: boolean;
 }
 
 export interface CdnInfo {
@@ -63,18 +64,18 @@ const PORT_DB: Record<number, PortClassification> = {
   // ── Standart web ─────────────────────────────────────────────────────────
   80:    { label: "HTTP",            protocol: "web",       baseRisk: "none",     note: "Standart web portu — beklenen",                                                                 cdnDowngradeable: true  },
   443:   { label: "HTTPS",           protocol: "web",       baseRisk: "none",     note: "Standart HTTPS — beklenen",                                                                     cdnDowngradeable: true  },
-  // ── Cloudflare proxy portları ─────────────────────────────────────────────
-  8080:  { label: "HTTP Alt",        protocol: "web",       baseRisk: "medium",   note: "Alternatif HTTP — CDN üzerinde beklenen, aksi hâlde doğrulayın",                              cdnDowngradeable: true  },
-  8443:  { label: "HTTPS Alt",       protocol: "web",       baseRisk: "low",      note: "Alternatif HTTPS — CDN üzerinde normal",                                                       cdnDowngradeable: true  },
-  8880:  { label: "HTTP Alt",        protocol: "web",       baseRisk: "low",      note: "Cloudflare proxy portu",                                                                        cdnDowngradeable: true  },
-  2052:  { label: "HTTP Proxy",      protocol: "web",       baseRisk: "low",      note: "Cloudflare proxy portu",                                                                        cdnDowngradeable: true  },
-  2053:  { label: "DNS-over-TLS",    protocol: "web",       baseRisk: "low",      note: "Cloudflare proxy portu",                                                                        cdnDowngradeable: true  },
-  2082:  { label: "cPanel HTTP",     protocol: "admin",     baseRisk: "medium",   note: "cPanel yönetim portu — CDN üzerinde beklenen",                                                 cdnDowngradeable: true  },
-  2083:  { label: "cPanel HTTPS",    protocol: "admin",     baseRisk: "low",      note: "cPanel HTTPS — CDN üzerinde normal",                                                           cdnDowngradeable: true  },
-  2086:  { label: "WHM HTTP",        protocol: "admin",     baseRisk: "medium",   note: "WHM portu — CDN üzerinde beklenen",                                                            cdnDowngradeable: true  },
-  2087:  { label: "WHM HTTPS",       protocol: "admin",     baseRisk: "low",      note: "WHM HTTPS — CDN üzerinde normal",                                                              cdnDowngradeable: true  },
-  2095:  { label: "WebMail HTTP",    protocol: "web",       baseRisk: "low",      note: "cPanel webmail — CDN üzerinde normal",                                                         cdnDowngradeable: true  },
-  2096:  { label: "WebMail HTTPS",   protocol: "web",       baseRisk: "low",      note: "cPanel webmail TLS — CDN üzerinde normal",                                                     cdnDowngradeable: true  },
+  // ── CDN / Proxy / cPanel portları ────────────────────────────────────────
+  8080:  { label: "HTTP Alt",        protocol: "web",       baseRisk: "medium",   note: "Alternatif HTTP portu — CDN ortamlarında normal, aksi hâlde doğrulayın",                      cdnDowngradeable: true  },
+  8443:  { label: "HTTPS Alt",       protocol: "web",       baseRisk: "low",      note: "Alternatif HTTPS portu — CDN ortamlarında normal, aksi hâlde doğrulayın",                     cdnDowngradeable: true  },
+  8880:  { label: "HTTP Alt",        protocol: "web",       baseRisk: "low",      note: "Alternatif HTTP portu — CDN ortamlarında beklenen, aksi hâlde doğrulayın",                    cdnDowngradeable: true  },
+  2052:  { label: "HTTP Proxy",      protocol: "web",       baseRisk: "low",      note: "Alternatif HTTP proxy portu — CDN ortamlarında beklenen",                                      cdnDowngradeable: true  },
+  2053:  { label: "DNS-over-TLS",    protocol: "web",       baseRisk: "low",      note: "DNS-over-TLS proxy portu — CDN ortamlarında beklenen",                                         cdnDowngradeable: true  },
+  2082:  { label: "cPanel HTTP",     protocol: "admin",     baseRisk: "medium",   note: "cPanel yönetim portu — CDN ortamlarında beklenen, aksi hâlde güvenlik duvarı önerilir",       cdnDowngradeable: true  },
+  2083:  { label: "cPanel HTTPS",    protocol: "admin",     baseRisk: "low",      note: "cPanel HTTPS yönetim portu — CDN ortamlarında normal",                                         cdnDowngradeable: true  },
+  2086:  { label: "WHM HTTP",        protocol: "admin",     baseRisk: "medium",   note: "WHM yönetim portu — CDN ortamlarında beklenen, aksi hâlde güvenlik duvarı önerilir",          cdnDowngradeable: true  },
+  2087:  { label: "WHM HTTPS",       protocol: "admin",     baseRisk: "low",      note: "WHM HTTPS yönetim portu — CDN ortamlarında normal",                                            cdnDowngradeable: true  },
+  2095:  { label: "WebMail HTTP",    protocol: "web",       baseRisk: "low",      note: "cPanel webmail portu — CDN ortamlarında normal",                                               cdnDowngradeable: true  },
+  2096:  { label: "WebMail HTTPS",   protocol: "web",       baseRisk: "low",      note: "cPanel webmail TLS portu — CDN ortamlarında normal",                                           cdnDowngradeable: true  },
   // ── Uzak erişim ───────────────────────────────────────────────────────────
   22:    { label: "SSH",             protocol: "remote",    baseRisk: "medium",   note: "SSH internete açık — brute-force riski; anahtar kimlik doğrulama ve IP kısıtlaması önerilir", cdnDowngradeable: false },
   3389:  { label: "RDP",            protocol: "remote",    baseRisk: "critical", note: "RDP internete açık — ransomware giriş noktası; VPN arkasına alın",                            cdnDowngradeable: false },
@@ -86,9 +87,14 @@ const PORT_DB: Record<number, PortClassification> = {
   69:    { label: "TFTP",           protocol: "legacy",    baseRisk: "high",     note: "TFTP şifresiz ve kimlik doğrulamasız",                                                          cdnDowngradeable: false },
   // ── E-posta ───────────────────────────────────────────────────────────────
   25:    { label: "SMTP",           protocol: "email",     baseRisk: "medium",   note: "SMTP doğrudan açık — open relay taraması önerilir",                                            cdnDowngradeable: false },
-  110:   { label: "POP3",           protocol: "email",     baseRisk: "medium",   note: "POP3 açık — TLS zorunlu yapın",                                                                cdnDowngradeable: false },
-  143:   { label: "IMAP",           protocol: "email",     baseRisk: "low",      note: "IMAP — TLS/STARTTLS ile kabul edilebilir",                                                     cdnDowngradeable: false },
-  587:   { label: "SMTP Submit",    protocol: "email",     baseRisk: "low",      note: "SMTP submission — TLS ile normal",                                                              cdnDowngradeable: false },
+  110:   { label: "POP3",           protocol: "email",     baseRisk: "medium",   note: "POP3 açık — şifresiz iletim; TLS zorunlu yapın (POP3S/995 tercih edilmeli)",                  cdnDowngradeable: false },
+  143:   { label: "IMAP",           protocol: "email",     baseRisk: "low",      note: "IMAP — STARTTLS ile kabul edilebilir; şifreli IMAPS/993 tercih edilmeli",                     cdnDowngradeable: false },
+  465:   { label: "SMTPS",          protocol: "email",     baseRisk: "low",      note: "SMTPS (SMTP over TLS) — şifreli mail gönderimi, standart ve beklenen",                       cdnDowngradeable: false },
+  587:   { label: "SMTP Submit",    protocol: "email",     baseRisk: "low",      note: "SMTP submission — TLS ile normal, e-posta istemcileri için standart",                         cdnDowngradeable: false },
+  993:   { label: "IMAPS",          protocol: "email",     baseRisk: "low",      note: "IMAPS (IMAP over SSL/TLS) — şifreli mail erişimi, standart ve beklenen",                     cdnDowngradeable: false },
+  995:   { label: "POP3S",          protocol: "email",     baseRisk: "low",      note: "POP3S (POP3 over SSL/TLS) — şifreli mail erişimi, standart ve beklenen",                     cdnDowngradeable: false },
+  // ── DNS ─────────────────────────────────────────────────────────────────
+  53:    { label: "DNS",            protocol: "other",     baseRisk: "low",      note: "DNS portu açık — yetkili DNS sunucu; zone transfer (AXFR) denetimi önerilir",                 cdnDowngradeable: false },
   // ── Veritabanı — her koşulda kritik ──────────────────────────────────────
   3306:  { label: "MySQL",          protocol: "database",  baseRisk: "critical", note: "MySQL internete açık — veri sızıntısı riski; güvenlik duvarı ile kısıtlayın",                 cdnDowngradeable: false },
   5432:  { label: "PostgreSQL",     protocol: "database",  baseRisk: "critical", note: "PostgreSQL dışarıdan erişilebilir — güvenlik duvarı zorunlu",                                  cdnDowngradeable: false },

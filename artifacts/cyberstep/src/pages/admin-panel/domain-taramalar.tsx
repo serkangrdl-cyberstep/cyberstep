@@ -4,7 +4,7 @@ import {
   Globe, CheckCircle2, XCircle, Download, Search, AlertTriangle,
   BarChart3, Shield, Loader2, ChevronLeft, ChevronRight,
   Play, Trash2, FileDown, Eye, FileCheck, Clock, RefreshCw,
-  TrendingUp, TrendingDown, CalendarDays, Hash,
+  TrendingUp, TrendingDown, CalendarDays, Hash, AlertCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +77,7 @@ interface DomainScanDetail extends DomainScanRow {
   blacklistCount: number;
   blacklistResults: Array<{ list: string; listed: boolean }>;
   httpHeadersScore: number;
-  httpHeadersDetails: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean } | null;
+  httpHeadersDetails: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; checkFailed?: boolean } | null;
   urlhausListed: boolean;
   urlhausThreat: string | null;
   usomListed: boolean;
@@ -471,26 +471,35 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
               <div>
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                   HTTP Güvenlik Başlıkları
-                  <span className={`ml-2 text-xs font-bold ${scan.httpHeadersScore >= 70 ? "text-emerald-400" : scan.httpHeadersScore >= 40 ? "text-amber-400" : "text-red-400"}`}>
-                    {scan.httpHeadersScore}/100
-                  </span>
+                  {!scan.httpHeadersDetails.checkFailed && (
+                    <span className={`ml-2 text-xs font-bold ${scan.httpHeadersScore >= 70 ? "text-emerald-400" : scan.httpHeadersScore >= 40 ? "text-amber-400" : "text-red-400"}`}>
+                      {scan.httpHeadersScore}/100
+                    </span>
+                  )}
                 </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: "HSTS (HTTPS zorunlu)", pass: scan.httpHeadersDetails.hsts },
-                    { label: "X-Frame-Options (Clickjacking)", pass: scan.httpHeadersDetails.xFrameOptions },
-                    { label: "X-Content-Type-Options", pass: scan.httpHeadersDetails.xContentTypeOptions },
-                    { label: "Content-Security-Policy", pass: scan.httpHeadersDetails.csp },
-                    { label: "Referrer-Policy", pass: scan.httpHeadersDetails.referrerPolicy },
-                  ].map(({ label, pass }) => (
-                    <div key={label} className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${pass ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-                      {pass
-                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                        : <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />}
-                      <span className={pass ? "text-emerald-300" : "text-red-300"}>{label}</span>
-                    </div>
-                  ))}
-                </div>
+                {scan.httpHeadersDetails.checkFailed ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-700/40 border border-slate-600/50 text-xs text-slate-400">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-slate-500" />
+                    <span>HTTP/HTTPS bağlantısı kurulamadı — sunucu dışarıdan erişilemiyor olabilir veya tüm portlar kapalı. Başlık kontrolü yapılamadı.</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: "HSTS (HTTPS zorunlu)", pass: scan.httpHeadersDetails.hsts },
+                      { label: "X-Frame-Options (Clickjacking)", pass: scan.httpHeadersDetails.xFrameOptions },
+                      { label: "X-Content-Type-Options", pass: scan.httpHeadersDetails.xContentTypeOptions },
+                      { label: "Content-Security-Policy", pass: scan.httpHeadersDetails.csp },
+                      { label: "Referrer-Policy", pass: scan.httpHeadersDetails.referrerPolicy },
+                    ].map(({ label, pass }) => (
+                      <div key={label} className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${pass ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+                        {pass
+                          ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                          : <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />}
+                        <span className={pass ? "text-emerald-300" : "text-red-300"}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

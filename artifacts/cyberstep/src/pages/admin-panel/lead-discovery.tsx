@@ -3465,8 +3465,8 @@ export default function AdminLeadDiscovery() {
                             .sort((a, b) => (isHighRisk(b.securityRisk) ? 1 : 0) - (isHighRisk(a.securityRisk) ? 1 : 0))
                             .map((t, i) => (
                               <div key={i} className="flex items-center gap-2 text-xs">
-                                <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category)}</span>
-                                <span className="text-muted-foreground text-[10px]">{t.category}</span>
+                                <span className="flex-1 font-medium truncate">{(t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? (SIGNAL_LABELS[t.category] ?? t.category))}</span>
+                                <span className="text-muted-foreground text-[10px]">{SIGNAL_LABELS[t.category] ?? t.category.replace(/_/g, " ")}</span>
                                 {t.salesSignal && (
                                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                                     t.salesSignal === "fortinet_customer" ? "bg-red-100 text-red-700" :
@@ -3519,8 +3519,8 @@ export default function AdminLeadDiscovery() {
                         })
                         .map((t, i) => (
                           <div key={i} className="flex items-center gap-2 text-xs">
-                            <span className="flex-1 font-medium truncate">{t.category === "open_port" ? (t.product ?? t.vendor) : ((t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? t.category))}</span>
-                            <span className="text-muted-foreground text-[10px]">{t.category}</span>
+                            <span className="flex-1 font-medium truncate">{t.category === "open_port" ? (t.product ?? t.vendor) : ((t.vendor && t.vendor !== "none") ? t.vendor : (t.product ?? (SIGNAL_LABELS[t.category] ?? t.category)))}</span>
+                            <span className="text-muted-foreground text-[10px]">{SIGNAL_LABELS[t.category] ?? t.category.replace(/_/g, " ")}</span>
                             {t.salesSignal && (
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                                 t.salesSignal === "fortinet_customer" ? "bg-red-100 text-red-700" :

@@ -1,0 +1,108 @@
+// CyberStep — Well-Known Port → Servis Eşleme Tablosu
+// "Bilinmeyen servis" etiketinin yerini alacak referans veri.
+// defaultRisk: bu port internete AÇIK bulunduğunda varsayılan risk seviyesi
+// (gerçek skorlama motoru context'e göre override edebilir — örn. 443 web
+// sunucusu için normaldir ama bir DB portu için kritik olabilir)
+
+export interface PortInfo {
+  service: string;
+  protocol: string;
+  defaultRisk: "critical" | "high" | "medium" | "low" | "info";
+  note: string;
+}
+
+export const PORT_SERVICE_MAP: Record<number, PortInfo> = {
+  // ── Web ──────────────────────────────────────────────────────────
+  80:   { service: "HTTP", protocol: "tcp", defaultRisk: "info", note: "Standart web trafiği, HTTPS'e yönlendirme bekleniyor" },
+  443:  { service: "HTTPS", protocol: "tcp", defaultRisk: "info", note: "Standart şifreli web trafiği" },
+  8080: { service: "HTTP (alternatif)", protocol: "tcp", defaultRisk: "low", note: "Genelde proxy/dev sunucu — doğrudan internete açıksa kontrol edilmeli" },
+  8000: { service: "HTTP (dev sunucu)", protocol: "tcp", defaultRisk: "medium", note: "Sıklıkla geliştirme ortamı — production'da açık olmamalı" },
+  3000: { service: "HTTP (dev sunucu)", protocol: "tcp", defaultRisk: "medium", note: "Node/React dev sunucusu tipik portu" },
+  5000: { service: "HTTP (dev sunucu)", protocol: "tcp", defaultRisk: "medium", note: "Flask/dev API tipik portu" },
+
+  // ── Cloudflare bilinen proxy portları (resmi liste) ─────────────
+  2052: { service: "Cloudflare Proxy (HTTP)", protocol: "tcp", defaultRisk: "info", note: "Cloudflare arkasında normal" },
+  2053: { service: "Cloudflare Proxy (HTTPS)", protocol: "tcp", defaultRisk: "info", note: "Cloudflare arkasında normal" },
+  2082: { service: "Cloudflare Proxy (HTTP)", protocol: "tcp", defaultRisk: "info", note: "Cloudflare arkasında normal" },
+  2083: { service: "Cloudflare Proxy (HTTPS)", protocol: "tcp", defaultRisk: "info", note: "Cloudflare arkasında normal" },
+  2086: { service: "Cloudflare Proxy (HTTP)", protocol: "tcp", defaultRisk: "info", note: "Genelde cPanel ile çakışır, kontrol edin" },
+  2087: { service: "Cloudflare Proxy (HTTPS)", protocol: "tcp", defaultRisk: "info", note: "Genelde WHM ile çakışır, kontrol edin" },
+  2095: { service: "Cloudflare Proxy (HTTP)", protocol: "tcp", defaultRisk: "info", note: "Genelde cPanel webmail ile çakışır" },
+  2096: { service: "Cloudflare Proxy (HTTPS)", protocol: "tcp", defaultRisk: "info", note: "Genelde cPanel webmail ile çakışır" },
+  8880: { service: "Cloudflare Proxy (HTTP)", protocol: "tcp", defaultRisk: "info", note: "Yalnızca tespit edilen CDN sağlayıcısı Cloudflare ise normal say — port numarasına güvenme" },
+  8443: { service: "HTTPS (alternatif) / Cloudflare", protocol: "tcp", defaultRisk: "low", note: "CDN yoksa: FortiGate/yönetim arayüzü olabilir — context kontrolü şart" },
+
+  // ── E-posta ──────────────────────────────────────────────────────
+  25:   { service: "SMTP", protocol: "tcp", defaultRisk: "low", note: "Mail sunucu-sunucu iletişimi, açık olması normal" },
+  587:  { service: "SMTP Submission (STARTTLS)", protocol: "tcp", defaultRisk: "info", note: "İstemci mail gönderimi, standart" },
+  465:  { service: "SMTPS (Implicit TLS)", protocol: "tcp", defaultRisk: "info", note: "Şifreli mail gönderimi, standart" },
+  110:  { service: "POP3", protocol: "tcp", defaultRisk: "medium", note: "Şifresiz olabilir — TLS zorunlu önerilir" },
+  995:  { service: "POP3S", protocol: "tcp", defaultRisk: "info", note: "Şifreli POP3, standart" },
+  143:  { service: "IMAP", protocol: "tcp", defaultRisk: "medium", note: "Şifresiz olabilir — STARTTLS/IMAPS önerilir" },
+  993:  { service: "IMAPS", protocol: "tcp", defaultRisk: "info", note: "Şifreli IMAP, standart" },
+
+  // ── Dosya transferi / uzak erişim ───────────────────────────────
+  21:   { service: "FTP", protocol: "tcp", defaultRisk: "high", note: "Kimlik bilgileri şifresiz iletilir — SFTP/FTPS önerilir" },
+  22:   { service: "SSH / SFTP", protocol: "tcp", defaultRisk: "low", note: "Şifreli, ama internete açıksa brute-force hedefi olabilir" },
+  23:   { service: "Telnet", protocol: "tcp", defaultRisk: "critical", note: "Tamamen şifresiz protokol — internete asla açık olmamalı" },
+  989:  { service: "FTPS (veri)", protocol: "tcp", defaultRisk: "low", note: "Şifreli FTP veri kanalı" },
+  990:  { service: "FTPS (kontrol)", protocol: "tcp", defaultRisk: "low", note: "Şifreli FTP kontrol kanalı" },
+  3389: { service: "RDP (Uzak Masaüstü)", protocol: "tcp", defaultRisk: "critical", note: "İnternete doğrudan açık RDP, en sık fidye yazılımı giriş noktası" },
+  5900: { service: "VNC", protocol: "tcp", defaultRisk: "critical", note: "Genelde zayıf/şifresiz kimlik doğrulama — internete açık olmamalı" },
+
+  // ── Veritabanları (internete açık olması ciddi risk) ────────────
+  3306:  { service: "MySQL / MariaDB", protocol: "tcp", defaultRisk: "critical", note: "Veritabanı doğrudan internete açık — veri sızıntısı riski" },
+  5432:  { service: "PostgreSQL", protocol: "tcp", defaultRisk: "critical", note: "Veritabanı doğrudan internete açık" },
+  1433:  { service: "Microsoft SQL Server", protocol: "tcp", defaultRisk: "critical", note: "Veritabanı doğrudan internete açık" },
+  1521:  { service: "Oracle DB", protocol: "tcp", defaultRisk: "critical", note: "Veritabanı doğrudan internete açık" },
+  6379:  { service: "Redis", protocol: "tcp", defaultRisk: "critical", note: "Sıklıkla kimlik doğrulamasız çalışır — internete açıksa acil" },
+  27017: { service: "MongoDB", protocol: "tcp", defaultRisk: "critical", note: "Geçmişte kitlesel veri sızıntılarının başlıca kaynağı" },
+  9200:  { service: "Elasticsearch", protocol: "tcp", defaultRisk: "critical", note: "Varsayılan kurulumda kimlik doğrulama yoktur" },
+  5984:  { service: "CouchDB", protocol: "tcp", defaultRisk: "critical", note: "Veritabanı doğrudan internete açık" },
+  11211: { service: "Memcached", protocol: "tcp", defaultRisk: "high", note: "DDoS amplifikasyon ve veri sızıntısı riski" },
+
+  // ── DNS ──────────────────────────────────────────────────────────
+  53: { service: "DNS", protocol: "tcp/udp", defaultRisk: "low", note: "İsim sunucusu ise normal; open resolver ise DDoS amplifikasyon riski" },
+
+  // ── Ağ güvenliği / VPN / Firewall yönetimi (Fortinet bağlamı) ───
+  4443:  { service: "Yönetim Arayüzü (FortiGate alt-port sık kullanılır)", protocol: "tcp", defaultRisk: "high", note: "Firewall/yönetim paneli internete açıksa erişim kısıtlanmalı (IP allowlist)" },
+  10443: { service: "Yönetim Arayüzü (alternatif)", protocol: "tcp", defaultRisk: "high", note: "Genelde admin GUI — internete açık olmamalı" },
+  500:   { service: "IPsec (IKE)", protocol: "udp", defaultRisk: "low", note: "Site-to-site VPN, beklenen açıklık" },
+  4500:  { service: "IPsec NAT-T", protocol: "udp", defaultRisk: "low", note: "VPN NAT traversal, beklenen açıklık" },
+  1723:  { service: "PPTP", protocol: "tcp", defaultRisk: "high", note: "Eski, kriptografik olarak kırılmış VPN protokolü" },
+
+  // ── Windows / Active Directory ───────────────────────────────────
+  135: { service: "MS RPC", protocol: "tcp", defaultRisk: "critical", note: "İnternete açıksa Windows ağına doğrudan saldırı yüzeyi" },
+  139: { service: "NetBIOS / SMB", protocol: "tcp", defaultRisk: "critical", note: "WannaCry/EternalBlue tipi saldırıların klasik giriş noktası" },
+  445: { service: "SMB", protocol: "tcp", defaultRisk: "critical", note: "İnternete asla açık olmamalı" },
+  389: { service: "LDAP", protocol: "tcp", defaultRisk: "critical", note: "Şifresiz dizin servisi, internete açıksa AD bilgisi sızabilir" },
+  636: { service: "LDAPS", protocol: "tcp", defaultRisk: "high", note: "Şifreli LDAP — yine de internete açık olması istisnai olmalı" },
+  88:  { service: "Kerberos", protocol: "tcp/udp", defaultRisk: "critical", note: "AD kimlik doğrulama servisi, internete açık olmamalı" },
+
+  // ── VoIP ─────────────────────────────────────────────────────────
+  5060: { service: "SIP", protocol: "tcp/udp", defaultRisk: "medium", note: "Şifresiz VoIP sinyalleşmesi, toll-fraud riski" },
+  5061: { service: "SIPS (TLS)", protocol: "tcp", defaultRisk: "low", note: "Şifreli VoIP sinyalleşmesi" },
+
+  // ── Mesajlaşma / kuyruk / izleme ─────────────────────────────────
+  1883: { service: "MQTT", protocol: "tcp", defaultRisk: "high", note: "IoT mesajlaşma — genelde kimlik doğrulamasız, internete açık olmamalı" },
+  5672: { service: "AMQP (RabbitMQ)", protocol: "tcp", defaultRisk: "high", note: "Mesaj kuyruğu, internete açıksa veri/komut enjeksiyonu riski" },
+  161:  { service: "SNMP", protocol: "udp", defaultRisk: "high", note: "Varsayılan community string'lerle (public/private) sıkça istismar edilir" },
+  9090: { service: "Prometheus / yönetim paneli", protocol: "tcp", defaultRisk: "medium", note: "İzleme paneli, genelde kimlik doğrulamasız" },
+
+  // ── Container / orkestrasyon ──────────────────────────────────────
+  6443:  { service: "Kubernetes API Server", protocol: "tcp", defaultRisk: "critical", note: "İnternete açıksa küme tamamen ele geçirilebilir" },
+  2375:  { service: "Docker API (şifresiz)", protocol: "tcp", defaultRisk: "critical", note: "Kimlik doğrulamasız — internete açıksa anında container ele geçirme" },
+  2376:  { service: "Docker API (TLS)", protocol: "tcp", defaultRisk: "high", note: "Şifreli ama yine de internete açık olmamalı" },
+};
+
+// Servis adı bilinmeyen bir port için fallback:
+export const UNKNOWN_PORT_FALLBACK: PortInfo = {
+  service: "Bilinmeyen servis",
+  protocol: "tcp",
+  defaultRisk: "low",
+  note: "Bu port standart bir referans listesinde yok — manuel doğrulama önerilir",
+};
+
+export function getPortInfo(port: number): PortInfo {
+  return PORT_SERVICE_MAP[port] ?? UNKNOWN_PORT_FALLBACK;
+}

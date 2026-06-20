@@ -828,25 +828,43 @@ async function checkHTTPHeaders(domain: string): Promise<{
   xContentTypeOptions: boolean;
   csp: boolean;
   referrerPolicy: boolean;
+  checkFailed?: boolean;
 }> {
-  const empty = { score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false };
-  return new Promise((resolve) => {
-    const req = https.request(
-      { hostname: domain, port: 443, method: "HEAD", timeout: 6000, rejectUnauthorized: false },
-      (res) => {
-        const h = res.headers;
-        const hsts = !!h["strict-transport-security"];
-        const xfo  = !!(h["x-frame-options"]);
-        const xcto = !!(h["x-content-type-options"]);
-        const csp  = !!(h["content-security-policy"]);
-        const rp   = !!(h["referrer-policy"]);
-        resolve({ score: [hsts, xfo, xcto, csp, rp].filter(Boolean).length, hsts, xFrameOptions: xfo, xContentTypeOptions: xcto, csp, referrerPolicy: rp });
-      }
-    );
-    req.on("error", () => resolve(empty));
-    req.on("timeout", () => { req.destroy(); resolve(empty); });
-    req.end();
-  });
+  const failed = { score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, checkFailed: true };
+
+  function parseHeaders(h: import("http").IncomingHttpHeaders) {
+    const hsts = !!h["strict-transport-security"];
+    const xfo  = !!(h["x-frame-options"]);
+    const xcto = !!(h["x-content-type-options"]);
+    const csp  = !!(h["content-security-policy"]);
+    const rp   = !!(h["referrer-policy"]);
+    return { score: [hsts, xfo, xcto, csp, rp].filter(Boolean).length, hsts, xFrameOptions: xfo, xContentTypeOptions: xcto, csp, referrerPolicy: rp };
+  }
+
+  type ReqOpts = { hostname: string; port: number; method: string; path?: string };
+
+  // Önce HTTPS HEAD — başarısız olursa HTTPS GET, o da olmazsa HTTP GET
+  const tryRequest = (opts: ReqOpts, mod: typeof https | typeof http): Promise<ReturnType<typeof parseHeaders> | null> =>
+    new Promise((resolve) => {
+      const req = mod.request({ ...opts, timeout: 6000, rejectUnauthorized: false }, (res) => {
+        res.resume();
+        resolve(parseHeaders(res.headers));
+      });
+      req.on("error", () => resolve(null));
+      req.on("timeout", () => { req.destroy(); resolve(null); });
+      req.end();
+    });
+
+  const httpsHead = await tryRequest({ hostname: domain, port: 443, method: "HEAD" }, https);
+  if (httpsHead) return httpsHead;
+
+  const httpsGet  = await tryRequest({ hostname: domain, port: 443, method: "GET", path: "/" }, https);
+  if (httpsGet) return httpsGet;
+
+  const httpGet   = await tryRequest({ hostname: domain, port: 80,  method: "GET", path: "/" }, http);
+  if (httpGet) return httpGet;
+
+  return failed;
 }
 
 // ─── URLhaus malware DB check (abuse.ch) — no API key required ───────────────
@@ -1533,7 +1551,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         blacklistResults: blacklist.results,
         shadowItServices: shadowIt.services,
         httpHeadersScore: httpHeaders.score,
-        httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy },
+        httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy, checkFailed: httpHeaders.checkFailed ?? false },
         urlhausListed: urlhaus.listed,
         urlhausThreat: urlhaus.threat,
         usomListed: usom.listed,
@@ -1902,7 +1920,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       blacklisted: scan.blacklisted, blacklistCount: scan.blacklistCount,
       shadowItServices: (scan.shadowItServices as Array<{ name: string; category: string; risk: string }>) ?? [],
       httpHeadersScore: scan.httpHeadersScore,
-      httpHeadersDetails: scan.httpHeadersDetails as { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean } | null,
+      httpHeadersDetails: scan.httpHeadersDetails as { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; checkFailed?: boolean } | null,
       urlhausListed: scan.urlhausListed, urlhausThreat: scan.urlhausThreat,
       usomListed: scan.usomListed,
       ctSubdomainCount: scan.ctSubdomainCount,

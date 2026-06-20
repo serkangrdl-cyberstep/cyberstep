@@ -238,6 +238,15 @@ export default function AdminCVEPage() {
     onError: () => toast({ title: "Temizlik başarısız", variant: "destructive" }),
   });
 
+  const reenrichMut = useMutation({
+    mutationFn: () => adminFetchJson("/api/admin-panel/cve/re-enrich-patches", { method: "POST" }),
+    onSuccess: () => {
+      toast({ title: "Yama durumu yenileme başlatıldı", description: "NVD'den güncel veri çekiliyor, birkaç dakika içinde tamamlanır." });
+      setTimeout(() => refetch(), 30000);
+    },
+    onError: () => toast({ title: "Yenileme başarısız", variant: "destructive" }),
+  });
+
   if (selectedCVE) {
     return (
       <AdminLayout title="CVE Detay" description="İçerik düzenle ve yayınla">
@@ -294,6 +303,16 @@ export default function AdminCVEPage() {
               title="Browser + Mobil CVE false positive'lerini temizle (WhatsApp, Android, iOS, Chrome vb.)"
             >
               {cleanupMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}False Positive Temizle
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => reenrichMut.mutate()}
+              disabled={reenrichMut.isPending}
+              className="border-green-700/50 text-green-400 hover:text-green-300 hover:border-green-600"
+              title="patch_available=false olan CVE'leri NVD'den yeniden sorgular — yeni yayınlanan yamalar için kullanın"
+            >
+              {reenrichMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Yama Durumunu Yenile
             </Button>
             <Button size="sm" onClick={() => checkNowMut.mutate()} disabled={checkNowMut.isPending} className="bg-cyan-700 hover:bg-cyan-600 text-white">
               {checkNowMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Feed Kontrol Et

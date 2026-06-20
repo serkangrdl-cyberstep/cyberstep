@@ -3,7 +3,7 @@
  * Claude ile yönetici özeti üretir, board_reports tablosuna kaydeder, email gönderir.
  */
 
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { db } from "@workspace/db";
 import {
   boardReportsTable,
@@ -23,15 +23,12 @@ function formatMonth(d: Date): string {
 
 async function callClaude(prompt: string): Promise<string> {
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 400,
-      system:
-        "Türk şirketi için Türkçe siber güvenlik yönetim raporu yaz. Sade, net, iş dili. Teknik kelime kullanma. Veri bazlı, gerçekçi.",
+    return await callModel({
+      task: "ciso-board-report",
+      system: "Türk şirketi için Türkçe siber güvenlik yönetim raporu yaz. Sade, net, iş dili. Teknik kelime kullanma. Veri bazlı, gerçekçi.",
       messages: [{ role: "user", content: prompt }],
+      maxTokens: 400,
     });
-    const block = msg.content[0];
-    return block?.type === "text" ? block.text.trim() : "";
   } catch (err) {
     logger.warn({ err }, "Board raporu Claude hatası");
     return "";

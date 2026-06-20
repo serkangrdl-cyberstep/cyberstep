@@ -2,6 +2,7 @@
 // Claude Haiku ile haftalık içerik üretimi, revizyon ve spontane içerik.
 
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { getModel } from "@workspace/ai";
 import { logAiCost, calcCost } from "../../services/aiCostTracker";
 import { db } from "@workspace/db";
 import {
@@ -13,7 +14,7 @@ import {
 import { eq, and, gte, lte, isNull } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
-const HAIKU = "claude-haiku-4-5";
+const HAIKU = getModel("social-content");
 
 const SYSTEM_PROMPT = `Sen CyberStep.io'nun sosyal medya editörüsün.
 Türkiye'nin bağımsız siber güvenlik platformu.

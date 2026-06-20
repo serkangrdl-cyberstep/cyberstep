@@ -47,9 +47,20 @@ type GoldenCase = {
   testUser: string;
 };
 
-const cases: GoldenCase[] = files.flatMap(f =>
-  JSON.parse(readFileSync(join(goldenDir, f), "utf8")) as GoldenCase[]
-);
+const cases: GoldenCase[] = files.flatMap(f => {
+  const raw = JSON.parse(readFileSync(join(goldenDir, f), "utf8")) as unknown;
+  // faz-a.json → düz dizi; cve-content.json vb → {cases:[...], _meta:{...}}
+  const arr: unknown[] = Array.isArray(raw)
+    ? raw
+    : (raw && typeof raw === "object" && "cases" in raw && Array.isArray((raw as { cases: unknown }).cases))
+      ? (raw as { cases: unknown[] }).cases
+      : [];
+  // runEval yalnızca routing test formatını işler: expectedModel zorunlu.
+  // cve-content.json gibi AI kalite spec dosyaları (farklı schema) atlanır.
+  return arr.filter((c): c is GoldenCase =>
+    typeof c === "object" && c !== null && "expectedModel" in c
+  );
+});
 
 // ── Runner ────────────────────────────────────────────────────────────────────
 let passed = 0, failed = 0;

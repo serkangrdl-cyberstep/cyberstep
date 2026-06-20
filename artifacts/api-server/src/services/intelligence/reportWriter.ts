@@ -1,4 +1,4 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { db } from "@workspace/db";
 import { intelligenceReportsTable, reportSectorDetailsTable, marketConfigsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -6,19 +6,9 @@ import { logger } from "../../lib/logger";
 import type { MonthlyAggregation, SectorStats } from "./dataAggregator";
 import type { MarketConfig } from "@workspace/db";
 
-const MODEL = "claude-sonnet-4-6";
-
 async function callClaude(systemPrompt: string, userPrompt: string, maxTokens = 2000): Promise<string> {
   try {
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
-    const block = msg.content[0];
-    if (block?.type === "text") return block.text;
-    return "";
+    return await callModel({ task: "intel-report", system: systemPrompt, messages: [{ role: "user", content: userPrompt }], maxTokens });
   } catch (e) {
     logger.error({ err: e }, "Claude çağrısı başarısız");
     return "";

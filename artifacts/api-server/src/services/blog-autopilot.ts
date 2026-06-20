@@ -7,12 +7,15 @@
  */
 
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { getModel } from "@workspace/ai";
 import { db } from "@workspace/db";
 import { blogPostsTable, blogContentCalendarTable, siteSettingsTable, newsletterSubscribersTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
+
+const BLOG_MODEL = getModel("blog");
 
 interface CarouselSlide { slide: number; text: string; }
 interface VisualPrompts { blog: string; linkedin: string; instagram: string; x: string; }
@@ -395,14 +398,14 @@ KRİTİK JSON KURALLARI:
 }`;
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    model: BLOG_MODEL,
     max_tokens: 16000,
     messages: [{ role: "user", content: prompt }],
   });
 
   logAiCost({
     service: "blog_autopilot",
-    model: "claude-sonnet-4-6",
+    model: BLOG_MODEL,
     inputTokens: message.usage.input_tokens,
     outputTokens: message.usage.output_tokens,
     metadata: { title: topic.title },

@@ -110,6 +110,15 @@ function buildConfidenceDisclaimer(scan: {
   </div>`;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function buildHtmlEmail(params: {
   salutation: string;
   domain: string;
@@ -169,7 +178,7 @@ export function buildHtmlEmail(params: {
     <div style="padding:16px 20px">
       <div style="color:#7B8FAF;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px">Öne Çıkan Bulgu</div>
       <div style="color:#E8EDF5;font-size:14px;font-weight:600;margin-bottom:8px">${params.findingTitle}</div>
-      <div style="color:#A8B8D0;font-size:13px;line-height:1.65">${params.impactExplanation}</div>
+      <div style="color:#A8B8D0;font-size:13px;line-height:1.65">${escapeHtml(params.impactExplanation)}</div>
     </div>
   </div>
 

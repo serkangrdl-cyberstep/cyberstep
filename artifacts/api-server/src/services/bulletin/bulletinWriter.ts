@@ -1,4 +1,4 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { logger } from "../../lib/logger";
 import type { WeeklyData } from "./weeklyDataCollector";
 
@@ -8,14 +8,7 @@ Stil: Her bölüm maksimum 3-4 cümle. Veri varsa rakam kullan. Jargon yok. Acil
 
 async function callClaude(userPrompt: string, maxTokens = 200): Promise<string> {
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: maxTokens,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-    });
-    const block = msg.content[0];
-    return block?.type === "text" ? block.text.trim() : "";
+    return await callModel({ task: "bulletin", system: SYSTEM_PROMPT, messages: [{ role: "user", content: userPrompt }], maxTokens });
   } catch (err) {
     logger.warn({ err }, "Claude bulletin çağrısı başarısız");
     return "";

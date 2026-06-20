@@ -1,9 +1,8 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
-const MODEL = "claude-sonnet-4-6";
 const BATCH_SIZE = 15;
 const CVE_RE = /CVE-\d{4}-\d{4,7}/gi;
 
@@ -57,13 +56,7 @@ Her haber için:
 Yanıt formatı: [{"id":X,"summary":"...","cve_ids":[],"category":"...","relevance":N},...]`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 3000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
-    const rawText = msg.content[0]?.type === "text" ? msg.content[0].text.trim() : "[]";
+    const rawText = await callModel({ task: "news-enrich", system: systemPrompt, messages: [{ role: "user", content: userPrompt }], maxTokens: 3000 });
     const jsonMatch = rawText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       logger.warn({ rawText: rawText.slice(0, 200) }, "newsEnricher: Claude JSON parse edilemedi");

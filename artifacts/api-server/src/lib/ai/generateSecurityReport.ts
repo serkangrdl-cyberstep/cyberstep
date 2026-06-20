@@ -1,4 +1,4 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { callModel } from "@workspace/ai";
 import { buildSecurityContext } from "./buildSecurityContext";
 import { logger } from "../logger";
 
@@ -124,15 +124,12 @@ Uzun vadeli: maksimum 4 madde.
 Maliyet tahmini: her kritik aksiyon için en az bir tahmini maliyet.
 Tüm Türkçe yaz.`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 3000,
+  const text = await callModel({
+    task: "security-report",
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
+    maxTokens: 3000,
   });
-
-  const usage = response.usage;
-  const text = response.content[0]?.type === "text" ? response.content[0].text : "";
 
   const clean = text.replace(/```json|```/g, "").trim();
 
@@ -156,7 +153,5 @@ Tüm Türkçe yaz.`;
       percentile: 50,
       common_gaps: [],
     },
-    inputTokens: usage?.input_tokens,
-    outputTokens: usage?.output_tokens,
   };
 }

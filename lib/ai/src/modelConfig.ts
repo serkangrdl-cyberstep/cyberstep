@@ -32,6 +32,7 @@ export type ModelTask =
   | "index-report"
   | "demo-report"
   | "ai-tools-report"
+  | "ciso-weekly-digest"
   | "noc-triage"
   | "noc-deep";
 
@@ -66,6 +67,7 @@ export const MODEL_CONFIG: Record<ModelTask, ModelEntry> = {
   "index-report":      { model: "claude-sonnet-4-6" },
   "demo-report":       { model: "claude-sonnet-4-6" },
   "ai-tools-report":   { model: "claude-haiku-4-5" },
+  "ciso-weekly-digest": { model: "claude-haiku-4-5" },
   "noc-triage":        { model: "claude-haiku-4-5" },
   "noc-deep":          { model: "claude-sonnet-4-6" },
 };

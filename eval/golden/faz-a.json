@@ -1,0 +1,47 @@
+[
+  {
+    "id": "a-digest-model",
+    "task": "digest",
+    "description": "digest görevi doğru modeli seçmeli",
+    "expectedModel": "claude-sonnet-4-6",
+    "hasCacheControl": true,
+    "testSystem": "Sen bir Türk siber güvenlik uzmanısın.",
+    "testUser": "Bu hafta en kritik 3 olayı özetle."
+  },
+  {
+    "id": "a-board-report-model",
+    "task": "board-report",
+    "description": "board-report görevi doğru modeli seçmeli",
+    "expectedModel": "claude-sonnet-4-6",
+    "hasCacheControl": true,
+    "testSystem": "Sen kurumsal bir siber güvenlik danışmanısın. Yalnızca JSON dön.",
+    "testUser": "{\"company\":\"TestCo\",\"score\":68}"
+  },
+  {
+    "id": "a-lead-teaser-model",
+    "task": "lead-teaser",
+    "description": "lead-teaser doğru modeli, cache_control YOK olarak seçmeli",
+    "expectedModel": "claude-haiku-4-5-20251001",
+    "hasCacheControl": false,
+    "testSystem": null,
+    "testUser": "Domain: acme.com.tr. Bulgu: SSL sertifikası süresi dolmuş."
+  },
+  {
+    "id": "a-cve-content-model",
+    "task": "cve-content",
+    "description": "cve-content doğru modeli seçmeli",
+    "expectedModel": "claude-sonnet-4-6",
+    "hasCacheControl": true,
+    "testSystem": "Sen CyberStep.io'nun baş güvenlik analistisin.",
+    "testUser": "CVE-2026-12345 CVSS 9.8 hakkında Türkçe özet yaz."
+  },
+  {
+    "id": "a-ai-client-claude-model",
+    "task": "ai-client-claude",
+    "description": "ai-client-claude hub görevi doğru varsayılan modeli döndürmeli",
+    "expectedModel": "claude-sonnet-4-6",
+    "hasCacheControl": false,
+    "testSystem": null,
+    "testUser": "Test."
+  }
+]

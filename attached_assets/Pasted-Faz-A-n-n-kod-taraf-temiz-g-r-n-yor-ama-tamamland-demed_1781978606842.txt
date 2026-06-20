@@ -1,0 +1,11 @@
+Faz A'nın kod tarafı temiz görünüyor ama "tamamlandı" demeden önce iki şey eksik — ve bunlardan biri senin kendi Faz A/B kuralını ihlal ediyor. Faz B'ye geçmeden önce şunları düzelt:
+1. Smoke testler hiç çalıştırılmadı / sonuç raporlanmadı
+Faz A planında smoke-A1 (digest), smoke-A2 (board-report), smoke-A3 (lead-teaser) için tam input/expect/check tanımladık. Raporda sadece typecheck sonucu var — typecheck kodun derlendiğini gösterir, çalışma zamanı davranışının doğru olduğunu göstermez (cache_control'un gerçekten gönderilen request'te yer alıp almadığı, JSON şeklinin beklendiği gibi çıkıp çıkmadığı gibi). Üç smoke testi şimdi çalıştır, ham sonuçlarını (gerçek response body, gerçek HTTP status, gerçek boyut) raporla.
+2. Eval altyapısı (golden set + runEval.ts + CI workflow) raporda hiç yok — var mı, yok mu?
+Kendi belirlediğin kural şuydu: "Eval geçmeden Faz B başlamaz." Ama bu raporda eval/golden/*.json, eval/runEval.ts, eval/package.json, .github/workflows/ci.yml dosyalarından hiç bahsedilmiyor — ne oluşturulduklarına dair bir satır, ne de eval'in çalıştırılıp geçtiğine dair bir sonuç var. Net olarak söyle:
+Bu dosyalar mevcut mu, daha önceki bir session'da mı oluşturuldu?
+Değilse, Faz A bu haliyle kendi tanımladığın "eval geçmeden Faz B yok" kuralını karşılamıyor demektir — Faz B'ye geçmeden önce bunları oluştur ve çalıştır.
+Ayrıca altyapı listende root package.json'a "eval": "ts-node eval/runEval.ts" scripti ekleneceği daha önce planlanmıştı, bu raporda da yok — eval dosyaları yoksa zaten bu da anlamsız, birlikte halledilsin.
+3. ai-client.ts için cache_control durumu net değil
+Tablo'da ai-client.ts satırında cache_control sütunu "—" — ama bu dosya hub, kvkkAssessor.ts, annualReportScheduler.ts, intelFeedWatcher.ts gibi getClaudeAiFn kullanan dosyalar buradan geçiyor. Bu çağrılardan herhangi birinde system prompt var mı? Varsa hub seviyesinde cache_control uygulanıyor mu, yoksa her caller kendi mi hallediyor? Bunu net olarak açıkla.
+Aksiyon: Faz B'ye geçme. Önce: (1) üç smoke testin gerçek sonuçlarını çalıştırıp raporla, (2) eval/CI dosyalarının mevcut durumunu netleştir — yoksa oluştur ve çalıştır, (3) ai-client.ts'in cache_control kapsamını açıkla. Üçü de tamamlanınca tekrar onay iste.

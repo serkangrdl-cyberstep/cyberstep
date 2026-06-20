@@ -389,6 +389,33 @@ router.post("/admin-panel/lead-discovery/reset-stale-qualified", requireAdmin, a
   res.json({ reset: resetCount, message: `${resetCount} lead sıfırlandı — şimdi Kalifikasyonu Çalıştır butonuyla batch batch işleyin.` });
 });
 
+// ─── POST /api/admin-panel/lead-discovery/requalify-all-scanned ──────────────
+// Hem qualified hem de non-qualified tüm "scanned" leadleri pending+tier2'ye döndürür.
+// Yeni kalifikasyon mantığı (WAF skoru, DKIM güncellemesi vb.) tüm mevcut adaylara uygulanır.
+router.post("/admin-panel/lead-discovery/requalify-all-scanned", requireAdmin, async (req: Request, res: Response) => {
+  const result = await db.execute(sql`
+    UPDATE lead_candidates
+    SET
+      scan_status       = 'pending',
+      tier              = 'tier2',
+      is_qualified      = false,
+      scan_id           = NULL,
+      risk_score        = NULL,
+      critical_findings = 0,
+      finding_highlights = NULL,
+      last_scanned_at   = NULL,
+      updated_at        = NOW()
+    WHERE scan_status = 'scanned'
+  `);
+
+  const resetCount = result.rowCount ?? 0;
+  req.log.info({ resetCount }, "Tüm scanned leadler yeniden kalifikasyona sokuldu");
+  res.json({
+    reset: resetCount,
+    message: `${resetCount} lead sıfırlandı — admin panelinden "Kalifikasyonu Çalıştır" (limit: 50-100) ile batch batch işleyin.`,
+  });
+});
+
 // ─── GET /api/admin-panel/lead-discovery/qualified ───────────────────────────
 router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Request, res: Response) => {
   const minScore    = parseInt(req.query["minScore"] as string ?? "0");

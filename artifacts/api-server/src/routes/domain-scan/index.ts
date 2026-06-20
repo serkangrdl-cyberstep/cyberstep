@@ -765,15 +765,39 @@ export async function checkShodan(domain: string): Promise<{
           res.on("end", () => {
             try {
               if (res.statusCode !== 200) { resolve(empty()); return; }
-              type ShodanHost = { data?: Array<{ port: number; transport?: string; product?: string; version?: string; _shodan?: { module: string } }>; vulns?: Record<string, unknown>; country_code?: string; org?: string; };
+              type ShodanHost = {
+                data?: Array<{
+                  port: number;
+                  transport?: string;
+                  product?: string;
+                  version?: string;
+                  info?: string;
+                  banner?: string;
+                  http?: { title?: string; server?: string };
+                  _shodan?: { module: string };
+                }>;
+                vulns?: Record<string, unknown>;
+                country_code?: string;
+                org?: string;
+              };
               const json = JSON.parse(data) as ShodanHost;
               const isp = json.org ?? null;
               const cdn = detectCdn(isp);
-              const openPorts = (json.data ?? []).slice(0, 20).map((d) =>
-                classifyPort(
-                  { port: d.port, protocol: d.transport ?? "tcp", service: d._shodan?.module ?? "", product: d.product ?? "", version: d.version ?? "" },
+              const openPorts = (json.data ?? []).slice(0, 20).map((d) => {
+                // Firmware version: önce d.version, sonra d.info, sonra d.banner'den regex ile çek
+                let resolvedVersion = d.version ?? "";
+                if (!resolvedVersion) {
+                  const infoSrc = [d.info ?? "", d.banner ?? "", d.http?.title ?? "", d.http?.server ?? ""].join(" ");
+                  const vMatch = infoSrc.match(/(?:v|version[\s:]+)([\d]+\.[\d]+\.[\d]+(?:[\.\-]build[\d]+)?)/i)
+                    ?? infoSrc.match(/FortiOS[\s:v]*([\d]+\.[\d]+\.[\d]+)/i)
+                    ?? infoSrc.match(/\b(\d+\.\d+\.\d+(?:,build\d+)?)\b/);
+                  if (vMatch?.[1]) resolvedVersion = vMatch[1];
+                }
+                return classifyPort(
+                  { port: d.port, protocol: d.transport ?? "tcp", service: d._shodan?.module ?? "", product: d.product ?? "", version: resolvedVersion },
                   cdn,
-                )
+                );
+              }
               ).sort((a, b) => {
                 const order: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1, none: 0 };
                 return (order[b.riskLevel] ?? 0) - (order[a.riskLevel] ?? 0);

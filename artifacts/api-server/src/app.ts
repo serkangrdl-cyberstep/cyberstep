@@ -341,6 +341,63 @@ export const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 
+// ─── Dev-only: AI cost logging smoke test ─────────────────────────────────────
+// POST /api/internal/ai-log-test — NOT available in production
+// Calls cve-content + kvkk-assess with synthetic data, returns ai_cost_log rows.
+if (process.env.NODE_ENV !== "production") {
+  app.post("/api/internal/ai-log-test", async (req: Request, res: Response) => {
+    try {
+      const { callModel } = await import("@workspace/ai");
+      const { assessKvkkCompliance } = await import("./services/kvkkAssessor");
+      const { pool } = await import("@workspace/db");
+
+      const before = Date.now();
+
+      await Promise.all([
+        // cve-content: minimal prompt, confirms callModel hook fires
+        callModel({
+          task: "cve-content",
+          messages: [{ role: "user", content: "CVE-2026-35273 için tek cümlelik Türkçe özet yaz." }],
+          maxTokens: 60,
+        }),
+        // kvkk-assess: real assessKvkkCompliance call with synthetic critical case
+        assessKvkkCompliance(
+          1,
+          {
+            caseId: 8,
+            caseNumber: "CS-SOC-TEST-001",
+            title: "Test: Kritik Fidye Yazılımı — KVKK log test",
+            description: "Dev-only AI cost log doğrulama testi. Üretim verisi değil.",
+            attackNarrative: null,
+            severity: "critical",
+            category: "ransomware",
+            affectedAssets: ["srv-dc01", "nas-backup"],
+          },
+          "finans",
+        ),
+      ]);
+
+      // Allow async DB write to settle
+      await new Promise(r => setTimeout(r, 800));
+
+      const result = await pool.query<{
+        id: number; task: string; model: string;
+        input_tokens: number; output_tokens: number; cost_usd: string; recorded_at: string;
+      }>(
+        `SELECT id, task, model, input_tokens, output_tokens, cost_usd::text, recorded_at
+         FROM ai_cost_log
+         WHERE task IN ('cve-content','kvkk-assess') AND recorded_at > to_timestamp($1 / 1000.0)
+         ORDER BY recorded_at DESC LIMIT 10`,
+        [before],
+      );
+
+      res.json({ ok: true, rows: result.rows });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+}
+
 // ─── Public SEO routes (no /api prefix — must be before API routes) ───────────
 app.use(seoRouter);
 

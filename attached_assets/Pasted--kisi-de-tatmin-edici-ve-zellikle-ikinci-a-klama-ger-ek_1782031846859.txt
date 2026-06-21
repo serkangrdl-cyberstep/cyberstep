@@ -1,0 +1,14 @@
+İkisi de tatmin edici, ve özellikle ikinci açıklama gerçekten iyi bir teknik netleştirme — önceki çelişki AiGenerateFn'in dışarıya sadece string döndürmesiyle, logAiCost'un closure içinde message.usage'a erişip string'e indirgenmeden ÖNCE çağrılması arasındaki farktan kaynaklanıyormuş. Bu mantıklı ve typecheck argümanı (Anthropic SDK'nın Message tipinde usage zorunlu alan, yoksa derleme kırılır) gerçek bir kanıt, sadece "çalışıyor olmalı" değil.
+Policy-gen tarafı da net: policy-generator.ts'in getClaudeAiFn()'i argümansız çağırması yüzünden "ai-client-claude" altında loglanması — bu aslında ayrı, küçük bir gözlem ortaya çıkarıyor ama şimdi onu açmıyorum, aşağıda not olarak bırakıyorum.
+Onay: cve-content + kvkk-assess testini birlikte başlat.
+Test sırasında şunları da raporla (yeni bir şey istemiyorum, sadece bu iki testin doğal çıktısı olarak gözlemle):
+Her ikisinin de panelde doğru task adıyla (cve-content, kvkk-assess) ve "Gerçek Token" rozetiyle göründüğünü ekran görüntüsü/ham veriyle doğrula.
+kvkk-assess testinde gerçek message.usage.input_tokens değerinin sıfır veya null gelmediğini özellikle kontrol et — bu, bu konuşmanın en hassas (hukuki risk taşıyan) task'ı, "loglandı görünüyor ama rakam 0" gibi sessiz bir hata burada özellikle pahalıya patlar.
+Küçük not, blocking değil: policy-generator.ts'in argümansız çağrısı yüzünden "ai-client-claude" genel kovasına düşmesi — bu, daha önce bahsettiğin "isimsiz → ai-client-claude" grubundaki diğer 9 dosyayla (assessment, deepfake, doc-scan, phishing-sim, red-team, fabric-correlation, annual-report, intel-feed, vb.) aynı kaderi paylaşıyor. Bunların hepsi teknik olarak artık loglanıyor (iyi), ama task-bazlı ayrımı yok — yani panel "ai-client-claude" diye tek bir şişko kategori gösterecek, hangi alt-görevin ne kadar harcadığını hâlâ ayıramayacağız. Bu, 28 task'lık asıl rollout'un parçası değildi ama aynı kökten geliyor — Faz D'nin sonraki bir turunda (şimdi değil) bu 9-10 dosyaya da task adı vermeyi backlog'a ekle.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001, T002, T003 — tamamlandı, doğrulandı
+Faz A, Faz B, C1, C2, C3 — TAMAMLANDI, doğrulandı
+Haiku fiyat düzeltmesi — TAMAMLANDI
+Faz D Öncelik 1 (noc-triage/noc-deep) + Adım 0 (panel ai_cost_log okuyor) — TAMAMLANDI
+callModel/getClaudeAiFn merkezi hook mimarisi — doğrulandı, policy-gen çelişkisi ve usage-objesi kanıtı netleşti
+Bu maddelerin hiçbirine yeniden dokunma. Şu anki odak: cve-content + kvkk-assess gerçek testini çalıştır, panelde task adı + "Gerçek Token" rozeti + sıfır olmayan input_tokens doğrulamasını raporla. "ai-client-claude" genel kovasındaki 9-10 dosyaya task adı verme işini backlog'a not düş, şimdi dokunma.

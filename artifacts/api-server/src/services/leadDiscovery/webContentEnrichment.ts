@@ -120,7 +120,12 @@ export async function checkLiveness(domain: string): Promise<LivenessResult> {
       const ms = Date.now() - start;
       return {
         httpStatus: res.status,
-        isAlive: res.status < 400,
+        // Any valid HTTP response (1xx–5xx) means the server is alive.
+        // Only a connection failure / timeout (httpStatus=0, caught below) = dead.
+        // 4xx responses (415 Unsupported Media Type, 403 Forbidden, 404, etc.) come
+        // from a live server — marking them isAlive=false was causing qualified T1
+        // leads to show "Erişilemiyor" in the admin panel.
+        isAlive: res.status >= 100,
         responseTimeMs: ms,
         finalUrl: res.url,
       };

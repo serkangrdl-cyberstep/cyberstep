@@ -279,8 +279,26 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
   // Tek bir adayı işler; döndürdüğü sayıları batch toplar
   async function processOne(candidate: (typeof pending)[number]): Promise<{ processed: number; qualified: number }> {
     try {
+      // ── Liveness gate: tier2'ye doğrudan eklenen domain'ler preScreen'den geçmez.
+      // Gerçek timeout/bağlantı hatası (httpStatus=0) → kalifikasyona sokmadan fail et.
+      // 4xx yanıtları (415, 403, 404…) sunucunun canlı olduğunu gösterir — geçer.
+      const liveness = await withTimeout(checkLiveness(candidate.domain), 12_000, { httpStatus: 0, isAlive: false, responseTimeMs: 0 });
+      if (!liveness.isAlive && liveness.httpStatus === 0) {
+        logger.info({ domain: candidate.domain }, "Kalifikasyon: domain gerçekten erişilemiyor (http_status=0), eleniyor");
+        await db.update(leadCandidatesTable).set({
+          scanStatus: "failed",
+          isAlive: false,
+          httpStatus: 0,
+          updatedAt: new Date(),
+        }).where(eq(leadCandidatesTable.id, candidate.id));
+        return { processed: 1, qualified: 0 };
+      }
+
       await db.update(leadCandidatesTable).set({
         scanStatus: "scanning",
+        isAlive: liveness.isAlive,
+        httpStatus: liveness.httpStatus,
+        responseTimeMs: liveness.responseTimeMs,
         updatedAt: new Date(),
       }).where(eq(leadCandidatesTable.id, candidate.id));
 

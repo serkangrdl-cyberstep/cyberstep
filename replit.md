@@ -68,7 +68,7 @@ KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. Şirketler ücr
 - Nitelendirme A-fix (isQualifying deadlock + 15 dk timeout, discoveryPipeline.ts)
 - Nitelendirme B-fix (lead-teaser maliyet log — setAiCostLogger hook, kanıt: ai_cost_log id=55)
 - Nitelendirme C-fix (scanning stuck cleanup — index.ts:3272, startup-only)
-- Nitelendirme D-fix: production DB sorgusu bekliyor, başka işlem yok
+- Nitelendirme D-fix: KAPALI — production lead_scan_queue 0 satır, retry mekanizması yok; gözlemlenen "tekrar başlatma" isQualifying deadlock'un restart'ta açılmasından kaynaklanıyordu (A-fix kapattı)
 
 ## Gotchas
 

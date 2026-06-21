@@ -59,6 +59,17 @@ KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. Şirketler ücr
 - No emojis in UI
 - App name: CyberStep.io
 
+## Completed — do not re-implement, do not re-check, do not touch
+
+- T001 (CVE landing widget), T002 (ASN orphaned assets), T003 (typecheck cleanup)
+- Faz A/B/C (model router merkezi hook mimarisi)
+- Haiku fiyat düzeltmesi
+- Faz D Öncelik 1 Adım 0 (merkezi hook), cve-content + kvkk-assess doğrulaması
+- Nitelendirme A-fix (isQualifying deadlock + 15 dk timeout, discoveryPipeline.ts)
+- Nitelendirme B-fix (lead-teaser maliyet log — setAiCostLogger hook, kanıt: ai_cost_log id=55)
+- Nitelendirme C-fix (scanning stuck cleanup — index.ts:3272, startup-only)
+- Nitelendirme D-fix: production DB sorgusu bekliyor, başka işlem yok
+
 ## Gotchas
 
 - After schema changes, run `pnpm run typecheck:libs` to rebuild the lib/db composite package before running API server typecheck

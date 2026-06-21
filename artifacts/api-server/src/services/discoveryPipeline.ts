@@ -247,11 +247,21 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
 
 // ─── FAZ 2: Derin kalifikasyon (Tier 2 → Tier 1 / reject) ───────────────────
 
+// Aynı anda yalnızca bir kalifikasyon run'ı çalışsın.
+// Cron her 15 dk'da tetiklenir ama her run ~20-50 dk sürebilir;
+// üst üste gelen run'lar DB bağlantı havuzunu tüketiyor.
+let isQualifying = false;
+
 /**
  * Tam OSINT zinciri — yalnızca Tier2 domainlere uygulanır.
  * Geçen domainler Tier1'e terfi eder; geçemeyenler Tier2'de kalır (scanned+rejected).
  */
 export async function qualifyPendingCandidates(limit: number = 200): Promise<{ processed: number; qualified: number }> {
+  if (isQualifying) {
+    logger.warn("Kalifikasyon zaten çalışıyor, bu tetikleyici atlanıyor");
+    return { processed: 0, qualified: 0 };
+  }
+  isQualifying = true;
   const pending = await db.select().from(leadCandidatesTable)
     .where(and(
       eq(leadCandidatesTable.scanStatus, "pending"),
@@ -264,8 +274,10 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
     )
     .limit(limit);
 
-  // Concurrency: her batch'te kaç domain paralel taransın
-  const CONCURRENCY = 5;
+  // Concurrency: her batch'te kaç domain paralel taransın.
+  // 5→3: DB bağlantı havuzu baskısını azaltır (withTimeout'la terk edilen scan'ler
+  // arka planda bağlantı tüketmeye devam ettiğinden havuz şişiyor).
+  const CONCURRENCY = 3;
   logger.info({ count: pending.length, concurrency: CONCURRENCY }, "Derin kalifikasyon başlıyor (Tier2)");
 
   const MAX_RUNTIME_MS = 13 * 60 * 1000;
@@ -282,7 +294,8 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       // ── Liveness gate: tier2'ye doğrudan eklenen domain'ler preScreen'den geçmez.
       // Gerçek timeout/bağlantı hatası (httpStatus=0) → kalifikasyona sokmadan fail et.
       // 4xx yanıtları (415, 403, 404…) sunucunun canlı olduğunu gösterir — geçer.
-      const liveness = await withTimeout(checkLiveness(candidate.domain), 12_000, { httpStatus: 0, isAlive: false, responseTimeMs: 0 });
+      // 9s outer timeout: checkLiveness'ın ilk URL'si 8s'de iptal olur, 1s graceful süre.
+      const liveness = await withTimeout(checkLiveness(candidate.domain), 9_000, { httpStatus: 0, isAlive: false, responseTimeMs: 0 });
       if (!liveness.isAlive && liveness.httpStatus === 0) {
         logger.info({ domain: candidate.domain }, "Kalifikasyon: domain gerçekten erişilemiyor (http_status=0), eleniyor");
         await db.update(leadCandidatesTable).set({
@@ -528,30 +541,39 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       return { processed: 1, qualified: 1 };
     } catch (e) {
       logger.error({ domain: (candidate as { domain?: string }).domain, err: String(e) }, "Kalifikasyon hatası");
-      await db.update(leadCandidatesTable).set({
-        scanStatus: "failed",
-        updatedAt: new Date(),
-      }).where(eq(leadCandidatesTable.id, candidate.id));
+      // Catch içindeki DB update da başarısız olursa Promise.all'u çökertmemeli.
+      try {
+        await db.update(leadCandidatesTable).set({
+          scanStatus: "failed",
+          updatedAt: new Date(),
+        }).where(eq(leadCandidatesTable.id, candidate.id));
+      } catch (dbErr) {
+        logger.warn({ domain: (candidate as { domain?: string }).domain, err: String(dbErr) }, "Kalifikasyon: failed güncelleme de başarısız, domain pending'de kalıyor");
+      }
       return { processed: 1, qualified: 0 };
     }
   }
 
   // CONCURRENCY adet domain'i aynı anda işle
-  for (let i = 0; i < pending.length; i += CONCURRENCY) {
-    if (Date.now() - batchStart > MAX_RUNTIME_MS) {
-      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (17 dk) aşıldı, batch sonlandırılıyor");
-      break;
-    }
+  try {
+    for (let i = 0; i < pending.length; i += CONCURRENCY) {
+      if (Date.now() - batchStart > MAX_RUNTIME_MS) {
+        logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (13 dk) aşıldı, batch sonlandırılıyor");
+        break;
+      }
 
-    const chunk = pending.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(chunk.map((c) => processOne(c)));
-    for (const r of results) {
-      processedCount += r.processed;
-      qualifiedCount += r.qualified;
-    }
+      const chunk = pending.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(chunk.map((c) => processOne(c)));
+      for (const r of results) {
+        processedCount += r.processed;
+        qualifiedCount += r.qualified;
+      }
 
-    // Rate limiter'lara nezaket: batch'ler arasında kısa duraklama
-    if (i + CONCURRENCY < pending.length) await sleep(100);
+      // Rate limiter'lara nezaket: batch'ler arasında kısa duraklama
+      if (i + CONCURRENCY < pending.length) await sleep(100);
+    }
+  } finally {
+    isQualifying = false;
   }
 
   logger.info({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon batch tamamlandı");

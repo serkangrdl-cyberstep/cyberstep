@@ -251,17 +251,26 @@ export async function preScreenPendingCandidates(limit: number = 500): Promise<{
 // Cron her 15 dk'da tetiklenir ama her run ~20-50 dk sürebilir;
 // üst üste gelen run'lar DB bağlantı havuzunu tüketiyor.
 let isQualifying = false;
+let isQualifyingSetAt = 0;
 
 /**
  * Tam OSINT zinciri — yalnızca Tier2 domainlere uygulanır.
  * Geçen domainler Tier1'e terfi eder; geçemeyenler Tier2'de kalır (scanned+rejected).
  */
 export async function qualifyPendingCandidates(limit: number = 200): Promise<{ processed: number; qualified: number }> {
+  const LOCK_TIMEOUT_MS = 15 * 60 * 1000;
   if (isQualifying) {
-    logger.warn("Kalifikasyon zaten çalışıyor, bu tetikleyici atlanıyor");
-    return { processed: 0, qualified: 0 };
+    if (Date.now() - isQualifyingSetAt > LOCK_TIMEOUT_MS) {
+      logger.warn("isQualifying kilidi 15 dk timeout — zorla temizleniyor");
+      isQualifying = false;
+    } else {
+      logger.warn("Kalifikasyon zaten çalışıyor, bu tetikleyici atlanıyor");
+      return { processed: 0, qualified: 0 };
+    }
   }
   isQualifying = true;
+  isQualifyingSetAt = Date.now();
+  try {
   const pending = await db.select().from(leadCandidatesTable)
     .where(and(
       eq(leadCandidatesTable.scanStatus, "pending"),
@@ -555,29 +564,28 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
   }
 
   // CONCURRENCY adet domain'i aynı anda işle
-  try {
-    for (let i = 0; i < pending.length; i += CONCURRENCY) {
-      if (Date.now() - batchStart > MAX_RUNTIME_MS) {
-        logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (13 dk) aşıldı, batch sonlandırılıyor");
-        break;
-      }
-
-      const chunk = pending.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(chunk.map((c) => processOne(c)));
-      for (const r of results) {
-        processedCount += r.processed;
-        qualifiedCount += r.qualified;
-      }
-
-      // Rate limiter'lara nezaket: batch'ler arasında kısa duraklama
-      if (i + CONCURRENCY < pending.length) await sleep(100);
+  for (let i = 0; i < pending.length; i += CONCURRENCY) {
+    if (Date.now() - batchStart > MAX_RUNTIME_MS) {
+      logger.warn({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon: max süre (13 dk) aşıldı, batch sonlandırılıyor");
+      break;
     }
-  } finally {
-    isQualifying = false;
+
+    const chunk = pending.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(chunk.map((c) => processOne(c)));
+    for (const r of results) {
+      processedCount += r.processed;
+      qualifiedCount += r.qualified;
+    }
+
+    // Rate limiter'lara nezaket: batch'ler arasında kısa duraklama
+    if (i + CONCURRENCY < pending.length) await sleep(100);
   }
 
   logger.info({ processed: processedCount, qualified: qualifiedCount }, "Kalifikasyon batch tamamlandı");
   return { processed: processedCount, qualified: qualifiedCount };
+  } finally {
+    isQualifying = false;
+  }
 }
 
 export { getISOWeek };

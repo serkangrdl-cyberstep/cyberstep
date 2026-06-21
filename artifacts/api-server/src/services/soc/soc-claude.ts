@@ -14,7 +14,8 @@ import { getClaudeAiFn } from "../ai-client";
 import { getModel, type ModelTask } from "@workspace/ai";
 import { logger } from "../../lib/logger";
 import { socCacheGet, socCacheSet, socCacheKey } from "./soc-cache";
-import { estimateTokens, computeCost, logAIUsage } from "./soc-cost";
+import { estimateTokens, computeCost } from "./soc-cost";
+import { logAiCost } from "../aiCostTracker";
 
 export const SOC_MODEL_FAST = "noc-triage";   // task name → claude-haiku-4-5
 export const SOC_MODEL_DEEP = "noc-deep";      // task name → claude-sonnet-4-6
@@ -58,9 +59,10 @@ export async function callClaudeWithCost(
     if (hit !== null) {
       const resolvedModel = getModel(model as ModelTask);
       const info: CostInfo = { model: resolvedModel, inputTokens: 0, outputTokens: 0, costUsd: 0, cached: true };
-      await logAIUsage({
-        customerId: opts.customerId, caseId: opts.caseId, model: resolvedModel,
-        useCase: opts.useCase ?? "triage", inputTokens: 0, outputTokens: 0, costUsd: 0, cached: true,
+      await logAiCost({
+        task: model, service: "soc", model: resolvedModel,
+        inputTokens: 0, outputTokens: 0, cacheType: "soc_memory",
+        customerId: opts.customerId ?? undefined,
       });
       return [hit, info];
     }
@@ -88,9 +90,10 @@ export async function callClaudeWithCost(
 
   if (useCache && text) socCacheSet(cacheKey, text, opts.cacheTtlSeconds);
 
-  await logAIUsage({
-    customerId: opts.customerId, caseId: opts.caseId, model: resolvedModel,
-    useCase: opts.useCase ?? "triage", inputTokens, outputTokens, costUsd, cached: false,
+  await logAiCost({
+    task: usedTask, service: "soc", model: resolvedModel,
+    inputTokens, outputTokens, cacheType: "none",
+    customerId: opts.customerId ?? undefined,
   });
 
   return [text, info];

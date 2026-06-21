@@ -20,10 +20,12 @@ export function calcCost(model: string, inputTokens: number, outputTokens: numbe
 }
 
 export async function logAiCost(params: {
+  task?: string;
   service: string;
   model: string;
   inputTokens: number;
   outputTokens: number;
+  cacheType?: "none" | "anthropic_prompt" | "soc_memory";
   customerId?: number;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
@@ -31,14 +33,16 @@ export async function logAiCost(params: {
   try {
     await pool.query(
       `INSERT INTO ai_cost_log
-         (service, model, input_tokens, output_tokens, cost_usd, customer_id, metadata, recorded_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+         (task, service, model, input_tokens, output_tokens, cost_usd, cache_type, customer_id, metadata, recorded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
       [
+        params.task ?? null,
         params.service,
         params.model,
         params.inputTokens,
         params.outputTokens,
         costUsd,
+        params.cacheType ?? "none",
         params.customerId ?? null,
         params.metadata ? JSON.stringify(params.metadata) : null,
       ],

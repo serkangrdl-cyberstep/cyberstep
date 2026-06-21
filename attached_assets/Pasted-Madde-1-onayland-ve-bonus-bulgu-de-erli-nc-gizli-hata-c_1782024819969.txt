@@ -1,0 +1,19 @@
+Madde 1 — onaylandı, ve bonus bulgu değerli. Üçüncü gizli hata (claude-haiku-4-5-20251001'in PRICING tablosunda hiç olmaması, sonnet fallback'le %275 fazla hesaplanması) tam da bu sürecin amacı — istemeden bulunan ama gerçek parayı etkileyen bir hata. Bunu ayrı satır olarak commit mesajına yaz.
+Ama (a) ve (b)'ye onay vermeden önce, listenin kendi içinde tutmayan bir aritmetiği var — ve bir isimlendirme belirsizliği:
+1. "32 task" başlığı, kendi düzelttiğin listeyle uyuşmuyor
+"Faz C aktif (13)" listesinde social-content'i yazıp hemen yanına "← hayır, o (b)'de" notu düşmüşsün — yani kendi kendine bunun yanlış kovada olduğunu fark etmişsin ama listeden çıkarıp toplamı yeniden hesaplamamışsın. Gerçek liste 12 öğe olmalı, 13 değil. Bunu düzeltirsem: 2 (blog/social, ai_cost_log) + 2 (noc-triage/deep, ai_usage_log) + 4 (Faz A) + 7 (Faz B) + 4 (stale) + 12 (Faz C aktif, düzeltilmiş) = 31, başlıktaki 32 değil.
+Bu konuşma boyunca defalarca gördüğümüz patern: yarım bırakılmış bir düzeltme notu, toplam sayıyı sessizce kaydırıyor. Düzeltilmiş, çelişkisiz, tek bir final liste istiyorum — ara not içermeyen.
+2. ai-tools-report ile ciso-weekly-digest aynı callsite mi?
+Faz C'nin başlarında src/index.ts:3189 için net cevap "task: ciso-weekly-digest" olarak verilmişti. Şimdiki listede hem ai-tools-report hem ciso-weekly-digest ayrı ayrı "Faz C aktif" kovasında duruyor. Bunlardan biri eski (terk edilmiş) bir isimlendirme kalıntısıysa, aynı callsite'ı iki kez sayıyoruz demektir — bu da 31'i daha da değiştirir. Net olarak söyle: bunlar iki ayrı dosya/callsite mi, yoksa aynı şeyin iki farklı turda verilmiş iki ismi mi?
+3. Seçenek C, görünürlüğü çözüyor ama doğruluğu çözmüyor — bunu plana açıkça yaz
+task ve cache_type kolonlarını eklemek, "hangi çağrı cache kullandı" sorusuna cevap verir — ama bir önceki turda kendin tespit etmiştin: cache_control'lü 14 çağrı için gerçek cache_read_input_tokens/cache_creation_input_tokens SDK'dan dönmediği için sistem hâlâ karakter/4 tahmini kullanıyor. cache_type = 'anthropic_prompt' etiketi eklesen bile, o satırın $ tutarı hâlâ yanlış olacak — sadece "bu cache'liydi" diye işaretlenmiş yanlış bir rakam. Bu iki ayrı problem: (görünürlük) ve (doğruluk). Faz D planına, schema değişikliğinin yanına, gerçek token sayısını API yanıtından yakalama işini de ayrı bir madde olarak ekle — yoksa panel "artık her şeyi görüyoruz" der ama cache'li satırlarda hâlâ yanlış rakam gösterir, bu da yarım bir çözümü tam çözüm gibi sunar.
+4. ai_usage_log'daki geçmiş veri ne olacak?
+SOC'u ai_cost_log'a taşırken, ai_usage_log'daki mevcut geçmiş kayıtlar (bu ayki $0.029'luk veri) kayboluyor mu, arşivleniyor mu, yoksa panel geçmiş için eski tabloyu, yeni veriler için yeni tabloyu mu okuyacak? Tek cümlelik plan yeterli.
+Onay: Sadece Öncelik 1'i (noc-triage/noc-deep, zaten loglanıyor, sadece tablo değişimi — en düşük risk) şimdi uygula. Geri kalan rollout sırası için onay vermeden önce: (1) düzeltilmiş, çelişkisiz 31-veya-gerçek-sayı listesini, (2) ai-tools-report/ciso-weekly-digest netliğini, (3) gerçek token yakalama işinin Faz D kapsamına eklendiğini, (4) geçmiş veri planını gör.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001 (Zero-Day CVE Hızlı Kontrol Widget) — implement edildi, doğrulandı
+T002 (Shadow IT / ASN Orphaned Asset Keşfi) — implement edildi, doğrulandı
+T003 (Cleanup + typecheck) — temiz, doğrulandı
+Faz A, Faz B, C1, C2, C3 — TAMAMLANDI. Model router migrasyonu (30 callsite), XSS fix'leri, stale pin'ler, eval/golden/ — hepsi doğrulandı, kapandı.
+Madde 1 (haiku fiyat düzeltmesi, 3 dosya) — TAMAMLANDI, doğrulandı.
+Bu maddelerin hiçbirine yeniden dokunma. Şu anki odak: Faz D — önce Öncelik 1'i (noc-triage/noc-deep tablo geçişi) uygula, sonra düzeltilmiş task listesi + ai-tools-report/ciso-weekly-digest netliği + gerçek token yakalama planı + geçmiş veri planını rapor et. Onay almadan geri kalan 27+ task'a dokunma.

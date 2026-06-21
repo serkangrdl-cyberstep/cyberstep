@@ -26,6 +26,8 @@ import { generateEcosystemReport } from "./services/ecosystemReportService";
 import { checkPhishingCertificates } from "./services/ctPhishingMonitor";
 import { cronStart, cronIsEnabled, cronGetLimit, wrapCron, getCronFn, cleanupStaleRunningJobs, cleanupStaleDiscoveryRuns } from "./services/cronRegistry";
 import { runCVEFeedCheck } from "./services/cve/cveOrchestrator";
+import { setAiCostLogger } from "@workspace/ai";
+import { logAiCost } from "./services/aiCostTracker";
 import { checkSubscriptionExpiryReminders } from "./services/subscription-renewal";
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
@@ -1839,6 +1841,9 @@ async function startup() {
   await ensureReferralCodeColumn();
   await ensureDomainScanPurchasesTable();
   await ensureAiCostLogTable();
+  setAiCostLogger(({ task, model, inputTokens, outputTokens, cacheType }) => {
+    logAiCost({ task, service: task, model, inputTokens, outputTokens, cacheType }).catch(() => {});
+  });
   await ensurePerformanceIndexes();
   await ensureDnsTables();
   await ensureCtTable();

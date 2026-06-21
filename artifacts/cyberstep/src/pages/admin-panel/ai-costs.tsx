@@ -1,9 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+interface TaskRow {
+  task: string;
+  total: number;
+  calls: number;
+  cached: number;
+  isEstimated: boolean;
+}
 
 interface AiCostData {
   month: { total: number; calls: number; cached: number; inputTokens: number; outputTokens: number };
+  byTask: TaskRow[];
   byModel: Array<{ model: string; total: number; calls: number }>;
   byCustomer: Array<{ customerId: number | null; total: number; calls: number }>;
   projectionUsd: number;
@@ -31,7 +41,7 @@ export default function AdminAiCosts() {
   );
 
   return (
-    <AdminLayout title="AI Maliyet Paneli" description="SOC triyaj ve analiz için tahmini yapay zeka kullanım maliyetleri (bu ay)">
+    <AdminLayout title="AI Maliyet Paneli" description="Tüm AI servislerinin merkezi maliyet takibi (bu ay)">
       <div className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {stat("Bu Ay Toplam", usd(data?.month?.total))}
@@ -41,6 +51,54 @@ export default function AdminAiCosts() {
           {stat("Token (G/Ç)", `${data?.month?.inputTokens ?? 0} / ${data?.month?.outputTokens ?? 0}`)}
         </div>
 
+        {/* By Task */}
+        <Card className="bg-slate-900 border-slate-800">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Göreve Göre</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {!data?.byTask?.length ? (
+              <p className="text-slate-400 text-sm py-8 text-center">Henüz kullanım yok.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-slate-500 text-xs border-b border-slate-800">
+                      <th className="text-left p-3">Görev</th>
+                      <th className="text-left p-3">Token Tipi</th>
+                      <th className="text-left p-3">Çağrı</th>
+                      <th className="text-left p-3">Önbellek</th>
+                      <th className="text-left p-3">Maliyet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.byTask.map((t) => (
+                      <tr key={t.task} className="border-b border-slate-800/60 text-slate-300">
+                        <td className="p-3 font-mono text-xs">{t.task}</td>
+                        <td className="p-3">
+                          {t.isEstimated ? (
+                            <Badge variant="outline" className="text-xs text-amber-400 border-amber-700">
+                              ~ Tahmini
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-700">
+                              Gercek Token
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-3">{t.calls}</td>
+                        <td className="p-3">{t.cached}</td>
+                        <td className="p-3">{usd(t.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* By Model */}
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader><CardTitle className="text-white text-lg">Modele Göre</CardTitle></CardHeader>
           <CardContent className="p-0">
@@ -67,6 +125,7 @@ export default function AdminAiCosts() {
           </CardContent>
         </Card>
 
+        {/* By Customer */}
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader><CardTitle className="text-white text-lg">Müşteriye Göre (İlk 25)</CardTitle></CardHeader>
           <CardContent className="p-0">
@@ -94,7 +153,8 @@ export default function AdminAiCosts() {
         </Card>
 
         <p className="text-xs text-slate-500">
-          Maliyetler, AI istemcisi token sayısı döndürmediğinden karakter→token sezgisel dönüşümüyle tahmin edilmektedir; gerçek faturalandırmadan sapabilir.
+          <span className="text-amber-400">~ Tahmini</span>: karakter÷4 sezgisel dönüşüm — gerçek faturalandırmadan sapabilir. &nbsp;
+          <span className="text-emerald-400">Gerçek Token</span>: Anthropic SDK doğrudan token sayısı.
         </p>
       </div>
     </AdminLayout>

@@ -7,7 +7,7 @@
 
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   socCasesTable,
   socPlaybooksTable,
@@ -358,42 +358,85 @@ router.post("/admin/soc/playbooks/:id/test", requireAdmin, async (req: Request, 
   }
 });
 
+// Tasks that use char/4 heuristic (NOT real SDK token counts)
+// • noc-triage / noc-deep  → estimateTokens() in soc-cost.ts
+// • gemini-*               → Replit proxy, no usage object returned
+const ESTIMATED_TASKS = new Set(["noc-triage", "noc-deep"]);
+
 // ─── AI costs ─────────────────────────────────────────────────────────────────
 
 router.get("/admin/soc/ai-costs", requireAdmin, async (_req: Request, res: Response) => {
   try {
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
-    const [totals] = await db.select({
-      total: sql<number>`coalesce(sum(${aiUsageLogTable.costUsd}), 0)`,
-      calls: sql<number>`count(*)`,
-      cached: sql<number>`coalesce(sum(case when ${aiUsageLogTable.cached} then 1 else 0 end), 0)`,
-      inputTokens: sql<number>`coalesce(sum(${aiUsageLogTable.inputTokens}), 0)`,
-      outputTokens: sql<number>`coalesce(sum(${aiUsageLogTable.outputTokens}), 0)`,
-    }).from(aiUsageLogTable).where(gte(aiUsageLogTable.createdAt, monthStart));
+    const [totalsRow, byModelRows, byCustomerRows, byTaskRows] = await Promise.all([
+      pool.query<{ total: string; calls: string; cached: string; input_tokens: string; output_tokens: string }>(
+        `SELECT
+           COALESCE(SUM(cost_usd), 0)            AS total,
+           COUNT(*)                               AS calls,
+           COALESCE(SUM(CASE WHEN cache_type = 'soc_memory' THEN 1 ELSE 0 END), 0) AS cached,
+           COALESCE(SUM(input_tokens), 0)         AS input_tokens,
+           COALESCE(SUM(output_tokens), 0)        AS output_tokens
+         FROM ai_cost_log WHERE recorded_at >= $1`,
+        [monthStart],
+      ),
+      pool.query<{ model: string; total: string; calls: string }>(
+        `SELECT model,
+                COALESCE(SUM(cost_usd), 0) AS total,
+                COUNT(*)                   AS calls
+         FROM ai_cost_log WHERE recorded_at >= $1
+         GROUP BY model ORDER BY SUM(cost_usd) DESC`,
+        [monthStart],
+      ),
+      pool.query<{ customer_id: number | null; total: string; calls: string }>(
+        `SELECT customer_id,
+                COALESCE(SUM(cost_usd), 0) AS total,
+                COUNT(*)                   AS calls
+         FROM ai_cost_log WHERE recorded_at >= $1
+         GROUP BY customer_id ORDER BY SUM(cost_usd) DESC LIMIT 25`,
+        [monthStart],
+      ),
+      pool.query<{ task: string; total: string; calls: string; cached: string }>(
+        `SELECT COALESCE(task, service)   AS task,
+                COALESCE(SUM(cost_usd), 0) AS total,
+                COUNT(*)                   AS calls,
+                COALESCE(SUM(CASE WHEN cache_type = 'soc_memory' THEN 1 ELSE 0 END), 0) AS cached
+         FROM ai_cost_log WHERE recorded_at >= $1
+         GROUP BY COALESCE(task, service) ORDER BY SUM(cost_usd) DESC`,
+        [monthStart],
+      ),
+    ]);
 
-    const byModel = await db.select({
-      model: aiUsageLogTable.model,
-      total: sql<number>`coalesce(sum(${aiUsageLogTable.costUsd}), 0)`,
-      calls: sql<number>`count(*)`,
-    }).from(aiUsageLogTable).where(gte(aiUsageLogTable.createdAt, monthStart)).groupBy(aiUsageLogTable.model);
-
-    const byCustomer = await db.select({
-      customerId: aiUsageLogTable.customerId,
-      total: sql<number>`coalesce(sum(${aiUsageLogTable.costUsd}), 0)`,
-      calls: sql<number>`count(*)`,
-    }).from(aiUsageLogTable).where(gte(aiUsageLogTable.createdAt, monthStart))
-      .groupBy(aiUsageLogTable.customerId)
-      .orderBy(desc(sql`sum(${aiUsageLogTable.costUsd})`))
-      .limit(25);
-
+    const t = totalsRow.rows[0];
+    const total = Number(t?.total ?? 0);
     const dayOfMonth = new Date().getDate();
-    const total = Number(totals?.total ?? 0);
     const projection = dayOfMonth > 0 ? (total / dayOfMonth) * 30 : total;
 
     res.json({
-      month: { ...totals, total },
-      byModel, byCustomer,
+      month: {
+        total,
+        calls:        Number(t?.calls ?? 0),
+        cached:       Number(t?.cached ?? 0),
+        inputTokens:  Number(t?.input_tokens ?? 0),
+        outputTokens: Number(t?.output_tokens ?? 0),
+      },
+      byTask: byTaskRows.rows.map((r) => ({
+        task:        r.task,
+        total:       Number(r.total),
+        calls:       Number(r.calls),
+        cached:      Number(r.cached),
+        isEstimated: ESTIMATED_TASKS.has(r.task) || r.task.startsWith("gemini-"),
+      })),
+      byModel: byModelRows.rows.map((r) => ({
+        model: r.model,
+        total: Number(r.total),
+        calls: Number(r.calls),
+      })),
+      byCustomer: byCustomerRows.rows.map((r) => ({
+        customerId: r.customer_id,
+        total:      Number(r.total),
+        calls:      Number(r.calls),
+      })),
       projectionUsd: Number(projection.toFixed(4)),
     });
   } catch (err) {

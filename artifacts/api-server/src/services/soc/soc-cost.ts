@@ -18,9 +18,10 @@ export interface ModelPricing {
 
 // USD per 1,000,000 tokens. Estimates — adjust if Anthropic pricing changes.
 export const MODEL_PRICING: Record<string, ModelPricing> = {
-  "claude-haiku-4-5": { inputPerMillion: 1.0, outputPerMillion: 5.0, tier: 1 },
-  "claude-sonnet-4-6": { inputPerMillion: 3.0, outputPerMillion: 15.0, tier: 2 },
-  "gemini-2.5-flash": { inputPerMillion: 0.3, outputPerMillion: 2.5, tier: 1 },
+  "claude-haiku-4-5":           { inputPerMillion: 0.8,  outputPerMillion: 4.0,  tier: 1 },
+  "claude-haiku-4-5-20251001":  { inputPerMillion: 0.8,  outputPerMillion: 4.0,  tier: 1 },
+  "claude-sonnet-4-6":          { inputPerMillion: 3.0,  outputPerMillion: 15.0, tier: 2 },
+  "gemini-2.5-flash":           { inputPerMillion: 0.3,  outputPerMillion: 2.5,  tier: 1 },
 };
 
 const FALLBACK_PRICING: ModelPricing = { inputPerMillion: 3.0, outputPerMillion: 15.0, tier: 2 };

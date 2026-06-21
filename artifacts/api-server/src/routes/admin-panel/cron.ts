@@ -157,7 +157,7 @@ export const ALL_NIGHT_JOBS = [
   { name: "search_dorking",           label: "Bing Search Dorking",                scheduleLabel: "Her gece 08:00",         scheduleExpr: "0 8 * * *",                              category: "lead-gen"     },
   { name: "company_registry",         label: "Şirket Kaydı Keşfi",                scheduleLabel: "Her Pazartesi 09:00",    scheduleExpr: "0 9 * * 1",                              category: "lead-gen"     },
   { name: "shodan",                   label: "Shodan Pasif Keşif",                 scheduleLabel: "Her gece 04:15",         scheduleExpr: "15 4 * * *",                             category: "lead-gen"     },
-  { name: "lead_qual",                label: "Lead Kalifikasyon",                  scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
+  { name: "lead_qual",                label: "Lead Kalifikasyon",                  scheduleLabel: "Her 5 dakika",           scheduleExpr: "*/5 * * * *",                            category: "lead-gen"     },
   { name: "scan_lead_drip",           label: "Tarama Lead Drip",                   scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
   { name: "free_scan_followup",       label: "Ücretsiz Tarama Takip",              scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
   { name: "email_sequence",           label: "Email Dizisi",                       scheduleLabel: "Her 30 dakika",          scheduleExpr: "*/30 * * * *",                           category: "lead-gen"     },

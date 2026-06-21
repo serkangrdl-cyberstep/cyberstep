@@ -275,9 +275,9 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
     .limit(limit);
 
   // Concurrency: her batch'te kaç domain paralel taransın.
-  // 5→3: DB bağlantı havuzu baskısını azaltır (withTimeout'la terk edilen scan'ler
-  // arka planda bağlantı tüketmeye devam ettiğinden havuz şişiyor).
-  const CONCURRENCY = 3;
+  // isRunning kilidi sayesinde üst üste run yoktur; pool max=25 ile concurrency=5
+  // güvenli (5 scan × ~3 DB yazımı = 15 connection, havuz limitinin altında).
+  const CONCURRENCY = 5;
   logger.info({ count: pending.length, concurrency: CONCURRENCY }, "Derin kalifikasyon başlıyor (Tier2)");
 
   const MAX_RUNTIME_MS = 13 * 60 * 1000;

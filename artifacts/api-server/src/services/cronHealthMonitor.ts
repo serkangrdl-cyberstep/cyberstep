@@ -29,7 +29,7 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "email_sequence",       intervalMinutes: 30,    label: "Email Sequence" },
   { name: "kvkk_deadline",        intervalMinutes: 30,    label: "KVKK 72h Deadline" },
   // Saatlik
-  { name: "lead_qual",            intervalMinutes: 20,    label: "Lead Kalifikasyon" },
+  { name: "lead_qual",            intervalMinutes: 6,     label: "Lead Kalifikasyon" },
   { name: "scan_lead_drip",       intervalMinutes: 60,    label: "Scan Lead Drip" },
   { name: "lead_tr_enrich",      intervalMinutes: 1440,  label: "Lead TR Enrich" },
   { name: "servicenow_health",    intervalMinutes: 60,    label: "ServiceNow Sağlık" },

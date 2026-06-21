@@ -2999,13 +2999,13 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Lead prescreen cron scheduled (her 5 dakika, limit 500)");
 
-    cron.schedule("*/15 * * * *", wrapCron("lead_qual", "*/15 * * * *", async () => {
+    cron.schedule("*/5 * * * *", wrapCron("lead_qual", "*/5 * * * *", async () => {
       if (!await cronIsEnabled("lead_qual")) { logger.info("Lead kalifikasyon cron devre dışı, atlanıyor"); return 0; }
-      const limit = await cronGetLimit("lead_qual", 200);
+      const limit = await cronGetLimit("lead_qual", 300);
       const result = await qualifyPendingCandidates(limit);
       return result.qualified;
     }), { timezone: "Europe/Istanbul" });
-    logger.info("Lead qualification cron scheduled (her 15 dakika, limit 200)");
+    logger.info("Lead qualification cron scheduled (her 5 dakika, limit 300)");
 
     // ─── WAF Post-Qualification Enrichment — Her 30 dakika ────────────────────
     // Kalifikasyondan geçmiş lead'ler için WAF tespiti. Limit 50/run × 30dk = ~9 saat

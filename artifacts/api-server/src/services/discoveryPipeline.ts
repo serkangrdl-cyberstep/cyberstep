@@ -50,6 +50,21 @@ function getISOWeek(date: Date): number {
   return Math.ceil((((d.valueOf() - yearStart.valueOf()) / 86400000) + 1) / 7);
 }
 
+function isConnErr(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return msg.includes("Connection terminated") || msg.includes("ECONNRESET") || msg.includes("connection timeout");
+}
+
+async function retryConnErr<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!isConnErr(e)) throw e;
+    await sleep(500);
+    return fn();
+  }
+}
+
 async function runDomainScanInternal(domain: string): Promise<{
   id: number;
   overallScore: number;
@@ -307,30 +322,30 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       const liveness = await withTimeout(checkLiveness(candidate.domain), 9_000, { httpStatus: 0, isAlive: false, responseTimeMs: 0 });
       if (!liveness.isAlive && liveness.httpStatus === 0) {
         logger.info({ domain: candidate.domain }, "Kalifikasyon: domain gerçekten erişilemiyor (http_status=0), eleniyor");
-        await db.update(leadCandidatesTable).set({
+        await retryConnErr(() => db.update(leadCandidatesTable).set({
           scanStatus: "failed",
           isAlive: false,
           httpStatus: 0,
           updatedAt: new Date(),
-        }).where(eq(leadCandidatesTable.id, candidate.id));
+        }).where(eq(leadCandidatesTable.id, candidate.id)));
         return { processed: 1, qualified: 0 };
       }
 
-      await db.update(leadCandidatesTable).set({
+      await retryConnErr(() => db.update(leadCandidatesTable).set({
         scanStatus: "scanning",
         isAlive: liveness.isAlive,
         httpStatus: liveness.httpStatus,
         responseTimeMs: liveness.responseTimeMs,
         updatedAt: new Date(),
-      }).where(eq(leadCandidatesTable.id, candidate.id));
+      }).where(eq(leadCandidatesTable.id, candidate.id)));
 
       const scanResult = await withTimeout(runDomainScanInternal(candidate.domain), SCAN_TIMEOUT_MS, null);
 
       if (!scanResult) {
-        await db.update(leadCandidatesTable).set({
+        await retryConnErr(() => db.update(leadCandidatesTable).set({
           scanStatus: "failed",
           updatedAt: new Date(),
-        }).where(eq(leadCandidatesTable.id, candidate.id));
+        }).where(eq(leadCandidatesTable.id, candidate.id)));
         return { processed: 1, qualified: 0 };
       }
 
@@ -341,7 +356,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       const existingSourceData = (candidate.sourceData as Record<string, unknown> | null) ?? {};
       const updatedSourceData = { ...existingSourceData, cveBreakdown };
 
-      await db.update(leadCandidatesTable).set({
+      await retryConnErr(() => db.update(leadCandidatesTable).set({
         scanStatus: "scanned",
         scanId: scanResult.id,
         riskScore: scanResult.overallScore,
@@ -353,7 +368,7 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
         scanDepth: "full",
         sourceData: updatedSourceData,
         updatedAt: new Date(),
-      }).where(eq(leadCandidatesTable.id, candidate.id));
+      }).where(eq(leadCandidatesTable.id, candidate.id)));
 
       // Shadow IT + Shodan ağ cihazı → customer_tech_stack aktarımı
       try {
@@ -552,10 +567,10 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       logger.error({ domain: (candidate as { domain?: string }).domain, err: String(e) }, "Kalifikasyon hatası");
       // Catch içindeki DB update da başarısız olursa Promise.all'u çökertmemeli.
       try {
-        await db.update(leadCandidatesTable).set({
+        await retryConnErr(() => db.update(leadCandidatesTable).set({
           scanStatus: "failed",
           updatedAt: new Date(),
-        }).where(eq(leadCandidatesTable.id, candidate.id));
+        }).where(eq(leadCandidatesTable.id, candidate.id)));
       } catch (dbErr) {
         logger.warn({ domain: (candidate as { domain?: string }).domain, err: String(dbErr) }, "Kalifikasyon: failed güncelleme de başarısız, domain pending'de kalıyor");
       }

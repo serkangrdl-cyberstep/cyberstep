@@ -12,6 +12,21 @@ import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
 import { checkAndConsumeQuota } from "../../services/apiQuotaTracker";
 
+function isConnErr(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return msg.includes("Connection terminated") || msg.includes("ECONNRESET") || msg.includes("connection timeout");
+}
+
+async function retryConnErr<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!isConnErr(e)) throw e;
+    await new Promise<void>((r) => setTimeout(r, 500));
+    return fn();
+  }
+}
+
 const router = Router();
 
 // ─── Rate limiters ────────────────────────────────────────────────────────────
@@ -1385,7 +1400,28 @@ export async function performDomainScan(domain: string): Promise<{
       ? await checkNvdCve(shadowIt.services).catch(() => [])
       : [];
 
-    const [scan] = await db
+    // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
+    const wafFields = await (async () => {
+      try {
+        const { detectWAF } = await import("../../services/wafDetector");
+        const empty = { detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[] };
+        const wafRes = await Promise.race([
+          detectWAF(domain),
+          new Promise<typeof empty>(resolve => setTimeout(() => resolve(empty), 10_000)),
+        ]).catch(() => empty);
+        return {
+          wafDetected: wafRes.detected,
+          wafProvider: wafRes.provider,
+          wafConfidence: wafRes.confidence ?? 0,
+          wafHeadersAdded: wafRes.headersAddedByWAF,
+          wafBypassPossible: false,
+        };
+      } catch {
+        return { wafDetected: false, wafProvider: null, wafConfidence: 0, wafHeadersAdded: [] as string[], wafBypassPossible: false };
+      }
+    })();
+
+    const [scan] = await retryConnErr(() => db
       .insert(domainScansTable)
       .values({
         domain,
@@ -1416,30 +1452,11 @@ export async function performDomainScan(domain: string): Promise<{
         badgeToken: randomUUID(),
         referralSource: "discovery_pipeline",
         kepConfigured: false, kepRelays: [], kepSecure: false,
-        // WAF detection: discovery pipeline'da da gerçek WAF kontrolü yapılır
-        ...(await (async () => {
-          try {
-            const { detectWAF } = await import("../../services/wafDetector");
-            const empty = { detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[] };
-            const wafRes = await Promise.race([
-              detectWAF(domain),
-              new Promise<typeof empty>(resolve => setTimeout(() => resolve(empty), 10_000)),
-            ]).catch(() => empty);
-            return {
-              wafDetected: wafRes.detected,
-              wafProvider: wafRes.provider,
-              wafConfidence: wafRes.confidence ?? 0,
-              wafHeadersAdded: wafRes.headersAddedByWAF,
-              wafBypassPossible: false,
-            };
-          } catch {
-            return { wafDetected: false, wafProvider: null, wafConfidence: 0, wafHeadersAdded: [] as string[], wafBypassPossible: false };
-          }
-        })()),
+        ...wafFields,
         originIp: null, originIpSource: null,
         letterGrade: calculateLetterGrade(scoreResult.total),
       })
-      .returning();
+      .returning());
 
     if (!scan) return null;
 

@@ -479,6 +479,7 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   const hasContact   = req.query["hasContact"] === "true";
   const notSent      = req.query["notSent"]    === "true";
   const municipality = req.query["municipality"] as string | undefined; // "only" | "exclude" | undefined
+  const search       = (req.query["search"] as string ?? "").trim();
   const page         = parseInt(req.query["page"] as string ?? "1");
   const pageSize     = parseInt(req.query["pageSize"] as string ?? "50");
 
@@ -487,6 +488,7 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   if (tier) conditions.push(eq(leadCandidatesTable.tier, tier));
   if (hasContact) conditions.push(isNotNull(leadCandidatesTable.contactEmail));
   if (notSent)    conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+  if (search)     conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
   if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
   if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
 

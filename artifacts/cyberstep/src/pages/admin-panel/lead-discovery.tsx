@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X } from "lucide-react";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -919,9 +919,16 @@ export default function AdminLeadDiscovery() {
   // ─── CVE Raporu tab ───────────────────────────────────────────────────────
   const [cveMinCvss, setCveMinCvss] = useState("7.0");
 
+  // ─── Sonuçlar tab arama ───────────────────────────────────────────────────
+  const [resultsSearchInput, setResultsSearchInput] = useState("");
+  const [resultsSearch, setResultsSearch] = useState("");
+
   // ── Lead Import Merkezi ────────────────────────────────────────────────────
   const [importTab, setImportTab] = useState("excel");
   const [manualInput, setManualInput] = useState("");
+  const [manualLookupInput, setManualLookupInput] = useState("");
+  const [manualLookupResult, setManualLookupResult] = useState<{ rows: LeadCandidate[]; total: number } | null>(null);
+  const [manualLookupLoading, setManualLookupLoading] = useState(false);
   const [singleDomain, setSingleDomain] = useState("");
   const [excelParsed, setExcelParsed] = useState<{ domain: string }[]>([]);
   const [excelFileName, setExcelFileName] = useState("");
@@ -1010,12 +1017,13 @@ export default function AdminLeadDiscovery() {
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality],
+    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filterHasContact) params.set("hasContact", "true");
       if (filterNotSent) params.set("notSent", "true");
       if (filterMunicipality) params.set("municipality", filterMunicipality);
+      if (resultsSearch) params.set("search", resultsSearch);
       if (filterQualified) {
         return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
       }
@@ -1817,6 +1825,68 @@ export default function AdminLeadDiscovery() {
                   {/* ── Manuel Giriş ───────────────────────────────────────── */}
                   <TabsContent value="manual" className="mt-0">
                     <div className="space-y-4">
+
+                      {/* Domain Arama */}
+                      <div>
+                        <div className="text-xs font-medium mb-1.5 text-muted-foreground uppercase tracking-wide">Domain Ara</div>
+                        <form
+                          className="flex gap-2"
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const q = manualLookupInput.trim();
+                            if (!q) return;
+                            setManualLookupLoading(true);
+                            setManualLookupResult(null);
+                            try {
+                              const params = new URLSearchParams({ search: q, pageSize: "5" });
+                              const r = await fetch(`${BASE}/lead-discovery/candidates?${params}`, { credentials: "include" });
+                              const data = await r.json() as { rows: LeadCandidate[]; total: number };
+                              setManualLookupResult(data);
+                            } finally {
+                              setManualLookupLoading(false);
+                            }
+                          }}
+                        >
+                          <div className="relative flex-1">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <Input
+                              placeholder="örn: sirket.com.tr"
+                              value={manualLookupInput}
+                              onChange={(e) => { setManualLookupInput(e.target.value); if (!e.target.value.trim()) setManualLookupResult(null); }}
+                              className="h-8 pl-7 text-sm"
+                            />
+                          </div>
+                          <Button type="submit" size="sm" className="h-8 shrink-0" disabled={manualLookupLoading || !manualLookupInput.trim()}>
+                            {manualLookupLoading ? "..." : "Ara"}
+                          </Button>
+                        </form>
+                        {manualLookupResult !== null && (
+                          <div className="mt-2 rounded border border-slate-700 divide-y divide-slate-800 text-xs overflow-hidden">
+                            {manualLookupResult.rows.length === 0 ? (
+                              <div className="px-3 py-2 text-muted-foreground">Sonuç bulunamadı.</div>
+                            ) : (
+                              <>
+                                {manualLookupResult.rows.map((c) => (
+                                  <div key={c.id} className="flex items-center gap-3 px-3 py-1.5 bg-slate-900/60">
+                                    <span className="font-mono text-slate-200 flex-1 truncate">{c.domain}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${c.tier === "tier1" ? "bg-green-900/40 text-green-400 border-green-700" : c.tier === "tier2" ? "bg-blue-900/40 text-blue-400 border-blue-700" : "bg-orange-900/40 text-orange-400 border-orange-700"}`}>
+                                      {c.tier === "tier1" ? "T1" : c.tier === "tier2" ? "T2" : c.tier === "tier3" ? "T3" : "—"}
+                                    </span>
+                                    {c.riskScore !== null && (
+                                      <span className="text-slate-400">Risk: <strong className="text-slate-200">{c.riskScore}</strong></span>
+                                    )}
+                                    <span className="text-slate-500 shrink-0">{c.scanStatus}</span>
+                                  </div>
+                                ))}
+                                {manualLookupResult.total > 5 && (
+                                  <div className="px-3 py-1.5 text-slate-500 bg-slate-900/40">+{manualLookupResult.total - 5} daha — Sonuçlar tabında aratın.</div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       {/* Tek domain hızlı ekle */}
                       <div>
                         <div className="text-xs font-medium mb-1.5 text-muted-foreground uppercase tracking-wide">Tek Domain Ekle</div>
@@ -2306,6 +2376,34 @@ export default function AdminLeadDiscovery() {
                   <CardTitle>Lead Adaylari</CardTitle>
                   <CardDescription>Toplam {candidatesData?.total ?? 0} kayit</CardDescription>
                 </div>
+                {/* Domain arama */}
+                <form
+                  className="flex items-center gap-1.5"
+                  onSubmit={(e) => { e.preventDefault(); setResultsSearch(resultsSearchInput.trim()); setPage(1); }}
+                >
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="domain ara..."
+                      value={resultsSearchInput}
+                      onChange={(e) => {
+                        setResultsSearchInput(e.target.value);
+                        if (!e.target.value.trim()) { setResultsSearch(""); setPage(1); }
+                      }}
+                      className="h-8 pl-7 pr-7 text-sm w-52"
+                    />
+                    {resultsSearchInput && (
+                      <button
+                        type="button"
+                        onClick={() => { setResultsSearchInput(""); setResultsSearch(""); setPage(1); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <Button type="submit" size="sm" className="h-8 px-3">Ara</Button>
+                </form>
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <Checkbox

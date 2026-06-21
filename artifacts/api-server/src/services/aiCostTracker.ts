@@ -30,25 +30,35 @@ export async function logAiCost(params: {
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   const costUsd = calcCost(params.model, params.inputTokens, params.outputTokens);
+  const values = [
+    params.task ?? null,
+    params.service,
+    params.model,
+    params.inputTokens,
+    params.outputTokens,
+    costUsd,
+    params.cacheType ?? "none",
+    params.customerId ?? null,
+    params.metadata ? JSON.stringify(params.metadata) : null,
+  ];
+  const sql = `INSERT INTO ai_cost_log
+     (task, service, model, input_tokens, output_tokens, cost_usd, cache_type, customer_id, metadata, recorded_at)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`;
   try {
-    await pool.query(
-      `INSERT INTO ai_cost_log
-         (task, service, model, input_tokens, output_tokens, cost_usd, cache_type, customer_id, metadata, recorded_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-      [
-        params.task ?? null,
-        params.service,
-        params.model,
-        params.inputTokens,
-        params.outputTokens,
-        costUsd,
-        params.cacheType ?? "none",
-        params.customerId ?? null,
-        params.metadata ? JSON.stringify(params.metadata) : null,
-      ],
-    );
-  } catch (err) {
-    logger.warn({ err, params }, "AI cost log: insert failed (non-critical)");
+    await pool.query(sql, values);
+  } catch (firstErr) {
+    const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+    const isConnErr = msg.includes("terminated") || msg.includes("Connection") || msg.includes("ECONNRESET");
+    if (isConnErr) {
+      await new Promise((r) => setTimeout(r, 500));
+      try {
+        await pool.query(sql, values);
+      } catch (retryErr) {
+        logger.warn({ err: retryErr, params }, "AI cost log: insert failed after retry");
+      }
+    } else {
+      logger.warn({ err: firstErr, params }, "AI cost log: insert failed (non-critical)");
+    }
   }
 }
 

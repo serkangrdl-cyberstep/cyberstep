@@ -1,0 +1,26 @@
+Replit'e gönderilecek mesaj:
+Paralel bir kontrol yapmamız gerekiyor. Web sitesindeki ücretsiz domain tarama (lead magnet) ve ücretli tam tarama akışlarında WAF/CDN tespitinin skorlamaya ve yorumlamaya doğru yansıyıp yansımadığını analiz et. Kod değiştirme — önce rapor.
+Bağlam: Ücretsiz taramada Gemini özet + FOMO skoru üretiyor, ücretlide Claude tam yorum yapıyor. İkisinde de WAF/CDN varlığı/yokluğu farklı puanlanmalı. Bu hafta manuel tarama sonuçlarında (Euronet — Cloudflare WAF tespit edildi, Netin — FortiGate tespit edildi, Netbudur — WAF yok) gerçek vakalar gördük. Şimdi sistemin bu farkı doğru işleyip işlemediğini görmek istiyoruz.
+Analiz edilecekler:
+1. WAF/CDN skoru — iki ayrı pipeline
+İki farklı WAF detection pipeline'ı olduğunu daha önce tespit etmiştik:
+customer_tech_stack tablosu (3.265+ domain, pasif fingerprint)
+domain_scans.waf_detected alanı (aktif probe, daha az domain)
+Bu iki veri kaynağı ücretsiz ve ücretli tarama akışlarında nasıl kullanılıyor? Skorlama hangi kaynağa bakıyor — birini mi, ikisini birden mi, yoksa ikisi arasında tutarsızlık var mı?
+2. WAF/CDN varlığına göre skor farkı
+Bir domain'de WAF tespit edildiğinde skor nasıl değişiyor — kaç puan bonus, kaç puan indirim, yoksa nötr mü geçiyor? Gemini akışında ve Claude akışında bu hesaplama aynı formülü mü kullanıyor?
+3. Gemini ücretsiz özet — WAF bilgisi doğru geçiyor mu?
+Gemini'ye gönderilen prompt'ta WAF/CDN bilgisi var mı? Varsa hangi formatta — "WAF tespit edildi: Cloudflare" mi, yoksa ham teknik veri mi? Yoksa WAF bilgisi Gemini'ye hiç geçirilmiyor, sadece skora yansıyor mu?
+4. Claude ücretli yorum — WAF'ı bağımsız olarak yorumluyor mu?
+Ücretli tam taramada Claude'a gönderilen bağlamda WAF/CDN durumu açıkça var mı? Euronet örneğindeki gibi "Cloudflare WAF tespit edildi" ile "WAF yok" arasında Claude'un ürettiği yorum metni gerçekten farklılaşıyor mu, yoksa WAF bilgisi bağlamda olsa bile Claude'un çıktısına pek yansımıyor mu?
+5. Somut test senaryosu
+Elimizde gerçek üç vaka var:
+euronet.com.tr — Cloudflare WAF + CDN tespit edildi
+netbudur.com.tr — WAF yok, MySQL 3306 açık
+Bu iki domain için ücretsiz tarama skorlarını ve (varsa) ücretli yorum bağlamını şu an DB'den çek — WAF varlığının skora ve yoruma yansıyıp yansımadığını somut veriyle göster.
+6. CVE eşleştirme doğruluğu — aynı bağlamda kontrol
+Daha önce CVE eşleştirmesinde "vendor seviyesinde string matching, CPE part tipi ayrımı yapılmıyor" bug'ı tespit edilmişti (örn. Google → Chrome/V8 CVE'leri server-side domain'e yanlış eşleşiyor). Bu bug fix edildi mi? Edilmediyse, ücretsiz/ücretli yorumda yanlış CVE'ler müşteriye gösteriliyor olabilir — mevcut durumunu bir cümleyle belirt.
+Çıktı formatı: Her madde için "doğru çalışıyor / kısmen çalışıyor / sorun var" şeklinde net statü, somut kod satırı veya DB verisiyle desteklenmiş. Yoruma değil, kanıta dayalı rapor.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001, T002, T003 · Faz A/B/C · Haiku fiyat düzeltmesi · Faz D (model router, maliyet paneli) · Nitelendirme A/B/C/D fix'leri · DB bağlantı stabilite (keepAlive, min:2→5, retry)
+Bu maddelerin hiçbirine yeniden dokunma. Şu anki odak: WAF/CDN skorlama ve yorum doğruluğu analizi — rapor et, kod değiştirme.

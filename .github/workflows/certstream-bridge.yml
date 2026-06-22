@@ -66,8 +66,9 @@ jobs:
           TR_TLDS = (
               ".com.tr", ".net.tr", ".org.tr", ".web.tr",
               ".biz.tr", ".info.tr", ".gen.tr", ".edu.tr", ".tv.tr", ".name.tr",
+              ".k12.tr",
           )
-          SKIP_TLDS  = (".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr")
+          SKIP_TLDS  = (".gov.tr", ".mil.tr", ".bel.tr", ".pol.tr")
           SKIP_HOSTS = {
               "cloudflare.com", "amazonaws.com", "azure.com",
               "google.com", "microsoft.com", "letsencrypt.org",

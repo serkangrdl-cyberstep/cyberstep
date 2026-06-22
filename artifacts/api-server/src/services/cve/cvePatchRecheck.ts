@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import { enrichWithNVD } from "./cveFeedReader";
@@ -6,6 +6,8 @@ import { enrichWithNVD } from "./cveFeedReader";
 export interface PatchRecheckOptions {
   maxAgeDays?: number;
   maxItems?: number;
+  /** Sadece bu CVE ID'lerini sorgula (rapor sayfasından gelen liste gibi). */
+  cveIds?: string[];
 }
 
 export interface PatchRecheckResult {
@@ -24,6 +26,8 @@ let isRecheckRunning = false;
  * maxItems: batch başına işlenecek maksimum CVE sayısı.
  *   - Cron: 50 (~5 dk, server restart'tan önce tamamlanır)
  *   - Admin re-enrich butonu: undefined (tümü)
+ * cveIds: sadece bu ID'leri sorgula (CVE Raporu'nda görünenler gibi).
+ *   - Admin butonu öncelikli kullanım: rapordaki CVE'ler hızlıca güncellenir.
  * Sıralama: CISA KEV önce, sonra en yeni tespit.
  */
 export async function recheckPatchStatus(opts?: PatchRecheckOptions): Promise<PatchRecheckResult> {
@@ -34,29 +38,42 @@ export async function recheckPatchStatus(opts?: PatchRecheckOptions): Promise<Pa
   isRecheckRunning = true;
 
   try {
-    const ageSql = opts?.maxAgeDays != null
-      ? sql`AND detected_at > NOW() - INTERVAL '${sql.raw(String(opts.maxAgeDays))} days'`
-      : sql``;
+    let cveIds: string[];
 
-    const limitSql = opts?.maxItems != null
-      ? sql`LIMIT ${opts.maxItems}`
-      : sql``;
+    if (opts?.cveIds && opts.cveIds.length > 0) {
+      // Belirli CVE listesi verilmişse sadece patch_available=false olanları al
+      const rows = await db.execute(sql`
+        SELECT cve_id FROM cve_tracker
+        WHERE patch_available = false
+          AND cve_id = ANY(${opts.cveIds})
+        ORDER BY cisa_kev DESC, detected_at DESC
+      `);
+      cveIds = (rows.rows as Array<{ cve_id: string }>).map(r => r.cve_id);
+    } else {
+      const ageSql = opts?.maxAgeDays != null
+        ? sql`AND detected_at > NOW() - INTERVAL '${sql.raw(String(opts.maxAgeDays))} days'`
+        : sql``;
 
-    const rows = await db.execute(sql`
-      SELECT cve_id FROM cve_tracker
-      WHERE patch_available = false
-      ${ageSql}
-      ORDER BY cisa_kev DESC, detected_at DESC
-      ${limitSql}
-    `);
-    const cveIds = (rows.rows as Array<{ cve_id: string }>).map(r => r.cve_id);
+      const limitSql = opts?.maxItems != null
+        ? sql`LIMIT ${opts.maxItems}`
+        : sql``;
+
+      const rows = await db.execute(sql`
+        SELECT cve_id FROM cve_tracker
+        WHERE patch_available = false
+        ${ageSql}
+        ORDER BY cisa_kev DESC, detected_at DESC
+        ${limitSql}
+      `);
+      cveIds = (rows.rows as Array<{ cve_id: string }>).map(r => r.cve_id);
+    }
 
     if (cveIds.length === 0) {
       logger.info({ maxAgeDays: opts?.maxAgeDays }, "Yama bekleyen CVE yok — recheck atlandı");
       return { checked: 0, updated: 0 };
     }
 
-    logger.info({ count: cveIds.length, maxAgeDays: opts?.maxAgeDays, maxItems: opts?.maxItems }, "Patch recheck başladı");
+    logger.info({ count: cveIds.length, maxAgeDays: opts?.maxAgeDays, maxItems: opts?.maxItems, fromReport: !!opts?.cveIds }, "Patch recheck başladı");
 
     let updated = 0;
     for (const cveId of cveIds) {

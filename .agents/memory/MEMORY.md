@@ -48,3 +48,4 @@
 - [WAF Enrichment Cron](waf-enrichment-cron.md) — 7 columns on lead_candidates; atomic UPDATE…RETURNING FOR UPDATE SKIP LOCKED; timeout≠result (waf_enriched_at only set on real result); 3-timeout→unknown_timeout; all proven live
 - [lead_qual DB Connection Fix](leadqual-db-connection-fix.md) — keepAlive+retry+min:2 deployed (pid=20); next step per decision table; first post-B-fix run expected ~21:05 with non-empty queue
 - [WAF domain_scans + AI context fix](waf-scoring-fix.md) — customer_tech_stack fallback (≥70 conf) OR-merged into domain_scans.waf_detected; waf_provider is composite string ("fortinet, cloudflare"); buildSecurityContext checks waf_detected not just has_cdn
+- [Domain Enrichment Layers](domain-enrichment.md) — Katman 2 (sector keyword) live; Katman 1 (geo/IP) blocked by CDN; Katman 3 (registry) OpenCorporates-based; city data is reliable ONLY from OpenCorporates registered_address

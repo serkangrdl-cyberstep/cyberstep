@@ -3044,6 +3044,42 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Rapor metrik toplama cron kayıtlandı (her ayın 1'i 06:00 Istanbul)");
 
+    // ─── Otomatik Taslak + Onaya Gönder — Her ayın 1'i 08:00 Istanbul ─────────
+    // Metrik toplama (06:00) bittikten 2 saat sonra çalışır.
+    // Mevcut ay için rapor yoksa taslak oluşturur ve doğrudan pending_review'a alır.
+    // Idempotent: aynı periyot için ikinci kez çalışırsa atlar.
+    cron.schedule("0 8 1 * *", wrapCron("report_auto_submit", "0 8 1 * *", async () => {
+      if (!await cronIsEnabled("report_auto_submit")) { logger.info("report_auto_submit cron devre dışı, atlanıyor"); return 0; }
+      const { db: _db } = await import("@workspace/db");
+      const { cyberRiskReportsTable: _tbl } = await import("@workspace/db");
+      const { eq: _eq } = await import("drizzle-orm");
+      const now = new Date();
+      const periodLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const periodType = "monthly";
+      const webSlug = `${periodType}-${periodLabel}`;
+      // Idempotency: bu periyot için zaten bir rapor var mı?
+      const existing = await _db.select({ id: _tbl.id })
+        .from(_tbl)
+        .where(_eq(_tbl.periodLabel, periodLabel))
+        .limit(1);
+      if (existing.length > 0) {
+        logger.info({ periodLabel, existingId: existing[0]?.id }, "report_auto_submit: bu dönem için rapor zaten var, atlanıyor");
+        return 0;
+      }
+      const [inserted] = await _db.insert(_tbl).values({
+        periodType,
+        periodLabel,
+        sector: null,
+        status: "pending_review",
+        reportData: null,
+        webSlug,
+        reviewNotes: "Otomatik oluşturuldu — metrik toplama sonrası",
+      }).returning();
+      logger.info({ id: inserted?.id, periodLabel }, "report_auto_submit: taslak oluşturuldu ve onaya gönderildi");
+      return 1;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Rapor otomatik taslak + onaya gönder cron kayıtlandı (her ayın 1'i 08:00 Istanbul)");
+
     cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
       if (!await cronIsEnabled("ecosystem_report")) { return 0; }
       const report = await generateEcosystemReport(30);
@@ -3397,6 +3433,7 @@ startup()
         { name: "ioc_credit_reset",         thresholdHours: 745 },
         { name: "kvkk_data_retention",      thresholdHours: 745 },
         { name: "soc_monthly_ai_cost",      thresholdHours: 745 },
+        { name: "report_auto_submit",       thresholdHours: 745 },
         // Quarterly (2200h ≈ 90 days + 1h buffer)
         { name: "quarterly_policy_update",  thresholdHours: 2200 },
       ];

@@ -563,7 +563,7 @@ JSON şablonu:
   try {
     let text: string;
     if (assessment.assessmentType === "full" && fullPrompt) {
-      const claudeFn = getClaudeAiFn();
+      const claudeFn = getClaudeAiFn("mini-assessment");
       text = await claudeFn(fullPrompt);
     } else {
       const aiFn = await getTenantAiFn(assessment.tenantId ?? undefined);

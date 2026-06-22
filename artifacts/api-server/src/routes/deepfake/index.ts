@@ -8,7 +8,7 @@ import { collectOSINT } from "../../services/osint-collector";
 import { getClaudeAiFn } from "../../services/ai-client";
 
 const router = Router();
-const claudeFn = getClaudeAiFn();
+const claudeFn = getClaudeAiFn("deepfake");
 
 function sess(req: Request) { return req.session as unknown as Record<string, unknown>; }
 function addToSession(req: Request, id: number) {

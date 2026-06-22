@@ -8,7 +8,7 @@ import { collectOSINT } from "../../services/osint-collector";
 import { getClaudeAiFn } from "../../services/ai-client";
 
 const router = Router();
-const claudeFn = getClaudeAiFn();
+const claudeFn = getClaudeAiFn("red-team");
 
 const BLOCKED_DOMAIN_SUFFIXES = [".gov.tr", ".edu.tr", ".mil.tr"];
 function isBlockedDomain(domain: string) {

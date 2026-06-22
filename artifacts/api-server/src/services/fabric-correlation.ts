@@ -124,7 +124,7 @@ export async function correlateForIntegration(integration: Integration, opts?: {
 
   let parsed: AiCorrelation | null = null;
   try {
-    const ai = getClaudeAiFn();
+    const ai = getClaudeAiFn("fabric-correlation");
     const text = await ai(prompt);
     const json = extractJson(text) as Partial<AiCorrelation> | null;
     if (json && json.title && json.narrative) {

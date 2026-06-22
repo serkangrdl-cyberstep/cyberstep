@@ -15,7 +15,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } from "docx";
 
-const claudeFn = getClaudeAiFn();
+const claudeFn = getClaudeAiFn("policy-generator");
 
 function getQuarterLabel(): string {
   const now = new Date();

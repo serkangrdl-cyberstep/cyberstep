@@ -11,7 +11,7 @@ import { logger } from "../lib/logger";
 import { sendMail } from "./email";
 import { customersTable } from "@workspace/db";
 
-const claudeFn = getClaudeAiFn();
+const claudeFn = getClaudeAiFn("ai-tool-monitor");
 
 export async function checkAllToolsForChanges(): Promise<void> {
   const tools = await db.select().from(aiToolsRegistryTable);

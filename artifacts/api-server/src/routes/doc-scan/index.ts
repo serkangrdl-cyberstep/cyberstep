@@ -8,7 +8,7 @@ import { logger } from "../../lib/logger";
 import { getClaudeAiFn } from "../../services/ai-client";
 
 const router = Router();
-const claudeFn = getClaudeAiFn();
+const claudeFn = getClaudeAiFn("doc-scan");
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 

@@ -45,7 +45,17 @@ export type ModelTask =
   | "kvkk-assess"
   | "eu-aiact"
   // ── Ücretsiz domain özeti ─────────────────────────────────────────────────
-  | "free-scan-summary";
+  | "free-scan-summary"
+  // ── Görev 3: ai-client-claude genel kovasından ayrıştırılan explicit task'lar ──
+  | "mini-assessment"
+  | "ai-assessment"
+  | "phishing-sim"
+  | "deepfake"
+  | "doc-scan"
+  | "red-team"
+  | "ai-tool-monitor"
+  | "fabric-correlation"
+  | "policy-generator";
 
 export interface ModelEntry {
   model: string;
@@ -92,6 +102,16 @@ export const MODEL_CONFIG: Record<ModelTask, ModelEntry> = {
   "eu-aiact":          { model: "claude-sonnet-4-6" }, // AB Yapay Zeka Yasası uyum raporu — compliance-critical, sonnet zorunlu
   // ── Ücretsiz domain özeti ─────────────────────────────────────────────────
   "free-scan-summary": { model: "claude-haiku-4-5-20251001" }, // Ücretsiz tarama FOMO özeti — max 150 token, ~$0.001/tarama
+  // ── Görev 3: ai-client-claude genel kovasından ayrıştırılan explicit task'lar ──
+  "mini-assessment":   { model: "claude-sonnet-4-6" },
+  "ai-assessment":     { model: "claude-sonnet-4-6" },
+  "phishing-sim":      { model: "claude-sonnet-4-6" },
+  "deepfake":          { model: "claude-sonnet-4-6" },
+  "doc-scan":          { model: "claude-sonnet-4-6" },
+  "red-team":          { model: "claude-sonnet-4-6" },
+  "ai-tool-monitor":   { model: "claude-sonnet-4-6" },
+  "fabric-correlation":{ model: "claude-sonnet-4-6" },
+  "policy-generator":  { model: "claude-sonnet-4-6" },
 };
 
 export function getModel(task: ModelTask): string {

@@ -1867,6 +1867,18 @@ async function startup() {
   await ensureAdminPermissions();
   await ensureIocTables();
   await loadApiKeysFromDb();
+  // One-time data fix: NVD has not indexed these 2026 CISA KEV entries yet
+  await db.execute(sql`
+    UPDATE cve_tracker
+    SET patch_available = true,
+        patch_url = CASE cve_id
+          WHEN 'CVE-2026-42897' THEN 'https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-42897'
+          WHEN 'CVE-2026-54420' THEN 'https://www.cve.org/CVERecord?id=CVE-2026-54420'
+        END,
+        patch_became_available_at = COALESCE(patch_became_available_at, NOW())
+    WHERE cve_id IN ('CVE-2026-42897', 'CVE-2026-54420')
+      AND NOT patch_available
+  `);
   maybeSeedDemoReports();
 }
 

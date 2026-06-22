@@ -1375,6 +1375,20 @@ export default function AdminLeadDiscovery() {
     onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
   });
 
+  const cveReenrich = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/admin-panel/cve/re-enrich-patches", { method: "POST", credentials: "include" });
+      const j = await r.json() as { error?: string };
+      if (!r.ok) throw new Error((j as { error?: string }).error ?? "Hata");
+      return j;
+    },
+    onSuccess: () => {
+      toast({ description: "Yama durumu NVD'den güncelleniyor — birkaç dakika içinde tamamlanır." });
+      setTimeout(() => { void cveRefetch(); }, 5000);
+    },
+    onError: (e: Error) => toast({ variant: "destructive", description: e.message }),
+  });
+
   const saveIsrNotes = useMutation({
     mutationFn: ({ id, notes }: { id: number; notes: string }) =>
       fetch(`${BASE}/lead-discovery/candidates/${id}/isr-notes`, {
@@ -3221,10 +3235,19 @@ export default function AdminLeadDiscovery() {
                   </label>
                   <div className="ml-auto flex items-center gap-2">
                     <button
+                      onClick={() => { cveReenrich.mutate(); }}
+                      disabled={cveReenrich.isPending}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
+                      title="NVD'den patch_available=false CVE'lerin yama durumunu sorgular (CISA KEV öncelikli, en fazla 50 CVE)"
+                    >
+                      <ShieldAlert className={`h-3.5 w-3.5 ${cveReenrich.isPending ? "animate-pulse" : ""}`} />
+                      {cveReenrich.isPending ? "Sorgulanıyor..." : "Yamayı NVD'den Güncelle"}
+                    </button>
+                    <button
                       onClick={() => { void cveRefetch(); }}
                       disabled={cveFetching}
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
-                      title="Yama Yenileme arka planda çalışıyorsa güncel veriyi çeker"
+                      title="DB'deki güncel veriyi ekrana yansıtır"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${cveFetching ? "animate-spin" : ""}`} />
                       {cveFetching ? "Yükleniyor..." : "Veriyi Yenile"}

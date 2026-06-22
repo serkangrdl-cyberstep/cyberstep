@@ -1,0 +1,18 @@
+Bu rapor çok net bir resim çiziyor — altı maddeden dördünde "SORUN VAR", ikisinde "KISMİ." Ama onaylayıp düzeltmeye geçmeden önce, iki madde beklediğimden farklı çıktı ve bunları anlamam lazım:
+1. "Gemini ücretsiz özet yok" — bu bilerek mi tasarlanmış, yoksa eksik mi?
+Serkan'ın tarifi şuydu: "ücretsiz taramada FOMO yaratacak özet bilgiyi düşük maliyet olsun diye Gemini'ye yazdırıyorum." Sen ise gemini_ai_report alanının hiç doldurulmadığını, tüm test domain'lerinde status='none' olduğunu buldun. İki ihtimal:
+(a) Gemini entegrasyonu henüz implement edilmemiş, sadece DB şeması hazırlanmış — ileride yapılacak bir özellik
+(b) Gemini bir yerde çalışıyor ama gemini_ai_report alanına değil başka bir yere yazıyor (belki doğrudan PDF pipeline'ına)
+Bunlardan hangisi olduğunu netleştir — eğer (a) ise, bu rapordaki "Gemini'ye WAF bilgisi geçiyor mu" sorusu anlamsız, asıl sorun "özellik henüz yok." Eğer (b) ise, Gemini'nin gerçekte ne ürettiğini ve nereye yazdığını bul.
+2. CVE kısmi fix'i — "cleanup-clientside manuel tetikleniyor" ne demek?
+Yanlış eşleşmiş kayıtlar DB'de duruyor, otomatik temizlenmiyor. Bu demek oluyor ki şu an ücretsiz veya ücretli tarama yapan bir kullanıcı, fix'ten önce eşleştirilmiş ve hâlâ DB'de duran yanlış CVE'leri görebilir. Net soru: bu endpoint en son ne zaman manuel tetiklendi, ve tetiklendiğinde kaç yanlış kayıt temizlendi? Eğer hiç tetiklenmediyse veya üzerinden uzun zaman geçtiyse, şu an prodüksiyon DB'deki kirli veri miktarını bilmeden "kısmen düzeldi" diyemeyiz.
+Onaylanan ve düzeltmeye geçebileceğimiz kısım:
+Madde 1 ve 4 birbirine bağlı ve net bir kök neden var: customer_tech_stack verisinin domain_scans yazılırken veya buildSecurityContext oluştururken dahil edilmemesi. Bu iki adımlı bir fix:
+A) domain_scans yazımı sırasında customer_tech_stack'e bak, waf_detected/has_cdn/waf_provider alanlarını tech_stack'ten de besle — aktif probe'un göremediğini pasif fingerprint yakalamışsa, ikisini OR mantığıyla birleştir
+B) buildSecurityContext.ts'te waf_detected kontrolünü de ekle — sadece has_cdn değil, her ikisini de kontrol et, ve customer_tech_stack'ten gelen WAF verisini de bağlama dahil et
+Ama Madde 3 (Gemini entegrasyonu) netleşmeden bunu başlatma — eğer Gemini henüz implement edilmemişse, WAF bilgisini Gemini'ye taşımak boş bir iş olur.
+Madde 2 (WAF'ın overall_score'a değil sadece confidence_score'a girmesi) — bu aslında savunulabilir bir tasarım kararı olabilir: WAF varlığı "risk azaltıcı" değil "ölçüm güvenilirliği" sinyali olarak yorumlanabilir. Ama bu bilinçli bir karar mıydı yoksa göz ardı mı edildi? Tek cümlelik yanıt yeter.
+Aksiyon: Önce (1) Gemini'nin gerçekte çalışıp çalışmadığını ve nereye yazdığını netleştir, (2) CVE cleanup'ın son tetiklenme zamanını ve temizlenen kayıt sayısını getir, (3) Madde 2'nin bilinçli tasarım mı olduğunu bir cümleyle açıkla. Bunlar netleşince, A+B fix'ine onay vereceğim.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001, T002, T003 · Faz A/B/C · Haiku fiyat düzeltmesi · Faz D (model router, maliyet paneli) · Nitelendirme A/B/C/D fix'leri · DB bağlantı stabilite (keepAlive, min:2→min:5, retry) · WAF/CDN analizi — rapor aşaması
+Bu maddelerin hiçbirine yeniden dokunma. Şu anki odak: WAF analiz raporundaki 3 açık soruyu netleştir (Gemini'nin nereye yazdığı, CVE cleanup son tetiklenme, Madde 2 tasarım kararı), kod değiştirme.

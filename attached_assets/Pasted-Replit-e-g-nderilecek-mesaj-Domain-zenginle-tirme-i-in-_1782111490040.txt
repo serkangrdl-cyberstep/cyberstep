@@ -1,0 +1,45 @@
+Replit'e gönderilecek mesaj:
+Domain zenginleştirme için üç katmanlı bir plan kuracağız. Kod yazmadan önce analiz ve mimari öneri sun.
+Hedef: lead_candidates tablosundaki qualified domain'leri (öncelik) ve zamanla tüm 27.570+ domain havuzunu sektör, şehir/bölge ve şirket sicil bilgisiyle zenginleştirmek.
+Katman 1 — Coğrafya (IP → Şehir/Bölge)
+domain_scans tablosunda Shodan'dan gelen IP adresi zaten var (shodan_ip veya benzeri). MaxMind GeoLite2 ücretsiz veritabanıyla bu IP'den şehir, bölge (il), ülke tespiti yapılabilir.
+Analiz et:
+domain_scans'ta IP alanı hangi sütunda, kaç satırda dolu?
+GeoLite2 .mmdb dosyası projede mevcut mu, yoksa indirilmesi mi gerekiyor?
+lead_candidates tablosunda city/region gibi alanlar var mı, yoksa yeni kolon mu eklenmeli?
+Enrichment bir cron olarak mı çalışmalı, yoksa domain qualify edildiğinde tetiklenmeli mi?
+Katman 2 — Sektör Tahmini (Domain Keyword Matching)
+Domain adı ve başlık bilgisinden kural tabanlı sektör tahmini. Örnekler:
+doktor, klinik, hastane, dis, saglik → Sağlık
+nakliye, lojistik, kargo, tasimacilik → Lojistik
+insaat, yapi, beton, emlak → İnşaat/Gayrimenkul
+hukuk, avukat, notez → Hukuk
+muhendis, teknik, makine → Mühendislik
+okul, egitim, kurs, akademi → Eğitim
+restoran, cafe, yemek, catering → Gıda/HoReCa
+eczane, ecza → Eczane
+Alan adı uzantısı: .edu.tr → Eğitim, .bel.tr → Belediye, .gov.tr → Kamu, .net.tr → Telecom/ISP
+Analiz et:
+lead_candidates veya domain_scans'ta sector/industry gibi alan var mı?
+customer_tech_stack zenginleştirmesiyle aynı pipeline'a gömülebilir mi, yoksa ayrı bir servis mi olmalı?
+Eşleşme olmadığında (null vs "Diğer") nasıl işaretlenmeli?
+Güven skoru (tek keyword mi, birden fazla keyword mi eşleşti) tutulmalı mı?
+Katman 3 — MERSİS Şirket Sicil Entegrasyonu
+companyRegistryDiscovery.ts zaten var — bu servisi incele.
+Analiz et:
+Mevcut companyRegistryDiscovery.ts ne yapıyor — domain → şirket adı eşleştirmesi mi, yoksa başka bir şey mi?
+MERSİS API'ye doğrudan erişim mi var, yoksa scraping mi?
+MERSİS'ten hangi alanlar çekilebilir: NACE sektör kodu, kuruluş yılı, sermaye, adres (şehir), şirket türü (A.Ş., Ltd., vb.)?
+Güncel hit rate nasıl — kaç domain için şirket kaydı bulunuyor? 27.570 domain'in tahminen kaçında şirket ismi domain adından çıkarılabilir?
+Rate limiting veya erişim kısıtı var mı?
+Önceliklendirme:
+Üçünü de yapacağız ama sıra önemli. Qualified domain'ler önce — ham 27.570'in tamamını bir anda zenginleştirme, önce scan_status='qualified' olanlar.
+Çıktı formatı: Her katman için ayrı ayrı:
+Mevcut durum (alan var mı, servis var mı)
+Teknik engel veya risk
+Tahmini etki (kaç domain kapsanır)
+Önerilen mimari (cron mu, trigger mı, batch mi)
+Analiz et, rapor et. Kod yazmadan önce onay bekliyorum.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001, T002, T003 · Faz A/B/C · Haiku fiyat düzeltmesi · Faz D · Nitelendirme A/B/C/D · DB bağlantı stabilite · Fix A+B (WAF pipeline)
+Şu anki odak: Domain zenginleştirme — üç katman analizi (GeoLite2, sektör keyword, MERSİS). Kod yazmadan önce rapor. Paralelde: min:5 sonrası ilk dolu lead_qual run sonucu hâlâ bekleniyor — o geldiğinde ayrıca raporla.

@@ -996,70 +996,154 @@ router.post("/admin-panel/lead-discovery/bulk-import-pdf", requireAdmin, async (
 });
 
 // ─── POST /api/admin-panel/lead-discovery/domain-add ─────────────────────────
-// Domain(lar) ekle — DB'de yoksa insert, varsa atla. Per-domain sonuç döner.
+// Domain(lar) ekle veya zenginleştir.
+// Yeni format: { rows: [{domain, companyName?, sector?, subSector?, sourceList?, listRank?, city?}], source? }
+// Eski format (geriye dönük): { domains: string[], source?, sector?, label? }
+// ON CONFLICT (domain) DO UPDATE SET ... COALESCE — mevcut veri silinmez, eksik alanlar doldurulur.
 router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: Request, res: Response) => {
-  const { domains, source, sector, label } = req.body as {
-    domains: string[];
+  const body = req.body as {
+    rows?: Array<{
+      domain: string;
+      companyName?: string;
+      sector?: string;
+      subSector?: string;
+      sourceList?: string;
+      listRank?: string;
+      city?: string;
+    }>;
+    domains?: string[];
     source?: string;
     sector?: string;
     label?: string;
   };
-  if (!Array.isArray(domains) || domains.length === 0) {
-    res.status(400).json({ error: "domains array gerekli" });
-    return;
-  }
 
   const normalize = (d: string) =>
     d.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
+  const clean = (v: string | null | undefined): string | null =>
+    (v?.trim() || null);
 
-  const cleaned = [...new Set(domains.map(normalize).filter(Boolean))];
-  if (cleaned.length === 0) {
+  // Normalize input — destekle hem yeni (rows) hem eski (domains) format
+  type InputRow = {
+    domain: string;
+    companyName: string | null;
+    sector: string | null;
+    subSector: string | null;
+    sourceList: string | null;
+    listRank: string | null;
+    city: string | null;
+  };
+
+  let inputRows: InputRow[];
+  if (Array.isArray(body.rows) && body.rows.length > 0) {
+    inputRows = body.rows.map(r => ({
+      domain: normalize(r.domain),
+      companyName: clean(r.companyName),
+      sector: clean(r.sector),
+      subSector: clean(r.subSector),
+      sourceList: clean(r.sourceList),
+      listRank: clean(r.listRank),
+      city: clean(r.city),
+    })).filter(r => r.domain.length > 0);
+  } else if (Array.isArray(body.domains) && body.domains.length > 0) {
+    const sec = clean(body.sector);
+    inputRows = body.domains.map(d => ({
+      domain: normalize(d),
+      companyName: null,
+      sector: sec,
+      subSector: null,
+      sourceList: clean(body.label ?? null),
+      listRank: null,
+      city: null,
+    })).filter(r => r.domain.length > 0);
+  } else {
+    res.status(400).json({ error: "rows veya domains array gerekli" });
+    return;
+  }
+
+  // Deduplicate by domain
+  const seen = new Set<string>();
+  inputRows = inputRows.filter(r => { if (seen.has(r.domain)) return false; seen.add(r.domain); return true; });
+  if (inputRows.length === 0) {
     res.status(400).json({ error: "Geçerli domain bulunamadı" });
     return;
   }
+
+  const src = clean(body.source) ?? "manual_import";
+  const allDomains = inputRows.map(r => r.domain);
 
   // Mevcut olanları bul
   const existing = await db
     .select({ domain: leadCandidatesTable.domain })
     .from(leadCandidatesTable)
-    .where(inArray(leadCandidatesTable.domain, cleaned));
+    .where(inArray(leadCandidatesTable.domain, allDomains));
   const existingSet = new Set(existing.map(r => r.domain));
-  const toInsert = cleaned.filter(d => !existingSet.has(d));
+
+  // Enriched = mevcut domain + en az bir zenginleştirme alanı dolu
+  const hasEnrichment = (r: InputRow) =>
+    !!(r.companyName || r.sector || r.subSector || r.sourceList || r.listRank || r.city);
 
   let inserted = 0;
+  let enriched = 0;
+  let unchanged = 0;
   const CHUNK = 50;
-  const src = source ?? "manual_import";
-  const sec = sector ?? "kamu";
 
-  for (let i = 0; i < toInsert.length; i += CHUNK) {
-    const chunk = toInsert.slice(i, i + CHUNK);
-    const e = (s: string) => s.replace(/'/g, "''");
-    const meta = JSON.stringify({ label: label ?? src });
+  const e = (s: string) => s.replace(/'/g, "''");
+  const nt = (v: string | null) => v !== null ? `'${e(v)}'` : "NULL";
+
+  for (let i = 0; i < inputRows.length; i += CHUNK) {
+    const chunk = inputRows.slice(i, i + CHUNK);
+    const meta = JSON.stringify({ label: body.label ?? src });
+
     const result = await db.execute(sql`
-      INSERT INTO lead_candidates (domain, sector, source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+      INSERT INTO lead_candidates
+        (domain, company_name, sector, sub_sector, source_list, list_rank, city,
+         source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
       SELECT * FROM unnest(
-        ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r)}'`).join(",")}]`)}::text[],
-        ${sql.raw(`ARRAY[${chunk.map(() => `'${e(sec)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r.domain)}'`).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.companyName)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.sector)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.subSector)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.sourceList)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.listRank)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.city)).join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(() => `'${e(src)}'`).join(",")}]`)}::text[],
-        ${sql.raw(`ARRAY[${chunk.map(() => `'pending'`).join(",")}]`)}::text[],
-        ${sql.raw(`ARRAY[${chunk.map(() => `'tier2'`).join(",")}]`)}::text[],
-        ${sql.raw(`ARRAY[${chunk.map(r => r.endsWith(".bel.tr") || r.includes(".gov.tr") ? "true" : "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(() => "'pending'").join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(() => "'tier2'").join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.domain.endsWith(".bel.tr") || r.domain.includes(".gov.tr") ? "true" : "false").join(",")}]`)}::bool[],
         ${sql.raw(`ARRAY[${chunk.map(() => `'${e(meta)}'`).join(",")}]`)}::jsonb[],
         ${sql.raw(`ARRAY[${chunk.map(() => "false").join(",")}]`)}::bool[],
         ${sql.raw(`ARRAY[${chunk.map(() => "0").join(",")}]`)}::int[]
-      ) AS t(domain, sector, source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
-      ON CONFLICT (domain) DO NOTHING
+      ) AS t(domain, company_name, sector, sub_sector, source_list, list_rank, city,
+             source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+      ON CONFLICT (domain) DO UPDATE SET
+        company_name = COALESCE(EXCLUDED.company_name, lead_candidates.company_name),
+        sector       = COALESCE(EXCLUDED.sector,       lead_candidates.sector),
+        sub_sector   = COALESCE(EXCLUDED.sub_sector,   lead_candidates.sub_sector),
+        source_list  = COALESCE(EXCLUDED.source_list,  lead_candidates.source_list),
+        list_rank    = COALESCE(EXCLUDED.list_rank,    lead_candidates.list_rank),
+        city         = COALESCE(EXCLUDED.city,         lead_candidates.city),
+        updated_at   = now()
     `);
     inserted += result.rowCount ?? 0;
+
+    // Enriched/unchanged sayacı güncelle
+    for (const r of chunk) {
+      if (existingSet.has(r.domain)) {
+        if (hasEnrichment(r)) enriched++;
+        else unchanged++;
+      }
+    }
   }
 
-  const results = cleaned.map(d => ({
-    domain: d,
-    status: existingSet.has(d) ? ("exists" as const) : ("inserted" as const),
+  const results = inputRows.map(r => ({
+    domain: r.domain,
+    status: existingSet.has(r.domain)
+      ? (hasEnrichment(r) ? ("enriched" as const) : ("unchanged" as const))
+      : ("inserted" as const),
   }));
 
-  logger.info({ inserted, skipped: existingSet.size, total: cleaned.length, src }, "domain-add tamamlandı");
-  res.json({ inserted, skipped: existingSet.size, total: cleaned.length, results });
+  logger.info({ inserted, enriched, unchanged, total: inputRows.length, src }, "domain-add tamamlandı");
+  res.json({ inserted, enriched, unchanged, skipped: enriched + unchanged, total: inputRows.length, results });
 });
 
 // ─── CVE RAPORU ─────────────────────────────────────────────────────────────

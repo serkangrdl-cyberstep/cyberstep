@@ -930,7 +930,8 @@ export default function AdminLeadDiscovery() {
   const [manualLookupResult, setManualLookupResult] = useState<{ rows: LeadCandidate[]; total: number } | null>(null);
   const [manualLookupLoading, setManualLookupLoading] = useState(false);
   const [singleDomain, setSingleDomain] = useState("");
-  const [excelParsed, setExcelParsed] = useState<{ domain: string }[]>([]);
+  type ExcelRow = { domain: string; companyName?: string; sector?: string; subSector?: string; sourceList?: string; listRank?: string; city?: string };
+  const [excelParsed, setExcelParsed] = useState<ExcelRow[]>([]);
   const [excelFileName, setExcelFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cveSeverity, setCveSeverity] = useState("");
@@ -1116,18 +1117,26 @@ export default function AdminLeadDiscovery() {
 
   type DomainAddResult = { inserted: number; skipped: number; total: number; results: { domain: string; status: "inserted" | "exists" }[] };
 
+  type DomainAddEnrichedResult = {
+    inserted: number; enriched: number; unchanged: number; skipped: number; total: number;
+    results: Array<{ domain: string; status: "inserted" | "enriched" | "unchanged" | "exists" }>;
+  };
   const batchImport = useMutation({
-    mutationFn: async ({ domains, source, sector, label }: { domains: string[]; source: string; sector?: string; label?: string }) => {
+    mutationFn: async ({ rows, source }: { rows: ExcelRow[]; source: string }) => {
       const r = await fetch(`${BASE}/lead-discovery/domain-add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domains, source, sector, label }),
+        body: JSON.stringify({ rows, source }),
       });
       if (!r.ok) throw new Error("İstek başarısız");
-      return r.json() as Promise<DomainAddResult>;
+      return r.json() as Promise<DomainAddEnrichedResult>;
     },
     onSuccess: (d) => {
-      toast({ description: `Import tamamlandı: ${d.inserted} eklendi, ${d.skipped} zaten vardı.` });
+      const parts: string[] = [];
+      if (d.inserted > 0) parts.push(`${d.inserted} yeni eklendi`);
+      if (d.enriched > 0) parts.push(`${d.enriched} mevcut zenginleştirildi`);
+      if (d.unchanged > 0) parts.push(`${d.unchanged} değişmedi`);
+      toast({ description: `Import tamamlandı: ${parts.join(", ")}.` });
       qc.invalidateQueries({ queryKey: ["lead-stats"] });
     },
     onError: () => toast({ description: "Import başarısız.", variant: "destructive" }),
@@ -1164,21 +1173,94 @@ export default function AdminLeadDiscovery() {
         const XLSX = await import("xlsx");
         const wb = XLSX.read(evt.target?.result, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { header: "A", defval: "" });
+
+        // Sütun başlıklarıyla oku (ilk satır header)
+        const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+
+        // Esnek başlık eşleştirmesi — büyük/küçük harf + Türkçe karakter toleranslı
+        const normalize = (s: string) =>
+          s.toLowerCase()
+            .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g")
+            .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ı/g, "i")
+            .replace(/[^a-z0-9]/g, "");
+
+        const COLUMN_MAP: Record<string, keyof ExcelRow> = {
+          // domain
+          "domain": "domain", "websitesi": "domain", "internetadresi": "domain",
+          "websiteniz": "domain", "webadres": "domain", "url": "domain",
+          // companyName
+          "firmaadi": "companyName", "sirketadi": "companyName", "sirketunvani": "companyName",
+          "unvan": "companyName", "firmaad": "companyName", "adi": "companyName",
+          "kurumadi": "companyName",
+          // sector
+          "anasektor": "sector", "sektor": "sector", "anakategori": "sector",
+          "kategori": "sector",
+          // subSector
+          "altsektor": "subSector", "altkategori": "subSector", "altsektöraçıklama": "subSector",
+          "aciklama": "subSector",
+          // sourceList
+          "listekaynagi": "sourceList", "kaynak": "sourceList", "liste": "sourceList",
+          // listRank
+          "sira": "listRank", "sirakod": "listRank", "bistkodu": "listRank",
+          "kod": "listRank", "no": "listRank",
+          // city
+          "sehir": "city", "il": "city",
+        };
+
+        // Her header sütununu eşleştir
+        let headerMap: Record<string, keyof ExcelRow> | null = null;
+        if (rawRows.length > 0) {
+          const keys = Object.keys(rawRows[0]);
+          const mapped: Record<string, keyof ExcelRow> = {};
+          for (const k of keys) {
+            const n = normalize(k);
+            if (COLUMN_MAP[n]) mapped[k] = COLUMN_MAP[n];
+          }
+          if (Object.values(mapped).includes("domain")) headerMap = mapped;
+        }
+
         const urlRe = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z]{2,})+/i;
         const seen = new Set<string>();
-        const results: { domain: string }[] = [];
-        for (const row of rows) {
-          for (const val of Object.values(row)) {
-            const v = String(val ?? "").trim();
-            if (!v || v.length < 4) continue;
-            if (urlRe.test(v)) {
-              const d = v.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
-              if (d && !seen.has(d)) { seen.add(d); results.push({ domain: d }); }
-              break;
+        const results: ExcelRow[] = [];
+
+        if (headerMap) {
+          // Header-based mode: structured column extraction
+          for (const row of rawRows) {
+            const get = (field: keyof ExcelRow) => {
+              const key = Object.entries(headerMap!).find(([, v]) => v === field)?.[0];
+              return key ? String(row[key] ?? "").trim() : "";
+            };
+            const rawDomain = get("domain");
+            if (!rawDomain || rawDomain.length < 4) continue;
+            const domain = rawDomain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
+            if (!domain || seen.has(domain)) continue;
+            seen.add(domain);
+            results.push({
+              domain,
+              companyName: get("companyName") || undefined,
+              sector: get("sector") || undefined,
+              subSector: get("subSector") || undefined,
+              sourceList: get("sourceList") || undefined,
+              listRank: get("listRank") || undefined,
+              city: get("city") || undefined,
+            });
+          }
+        } else {
+          // Fallback: header yoksa veya domain sütunu eşleşmediyse — ilk URL'yi al (eski davranış)
+          const fallbackRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { header: "A", defval: "" });
+          for (const row of fallbackRows) {
+            for (const val of Object.values(row)) {
+              const v = String(val ?? "").trim();
+              if (!v || v.length < 4) continue;
+              if (urlRe.test(v)) {
+                const domain = v.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
+                if (domain && !seen.has(domain)) { seen.add(domain); results.push({ domain }); }
+                break;
+              }
             }
           }
         }
+
         setExcelParsed(results);
         if (results.length === 0) toast({ description: "Hiç domain algılanamadı. URL içeren bir sütun olmalı.", variant: "destructive" });
       } catch {
@@ -1795,17 +1877,17 @@ export default function AdminLeadDiscovery() {
                       {excelParsed.length > 0 && (
                         <div className="space-y-2">
                           <div className="text-xs text-muted-foreground font-mono bg-slate-900 rounded px-3 py-2 max-h-24 overflow-y-auto">
-                            {excelParsed.slice(0, 8).map(d => d.domain).join(" · ")}
+                            {excelParsed.slice(0, 8).map(d => d.companyName ? `${d.companyName} (${d.domain})` : d.domain).join(" · ")}
                             {excelParsed.length > 8 && <span className="text-slate-500"> · +{excelParsed.length - 8} daha</span>}
                           </div>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               className="flex-1"
-                              onClick={() => batchImport.mutate({ domains: excelParsed.map(d => d.domain), source: "excel_import", label: excelFileName })}
+                              onClick={() => batchImport.mutate({ rows: excelParsed, source: "excel_import" })}
                               disabled={batchImport.isPending}
                             >
-                              {batchImport.isPending ? "Import ediliyor..." : `${excelParsed.length} Domaini Import Et`}
+                              {batchImport.isPending ? "Import ediliyor..." : `${excelParsed.length} Kaydı Import Et`}
                             </Button>
                             <Button size="sm" variant="ghost" className="text-slate-400" onClick={() => { setExcelParsed([]); setExcelFileName(""); batchImport.reset(); }}>
                               Temizle
@@ -1815,8 +1897,10 @@ export default function AdminLeadDiscovery() {
                       )}
 
                       {batchImport.isSuccess && batchImport.data && (
-                        <div className="text-xs bg-green-950/40 border border-green-800 rounded px-3 py-2 text-green-400">
-                          Tamamlandı: <strong>{batchImport.data.inserted}</strong> eklendi, {batchImport.data.skipped} zaten mevcuttu.
+                        <div className="text-xs bg-green-950/40 border border-green-800 rounded px-3 py-2 text-green-400 space-y-0.5">
+                          {batchImport.data.inserted > 0 && <div><strong>{batchImport.data.inserted}</strong> yeni domain eklendi</div>}
+                          {batchImport.data.enriched > 0 && <div><strong>{batchImport.data.enriched}</strong> mevcut kayıt zenginleştirildi</div>}
+                          {batchImport.data.unchanged > 0 && <div className="text-green-600">{batchImport.data.unchanged} kayıt değişmedi (tüm alanlar zaten doluydu)</div>}
                         </div>
                       )}
                     </div>
@@ -1945,7 +2029,7 @@ export default function AdminLeadDiscovery() {
                                 className="h-7"
                                 onClick={() =>
                                   batchImport.mutate({
-                                    domains: manualInput.trim().split("\n").filter(l => l.trim()).map(d => d.trim()),
+                                    rows: manualInput.trim().split("\n").filter(l => l.trim()).map(d => ({ domain: d.trim() })),
                                     source: "manual_import",
                                   })
                                 }

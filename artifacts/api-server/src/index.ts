@@ -3033,6 +3033,17 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Sektör enrichment cron scheduled (her 6 saatte bir)");
 
+    // ─── Aylık Metrik Toplama — Her ayın 1'i 06:00 Istanbul ──────────────────
+    // domain_scans + lead_candidates'tan temel güvenlik metriklerini toplar.
+    // Sonuç report_metrics_snapshot tablosuna yazılır; AI içerik üretimi bu veriden beslenir.
+    cron.schedule("0 6 1 * *", wrapCron("report_metrics_collector", "0 6 1 * *", async () => {
+      if (!await cronIsEnabled("report_metrics_collector")) { logger.info("Metrik toplama cron devre dışı, atlanıyor"); return 0; }
+      const { runReportMetricsCollector } = await import("./services/reportMetricsCollector");
+      const result = await runReportMetricsCollector();
+      return result.snapshotsWritten;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Rapor metrik toplama cron kayıtlandı (her ayın 1'i 06:00 Istanbul)");
+
     cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
       if (!await cronIsEnabled("ecosystem_report")) { return 0; }
       const report = await generateEcosystemReport(30);

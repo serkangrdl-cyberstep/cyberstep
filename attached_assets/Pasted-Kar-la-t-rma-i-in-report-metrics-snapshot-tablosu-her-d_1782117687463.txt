@@ -1,0 +1,28 @@
+Karşılaştırma için: report_metrics_snapshot tablosu — her dönem için temel metrikleri (ortalama skor, sektör dağılımı, WAF oranı, kritik bulgu yüzdesi) sakla. Bir sonraki dönem raporu bunu baz alarak "önceki döneme göre +5 puan iyileşme" gibi hesaplama yapabilsin.
+Faz 2 — Admin panel: Onay Kuyruğu UI (bu görev)
+Admin Panel → yeni sekme: "Raporlar"
+İki bölüm:
+"Onay Bekleyen" — status='pending_review' olan raporlar, önizleme + onay/red + not alanı
+"Yayınlananlar" — status='published', dönem + sektör + yayın tarihi + PDF linki
+Şimdilik "Manuel Rapor Oluştur" butonu yeterli — dönem tipi, dönem etiketi, sektör seç, "Taslak Oluştur" de, draft olarak kuyruğa düşsün. AI içerik üretimi sonraki fazda eklenecek, şimdi sadece manuel veri girişi çalışsın.
+Faz 3 — Metrik toplama cron (bu görev)
+Her ayın 1'inde otomatik çalışan reportMetricsCollector cron'u:
+Topladığı metrikler (domain_scans + lead_candidates'tan):
+Toplam taranan domain sayısı
+Ortalama güvenlik skoru (genel + sektör bazlı)
+WAF/CDN oranı (%)
+Kritik açık port oranı (3306, 21, 3389 vb.)
+SPF/DMARC/SSL pass oranları
+Sektör dağılımı (qualified domain'lerde)
+Önceki aya göre delta (önceki snapshot ile karşılaştır)
+Bu metrikleri report_metrics_snapshot tablosuna yaz. İçerik üretimi bu veriden beslenecek — ama bu fazda sadece veri toplansın, rapor üretilmesin.
+Bu görevin kapsamı dışında (sonraki fazlar):
+Claude ile otomatik rapor metni üretimi
+PDF oluşturma (ReportLab)
+Web sayfası (cyberstep.io/raporlar/)
+Sosyal medya özet şablonları
+Dönemsel otomatik tetikleme
+Çıktı: schema migration, admin panel "Raporlar" sekmesi (temel UI), metrics collector cron. Typecheck temiz olmalı. Tamamlanınca şunu raporla: (a) tabloların oluştuğunu DB'den doğrula, (b) admin panelde "Raporlar" sekmesi görünüyor mu, (c) metrics collector cron kayıtlı mı.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001, T002, T003 · Faz A/B/C · Haiku fiyat düzeltmesi · Faz D · Nitelendirme A/B/C/D · DB bağlantı stabilite (KAPANDI) · Fix A+B (WAF pipeline, production deployed) · Katman 2 sektör enrichment · Katman 1 coğrafya (C seçildi)
+Şu anki odak: Dönemsel rapor sistemi Faz 1 — şema + admin UI + metrics cron. İçerik üretimi başlatma.

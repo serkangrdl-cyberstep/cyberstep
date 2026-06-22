@@ -74,6 +74,7 @@ const NAV_SECTIONS = [
       { icon: BarChart3,       label: "Intelligence Reports",   href: "/panel/intelligence" },
       { icon: Zap,             label: "CTI İstihbarat",         href: "/panel/cti-istihbarat" },
       { icon: TrendingUp,      label: "Siber Güvenlik Endeksi", href: "/panel/endeks-raporu" },
+      { icon: CalendarCheck,   label: "Dönemsel Risk Raporları", href: "/panel/risk-raporlari" },
     ],
   },
   {

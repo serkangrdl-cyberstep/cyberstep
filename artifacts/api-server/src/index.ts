@@ -1879,6 +1879,22 @@ async function startup() {
     WHERE cve_id IN ('CVE-2026-42897', 'CVE-2026-54420')
       AND NOT patch_available
   `);
+  // Liveness timeout bug fix: outer timeout was 9s but checkLiveness tries 2 URLs × 8s each.
+  // When HTTPS timed out at 8s, only 1s remained for HTTP fallback — live domains were
+  // incorrectly marked dead (scan_status=failed, http_status=0, is_alive=false).
+  // Reset these tier2 candidates back to pending so they get re-scanned with correct 18s timeout.
+  const resetResult = await db.execute(sql`
+    UPDATE lead_candidates
+    SET scan_status = 'pending',
+        is_alive    = NULL,
+        http_status = NULL,
+        updated_at  = NOW()
+    WHERE tier        = 'tier2'
+      AND scan_status = 'failed'
+      AND is_alive    = false
+      AND http_status = 0
+  `);
+  logger.info({ resetCount: resetResult.rowCount }, "Liveness timeout bug: yanlış 'dead' etiketli tier2 domainler pending'e alındı");
   maybeSeedDemoReports();
 }
 

@@ -318,8 +318,10 @@ export async function qualifyPendingCandidates(limit: number = 200): Promise<{ p
       // ── Liveness gate: tier2'ye doğrudan eklenen domain'ler preScreen'den geçmez.
       // Gerçek timeout/bağlantı hatası (httpStatus=0) → kalifikasyona sokmadan fail et.
       // 4xx yanıtları (415, 403, 404…) sunucunun canlı olduğunu gösterir — geçer.
-      // 9s outer timeout: checkLiveness'ın ilk URL'si 8s'de iptal olur, 1s graceful süre.
-      const liveness = await withTimeout(checkLiveness(candidate.domain), 9_000, { httpStatus: 0, isAlive: false, responseTimeMs: 0 });
+      // 18s outer timeout: checkLiveness 2 URL dener, her biri 8s AbortController'a sahip.
+      // Önceki 9s hatalıydı: HTTPS 8s zaman aşımına girince HTTP fallback için yalnızca
+      // 1s kalıyordu → canlı domainler yanlışlıkla "ölü" işaretleniyordu.
+      const liveness = await withTimeout(checkLiveness(candidate.domain), 18_000, { httpStatus: 0, isAlive: false, responseTimeMs: 0 });
       if (!liveness.isAlive && liveness.httpStatus === 0) {
         logger.info({ domain: candidate.domain }, "Kalifikasyon: domain gerçekten erişilemiyor (http_status=0), eleniyor");
         await retryConnErr(() => db.update(leadCandidatesTable).set({

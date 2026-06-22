@@ -25,9 +25,19 @@ type CveProdCategory =
   | "application";  // genel uygulama (catch-all)
 
 /**
+ * CPE part tipi (a/o/h) sunucu tarafı alaka kontrolü için kullanılır.
+ * "o" (OS) ve "h" (hardware) CVE'leri domain eşleştirmesinden kesinlikle elenmelidir.
+ * Sadece "a" (application) ve "*" (belirsiz) eşleştirmeye sokulur.
+ */
+export function isCpeServerSideEligible(cpePart?: string): boolean {
+  if (!cpePart || cpePart === "*" || cpePart === "a") return true;
+  return false; // "o" (os) veya "h" (hardware) → elenir
+}
+
+/**
  * CVE affected product'ı kategorilendirir.
  * Vendor + product birleşimindeki anahtar kelimelere göre sınıflandırır.
- * CPE part (a/o/h) şemada tutulmadığından kelimelere dayalı buluşsal yaklaşım kullanılır.
+ * İkinci savunma katmanı: CPE part tipi isCpeServerSideEligible() ile daha önce kontrol edilmeli.
  */
 export function classifyCveProduct(vendor: string, product: string): CveProdCategory {
   const t = `${vendor} ${product}`.toLowerCase().replace(/_/g, " ");
@@ -209,9 +219,15 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
     const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
     if (pLower.length < 4) continue; // Çok kısa ürün adları çok geniş eşleşir
 
+    // CPE part tipi kontrolü — katman 1: OS/hardware CVE'lerini keyword sınıflandırmasına sokmadan ele
+    if (!isCpeServerSideEligible(product.cpePart)) {
+      logger.debug({ cveId: cve.cveId, cpePart: product.cpePart, product: product.product }, "CPE part=o/h — tech stack eşleştirmesinden elendi");
+      continue;
+    }
+
     const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
 
-    // Browser/OS/hardware/mobile CVE'leri tech stack'te hiç eşleştirilmez
+    // Browser/OS/hardware/mobile CVE'leri tech stack'te hiç eşleştirilmez — katman 2: keyword kontrolü
     if (["browser", "os", "hardware", "mobile"].includes(cveCategory)) continue;
 
     const rows = await db.select({
@@ -269,6 +285,9 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
       for (const product of cve.affectedProducts) {
         const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
         if (pLower.length < 4) continue;
+
+        // CPE part tipi kontrolü — katman 1: OS/hardware CVE'lerini shadow IT eşleştirmesinden ele
+        if (!isCpeServerSideEligible(product.cpePart)) continue;
 
         const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
 
@@ -384,7 +403,7 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
 
   if (domainScans.length === 0) return { newMatches: 0, cveCount: cves.length };
 
-  type AffectedProduct = { vendor?: string; product?: string; versionStartIncluding?: string; versionEndExcluding?: string };
+  type AffectedProduct = { vendor?: string; product?: string; cpePart?: string; versionStartIncluding?: string; versionEndExcluding?: string };
   type ShadowService = { name: string; category?: string; version?: string };
 
   let totalNew = 0;
@@ -408,6 +427,9 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
       for (const product of products) {
         const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
         if (pLower.length < 4) continue;
+
+        // CPE part tipi kontrolü — katman 1: OS/hardware CVE'lerini retroaktif re-match'ten ele
+        if (!isCpeServerSideEligible(product.cpePart)) continue;
 
         const cveCategory = classifyCveProduct(product.vendor ?? "", product.product ?? "");
 

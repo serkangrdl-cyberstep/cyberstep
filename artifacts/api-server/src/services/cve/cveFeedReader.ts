@@ -29,6 +29,7 @@ export interface CVEEntry {
   affectedProducts: Array<{
     vendor: string;
     product: string;
+    cpePart?: string;  // CPE 2.3 part: "a"=application, "o"=os, "h"=hardware, "*"=any
     versionStartIncluding?: string;
     versionEndExcluding?: string;
   }>;
@@ -118,10 +119,13 @@ export async function checkNewCVEs(): Promise<CVEEntry[]> {
 
         const enDesc = cve.descriptions?.find(d => d.lang === "en")?.value ?? cve.id;
         const affected = (cve.configurations?.[0]?.nodes?.[0]?.cpeMatch ?? []).map(cpe => {
+          // CPE 2.3 format: cpe:2.3:<part>:<vendor>:<product>:<version>:...
+          // parts[2] = part type: "a" (application), "o" (os), "h" (hardware), "*" (any)
           const parts = cpe.criteria.split(":");
           return {
             vendor: parts[3] ?? "",
             product: parts[4] ?? "",
+            cpePart: parts[2] ?? "*",
             versionStartIncluding: cpe.versionStartIncluding,
             versionEndExcluding: cpe.versionEndExcluding,
           };

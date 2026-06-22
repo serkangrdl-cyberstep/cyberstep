@@ -13,7 +13,7 @@ import { inferSectorFromDomain } from "../crtshScanner";
 
 const VT_BASE = "https://www.virustotal.com/api/v3";
 
-const EXCLUDED_TLDS = [".gov.tr", ".k12.tr", ".mil.tr", ".pol.tr"];
+const EXCLUDED_TLDS = [".gov.tr", ".mil.tr", ".pol.tr"];
 
 function isExcluded(domain: string): boolean {
   return EXCLUDED_TLDS.some(t => domain.toLowerCase().endsWith(t));

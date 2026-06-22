@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 // ─── Domain eleme filtresi ────────────────────────────────────────────────────
 
 const EXCLUDED_TLDS = [
-  ".gov.tr", ".edu.tr", ".k12.tr", ".mil.tr", ".pol.tr",
+  ".gov.tr", ".edu.tr", ".mil.tr", ".pol.tr",
 ];
 
 const EXCLUDED_EXACT_DOMAINS = new Set([

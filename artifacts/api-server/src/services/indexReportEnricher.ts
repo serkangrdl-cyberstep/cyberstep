@@ -39,7 +39,7 @@ export function detectHostingProvider(shodanIsp: string | null): string {
 // ─── Endeks dışı domain kontrolü ────────────────────────────────────────────
 function isExcludedFromIndex(domain: string): { excluded: boolean; reason?: string } {
   const d = domain.toLowerCase().replace(/^www\./, "");
-  const publicSuffixes = [".edu.tr", ".gov.tr", ".k12.tr", ".mil.tr", ".pol.tr"];
+  const publicSuffixes = [".edu.tr", ".gov.tr", ".mil.tr", ".pol.tr"];
   for (const suffix of publicSuffixes) {
     if (d.endsWith(suffix)) return { excluded: true, reason: "kamu_tld" };
   }

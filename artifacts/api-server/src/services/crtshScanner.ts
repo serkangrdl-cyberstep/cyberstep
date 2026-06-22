@@ -98,13 +98,14 @@ export function isTurkishDomain(d: string): boolean {
 }
 
 const EXCLUDED_TLDS_CRTSH = [
-  ".gov.tr", ".k12.tr", ".mil.tr", ".bel.tr", ".pol.tr",
-  // .edu.tr: pipeline'a girer, sector=education olarak işaretlenir
+  ".gov.tr", ".mil.tr", ".bel.tr", ".pol.tr",
+  // .edu.tr ve .k12.tr: pipeline'a girer, sector=education olarak işaretlenir
 ];
 
 export function inferSectorFromDomain(domain: string): string {
   const d = domain.toLowerCase();
   if (d.endsWith(".edu.tr")) return "education";
+  if (d.endsWith(".k12.tr")) return "education";
   if (d.endsWith(".org.tr")) return "ngo";
   if (d.endsWith(".biz.tr")) return "commercial";
   if (d.endsWith(".net.tr")) return "technology";

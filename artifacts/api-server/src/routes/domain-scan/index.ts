@@ -5,8 +5,8 @@ import https from "https";
 import http from "http";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
-import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable } from "@workspace/db";
-import { eq, desc, count, sql } from "drizzle-orm";
+import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable, customerTechStackTable } from "@workspace/db";
+import { eq, desc, count, sql, and, or, gte } from "drizzle-orm";
 import { calculateLetterGrade } from "../../lib/scoring/letterGrade";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
@@ -1402,6 +1402,7 @@ export async function performDomainScan(domain: string): Promise<{
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
     const wafFields = await (async () => {
+      let result = { wafDetected: false, wafProvider: null as string | null, wafConfidence: 0, wafHeadersAdded: [] as string[], wafBypassPossible: false };
       try {
         const { detectWAF } = await import("../../services/wafDetector");
         const empty = { detected: false, provider: null, confidence: 0, headersAddedByWAF: [] as string[] };
@@ -1409,7 +1410,7 @@ export async function performDomainScan(domain: string): Promise<{
           detectWAF(domain),
           new Promise<typeof empty>(resolve => setTimeout(() => resolve(empty), 10_000)),
         ]).catch(() => empty);
-        return {
+        result = {
           wafDetected: wafRes.detected,
           wafProvider: wafRes.provider,
           wafConfidence: wafRes.confidence ?? 0,
@@ -1417,8 +1418,48 @@ export async function performDomainScan(domain: string): Promise<{
           wafBypassPossible: false,
         };
       } catch {
-        return { wafDetected: false, wafProvider: null, wafConfidence: 0, wafHeadersAdded: [] as string[], wafBypassPossible: false };
+        // aktif probe başarısız — result false kalır
       }
+      // Tech stack fallback (eşik ≥70): aktif probe false döndürdüyse
+      // customer_tech_stack'teki pasif fingerprint sonuçlarıyla OR mantığıyla birleştir
+      if (!result.wafDetected) {
+        try {
+          const techWaf = await db.query.customerTechStackTable.findFirst({
+            where: and(
+              eq(customerTechStackTable.domain, domain),
+              gte(customerTechStackTable.confidence, 70),
+              or(
+                sql`lower(${customerTechStackTable.category}) like '%waf%'`,
+                sql`lower(${customerTechStackTable.category}) like '%cdn%'`,
+                sql`lower(${customerTechStackTable.category}) like 'güvenlik%'`,
+                eq(customerTechStackTable.category, "firewall"),
+              ),
+              eq(customerTechStackTable.isActive, true),
+            ),
+            orderBy: [desc(customerTechStackTable.confidence)],
+          });
+          if (techWaf) {
+            const vendorLower = (techWaf.vendor ?? "").toLowerCase();
+            const providerKey =
+              vendorLower.includes("cloudflare") ? "cloudflare" :
+              vendorLower.includes("fortinet") || vendorLower.includes("fortigate") ? "fortinet" :
+              vendorLower.includes("akamai")    ? "akamai" :
+              vendorLower.includes("f5")        ? "f5" :
+              vendorLower.includes("imperva")   ? "imperva" :
+              vendorLower.includes("sucuri")    ? "sucuri" :
+              vendorLower || null;
+            result = {
+              ...result,
+              wafDetected: true,
+              wafProvider: result.wafProvider ?? providerKey,
+              wafConfidence: Math.max(result.wafConfidence, techWaf.confidence ?? 0),
+            };
+          }
+        } catch {
+          // tech_stack fallback başarısız — aktif probe sonucu korunur
+        }
+      }
+      return result;
     })();
 
     const [scan] = await retryConnErr(() => db

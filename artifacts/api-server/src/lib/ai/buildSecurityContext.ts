@@ -56,8 +56,10 @@ export async function buildSecurityContext(customerId: number): Promise<string> 
     if (externalScan.httpHeadersScore !== null) {
       lines.push(`HTTP Güvenlik Başlıkları: ${externalScan.httpHeadersScore}/100`);
     }
-    if (externalScan.hasCdn) {
-      lines.push(`WAF/CDN: ${externalScan.cdnProvider ?? "Tespit edildi"}`);
+    if (externalScan.hasCdn || externalScan.wafDetected) {
+      const wafDisplay = externalScan.cdnProvider ?? externalScan.wafProvider ?? "Tespit edildi";
+      lines.push(`WAF/CDN: ${wafDisplay}`);
+      if (externalScan.wafBypassPossible) lines.push("WAF bypass riski: Kaynak sunucu IP internette doğrudan erişilebilir");
     }
     if (externalScan.criticalCveCount && externalScan.criticalCveCount > 0) {
       lines.push(`Kritik CVE Sayısı: ${externalScan.criticalCveCount}`);

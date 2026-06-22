@@ -1421,10 +1421,11 @@ export async function performDomainScan(domain: string): Promise<{
         // aktif probe başarısız — result false kalır
       }
       // Tech stack fallback (eşik ≥70): aktif probe false döndürdüyse
-      // customer_tech_stack'teki pasif fingerprint sonuçlarıyla OR mantığıyla birleştir
+      // customer_tech_stack'teki tüm WAF/CDN kayıtlarını OR mantığıyla birleştir;
+      // birden fazla provider varsa (örn. Cloudflare + FortiGate) virgülle birleştir
       if (!result.wafDetected) {
         try {
-          const techWaf = await db.query.customerTechStackTable.findFirst({
+          const techWafEntries = await db.query.customerTechStackTable.findMany({
             where: and(
               eq(customerTechStackTable.domain, domain),
               gte(customerTechStackTable.confidence, 70),
@@ -1438,21 +1439,27 @@ export async function performDomainScan(domain: string): Promise<{
             ),
             orderBy: [desc(customerTechStackTable.confidence)],
           });
-          if (techWaf) {
-            const vendorLower = (techWaf.vendor ?? "").toLowerCase();
-            const providerKey =
-              vendorLower.includes("cloudflare") ? "cloudflare" :
-              vendorLower.includes("fortinet") || vendorLower.includes("fortigate") ? "fortinet" :
-              vendorLower.includes("akamai")    ? "akamai" :
-              vendorLower.includes("f5")        ? "f5" :
-              vendorLower.includes("imperva")   ? "imperva" :
-              vendorLower.includes("sucuri")    ? "sucuri" :
-              vendorLower || null;
+          if (techWafEntries.length > 0) {
+            const normalizeVendor = (vendor: string): string => {
+              const v = vendor.toLowerCase();
+              if (v.includes("cloudflare"))             return "cloudflare";
+              if (v.includes("fortinet") || v.includes("fortigate")) return "fortinet";
+              if (v.includes("akamai"))                 return "akamai";
+              if (v.includes("f5"))                     return "f5";
+              if (v.includes("imperva"))                return "imperva";
+              if (v.includes("sucuri"))                 return "sucuri";
+              return v;
+            };
+            const providerKeys = [...new Set(
+              techWafEntries.map(e => normalizeVendor(e.vendor ?? "")).filter(Boolean)
+            )];
+            const compositeProvider = providerKeys.join(", ");
+            const maxConfidence = Math.max(...techWafEntries.map(e => e.confidence ?? 0));
             result = {
               ...result,
               wafDetected: true,
-              wafProvider: result.wafProvider ?? providerKey,
-              wafConfidence: Math.max(result.wafConfidence, techWaf.confidence ?? 0),
+              wafProvider: result.wafProvider ?? compositeProvider,
+              wafConfidence: Math.max(result.wafConfidence, maxConfidence),
             };
           }
         } catch {

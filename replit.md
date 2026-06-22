@@ -69,6 +69,11 @@ KOBİ'ler için Türkçe siber güvenlik risk analizi platformu. Şirketler ücr
 - Nitelendirme B-fix (lead-teaser maliyet log — setAiCostLogger hook, kanıt: ai_cost_log id=55)
 - Nitelendirme C-fix (scanning stuck cleanup — index.ts:3272, startup-only)
 - Nitelendirme D-fix: KAPALI — production lead_scan_queue 0 satır, retry mekanizması yok; gözlemlenen "tekrar başlatma" isQualifying deadlock'un restart'ta açılmasından kaynaklanıyordu (A-fix kapattı)
+- DB bağlantı stabilite (min:5 fix) — KAPANDI: 110 domain temiz işlendi, sıfır "terminating connection" hatası
+- WAF Fix A+B — KAPANDI ve production'a deploy edildi (cyberstep.io): domain-scan/index.ts customer_tech_stack fallback (≥70 conf), buildSecurityContext wafDetected||hasCdn
+- Katman 2 sektör enrichment — KAPANDI: sectorEnrichmentCron.ts live (0 */6 * * *), 527 kayıt düzeltildi, sektor_confidence kolonu eklendi
+- Katman 1 coğrafya — KAPANDI (C seçildi): ip-api.com CDN blocker (15/18 yurt dışı node), cron kaldırıldı, kolonlar (region, geo_enriched_at) hazır bekliyor
+- Dönemsel rapor sistemi Faz 1 — KAPANDI: cyber_risk_reports + report_metrics_snapshot tabloları, admin panel /panel/risk-raporlari sekmesi (4 sekme: Onay Bekleyen / Yayınlananlar / Taslaklar / Manuel Oluştur), metrics collector cron her ayın 1'i 06:00 Istanbul. Faz 2 (Claude ile otomatik içerik üretimi + PDF + web sayfası + sosyal medya şablonları) veri birikince başlayacak — henüz açılmadı.
 
 ## Gotchas
 

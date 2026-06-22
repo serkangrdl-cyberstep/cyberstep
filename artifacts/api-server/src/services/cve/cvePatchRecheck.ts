@@ -42,10 +42,11 @@ export async function recheckPatchStatus(opts?: PatchRecheckOptions): Promise<Pa
 
     if (opts?.cveIds && opts.cveIds.length > 0) {
       // Belirli CVE listesi verilmişse sadece patch_available=false olanları al
+      const idList = sql.join(opts.cveIds.map(id => sql`${id}`), sql`, `);
       const rows = await db.execute(sql`
         SELECT cve_id FROM cve_tracker
         WHERE patch_available = false
-          AND cve_id = ANY(${opts.cveIds})
+          AND cve_id IN (${idList})
         ORDER BY cisa_kev DESC, detected_at DESC
       `);
       cveIds = (rows.rows as Array<{ cve_id: string }>).map(r => r.cve_id);

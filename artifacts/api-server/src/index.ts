@@ -3144,7 +3144,7 @@ startup()
     // Yeni CVE'lerde patch ilk haftalar içinde çıkıyor; 60 gün sonra ihtimal düşüyor.
     cron.schedule("0 6 * * *", wrapCron("cve_patch_recheck", "0 6 * * *", async () => {
       const { recheckPatchStatus } = await import("./services/cve/cvePatchRecheck");
-      const r = await recheckPatchStatus({ maxAgeDays: 60 });
+      const r = await recheckPatchStatus({ maxAgeDays: 60, maxItems: 50 });
       return r.updated;
     }), { timezone: "Europe/Istanbul" });
     logger.info("CVE patch recheck cron kayıtlandı (günlük 06:00, 60 günlük pencere)");

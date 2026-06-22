@@ -5,6 +5,7 @@ import { enrichWithNVD } from "./cveFeedReader";
 
 export interface PatchRecheckOptions {
   maxAgeDays?: number;
+  maxItems?: number;
 }
 
 export interface PatchRecheckResult {
@@ -20,8 +21,10 @@ let isRecheckRunning = false;
  * maxAgeDays: sadece son N gün içinde tespit edilen CVE'leri kontrol et.
  *   - Cron: 60 (patch çıkma ihtimali yüksek pencere)
  *   - Admin re-enrich butonu: undefined (tümü)
- * Not: domain_scans.cve_summary'deki CVE verileri (checkNvdCve çıktısı) patchAvailable
- * alanı içermiyor; yama durumu sadece cve_tracker üzerinden yönetilir.
+ * maxItems: batch başına işlenecek maksimum CVE sayısı.
+ *   - Cron: 50 (~5 dk, server restart'tan önce tamamlanır)
+ *   - Admin re-enrich butonu: undefined (tümü)
+ * Sıralama: CISA KEV önce, sonra en yeni tespit.
  */
 export async function recheckPatchStatus(opts?: PatchRecheckOptions): Promise<PatchRecheckResult> {
   if (isRecheckRunning) {
@@ -35,11 +38,16 @@ export async function recheckPatchStatus(opts?: PatchRecheckOptions): Promise<Pa
       ? sql`AND detected_at > NOW() - INTERVAL '${sql.raw(String(opts.maxAgeDays))} days'`
       : sql``;
 
+    const limitSql = opts?.maxItems != null
+      ? sql`LIMIT ${opts.maxItems}`
+      : sql``;
+
     const rows = await db.execute(sql`
       SELECT cve_id FROM cve_tracker
       WHERE patch_available = false
       ${ageSql}
-      ORDER BY detected_at DESC
+      ORDER BY cisa_kev DESC, detected_at DESC
+      ${limitSql}
     `);
     const cveIds = (rows.rows as Array<{ cve_id: string }>).map(r => r.cve_id);
 
@@ -48,7 +56,7 @@ export async function recheckPatchStatus(opts?: PatchRecheckOptions): Promise<Pa
       return { checked: 0, updated: 0 };
     }
 
-    logger.info({ count: cveIds.length, maxAgeDays: opts?.maxAgeDays }, "Patch recheck başladı");
+    logger.info({ count: cveIds.length, maxAgeDays: opts?.maxAgeDays, maxItems: opts?.maxItems }, "Patch recheck başladı");
 
     let updated = 0;
     for (const cveId of cveIds) {

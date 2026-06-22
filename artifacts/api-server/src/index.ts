@@ -3021,6 +3021,18 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("WAF enrichment cron scheduled (her 30 dakika, limit 50/run)");
 
+    // ─── Sektör Keyword Enrichment — Her 6 saatte bir ─────────────────────────
+    // Pure CPU, harici API yok. Qualified domain'ler önce (ORDER BY is_qualified DESC).
+    // Mevcut sector='teknoloji' AND sector_confidence IS NULL kayıtları da yeniden hesaplanır.
+    // Eşleşme yoksa sector=NULL (null=bilinmiyor, 'Diğer' kullanılmaz).
+    cron.schedule("0 */6 * * *", wrapCron("sector_enrichment", "0 */6 * * *", async () => {
+      if (!await cronIsEnabled("sector_enrichment")) { logger.info("Sektör enrichment cron devre dışı, atlanıyor"); return 0; }
+      const { runSectorEnrichmentCron } = await import("./services/sectorEnrichmentCron");
+      const result = await runSectorEnrichmentCron();
+      return result.updated + result.cleared;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Sektör enrichment cron scheduled (her 6 saatte bir)");
+
     cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
       if (!await cronIsEnabled("ecosystem_report")) { return 0; }
       const report = await generateEcosystemReport(30);

@@ -78,6 +78,10 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   // null=pending | 'enriched'=real result | 'unknown_timeout'=max retries exceeded
   wafEnrichmentStatus: varchar("waf_enrichment_status", { length: 30 }),
   isMunicipality: boolean("is_municipality").notNull().default(false),
+  // ─── Sector Enrichment ───────────────────────────────────────────────────────
+  // Confidence: 'tld_rule' > 'keyword_multi' > 'keyword_single'. null = no match found.
+  sectorConfidence: varchar("sector_confidence", { length: 30 }),
+  sectorEnrichedAt: timestamp("sector_enriched_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

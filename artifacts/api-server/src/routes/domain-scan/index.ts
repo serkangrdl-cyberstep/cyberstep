@@ -1916,6 +1916,59 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
           logger.warn({ err, domain: scan.domain }, "lead_candidates WAF/kalifikasyon güncelleme hatası");
         }
       });
+
+      // Fire-and-forget: Haiku ile kısa FOMO özeti üret (ücretsiz tarama)
+      setImmediate(async () => {
+        try {
+          const { callModel } = await import("@workspace/ai");
+
+          const openPortCount = (scan.shodanOpenPorts as Array<unknown> | null)?.length ?? 0;
+          const criticalCves = (scan.cveSummary as Array<{ cvssScore?: number }> | null ?? [])
+            .filter(c => (c.cvssScore ?? 0) >= 9).length;
+          const highCves = (scan.cveSummary as Array<{ cvssScore?: number }> | null ?? [])
+            .filter(c => (c.cvssScore ?? 0) >= 7 && (c.cvssScore ?? 0) < 9).length;
+
+          const findings: string[] = [];
+          if (openPortCount > 0) findings.push(`${openPortCount} açık port tespit edildi`);
+          if (!scan.wafDetected) findings.push("WAF/güvenlik duvarı koruması bulunamadı");
+          if (!scan.sslPass) findings.push("SSL sertifikası eksik veya geçersiz");
+          else if (scan.sslDaysUntilExpiry !== null && scan.sslDaysUntilExpiry <= 30) findings.push(`SSL sertifikası ${scan.sslDaysUntilExpiry} gün içinde sona eriyor`);
+          if (criticalCves > 0) findings.push(`${criticalCves} kritik CVE açığı`);
+          else if (highCves > 0) findings.push(`${highCves} yüksek riskli CVE açığı`);
+          if (scan.blacklisted) findings.push(`${scan.blacklistCount} kara listede kayıtlı`);
+          if (scan.hibpBreachCount > 0) findings.push(`${scan.hibpBreachCount} veri sızıntısı geçmişi`);
+
+          const findingsText = findings.length > 0
+            ? findings.slice(0, 3).join(", ")
+            : "e-posta güvenlik eksiklikleri (SPF/DMARC/DKIM)";
+
+          const riskLevel = scan.overallScore >= 70 ? "orta düzey" : scan.overallScore >= 40 ? "yüksek" : "kritik";
+
+          const prompt = `Aşağıdaki domain tarama sonucunu 3-4 cümleyle özetle. Türkçe yaz. Profesyonel ama aciliyet hissettiren bir ton kullan. HTML tag kullanma. Cümle sayısını aşma. Özet, KOBİ sahibine yönelik olmalı.
+
+Domain: ${scan.domain}
+Güvenlik skoru: ${scan.overallScore}/100 (${riskLevel} risk)
+Tespit edilen başlıca sorunlar: ${findingsText}
+
+Özet şablonu: "Bu domain'de [tespit edilen sorunlar] tespit edildi, sektör ortalamasına göre ${riskLevel} risk taşıyor. [Kısa öneri cümlesi]. Tam analiz ve aksiyon planı için ücretsiz danışmanlık görüşmesi talep edebilirsiniz."`;
+
+          const raw = await callModel({
+            task: "free-scan-summary",
+            messages: [{ role: "user", content: prompt }],
+            maxTokens: 150,
+          });
+
+          // HTML tag'leri temizle (XSS önlemi — React auto-escape'e ek güvenlik katmanı)
+          const summary = raw.replace(/<[^>]*>/g, "").trim();
+
+          if (summary.length > 0) {
+            await db.execute(sql`UPDATE domain_scans SET free_scan_summary = ${summary} WHERE id = ${scan.id}`);
+            logger.info({ scanId: scan.id, domain: scan.domain, chars: summary.length }, "free-scan-summary üretildi");
+          }
+        } catch (err) {
+          logger.warn({ err, scanId: scan.id }, "free-scan-summary üretme hatası");
+        }
+      });
     }
 
     res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss, sslNote: ssl.note, scoreBreakdown: scoreResult });

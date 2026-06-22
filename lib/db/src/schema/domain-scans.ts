@@ -122,6 +122,7 @@ export const domainScansTable = pgTable("domain_scans", {
   censysTotalFound: integer("censys_total_found"),
   letterGrade: text("letter_grade"),
   isPubliclyShared: boolean("is_publicly_shared").notNull().default(false),
+  freeScanSummary: text("free_scan_summary"),
 }, (t) => [
   index("domain_scans_domain_idx").on(t.domain),
 ]);

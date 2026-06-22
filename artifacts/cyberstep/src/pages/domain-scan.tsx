@@ -145,6 +145,7 @@ interface ScanResult {
   badgeToken?: string | null;
   criticalCveCount?: number;
   highCveCount?: number;
+  freeScanSummary?: string | null;
 }
 
 function ShodanCard({ openPorts, vulnCount, country, isp, wafDetected, domain }: {
@@ -2454,6 +2455,23 @@ export default function DomainScanPage() {
             badgeToken={result.badgeToken}
             isPubliclyShared={result.isPubliclyShared ?? false}
           />
+
+          {/* AI Ücretsiz Tarama Özeti */}
+          {result.freeScanSummary && (
+            <Card className="shadow-sm mb-6 border border-amber-200 bg-amber-50/40">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-amber-100 shrink-0">
+                    <Sparkles className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">AI Risk Özeti</p>
+                    <p className="text-sm text-amber-900 leading-relaxed">{result.freeScanSummary}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Score breakdown */}
           {result.scoreBreakdown && (

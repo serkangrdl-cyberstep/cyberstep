@@ -43,7 +43,9 @@ export type ModelTask =
   | "teaser-report"
   // ── Faz C (compliance-sensitive) ─────────────────────────────────────────
   | "kvkk-assess"
-  | "eu-aiact";
+  | "eu-aiact"
+  // ── Ücretsiz domain özeti ─────────────────────────────────────────────────
+  | "free-scan-summary";
 
 export interface ModelEntry {
   model: string;
@@ -88,6 +90,8 @@ export const MODEL_CONFIG: Record<ModelTask, ModelEntry> = {
   // ── Faz C (compliance-sensitive) ─────────────────────────────────────────
   "kvkk-assess":       { model: "claude-sonnet-4-6" }, // KVKK 12. Madde & BTK bildirim — compliance-critical, sonnet zorunlu
   "eu-aiact":          { model: "claude-sonnet-4-6" }, // AB Yapay Zeka Yasası uyum raporu — compliance-critical, sonnet zorunlu
+  // ── Ücretsiz domain özeti ─────────────────────────────────────────────────
+  "free-scan-summary": { model: "claude-haiku-4-5-20251001" }, // Ücretsiz tarama FOMO özeti — max 150 token, ~$0.001/tarama
 };
 
 export function getModel(task: ModelTask): string {

@@ -1,0 +1,16 @@
+Replit'e gönderilecek mesaj:
+Üç bağımsız görev, sırayla yapacağız. Birini bitirmeden diğerine geçme, her biri için ayrı onay bekle.
+Görev 1 — Ücretsiz domain özeti: Haiku entegrasyonu
+Ücretsiz tarama akışında (gemini_ai_report alanı var ama hiç doldurulmamış — özellik implement edilmemiş) kısa bir FOMO özeti üretilmesi gerekiyor. Gemini değil, Haiku kullanacağız — zaten sistemde var, model router'da tanımlı, maliyet panelinde görünür.
+Analiz et ve uygula:
+Ücretsiz tarama akışında (web'den domain girişi → tarama sonucu sayfası) özet metninin nereye gireceğini bul — hangi endpoint, hangi component
+callModel({ task: "security-report" }) zaten var ama bu ücretli iç tarama için — ücretsiz için ayrı bir task tanımla: task: "free-scan-summary", model: claude-haiku-4-5-20251001
+Prompt tasarımı: domain adı + overall_score + en kritik 2-3 bulgu (açık port, SSL durumu, WAF yoksa) → 3-4 cümle Türkçe özet, FOMO tonu ("Bu domain'de tespit edilen X kritik bulgu, sektör ortalamasının üzerinde risk taşıyor. Tam rapor için..."), HTML tag yok, max 150 token
+gemini_ai_report alanına değil, yeni bir free_scan_summary alanına yaz (veya mevcut alanı kullan — önce kontrol et, hangisi daha temiz)
+Maliyet: Haiku + ~100 input token + ~150 output token ≈ $0.001/tarama — kabul edilebilir
+XSS: çıktı template'e inject ediliyorsa escapeHtml() geçmeli — daha önce aynı hatayı iki kez bulduk, bu sefer baştan uygula
+Tamamlanınca: gerçek bir domain için üretilen özet metnini ham olarak göster, ai_cost_log'da task='free-scan-summary' satırının göründüğünü doğrula.
+Görev 1 tamamlanıp onaylandıktan sonra Görev 2'yi (CVE CPE part type fix) ve Görev 3'ü (ai-client-claude task adları) vereceğim. Şimdi sadece Görev 1'e başla.
+TEKRAR ETME — ZATEN TAMAMLANDI, DOKUNMA:
+T001, T002, T003 · Faz A/B/C · Haiku fiyat düzeltmesi · Faz D · Nitelendirme A/B/C/D · DB bağlantı stabilite · Fix A+B (WAF pipeline) · Katman 2 sektör enrichment · Dönemsel rapor sistemi Faz 1
+Şu anki odak: Görev 1 — ücretsiz domain özeti Haiku entegrasyonu. Görev 2 ve 3 sırada bekliyor, henüz açma.

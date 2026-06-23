@@ -1587,25 +1587,18 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
   const referralSource = typeof rawRef === "string" && rawRef.trim() ? rawRef.trim() : null;
 
   try {
-    const [spf, dmarc, dkim, mx, ssl, hibp, blacklist, shadowIt, httpHeaders, urlhaus, usom, certTrans, shodan, virusTotal, abuseIpdb, safeBrowsing, sslLabs, kep] = await Promise.all([
+    // Faz 1: Puanlama kontrolleri — pipeline (performDomainScan) ile özdeş 9 kontrol.
+    // Skor bu gruptan hesaplanır; daha az paralel bağlantı = SSL/Shodan güvenilir çalışır.
+    const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
       checkMX(domain),
       checkSSL(domain),
-      checkHIBP(domain),
       checkBlacklists(domain),
       checkShadowIT(domain),
-      checkHTTPHeaders(domain),
-      checkURLhaus(domain),
       checkUsomList(domain),
-      checkCertTransparency(domain),
-      checkShodan(domain),
-      checkVirusTotal(domain),
-      checkAbuseIPDB(domain),
-      checkGoogleSafeBrowsing(domain),
-      checkSSLLabs(domain),
-      checkKEP(domain),
+      checkShodan(domain).catch(() => null),
     ]);
 
     const scoreResult = calcScore(
@@ -1617,6 +1610,20 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       shodan?.portRiskSummary?.scoreDeduction ?? 0,
     );
     const overallScore = scoreResult.total;
+
+    // Faz 2: Zenginleştirme kontrolleri — skor hesaplandıktan sonra paralel çalışır.
+    // Bu gruptaki hatalar tek tek yakalanır; skor etkilenmez.
+    const [hibp, httpHeaders, urlhaus, certTrans, virusTotal, abuseIpdb, safeBrowsing, sslLabs, kep] = await Promise.all([
+      checkHIBP(domain).catch(() => ({ breachCount: 0, breaches: [] as { name: string; breachDate: string; pwnCount: number; dataClasses: string[] }[] })),
+      checkHTTPHeaders(domain).catch(() => ({ score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, checkFailed: true })),
+      checkURLhaus(domain).catch(() => ({ listed: false, threat: null as string | null })),
+      checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0 })),
+      checkVirusTotal(domain).catch(() => null),
+      checkAbuseIPDB(domain).catch(() => null),
+      checkGoogleSafeBrowsing(domain).catch(() => null),
+      checkSSLLabs(domain).catch(() => ({ grade: null as string | null })),
+      checkKEP(domain).catch(() => ({ configured: false, relays: [] as string[], secure: false })),
+    ]);
     const { detectWAF } = await import("../../services/wafDetector");
     const { checkDirectIPAccess } = await import("../../services/wafBypassChecker");
     const { adjustCvesForWAF } = await import("../../services/riskAdjuster");

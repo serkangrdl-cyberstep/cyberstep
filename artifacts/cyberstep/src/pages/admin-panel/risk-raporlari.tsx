@@ -14,6 +14,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../../components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "../../components/ui/dialog";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -55,9 +58,86 @@ function periodTypeLabel(t: string) {
   return t;
 }
 
+function ReportViewDialog({ report, onClose }: { report: CyberRiskReport; onClose: () => void }) {
+  return (
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {periodTypeLabel(report.periodType)} Rapor — {report.periodLabel}
+            {report.sector && <span className="text-muted-foreground font-normal text-sm ml-2">({report.sector})</span>}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-2 gap-3 border rounded p-3 bg-muted/30">
+            <div>
+              <span className="text-muted-foreground">Durum</span>
+              <div className="mt-1">{statusBadge(report.status)}</div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Oluşturuldu</span>
+              <div className="font-medium">{new Date(report.createdAt).toLocaleString("tr-TR")}</div>
+            </div>
+            {report.publishedAt && (
+              <div>
+                <span className="text-muted-foreground">Yayınlandı</span>
+                <div className="font-medium">{new Date(report.publishedAt).toLocaleString("tr-TR")}</div>
+              </div>
+            )}
+            {report.reviewedBy && (
+              <div>
+                <span className="text-muted-foreground">Onaylayan</span>
+                <div className="font-medium">{report.reviewedBy}</div>
+              </div>
+            )}
+            {report.webSlug && (
+              <div>
+                <span className="text-muted-foreground">Slug</span>
+                <div className="font-mono text-xs">{report.webSlug}</div>
+              </div>
+            )}
+            {report.pdfUrl && (
+              <div>
+                <span className="text-muted-foreground">PDF</span>
+                <div>
+                  <a href={report.pdfUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+                    Aç
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {report.reviewNotes && (
+            <div>
+              <p className="text-muted-foreground mb-1">Notlar</p>
+              <p className="border rounded p-3 bg-muted/20 whitespace-pre-wrap">{report.reviewNotes}</p>
+            </div>
+          )}
+
+          <div>
+            <p className="text-muted-foreground mb-1">Rapor İçeriği</p>
+            {report.reportData ? (
+              <pre className="border rounded p-3 bg-muted/20 text-xs overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(report.reportData, null, 2)}
+              </pre>
+            ) : (
+              <div className="border rounded p-4 bg-muted/20 text-center text-muted-foreground">
+                İçerik henüz üretilmemiş — Faz 2 (Claude ile otomatik içerik üretimi) aktif olunca doldurulacak.
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminRiskRaporlari() {
   const qc = useQueryClient();
   const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
+  const [viewingReport, setViewingReport] = useState<CyberRiskReport | null>(null);
   const [newForm, setNewForm] = useState({
     periodType: "monthly",
     periodLabel: "",
@@ -132,6 +212,10 @@ export default function AdminRiskRaporlari() {
   return (
     <AdminLayout title="Dönemsel Risk Raporları">
       <div className="space-y-6">
+        {viewingReport && (
+          <ReportViewDialog report={viewingReport} onClose={() => setViewingReport(null)} />
+        )}
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Dönemsel Risk Raporları</h1>
@@ -185,7 +269,12 @@ export default function AdminRiskRaporlari() {
                           {periodTypeLabel(r.periodType)} — {r.periodLabel}
                           {r.sector && <span className="text-muted-foreground ml-2 text-sm">({r.sector})</span>}
                         </CardTitle>
-                        {statusBadge(r.status)}
+                        <div className="flex items-center gap-2">
+                          {statusBadge(r.status)}
+                          <Button size="sm" variant="outline" onClick={() => setViewingReport(r)}>
+                            Görüntüle
+                          </Button>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Oluşturuldu: {new Date(r.createdAt).toLocaleDateString("tr-TR")}
@@ -238,6 +327,7 @@ export default function AdminRiskRaporlari() {
                     <TableHead>Yayın Tarihi</TableHead>
                     <TableHead>Onaylayan</TableHead>
                     <TableHead>PDF</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -257,6 +347,11 @@ export default function AdminRiskRaporlari() {
                           ? <a href={r.pdfUrl} target="_blank" rel="noreferrer" className="text-primary underline text-sm">PDF</a>
                           : <span className="text-muted-foreground text-xs">Henüz yok</span>
                         }
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="outline" onClick={() => setViewingReport(r)}>
+                          Görüntüle
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -292,6 +387,13 @@ export default function AdminRiskRaporlari() {
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setViewingReport(r)}
+                          >
+                            Görüntüle
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

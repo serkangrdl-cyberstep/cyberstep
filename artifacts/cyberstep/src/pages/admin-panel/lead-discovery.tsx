@@ -2505,30 +2505,31 @@ export default function AdminLeadDiscovery() {
         {/* ── RESULTS TAB ──────────────────────────────────────────────── */}
         <TabsContent value="results">
           <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <CardTitle>Lead Adaylari</CardTitle>
-                  <CardDescription>Toplam {candidatesData?.total ?? 0} kayit</CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-3">
+                {/* Başlık + Excel satırı */}
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base">Lead Adayları</CardTitle>
+                    <CardDescription className="text-xs">Toplam {candidatesData?.total ?? 0} kayıt</CardDescription>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 text-xs border-emerald-700/60 text-emerald-400 hover:bg-emerald-900/30 hover:text-emerald-300 disabled:opacity-50 shrink-0"
+                    onClick={handleExcelExport}
+                    disabled={isExporting}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    {isExporting ? "Hazırlanıyor..." : "Excel"}
+                  </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                {/* Excel export butonu */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-3 text-xs border-emerald-700/60 text-emerald-400 hover:bg-emerald-900/30 hover:text-emerald-300 disabled:opacity-50"
-                  onClick={handleExcelExport}
-                  disabled={isExporting}
-                >
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  {isExporting ? "Hazırlanıyor..." : "Excel'e Aktar"}
-                </Button>
-                {/* Domain arama */}
+                {/* Arama satırı */}
                 <form
-                  className="flex items-center gap-1.5"
+                  className="flex items-center gap-1.5 w-full"
                   onSubmit={(e) => { e.preventDefault(); setResultsSearch(resultsSearchInput.trim()); setPage(1); }}
                 >
-                  <div className="relative">
+                  <div className="relative flex-1">
                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                     <Input
                       placeholder="domain ara..."
@@ -2537,7 +2538,7 @@ export default function AdminLeadDiscovery() {
                         setResultsSearchInput(e.target.value);
                         if (!e.target.value.trim()) { setResultsSearch(""); setPage(1); }
                       }}
-                      className="h-8 pl-7 pr-7 text-sm w-52"
+                      className="h-8 pl-7 pr-7 text-sm w-full"
                     />
                     {resultsSearchInput && (
                       <button
@@ -2549,24 +2550,25 @@ export default function AdminLeadDiscovery() {
                       </button>
                     )}
                   </div>
-                  <Button type="submit" size="sm" className="h-8 px-3">Ara</Button>
+                  <Button type="submit" size="sm" className="h-8 px-3 shrink-0">Ara</Button>
                 </form>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                {/* Filtreler satırı */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <Checkbox
                       checked={filterQualified}
                       onCheckedChange={(v) => { setFilterQualified(!!v); setFilterTier(""); setPage(1); }}
                     />
-                    Sadece kalifikasyon geçenler
+                    Kalifikasyon geçenler
                   </label>
-                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <Checkbox
                       checked={filterHasContact}
                       onCheckedChange={(v) => { setFilterHasContact(!!v); setPage(1); }}
                     />
                     İletişim var
                   </label>
-                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <Checkbox
                       checked={filterNotSent}
                       onCheckedChange={(v) => { setFilterNotSent(!!v); setPage(1); }}
@@ -2575,18 +2577,16 @@ export default function AdminLeadDiscovery() {
                   </label>
                   {!filterQualified && (
                     <select
-                      className="text-sm border rounded px-2 py-1 bg-background text-foreground"
+                      className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
                       value={filterTier}
                       onChange={(e) => { setFilterTier(e.target.value); setPage(1); }}
                     >
                       <option value="">Tüm Tier'lar</option>
-                      <option value="tier3">Tier 3 — Ön-eleme Bekleyen</option>
-                      <option value="tier2">Tier 2 — Kalifikasyon Bekleyen</option>
+                      <option value="tier3">Tier 3</option>
+                      <option value="tier2">Tier 2</option>
                       <option value="tier1">Tier 1 — Qualified</option>
                     </select>
                   )}
-
-                  {/* Belediye filtresi */}
                   <button
                     onClick={() => {
                       setFilterMunicipality((v) => v === "" ? "only" : v === "only" ? "exclude" : "");
@@ -2603,7 +2603,6 @@ export default function AdminLeadDiscovery() {
                   >
                     {filterMunicipality === "only" ? "Sadece Belediyeler" : filterMunicipality === "exclude" ? "Belediyeler Hariç" : "Belediyeler"}
                   </button>
-                </div>
                 </div>
               </div>
             </CardHeader>

@@ -922,6 +922,43 @@ export default function AdminLeadDiscovery() {
   // ─── Sonuçlar tab arama ───────────────────────────────────────────────────
   const [resultsSearchInput, setResultsSearchInput] = useState("");
   const [resultsSearch, setResultsSearch] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExcelExport() {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (resultsSearch) params.set("search", resultsSearch);
+      if (filterTier) params.set("tier", filterTier);
+      if (filterHasContact) params.set("hasContact", "true");
+      if (filterNotSent) params.set("notSent", "true");
+      if (filterMunicipality) params.set("municipality", filterMunicipality);
+
+      const res = await fetch(`${BASE}/lead-discovery/export?${params}`, { credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Bilinmeyen hata" }));
+        toast({ description: (err as { error?: string }).error ?? "Export başarısız", variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10);
+      a.href     = url;
+      a.download = `cyberstep_domains_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const total = res.headers.get("X-Total-Count");
+      toast({ description: `${total ?? ""} kayıt Excel dosyası indirildi.` });
+    } catch {
+      toast({ description: "Export sırasında hata oluştu.", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   // ── Lead Import Merkezi ────────────────────────────────────────────────────
   const [importTab, setImportTab] = useState("excel");
@@ -2474,6 +2511,18 @@ export default function AdminLeadDiscovery() {
                   <CardTitle>Lead Adaylari</CardTitle>
                   <CardDescription>Toplam {candidatesData?.total ?? 0} kayit</CardDescription>
                 </div>
+                <div className="flex items-center gap-2">
+                {/* Excel export butonu */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-xs border-emerald-700/60 text-emerald-400 hover:bg-emerald-900/30 hover:text-emerald-300 disabled:opacity-50"
+                  onClick={handleExcelExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  {isExporting ? "Hazırlanıyor..." : "Excel'e Aktar"}
+                </Button>
                 {/* Domain arama */}
                 <form
                   className="flex items-center gap-1.5"
@@ -2554,6 +2603,7 @@ export default function AdminLeadDiscovery() {
                   >
                     {filterMunicipality === "only" ? "Sadece Belediyeler" : filterMunicipality === "exclude" ? "Belediyeler Hariç" : "Belediyeler"}
                   </button>
+                </div>
                 </div>
               </div>
             </CardHeader>

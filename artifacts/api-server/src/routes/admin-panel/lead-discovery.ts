@@ -521,6 +521,185 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   res.json({ rows: enrichedRows, total, page, pageSize });
 });
 
+// ─── GET /api/admin-panel/lead-discovery/export ───────────────────────────────
+// Mevcut filtreleri dikkate alarak tüm lead_candidates listesini Excel olarak indir.
+router.get("/admin-panel/lead-discovery/export", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const ExcelJS = (await import("exceljs")).default;
+
+    const tier         = req.query["tier"] as string | undefined;
+    const hasContact   = req.query["hasContact"] === "true";
+    const notSent      = req.query["notSent"]    === "true";
+    const municipality = req.query["municipality"] as string | undefined;
+    const search       = (req.query["search"] as string ?? "").trim();
+
+    const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [];
+    if (tier)         conditions.push(eq(leadCandidatesTable.tier, tier));
+    if (hasContact)   conditions.push(isNotNull(leadCandidatesTable.contactEmail));
+    if (notSent)      conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+    if (search)       conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
+    if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
+    if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
+
+    const where = conditions.length ? and(...conditions) : undefined;
+
+    const [{ total }] = await db.select({ total: count() }).from(leadCandidatesTable).where(where);
+    const totalNum = Number(total);
+
+    if (totalNum === 0) {
+      res.status(404).json({ error: "Export edilecek kayıt bulunamadı." });
+      return;
+    }
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "CyberStep.io";
+    wb.created = new Date();
+    const ws = wb.addWorksheet("Domains");
+
+    ws.columns = [
+      { header: "Domain",          key: "domain",      width: 32 },
+      { header: "IP Adresi",       key: "ip",          width: 16 },
+      { header: "Risk Skoru",      key: "riskScore",   width: 12 },
+      { header: "Risk Seviyesi",   key: "riskLevel",   width: 14 },
+      { header: "Durum",           key: "status",      width: 14 },
+      { header: "Kayıt Tarihi",    key: "createdAt",   width: 20 },
+      { header: "Son Tarama",      key: "lastScanned", width: 20 },
+      { header: "Ülke",            key: "country",     width: 8  },
+      { header: "Şehir",           key: "city",        width: 16 },
+      { header: "Sektör",          key: "sector",      width: 18 },
+      { header: "Şirket Adı",      key: "companyName", width: 26 },
+      { header: "Açık Port Sayısı",key: "portCount",   width: 16 },
+      { header: "CVE Sayısı",      key: "cveCount",    width: 12 },
+      { header: "WAF Tespit",      key: "waf",         width: 12 },
+      { header: "Kaynak",          key: "source",      width: 18 },
+    ];
+
+    // Header satırı stili
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0E1A2E" } };
+      cell.font   = { bold: true, color: { argb: "FF00C8FF" } };
+      cell.border = { bottom: { style: "thin", color: { argb: "FF00C8FF" } } };
+    });
+    headerRow.height = 20;
+    ws.views = [{ state: "frozen", xSplit: 0, ySplit: 1 }];
+
+    const RISK_COLORS: Record<string, string> = {
+      critical: "FFFF4444",
+      high:     "FFFF8C00",
+      medium:   "FFF5A623",
+      low:      "FF00C8FF",
+    };
+
+    function getRiskLevel(score: number | null): string {
+      if (score === null || score === undefined) return "";
+      if (score < 30) return "critical";
+      if (score < 60) return "high";
+      if (score < 80) return "medium";
+      return "low";
+    }
+
+    function fmtDate(d: Date | string | null | undefined): string {
+      if (!d) return "";
+      const dt = d instanceof Date ? d : new Date(d as string);
+      if (isNaN(dt.getTime())) return "";
+      const dd   = String(dt.getDate()).padStart(2, "0");
+      const mm   = String(dt.getMonth() + 1).padStart(2, "0");
+      const yyyy = dt.getFullYear();
+      const hh   = String(dt.getHours()).padStart(2, "0");
+      const min  = String(dt.getMinutes()).padStart(2, "0");
+      return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+    }
+
+    const BATCH = 1000;
+    const batches = Math.ceil(totalNum / BATCH);
+
+    for (let b = 0; b < batches; b++) {
+      const rows = await db.select({
+        domain:        leadCandidatesTable.domain,
+        companyName:   leadCandidatesTable.companyName,
+        sector:        leadCandidatesTable.sector,
+        city:          leadCandidatesTable.city,
+        source:        leadCandidatesTable.source,
+        scanStatus:    leadCandidatesTable.scanStatus,
+        scanId:        leadCandidatesTable.scanId,
+        riskScore:     leadCandidatesTable.riskScore,
+        wafDetected:   leadCandidatesTable.wafDetected,
+        createdAt:     leadCandidatesTable.createdAt,
+        lastScannedAt: leadCandidatesTable.lastScannedAt,
+      }).from(leadCandidatesTable)
+        .where(where)
+        .orderBy(asc(leadCandidatesTable.id))
+        .limit(BATCH)
+        .offset(b * BATCH);
+
+      // Batch'teki scan_id'ler için domain_scans verisi
+      const scanIds = rows.map(r => r.scanId).filter((id): id is number => id !== null);
+      const scanMap = new Map<number, {
+        originIp: string | null;
+        openPortsCount: number | null;
+        criticalCveCount: number | null;
+        highCveCount: number | null;
+        country: string | null;
+      }>();
+      if (scanIds.length > 0) {
+        const scans = await db.select({
+          id:              domainScansTable.id,
+          originIp:        domainScansTable.originIp,
+          openPortsCount:  domainScansTable.openPortsCount,
+          criticalCveCount:domainScansTable.criticalCveCount,
+          highCveCount:    domainScansTable.highCveCount,
+          country:         domainScansTable.abuseIpdbCountry,
+        }).from(domainScansTable).where(inArray(domainScansTable.id, scanIds));
+        for (const s of scans) scanMap.set(s.id, s);
+      }
+
+      for (const row of rows) {
+        const scan      = row.scanId ? (scanMap.get(row.scanId) ?? null) : null;
+        const riskLevel = getRiskLevel(row.riskScore);
+        const cveCount  = scan ? ((scan.criticalCveCount ?? 0) + (scan.highCveCount ?? 0)) : null;
+
+        const excelRow = ws.addRow({
+          domain:      row.domain,
+          ip:          scan?.originIp ?? "",
+          riskScore:   row.riskScore  ?? "",
+          riskLevel:   riskLevel === "critical" ? "Kritik" : riskLevel === "high" ? "Yüksek" : riskLevel === "medium" ? "Orta" : riskLevel === "low" ? "Düşük" : "",
+          status:      row.scanStatus ?? "",
+          createdAt:   fmtDate(row.createdAt),
+          lastScanned: fmtDate(row.lastScannedAt),
+          country:     scan?.country ?? "",
+          city:        row.city        ?? "",
+          sector:      row.sector      ?? "",
+          companyName: row.companyName ?? "",
+          portCount:   scan?.openPortsCount ?? "",
+          cveCount:    cveCount !== null ? cveCount : "",
+          waf:         row.wafDetected === true ? "Evet" : row.wafDetected === false ? "Hayır" : "",
+          source:      row.source ?? "",
+        });
+        excelRow.height = 18;
+
+        // Risk seviyesi hücresini renklendir
+        if (riskLevel && RISK_COLORS[riskLevel]) {
+          const cell = excelRow.getCell("riskLevel");
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RISK_COLORS[riskLevel]! } };
+          cell.font = { bold: true, color: { argb: "FF0E1A2E" } };
+        }
+      }
+    }
+
+    const today  = new Date().toISOString().slice(0, 10);
+    const buffer = await wb.xlsx.writeBuffer();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="cyberstep_domains_${today}.xlsx"`);
+    res.setHeader("X-Total-Count", String(totalNum));
+    res.send(Buffer.from(buffer));
+    logger.info({ totalNum, tier, search, municipality }, "Domain Excel export tamamlandı");
+  } catch (err) {
+    logger.error({ err }, "Domain Excel export hatası");
+    res.status(500).json({ error: "Export sırasında hata oluştu." });
+  }
+});
+
 // ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/contact ────────────
 router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));

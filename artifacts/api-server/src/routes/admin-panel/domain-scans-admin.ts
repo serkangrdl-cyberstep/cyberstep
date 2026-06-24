@@ -356,4 +356,63 @@ router.post("/admin-panel/domain-scans/scan", requireAdmin, async (req: Request,
   }
 });
 
+// ─── Backfill: open_ports_count + critical/high_cve_count ──────────────────────
+router.post("/admin-panel/domain-scans/backfill-counts", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const portResult = await db.execute(sql`
+      UPDATE domain_scans
+      SET open_ports_count = jsonb_array_length(shodan_open_ports)
+      WHERE shodan_open_ports IS NOT NULL
+        AND shodan_open_ports::text != 'null'
+        AND jsonb_typeof(shodan_open_ports) = 'array'
+        AND jsonb_array_length(shodan_open_ports) > 0
+        AND open_ports_count = 0
+    `);
+
+    const cveResult = await db.execute(sql`
+      UPDATE domain_scans
+      SET
+        critical_cve_count = (
+          SELECT COUNT(*)::int
+          FROM jsonb_array_elements(cve_summary) AS cve
+          WHERE (cve->>'cvssScore')::numeric >= 9.0
+        ),
+        high_cve_count = (
+          SELECT COUNT(*)::int
+          FROM jsonb_array_elements(cve_summary) AS cve
+          WHERE (cve->>'cvssScore')::numeric >= 7.0
+            AND (cve->>'cvssScore')::numeric < 9.0
+        )
+      WHERE cve_summary IS NOT NULL
+        AND cve_summary::text != 'null'
+        AND jsonb_typeof(cve_summary) = 'array'
+        AND jsonb_array_length(cve_summary) > 0
+        AND critical_cve_count = 0
+        AND high_cve_count = 0
+    `);
+
+    const verifyResult = await db.execute(sql`
+      SELECT
+        COUNT(*) AS toplam,
+        COUNT(*) FILTER (WHERE open_ports_count > 0) AS port_dolu,
+        COUNT(*) FILTER (WHERE critical_cve_count > 0) AS kritik_cve_dolu,
+        COUNT(*) FILTER (WHERE high_cve_count > 0) AS yuksek_cve_dolu,
+        ROUND(AVG(open_ports_count)::numeric, 1) AS ort_port,
+        MAX(open_ports_count) AS max_port,
+        MAX(critical_cve_count) AS max_kritik_cve
+      FROM domain_scans
+    `);
+
+    logger.info({ portRows: portResult.rowCount, cveRows: cveResult.rowCount }, "Backfill tamamlandı");
+    res.json({
+      portUpdated: portResult.rowCount,
+      cveUpdated: cveResult.rowCount,
+      verification: verifyResult.rows[0],
+    });
+  } catch (err) {
+    logger.error({ err }, "Backfill hatası");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;

@@ -244,11 +244,12 @@ router.get("/admin-panel/domain-scans/by-domain/:domain", requireAdmin, async (r
   const domain = String(req.params.domain).toLowerCase().trim();
   if (!domain) { res.status(400).json({ error: "Geçersiz domain" }); return; }
 
+  // Tam taramayı (overallScore > 0) önceliklendir; yoksa en yeni scan'i döndür
   const [scan] = await db
     .select()
     .from(domainScansTable)
     .where(eq(domainScansTable.domain, domain))
-    .orderBy(desc(domainScansTable.createdAt))
+    .orderBy(desc(domainScansTable.overallScore), desc(domainScansTable.createdAt))
     .limit(1);
 
   if (!scan) { res.status(404).json({ error: "Bu domain için tarama bulunamadı" }); return; }
@@ -459,9 +460,10 @@ router.post("/admin-panel/domain-scans/probe-subdomains", requireAdmin, async (r
     logger.info({ domain, count: certTrans.count }, "CT subdomains alındı");
 
     // 2. scan_id bul veya oluştur
+    // Öncelik sırası: (a) frontend'den gelen rawScanId → (b) domain bazlı en iyi scan → (c) yeni minimal scan
     let scanId: number;
     if (rawScanId && typeof rawScanId === "number") {
-      // Mevcut scan'e ct_subdomains yaz
+      // Frontend hangi scan'i açıksa onu güncelle
       await db.execute(sql`
         UPDATE domain_scans
         SET ct_subdomains = ${JSON.stringify(certTrans.subdomains)}::jsonb,
@@ -470,19 +472,36 @@ router.post("/admin-panel/domain-scans/probe-subdomains", requireAdmin, async (r
       `);
       scanId = rawScanId;
     } else {
-      // Minimal scan satırı aç
-      const [newScan] = await db.insert(domainScansTable).values({
-        domain,
-        ctSubdomains: certTrans.subdomains,
-        ctSubdomainCount: certTrans.count,
-        spfPass: false,
-        dmarcPass: false,
-        dkimPass: false,
-        mxPass: false,
-        sslPass: false,
-        overallScore: 0,
-      }).returning({ id: domainScansTable.id });
-      scanId = newScan!.id;
+      // Tam scan varsa onu kullan (overallScore DESC); yoksa yeni minimal scan aç
+      const [existing] = await db
+        .select({ id: domainScansTable.id })
+        .from(domainScansTable)
+        .where(eq(domainScansTable.domain, domain))
+        .orderBy(desc(domainScansTable.overallScore), desc(domainScansTable.createdAt))
+        .limit(1);
+
+      if (existing) {
+        await db.execute(sql`
+          UPDATE domain_scans
+          SET ct_subdomains = ${JSON.stringify(certTrans.subdomains)}::jsonb,
+              ct_subdomain_count = ${certTrans.count}
+          WHERE id = ${existing.id}
+        `);
+        scanId = existing.id;
+      } else {
+        const [newScan] = await db.insert(domainScansTable).values({
+          domain,
+          ctSubdomains: certTrans.subdomains,
+          ctSubdomainCount: certTrans.count,
+          spfPass: false,
+          dmarcPass: false,
+          dkimPass: false,
+          mxPass: false,
+          sslPass: false,
+          overallScore: 0,
+        }).returning({ id: domainScansTable.id });
+        scanId = newScan!.id;
+      }
     }
 
     // 3. HTTP probe + sınıflandırma (synchronous — test için bekliyoruz)

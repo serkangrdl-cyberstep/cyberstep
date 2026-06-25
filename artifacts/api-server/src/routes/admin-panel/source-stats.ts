@@ -13,7 +13,7 @@ router.get("/admin-panel/source-stats", requireAdmin, async (req: Request, res: 
       ? new Date("2000-01-01")
       : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const [statsResult, totalsResult, trendResult, tldResult, enrichmentResult] = await Promise.all([
+    const [statsResult, totalsResult, trendResult, tldResult, enrichmentResult, sectorMethodResult, cityMethodResult] = await Promise.all([
       db.execute(sql`
         SELECT
           COALESCE(source, 'unknown')                               AS source,
@@ -98,6 +98,38 @@ router.get("/admin-panel/source-stats", requireAdmin, async (req: Request, res: 
         GROUP BY source
         ORDER BY total DESC
       `),
+      // Sektör zenginleştirme yöntemi dağılımı
+      db.execute(sql`
+        SELECT
+          CASE
+            WHEN sector_confidence = 'tld_rule'        THEN 'tld_rule'
+            WHEN sector_confidence = 'keyword_multi'   THEN 'keyword_multi'
+            WHEN sector_confidence = 'keyword_single'  THEN 'keyword_single'
+            WHEN sector_enriched_at IS NOT NULL AND sector IS NULL THEN 'unmatched'
+            WHEN sector_enriched_at IS NULL             THEN 'pending'
+            ELSE 'manual_import'
+          END                                           AS method,
+          COUNT(*)                                      AS count,
+          ROUND(COUNT(*)::numeric / NULLIF(SUM(COUNT(*)) OVER (), 0) * 100, 1) AS pct
+        FROM lead_candidates
+        GROUP BY 1
+        ORDER BY count DESC
+      `),
+      // Şehir zenginleştirme yöntemi dağılımı
+      db.execute(sql`
+        SELECT
+          CASE
+            WHEN city IS NOT NULL AND domain LIKE '%.bel.tr' THEN 'bel_tr_pattern'
+            WHEN city IS NOT NULL AND geo_enriched_at IS NOT NULL THEN 'geo_api'
+            WHEN city IS NOT NULL                              THEN 'other_source'
+            ELSE 'empty'
+          END                                           AS method,
+          COUNT(*)                                      AS count,
+          ROUND(COUNT(*)::numeric / NULLIF(SUM(COUNT(*)) OVER (), 0) * 100, 1) AS pct
+        FROM lead_candidates
+        GROUP BY 1
+        ORDER BY count DESC
+      `),
     ]);
 
     res.json({
@@ -109,6 +141,8 @@ router.get("/admin-panel/source-stats", requireAdmin, async (req: Request, res: 
       trend: trendResult.rows,
       tldStats: tldResult.rows,
       enrichmentStats: enrichmentResult.rows,
+      sectorMethodStats: sectorMethodResult.rows,
+      cityMethodStats: cityMethodResult.rows,
       period: days,
     });
   } catch (err) {

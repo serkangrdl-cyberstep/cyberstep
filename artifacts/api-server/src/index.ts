@@ -859,6 +859,16 @@ async function ensureIsrTables() {
   await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS waf_enrichment_status VARCHAR(30)`);
   // Partial index: sadece enrichment bekleyen satırları kapsar — tablo büyüdükçe full scan önlenir.
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_lead_candidates_waf_pending ON lead_candidates (id) WHERE waf_enriched_at IS NULL AND waf_enrichment_status IS DISTINCT FROM 'unknown_timeout'`);
+  // .bel.tr domain pattern → city çıkarımı (garantili, AI maliyeti yok)
+  // istanbul.bel.tr → Istanbul, ankara.bel.tr → Ankara vb.
+  await db.execute(sql`
+    UPDATE lead_candidates
+    SET city = INITCAP(REPLACE(SPLIT_PART(domain, '.bel.tr', 1), '-', ' '))
+    WHERE domain LIKE '%.bel.tr'
+      AND SPLIT_PART(domain, '.bel.tr', 1) NOT LIKE '%.%'
+      AND LENGTH(SPLIT_PART(domain, '.bel.tr', 1)) >= 2
+      AND city IS NULL
+  `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS contact_enrichment_log (
       id SERIAL PRIMARY KEY,

@@ -179,14 +179,38 @@ interface EnrichmentRow {
   city_fill_rate: number;
 }
 
+interface MethodRow {
+  method: string;
+  count: number;
+  pct: number;
+}
+
 interface DashData {
   stats: SourceRow[];
   totals: Totals;
   trend: TrendRow[];
   tldStats: TldRow[];
   enrichmentStats: EnrichmentRow[];
+  sectorMethodStats: MethodRow[];
+  cityMethodStats: MethodRow[];
   period: number;
 }
+
+const SECTOR_METHOD_META: Record<string, { label: string; color: string; desc: string }> = {
+  tld_rule:       { label: "TLD Kuralı",        color: "#2ECC71", desc: ".gov.tr, .edu.tr, .bel.tr vb. — garantili" },
+  keyword_multi:  { label: "Keyword (2+ eşleşme)", color: "#00C8FF", desc: "Domain/şirket adında 2+ sektör kelimesi" },
+  keyword_single: { label: "Keyword (1 eşleşme)",  color: "#F5A623", desc: "Domain/şirket adında tek sektör kelimesi" },
+  unmatched:      { label: "Eşleşme Yok",        color: "#7F8C8D", desc: "İşlendi ama hiç ipucu bulunamadı" },
+  pending:        { label: "Beklemede",           color: "#E03A3A", desc: "Henüz sektör enrichment çalışmadı" },
+  manual_import:  { label: "Manuel/İçe Aktarma", color: "#9B59B6", desc: "Otomatik atanmamış" },
+};
+
+const CITY_METHOD_META: Record<string, { label: string; color: string; desc: string }> = {
+  bel_tr_pattern: { label: ".bel.tr Pattern",  color: "#2ECC71", desc: "Domain prefix'ten garantili çıkarım" },
+  geo_api:        { label: "Geo API",           color: "#00C8FF", desc: "IP → ip-api.com ile şehir tespiti" },
+  other_source:   { label: "Diğer Kaynak",      color: "#F5A623", desc: "İçe aktarma, manuel vb." },
+  empty:          { label: "Boş",               color: "#E03A3A", desc: "Şehir bilgisi yok" },
+};
 
 function formatTrendData(trend: TrendRow[]) {
   const byDay: Record<string, Record<string, number>> = {};
@@ -569,6 +593,105 @@ export default function SourceDashboard() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Zenginleştirme Yöntemleri */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+              gap: 18, marginBottom: 20,
+            }}>
+              {/* Sektör Yöntemi */}
+              <div style={{
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderRadius: 14, padding: "16px 18px",
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                  Sektör — Hangi Yöntemle Dolduruldu?
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
+                  Her satır tüm domainlerdeki yöntem dağılımını gösterir
+                </div>
+                {(!data.sectorMethodStats || data.sectorMethodStats.length === 0) ? (
+                  <div style={{ color: C.muted, fontSize: 13 }}>Veri yok</div>
+                ) : data.sectorMethodStats.map((row) => {
+                  const meta = SECTOR_METHOD_META[row.method] ?? { label: row.method, color: "#7F8C8D", desc: "" };
+                  const pct = Number(row.pct) || 0;
+                  return (
+                    <div key={row.method} style={{ marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>{meta.label}</span>
+                          <span style={{ fontSize: 11, color: C.muted, marginLeft: 8 }}>{meta.desc}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                          <span style={{ fontSize: 12, color: C.muted }}>{Number(row.count).toLocaleString("tr-TR")}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: meta.color, minWidth: 36, textAlign: "right" }}>%{pct}</span>
+                        </div>
+                      </div>
+                      <div style={{ height: 5, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{
+                          width: `${Math.min(pct, 100)}%`, height: "100%",
+                          background: meta.color, borderRadius: 3,
+                          transition: "width 0.6s ease",
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{
+                  marginTop: 14, paddingTop: 10, borderTop: `1px solid ${C.border}`,
+                  fontSize: 11, color: C.muted,
+                }}>
+                  Planlanan: WHOIS + Haiku AI enrichment (orta vadeli) — MERSiS API (Türkiye ticaret sicili)
+                </div>
+              </div>
+
+              {/* Şehir Yöntemi */}
+              <div style={{
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderRadius: 14, padding: "16px 18px",
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                  Şehir — Hangi Yöntemle Dolduruldu?
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
+                  .bel.tr pattern garantili; geo API ip-api.com üzerinden
+                </div>
+                {(!data.cityMethodStats || data.cityMethodStats.length === 0) ? (
+                  <div style={{ color: C.muted, fontSize: 13 }}>Veri yok</div>
+                ) : data.cityMethodStats.map((row) => {
+                  const meta = CITY_METHOD_META[row.method] ?? { label: row.method, color: "#7F8C8D", desc: "" };
+                  const pct = Number(row.pct) || 0;
+                  return (
+                    <div key={row.method} style={{ marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>{meta.label}</span>
+                          <span style={{ fontSize: 11, color: C.muted, marginLeft: 8 }}>{meta.desc}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                          <span style={{ fontSize: 12, color: C.muted }}>{Number(row.count).toLocaleString("tr-TR")}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: meta.color, minWidth: 36, textAlign: "right" }}>%{pct}</span>
+                        </div>
+                      </div>
+                      <div style={{ height: 5, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{
+                          width: `${Math.min(pct, 100)}%`, height: "100%",
+                          background: meta.color, borderRadius: 3,
+                          transition: "width 0.6s ease",
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{
+                  marginTop: 14, paddingTop: 10, borderTop: `1px solid ${C.border}`,
+                  fontSize: 11, color: C.muted,
+                }}>
+                  Planlanan: WHOIS registrant adresi — MERSiS kayıtlı adres (il/ilçe)
+                </div>
+              </div>
             </div>
 
             {/* Kaynak Detay Tablosu — ek sütunlar */}

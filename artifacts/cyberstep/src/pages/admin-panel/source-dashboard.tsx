@@ -169,11 +169,22 @@ interface Totals {
   overall_qualification_rate: number; active_sources: number;
 }
 
+interface EnrichmentRow {
+  source: string;
+  total: number;
+  has_sector: number;
+  has_city: number;
+  has_both: number;
+  sector_fill_rate: number;
+  city_fill_rate: number;
+}
+
 interface DashData {
   stats: SourceRow[];
   totals: Totals;
   trend: TrendRow[];
   tldStats: TldRow[];
+  enrichmentStats: EnrichmentRow[];
   period: number;
 }
 
@@ -470,6 +481,88 @@ export default function SourceDashboard() {
                           <div style={{ fontSize: 11, color: rateColor, marginTop: 4, fontWeight: 700 }}>
                             %{rate} kalifikasyon
                           </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sektör / Şehir Zenginleştirme Oranları */}
+            <div style={{
+              background: C.bg2, border: `1px solid ${C.border}`,
+              borderRadius: 14, padding: "16px 18px", marginBottom: 20,
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14 }}>
+                Sektör &amp; Şehir Zenginleştirme — Kaynak Bazlı
+              </div>
+              {!data.enrichmentStats || data.enrichmentStats.length === 0 ? (
+                <div style={{ color: C.muted, fontSize: 13 }}>Veri yok</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  {/* Başlıklar */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 60px 80px 80px 80px 100px 100px",
+                    padding: "7px 14px", fontSize: 11,
+                    color: C.muted, borderBottom: `1px solid ${C.border}`,
+                    gap: 8, minWidth: 600,
+                  }}>
+                    <span>Kaynak</span>
+                    <span style={{ textAlign: "right" }}>Toplam</span>
+                    <span style={{ textAlign: "right" }}>Sektörlü</span>
+                    <span style={{ textAlign: "right" }}>Şehirli</span>
+                    <span style={{ textAlign: "right" }}>İkisi de</span>
+                    <span style={{ textAlign: "right" }}>Sektör %</span>
+                    <span style={{ textAlign: "right" }}>Şehir %</span>
+                  </div>
+                  {data.enrichmentStats.map((row) => {
+                    const secRate = Number(row.sector_fill_rate) || 0;
+                    const cityRate = Number(row.city_fill_rate) || 0;
+                    const secColor = secRate >= 50 ? C.green : secRate >= 20 ? C.amber : C.red;
+                    const cityColor = cityRate >= 50 ? C.green : cityRate >= 20 ? C.amber : C.red;
+                    return (
+                      <div key={row.source} style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 60px 80px 80px 80px 100px 100px",
+                        padding: "10px 14px", fontSize: 12,
+                        borderBottom: `1px solid ${C.border}`, gap: 8,
+                        alignItems: "center", minWidth: 600,
+                      }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: C.text }}>
+                          <span>{SOURCE_ICONS[row.source] ?? "📌"}</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {SOURCE_LABELS[row.source] ?? row.source}
+                          </span>
+                        </span>
+                        <span style={{ textAlign: "right", color: C.cyan, fontWeight: 700 }}>
+                          {Number(row.total).toLocaleString("tr-TR")}
+                        </span>
+                        <span style={{ textAlign: "right", color: secColor }}>
+                          {Number(row.has_sector).toLocaleString("tr-TR")}
+                        </span>
+                        <span style={{ textAlign: "right", color: cityColor }}>
+                          {Number(row.has_city).toLocaleString("tr-TR")}
+                        </span>
+                        <span style={{ textAlign: "right", color: C.muted }}>
+                          {Number(row.has_both).toLocaleString("tr-TR")}
+                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                          <div style={{ width: 48, height: 4, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+                            <div style={{ width: `${Math.min(secRate, 100)}%`, height: "100%", background: secColor, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: secColor, minWidth: 32, textAlign: "right" }}>
+                            %{secRate}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                          <div style={{ width: 48, height: 4, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+                            <div style={{ width: `${Math.min(cityRate, 100)}%`, height: "100%", background: cityColor, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: cityColor, minWidth: 32, textAlign: "right" }}>
+                            %{cityRate}
+                          </span>
                         </div>
                       </div>
                     );

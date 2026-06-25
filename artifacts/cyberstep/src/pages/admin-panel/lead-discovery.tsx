@@ -924,9 +924,13 @@ export default function AdminLeadDiscovery() {
   const [qMinScore, setQMinScore] = useState(0);
   const [qCriticalPort, setQCriticalPort] = useState(false);
   const [qMunicipality, setQMunicipality] = useState<"" | "only" | "exclude">("");
+  const [qSector, setQSector] = useState(""); // "" | "__empty__" | free text
+  const [qCity, setQCity] = useState(""); // "" | "__empty__" | free text
   const [qPageInput, setQPageInput] = useState("");
   const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
   const [filterMunicipality, setFilterMunicipality] = useState<"" | "only" | "exclude">("");
+  const [filterSector, setFilterSector] = useState(""); // "" | "__empty__" | free text
+  const [filterCity, setFilterCity] = useState(""); // "" | "__empty__" | free text
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
@@ -1078,7 +1082,7 @@ export default function AdminLeadDiscovery() {
   const { data: qualifiedData, isLoading: qualifiedLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort, qMunicipality],
+    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort, qMunicipality, qSector, qCity],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(qPage), pageSize: String(qPageSize), sortBy: qSort });
       if (qSearch) params.set("search", qSearch);
@@ -1091,6 +1095,10 @@ export default function AdminLeadDiscovery() {
       if (qMinScore > 0) params.set("minScore", String(qMinScore));
       if (qCriticalPort) params.set("criticalPort", "true");
       if (qMunicipality) params.set("municipality", qMunicipality);
+      if (qSector === "__empty__") params.set("sectorEmpty", "true");
+      else if (qSector) params.set("sector", qSector);
+      if (qCity === "__empty__") params.set("cityEmpty", "true");
+      else if (qCity) params.set("city", qCity);
       return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
     },
     refetchInterval: 30_000,
@@ -1099,13 +1107,17 @@ export default function AdminLeadDiscovery() {
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch],
+    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch, filterSector, filterCity],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filterHasContact) params.set("hasContact", "true");
       if (filterNotSent) params.set("notSent", "true");
       if (filterMunicipality) params.set("municipality", filterMunicipality);
       if (resultsSearch) params.set("search", resultsSearch);
+      if (filterSector === "__empty__") params.set("sectorEmpty", "true");
+      else if (filterSector) params.set("sector", filterSector);
+      if (filterCity === "__empty__") params.set("cityEmpty", "true");
+      else if (filterCity) params.set("city", filterCity);
       if (filterQualified) {
         return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
       }
@@ -2317,6 +2329,46 @@ export default function AdminLeadDiscovery() {
                   {qMunicipality === "only" ? "Sadece Belediyeler" : qMunicipality === "exclude" ? "Belediyeler Hariç" : "Belediyeler"}
                 </button>
 
+                {/* Sektör filtresi */}
+                <select
+                  value={qSector}
+                  onChange={(e) => { setQSector(e.target.value); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value="">Sektör: Tümü</option>
+                  <option value="__empty__">Sektör: Boş</option>
+                  <option value="Finans">Finans</option>
+                  <option value="Saglik">Saglik</option>
+                  <option value="Perakende">Perakende</option>
+                  <option value="Imalat">Imalat</option>
+                  <option value="Bilisim">Bilisim</option>
+                  <option value="Lojistik">Lojistik</option>
+                  <option value="Insaat">Insaat</option>
+                  <option value="Egitim">Egitim</option>
+                  <option value="Turizm">Turizm</option>
+                  <option value="Enerji">Enerji</option>
+                </select>
+
+                {/* Şehir filtresi */}
+                <select
+                  value={qCity}
+                  onChange={(e) => { setQCity(e.target.value); setQPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value="">Sehir: Tümü</option>
+                  <option value="__empty__">Sehir: Boş</option>
+                  <option value="Istanbul">Istanbul</option>
+                  <option value="Ankara">Ankara</option>
+                  <option value="Izmir">Izmir</option>
+                  <option value="Bursa">Bursa</option>
+                  <option value="Antalya">Antalya</option>
+                  <option value="Adana">Adana</option>
+                  <option value="Gaziantep">Gaziantep</option>
+                  <option value="Konya">Konya</option>
+                  <option value="Kocaeli">Kocaeli</option>
+                  <option value="Mersin">Mersin</option>
+                </select>
+
                 <div className="ml-auto flex flex-wrap gap-1.5">
                   <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}>
                     CSV İndir
@@ -2331,7 +2383,7 @@ export default function AdminLeadDiscovery() {
               </div>
 
               {/* Active filter tags */}
-              {(qSearch || qTier || qContact || qTeaser || qMinScore > 0) && (
+              {(qSearch || qTier || qContact || qTeaser || qMinScore > 0 || qSector || qCity) && (
                 <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800">
                   <span className="text-[11px] text-slate-500 self-center">Aktif:</span>
                   {qSearch && <span className="text-[11px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">"{qSearch}"</span>}
@@ -2339,9 +2391,11 @@ export default function AdminLeadDiscovery() {
                   {qContact && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Contact: {qContact === "has" ? "Var" : "Eksik"}</span>}
                   {qTeaser && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Teaser: {qTeaser === "has" ? "Hazır" : qTeaser === "sent" ? "Gönderildi" : "Gönderilmedi"}</span>}
                   {qMinScore > 0 && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Risk ≥ {qMinScore}</span>}
+                  {qSector && <span className="text-[11px] bg-purple-900/40 text-purple-300 px-2 py-0.5 rounded-full">Sektör: {qSector === "__empty__" ? "Boş" : qSector}</span>}
+                  {qCity && <span className="text-[11px] bg-teal-900/40 text-teal-300 px-2 py-0.5 rounded-full">Şehir: {qCity === "__empty__" ? "Boş" : qCity}</span>}
                   <button
                     className="text-[11px] text-red-400 hover:text-red-300 underline ml-1"
-                    onClick={() => { setQSearch(""); setQSearchInput(""); setQTier(""); setQContact(""); setQTeaser(""); setQMinScore(0); setQPage(1); }}
+                    onClick={() => { setQSearch(""); setQSearchInput(""); setQTier(""); setQContact(""); setQTeaser(""); setQMinScore(0); setQSector(""); setQCity(""); setQPage(1); }}
                   >
                     Hepsini Temizle
                   </button>
@@ -2361,6 +2415,7 @@ export default function AdminLeadDiscovery() {
                         <TableHead className="text-slate-400 w-[220px]">Domain</TableHead>
                         <TableHead className="text-slate-400 w-12">Tier</TableHead>
                         <TableHead className="text-slate-400 text-right w-16">Risk</TableHead>
+                        <TableHead className="text-slate-400 w-[130px]">Sektör / Şehir</TableHead>
                         <TableHead className="text-slate-400">Contact</TableHead>
                         <TableHead className="text-slate-400 w-28">Teaser</TableHead>
                         <TableHead className="text-slate-400 text-right w-[110px]">İşlemler</TableHead>
@@ -2410,6 +2465,18 @@ export default function AdminLeadDiscovery() {
                                 )}
                               </div>
                             ) : <span className="text-slate-600">—</span>}
+                          </TableCell>
+
+                          {/* Sektör / Şehir */}
+                          <TableCell className="py-2">
+                            {c.sector ? (
+                              <div className="text-[11px] text-purple-300 truncate max-w-[120px]">{c.sector}</div>
+                            ) : (
+                              <span className="text-[10px] text-slate-700">—</span>
+                            )}
+                            {c.city && (
+                              <div className="text-[10px] text-teal-400 truncate max-w-[120px] mt-0.5">{c.city}</div>
+                            )}
                           </TableCell>
 
                           {/* Contact */}
@@ -2483,7 +2550,7 @@ export default function AdminLeadDiscovery() {
                       ))}
                       {!(qualifiedData?.rows?.length) && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-slate-500 py-12 text-sm">
+                          <TableCell colSpan={7} className="text-center text-slate-500 py-12 text-sm">
                             {qSearch || qTier || qContact || qTeaser || qMinScore > 0
                               ? "Filtreyle eşleşen lead bulunamadı. Filtreleri genişletin."
                               : "Henüz qualified lead yok. Pipeline veya kalifikasyonu çalıştırın."}
@@ -2648,6 +2715,46 @@ export default function AdminLeadDiscovery() {
                   >
                     {filterMunicipality === "only" ? "Sadece Belediyeler" : filterMunicipality === "exclude" ? "Belediyeler Hariç" : "Belediyeler"}
                   </button>
+
+                  {/* Sektör filtresi */}
+                  <select
+                    value={filterSector}
+                    onChange={(e) => { setFilterSector(e.target.value); setPage(1); }}
+                    className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
+                  >
+                    <option value="">Sektör: Tümü</option>
+                    <option value="__empty__">Sektör: Boş</option>
+                    <option value="Finans">Finans</option>
+                    <option value="Saglik">Saglik</option>
+                    <option value="Perakende">Perakende</option>
+                    <option value="Imalat">Imalat</option>
+                    <option value="Bilisim">Bilisim</option>
+                    <option value="Lojistik">Lojistik</option>
+                    <option value="Insaat">Insaat</option>
+                    <option value="Egitim">Egitim</option>
+                    <option value="Turizm">Turizm</option>
+                    <option value="Enerji">Enerji</option>
+                  </select>
+
+                  {/* Şehir filtresi */}
+                  <select
+                    value={filterCity}
+                    onChange={(e) => { setFilterCity(e.target.value); setPage(1); }}
+                    className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
+                  >
+                    <option value="">Sehir: Tümü</option>
+                    <option value="__empty__">Sehir: Boş</option>
+                    <option value="Istanbul">Istanbul</option>
+                    <option value="Ankara">Ankara</option>
+                    <option value="Izmir">Izmir</option>
+                    <option value="Bursa">Bursa</option>
+                    <option value="Antalya">Antalya</option>
+                    <option value="Adana">Adana</option>
+                    <option value="Gaziantep">Gaziantep</option>
+                    <option value="Konya">Konya</option>
+                    <option value="Kocaeli">Kocaeli</option>
+                    <option value="Mersin">Mersin</option>
+                  </select>
                 </div>
               </div>
             </CardHeader>
@@ -2664,6 +2771,7 @@ export default function AdminLeadDiscovery() {
                         <TableHead>Tier</TableHead>
                         <TableHead>Kaynak Detay</TableHead>
                         <TableHead className="text-right">Risk</TableHead>
+                        <TableHead>Sektör / Şehir</TableHead>
                         <TableHead>Bulgular</TableHead>
                         <TableHead>İletişim</TableHead>
                         <TableHead>Teaser</TableHead>
@@ -2728,6 +2836,16 @@ export default function AdminLeadDiscovery() {
                                 )}
                               </div>
                             ) : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {c.sector ? (
+                              <div className="text-[11px] text-purple-600 dark:text-purple-300 truncate max-w-[120px]">{c.sector}</div>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground/40">—</span>
+                            )}
+                            {c.city && (
+                              <div className="text-[10px] text-teal-600 dark:text-teal-400 truncate max-w-[120px] mt-0.5">{c.city}</div>
+                            )}
                           </TableCell>
                           <TableCell className="max-w-[180px]">
                             <FindingBadges highlights={c.findingHighlights} />

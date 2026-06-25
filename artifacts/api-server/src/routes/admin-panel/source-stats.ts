@@ -13,7 +13,7 @@ router.get("/admin-panel/source-stats", requireAdmin, async (req: Request, res: 
       ? new Date("2000-01-01")
       : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const [statsResult, totalsResult, trendResult, tldResult] = await Promise.all([
+    const [statsResult, totalsResult, trendResult, tldResult, enrichmentResult] = await Promise.all([
       db.execute(sql`
         SELECT
           COALESCE(source, 'unknown')                               AS source,
@@ -78,6 +78,26 @@ router.get("/admin-panel/source-stats", requireAdmin, async (req: Request, res: 
         GROUP BY tld
         ORDER BY total DESC
       `),
+      db.execute(sql`
+        SELECT
+          COALESCE(source, 'unknown')                                                     AS source,
+          COUNT(*)                                                                         AS total,
+          COUNT(*) FILTER (WHERE sector IS NOT NULL AND sector != '')                     AS has_sector,
+          COUNT(*) FILTER (WHERE city IS NOT NULL AND city != '')                         AS has_city,
+          COUNT(*) FILTER (WHERE sector IS NOT NULL AND sector != ''
+                               AND city IS NOT NULL AND city != '')                       AS has_both,
+          ROUND(
+            COUNT(*) FILTER (WHERE sector IS NOT NULL AND sector != '')::numeric
+            / NULLIF(COUNT(*), 0) * 100
+          , 1)                                                                             AS sector_fill_rate,
+          ROUND(
+            COUNT(*) FILTER (WHERE city IS NOT NULL AND city != '')::numeric
+            / NULLIF(COUNT(*), 0) * 100
+          , 1)                                                                             AS city_fill_rate
+        FROM lead_candidates
+        GROUP BY source
+        ORDER BY total DESC
+      `),
     ]);
 
     res.json({
@@ -88,6 +108,7 @@ router.get("/admin-panel/source-stats", requireAdmin, async (req: Request, res: 
       },
       trend: trendResult.rows,
       tldStats: tldResult.rows,
+      enrichmentStats: enrichmentResult.rows,
       period: days,
     });
   } catch (err) {

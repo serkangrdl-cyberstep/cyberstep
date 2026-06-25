@@ -432,6 +432,10 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
   const municipality = req.query["municipality"] as string | undefined; // "only" | "exclude" | undefined
   const page        = Math.max(1, parseInt(req.query["page"] as string ?? "1"));
   const pageSize    = Math.min(100, Math.max(10, parseInt(req.query["pageSize"] as string ?? "50")));
+  const sectorEmpty = req.query["sectorEmpty"] === "true";
+  const sectorSearch = (req.query["sector"] as string ?? "").trim();
+  const cityEmpty   = req.query["cityEmpty"] === "true";
+  const citySearch  = (req.query["city"] as string ?? "").trim();
 
   const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [
     eq(leadCandidatesTable.isQualified, true),
@@ -451,6 +455,10 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
   )`);
   if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
   if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
+  if (sectorEmpty)    conditions.push(sql`(${leadCandidatesTable.sector} IS NULL OR ${leadCandidatesTable.sector} = '')`);
+  else if (sectorSearch) conditions.push(sql`${leadCandidatesTable.sector} ILIKE ${"%" + sectorSearch + "%"}`);
+  if (cityEmpty)      conditions.push(sql`(${leadCandidatesTable.city} IS NULL OR ${leadCandidatesTable.city} = '')`);
+  else if (citySearch) conditions.push(sql`${leadCandidatesTable.city} ILIKE ${"%" + citySearch + "%"}`);
 
   const orderClause =
     sortBy === "risk_asc"   ? leadCandidatesTable.riskScore :
@@ -482,6 +490,10 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   const search       = (req.query["search"] as string ?? "").trim();
   const page         = parseInt(req.query["page"] as string ?? "1");
   const pageSize     = parseInt(req.query["pageSize"] as string ?? "50");
+  const sectorEmpty  = req.query["sectorEmpty"] === "true";
+  const sectorSearch = (req.query["sector"] as string ?? "").trim();
+  const cityEmpty    = req.query["cityEmpty"] === "true";
+  const citySearch   = (req.query["city"] as string ?? "").trim();
 
   const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [];
   if (status) conditions.push(eq(leadCandidatesTable.scanStatus, status));
@@ -491,6 +503,10 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   if (search)     conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
   if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
   if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
+  if (sectorEmpty)    conditions.push(sql`(${leadCandidatesTable.sector} IS NULL OR ${leadCandidatesTable.sector} = '')`);
+  else if (sectorSearch) conditions.push(sql`${leadCandidatesTable.sector} ILIKE ${"%" + sectorSearch + "%"}`);
+  if (cityEmpty)      conditions.push(sql`(${leadCandidatesTable.city} IS NULL OR ${leadCandidatesTable.city} = '')`);
+  else if (citySearch) conditions.push(sql`${leadCandidatesTable.city} ILIKE ${"%" + citySearch + "%"}`);
 
   const rows = await db.select().from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined)

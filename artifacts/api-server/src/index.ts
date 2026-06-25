@@ -1879,6 +1879,26 @@ async function startup() {
     WHERE cve_id IN ('CVE-2026-42897', 'CVE-2026-54420')
       AND NOT patch_available
   `);
+  // One-time data fix: severity values were hardcoded "critical" for all CISA KEV entries
+  // regardless of actual CVSS score. Recalculate per NVD standard:
+  //   ≥9.0=critical, 7.0–8.9=high, 4.0–6.9=medium, 0.1–3.9=low
+  await db.execute(sql`
+    UPDATE cve_tracker
+    SET severity = CASE
+      WHEN cvss_score::numeric >= 9.0 THEN 'critical'
+      WHEN cvss_score::numeric >= 7.0 THEN 'high'
+      WHEN cvss_score::numeric >= 4.0 THEN 'medium'
+      WHEN cvss_score::numeric >= 0.1 THEN 'low'
+      ELSE severity
+    END
+    WHERE cvss_score IS NOT NULL
+      AND severity != CASE
+        WHEN cvss_score::numeric >= 9.0 THEN 'critical'
+        WHEN cvss_score::numeric >= 7.0 THEN 'high'
+        WHEN cvss_score::numeric >= 4.0 THEN 'medium'
+        ELSE 'low'
+      END
+  `);
   // Liveness timeout bug fix: outer timeout was 9s but checkLiveness tries 2 URLs × 8s each.
   // When HTTPS timed out at 8s, only 1s remained for HTTP fallback — live domains were
   // incorrectly marked dead (scan_status=failed, http_status=0, is_alive=false).

@@ -1,7 +1,7 @@
 import { db, cveTrackerTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { checkNewCVEs, enrichWithNVD } from "./cveFeedReader";
+import { checkNewCVEs, enrichWithNVD, cvssToSeverity } from "./cveFeedReader";
 import { analyzeTurkeyImpact, classifyCveProduct } from "./turkeyImpactAnalyzer";
 import { generateCVEContent } from "./cveContentGenerator";
 import { notifyAffectedDomains } from "./cveNotifier";
@@ -36,13 +36,15 @@ export async function processCVE(cveEntry: CVEEntry): Promise<void> {
   if (cveEntry.cisaKev && !cveEntry.cvssScore) {
     const enriched = await enrichWithNVD(cveEntry.cveId);
     if (enriched.cvssScore) {
+      const correctedSeverity = cvssToSeverity(enriched.cvssScore);
       await db.update(cveTrackerTable).set({
         cvssScore: String(enriched.cvssScore),
         cvssVector: enriched.cvssVector,
+        severity: correctedSeverity,
         patchAvailable: enriched.patchAvailable,
         patchUrl: enriched.patchUrl,
       }).where(eq(cveTrackerTable.cveId, cveEntry.cveId));
-      cveEntry = { ...cveEntry, ...enriched };
+      cveEntry = { ...cveEntry, ...enriched, severity: correctedSeverity };
     }
   }
 

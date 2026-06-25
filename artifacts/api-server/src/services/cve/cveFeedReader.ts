@@ -43,6 +43,13 @@ export interface CVEEntry {
 const CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
 const NVD_BASE = "https://services.nvd.nist.gov/rest/json/cves/2.0";
 
+export function cvssToSeverity(score: number): "critical" | "high" | "medium" | "low" {
+  if (score >= 9.0) return "critical";
+  if (score >= 7.0) return "high";
+  if (score >= 4.0) return "medium";
+  return "low";
+}
+
 async function isAlreadyTracked(cveId: string): Promise<boolean> {
   const [row] = await db.select({ id: cveTrackerTable.id })
     .from(cveTrackerTable)
@@ -137,7 +144,7 @@ export async function checkNewCVEs(): Promise<CVEEntry[]> {
           cveId: cve.id,
           cvssScore,
           cvssVector: metric?.cvssData.vectorString,
-          severity: cvssScore >= 9.0 ? "critical" : "high",
+          severity: cvssToSeverity(cvssScore),
           title: enDesc.slice(0, 499),
           description: enDesc,
           affectedProducts: affected.length > 0 ? affected : [],

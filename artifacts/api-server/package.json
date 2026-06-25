@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "validate:fortimanager": "tsx src/scripts/validate-fortimanager.ts"
+    "validate:fortimanager": "tsx src/scripts/validate-fortimanager.ts",
+    "test:subdomain-probe": "tsx src/scripts/test-subdomain-probe.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.1057.0",

@@ -415,4 +415,87 @@ router.post("/admin-panel/domain-scans/backfill-counts", requireAdmin, async (_r
   }
 });
 
+// ─── Full CT subdomain probe (test & backfill) ─────────────────────────────────
+// POST /admin-panel/domain-scans/probe-subdomains
+// { domain: "firma.com.tr", scanId?: number }
+// scanId verilirse mevcut scan güncellenir; yoksa yeni minimal scan açılır.
+// probeAndClassifySubdomains synchronous olarak beklenir — sonuçlar response'da döner.
+router.post("/admin-panel/domain-scans/probe-subdomains", requireAdmin, async (req: Request, res: Response) => {
+  const rawDomain: unknown = req.body?.domain;
+  const rawScanId: unknown = req.body?.scanId;
+
+  if (!rawDomain || typeof rawDomain !== "string" || rawDomain.trim().length < 3) {
+    res.status(400).json({ error: "Geçersiz alan adı" });
+    return;
+  }
+
+  const { sanitizeDomain, checkCertTransparency } = await import("../domain-scan/index");
+  const { probeAndClassifySubdomains } = await import("../../services/subdomainClassifier");
+
+  const domain = sanitizeDomain(rawDomain);
+  if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/.test(domain)) {
+    res.status(400).json({ error: "Geçersiz alan adı formatı" });
+    return;
+  }
+
+  try {
+    // 1. CT subdomains çek
+    logger.info({ domain }, "CT subdomain probe başlıyor");
+    const certTrans = await checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0 }));
+    logger.info({ domain, count: certTrans.count }, "CT subdomains alındı");
+
+    // 2. scan_id bul veya oluştur
+    let scanId: number;
+    if (rawScanId && typeof rawScanId === "number") {
+      // Mevcut scan'e ct_subdomains yaz
+      await db.execute(sql`
+        UPDATE domain_scans
+        SET ct_subdomains = ${JSON.stringify(certTrans.subdomains)}::jsonb,
+            ct_subdomain_count = ${certTrans.count}
+        WHERE id = ${rawScanId}
+      `);
+      scanId = rawScanId;
+    } else {
+      // Minimal scan satırı aç
+      const [newScan] = await db.insert(domainScansTable).values({
+        domain,
+        ctSubdomains: certTrans.subdomains,
+        ctSubdomainCount: certTrans.count,
+        spfPass: false,
+        dmarcPass: false,
+        dkimPass: false,
+        mxPass: false,
+        sslPass: false,
+        overallScore: 0,
+      }).returning({ id: domainScansTable.id });
+      scanId = newScan!.id;
+    }
+
+    // 3. HTTP probe + sınıflandırma (synchronous — test için bekliyoruz)
+    if (certTrans.subdomains.length > 0) {
+      await probeAndClassifySubdomains(scanId, certTrans.subdomains);
+    }
+
+    // 4. Sonuçları oku
+    const classified = await db.execute(sql`
+      SELECT domain, http_status, asset_classification, priority_score, priority_reason
+      FROM domain_scan_subdomains
+      WHERE scan_id = ${scanId}
+      ORDER BY priority_score DESC, domain
+    `);
+
+    logger.info({ domain, scanId, subdomainsFound: certTrans.count, classified: classified.rowCount }, "Probe tamamlandı");
+    res.json({
+      domain,
+      scanId,
+      subdomainsFound: certTrans.count,
+      subdomains: certTrans.subdomains,
+      classified: classified.rows,
+    });
+  } catch (err) {
+    logger.error({ err, domain }, "CT subdomain probe hatası");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;

@@ -869,6 +869,25 @@ async function ensureIsrTables() {
       AND LENGTH(SPLIT_PART(domain, '.bel.tr', 1)) >= 2
       AND city IS NULL
   `);
+  // ─── Haiku Enrichment kolonları ──────────────────────────────────────────────
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS enrichment_status VARCHAR(20) DEFAULT 'pending'`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS enrichment_method VARCHAR(50)`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS enrichment_confidence VARCHAR(10)`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS enrichment_attempted_at TIMESTAMPTZ`);
+  await db.execute(sql`ALTER TABLE lead_candidates ADD COLUMN IF NOT EXISTS enrichment_completed_at TIMESTAMPTZ`);
+  // Sektörü dolu olan (import/TLD/keyword kaynaklı) kayıtları 'enriched' say — Haiku tekrar işlemesin
+  await db.execute(sql`
+    UPDATE lead_candidates
+    SET enrichment_status = 'enriched',
+        enrichment_method = CASE
+          WHEN sector_confidence = 'tld_rule'       THEN 'tld_pattern'
+          WHEN sector_confidence = 'keyword_multi'  THEN 'keyword'
+          WHEN sector_confidence = 'keyword_single' THEN 'keyword'
+          ELSE 'import'
+        END
+    WHERE sector IS NOT NULL
+      AND (enrichment_status IS NULL OR enrichment_status = 'pending')
+  `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS contact_enrichment_log (
       id SERIAL PRIMARY KEY,
@@ -3090,6 +3109,17 @@ startup()
       return result.updated + result.cleared;
     }), { timezone: "Europe/Istanbul" });
     logger.info("Sektör enrichment cron scheduled (her 6 saatte bir)");
+
+    // ─── Haiku Domain Enrichment — Her gece 02:30 Istanbul ───────────────────
+    // lead_candidates.enrichment_status='pending' domainleri Claude Haiku ile zenginleştirir.
+    // Batch: 500 domain/gece, ~$0.08/gece. Rate limit: 5 istek/sn.
+    cron.schedule("30 2 * * *", wrapCron("haiku_enrichment", "30 2 * * *", async () => {
+      if (!await cronIsEnabled("haiku_enrichment")) { logger.info("Haiku enrichment cron devre dışı, atlanıyor"); return 0; }
+      const { runEnrichmentBatch } = await import("./services/enrichment/batch-enrichment");
+      const result = await runEnrichmentBatch();
+      return result.enriched + result.no_match;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Haiku enrichment cron scheduled (her gece 02:30 Istanbul)");
 
     // ─── Aylık Metrik Toplama — Her ayın 1'i 06:00 Istanbul ──────────────────
     // domain_scans + lead_candidates'tan temel güvenlik metriklerini toplar.

@@ -185,6 +185,18 @@ interface MethodRow {
   pct: number;
 }
 
+interface EnrichmentStatus {
+  total: number;
+  pending: number;
+  enriched: number;
+  no_match: number;
+  failed: number;
+  completion_pct: number;
+  estimated_remaining_batches: number;
+  estimated_cost_usd: number;
+  batch_running: boolean;
+}
+
 interface DashData {
   stats: SourceRow[];
   totals: Totals;
@@ -230,6 +242,8 @@ export default function SourceDashboard() {
   const [period, setPeriod] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [enrichStatus, setEnrichStatus] = useState<EnrichmentStatus | null>(null);
+  const [enrichTriggering, setEnrichTriggering] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -242,6 +256,26 @@ export default function SourceDashboard() {
       .then((d: DashData) => { setData(d); setLoading(false); })
       .catch(e => { setError(String(e)); setLoading(false); });
   }, [period]);
+
+  useEffect(() => {
+    const fetchStatus = () => {
+      fetch("/api/admin-panel/enrichment/status", { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .then((s: EnrichmentStatus | null) => { if (s) setEnrichStatus(s); })
+        .catch(() => {});
+    };
+    fetchStatus();
+    const iv = setInterval(fetchStatus, 5000);
+    return () => clearInterval(iv);
+  }, []);
+
+  function triggerBatch() {
+    setEnrichTriggering(true);
+    fetch("/api/admin-panel/enrichment/run", { method: "POST", credentials: "include" })
+      .then(r => r.json())
+      .then(() => { setEnrichTriggering(false); })
+      .catch(() => setEnrichTriggering(false));
+  }
 
   const trendData = data ? formatTrendData(data.trend) : [];
   const activeSources = data
@@ -594,6 +628,77 @@ export default function SourceDashboard() {
                 </div>
               )}
             </div>
+
+            {/* Haiku AI Enrichment Kartı */}
+            {enrichStatus && (
+              <div style={{
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderRadius: 14, padding: "16px 20px", marginBottom: 20,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Haiku AI Zenginleştirme</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                      claude-haiku-4-5 — domain adından sektör & şehir tahmini — her gece 02:30
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <button
+                      onClick={triggerBatch}
+                      disabled={enrichTriggering || enrichStatus.batch_running}
+                      style={{
+                        background: (enrichTriggering || enrichStatus.batch_running) ? C.border : C.cyan,
+                        color: (enrichTriggering || enrichStatus.batch_running) ? C.muted : C.bg,
+                        border: "none", borderRadius: 8,
+                        padding: "7px 14px", fontSize: 12, fontWeight: 700,
+                        cursor: (enrichTriggering || enrichStatus.batch_running) ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {enrichStatus.batch_running ? "Çalışıyor..." : enrichTriggering ? "Başlatılıyor..." : "Simdi Calistir"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, color: C.muted }}>Tamamlanma</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>%{enrichStatus.completion_pct}</span>
+                  </div>
+                  <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{
+                      width: `${Math.min(enrichStatus.completion_pct, 100)}%`,
+                      height: "100%", background: C.green, borderRadius: 3,
+                      transition: "width 0.6s ease",
+                    }} />
+                  </div>
+                </div>
+
+                {/* İstatistikler */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                  {[
+                    { label: "Toplam", value: Number(enrichStatus.total).toLocaleString("tr-TR"), color: C.text },
+                    { label: "Beklemede", value: Number(enrichStatus.pending).toLocaleString("tr-TR"), color: C.amber },
+                    { label: "Zenginlesti", value: Number(enrichStatus.enriched).toLocaleString("tr-TR"), color: C.green },
+                    { label: "Eslesme Yok", value: Number(enrichStatus.no_match).toLocaleString("tr-TR"), color: C.muted },
+                    { label: "Hatalı", value: Number(enrichStatus.failed).toLocaleString("tr-TR"), color: C.red },
+                  ].map(stat => (
+                    <div key={stat.label} style={{
+                      background: C.bg, borderRadius: 8, padding: "8px 10px", textAlign: "center",
+                    }}>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: stat.color }}>{stat.value}</div>
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: 24, marginTop: 10, fontSize: 11, color: C.muted }}>
+                  <span>Kalan batch: ~{enrichStatus.estimated_remaining_batches}</span>
+                  <span>Tahmini toplam maliyet: ~${enrichStatus.estimated_cost_usd}</span>
+                  <span>500 domain/gece, 5 istek/sn rate limit</span>
+                </div>
+              </div>
+            )}
 
             {/* Zenginleştirme Yöntemleri */}
             <div style={{

@@ -85,6 +85,15 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   // Confidence: 'tld_rule' > 'keyword_multi' > 'keyword_single'. null = no match found.
   sectorConfidence: varchar("sector_confidence", { length: 30 }),
   sectorEnrichedAt: timestamp("sector_enriched_at"),
+  // ─── AI Enrichment (Haiku) ───────────────────────────────────────────────────
+  // 'pending' | 'enriched' | 'no_match' | 'failed'
+  enrichmentStatus: varchar("enrichment_status", { length: 20 }).default("pending"),
+  // 'haiku_inference' | 'tld_pattern' | 'keyword' | 'manual' | 'import'
+  enrichmentMethod: varchar("enrichment_method", { length: 50 }),
+  // 'high' | 'medium' | 'low'
+  enrichmentConfidence: varchar("enrichment_confidence", { length: 10 }),
+  enrichmentAttemptedAt: timestamp("enrichment_attempted_at"),
+  enrichmentCompletedAt: timestamp("enrichment_completed_at"),
   // ─── Geo Enrichment (Katman 1) ───────────────────────────────────────────────
   // domain → DNS A → ip-api.com batch → city (var), region (il), isp_organization (var)
   region: varchar("region", { length: 100 }),

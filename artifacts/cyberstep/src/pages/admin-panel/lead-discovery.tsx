@@ -3911,6 +3911,11 @@ export default function AdminLeadDiscovery() {
                   Alt domain analizi yapılıyor...
                 </div>
               )}
+              {probeMutation.isSuccess && (probeMutation.data as { subdomainsFound?: number })?.subdomainsFound === 0 && subdomainSummary?.summary.total === 0 && (
+                <div className="text-xs text-muted-foreground border rounded-md bg-slate-50 px-3 py-2">
+                  Sertifika şeffaflık kayıtlarında bu domain için alt alan adı bulunamadı (crt.sh: 0 kayıt).
+                </div>
+              )}
               {probeMutation.isError && (
                 <div className="text-xs text-red-600 border border-red-200 rounded-md bg-red-50 px-3 py-1.5">
                   Probe sırasında hata oluştu. Tekrar deneyin.

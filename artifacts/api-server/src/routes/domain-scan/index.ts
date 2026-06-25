@@ -586,14 +586,15 @@ async function checkCertTransparency(domain: string): Promise<{ subdomains: stri
               if (seen.size >= 60) break;
             }
             resolve({ subdomains: [...seen].slice(0, 30), count: seen.size });
-          } catch {
+          } catch (parseErr) {
+            logger.warn({ domain, dataLength: data.length, parseErr: String(parseErr) }, "crt.sh JSON parse hatası");
             resolve({ subdomains: [], count: 0 });
           }
         });
       }
     );
-    req.on("error", () => resolve({ subdomains: [], count: 0 }));
-    req.on("timeout", () => { req.destroy(); resolve({ subdomains: [], count: 0 }); });
+    req.on("error", (err) => { logger.warn({ domain, err: String(err) }, "crt.sh bağlantı hatası"); resolve({ subdomains: [], count: 0 }); });
+    req.on("timeout", () => { req.destroy(); logger.warn({ domain }, "crt.sh timeout (12s)"); resolve({ subdomains: [], count: 0 }); });
     req.end();
   });
 }

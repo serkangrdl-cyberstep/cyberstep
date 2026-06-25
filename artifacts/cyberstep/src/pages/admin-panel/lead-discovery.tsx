@@ -1023,7 +1023,7 @@ export default function AdminLeadDiscovery() {
       if (cveSeverity) params.set("severity", cveSeverity);
       if (cveOnlyExploit) params.set("exploit", "1");
       if (cveOnlyKev) params.set("kev", "1");
-      const r = await fetch(`${BASE}/lead-discovery/cve-report?${params}`, { credentials: "include" });
+      const r = await fetch(`${BASE}/lead-discovery/cve-report?${params}`, { credentials: "include", cache: "no-store" });
       if (!r.ok) throw new Error(`CVE raporu alınamadı: ${r.status}`);
       return r.json() as Promise<CveReport>;
     },

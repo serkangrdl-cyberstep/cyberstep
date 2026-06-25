@@ -938,7 +938,7 @@ export default function AdminLeadDiscovery() {
   const [editName, setEditName] = useState("");
   const [editTitle, setEditTitle] = useState("");
   // ─── CVE Raporu tab ───────────────────────────────────────────────────────
-  const [cveMinCvss, setCveMinCvss] = useState("7.0");
+  const [cveMinCvss, setCveMinCvss] = useState("0.0");
 
   // ─── Sonuçlar tab arama ───────────────────────────────────────────────────
   const [resultsSearchInput, setResultsSearchInput] = useState("");
@@ -3299,8 +3299,8 @@ export default function AdminLeadDiscovery() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {["7.0","8.0","9.0","9.5","10.0"].map(v => (
-                          <SelectItem key={v} value={v} className="text-xs">{v}+</SelectItem>
+                        {["0.0","4.0","5.0","6.0","7.0","8.0","9.0","9.5","10.0"].map(v => (
+                          <SelectItem key={v} value={v} className="text-xs">{v === "0.0" ? "Tümü" : `${v}+`}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

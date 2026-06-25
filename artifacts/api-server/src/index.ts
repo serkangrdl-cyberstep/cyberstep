@@ -3177,6 +3177,16 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("CVE patch recheck cron kayıtlandı (günlük 06:00, 60 günlük pencere)");
 
+    // ─── CVE domain retroaktif re-match — Her gece 03:00 Istanbul ────────────
+    // Günlük yeni eklenen domain_scans kayıtlarını mevcut CVE'lerle eşleştirir.
+    // Bu cron olmadan CVE Raporu'nda etkilenen domain sayısı artmaz.
+    cron.schedule("0 3 * * *", wrapCron("cve_rematch_domains", "0 3 * * *", async () => {
+      const { rematchCveDomains } = await import("./services/cve/turkeyImpactAnalyzer");
+      const r = await rematchCveDomains();
+      return r.newMatches;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("CVE domain re-match cron kayıtlandı (günlük 03:00)");
+
     // ─── EPSS + CISA KEV Intelligence Sync — Her gece 03:15 Istanbul ─────────
     cron.schedule("15 3 * * *", wrapCron("sync_vuln_intel", "15 3 * * *", async () => {
       const { syncVulnIntelligence } = await import("./services/cve/vulnIntelSync");
@@ -3384,6 +3394,7 @@ startup()
         { name: "cve_feed_check",           thresholdHours: 3   },
         { name: "cve_customer_notification", thresholdHours: 5  },
         { name: "cve_patch_recheck",         thresholdHours: 25 },
+        { name: "cve_rematch_domains",       thresholdHours: 25 },
         { name: "sync_vuln_intel",           thresholdHours: 25 },
         { name: "free_scan_followup",        thresholdHours: 2  },
         { name: "cloud_cspm",               thresholdHours: 25  },

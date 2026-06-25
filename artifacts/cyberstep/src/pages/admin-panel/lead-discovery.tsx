@@ -155,6 +155,27 @@ interface CveReport {
   cves: CveReportEntry[];
 }
 
+interface PortRiskDomain {
+  domain: string;
+  overall_score: number;
+  sector: string | null;
+  city: string | null;
+  waf_detected: boolean | null;
+  waf_provider: string | null;
+  risky_ports: number[];
+  mysql_open: boolean;
+  ftp_open: boolean;
+  rdp_open: boolean;
+  vnc_open: boolean;
+  mongo_open: boolean;
+  redis_open: boolean;
+}
+
+interface PortRiskData {
+  summary: { total: number; mysql: number; ftp: number; rdp: number; vnc: number; mongo: number; redis: number };
+  domains: PortRiskDomain[];
+}
+
 interface SourceData {
   ip?: string;
   org?: string;
@@ -983,6 +1004,18 @@ export default function AdminLeadDiscovery() {
     refetchInterval: 15_000,
   });
 
+  const { data: portRisk, isLoading: portRiskLoading, refetch: portRiskRefetch, isFetching: portRiskFetching } = useQuery<PortRiskData>({
+    queryKey: ["lead-discovery-port-risk"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/lead-discovery/port-risk`, { credentials: "include" });
+      if (!r.ok) throw new Error(`Port risk alınamadı: ${r.status}`);
+      return r.json() as Promise<PortRiskData>;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [portRiskFilter, setPortRiskFilter] = useState<"all" | "mysql" | "ftp" | "rdp" | "vnc" | "mongo" | "redis">("all");
+
   const { data: cveReport, isLoading: cveLoading, isFetching: cveFetching, refetch: cveRefetch } = useQuery<CveReport>({
     queryKey: ["lead-discovery-cve-report", cveMinCvss, cveSeverity, cveOnlyExploit, cveOnlyKev],
     queryFn: async () => {
@@ -1592,6 +1625,7 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="history">Gecmis</TabsTrigger>
             <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>
             <TabsTrigger value="cve-raporu">CVE Raporu</TabsTrigger>
+            <TabsTrigger value="port-riski">Port Riski</TabsTrigger>
           </TabsList>
         </div>
 
@@ -3477,6 +3511,124 @@ export default function AdminLeadDiscovery() {
         {/* ── ISP GRUPLARI TAB ─────────────────────────────────────────── */}
         <TabsContent value="isp-gruplari">
           <IspGroupsView />
+        </TabsContent>
+
+        {/* ── PORT RİSKİ TAB ───────────────────────────────────────────── */}
+        <TabsContent value="port-riski">
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs text-muted-foreground">Endeksteki domainlerde Shodan tarafından tespit edilen açık riskli portlar</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={() => { void portRiskRefetch(); }}
+                      disabled={portRiskFetching}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${portRiskFetching ? "animate-spin" : ""}`} />
+                      {portRiskFetching ? "Yükleniyor..." : "Yenile"}
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {portRiskLoading ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">Yükleniyor...</div>
+            ) : !portRisk ? null : (
+              <>
+                {/* Özet kartlar */}
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                  {([
+                    { key: "mysql", label: "MySQL 3306", color: "text-red-600", desc: "Veritabanı doğrudan internette" },
+                    { key: "ftp",   label: "FTP 21",     color: "text-orange-600", desc: "Şifresiz dosya aktarımı" },
+                    { key: "rdp",   label: "RDP 3389",   color: "text-red-700", desc: "Uzak masaüstü erişimi" },
+                    { key: "vnc",   label: "VNC 5900",   color: "text-orange-700", desc: "Uzak ekran erişimi" },
+                    { key: "mongo", label: "MongoDB 27017", color: "text-yellow-700", desc: "NoSQL veritabanı" },
+                    { key: "redis", label: "Redis 6379", color: "text-yellow-600", desc: "Cache sunucusu" },
+                  ] as const).map(({ key, label, color, desc }) => (
+                    <button
+                      key={key}
+                      onClick={() => setPortRiskFilter(f => f === key ? "all" : key)}
+                      className={`text-left rounded-lg border p-3 transition-colors ${portRiskFilter === key ? "bg-primary/10 border-primary/40" : "bg-background hover:bg-accent"}`}
+                    >
+                      <div className={`text-xl font-bold leading-none ${color}`}>{portRisk.summary[key]}</div>
+                      <div className="text-[11px] font-medium mt-0.5">{label}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{desc}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Domain tablosu */}
+                <Card>
+                  <CardContent className="p-0">
+                    {portRisk.domains.filter(d => {
+                      if (portRiskFilter === "all") return true;
+                      return d[`${portRiskFilter}_open` as keyof PortRiskDomain] === true;
+                    }).length === 0 ? (
+                      <div className="py-12 text-center text-sm text-muted-foreground">Bu filtreye uygun kayıt yok</div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Domain</TableHead>
+                            <TableHead className="text-xs">Puan</TableHead>
+                            <TableHead className="text-xs">Sektör</TableHead>
+                            <TableHead className="text-xs">Şehir</TableHead>
+                            <TableHead className="text-xs">Açık Portlar</TableHead>
+                            <TableHead className="text-xs">WAF</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {portRisk.domains
+                            .filter(d => {
+                              if (portRiskFilter === "all") return true;
+                              return d[`${portRiskFilter}_open` as keyof PortRiskDomain] === true;
+                            })
+                            .map(d => (
+                              <TableRow key={d.domain}>
+                                <TableCell className="font-mono text-xs py-2">
+                                  <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary">
+                                    {d.domain}
+                                  </a>
+                                </TableCell>
+                                <TableCell className="text-xs py-2">
+                                  <span className={d.overall_score < 40 ? "text-red-600 font-bold" : d.overall_score < 60 ? "text-orange-600 font-semibold" : "text-muted-foreground"}>
+                                    {d.overall_score}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-xs py-2 text-muted-foreground">{d.sector ?? "—"}</TableCell>
+                                <TableCell className="text-xs py-2 text-muted-foreground">{d.city ?? "—"}</TableCell>
+                                <TableCell className="py-2">
+                                  <div className="flex flex-wrap gap-1">
+                                    {d.mysql_open && <Badge variant="outline" className="text-[9px] px-1 py-0 text-red-600 border-red-300">MySQL 3306</Badge>}
+                                    {d.ftp_open   && <Badge variant="outline" className="text-[9px] px-1 py-0 text-orange-600 border-orange-300">FTP 21</Badge>}
+                                    {d.rdp_open   && <Badge variant="outline" className="text-[9px] px-1 py-0 text-red-700 border-red-400">RDP 3389</Badge>}
+                                    {d.vnc_open   && <Badge variant="outline" className="text-[9px] px-1 py-0 text-orange-700 border-orange-400">VNC 5900</Badge>}
+                                    {d.mongo_open && <Badge variant="outline" className="text-[9px] px-1 py-0 text-yellow-700 border-yellow-400">MongoDB 27017</Badge>}
+                                    {d.redis_open && <Badge variant="outline" className="text-[9px] px-1 py-0 text-yellow-600 border-yellow-300">Redis 6379</Badge>}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  {d.waf_detected === true ? (
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-blue-600 border-blue-400">
+                                      WAF{d.waf_provider ? `: ${d.waf_provider}` : ""}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 

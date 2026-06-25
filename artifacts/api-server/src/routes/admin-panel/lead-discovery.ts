@@ -1554,4 +1554,82 @@ router.post("/admin-panel/lead-discovery/rescan-manual-domains", requireAdmin, a
   }
 });
 
+// ─── GET /api/admin-panel/lead-discovery/port-risk ────────────────────────────
+// included_in_index domain_scans içinde riskli port açık olanları listeler.
+// port: 3306 (MySQL), 21 (FTP), 3389 (RDP)
+router.get("/admin-panel/lead-discovery/port-risk", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const rows = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (domain)
+          domain,
+          shodan_open_ports,
+          overall_score,
+          sector,
+          city,
+          waf_detected,
+          waf_provider,
+          created_at
+        FROM domain_scans
+        WHERE included_in_index = true
+          AND shodan_open_ports IS NOT NULL
+          AND jsonb_array_length(shodan_open_ports) > 0
+        ORDER BY domain, created_at DESC
+      )
+      SELECT
+        domain,
+        overall_score,
+        sector,
+        city,
+        waf_detected,
+        waf_provider,
+        ARRAY(
+          SELECT (elem->>'port')::int
+          FROM jsonb_array_elements(shodan_open_ports) elem
+          WHERE (elem->>'port')::int IN (3306, 21, 3389, 5900, 27017, 6379, 5432, 1433)
+        ) as risky_ports,
+        (3306 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))) as mysql_open,
+        (21 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))) as ftp_open,
+        (3389 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))) as rdp_open,
+        (5900 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))) as vnc_open,
+        (27017 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))) as mongo_open,
+        (6379 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))) as redis_open
+      FROM latest
+      WHERE (
+        3306 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))
+        OR 21 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))
+        OR 3389 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))
+        OR 5900 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))
+        OR 27017 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))
+        OR 6379 = ANY(ARRAY(SELECT (elem->>'port')::int FROM jsonb_array_elements(shodan_open_ports) elem))
+      )
+      ORDER BY overall_score ASC
+      LIMIT 500
+    `);
+
+    type PortRiskRow = {
+      domain: string; overall_score: number; sector: string | null; city: string | null;
+      waf_detected: boolean | null; waf_provider: string | null;
+      risky_ports: number[]; mysql_open: boolean; ftp_open: boolean; rdp_open: boolean;
+      vnc_open: boolean; mongo_open: boolean; redis_open: boolean;
+    };
+    const domains = (rows.rows ?? []) as PortRiskRow[];
+
+    const summary = {
+      total: domains.length,
+      mysql: domains.filter(d => d.mysql_open).length,
+      ftp:   domains.filter(d => d.ftp_open).length,
+      rdp:   domains.filter(d => d.rdp_open).length,
+      vnc:   domains.filter(d => d.vnc_open).length,
+      mongo: domains.filter(d => d.mongo_open).length,
+      redis: domains.filter(d => d.redis_open).length,
+    };
+
+    res.json({ summary, domains });
+  } catch (err) {
+    req.log.error({ err }, "Port risk sorgusu başarısız");
+    res.status(500).json({ error: "Port risk verisi alınamadı." });
+  }
+});
+
 export default router;

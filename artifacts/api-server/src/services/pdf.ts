@@ -1,5 +1,8 @@
 import PDFDocument from "pdfkit";
 import path from "path";
+import { db } from "@workspace/db";
+import { domainScanSubdomainsTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 
 const FONT_DIR = "/usr/share/fonts/truetype/dejavu";
 const FONT_REGULAR = path.join(FONT_DIR, "DejaVuSans.ttf");
@@ -326,7 +329,14 @@ interface DomainScanData {
   kevCves?: Array<{ cveId: string; matchedProduct: string; ransomware: boolean }> | null;
 }
 
-export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
+export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
+  // DB'den subdomain probe sonuçlarını çek (Promise'e girmeden önce)
+  const subdomainRows = await db
+    .select()
+    .from(domainScanSubdomainsTable)
+    .where(eq(domainScanSubdomainsTable.scanId, data.id))
+    .orderBy(desc(domainScanSubdomainsTable.priorityScore));
+
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 0, left: 0, right: 0 }, bufferPages: true, autoFirstPage: false });
@@ -909,6 +919,82 @@ export function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
         );
       }
       doc.y += 4;
+    }
+
+    // ── Alt Alan Adı Keşfi (Subdomain Discovery) ──────────────────────────────
+    if (subdomainRows.length > 0) {
+      sectionTitle("Alt Alan Adı Keşfi (Subdomain Discovery)");
+
+      // 1. Toplam + sınıflandırma dağılımı
+      const classCounts: Record<string, number> = {};
+      for (const r of subdomainRows) {
+        const k = r.assetClassification ?? "unknown";
+        classCounts[k] = (classCounts[k] ?? 0) + 1;
+      }
+      const clsLabels: Record<string, string> = {
+        web_app: "Web App", api: "API", redirect: "Yönlendirme",
+        error_4xx: "Hata 4xx", error_5xx: "Hata 5xx",
+        unreachable: "Erişilemiyor", unknown: "Bilinmiyor",
+      };
+      const distParts = Object.entries(classCounts)
+        .map(([cls, cnt]) => `${clsLabels[cls] ?? cls}: ${cnt}`)
+        .join("  |  ");
+
+      checkPageBreak(doc, 28);
+      doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
+        .text(`HTTP Probe Sonuçları — ${subdomainRows.length} subdomain tarandı`, MARGIN, doc.y, { width: CONTENT_W });
+      doc.y += 4;
+      checkPageBreak(doc, 14);
+      doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR)
+        .text(distParts, MARGIN, doc.y, { width: CONTENT_W });
+      doc.y += 12;
+
+      // 2. Yüksek öncelikli (priority_score > 20)
+      const HIGH_VALUE_RE = /^(admin|panel|dashboard|login|portal|cpanel|webmail|mail|vpn|remote|owa|manage|intranet|staff|hr|crm|erp)\./i;
+      const highPri = subdomainRows.filter(r => (r.priorityScore ?? 0) > 20);
+
+      if (highPri.length > 0) {
+        checkPageBreak(doc, 22);
+        const hdrY = doc.y;
+        doc.rect(MARGIN, hdrY, CONTENT_W, 18).fill([14, 26, 46]);
+        doc.fillColor(CS_AMBER).fontSize(8).font(FONT_BOLD)
+          .text(`Yüksek Öncelikli Alt Alan Adları — ${highPri.length} tespit`, MARGIN + 8, hdrY + 5, { width: CONTENT_W - 16, lineBreak: false });
+        doc.y = hdrY + 22;
+
+        for (const r of highPri.slice(0, 10)) {
+          checkPageBreak(doc, 22);
+          const ry = doc.y;
+          const isPanel = HIGH_VALUE_RE.test(r.domain);
+          const rowBg: [number, number, number]  = isPanel ? [255, 241, 241] : [255, 250, 235];
+          const tagColor: [number, number, number] = isPanel ? CS_DANGER : CS_AMBER;
+          const tag = isPanel ? "PANEL" : "ONCELIKLI";
+          const httpStatus = r.httpStatus != null ? String(r.httpStatus) : "-";
+          const clsLabel = clsLabels[r.assetClassification ?? ""] ?? (r.assetClassification ?? "-");
+
+          doc.rect(MARGIN, ry, CONTENT_W, 20).fill(rowBg);
+          doc.rect(MARGIN, ry, 3, 20).fill(tagColor);
+          doc.fillColor(tagColor).fontSize(6.5).font(FONT_BOLD)
+            .text(tag, MARGIN + 8, ry + 5, { width: 46, lineBreak: false });
+          doc.fillColor(DARK).fontSize(8).font(FONT_BOLD)
+            .text(r.domain.substring(0, 52), MARGIN + 58, ry + 5, { width: 200, lineBreak: false });
+          doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR)
+            .text(`${clsLabel}  HTTP ${httpStatus}`, MARGIN + CONTENT_W - 80, ry + 5, { width: 76, lineBreak: false, align: "right" });
+          doc.y = ry + 24;
+        }
+        doc.y += 4;
+      }
+
+      // 3. Bilgi notu
+      checkPageBreak(doc, 22);
+      const noteY = doc.y;
+      doc.rect(MARGIN, noteY, CONTENT_W, 18).fill([240, 249, 255]);
+      doc.rect(MARGIN, noteY, 3, 18).fill(CS_CYAN);
+      doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
+        .text(
+          '"PANEL" işaretli subdomain\'ler giriş/yönetim paneli barındırıyor olabilir ve öncelikli inceleme gerektirir. HTTP probe pasif yöntemle yapılmıştır.',
+          MARGIN + 10, noteY + 5, { width: CONTENT_W - 14, lineBreak: false },
+        );
+      doc.y = noteY + 24;
     }
 
     // ── MITRE ATT&CK Saldiri Senaryolari ────────────────────────────────────

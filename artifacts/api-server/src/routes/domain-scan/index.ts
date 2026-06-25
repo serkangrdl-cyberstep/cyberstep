@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import dns from "dns/promises";
 import https from "https";
 import http from "http";
+import axios from "axios";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable, customerTechStackTable } from "@workspace/db";
@@ -552,51 +553,54 @@ async function checkUsomList(domain: string): Promise<{ listed: boolean }> {
 }
 
 // ─── Certificate Transparency — crt.sh ───────────────────────────────────────
+// axios + 3-retry (503/502/429/network) kullanır; native https.request'e göre
+// production Replit ortamında çok daha güvenilir.
 async function checkCertTransparency(domain: string): Promise<{ subdomains: string[]; count: number }> {
-  return new Promise((resolve) => {
-    const path = `/?q=%25.${encodeURIComponent(domain)}&output=json`;
-    const req = https.request(
-      {
-        hostname: "crt.sh",
-        path,
-        method: "GET",
-        timeout: 12000,
-        headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" },
-      },
-      (res) => {
-        let data = "";
-        let size = 0;
-        res.on("data", (chunk: Buffer) => {
-          size += chunk.length;
-          if (size > 3 * 1024 * 1024) { res.destroy(); resolve({ subdomains: [], count: 0 }); return; }
-          data += chunk.toString();
-        });
-        res.on("end", () => {
-          try {
-            const records = JSON.parse(data) as Array<{ name_value: string }>;
-            const seen = new Set<string>();
-            for (const r of records) {
-              for (const name of r.name_value.split("\n")) {
-                const clean = name.trim().toLowerCase();
-                if (!clean || clean.startsWith("*")) continue;
-                if (!clean.endsWith(`.${domain}`) && clean !== domain) continue;
-                seen.add(clean);
-                if (seen.size >= 60) break;
-              }
-              if (seen.size >= 60) break;
-            }
-            resolve({ subdomains: [...seen].slice(0, 30), count: seen.size });
-          } catch (parseErr) {
-            logger.warn({ domain, dataLength: data.length, parseErr: String(parseErr) }, "crt.sh JSON parse hatası");
-            resolve({ subdomains: [], count: 0 });
-          }
-        });
+  const maxAttempts = 3;
+  const baseDelay = 2_000; // 2s, 4s
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await axios.get("https://crt.sh/", {
+        params: { q: `%.${domain}`, output: "json" },
+        timeout: 15_000,
+        maxContentLength: 3 * 1024 * 1024,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; CyberStep-SecurityResearch/1.0)",
+          "Accept": "application/json",
+        },
+      });
+
+      const records = (Array.isArray(response.data) ? response.data : []) as Array<{ name_value: string }>;
+      const seen = new Set<string>();
+      for (const r of records) {
+        for (const name of (r.name_value ?? "").split("\n")) {
+          const clean = name.trim().toLowerCase();
+          if (!clean || clean.startsWith("*")) continue;
+          if (!clean.endsWith(`.${domain}`) && clean !== domain) continue;
+          seen.add(clean);
+          if (seen.size >= 60) break;
+        }
+        if (seen.size >= 60) break;
       }
-    );
-    req.on("error", (err) => { logger.warn({ domain, err: String(err) }, "crt.sh bağlantı hatası"); resolve({ subdomains: [], count: 0 }); });
-    req.on("timeout", () => { req.destroy(); logger.warn({ domain }, "crt.sh timeout (12s)"); resolve({ subdomains: [], count: 0 }); });
-    req.end();
-  });
+      return { subdomains: [...seen].slice(0, 30), count: seen.size };
+    } catch (err: unknown) {
+      const status = axios.isAxiosError(err) ? err.response?.status : null;
+      if (status === 404) return { subdomains: [], count: 0 };
+      const isRetryable = !status || status === 503 || status === 502 || status === 429;
+
+      if (!isRetryable || attempt === maxAttempts) {
+        const detail = axios.isAxiosError(err) ? `HTTP ${status ?? "ağ hatası"}: ${err.message}` : String(err);
+        logger.warn({ domain, attempt, detail }, "crt.sh erişilemiyor — subdomain keşfi atlanıyor");
+        return { subdomains: [], count: 0 };
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      logger.warn({ domain, attempt, status, delay }, `crt.sh ${status ?? "ağ hatası"} — ${delay}ms sonra yeniden deneniyor`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  return { subdomains: [], count: 0 };
 }
 
 // ─── NIST NVD CVE Shadow IT Check ────────────────────────────────────────────

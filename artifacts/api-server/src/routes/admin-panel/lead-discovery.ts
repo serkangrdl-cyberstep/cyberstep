@@ -1383,6 +1383,9 @@ router.get("/admin-panel/lead-discovery/cve-report/export", requireAdmin, async 
 
 // GET /api/admin-panel/lead-discovery/cve-report — CVE listesi + domain detayları
 router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   const minCvss = parseFloat(String(req.query["minCvss"] ?? "7.0"));
   const severityFilter = String(req.query["severity"] ?? "");
   const onlyExploit = req.query["exploit"] === "1";
@@ -1558,6 +1561,9 @@ router.post("/admin-panel/lead-discovery/rescan-manual-domains", requireAdmin, a
 // included_in_index domain_scans içinde riskli port açık olanları listeler.
 // port: 3306 (MySQL), 21 (FTP), 3389 (RDP)
 router.get("/admin-panel/lead-discovery/port-risk", requireAdmin, async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   try {
     const rows = await db.execute(sql`
       WITH latest AS (

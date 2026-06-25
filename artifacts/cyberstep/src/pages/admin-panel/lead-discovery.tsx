@@ -3338,7 +3338,14 @@ export default function AdminLeadDiscovery() {
                       {cveReenrich.isPending ? "Sorgulanıyor..." : "Yamayı NVD'den Güncelle"}
                     </button>
                     <button
-                      onClick={() => { void cveRefetch(); }}
+                      onClick={async () => {
+                        const result = await cveRefetch();
+                        if (result.status === "success") {
+                          toast({ description: `CVE raporu yenilendi — ${result.data?.total ?? 0} CVE.` });
+                        } else if (result.status === "error") {
+                          toast({ description: "Yenileme başarısız.", variant: "destructive" });
+                        }
+                      }}
                       disabled={cveFetching}
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
                       title="DB'deki güncel veriyi ekrana yansıtır"

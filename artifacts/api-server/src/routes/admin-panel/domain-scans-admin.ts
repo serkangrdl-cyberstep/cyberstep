@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
-import { domainScansTable } from "@workspace/db";
+import { domainScansTable, domainScanSubdomainsTable } from "@workspace/db";
 import { count, avg, sql, desc, ilike, or, eq } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
@@ -253,6 +253,20 @@ router.get("/admin-panel/domain-scans/by-domain/:domain", requireAdmin, async (r
 
   if (!scan) { res.status(404).json({ error: "Bu domain için tarama bulunamadı" }); return; }
   res.json(scan);
+});
+
+// ─── Subdomain Probe Sonuçları ────────────────────────────────────────────────
+router.get("/admin-panel/domain-scans/:id/subdomains", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params["id"]);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+
+  const rows = await db
+    .select()
+    .from(domainScanSubdomainsTable)
+    .where(eq(domainScanSubdomainsTable.scanId, id))
+    .orderBy(desc(domainScanSubdomainsTable.priorityScore));
+
+  res.json({ scanId: id, total: rows.length, rows });
 });
 
 // ─── Detail ───────────────────────────────────────────────────────────────────

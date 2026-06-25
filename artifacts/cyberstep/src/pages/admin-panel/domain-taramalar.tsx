@@ -4,7 +4,7 @@ import {
   Globe, CheckCircle2, XCircle, Download, Search, AlertTriangle,
   BarChart3, Shield, Loader2, ChevronLeft, ChevronRight,
   Play, Trash2, FileDown, Eye, FileCheck, Clock, RefreshCw,
-  TrendingUp, TrendingDown, CalendarDays, Hash, AlertCircle,
+  TrendingUp, TrendingDown, CalendarDays, Hash, AlertCircle, Network,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +95,24 @@ interface DomainScanDetail extends DomainScanRow {
   sslLabsGrade: string | null;
   ctSubdomainCount: number;
   ctSubdomains: string[];
+}
+
+interface SubdomainProbeRow {
+  id: number;
+  scanId: number;
+  domain: string;
+  httpStatus: number | null;
+  contentType: string | null;
+  assetClassification: string | null;
+  priorityScore: number | null;
+  priorityReason: string | null;
+  createdAt: string;
+}
+
+interface SubdomainProbeResult {
+  scanId: number;
+  total: number;
+  rows: SubdomainProbeRow[];
 }
 
 interface SmartCheck {
@@ -195,10 +213,24 @@ function RiskBadge({ risk }: { risk: string }) {
   return <Badge className={`${cls} text-xs`}>{risk}</Badge>;
 }
 
+const HIGH_VALUE_RE = /^(admin|panel|dashboard|login|portal|cpanel|webmail|mail|vpn|remote|owa|manage|intranet|staff|hr|crm|erp)\./i;
+
+const CLS_LABEL: Record<string, string> = {
+  web_app: "Web App", api: "API", redirect: "Yönlendirme",
+  error_4xx: "Hata 4xx", error_5xx: "Hata 5xx",
+  unreachable: "Erişilemiyor", unknown: "Bilinmiyor",
+};
+
 function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void }) {
   const { data: scan, isLoading } = useQuery<DomainScanDetail>({
     queryKey: ["admin-domain-detail", scanId],
     queryFn: () => fetch(`/api/admin-panel/domain-scans/${scanId}`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const { data: subdomainData } = useQuery<SubdomainProbeResult>({
+    queryKey: ["admin-domain-subdomains", scanId],
+    queryFn: () => fetch(`/api/admin-panel/domain-scans/${scanId}/subdomains`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!scanId,
   });
 
   return (
@@ -663,6 +695,81 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                 </div>
               </div>
             )}
+
+            {/* HTTP Probe — Subdomain Keşfi */}
+            {subdomainData && subdomainData.total > 0 && (() => {
+              const classCounts: Record<string, number> = {};
+              for (const r of subdomainData.rows) {
+                const k = r.assetClassification ?? "unknown";
+                classCounts[k] = (classCounts[k] ?? 0) + 1;
+              }
+              const highPri = subdomainData.rows.filter(r => (r.priorityScore ?? 0) > 20);
+              return (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Network className="h-3.5 w-3.5" />
+                    HTTP Probe — Subdomain Keşfi ({subdomainData.total})
+                  </h3>
+
+                  {/* Sınıflandırma dağılımı */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {Object.entries(classCounts).map(([cls, cnt]) => (
+                      <span key={cls} className={`text-xs px-2 py-0.5 rounded font-medium border ${
+                        cls === "web_app" ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" :
+                        cls === "api" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                        cls === "redirect" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                        cls === "error_5xx" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                        "bg-slate-700/60 text-slate-400 border-slate-600"
+                      }`}>
+                        {CLS_LABEL[cls] ?? cls}: {cnt}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Yüksek öncelikli subdomain'ler */}
+                  {highPri.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {highPri.slice(0, 10).map(r => {
+                        const isPanel = HIGH_VALUE_RE.test(r.domain);
+                        return (
+                          <div key={r.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs ${
+                            isPanel
+                              ? "bg-red-500/10 border-red-500/25"
+                              : "bg-amber-500/10 border-amber-500/25"
+                          }`}>
+                            <span className={`shrink-0 font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                              isPanel ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"
+                            }`}>
+                              {isPanel ? "PANEL" : "YÜKSEK"}
+                            </span>
+                            <span className="font-mono text-white flex-1 truncate">{r.domain}</span>
+                            <span className="text-slate-500 shrink-0">
+                              {CLS_LABEL[r.assetClassification ?? ""] ?? r.assetClassification ?? "-"}
+                            </span>
+                            <span className={`shrink-0 font-mono ${
+                              r.httpStatus && r.httpStatus < 300 ? "text-emerald-400" :
+                              r.httpStatus && r.httpStatus < 400 ? "text-amber-400" :
+                              r.httpStatus ? "text-red-400" : "text-slate-500"
+                            }`}>
+                              {r.httpStatus ?? "-"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {highPri.length > 10 && (
+                        <p className="text-xs text-slate-500 pl-1">+{highPri.length - 10} daha yüksek öncelikli subdomain</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic">Yüksek öncelikli (skor &gt; 20) subdomain tespit edilmedi.</p>
+                  )}
+
+                  <p className="text-xs text-slate-600 mt-2">
+                    "PANEL" etiketli subdomain'ler giriş/yönetim paneli barındırıyor olabilir.
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* URLhaus / USOM */}
             {(scan.urlhausListed || scan.usomListed) && (

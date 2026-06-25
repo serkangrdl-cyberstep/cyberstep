@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X, Loader2 } from "lucide-react";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1019,11 +1019,22 @@ export default function AdminLeadDiscovery() {
     enabled: !!detailCandidate,
   });
 
-  const { data: subdomainSummary } = useQuery<SubdomainSummary>({
+  const { data: subdomainSummary, refetch: refetchSubdomains } = useQuery<SubdomainSummary>({
     queryKey: ["scan-subdomains", candidateDomainScan?.id],
     queryFn: () => fetch(`/api/domain-scan/${candidateDomainScan!.id}/subdomains`, { credentials: "include" }).then((r) => r.json()),
     enabled: !!candidateDomainScan?.id,
     refetchInterval: (query) => (query.state.data?.processing && query.state.data?.summary.total === 0) ? 5000 : false,
+  });
+
+  const probeMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/admin-panel/domain-scans/probe-subdomains`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: detailCandidate!.domain, scanId: candidateDomainScan?.id }),
+      }).then((r) => r.json()),
+    onSuccess: () => { void refetchSubdomains(); },
   });
 
   const { data: shodanQueries } = useQuery<ShodanQuery[]>({
@@ -3575,6 +3586,31 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
 
+              {/* Subdomain Probe — başlık + tetikle butonu */}
+              {candidateDomainScan && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Alt Alan Adı Keşfi
+                    {subdomainSummary && subdomainSummary.summary.total > 0 && (
+                      <span className="ml-1.5 normal-case font-normal">({subdomainSummary.summary.total} subdomain)</span>
+                    )}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs px-2"
+                    disabled={probeMutation.isPending}
+                    onClick={() => probeMutation.mutate()}
+                  >
+                    {probeMutation.isPending ? (
+                      <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Probe...</>
+                    ) : (
+                      "Probe Et"
+                    )}
+                  </Button>
+                </div>
+              )}
+
               {/* Varlık Sınıflandırması */}
               {subdomainSummary && subdomainSummary.summary.total > 0 && (
                 <div className="bg-slate-50 border rounded-md p-3 space-y-2">
@@ -3596,6 +3632,11 @@ export default function AdminLeadDiscovery() {
               {subdomainSummary?.processing && subdomainSummary.summary.total === 0 && (
                 <div className="text-xs text-muted-foreground text-center py-2 border rounded-md bg-slate-50">
                   Alt domain analizi yapılıyor...
+                </div>
+              )}
+              {probeMutation.isError && (
+                <div className="text-xs text-red-600 border border-red-200 rounded-md bg-red-50 px-3 py-1.5">
+                  Probe sırasında hata oluştu. Tekrar deneyin.
                 </div>
               )}
 

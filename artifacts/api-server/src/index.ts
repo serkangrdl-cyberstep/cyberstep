@@ -3497,6 +3497,7 @@ startup()
         { name: "customer_activation_monitor", thresholdHours: 25  },
         { name: "ai_quality_monitor",          thresholdHours: 25  },
         { name: "auto_invoice_generate",       thresholdHours: 25  },
+        { name: "haiku_enrichment",         thresholdHours: 25  },
         // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
         { name: "daily_cron_report",        thresholdHours: 25  },

@@ -1,0 +1,279 @@
+CyberStep web sitesinin hizmetler bölümüne ve ilgili sayfalara
+bu hafta eklenen 4 yeni özelliği entegre edeceğiz:
+1. Reputation & Blacklist Monitoring
+2. Marka Koruma (Brand/Typosquatting)
+3. Veri Sızıntısı İzleme (Data Leakage)
+4. CISO Executive Raporu
+
+---
+
+## BAĞLAM
+
+Web sitesi stack:
+- Next.js App Router, TypeScript, Tailwind CSS
+- src/app/(marketing)/ altında sayfalar
+- Brand renkler: bg #060D1A, card #0E1A2E,
+  cyan #00C8FF (#00C8FF = brand-cyan),
+  amber #F5A623 (brand-amber)
+- Mevcut hizmetler içeriği sayfada var
+- Hedef kitle: Türk KOBİ IT yöneticisi + CISO
+
+---
+
+## PART 1 — HİZMETLER SAYFASI GÜNCELLEMESİ
+
+src/app/(marketing)/hizmetler/page.tsx dosyasını bul
+(veya services/page.tsx — hangisi mevcutsa).
+
+Mevcut hizmet kartlarının ALTINA 4 yeni kart ekle.
+Mevcut kart component/style'ını kullan.
+
+### Kart 1 — Reputation & Kara Liste İzleme
+
+İkon: Shield (lucide-react)
+Başlık: "Reputation & Kara Liste İzleme"
+Açıklama:
+"Domain ve IP adreslerinizi Spamhaus, Google Safe Browsing
+ve SURBL kara listelerinde sürekli izliyoruz. SSL sertifika
+geçerliliği, SPF/DMARC/DKIM mail güvenlik yapılandırması
+otomatik kontrol edilir. Bir sorun tespit edildiğinde anında
+bildirim alırsınız."
+
+Özellik listesi (küçük bullet'lar):
+• Günlük otomatik kara liste taraması
+• SSL sertifika son kullanma uyarısı
+• SPF, DMARC, DKIM yapılandırma kontrolü
+• Mail sunucu reputation skoru (0-100)
+
+Badge: "YENİ" (cyan)
+
+### Kart 2 — Marka Koruma
+
+İkon: Search (lucide-react)
+Başlık: "Marka Koruma & Typosquatting Tespiti"
+Açıklama:
+"Şirket adınızı taklit eden sahte domainleri otomatik tespit
+ediyoruz. Karakter hatası, TLD değişimi, prefix/suffix eklenmiş
+71+ varyasyon her hafta taranır. Aktif phishing girişimlerinde
+anında uyarı ve kanıt raporu üretilir."
+
+Özellik listesi:
+• 71+ domain varyasyonu haftalık tarama
+• TLD swap, typo, homoglyph tespiti
+• Şüpheli site içerik analizi
+• ICANN şikayet için otomatik kanıt PDF'i
+
+Badge: "YENİ" (cyan)
+
+### Kart 3 — Veri Sızıntısı İzleme
+
+İkon: AlertTriangle (lucide-react)
+Başlık: "Veri Sızıntısı İzleme"
+Açıklama:
+"Kurumunuza ait e-posta ve hesap bilgilerinin dark web ve
+sızdırılmış veritabanlarında görünüp görünmediğini izliyoruz.
+HaveIBeenPwned ve DeHashed entegrasyonuyla haftalık tarama
+yapılır. Tüm veriler KVKK uyumlu şekilde işlenir."
+
+Özellik listesi:
+• HaveIBeenPwned & DeHashed entegrasyonu
+• Haftalık otomatik tarama
+• Kritik sızıntılarda anlık bildirim
+• KVKK uyumlu veri işleme
+
+Badge: "YENİ" (cyan)
+
+### Kart 4 — CISO Executive Raporu
+
+İkon: FileText (lucide-react)
+Başlık: "Aylık CISO Executive Raporu"
+Açıklama:
+"Her ay otomatik üretilen 4 sayfalık yönetici raporu: risk
+skoru trendi, kritik bulgular, aksiyon önerileri. Teknik
+detay değil iş dili. Yönetim kuruluna direkt sunulabilir
+format. Yapay zeka destekli Türkçe özet."
+
+Özellik listesi:
+• Aylık otomatik PDF üretimi
+• 0-100 risk skoru ve trend grafiği
+• AI destekli Türkçe yönetici özeti
+• Fortinet WAF entegrasyon önerileri
+
+Badge: "YENİ" (cyan)
+
+---
+
+## PART 2 — ANA SAYFA GÜNCELLEME
+
+src/app/(marketing)/page.tsx (Home sayfası).
+
+### 2A — İstatistik Bölümü Güncelle
+
+Mevcut istatistik/sayı bölümünü bul.
+Şu rakamları ekle veya güncelle:
+
+"71+ domain varyasyonu izlenir"
+"7/24 kara liste taraması"
+"4 katmanlı koruma"
+"Aylık otomatik CISO raporu"
+
+### 2B — Özellik Highlight Bölümü
+
+Mevcut "Neden CyberStep?" veya benzeri özellik bölümünü bul.
+Yeni 4 özelliği highlight eden bir satır ekle:
+
+Başlık: "Bu hafta eklenen yeni koruma katmanları"
+(veya daha uygun bir başlık varsa kullan)
+
+4 küçük feature chip (inline, yatay):
+🛡 Kara Liste İzleme
+🔍 Marka Koruma
+💧 Veri Sızıntısı
+📊 CISO Raporu
+
+Her chip tıklandığında /hizmetler sayfasına scroll.
+
+### 2C — Hero Bölümü Alt Metin Güncelle
+
+Hero'daki alt açıklama metnini bul.
+Mevcut metne şu cümleyi ekle (uygun yere):
+
+"Kara liste izleme, marka koruma ve veri sızıntısı tespiti
+tek platformda — Türkiye'nin en kapsamlı EASM çözümü."
+
+---
+
+## PART 3 — YENİ LANDING PAGE
+
+src/app/(marketing)/veri-sizintisi/page.tsx oluştur.
+
+Bu sayfa sadece veri sızıntısı özelliği için dedicated landing:
+
+### Metadata:
+title: "Veri Sızıntısı İzleme | CyberStep"
+description: "Kurumunuzun verileri dark web'de mi? 
+HaveIBeenPwned entegrasyonuyla haftalık otomatik tarama.
+KVKK uyumlu. CyberStep ile koruma altına alın."
+
+### Sayfa İçeriği:
+
+Hero:
+Başlık: "Verileriniz Dark Web'de mi?"
+Alt başlık: "Çoğu şirket, veri sızıntısını ortalama
+277 gün sonra fark ediyor. Siz anında öğrenin."
+CTA: "Ücretsiz Tarama Başlat" → /mini-assessment
+
+Risk İstatistikleri (3 kart):
+• "Türkiye'deki şirketlerin %65'i siber saldırıya uğruyor"
+  (Fortinet/DORinsight 2025 araştırması)
+• "Ortalama veri ihlali tespiti: 277 gün"
+• "Veri ihlalinin ortalama maliyeti: $4.88M (IBM 2024)"
+
+Nasıl Çalışır (3 adım):
+1. Domain'inizi sisteme ekleyin
+2. HaveIBeenPwned & DeHashed otomatik tarar
+3. Kritik bulgularda anında bildirim alırsınız
+
+KVKK Güvencesi Kutusu (amber border):
+"Tüm veriler Türkiye'de işlenir. Kişisel veriler KVKK
+kapsamında korunur. Şifre veya hash bilgisi saklanmaz."
+
+CTA Banner: "Hemen Başlayın" → /mini-assessment
+
+---
+
+## PART 4 — YENİ LANDING PAGE 2
+
+src/app/(marketing)/marka-koruma/page.tsx oluştur.
+
+### Metadata:
+title: "Marka Koruma & Typosquatting Tespiti | CyberStep"
+description: "Şirket adınızı taklit eden sahte domainleri
+tespit edin. 71+ varyasyon haftalık tarama. 
+Phishing girişimlerine karşı otomatik koruma."
+
+### Sayfa İçeriği:
+
+Hero:
+Başlık: "Birisi Sizi Taklit Ediyor Olabilir"
+Alt başlık: "Typosquatting ve sahte domainler müşterilerinizi
+yanıltır, itibarınızı zedeler. Haftalık otomatik tarama
+ile anında tespit edin."
+CTA: "Domain'inizi Kontrol Edin" → /mini-assessment
+
+Örnek Varyasyon Gösterimi (görsel, kod bloğu tarzı):
+Orijinal:    siketiniz.com.tr
+Taklit örnekleri:
+  siketiniz.com        ← TLD değişimi
+  siketiniz.net.tr     ← TLD değişimi
+  sik3tiniz.com.tr     ← karakter değişimi
+  siketinizz.com.tr    ← çift karakter
+  my-siketiniz.com     ← prefix ekleme
+  siketiniz-giris.com  ← suffix ekleme
+  → 71+ varyasyon otomatik taranır
+
+3 Risk Senaryosu (kart):
+1. Phishing — Sahte login sayfası müşteri şifrelerini çalıyor
+2. Marka Zararı — Rakip ürün satan taklit site
+3. SEO Saldırısı — Trafiğinizi çalan benzer domain
+
+CTA Banner: "Marka Korumanızı Başlatın" → /mini-assessment
+
+---
+
+## PART 5 — NAV / FOOTER GÜNCELLEME
+
+### 5A — Navbar Dropdown
+
+Navbar'da "Hizmetler" dropdown'ı varsa
+yeni 4 hizmet linkini ekle:
+- Reputation İzleme → /hizmetler#reputation
+- Marka Koruma → /marka-koruma
+- Veri Sızıntısı → /veri-sizintisi
+- CISO Raporu → /hizmetler#ciso-raporu
+
+### 5B — Footer Güncelle
+
+Footer'daki hizmetler listesine ekle:
+- Marka Koruma → /marka-koruma
+- Veri Sızıntısı İzleme → /veri-sizintisi
+
+---
+
+## PART 6 — SEO META TAGS
+
+Şu sayfalara structured data (JSON-LD) ekle:
+/veri-sizintisi ve /marka-koruma sayfaları için:
+
+Her sayfaya <script type="application/ld+json"> ekle:
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CyberStep",
+  "applicationCategory": "SecurityApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "TRY",
+    "description": "Ücretsiz mini assessment"
+  }
+}
+
+---
+
+## TAMAMLANMA KONTROL LİSTESİ
+
+Bitince doğrula:
+1. Hizmetler sayfasında 4 yeni kart görünüyor — "YENİ" badge var mı?
+2. Ana sayfa istatistik ve feature chip bölümleri güncellendi
+3. /veri-sizintisi sayfası route çalışıyor
+4. /marka-koruma sayfası route çalışıyor
+5. Navbar dropdown güncellendi (varsa)
+6. Footer linkleri güncellendi
+7. JSON-LD structured data eklendi
+8. Next.js build temiz: npm run build
+
+Hangi dosyaların değiştirildiğini listele.
+Yeni sayfa URL'lerini listele.
+Build output'u göster (hata var mı?).

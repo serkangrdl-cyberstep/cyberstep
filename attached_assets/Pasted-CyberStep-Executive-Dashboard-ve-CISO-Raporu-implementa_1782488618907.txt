@@ -1,0 +1,297 @@
+CyberStep Executive Dashboard ve CISO Raporu implementasyonu.
+Part 1 (executive_reports tablosu) tamamlandı. Part 2'den devam et.
+
+---
+
+## TAMAMLANAN İŞLER (tekrar yapma)
+
+✅ executive_reports tablosu oluşturuldu:
+   id, customer_id, report_period_start, report_period_end,
+   report_month, risk_score_current, risk_score_previous,
+   risk_score_change, critical_cve_count, high_cve_count,
+   cve_resolved_count, total_domains_monitored, new_domains_detected,
+   subdomains_discovered, blacklisted_count, ssl_expiring_count,
+   mail_issues_count, brand_variants_active, brand_suspicious_count,
+   high_risk_ports_count, generated_at, pdf_path, sent_at
+   + UNIQUE(customer_id, report_month) + index
+
+---
+
+## PART 2 — RISK SCORE CALCULATOR
+
+src/services/executive/riskScoreCalculator.ts oluştur:
+
+export async function calculateCustomerRiskScore(
+  customerId: number,
+  scanData: CustomerScanSummary
+): Promise<number>
+
+Skor hesaplama (0-100, 100 = en iyi):
+
+Başlangıç: 100
+
+Eksiltmeler:
+- Her critical CVE: -8 (max -40)
+- Her high CVE: -3 (max -15)
+- Blacklisted domain: -10 (max -20)
+- SSL geçersiz: -8
+- SSL 7 günden az: -5
+- Mail reputation < 50: -3 (max -9)
+- Şüpheli brand variant: -5 (max -15)
+- High risk port açık (22,3389,23,5900): -4 (max -12)
+
+Minimum: 0
+Skor eşikleri:
+- 80-100: Düşük Risk (yeşil)
+- 60-79: Orta Risk (amber)
+- 40-59: Yüksek Risk (turuncu)
+- 0-39: Kritik Risk (kırmızı)
+
+---
+
+## PART 3 — REPORT DATA COLLECTOR
+
+src/services/executive/reportDataCollector.ts oluştur:
+
+export async function collectCustomerReportData(
+  customerId: number,
+  periodStart: Date,
+  periodEnd: Date
+): Promise<ExecutiveReportData>
+
+Toplanan veriler:
+1. customers tablosundan müşteri domain'i al
+2. domain_scans JOIN lead_candidates WHERE customer domain:
+   - critical_cve_count, high_cve_count toplamları
+   - blacklist_score < 100 olan sayısı
+   - ssl_days_remaining <= 30 olan sayısı
+   - mail_reputation_score < 50 olan sayısı
+   - open_ports_count toplamı
+3. brand_monitors WHERE customer_id:
+   - is_active = true sayısı
+   - is_suspicious = true sayısı
+4. Önceki ayın executive_reports kaydından
+   risk_score_current → bu ayın risk_score_previous olur
+5. Tüm veriyi riskScoreCalculator'a geç, skor hesapla
+
+Return tipi ExecutiveReportData interface olarak tanımla —
+tüm alanlar nullable, hata durumunda kısmi veri dönebilmeli.
+
+---
+
+## PART 4 — EXECUTIVE PDF GENERATOR
+
+src/services/executive/executivePdfGenerator.ts oluştur.
+Mevcut pdf.ts'teki PDFKit pattern'ini kullan (import, style, font).
+
+Rapor içeriği — CISO dili, Türkçe, teknik değil iş dili:
+
+### Sayfa 1 — Kapak
+- CyberStep logosu (mevcut pdf.ts'ten al)
+- Müşteri adı + domain
+- "Aylık Siber Güvenlik Durum Raporu"
+- Dönem: "Haziran 2026"
+- Oluşturulma tarihi
+
+### Sayfa 2 — Yönetici Özeti (Executive Summary)
+
+Risk Skoru Kutusu (büyük, renkli):
+[SKOR] / 100
+"[Düşük/Orta/Yüksek/Kritik] Risk"
+↑↓ Önceki aya göre: +X / -X puan
+
+4 KPI Kutusu (2x2 grid):
+Kritik Açık: N  | İzlenen Alan: N
+Marka Tehdidi: N | SSL Uyarısı: N
+
+Durum Özeti Paragrafı (Claude Haiku ile üret):
+Model: claude-haiku-4-5
+Prompt: "Şu verilere göre bir CISO'ya yönelik 3 cümlelik
+Türkçe yönetici özeti yaz. Teknik jargon kullanma,
+iş riski ve aksiyon odaklı ol. Veriler:
+risk_score: [X], critical_cve: [N], brand_threats: [N],
+ssl_expiring: [N], blacklisted: [N]. Max 80 kelime."
+
+### Sayfa 3 — Risk Trendi
+
+Başlık: "Risk Skoru Trendi"
+Son 6 ayın bar chart'ı (PDFKit ile manuel çiz):
+- Her ay için: ay adı + skor + renk kodu
+- Önceki ay verisi executive_reports tablosundan
+- Mevcut ay hesaplanan skor
+
+Başlık: "Bu Ay Öne Çıkan Riskler"
+Top 3 kritik bulgu listesi (öncelik sırasına göre):
+1. [En kritik bulgu]
+2. [İkinci bulgu]
+3. [Üçüncü bulgu]
+Her bulgu için: kısa açıklama + önerilen aksiyon
+
+### Sayfa 4 — Detay Tabloları
+
+Bölüm 1 — Güvenlik Açıkları:
+- Kritik CVE sayısı, High CVE sayısı
+- "Bu açıkların kapatılması için Fortinet WAF yapılandırması önerilir"
+  (Netsys upsell — sabit metin)
+
+Bölüm 2 — Marka Koruma:
+- Aktif taklit domain sayısı
+- Şüpheli domain sayısı
+- En tehlikeli 3 varyant (tablo)
+
+Bölüm 3 — Altyapı Sağlığı:
+- SSL sertifika durumu
+- Mail güvenlik skoru (SPF/DMARC/DKIM özeti)
+- Kara liste durumu
+
+### Son Sayfa — Sonraki Adımlar
+
+Başlık: "Önerilen Aksiyonlar"
+Claude Haiku ile üret:
+Prompt: "Şu güvenlik verilerine göre 3 somut,
+öncelikli aksiyon öner. Her aksiyon: başlık + 1 cümle açıklama.
+Türkçe, iş dili. Veriler: [ExecutiveReportData JSON]"
+
+CyberStep iletişim bilgileri + "Bir sonraki rapor: [tarih]"
+
+---
+
+## PART 5 — REPORT ORCHESTRATOR
+
+src/services/executive/executiveReportOrchestrator.ts oluştur:
+
+export async function generateMonthlyReports():
+  Promise<{ generated: number; errors: number }>
+
+Logic:
+1. customers WHERE status IN ('active', 'trial') çek
+2. Her müşteri için:
+   a. Bu ay raporu zaten var mı? (report_month kontrolü)
+      → Varsa atla
+   b. collectCustomerReportData() çağır
+   c. executive_reports tablosuna kaydet
+   d. executivePdfGenerator() ile PDF üret
+   e. PDF'i /reports/executive/[customer_id]/[month].pdf kaydet
+   f. pdf_path güncelle
+3. {generated, errors} döndür
+
+Hata toleransı: bir müşteri hata verirse diğerlerine devam et.
+
+---
+
+## PART 6 — CRON KAYDI
+
+src/index.ts — mevcut wrapCron pattern:
+
+// Her ayın 1'i 05:00 Istanbul — aylık executive rapor
+cron.schedule("0 5 1 * *", wrapCron("executive_report_monthly",
+  "0 5 1 * *", async () => {
+    const { generateMonthlyReports } = await import(
+      "./services/executive/executiveReportOrchestrator"
+    );
+    return await generateMonthlyReports();
+}), { timezone: "Europe/Istanbul" });
+
+EXPECTED_JOBS: { name: "executive_report_monthly", intervalMinutes: 43200 }
+CATCH_UP_CRONS'a ekle.
+
+---
+
+## PART 7 — ADMIN API
+
+src/routes/admin-panel/executive-reports.ts oluştur:
+
+GET /api/admin-panel/executive-reports/list
+→ executive_reports JOIN customers
+→ ORDER BY generated_at DESC
+→ LIMIT 50
+→ Her kayıt: { customer_name, customer_domain, report_month,
+  risk_score_current, risk_score_change, generated_at, pdf_path }
+
+GET /api/admin-panel/executive-reports/:customerId/history
+→ Son 6 ay raporu (risk skoru trendi için)
+→ ORDER BY report_month ASC
+
+POST /api/admin-panel/executive-reports/generate-now
+→ Body: { customer_id?: number }
+  (belirtilmezse tüm aktif müşteriler)
+→ generateMonthlyReports() tetikle
+→ Response: { message: "started" }
+
+GET /api/admin-panel/executive-reports/:id/download
+→ pdf_path'ten dosyayı serve et
+→ Content-Type: application/pdf
+
+admin-panel/index.ts'e register et.
+
+---
+
+## PART 8 — EXECUTIVE DASHBOARD SAYFASI
+
+pages/admin-panel/executive-dashboard.tsx oluştur.
+Mevcut admin panel layout/style kullan.
+Brand renkler: bg #060D1A, card #0E1A2E, cyan #00C8FF, amber #F5A623.
+
+### Üst Kısım — 4 KPI Kart
+
+Kart 1: İzlenen Müşteri
+- Aktif müşteri sayısı
+- Bu ay rapor üretilen sayısı
+
+Kart 2: Ortalama Risk Skoru
+- Tüm müşterilerin ortalama skoru
+- Renk kodlu (80+ yeşil, 60-79 amber, <60 kırmızı)
+
+Kart 3: Kritik Açık
+- Tüm müşterilerde toplam critical CVE
+- Kırmızı badge
+
+Kart 4: Marka Tehdidi
+- Toplam şüpheli brand variant
+- Amber badge
+
+### Orta Kısım — Müşteri Risk Tablosu
+
+Kolonlar:
+Müşteri | Domain | Risk Skoru | CVE | Marka | SSL | Son Rapor | PDF
+
+- Risk skoru: renkli progress bar (0-100)
+- PDF: "İndir" butonu → download endpoint
+- "Rapor Üret" butonu her satırda
+
+### Alt Kısım — Son Üretilen Raporlar
+
+Son 10 rapor listesi:
+Müşteri | Dönem | Skor | Değişim | Tarih | İndir
+
+Değişim: ↑+5 (kırmızı kötüleşme) / ↓-3 (yeşil iyileşme)
+
+"Tüm Müşteriler İçin Rapor Üret" butonu (üstte)
+→ POST /generate-now → spinner → toast
+
+---
+
+## PART 9 — NAV MENU
+
+Admin panel nav'a ekle:
+"📊 Executive Dashboard" → /admin-panel/executive-dashboard
+Marka Koruma'nın altına.
+
+---
+
+## TAMAMLANMA KONTROL LİSTESİ
+
+Bitince doğrula:
+1. riskScoreCalculator.ts — test: örnek veri ile skor hesapla, sonucu göster
+2. reportDataCollector.ts — 1 müşteri için veri topla, özet göster
+3. executivePdfGenerator.ts — test müşterisi için PDF üret,
+   kaç sayfa?, dosya boyutu?
+4. Orchestrator — kaç aktif müşteri işlendi?
+5. Cron kayıtlandı + EXPECTED_JOBS + CATCH_UP_CRONS güncellendi
+6. 4 admin endpoint yanıt veriyor — her biri için örnek response
+7. Executive Dashboard sayfası render oluyor
+8. Nav güncellendi
+9. Build temiz: pnpm --filter @workspace/api-server run build
+
+Deviasyon varsa belirt.
+PDF dosya path pattern'ini ve boyutunu rapor et.

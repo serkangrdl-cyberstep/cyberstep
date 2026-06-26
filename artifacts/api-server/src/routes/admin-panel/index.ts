@@ -43,6 +43,7 @@ import sourceStatsRouter from "./source-stats";
 import cyberRiskReportsRouter from "./cyber-risk-reports";
 import reputationRouter from "./reputation";
 import brandMonitorRouter from "./brand-monitor";
+import executiveReportsRouter from "./executive-reports";
 
 const router = Router();
 router.use(authRouter);
@@ -89,6 +90,7 @@ router.use(sourceStatsRouter);
 router.use(cyberRiskReportsRouter);
 router.use(reputationRouter);
 router.use(brandMonitorRouter);
+router.use(executiveReportsRouter);
 
 // ─── POST /api/admin-panel/reports/annual/generate ────────────────────────────
 router.post("/reports/annual/generate", async (req, res) => {

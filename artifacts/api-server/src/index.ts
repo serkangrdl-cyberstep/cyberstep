@@ -3221,6 +3221,16 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Rapor otomatik taslak + onaya gönder cron kayıtlandı (her ayın 1'i 08:00 Istanbul)");
 
+    // Her ayın 1'i 05:00 Istanbul — aylık executive CISO raporu
+    cron.schedule("0 5 1 * *", wrapCron("executive_report_monthly", "0 5 1 * *", async () => {
+      if (!await cronIsEnabled("executive_report_monthly")) { logger.info("executive_report_monthly cron devre dışı, atlanıyor"); return 0; }
+      const { generateMonthlyReports } = await import("./services/executive/executiveReportOrchestrator");
+      const result = await generateMonthlyReports();
+      logger.info(result, "executive_report_monthly tamamlandı");
+      return result.generated;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Executive CISO raporu cron kayıtlandı (her ayın 1'i 05:00 Istanbul)");
+
     cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
       if (!await cronIsEnabled("ecosystem_report")) { return 0; }
       const report = await generateEcosystemReport(30);
@@ -3594,6 +3604,7 @@ startup()
         { name: "kvkk_data_retention",      thresholdHours: 745 },
         { name: "soc_monthly_ai_cost",      thresholdHours: 745 },
         { name: "report_auto_submit",       thresholdHours: 745 },
+        { name: "executive_report_monthly", thresholdHours: 745 },
         // Quarterly (2200h ≈ 90 days + 1h buffer)
         { name: "quarterly_policy_update",  thresholdHours: 2200 },
       ];

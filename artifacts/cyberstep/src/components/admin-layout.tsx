@@ -89,6 +89,7 @@ const NAV_SECTIONS = [
       { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },
       { icon: Shield,          label: "Reputation Monitor",    href: "/panel/reputation-monitor" },
       { icon: Search,          label: "Marka Koruma",          href: "/panel/brand-monitor" },
+      { icon: BarChart3,       label: "Executive Dashboard",   href: "/panel/executive-dashboard" },
       { icon: BarChart3,       label: "Kaynak Dashboard",      href: "/panel/source-dashboard" },
       { icon: Rocket,          label: "Growth Engine",         href: "/panel/growth-engine" },
     ],

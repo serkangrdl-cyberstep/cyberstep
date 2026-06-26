@@ -74,6 +74,7 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "price_auto_update",      intervalMinutes: 525600, label: "TÜFE Fiyat Güncelleme" },
   { name: "weekly_db_backup",       intervalMinutes: 10080,  label: "Haftalık DB Yedek" },
   { name: "github_secrets_scan",    intervalMinutes: 10080,  label: "GitHub Secrets Tarama" },
+  { name: "brand_monitor",          intervalMinutes: 10080,  label: "Brand & Typosquat Monitor" },
   // Aylık
   { name: "soc_monthly_ai_cost",    intervalMinutes: 43200,  label: "SOC Aylık AI Maliyet" },
   // Eksik (önceki listede yoktu)

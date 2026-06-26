@@ -3165,6 +3165,15 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Reputation orchestrator cron kayıtlandı (her gece 03:45 Istanbul)");
 
+    // ─── Brand & Typosquatting Monitor — Her Pazar 04:00 Istanbul ───────────
+    cron.schedule("0 4 * * 0", wrapCron("brand_monitor", "0 4 * * 0", async () => {
+      if (!await cronIsEnabled("brand_monitor")) { logger.info("Brand monitor cron devre dışı, atlanıyor"); return 0; }
+      const { runBrandMonitoring } = await import("./services/brandMonitor/brandMonitorOrchestrator");
+      const result = await runBrandMonitoring();
+      return result.new_variants;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Brand monitor cron kayıtlandı (her Pazar 04:00 Istanbul)");
+
     // ─── Aylık Metrik Toplama — Her ayın 1'i 06:00 Istanbul ──────────────────
     // domain_scans + lead_candidates'tan temel güvenlik metriklerini toplar.
     // Sonuç report_metrics_snapshot tablosuna yazılır; AI içerik üretimi bu veriden beslenir.
@@ -3546,6 +3555,8 @@ startup()
         { name: "ssl_monitor",              thresholdHours: 25  },
         { name: "mail_monitor",             thresholdHours: 25  },
         { name: "reputation_orchestrator",  thresholdHours: 25  },
+        // Weekly brand monitoring
+        { name: "brand_monitor",            thresholdHours: 169 },
         // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
         { name: "daily_cron_report",        thresholdHours: 25  },

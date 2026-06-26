@@ -42,6 +42,7 @@ import partnerLeadsAdminRouter from "./partner-leads-admin";
 import sourceStatsRouter from "./source-stats";
 import cyberRiskReportsRouter from "./cyber-risk-reports";
 import reputationRouter from "./reputation";
+import brandMonitorRouter from "./brand-monitor";
 
 const router = Router();
 router.use(authRouter);
@@ -87,6 +88,7 @@ router.use(partnerLeadsAdminRouter);
 router.use(sourceStatsRouter);
 router.use(cyberRiskReportsRouter);
 router.use(reputationRouter);
+router.use(brandMonitorRouter);
 
 // ─── POST /api/admin-panel/reports/annual/generate ────────────────────────────
 router.post("/reports/annual/generate", async (req, res) => {

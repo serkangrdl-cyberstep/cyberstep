@@ -50,6 +50,7 @@ export * from "./pentest-lite";
 export * from "./health";
 export * from "./board-reports";
 export * from "./brand-monitors";
+export * from "./executive-reports";
 export * from "./ai-assessment";
 export * from "./domain-scan-purchases";
 export * from "./ai-monitoring";

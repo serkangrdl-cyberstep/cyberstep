@@ -465,10 +465,10 @@ export default function Home() {
   const fullCount = questionCounts?.full ?? 60;
 
   const STATS = [
-    { value: "500+", label: t(T.home.statsAnalyzed, lang) },
-    { value: "20dk", label: t(T.home.statsTime, lang) },
-    { value: "60+", label: t(T.home.statsSatisfaction, lang) },
-    { value: "22", label: t(T.home.statsPoints, lang) },
+    { value: "71+", label: lang === "en" ? "Domain variants monitored" : "Domain varyasyonu izlenir" },
+    { value: "7/24", label: lang === "en" ? "Blacklist monitoring" : "Kara liste taraması" },
+    { value: "4", label: lang === "en" ? "Layered protection" : "Katmanlı koruma" },
+    { value: lang === "en" ? "Monthly" : "Aylık", label: lang === "en" ? "Automatic CISO report" : "Otomatik CISO raporu" },
   ];
 
   const SECTOR_RISKS = [
@@ -629,6 +629,11 @@ export default function Home() {
             <p className="text-lg md:text-xl text-white/80">
               {t(T.home.heroSubtitle, lang)}
             </p>
+            {lang === "tr" && (
+              <p className="text-sm text-white/50 mt-1 max-w-xl mx-auto">
+                Kara liste izleme, marka koruma ve veri sızıntısı tespiti tek platformda — Türkiye'nin en kapsamlı EASM çözümü.
+              </p>
+            )}
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-slate-400 pt-2">
               <span>{lang === "en" ? "Avg. cyberattack cost:" : "Ortalama siber saldırı maliyeti:"} <strong className="text-white">285.000 TL</strong></span>
               <span className="opacity-30">·</span>
@@ -667,6 +672,36 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Yeni Özellikler — Feature Chips */}
+      {lang === "tr" && (
+        <section className="py-8 border-b bg-background">
+          <div className="container mx-auto px-4 max-w-5xl">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground shrink-0">
+                Bu hafta eklenen yeni koruma katmanları:
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+                {[
+                  { emoji: "🛡", label: "Kara Liste İzleme", href: "/hizmetler#reputation" },
+                  { emoji: "🔍", label: "Marka Koruma", href: "/marka-koruma" },
+                  { emoji: "💧", label: "Veri Sızıntısı", href: "/veri-sizintisi" },
+                  { emoji: "📊", label: "CISO Raporu", href: "/hizmetler#ciso-raporu" },
+                ].map(({ emoji, label, href }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <span>{emoji}</span>
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* How it works */}
       <section className="py-20 bg-background">

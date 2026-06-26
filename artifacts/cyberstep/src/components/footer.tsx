@@ -88,6 +88,8 @@ export function Footer() {
   const toolLinks = lang === "en"
     ? [
         { label: "Data Leak Monitor",            href: "/sizinti-izleyici" },
+        { label: "Data Leakage Monitoring",       href: "/veri-sizintisi" },
+        { label: "Brand Protection",              href: "/marka-koruma" },
         { label: "KVKK VERBİS Check",            href: "/kvkk-verbis" },
         { label: "M365 Security Audit",           href: "/m365-denetim" },
         { label: "Cyber Insurance Calculator",    href: "/siber-sigorta" },
@@ -105,6 +107,7 @@ export function Footer() {
       ]
     : [
         { label: "Sızıntı İzleyici",             href: "/sizinti-izleyici" },
+        { label: "Veri Sızıntısı İzleme",        href: "/veri-sizintisi" },
         { label: "KVKK VERBİS Kontrol",          href: "/kvkk-verbis" },
         { label: "M365 Güvenlik Denetimi",        href: "/m365-denetim" },
         { label: "Siber Sigorta Hesaplayıcı",    href: "/siber-sigorta" },

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Wrench, Unlock } from "lucide-react";
+import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Wrench, Unlock, Search, AlertTriangle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Footer } from "./footer";
 import { useWhiteLabel } from "@/contexts/white-label-context";
@@ -25,6 +25,13 @@ const AI_GUVENLIK_ITEMS = (lang: "tr" | "en") => [
   { href: "/eu-ai-act", label: lang === "en" ? "EU AI Act Compliance Score" : "EU AI Act Uyum Skoru", icon: Cpu, available: true },
   { href: "/ai-red-team", label: lang === "en" ? "AI Red Team Report" : "AI Red Team Raporu", icon: Bot, available: true },
   { href: "/ciso-asistan-paketi", label: lang === "en" ? "CISO Assistant" : "CISO Asistan", icon: ShieldCheck, available: true },
+];
+
+const HIZMETLER_ITEMS = (lang: "tr" | "en") => [
+  { href: "/hizmetler#reputation", label: lang === "en" ? "Reputation & Blacklist Monitoring" : "Reputation & Kara Liste İzleme", icon: Shield },
+  { href: "/marka-koruma", label: lang === "en" ? "Brand Protection" : "Marka Koruma", icon: Search },
+  { href: "/veri-sizintisi", label: lang === "en" ? "Data Leakage Monitor" : "Veri Sızıntısı İzleme", icon: AlertTriangle },
+  { href: "/hizmetler#ciso-raporu", label: lang === "en" ? "CISO Executive Report" : "Aylık CISO Raporu", icon: FileText },
 ];
 
 const ARACLAR_ITEMS = (lang: "tr" | "en") => [
@@ -60,9 +67,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [freeOpen, setFreeOpen] = useState(false);
   const [mobileFreeOpen, setMobileFreeOpen] = useState(false);
+  const [hizmetlerOpen, setHizmetlerOpen] = useState(false);
+  const [mobileHizmetlerOpen, setMobileHizmetlerOpen] = useState(false);
   const aiRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
   const freeRef = useRef<HTMLDivElement>(null);
+  const hizmetlerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -74,6 +84,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       }
       if (freeRef.current && !freeRef.current.contains(e.target as Node)) {
         setFreeOpen(false);
+      }
+      if (hizmetlerRef.current && !hizmetlerRef.current.contains(e.target as Node)) {
+        setHizmetlerOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -164,6 +177,46 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         )}
                       </Link>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {!wl && (
+              <div ref={hizmetlerRef} className="relative">
+                <button
+                  onClick={() => setHizmetlerOpen(v => !v)}
+                  className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
+                    location === "/hizmetler" || location === "/veri-sizintisi" ? "text-primary" : hizmetlerOpen ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {lang === "en" ? "Services" : "Hizmetler"}
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${hizmetlerOpen ? "rotate-180" : ""}`} />
+                </button>
+                {hizmetlerOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-68 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden" style={{ minWidth: "260px" }}>
+                    {HIZMETLER_ITEMS(lang).map(({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setHizmetlerOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <div className="h-7 w-7 rounded-md flex items-center justify-center shrink-0 bg-[#00C8FF]/10">
+                          <Icon className="h-4 w-4 text-[#00C8FF]" />
+                        </div>
+                        <span className="font-medium">{label}</span>
+                        <span className="ml-auto text-xs font-bold text-[#00C8FF] bg-[#00C8FF]/10 px-1.5 py-0.5 rounded">YENİ</span>
+                      </Link>
+                    ))}
+                    <div className="border-t mt-1 pt-1">
+                      <Link
+                        href="/hizmetler"
+                        onClick={() => setHizmetlerOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-muted transition-colors"
+                      >
+                        {lang === "en" ? "All Services" : "Tüm Hizmetler"} <ChevronRight className="h-3.5 w-3.5 ml-auto" />
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
@@ -332,6 +385,39 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           {!available && <span className="text-xs text-slate-400 bg-muted px-1.5 py-0.5 rounded">{lang === "en" ? "Soon" : "Yakında"}</span>}
                         </Link>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Hizmetler accordion */}
+              {!wl && (
+                <div>
+                  <button
+                    onClick={() => setMobileHizmetlerOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors text-foreground hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2"><Shield className="h-4 w-4" />{lang === "en" ? "Services" : "Hizmetler"}</span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileHizmetlerOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {mobileHizmetlerOpen && (
+                    <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-[#00C8FF]/30 pl-3">
+                      {HIZMETLER_ITEMS(lang).map(({ href, label }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => { setMobileOpen(false); setMobileHizmetlerOpen(false); }}
+                          className="flex items-center w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+                        >
+                          {label}
+                        </Link>
+                      ))}
+                      <Link
+                        href="/hizmetler"
+                        onClick={() => { setMobileOpen(false); setMobileHizmetlerOpen(false); }}
+                        className="flex items-center w-full px-2 py-2 rounded-md text-sm font-semibold text-primary hover:bg-muted transition-colors"
+                      >
+                        {lang === "en" ? "All Services" : "Tüm Hizmetler"} →
+                      </Link>
                     </div>
                   )}
                 </div>

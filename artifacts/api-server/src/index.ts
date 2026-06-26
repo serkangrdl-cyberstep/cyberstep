@@ -3121,6 +3121,39 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Haiku enrichment cron scheduled (her gece 02:30 Istanbul)");
 
+    // ─── Blacklist Monitoring — Her gece 03:00 Istanbul ──────────────────────
+    // domain_scans'teki domainleri Spamhaus/SURBL/MXToolbox/SafeBrowsing ile kontrol eder.
+    // 24 saatten eski veya hiç kontrol edilmemiş 50 domain/gece.
+    cron.schedule("0 3 * * *", wrapCron("blacklist_monitor", "0 3 * * *", async () => {
+      if (!await cronIsEnabled("blacklist_monitor")) { logger.info("Blacklist monitor cron devre dışı, atlanıyor"); return 0; }
+      const { runBlacklistMonitor } = await import("./services/monitoring/blacklist-monitor");
+      const result = await runBlacklistMonitor(50);
+      return result.processed;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Blacklist monitor cron kayıtlandı (her gece 03:00 Istanbul)");
+
+    // ─── SSL Monitor — Her gece 03:15 Istanbul ────────────────────────────────
+    // domain_scans'teki domainleri SSL sertifika geçerliliği açısından kontrol eder.
+    // 7 günden eski veya hiç kontrol edilmemiş 30 domain/gece.
+    cron.schedule("15 3 * * *", wrapCron("ssl_monitor", "15 3 * * *", async () => {
+      if (!await cronIsEnabled("ssl_monitor")) { logger.info("SSL monitor cron devre dışı, atlanıyor"); return 0; }
+      const { runSslMonitor } = await import("./services/monitoring/ssl-mail-monitor");
+      const result = await runSslMonitor(30);
+      return result.processed;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("SSL monitor cron kayıtlandı (her gece 03:15 Istanbul)");
+
+    // ─── Mail Reputation Monitor — Her gece 03:30 Istanbul ───────────────────
+    // domain_scans'teki domainleri SPF/DKIM/DMARC/MX açısından kontrol eder.
+    // 7 günden eski veya hiç kontrol edilmemiş 50 domain/gece.
+    cron.schedule("30 3 * * *", wrapCron("mail_monitor", "30 3 * * *", async () => {
+      if (!await cronIsEnabled("mail_monitor")) { logger.info("Mail monitor cron devre dışı, atlanıyor"); return 0; }
+      const { runMailMonitor } = await import("./services/monitoring/ssl-mail-monitor");
+      const result = await runMailMonitor(50);
+      return result.processed;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Mail reputation monitor cron kayıtlandı (her gece 03:30 Istanbul)");
+
     // ─── Aylık Metrik Toplama — Her ayın 1'i 06:00 Istanbul ──────────────────
     // domain_scans + lead_candidates'tan temel güvenlik metriklerini toplar.
     // Sonuç report_metrics_snapshot tablosuna yazılır; AI içerik üretimi bu veriden beslenir.
@@ -3498,6 +3531,9 @@ startup()
         { name: "ai_quality_monitor",          thresholdHours: 25  },
         { name: "auto_invoice_generate",       thresholdHours: 25  },
         { name: "haiku_enrichment",         thresholdHours: 25  },
+        { name: "blacklist_monitor",        thresholdHours: 25  },
+        { name: "ssl_monitor",              thresholdHours: 25  },
+        { name: "mail_monitor",             thresholdHours: 25  },
         // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
         { name: "daily_cron_report",        thresholdHours: 25  },

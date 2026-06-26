@@ -123,6 +123,33 @@ export const domainScansTable = pgTable("domain_scans", {
   letterGrade: text("letter_grade"),
   isPubliclyShared: boolean("is_publicly_shared").notNull().default(false),
   freeScanSummary: text("free_scan_summary"),
+
+  // ─── Blacklist Monitoring ─────────────────────────────────────────────────
+  // Periyodik blacklist kontrol sonuçları (scan pipeline'dan bağımsız)
+  blacklistCheckedAt: timestamp("blacklist_checked_at"),
+  blacklistHits: jsonb("blacklist_hits").$type<{
+    spamhaus: boolean;
+    google_safebrowsing: boolean;
+    surbl: boolean;
+    mxtoolbox: boolean;
+    hit_count: number;
+  }>(),
+  blacklistScore: integer("blacklist_score"), // 0-100; 0 = temiz
+
+  // ─── SSL Monitoring ───────────────────────────────────────────────────────
+  // ssl_issuer zaten "ssl_issuer" kolonunda mevcut (sslIssuer alanı)
+  sslExpiryDate: timestamp("ssl_expiry_date"),  // timestamp tipinde (sslExpiry text'tir)
+  sslDaysRemaining: integer("ssl_days_remaining"),
+  sslIsValid: boolean("ssl_is_valid"),
+  sslCheckedAt: timestamp("ssl_checked_at"),
+
+  // ─── Mail Reputation Monitoring ───────────────────────────────────────────
+  mailSpfValid: boolean("mail_spf_valid"),
+  mailDkimHint: boolean("mail_dkim_hint"),   // _domainkey TXT kaydı var mı
+  mailDmarcValid: boolean("mail_dmarc_valid"),
+  mailMxExists: boolean("mail_mx_exists"),
+  mailReputationScore: integer("mail_reputation_score"), // 0-100
+  mailCheckedAt: timestamp("mail_checked_at"),
 }, (t) => [
   index("domain_scans_domain_idx").on(t.domain),
 ]);

@@ -109,3 +109,4 @@ export * from "./bas-lite";
 export * from "./annual-reports";
 export * from "./internal-scans";
 export * from "./cyber-risk-reports";
+export * from "./domain-scan-alerts";

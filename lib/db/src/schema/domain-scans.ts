@@ -131,7 +131,7 @@ export const domainScansTable = pgTable("domain_scans", {
     spamhaus: boolean;
     google_safebrowsing: boolean;
     surbl: boolean;
-    mxtoolbox: boolean;
+    mxtoolbox: boolean | null;  // null = MXTOOLBOX_API_KEY yok, atlandı
     hit_count: number;
   }>(),
   blacklistScore: integer("blacklist_score"), // 0-100; 0 = temiz

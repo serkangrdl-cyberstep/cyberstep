@@ -9,7 +9,7 @@ import { logger } from "../../lib/logger";
 const router = Router();
 
 // ─── GET /api/admin-panel/executive-reports/list ──────────────────────────────
-router.get("/executive-reports/list", requireAdmin, async (_req, res) => {
+router.get("/admin-panel/executive-reports/list", requireAdmin, async (_req, res) => {
   try {
     const rows = await db.execute(sql`
       SELECT
@@ -39,7 +39,7 @@ router.get("/executive-reports/list", requireAdmin, async (_req, res) => {
 });
 
 // ─── GET /api/admin-panel/executive-reports/:customerId/history ───────────────
-router.get("/executive-reports/:customerId/history", requireAdmin, async (req, res) => {
+router.get("/admin-panel/executive-reports/:customerId/history", requireAdmin, async (req, res) => {
   const customerId = Number(req.params["customerId"]);
   if (isNaN(customerId)) { res.status(400).json({ error: "Geçersiz müşteri ID" }); return; }
   try {
@@ -65,7 +65,7 @@ router.get("/executive-reports/:customerId/history", requireAdmin, async (req, r
 });
 
 // ─── POST /api/admin-panel/executive-reports/generate-now ────────────────────
-router.post("/executive-reports/generate-now", requireAdmin, async (req, res) => {
+router.post("/admin-panel/executive-reports/generate-now", requireAdmin, async (req, res) => {
   const body = req.body as { customer_id?: number };
   const customerId = body.customer_id != null ? Number(body.customer_id) : undefined;
   try {
@@ -87,7 +87,7 @@ router.post("/executive-reports/generate-now", requireAdmin, async (req, res) =>
 });
 
 // ─── GET /api/admin-panel/executive-reports/:id/download ─────────────────────
-router.get("/executive-reports/:id/download", requireAdmin, async (req, res) => {
+router.get("/admin-panel/executive-reports/:id/download", requireAdmin, async (req, res) => {
   const id = Number(req.params["id"]);
   if (isNaN(id)) { res.status(400).json({ error: "Geçersiz ID" }); return; }
   try {

@@ -1,0 +1,69 @@
+CyberStep'e Data Leakage Monitoring ekleyeceğiz.
+Müşteri domain'ine ait email/credential kombinasyonlarının
+sızdırılmış veritabanlarında görünüp görünmediğini tespit eden sistem.
+
+---
+
+## BAĞLAM
+
+Mevcut stack:
+- customers tablosu (paying/trial müşteriler, domain kolonu var)
+- domain_scans: mevcut scan verileri
+- brand_monitors: bu hafta eklendi
+- executive_reports: bu hafta eklendi
+- wrapCron + EXPECTED_JOBS + CATCH_UP_CRONS pattern (src/index.ts)
+- PDFKit rapor sistemi (pdf.ts) — aktif, mevcut style kullan
+- Admin panel: pages/admin-panel/ altında .tsx sayfaları
+- Brand renkler: bg #060D1A, card #0E1A2E, cyan #00C8FF, amber #F5A623
+- Mevcut cron'lar: blacklist 03:00, ssl 03:15, mail 03:30,
+  reputation_orchestrator 03:45, brand_monitor Pazar 04:00,
+  executive_report_monthly ayın 1'i 05:00
+
+---
+
+## PART 1 — DATABASE MIGRATION
+
+Drizzle migration ile iki yeni tablo oluştur:
+
+```sql
+CREATE TABLE leakage_incidents (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER REFERENCES customers(id),
+  customer_domain VARCHAR(255) NOT NULL,
+  breach_source VARCHAR(255) NOT NULL,
+  -- örn: "LinkedIn", "Adobe", "Collection #1"
+  breach_date DATE,
+  affected_email_count INTEGER DEFAULT 0,
+  affected_emails TEXT[],
+  -- max 20 email sakla (KVKK — tam liste tutma)
+  data_types TEXT[],
+  -- ['email','password','phone','name','address']
+  severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+  -- 'critical' | 'high' | 'medium' | 'low'
+  is_new BOOLEAN DEFAULT TRUE,
+  -- ilk tespit = true, müşteri görünce false
+  source_api VARCHAR(50) NOT NULL,
+  -- 'hibp' | 'dehashed' | 'manual'
+  raw_response JSONB,
+  first_detected TIMESTAMP DEFAULT NOW(),
+  last_verified TIMESTAMP DEFAULT NOW(),
+  UNIQUE(customer_id, breach_source, source_api)
+);
+
+CREATE TABLE leakage_scan_log (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER REFERENCES customers(id),
+  scanned_at TIMESTAMP DEFAULT NOW(),
+  api_used VARCHAR(50),
+  breaches_found INTEGER DEFAULT 0,
+  new_breaches INTEGER DEFAULT 0,
+  error_message TEXT,
+  duration_ms INTEGER
+);
+
+CREATE INDEX idx_leakage_customer
+  ON leakage_incidents(customer_id);
+CREATE INDEX idx_leakage_severity
+  ON leakage_incidents(severity);
+CREATE INDEX idx_leakage_is_new
+  ON leakage_incidents(is_new);

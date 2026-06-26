@@ -216,6 +216,7 @@ import AdminLeadDiscovery from "./pages/admin-panel/lead-discovery";
 import AdminReputationMonitor from "./pages/admin-panel/reputation-monitor";
 import AdminBrandMonitor from "./pages/admin-panel/brand-monitor";
 import AdminExecutiveDashboard from "./pages/admin-panel/executive-dashboard";
+import AdminDataLeakage from "./pages/admin-panel/data-leakage";
 import AdminSourceDashboard from "./pages/admin-panel/source-dashboard";
 import AdminTechIntelligence from "./pages/admin-panel/tech-intelligence";
 import AdminTechDiscovery from "./pages/admin-panel/technology-discovery";
@@ -401,6 +402,7 @@ function Router() {
       <Route path="/panel/reputation-monitor" component={AdminReputationMonitor} />
       <Route path="/panel/brand-monitor" component={AdminBrandMonitor} />
       <Route path="/panel/executive-dashboard" component={AdminExecutiveDashboard} />
+      <Route path="/panel/data-leakage" component={AdminDataLeakage} />
       <Route path="/panel/source-dashboard" component={AdminSourceDashboard} />
       <Route path="/panel/tech-intelligence" component={AdminTechIntelligence} />
       <Route path="/panel/technology-discovery" component={AdminTechDiscovery} />

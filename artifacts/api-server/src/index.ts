@@ -3231,6 +3231,16 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Executive CISO raporu cron kayıtlandı (her ayın 1'i 05:00 Istanbul)");
 
+    // Her Çarşamba 04:30 Istanbul — haftalık data leakage tarama
+    cron.schedule("30 4 * * 3", wrapCron("data_leakage_monitor", "30 4 * * 3", async () => {
+      if (!await cronIsEnabled("data_leakage_monitor")) { logger.info("data_leakage_monitor cron devre dışı, atlanıyor"); return 0; }
+      const { runLeakageMonitoring } = await import("./services/dataLeakage/leakageOrchestrator");
+      const result = await runLeakageMonitoring();
+      logger.info(result, "data_leakage_monitor tamamlandı");
+      return result.new_incidents;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Data leakage monitor cron kayıtlandı (her Çarşamba 04:30 Istanbul)");
+
     cron.schedule("0 9 * * 1", wrapCron("ecosystem_report", "0 9 * * 1", async () => {
       if (!await cronIsEnabled("ecosystem_report")) { return 0; }
       const report = await generateEcosystemReport(30);
@@ -3605,6 +3615,8 @@ startup()
         { name: "soc_monthly_ai_cost",      thresholdHours: 745 },
         { name: "report_auto_submit",       thresholdHours: 745 },
         { name: "executive_report_monthly", thresholdHours: 745 },
+        // Weekly (169h ≈ 7 days + 1h buffer)
+        { name: "data_leakage_monitor",     thresholdHours: 169 },
         // Quarterly (2200h ≈ 90 days + 1h buffer)
         { name: "quarterly_policy_update",  thresholdHours: 2200 },
       ];

@@ -5,6 +5,12 @@ import {
   type CustomerScanSummary,
 } from "./riskScoreCalculator";
 
+export interface LeakageSummary {
+  incident_count: number;
+  critical_count: number;
+  breach_sources: string[];
+}
+
 export interface ExecutiveReportData {
   customerId: number;
   customerEmail: string;
@@ -36,6 +42,9 @@ export interface ExecutiveReportData {
   riskScoreCurrent: number;
   riskScorePrevious: number | null;
   riskScoreChange: number | null;
+
+  // Data Leakage
+  leakageSummary: LeakageSummary;
 }
 
 const HIGH_RISK_PORTS = new Set([22, 3389, 23, 5900]);
@@ -169,6 +178,27 @@ export async function collectCustomerReportData(
   const riskScoreCurrent = await calculateCustomerRiskScore(customerId, scanSummary);
   const riskScoreChange = prevScore !== null ? riskScoreCurrent - prevScore : null;
 
+  // 5. Leakage summary
+  const leakageRows = await db.execute(sql`
+    SELECT
+      COUNT(*)                                       AS incident_count,
+      COUNT(*) FILTER (WHERE severity = 'critical')  AS critical_count,
+      array_agg(DISTINCT breach_source)              AS breach_sources
+    FROM leakage_incidents
+    WHERE customer_id = ${customerId}
+  `);
+  const lRow = leakageRows.rows[0] as {
+    incident_count: string;
+    critical_count: string;
+    breach_sources: string[] | null;
+  } | undefined;
+
+  const leakageSummary = {
+    incident_count: parseInt(lRow?.incident_count  ?? "0", 10),
+    critical_count: parseInt(lRow?.critical_count  ?? "0", 10),
+    breach_sources: (lRow?.breach_sources ?? []).filter(Boolean).slice(0, 5),
+  };
+
   return {
     customerId,
     customerEmail,
@@ -188,5 +218,6 @@ export async function collectCustomerReportData(
     riskScoreCurrent,
     riskScorePrevious: prevScore,
     riskScoreChange,
+    leakageSummary,
   };
 }

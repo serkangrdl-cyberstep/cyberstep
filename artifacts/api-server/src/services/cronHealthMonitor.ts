@@ -78,6 +78,7 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   // Aylık
   { name: "soc_monthly_ai_cost",         intervalMinutes: 43200,  label: "SOC Aylık AI Maliyet" },
   { name: "executive_report_monthly",    intervalMinutes: 43200,  label: "Aylık Executive CISO Raporu" },
+  { name: "data_leakage_monitor",        intervalMinutes: 10080,  label: "Data Leakage İzleme" },
   // Eksik (önceki listede yoktu)
   { name: "ms365_poller",           intervalMinutes: 15,     label: "Microsoft 365 Poller" },
   { name: "soc_sla",                intervalMinutes: 5,      label: "SOC SLA İzleme" },

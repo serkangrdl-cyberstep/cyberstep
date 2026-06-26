@@ -458,6 +458,49 @@ export async function generateExecutivePdf(
     }
     y += 12;
 
+    // Veri Sızıntısı Analizi
+    if (y < H - 100) {
+      doc.fillColor(CS_CYAN).font(FONT_BOLD).fontSize(11).text("Veri Sızıntısı Analizi", MARGIN, y); y += 16;
+      doc.rect(MARGIN, y, CONTENT, 1).fill(CS_PANEL); y += 8;
+
+      const ls = data.leakageSummary;
+      if (ls.incident_count === 0) {
+        // Yeşil kutu
+        doc.rect(MARGIN, y, CONTENT, 28).fill([22, 60, 36] as [number,number,number]);
+        doc.rect(MARGIN, y, 4, 28).fill(CS_GREEN);
+        doc.fillColor(CS_GREEN).font(FONT_BOLD).fontSize(9)
+          .text("Bilinen veri sızıntısı tespit edilmedi.", MARGIN + 14, y + 9);
+        y += 36;
+      } else {
+        // Özet satır
+        doc.rect(MARGIN, y, CONTENT, 28).fill(CS_PANEL);
+        doc.rect(MARGIN, y, 4, 28).fill(ls.critical_count > 0 ? CS_DANGER : CS_AMBER);
+        const lText = `${ls.incident_count} farklı veri sızıntısında ${data.primaryDomain ?? data.customerEmail} domaininde kayıt tespit edildi.`;
+        doc.fillColor(CS_TEXT).font(FONT_REGULAR).fontSize(8.5)
+          .text(lText, MARGIN + 14, y + 9, { width: CONTENT - 24 });
+        y += 36;
+
+        // Breach kaynakları (max 5)
+        for (let i = 0; i < Math.min(ls.breach_sources.length, 5); i++) {
+          if (y > H - 110) break;
+          const src = ls.breach_sources[i]!;
+          doc.rect(MARGIN, y, CONTENT, 22).fill(CS_PANEL);
+          doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
+            .text(`${i + 1}. ${src}`, MARGIN + 14, y + 6);
+          y += 28;
+        }
+
+        // KVKK notu
+        doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
+          .text(
+            "* Kişisel veriler KVKK kapsamında korunmaktadır. Tam liste talep için destek@cyberstep.io",
+            MARGIN, y, { width: CONTENT, oblique: true }
+          );
+        y += 20;
+      }
+      y += 4;
+    }
+
     // Önerilen Aksiyonlar
     doc.fillColor(CS_CYAN).font(FONT_BOLD).fontSize(13).text("Önerilen Aksiyonlar", MARGIN, y); y += 20;
 

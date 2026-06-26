@@ -1,0 +1,217 @@
+PART 2 — HIBP SERVICE
+src/services/dataLeakage/hibpService.ts oluştur:
+HaveIBeenPwned API v3 entegrasyonu.
+Env var: HIBP_API_KEY (ekle .env.example'a)
+Base URL: https://haveibeenpwned.com/api/v3
+Header: hibp-api-key: {HIBP_API_KEY}
+Implement edilecek fonksiyonlar:
+getBreachesForDomain(domain: string):
+GET /breachedaccount/{domain}?truncateResponse=false
+→ tüm breach kayıtlarını döndür
+→ API key yoksa: mock data döndür (test modu)
+→ Rate limit: istekler arası 1500ms bekle (HIBP zorunluluğu)
+→ 404 → boş array döndür (breach yok)
+→ Retry: 429 durumunda 10sn bekle, 1 kez tekrar dene
+parseBreachSeverity(breach: HIBPBreach): string
+Severity hesaplama:
+dataClasses içinde 'Passwords' varsa → 'critical'
+dataClasses içinde 'Credit Cards' veya 'Bank Accounts' → 'critical'
+dataClasses içinde 'Phone Numbers' veya 'Physical Addresses' → 'high'
+dataClasses içinde sadece 'Email Addresses' → 'medium'
+diğer → 'low'
+mapBreachToIncident(breach, customerId, domain):
+HIBP response'unu leakage_incidents formatına dönüştür
+affected_email_count: breach.PwnCount (domain bazlı tahmin)
+data_types: breach.DataClasses array'ini lowercase'e çevir
+breach_date: breach.BreachDate parse et
+raw_response: breach objesini sakla (JSONB)
+API key yoksa veya geçersizse:
+Hata fırlatma, log yaz ve boş array döndür
+Servis key olmadan da çalışmaya devam etsin
+PART 3 — DEHASHED SERVICE
+src/services/dataLeakage/dehashedService.ts oluştur:
+DeHashed API entegrasyonu (opsiyonel — key varsa aktif).
+Env var: DEHASHED_API_KEY (ekle .env.example'a)
+Base URL: https://api.dehashed.com/search
+Auth: Basic auth (email + api_key)
+Implement edilecek fonksiyon:
+searchByDomain(domain: string): Promise<DehashedResult[]>
+GET /search?query=domain:{domain}&size=100
+→ key yoksa boş array döndür
+→ Her sonuç: { email, password_hash, database_name, obtained_from }
+→ Sadece unique email'leri döndür (dedup)
+→ Affected emails: max 20 adet sakla (KVKK)
+mapToIncident(results, customerId, domain):
+DeHashed sonuçlarını leakage_incidents formatına dönüştür
+breach_source: database_name
+source_api: 'dehashed'
+data_types: şifre hash varsa ['email','password_hash']
+severity: şifre varsa 'high', sadece email → 'medium'
+PART 4 — LEAKAGE ORCHESTRATOR
+src/services/dataLeakage/leakageOrchestrator.ts oluştur:
+export async function runLeakageMonitoring():
+Promise<{ customers_checked: number; new_incidents: number; errors: number }>
+Logic:
+customers WHERE status IN ('active','trial') çek
+Her müşteri için:
+a. leakage_scan_log'dan son tarama zamanını kontrol et
+→ 7 günden yeni ise atla (haftalık tarama yeterli)
+b. hibpService.getBreachesForDomain(customer.domain) çağır
+→ 1500ms bekle (HIBP rate limit)
+c. dehashedService.searchByDomain(customer.domain) çağır
+(key varsa)
+d. Sonuçları leakage_incidents'e upsert et:
+ON CONFLICT(customer_id, breach_source, source_api)
+DO UPDATE SET last_verified = NOW()
+Yeni kayıtlar: is_new = true
+e. leakage_scan_log'a kaydet (süre, bulunan sayı, hata)
+is_new = true olan yeni incident'lar için:
+Severity 'critical' veya 'high' ise:
+mevcut notification/alert mekanizmasına ekle
+{customers_checked, new_incidents, errors} döndür
+PART 5 — CRON KAYDI
+src/index.ts — mevcut wrapCron pattern:
+// Her Çarşamba 04:30 Istanbul — haftalık data leakage tarama
+cron.schedule("30 4 * * 3", wrapCron("data_leakage_monitor",
+"30 4 * * 3", async () => {
+const { runLeakageMonitoring } = await import(
+"./services/dataLeakage/leakageOrchestrator"
+);
+return await runLeakageMonitoring();
+}), { timezone: "Europe/Istanbul" });
+EXPECTED_JOBS:
+{ name: "data_leakage_monitor", intervalMinutes: 10080 }
+CATCH_UP_CRONS'a ekle (thresholdHours: 169).
+PART 6 — ADMIN API
+src/routes/admin-panel/data-leakage.ts oluştur:
+GET /api/admin-panel/data-leakage/summary
+Response: {
+total_incidents: number,
+critical_count: number,
+high_count: number,
+new_unread_count: number,      // is_new = true
+customers_affected: number,    // unique customer_id sayısı
+last_scan_at: timestamp | null,
+hibp_configured: boolean,      // HIBP_API_KEY var mı?
+dehashed_configured: boolean
+}
+GET /api/admin-panel/data-leakage/incidents
+→ leakage_incidents JOIN customers
+→ Query params: ?severity=critical&customer_id=X&is_new=true
+→ ORDER BY first_detected DESC
+→ LIMIT 50
+→ Her kayıt: { customer_name, customer_domain, breach_source,
+breach_date, affected_email_count, data_types, severity,
+is_new, source_api, first_detected }
+POST /api/admin-panel/data-leakage/mark-read
+→ Body: { incident_ids: number[] }
+→ is_new = false yap
+POST /api/admin-panel/data-leakage/run-now
+→ runLeakageMonitoring() tetikle (async)
+→ Response: { message: "started", timestamp }
+GET /api/admin-panel/data-leakage/customer/:customerId
+→ Müşteriye ait tüm incident'lar
+→ + leakage_scan_log son 10 tarama
+→ Timeline formatında döndür
+admin-panel/index.ts'e register et.
+PART 7 — EXECUTIVE PDF ENTEGRASYONU
+executivePdfGenerator.ts dosyasında "Aksiyon Önerileri"
+bölümünden ÖNCE yeni bölüm ekle:
+"Veri Sızıntısı Analizi"
+İçerik (PDFKit, mevcut style):
+Eğer incident yoksa:
+Yeşil kutu: "Bilinen veri sızıntısı tespit edilmedi."
+Eğer incident varsa:
+Özet satır:
+"[N] farklı veri sızıntısında [domain]'e ait
+kayıt tespit edildi."
+Tablo (max 5 satır, severity DESC):
+Sızıntı Kaynağı | Tarih | Etkilenen | Risk | Veri Türleri
+Severity badge: critical→kırmızı, high→amber,
+medium→sarı, low→yeşil
+Etkilenen: affected_email_count + " hesap"
+Veri türleri: Türkçe çevir
+('password'→'Şifre', 'email'→'E-posta',
+'phone'→'Telefon', 'address'→'Adres')
+KVKK notu (küçük font, italic):
+"* Kişisel veriler KVKK kapsamında korunmaktadır.
+Tam liste talep için destek@cyberstep.io"
+reportDataCollector.ts'e leakage verisi ekle:
+leakage_incidents'ten müşteri için son verileri çek
+ExecutiveReportData interface'e leakage_summary ekle:
+{ incident_count, critical_count, breach_sources: string[] }
+PART 8 — ADMIN UI SAYFASI
+pages/admin-panel/data-leakage.tsx oluştur.
+Mevcut admin panel layout/style kullan.
+Üst Kısım — 4 Özet Kart
+Kart 1 — Toplam Sızıntı:
+Total incident sayısı
+Etkilenen müşteri sayısı
+Kart 2 — Kritik:
+Critical + High severity sayısı → kırmızı badge
+"Acil aksiyon gerekli" etiketi (kritik > 0 ise)
+Kart 3 — Okunmamış:
+is_new = true sayısı → amber badge
+"Yeni tespit" etiketi
+Kart 4 — API Durumu:
+HIBP: ✓ Aktif / ✗ API Key Eksik
+DeHashed: ✓ Aktif / ✗ API Key Eksik
+Son tarama zamanı
+Data source: GET /api/admin-panel/data-leakage/summary
+Alt Kısım — Incidents Tablosu
+Kolonlar:
+Müşteri | Sızıntı Kaynağı | Tarih | Etkilenen | Veri Türleri | Risk | Durum | İşlem
+Filtre butonları:
+Tümü | Kritik | Yüksek | Okunmamış
+Severity badge:
+critical → kırmızı "KRİTİK"
+high → amber "YÜKSEK"
+medium → sarı "ORTA"
+low → yeşil "DÜŞÜK"
+Durum badge:
+is_new = true → cyan "YENİ"
+is_new = false → gri "Görüldü"
+"Okundu İşaretle" butonu (seçili satırlar için):
+→ POST /mark-read → tabloyu yenile
+"Tarama Çalıştır" butonu (üstte):
+→ POST /run-now → spinner → toast
+Data source: GET /api/admin-panel/data-leakage/incidents
+API Kurulum Uyarısı
+HIBP veya DeHashed key eksikse sayfanın üstünde
+amber banner göster:
+"⚠ HIBP API anahtarı eksik. Veri sızıntısı taraması
+sınırlı çalışıyor. Ayarlar'dan ekleyin."
+PART 9 — NAV MENU
+Admin panel nav'a ekle:
+"💧 Veri Sızıntısı" → /admin-panel/data-leakage
+Executive Dashboard'un altına.
+PART 10 — KVKK UYUMU
+Tüm leakage verisi için şu kuralları uygula:
+affected_emails alanına max 20 email sakla
+(array slice ile sınırla, orchestrator'da)
+raw_response JSONB'ye tam breach verisi kaydedilirken
+şifre hash'lerini sil:
+delete rawData.password; delete rawData.hash;
+delete rawData.password_hash;
+leakage_scan_log'da email listesi saklanmasın,
+sadece sayısal istatistik
+API endpoint response'larında affected_emails
+alanını hiç döndürme (sadece affected_email_count)
+TAMAMLANMA KONTROL LİSTESİ
+Bitince doğrula:
+2 tablo oluştu — kolonları listele
+hibpService.ts — HIBP_API_KEY olmadan mock modda çalışıyor mu?
+Test: getBreachesForDomain('cyberstep.io') → sonuç göster
+dehashedService.ts — key olmadan boş array dönüyor mu?
+Orchestrator — test çalıştır, kaç müşteri işlendi, log göster
+Cron kayıtlandı — index.ts'teki satır numarasını belirt
+EXPECTED_JOBS + CATCH_UP_CRONS güncellendi
+4 admin endpoint yanıt veriyor — /summary örnek response göster
+Admin sayfası render oluyor — API key uyarısı görünüyor mu?
+PDF bölümü eklendi — executivePdfGenerator.ts kaçıncı satır?
+reportDataCollector.ts güncellendi — leakage_summary mevcut mu?
+Nav güncellendi
+KVKK kuralları uygulandı — orchestrator'da email slice var mı?
+Build temiz: pnpm --filter @workspace/api-server run build
+Deviasyon varsa belirt.
+Code

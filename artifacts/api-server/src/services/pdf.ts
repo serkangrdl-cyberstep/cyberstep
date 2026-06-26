@@ -326,6 +326,14 @@ interface DomainScanData {
     portDeduction: number; total: number;
   } | null;
   isFreeReport?: boolean;
+  brandMonitors?: Array<{
+    variant_domain: string;
+    variant_type: string;
+    is_suspicious: boolean;
+    is_active: boolean;
+    http_status: number | null;
+    page_title: string | null;
+  }> | null;
   kevCves?: Array<{ cveId: string; matchedProduct: string; ransomware: boolean }> | null;
   blacklistScore?: number | null;
   sslDaysRemaining?: number | null;
@@ -1174,6 +1182,89 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         repX += colW;
       }
       doc.y = repY + 84;
+    }
+
+    // ─── Marka Koruma Analizi ─────────────────────────────────────────────────
+    if (!data.isFreeReport && data.brandMonitors && data.brandMonitors.length > 0) {
+      checkPageBreak(doc, 120);
+      sectionTitle("Marka Koruma Analizi");
+
+      const bmAll    = data.brandMonitors;
+      const bmSusp   = bmAll.filter(r => r.is_suspicious).length;
+      const bmActive = bmAll.filter(r => r.is_active).length;
+
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(9)
+        .text(
+          `Taklit ve typosquatting domain taramasi`,
+          MARGIN, doc.y, { width: CONTENT_W }
+        );
+      doc.moveDown(0.4);
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8.5)
+        .text(
+          `${data.domain} icin ${bmAll.length} varyasyon tarandı. ${bmActive} aktif domain tespit edildi. ${bmSusp} suphelı domain bulundu.`,
+          MARGIN, doc.y, { width: CONTENT_W, lineGap: 2 }
+        );
+      doc.moveDown(0.8);
+
+      if (bmSusp === 0 && bmActive === 0) {
+        doc.fillColor([22, 163, 74]).font(FONT_REGULAR).fontSize(8.5)
+          .text(
+            "Tarama tarihinde suphelı taklit domain tespit edilmedi.",
+            MARGIN, doc.y, { width: CONTENT_W }
+          );
+        doc.moveDown(0.8);
+      } else {
+        // Tablo başlığı
+        const C0 = MARGIN;
+        const C1 = MARGIN + CONTENT_W * 0.38;
+        const C2 = MARGIN + CONTENT_W * 0.62;
+        const C3 = MARGIN + CONTENT_W * 0.78;
+        const tHeaderY = doc.y;
+        doc.rect(C0, tHeaderY, CONTENT_W, 18).fill(CS_OFF);
+        doc.fillColor(CS_MUTED).font(FONT_BOLD).fontSize(7.5)
+          .text("Sahte Domain",  C0 + 8,  tHeaderY + 5, { width: C1 - C0 - 8 })
+          .text("Tip",           C1,       tHeaderY + 5, { width: C2 - C1 - 4 })
+          .text("Durum",         C2,       tHeaderY + 5, { width: C3 - C2 - 4 })
+          .text("Risk",          C3,       tHeaderY + 5, { width: MARGIN + CONTENT_W - C3 - 8 });
+        doc.y = tHeaderY + 18;
+
+        const VARIANT_TR: Record<string, string> = {
+          tld_swap:      "TLD Degisimi",
+          char_swap:     "Karakter Hatasi",
+          char_double:   "Cift Karakter",
+          char_omit:     "Eksik Karakter",
+          hyphen_insert: "Tire Ekleme",
+          hyphen_remove: "Tire Cikarma",
+          prefix_suffix: "Prefix/Suffix",
+          homoglyph:     "Gorsel Benzer",
+        };
+
+        for (const row of bmAll) {
+          checkPageBreak(doc, 20);
+          const rowY  = doc.y;
+          const isOdd = bmAll.indexOf(row) % 2 === 0;
+          if (isOdd) doc.rect(C0, rowY, CONTENT_W, 17).fill([8, 20, 36]);
+
+          const statusLabel: string = row.is_suspicious ? "Suphelı"
+            : row.is_active ? "Aktif" : "Pasif";
+          const statusColor: [number,number,number] = row.is_suspicious
+            ? CS_DANGER : row.is_active ? CS_AMBER : [34, 197, 94];
+          const riskLabel: string = row.is_suspicious ? "YUKSEK"
+            : row.is_active ? "ORTA" : "DUSUK";
+          const riskColor: [number,number,number] = row.is_suspicious
+            ? CS_DANGER : row.is_active ? CS_AMBER : [34, 197, 94];
+
+          doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
+            .text(row.variant_domain,                          C0 + 8, rowY + 5, { width: C1 - C0 - 8 })
+            .text(VARIANT_TR[row.variant_type] ?? row.variant_type, C1, rowY + 5, { width: C2 - C1 - 4 });
+          doc.fillColor(statusColor).font(FONT_BOLD).fontSize(7.5)
+            .text(statusLabel, C2, rowY + 5, { width: C3 - C2 - 4 });
+          doc.fillColor(riskColor).font(FONT_BOLD).fontSize(7.5)
+            .text(riskLabel, C3, rowY + 5, { width: MARGIN + CONTENT_W - C3 - 8 });
+          doc.y = rowY + 17;
+        }
+        doc.moveDown(0.5);
+      }
     }
 
     // ── Ucretsiz rapor kilitleme kutusu ───────────────────────────────────────

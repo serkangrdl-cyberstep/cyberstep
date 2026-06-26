@@ -1,0 +1,61 @@
+PART 8 — ADMIN UI SAYFASI
+pages/admin-panel/brand-monitor.tsx oluştur.
+Mevcut admin panel layout/style kullan.
+Brand renkler: bg #060D1A, cyan #00C8FF, amber #F5A623.
+Üst Kısım — 3 Özet Kart
+Kart 1 — Takip Edilen:
+Toplam varyasyon sayısı
+İzlenen müşteri sayısı
+Kart 2 — Aktif Domainler:
+Kayıtlı ve aktif varyasyon sayısı → amber
+TLD swap aktif sayısı
+Kart 3 — Şüpheli:
+Şüpheli domain sayısı → kırmızı badge
+"Son tespit" tarihi
+Data source: GET /api/admin-panel/brand-monitor/summary
+Alt Kısım — Alerts Tablosu
+Kolonlar:
+Müşteri Domain | Sahte Domain | Tip | Durum | HTTP | Sayfa Başlığı | İlk Tespit
+Filtre: Tümü | Şüpheli | Aktif | TLD Swap
+Badge renkleri:
+is_suspicious: kırmızı "⚠ ŞÜPHELİ"
+is_active (not suspicious): amber "Aktif"
+not active: yeşil "Pasif"
+"Tarama Çalıştır" butonu → POST run-now → spinner → toast
+Data source: GET /api/admin-panel/brand-monitor/alerts
+PART 9 — PDF RAPOR ENTEGRASYONU
+pdf.ts dosyasında mevcut bölümlerin sonuna ekle:
+"Marka Koruma Analizi" bölümü
+İçerik (müşteri için — paying raporu):
+Başlık: "Marka Koruma Analizi"
+Alt başlık: "Taklit ve typosquatting domain taraması"
+Özet satır:
+"[domain] için [N] varyasyon tarandı.
+[M] aktif domain tespit edildi.
+[X] şüpheli domain bulundu."
+Tablo (sadece aktif olanlar, max 10 satır):
+Sahte Domain | Tip | Durum | Risk
+Tip Türkçe: "TLD Değişimi", "Karakter Hatası", "Prefix Ekleme"
+Durum: "⚠ Şüpheli" (kırmızı) / "Aktif" (amber) / "Pasif" (yeşil)
+Eğer şüpheli domain yoksa:
+"Tarama tarihinde şüpheli taklit domain tespit edilmedi."
+Veri kaynağı: brand_monitors WHERE customer_id = X
+(customers tablosundan customer_id bul, JOIN ile)
+PART 10 — NAV MENU
+Admin panel nav'a ekle:
+"🔍 Marka Koruma" → /admin-panel/brand-monitor
+Reputation Monitor'ün altına.
+TAMAMLANMA KONTROL LİSTESİ
+Bitince doğrula:
+brand_monitors tablosu oluştu — kolonları listele
+variantGenerator.ts — örnek domain için kaç varyasyon üretiyor?
+Test: generateVariants('cyberstep.io') → kaç sonuç?
+dnsChecker.ts — 1 örnek domain üzerinde test çalıştır, sonucu göster
+Orchestrator — kaç aktif müşteri var, ilk run özeti
+Cron kayıtlandı + EXPECTED_JOBS güncellendi
+3 admin endpoint yanıt veriyor — örnek response göster
+Admin sayfası render oluyor
+PDF bölümü eklendi — hangi satır numarasına?
+Nav güncellendi
+Build temiz: pnpm --filter @workspace/api-server run build
+Deviasyon varsa belirt.

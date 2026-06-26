@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Shield, LogOut, LayoutDashboard, Settings, CreditCard,
+  Shield, LogOut, LayoutDashboard, Settings, CreditCard, Search,
   FileText, Users, Briefcase, Award, Building2, DollarSign,
   Menu, X, Globe, UserSquare2, Bot,
   Mail, Bell, Package, Plug, Heart,
@@ -88,6 +88,7 @@ const NAV_SECTIONS = [
       { icon: Target,          label: "Lead Kampanyaları",     href: "/panel/lead-gen/campaigns" },
       { icon: Globe,           label: "Lead Discovery",        href: "/panel/lead-discovery" },
       { icon: Shield,          label: "Reputation Monitor",    href: "/panel/reputation-monitor" },
+      { icon: Search,          label: "Marka Koruma",          href: "/panel/brand-monitor" },
       { icon: BarChart3,       label: "Kaynak Dashboard",      href: "/panel/source-dashboard" },
       { icon: Rocket,          label: "Growth Engine",         href: "/panel/growth-engine" },
     ],

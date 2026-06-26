@@ -2133,6 +2133,38 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
         ? `WAF/CDN basligi tespit edilemedi. Sunucu IP'si ${scan.shodanCountry}'da (${scan.shodanIsp ?? "bilinmiyor"}) — .tr alan adinda yurt disi sunucu CDN kullanimina isaret edebilir.`
         : null;
 
+    // Brand monitors query (paid only)
+    let pdfBrandMonitors: Array<{
+      variant_domain: string;
+      variant_type: string;
+      is_suspicious: boolean;
+      is_active: boolean;
+      http_status: number | null;
+      page_title: string | null;
+    }> | null = null;
+    if (!isFreeReport) {
+      try {
+        const bmRows = await db.execute(sql`
+          SELECT variant_domain, variant_type, is_suspicious, is_active, http_status, page_title
+          FROM brand_monitors
+          WHERE original_domain = ${scan.domain}
+          ORDER BY is_suspicious DESC, is_active DESC
+          LIMIT 10
+        `);
+        const bmData = bmRows.rows as Array<{
+          variant_domain: string;
+          variant_type: string;
+          is_suspicious: boolean;
+          is_active: boolean;
+          http_status: number | null;
+          page_title: string | null;
+        }>;
+        pdfBrandMonitors = bmData.length > 0 ? bmData : null;
+      } catch {
+        pdfBrandMonitors = null;
+      }
+    }
+
     const buf = await generateDomainScanPDF({
       id: scan.id,
       domain: scan.domain,
@@ -2213,6 +2245,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       mailReputationScore: scan.mailReputationScore ?? undefined,
       mailSpfValid:        scan.mailSpfValid        ?? undefined,
       mailDmarcValid:      scan.mailDmarcValid      ?? undefined,
+      brandMonitors:       pdfBrandMonitors,
     });
     const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");
     res.setHeader("Content-Type", "application/pdf");

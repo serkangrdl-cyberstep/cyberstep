@@ -1,4 +1,4 @@
-import https from "https";
+import axios from "axios";
 import { logger } from "../lib/logger";
 
 interface GhRun {
@@ -14,28 +14,17 @@ interface GhRunsResponse {
   workflow_runs: GhRun[];
 }
 
-function ghGet(pat: string, path: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: "api.github.com",
-        path,
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${pat}`,
-          Accept: "application/vnd.github+json",
-          "User-Agent": "CyberStep-Server",
-        },
+function ghGet<T>(pat: string, path: string): Promise<T> {
+  return axios
+    .get<T>(`https://api.github.com${path}`, {
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "CyberStep-Server",
       },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (c: Buffer) => chunks.push(c));
-        res.on("end", () => resolve(Buffer.concat(chunks)));
-      },
-    );
-    req.on("error", reject);
-    req.end();
-  });
+      timeout: 20_000,
+    })
+    .then((r) => r.data);
 }
 
 function sleep(ms: number) {
@@ -61,34 +50,27 @@ export async function dispatchWorkflow(opts: {
   inputs?: Record<string, string>;
 }): Promise<DispatchResult> {
   const { pat, repo, workflowId, ref = "main", inputs } = opts;
-  const body = JSON.stringify({ ref, ...(inputs ? { inputs } : {}) });
+  const body = { ref, ...(inputs ? { inputs } : {}) };
 
-  return new Promise((resolve) => {
-    const req = https.request(
+  try {
+    const res = await axios.post(
+      `https://api.github.com/repos/${repo}/actions/workflows/${workflowId}/dispatches`,
+      body,
       {
-        hostname: "api.github.com",
-        path: `/repos/${repo}/actions/workflows/${workflowId}/dispatches`,
-        method: "POST",
         headers: {
           Authorization: `Bearer ${pat}`,
           Accept: "application/vnd.github+json",
           "User-Agent": "CyberStep-Server",
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(body),
         },
-      },
-      (res) => {
-        res.resume();
-        resolve({ dispatched: res.statusCode === 204, httpStatus: res.statusCode ?? 0 });
+        timeout: 15_000,
+        validateStatus: () => true,
       },
     );
-    req.on("error", (err) => {
-      logger.warn({ err: String(err) }, "githubActionsHelper: dispatch HTTP error");
-      resolve({ dispatched: false, httpStatus: 0 });
-    });
-    req.write(body);
-    req.end();
-  });
+    return { dispatched: res.status === 204, httpStatus: res.status };
+  } catch (err) {
+    logger.warn({ err: String(err) }, "githubActionsHelper: dispatch HTTP error");
+    return { dispatched: false, httpStatus: 0 };
+  }
 }
 
 export function watchRunInBackground(opts: {
@@ -118,8 +100,7 @@ export function watchRunInBackground(opts: {
       // same timestamp-filtered candidate. Timestamp filtering is kept as a fallback
       // for callers that don't pass a correlationId.
       for (let attempt = 0; attempt < 3 && !run; attempt++) {
-        const raw = await ghGet(pat, runsPath);
-        const data = JSON.parse(raw.toString()) as GhRunsResponse;
+        const data = await ghGet<GhRunsResponse>(pat, runsPath);
         const candidates = (data.workflow_runs ?? []).filter((r) =>
           correlationId
             ? r.display_title?.includes(correlationId)
@@ -141,8 +122,7 @@ export function watchRunInBackground(opts: {
         Date.now() < deadline
       ) {
         await sleep(30_000);
-        const raw = await ghGet(pat, `/repos/${repo}/actions/runs/${run.id}`);
-        run = JSON.parse(raw.toString()) as GhRun;
+        run = await ghGet<GhRun>(pat, `/repos/${repo}/actions/runs/${run.id}`);
       }
 
       if (run.status === "completed") {

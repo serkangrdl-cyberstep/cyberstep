@@ -3461,6 +3461,7 @@ startup()
         { name: "fabric_fm_health",         thresholdHours: 25  },
         { name: "fabric_block_verify",      thresholdHours: 7   },
         // Hourly (2h threshold)
+        { name: "certstream_dispatch",       thresholdHours: 2   },
         { name: "lead_prescreen",            thresholdHours: 1   },
         { name: "lead_qual",                thresholdHours: 2   },
         { name: "ecosystem_report",         thresholdHours: 200 },

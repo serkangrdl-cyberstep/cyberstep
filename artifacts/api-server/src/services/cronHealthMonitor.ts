@@ -80,6 +80,10 @@ export const EXPECTED_JOBS: ExpectedJob[] = [
   { name: "ms365_poller",           intervalMinutes: 15,     label: "Microsoft 365 Poller" },
   { name: "soc_sla",                intervalMinutes: 5,      label: "SOC SLA İzleme" },
   { name: "fabric_fm_health",       intervalMinutes: 1440,   label: "FortiManager Sağlık" },
+  { name: "blacklist_monitor",      intervalMinutes: 1440,   label: "Blacklist Monitor" },
+  { name: "ssl_monitor",            intervalMinutes: 1440,   label: "SSL Monitor" },
+  { name: "mail_monitor",           intervalMinutes: 1440,   label: "Mail Reputation Monitor" },
+  { name: "reputation_orchestrator",intervalMinutes: 1440,   label: "Reputation Orchestrator" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────

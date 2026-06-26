@@ -3154,6 +3154,17 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Mail reputation monitor cron kayıtlandı (her gece 03:30 Istanbul)");
 
+    // ─── Reputation Orchestrator — Her gece 03:45 Istanbul ───────────────────
+    // Blacklist + SSL + mail pipeline'ını toparlayan özet cron; overall_score
+    // reputation faktörlerini (kara liste, geçersiz SSL, zayıf mail) hesaba katar.
+    cron.schedule("45 3 * * *", wrapCron("reputation_orchestrator", "45 3 * * *", async () => {
+      if (!await cronIsEnabled("reputation_orchestrator")) { logger.info("Reputation orchestrator cron devre dışı, atlanıyor"); return 0; }
+      const { runReputationMonitoring } = await import("./services/reputationOrchestrator");
+      const result = await runReputationMonitoring();
+      return result.processed;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Reputation orchestrator cron kayıtlandı (her gece 03:45 Istanbul)");
+
     // ─── Aylık Metrik Toplama — Her ayın 1'i 06:00 Istanbul ──────────────────
     // domain_scans + lead_candidates'tan temel güvenlik metriklerini toplar.
     // Sonuç report_metrics_snapshot tablosuna yazılır; AI içerik üretimi bu veriden beslenir.
@@ -3531,9 +3542,10 @@ startup()
         { name: "ai_quality_monitor",          thresholdHours: 25  },
         { name: "auto_invoice_generate",       thresholdHours: 25  },
         { name: "haiku_enrichment",         thresholdHours: 25  },
-        { name: "blacklist_monitor",        thresholdHours: 25  },
+        { name: "blacklist_monitor",          thresholdHours: 25  },
         { name: "ssl_monitor",              thresholdHours: 25  },
         { name: "mail_monitor",             thresholdHours: 25  },
+        { name: "reputation_orchestrator",  thresholdHours: 25  },
         // Internal / data (daily)
         { name: "daily_summary",            thresholdHours: 25  },
         { name: "daily_cron_report",        thresholdHours: 25  },

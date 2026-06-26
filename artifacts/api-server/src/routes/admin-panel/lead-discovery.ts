@@ -517,21 +517,39 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   const [{ total }] = await db.select({ total: count() }).from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined);
 
-  // WAF rozeti için domain_scans'tan wafDetected + confidenceScore batch yükle
+  // WAF + reputation için domain_scans'tan batch yükle
   const scanIds = rows.map((r) => r.scanId).filter((id): id is number => id !== null);
-  const wafMap = new Map<number, { wafDetected: boolean | null; confidenceScore: number | null }>();
+  const wafMap = new Map<number, {
+    wafDetected: boolean | null;
+    confidenceScore: number | null;
+    blacklistScore: number | null;
+    sslDaysRemaining: number | null;
+    mailReputationScore: number | null;
+  }>();
   if (scanIds.length > 0) {
     const wafRows = await db.select({
-      id: domainScansTable.id,
-      wafDetected: domainScansTable.wafDetected,
-      confidenceScore: domainScansTable.confidenceScore,
+      id:                  domainScansTable.id,
+      wafDetected:         domainScansTable.wafDetected,
+      confidenceScore:     domainScansTable.confidenceScore,
+      blacklistScore:      domainScansTable.blacklistScore,
+      sslDaysRemaining:    domainScansTable.sslDaysRemaining,
+      mailReputationScore: domainScansTable.mailReputationScore,
     }).from(domainScansTable).where(inArray(domainScansTable.id, scanIds));
-    for (const r of wafRows) wafMap.set(r.id, { wafDetected: r.wafDetected, confidenceScore: r.confidenceScore });
+    for (const r of wafRows) wafMap.set(r.id, {
+      wafDetected:         r.wafDetected,
+      confidenceScore:     r.confidenceScore,
+      blacklistScore:      r.blacklistScore,
+      sslDaysRemaining:    r.sslDaysRemaining,
+      mailReputationScore: r.mailReputationScore,
+    });
   }
   const enrichedRows = rows.map((r) => ({
     ...r,
-    wafDetected: r.scanId ? (wafMap.get(r.scanId)?.wafDetected ?? null) : null,
-    confidenceScore: r.scanId ? (wafMap.get(r.scanId)?.confidenceScore ?? null) : null,
+    wafDetected:         r.scanId ? (wafMap.get(r.scanId)?.wafDetected         ?? null) : null,
+    confidenceScore:     r.scanId ? (wafMap.get(r.scanId)?.confidenceScore     ?? null) : null,
+    blacklistScore:      r.scanId ? (wafMap.get(r.scanId)?.blacklistScore      ?? null) : null,
+    sslDaysRemaining:    r.scanId ? (wafMap.get(r.scanId)?.sslDaysRemaining    ?? null) : null,
+    mailReputationScore: r.scanId ? (wafMap.get(r.scanId)?.mailReputationScore ?? null) : null,
   }));
 
   res.json({ rows: enrichedRows, total, page, pageSize });

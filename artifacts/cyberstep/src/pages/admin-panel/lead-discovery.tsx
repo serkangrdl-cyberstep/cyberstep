@@ -228,6 +228,9 @@ interface LeadCandidate {
   scanId: number | null;
   wafDetected: boolean | null;
   confidenceScore: number | null;
+  blacklistScore: number | null;
+  sslDaysRemaining: number | null;
+  mailReputationScore: number | null;
   tier: string | null;
   ispOrganization: string | null;
   isrPromotedAt: string | null;
@@ -2415,6 +2418,9 @@ export default function AdminLeadDiscovery() {
                         <TableHead className="text-slate-400 w-[220px]">Domain</TableHead>
                         <TableHead className="text-slate-400 w-12">Tier</TableHead>
                         <TableHead className="text-slate-400 text-right w-16">Risk</TableHead>
+                        <TableHead className="text-slate-400 text-right w-14">BL</TableHead>
+                        <TableHead className="text-slate-400 text-right w-14">SSL</TableHead>
+                        <TableHead className="text-slate-400 text-right w-14">Mail</TableHead>
                         <TableHead className="text-slate-400 w-[130px]">Sektör / Şehir</TableHead>
                         <TableHead className="text-slate-400">Contact</TableHead>
                         <TableHead className="text-slate-400 w-28">Teaser</TableHead>
@@ -2465,6 +2471,39 @@ export default function AdminLeadDiscovery() {
                                 )}
                               </div>
                             ) : <span className="text-slate-600">—</span>}
+                          </TableCell>
+
+                          {/* Blacklist */}
+                          <TableCell className="py-2 text-right">
+                            {c.blacklistScore !== null ? (
+                              <span className={`text-[11px] font-bold border rounded px-1 py-0.5 ${
+                                c.blacklistScore < 50 ? "bg-red-900/40 text-red-400 border-red-800" :
+                                c.blacklistScore < 100 ? "bg-amber-900/40 text-amber-400 border-amber-800" :
+                                "bg-green-900/40 text-green-400 border-green-800"
+                              }`}>{c.blacklistScore}</span>
+                            ) : <span className="text-slate-700 text-xs">—</span>}
+                          </TableCell>
+
+                          {/* SSL */}
+                          <TableCell className="py-2 text-right">
+                            {c.sslDaysRemaining !== null ? (
+                              <span className={`text-[11px] font-bold border rounded px-1 py-0.5 ${
+                                c.sslDaysRemaining <= 7 ? "bg-red-900/40 text-red-400 border-red-800" :
+                                c.sslDaysRemaining <= 30 ? "bg-amber-900/40 text-amber-400 border-amber-800" :
+                                "bg-green-900/40 text-green-400 border-green-800"
+                              }`}>{c.sslDaysRemaining}g</span>
+                            ) : <span className="text-slate-700 text-xs">—</span>}
+                          </TableCell>
+
+                          {/* Mail */}
+                          <TableCell className="py-2 text-right">
+                            {c.mailReputationScore !== null ? (
+                              <span className={`text-[11px] font-bold border rounded px-1 py-0.5 ${
+                                c.mailReputationScore < 50 ? "bg-red-900/40 text-red-400 border-red-800" :
+                                c.mailReputationScore < 75 ? "bg-amber-900/40 text-amber-400 border-amber-800" :
+                                "bg-green-900/40 text-green-400 border-green-800"
+                              }`}>{c.mailReputationScore}</span>
+                            ) : <span className="text-slate-700 text-xs">—</span>}
                           </TableCell>
 
                           {/* Sektör / Şehir */}

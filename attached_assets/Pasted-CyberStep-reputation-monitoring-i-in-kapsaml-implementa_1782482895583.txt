@@ -1,0 +1,232 @@
+CyberStep reputation monitoring için kapsamlı implementasyon.
+Önceki çalışmada Part 1 (DB migration - 13 kolon) ve Part 2 
+(3 servis dosyası) tamamlandı. Part 3'ten itibaren devam et.
+
+---
+
+## TAMAMLANAN İŞLER (tekrar yapma)
+
+✅ DB migration - 13 kolon domain_scans'a eklendi:
+   blacklist_checked_at, blacklist_hits (jsonb), blacklist_score
+   ssl_expiry_date, ssl_days_remaining, ssl_is_valid, ssl_checked_at
+   mail_spf_valid, mail_dkim_hint, mail_dmarc_valid, mail_mx_exists,
+   mail_reputation_score, mail_checked_at
+
+✅ blacklist-monitor.ts oluşturuldu
+✅ ssl-mail-monitor.ts oluşturuldu
+✅ 3 cron kayıtlandı: blacklist_monitor 03:00, ssl_monitor 03:15,
+   mail_monitor 03:30 (tümü CATCH_UP_CRONS'a da eklendi)
+
+---
+
+## PART 3 — ORCHESTRATOR
+
+src/services/reputationOrchestrator.ts oluştur:
+
+export async function runReputationMonitoring(): 
+  Promise<{processed: number, errors: number}>
+
+Logic:
+1. domain_scans WHERE blacklist_checked_at IS NULL 
+   OR blacklist_checked_at < NOW() - INTERVAL '7 days'
+   LIMIT 200 per run
+2. Her scan için sırayla:
+   runBlacklistCheck() → runSSLCheck() → runMailReputationCheck()
+3. Domainler arası 500ms delay (rate limit koruması)
+4. Her 50 domain'de log
+5. {processed, errors} döndür
+
+---
+
+## PART 4 — CRON REGISTRATION
+
+src/index.ts dosyasında mevcut wrapCron pattern'ini kullanarak
+orchestrator'ı da ayrıca kaydet:
+
+// Her gece 03:45 Istanbul — tüm reputation servislerini toparlayan özet cron
+cron.schedule("45 3 * * *", wrapCron("reputation_orchestrator", 
+  "45 3 * * *", async () => {
+    const { runReputationMonitoring } = await import(
+      "./services/reputationOrchestrator"
+    );
+    return await runReputationMonitoring();
+}), { timezone: "Europe/Istanbul" });
+
+cronHealthMonitor EXPECTED_JOBS listesine ekle:
+{ name: "reputation_orchestrator", intervalMinutes: 1440 }
+
+---
+
+## PART 5 — ADMIN API ENDPOINTS
+
+Mevcut admin routes yapısına ekle:
+
+GET /api/admin-panel/reputation/summary
+Response: {
+  total_checked: number,
+  blacklisted_count: number,        // blacklist_score < 100
+  blacklist_critical_count: number, // blacklist_score < 50
+  ssl_expiring_soon: number,        // days_remaining <= 30
+  ssl_critical: number,             // days_remaining <= 7
+  ssl_invalid: number,              // ssl_is_valid = false
+  poor_mail_reputation: number,     // score < 50
+  unchecked_count: number,          // blacklist_checked_at IS NULL
+  last_run_at: timestamp | null
+}
+
+POST /api/admin-panel/reputation/run-now
+→ runReputationMonitoring() tetikle (async, beklemeden)
+→ Response: { message: "started", timestamp: ISO string }
+
+GET /api/admin-panel/reputation/alerts
+→ domain_scans JOIN lead_candidates WHERE:
+  blacklist_score < 100 
+  OR ssl_days_remaining <= 30 
+  OR ssl_is_valid = false 
+  OR mail_reputation_score < 50
+→ ORDER BY (kritiklik skoru) DESC
+→ LIMIT 50
+→ Her kayıt: { domain, blacklist_score, ssl_days_remaining, 
+  ssl_is_valid, ssl_issuer, mail_reputation_score, 
+  mail_spf_valid, mail_dmarc_valid, blacklist_hits }
+
+---
+
+## PART 6 — OVERALL SCORE ENTEGRASYONU
+
+Domain risk skoru hesaplanan yeri bul (overall_score).
+Şu faktörleri ekle (minimum 0, maksimum değişmez):
+
+if blacklist_score < 50:     overall_score -= 15
+if ssl_is_valid = false:     overall_score -= 20
+if ssl_days_remaining <= 7:  overall_score -= 15
+if mail_reputation_score < 50: overall_score -= 5
+
+overall_score = Math.max(0, overall_score)
+
+---
+
+## PART 7 — ADMIN PANEL YENİ SAYFA
+
+pages/admin-panel/reputation-monitor.tsx oluştur.
+Mevcut admin panel layout/style kullan.
+
+### Üst Kısım — 4 Özet Kart
+Brand renkler: bg #060D1A, cyan #00C8FF, amber #F5A623
+
+Kart 1 — Blacklist:
+- Temiz domain sayısı (blacklist_score = 100) → yeşil
+- Kara listede (blacklist_score < 50) → kırmızı badge
+
+Kart 2 — SSL:
+- Kritik (ssl_days_remaining <= 7 OR ssl_is_valid=false) → kırmızı
+- Yaklaşan (8-30 gün) → amber
+- Geçersiz sertifika sayısı
+
+Kart 3 — Mail Reputation:
+- İyi (score >= 75) → yeşil
+- Zayıf (score < 50) → amber
+- SPF eksik sayısı
+
+Kart 4 — Genel:
+- Toplam kontrol edilen
+- Hiç kontrol edilmemiş (IS NULL)
+- Acil dikkat gerektiren → kırmızı
+
+Data source: GET /api/admin-panel/reputation/summary
+
+### Alt Kısım — Alerts Tablosu
+
+Kolonlar: Domain | Blacklist | SSL | Mail Rep. | Son Kontrol | Detay
+
+Filtre butonları: Tümü | Sorunlu | Blacklisted | SSL Kritik | Mail Zayıf
+
+Badge renkleri:
+- Blacklist: score=100 → yeşil "Temiz", <100 → kırmızı "⚠ Listede"
+- SSL: >30g → yeşil, 7-30 → amber "Xg kaldı", <7 → kırmızı "KRİTİK",
+  invalid → kırmızı "GEÇERSİZ"
+- Mail: >=75 → yeşil, 50-74 → amber, <50 → kırmızı
+
+"Manuel Kontrol Çalıştır" butonu:
+→ POST /api/admin-panel/reputation/run-now
+→ Loading spinner → tamamlanınca toast
+
+Data source: GET /api/admin-panel/reputation/alerts
+
+---
+
+## PART 8 — LEAD DISCOVERY GÜNCELLEMESI
+
+pages/admin-panel/lead-discovery.tsx mevcut domain tablosuna
+3 kolon ekle (en sağa):
+
+| ... mevcut kolonlar ... | Blacklist | SSL | Mail |
+
+- Blacklist: null → "—", score=100 → yeşil nokta, <100 → kırmızı "⚠"
+- SSL: null → "—", >30 → yeşil, 7-30 → amber "Xg", <7 → kırmızı "KRİTİK"
+- Mail: null → "—", >=75 → yeşil, <50 → amber skor
+
+GET /api/admin-panel/lead-discovery endpoint'ine bu 3 alanı ekle:
+domain_scans JOIN'ine blacklist_score, ssl_days_remaining,
+mail_reputation_score dahil et.
+
+---
+
+## PART 9 — PDF RAPOR ENTEGRASYONU
+
+PDF rapor üreten servis dosyasını bul. Mevcut bölümlerin 
+sonuna yeni bölüm ekle: "Reputation & Güvenilirlik Analizi"
+
+PDFKit ile mevcut style'a uygun:
+
+Alt bölüm 1 — Kara Liste Durumu:
+Tablo: Liste adı | Durum
+- Spamhaus:           ✓ Temiz / ✗ Listede
+- Google Safe Browsing: ✓ Temiz / ✗ Listede
+- SURBL:              ✓ Temiz / ✗ Listede
+Genel Skor: X/100
+
+Alt bölüm 2 — SSL Sertifika:
+- Geçerlilik: Geçerli / Geçersiz
+- Son tarih: DD.MM.YYYY
+- Kalan: X gün (>30 normal, <=30 amber uyarı, <=7 kırmızı kritik)
+- Sertifika sahibi: [ssl_issuer]
+
+Alt bölüm 3 — Email Güvenliği:
+- SPF:   ✓ Var / ✗ Yok
+- DMARC: ✓ Aktif / ✗ Yok
+- DKIM:  ✓ İmza bulundu / ✗ Bulunamadı
+- MX:    ✓ Var / ✗ Yok
+- Mail Reputation Skoru: X/100
+
+Risk özeti — Claude Haiku ile otomatik üret:
+Model: claude-haiku-4-5 (mevcut AI integration kullan)
+Prompt: "Şu reputation verileri için 2-3 cümlelik Türkçe risk özeti 
+yaz: blacklist_hits: [değer], ssl_days_remaining: [değer], 
+mail_reputation_score: [değer]. Profesyonel, teknik dil. Max 60 kelime."
+
+---
+
+## PART 10 — NAV MENU
+
+Admin panel sol menüsünü veya nav component'ini bul.
+"🛡 Reputation Monitor" → /admin-panel/reputation-monitor
+linkini Lead Discovery ile Port Risk arasına ekle.
+
+---
+
+## TAMAMLANMA KONTROL LİSTESİ
+
+Bitince doğrula ve rapor et:
+1. reputationOrchestrator.ts oluşturuldu ve export çalışıyor
+2. 3 admin endpoint'i yanıt veriyor — her biri için örnek response göster
+3. overall_score faktörleri eklendi — hangi dosyaya eklendiğini belirt
+4. /admin-panel/reputation-monitor sayfası render oluyor
+5. Lead Discovery'de 3 yeni kolon görünüyor
+6. PDF raporunda yeni bölüm var — kaç satır/sayfa eklendi
+7. Nav menüde link eklendi
+8. reputation_orchestrator cron EXPECTED_JOBS'ta var
+9. Backend build temiz: pnpm --filter @workspace/api-server run build
+10. Frontend build temiz (varsa ayrı komut)
+
+Deviasyon varsa belirt. PDF servis dosyasının tam path'ini yaz.

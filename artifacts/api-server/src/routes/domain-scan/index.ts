@@ -2207,6 +2207,12 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       censysRelatedHosts: isFreeReport ? null : (scan.censysRelatedHosts as Array<{ ip: string; ports: number[]; services: string[]; countryCode: string | null; city: string | null; isSameAsKnown: boolean }> | null),
       censysTotalFound: isFreeReport ? null : (scan.censysTotalFound ?? null),
       isFreeReport,
+      blacklistScore:      scan.blacklistScore      ?? undefined,
+      sslDaysRemaining:    scan.sslDaysRemaining    ?? undefined,
+      sslIsValid:          scan.sslIsValid          ?? undefined,
+      mailReputationScore: scan.mailReputationScore ?? undefined,
+      mailSpfValid:        scan.mailSpfValid        ?? undefined,
+      mailDmarcValid:      scan.mailDmarcValid      ?? undefined,
     });
     const safeDomain = scan.domain.replace(/[^a-zA-Z0-9\.\-]/g, "_");
     res.setHeader("Content-Type", "application/pdf");

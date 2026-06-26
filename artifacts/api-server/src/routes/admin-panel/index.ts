@@ -41,6 +41,7 @@ import badgeAdminRouter from "./badge-admin";
 import partnerLeadsAdminRouter from "./partner-leads-admin";
 import sourceStatsRouter from "./source-stats";
 import cyberRiskReportsRouter from "./cyber-risk-reports";
+import reputationRouter from "./reputation";
 
 const router = Router();
 router.use(authRouter);
@@ -85,6 +86,7 @@ router.use(badgeAdminRouter);
 router.use(partnerLeadsAdminRouter);
 router.use(sourceStatsRouter);
 router.use(cyberRiskReportsRouter);
+router.use(reputationRouter);
 
 // ─── POST /api/admin-panel/reports/annual/generate ────────────────────────────
 router.post("/reports/annual/generate", async (req, res) => {

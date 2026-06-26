@@ -327,6 +327,12 @@ interface DomainScanData {
   } | null;
   isFreeReport?: boolean;
   kevCves?: Array<{ cveId: string; matchedProduct: string; ransomware: boolean }> | null;
+  blacklistScore?: number | null;
+  sslDaysRemaining?: number | null;
+  sslIsValid?: boolean | null;
+  mailReputationScore?: number | null;
+  mailSpfValid?: boolean | null;
+  mailDmarcValid?: boolean | null;
 }
 
 export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffer> {
@@ -1111,6 +1117,63 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         }
         doc.y += 4;
       }
+    }
+
+    // ─── Reputation & Güvenilirlik Analizi ────────────────────────────────────
+    if (
+      !data.isFreeReport &&
+      (data.blacklistScore != null || data.sslDaysRemaining != null || data.mailReputationScore != null)
+    ) {
+      checkPageBreak(doc, 130);
+      sectionTitle("Reputation ve Guvenilirlik Analizi");
+
+      const colW    = CONTENT_W / 3;
+      const repY    = doc.y;
+
+      const blScore  = data.blacklistScore  ?? null;
+      const sslDays  = data.sslDaysRemaining ?? null;
+      const sslValid = data.sslIsValid       ?? null;
+      const mScore   = data.mailReputationScore ?? null;
+
+      const blColor:  [number,number,number] = blScore === null ? CS_MUTED : blScore < 50 ? CS_DANGER : blScore < 100 ? CS_AMBER : CS_CYAN;
+      const sslColor: [number,number,number] = sslValid === false ? CS_DANGER : sslDays === null ? CS_MUTED : sslDays <= 7 ? CS_DANGER : sslDays <= 30 ? CS_AMBER : CS_CYAN;
+      const mColor:   [number,number,number] = mScore === null ? CS_MUTED : mScore < 50 ? CS_DANGER : mScore < 75 ? CS_AMBER : CS_CYAN;
+
+      const repItems: Array<{ title: string; score: string; status: string; color: [number,number,number] }> = [
+        {
+          title:  "Kara Liste Skoru",
+          score:  blScore !== null ? `${blScore}/100` : "—",
+          status: blScore === null ? "Kontrol Edilmedi" : blScore < 50 ? "Kritik Tehdit" : blScore < 100 ? "Kara Listede" : "Temiz",
+          color:  blColor,
+        },
+        {
+          title:  "SSL Sertifika",
+          score:  sslValid === false ? "Gecersiz" : sslDays !== null ? `${sslDays} gun` : "—",
+          status: sslValid === false ? "Gecersiz Sertifika" : sslDays === null ? "Kontrol Edilmedi" : sslDays <= 7 ? `${sslDays} gun kaldi — Kritik` : sslDays <= 30 ? `${sslDays} gun kaldi` : `${sslDays} gun gecerli`,
+          color:  sslColor,
+        },
+        {
+          title:  "Mail Reputation",
+          score:  mScore !== null ? `${mScore}/100` : "—",
+          status: mScore === null ? "Kontrol Edilmedi" : mScore === 100 ? "Tam Puan (SPF+DMARC+DKIM+MX)" : `${mScore}/100 — Eksik Kayitlar`,
+          color:  mColor,
+        },
+      ];
+
+      let repX = 0;
+      for (const item of repItems) {
+        const x      = MARGIN + repX;
+        const cardW  = colW - 8;
+        doc.rect(x, repY, cardW, 76).fill(CS_OFF);
+        doc.fillColor(CS_MUTED).fontSize(8).font(FONT_REGULAR)
+          .text(item.title, x + 10, repY + 10, { width: cardW - 20 });
+        doc.fillColor(item.color).fontSize(18).font(FONT_BOLD)
+          .text(item.score, x + 10, repY + 26, { width: cardW - 20 });
+        doc.fillColor(item.color).fontSize(7.5).font(FONT_REGULAR)
+          .text(item.status, x + 10, repY + 54, { width: cardW - 20 });
+        repX += colW;
+      }
+      doc.y = repY + 84;
     }
 
     // ── Ucretsiz rapor kilitleme kutusu ───────────────────────────────────────

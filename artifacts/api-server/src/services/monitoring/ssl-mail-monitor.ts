@@ -281,3 +281,63 @@ export async function runMailMonitor(batchSize = 50): Promise<MailMonitorResult>
   logger.info({ processed, avgScore, perfect, errors }, "Mail monitor: batch tamamlandı");
   return { processed, avgScore, perfect, errors };
 }
+
+// ─── Per-scan helpers (orchestrator için) ─────────────────────────────────────
+
+/**
+ * Tek bir domain_scan kaydı için SSL kontrolü yap ve sonucu yaz.
+ */
+export async function runSslCheck(scanId: number): Promise<void> {
+  const [row] = await db
+    .select({ id: domainScansTable.id, domain: domainScansTable.domain })
+    .from(domainScansTable)
+    .where(eq(domainScansTable.id, scanId));
+  if (!row) return;
+
+  const ssl = await checkSsl(row.domain);
+  await db
+    .update(domainScansTable)
+    .set({
+      sslCheckedAt: new Date(),
+      sslIsValid: ssl.isValid,
+      sslExpiryDate: ssl.expiryDate,
+      sslDaysRemaining: ssl.daysRemaining,
+      ...(ssl.issuer != null ? { sslIssuer: ssl.issuer } : {}),
+    })
+    .where(eq(domainScansTable.id, scanId));
+}
+
+/**
+ * Tek bir domain_scan kaydı için mail reputation kontrolü yap ve sonucu yaz.
+ */
+export async function runMailCheck(scanId: number): Promise<void> {
+  const [row] = await db
+    .select({ id: domainScansTable.id, domain: domainScansTable.domain })
+    .from(domainScansTable)
+    .where(eq(domainScansTable.id, scanId));
+  if (!row) return;
+
+  const [spfValid, dmarcValid, mxExists, dkimHint] = await Promise.all([
+    checkSpf(row.domain),
+    checkDmarc(row.domain),
+    checkMx(row.domain),
+    checkDkimHint(row.domain),
+  ]);
+  const score = [spfValid, dmarcValid, mxExists, dkimHint].filter(Boolean).length * 25;
+
+  await db
+    .update(domainScansTable)
+    .set({
+      mailCheckedAt: new Date(),
+      mailSpfValid: spfValid,
+      mailDmarcValid: dmarcValid,
+      mailMxExists: mxExists,
+      mailDkimHint: dkimHint,
+      mailReputationScore: score,
+      spfPass: spfValid,
+      dmarcPass: dmarcValid,
+      mxPass: mxExists,
+      dkimPass: dkimHint,
+    })
+    .where(eq(domainScansTable.id, scanId));
+}

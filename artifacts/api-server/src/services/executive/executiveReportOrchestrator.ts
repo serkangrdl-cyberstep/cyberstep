@@ -21,6 +21,7 @@ function getPeriodBounds(month: string): { start: Date; end: Date } {
 
 export async function generateMonthlyReports(
   targetCustomerId?: number,
+  force = false,
 ): Promise<{ generated: number; errors: number }> {
   const reportMonth = getReportMonth();
   const { start, end } = getPeriodBounds(reportMonth);
@@ -42,16 +43,18 @@ export async function generateMonthlyReports(
 
   for (const cust of customers) {
     try {
-      // Skip if already generated this month
-      const exists = await db.execute(sql`
-        SELECT id FROM executive_reports
-        WHERE customer_id = ${cust.id}
-          AND report_month = ${reportMonth}
-        LIMIT 1
-      `);
-      if ((exists.rows as unknown[]).length > 0) {
-        logger.info({ customerId: cust.id, reportMonth }, "Executive report already exists, skipping");
-        continue;
+      // Skip if already generated this month — unless force flag is set
+      if (!force) {
+        const exists = await db.execute(sql`
+          SELECT id FROM executive_reports
+          WHERE customer_id = ${cust.id}
+            AND report_month = ${reportMonth}
+          LIMIT 1
+        `);
+        if ((exists.rows as unknown[]).length > 0) {
+          logger.info({ customerId: cust.id, reportMonth }, "Executive report already exists, skipping");
+          continue;
+        }
       }
 
       // Collect data

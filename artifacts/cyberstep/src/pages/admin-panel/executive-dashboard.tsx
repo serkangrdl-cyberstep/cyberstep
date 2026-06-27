@@ -91,18 +91,44 @@ export default function AdminExecutiveDashboard() {
     }
   }
 
-  async function handleGenerateOne(customerId: number) {
+  async function handleGenerateOne(customerId: number, customerName?: string | null) {
     setGenerating(customerId);
     try {
       await fetch("/api/admin-panel/executive-reports/generate-now", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer_id: customerId }),
+        // force=true is implicit on backend when customer_id is set,
+        // but we send it explicitly for clarity
+        body: JSON.stringify({ customer_id: customerId, force: true }),
       });
-      setToast(`Müşteri ${customerId} için rapor başlatıldı.`);
-      setTimeout(() => { void load(); setGenerating(null); setToast(null); }, 10000);
+      const name = customerName ?? `#${customerId}`;
+      setToast(`${name} için rapor yeniden üretiliyor — ~30 sn bekleyin.`);
+      setTimeout(() => { void load(); setGenerating(null); setToast(null); }, 20000);
     } catch {
       setGenerating(null);
+      setToast("Rapor başlatılamadı. Lütfen tekrar deneyin.");
+    }
+  }
+
+  async function handleDownload(reportId: number, label: string) {
+    try {
+      const resp = await fetch(`/api/admin-panel/executive-reports/${reportId}/download`);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as { error?: string };
+        setToast(err.error ?? "PDF indirilemedi — raporu yeniden üretin.");
+        setTimeout(() => setToast(null), 5000);
+        return;
+      }
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = label;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setToast("PDF indirme hatası — internet bağlantınızı kontrol edin.");
+      setTimeout(() => setToast(null), 5000);
     }
   }
 
@@ -259,21 +285,29 @@ export default function AdminExecutiveDashboard() {
                         </span>
                       </TableCell>
                       <TableCell className="pr-6 py-3">
-                        <div className="flex gap-2">
-                          {r.pdf_path && (
-                            <a
-                              href={`/api/admin-panel/executive-reports/${r.id}/download`}
-                              className="text-xs px-2 py-1 rounded border border-[#00C8FF]/30 text-[#00C8FF] hover:bg-[#00C8FF]/10 transition-colors"
-                            >
-                              Indir
-                            </a>
-                          )}
+                        <div className="flex gap-2 flex-wrap">
                           <button
-                            onClick={() => void handleGenerateOne(r.customer_id)}
-                            disabled={generating === r.customer_id}
-                            className="text-xs px-2 py-1 rounded border border-slate-700 text-slate-400 hover:border-slate-600 transition-colors disabled:opacity-50"
+                            onClick={() => void handleDownload(
+                              r.id,
+                              `CyberStep_Executive_${r.customer_id}_${r.report_month}.pdf`
+                            )}
+                            disabled={!r.pdf_path}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${
+                              r.pdf_path
+                                ? "border-[#00C8FF]/30 text-[#00C8FF] hover:bg-[#00C8FF]/10"
+                                : "border-slate-800 text-slate-600 cursor-not-allowed"
+                            }`}
+                            title={r.pdf_path ? "PDF indir" : "PDF henüz oluşturulmadı — önce raporu üretin"}
                           >
-                            {generating === r.customer_id ? "..." : "Uret"}
+                            {r.pdf_path ? "Indir" : "PDF Yok"}
+                          </button>
+                          <button
+                            onClick={() => void handleGenerateOne(r.customer_id, r.customer_name)}
+                            disabled={generating === r.customer_id}
+                            className="text-xs px-2 py-1 rounded border border-slate-700 text-slate-400 hover:border-[#00C8FF]/40 hover:text-[#00C8FF] transition-colors disabled:opacity-50"
+                            title="Raporu yeniden üret (mevcut raporun üzerine yazar)"
+                          >
+                            {generating === r.customer_id ? "Uretiliyor..." : "Yeniden Uret"}
                           </button>
                         </div>
                       </TableCell>
@@ -329,12 +363,15 @@ export default function AdminExecutiveDashboard() {
                       </TableCell>
                       <TableCell className="pr-6 py-2.5">
                         {r.pdf_path ? (
-                          <a
-                            href={`/api/admin-panel/executive-reports/${r.id}/download`}
+                          <button
+                            onClick={() => void handleDownload(
+                              r.id,
+                              `CyberStep_Executive_${r.customer_id}_${r.report_month}.pdf`
+                            )}
                             className="text-xs text-[#00C8FF] hover:underline"
                           >
                             PDF
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-slate-700 text-xs">—</span>
                         )}

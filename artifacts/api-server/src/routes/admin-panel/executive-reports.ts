@@ -65,16 +65,21 @@ router.get("/admin-panel/executive-reports/:customerId/history", requireAdmin, a
 });
 
 // ─── POST /api/admin-panel/executive-reports/generate-now ────────────────────
+// Body: { customer_id?: number, force?: boolean }
+// When customer_id is provided manually (single customer), force=true by default
+// so it regenerates even if a report already exists this month.
 router.post("/admin-panel/executive-reports/generate-now", requireAdmin, async (req, res) => {
-  const body = req.body as { customer_id?: number };
+  const body = req.body as { customer_id?: number; force?: boolean };
   const customerId = body.customer_id != null ? Number(body.customer_id) : undefined;
+  // Single-customer trigger is always forced (manual re-gen intent)
+  const force = body.force === true || customerId != null;
   try {
-    res.json({ message: "started" });
+    res.json({ message: "started", force });
     // fire-and-forget
     setImmediate(async () => {
       try {
         const { generateMonthlyReports } = await import("../../services/executive/executiveReportOrchestrator");
-        const result = await generateMonthlyReports(customerId);
+        const result = await generateMonthlyReports(customerId, force);
         logger.info(result, "executive-reports generate-now completed");
       } catch (err) {
         logger.error({ err }, "executive-reports generate-now failed");

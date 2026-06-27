@@ -45,20 +45,34 @@ router.get(
 );
 
 // ─── GET /api/admin-panel/brand-monitor/alerts ────────────────────────────────
+// ?filter=all|suspicious|active|tld_swap  (default: all)
 router.get(
   "/admin-panel/brand-monitor/alerts",
   requireAdmin,
-  async (_req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
+      const filter = (req.query["filter"] as string) ?? "all";
+
+      let whereClause = sql``;
+      if (filter === "suspicious") {
+        whereClause = sql`WHERE bm.is_suspicious = true`;
+      } else if (filter === "active") {
+        whereClause = sql`WHERE bm.is_active = true`;
+      } else if (filter === "tld_swap") {
+        whereClause = sql`WHERE bm.variant_type = 'tld_swap' AND bm.is_active = true`;
+      }
+
       const result = await db.execute<{
         customer_domain:  string;
         variant_domain:   string;
         variant_type:     string;
         is_suspicious:    boolean;
+        is_active:        boolean;
         http_status:      number | null;
         page_title:       string | null;
         ip_address:       string | null;
         first_detected:   string;
+        last_checked:     string | null;
         customer_name:    string | null;
       }>(sql`
         SELECT
@@ -66,18 +80,21 @@ router.get(
           bm.variant_domain,
           bm.variant_type,
           bm.is_suspicious,
+          bm.is_active,
           bm.http_status,
           bm.page_title,
           bm.ip_address,
           bm.first_detected,
+          bm.last_checked,
           c.company_name      AS customer_name
         FROM brand_monitors bm
         LEFT JOIN customers c ON c.id = bm.customer_id
-        WHERE
-          bm.is_suspicious = true
-          OR (bm.is_active = true AND bm.variant_type = 'tld_swap')
-        ORDER BY bm.first_detected DESC
-        LIMIT 100
+        ${whereClause}
+        ORDER BY
+          bm.is_suspicious DESC,
+          bm.is_active DESC,
+          bm.first_detected DESC
+        LIMIT 500
       `);
       res.json(result.rows);
     } catch (err) {

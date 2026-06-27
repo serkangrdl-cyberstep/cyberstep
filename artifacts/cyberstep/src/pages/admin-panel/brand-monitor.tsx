@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,22 +7,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 interface BrandSummary {
   total_variants_tracked: number;
-  suspicious_count: number;
-  active_count: number;
-  customers_monitored: number;
-  last_run_at: string | null;
+  suspicious_count:       number;
+  active_count:           number;
+  customers_monitored:    number;
+  last_run_at:            string | null;
 }
 
 interface AlertRow {
   customer_domain: string;
-  variant_domain: string;
-  variant_type: string;
-  is_suspicious: boolean;
-  http_status: number | null;
-  page_title: string | null;
-  ip_address: string | null;
-  first_detected: string;
-  customer_name: string | null;
+  variant_domain:  string;
+  variant_type:    string;
+  is_suspicious:   boolean;
+  is_active:       boolean;
+  http_status:     number | null;
+  page_title:      string | null;
+  ip_address:      string | null;
+  first_detected:  string;
+  last_checked:    string | null;
+  customer_name:   string | null;
 }
 
 type FilterType = "all" | "suspicious" | "active" | "tld_swap";
@@ -46,7 +48,7 @@ function statusBadge(row: AlertRow) {
       </span>
     );
   }
-  if (row.http_status !== null) {
+  if (row.is_active) {
     return (
       <span className="text-[11px] font-bold border rounded px-1.5 py-0.5 bg-amber-900/40 text-amber-400 border-amber-800">
         Aktif
@@ -61,19 +63,21 @@ function statusBadge(row: AlertRow) {
 }
 
 export default function AdminBrandMonitor() {
-  const [summary, setSummary]   = useState<BrandSummary | null>(null);
-  const [alerts, setAlerts]     = useState<AlertRow[]>([]);
-  const [filter, setFilter]     = useState<FilterType>("all");
-  const [running, setRunning]   = useState(false);
-  const [loading, setLoading]   = useState(true);
-  const [toast, setToast]       = useState<string | null>(null);
+  const [summary, setSummary] = useState<BrandSummary | null>(null);
+  const [alerts, setAlerts]   = useState<AlertRow[]>([]);
+  const [filter, setFilter]   = useState<FilterType>("all");
+  const [running, setRunning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast]     = useState<string | null>(null);
+  const tableRef              = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [s, a] = await Promise.all([
         fetch("/api/admin-panel/brand-monitor/summary").then(r => r.json()),
-        fetch("/api/admin-panel/brand-monitor/alerts").then(r => r.json()),
+        // fetch ALL rows — client-side filtering
+        fetch("/api/admin-panel/brand-monitor/alerts?filter=all").then(r => r.json()),
       ]);
       setSummary(s as BrandSummary);
       setAlerts(Array.isArray(a) ? (a as AlertRow[]) : []);
@@ -95,41 +99,51 @@ export default function AdminBrandMonitor() {
     }
   }
 
+  function selectCard(f: FilterType) {
+    setFilter(f);
+    setTimeout(() => {
+      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
   const filtered = alerts.filter(a => {
     if (filter === "suspicious") return a.is_suspicious;
-    if (filter === "active")     return a.http_status !== null;
-    if (filter === "tld_swap")   return a.variant_type === "tld_swap";
+    if (filter === "active")     return a.is_active;
+    if (filter === "tld_swap")   return a.variant_type === "tld_swap" && a.is_active;
     return true;
   });
 
-  const CARDS = [
+  const CARDS: { label: string; value: number; sub: string; color: string; filterKey: FilterType }[] = [
     {
-      label: "Takip Edilen",
-      value: summary?.total_variants_tracked ?? 0,
-      sub:   `${summary?.customers_monitored ?? 0} musteri izleniyor`,
-      color: "text-[#00C8FF]",
+      label:     "Takip Edilen",
+      value:     summary?.total_variants_tracked ?? 0,
+      sub:       `${summary?.customers_monitored ?? 0} musteri izleniyor`,
+      color:     "text-[#00C8FF]",
+      filterKey: "all",
     },
     {
-      label: "Aktif Domain",
-      value: summary?.active_count ?? 0,
-      sub:   `${alerts.filter(a => a.variant_type === "tld_swap" && a.http_status !== null).length} aktif TLD swap`,
-      color: "text-[#F5A623]",
+      label:     "Aktif Domain",
+      value:     summary?.active_count ?? 0,
+      sub:       `${alerts.filter(a => a.variant_type === "tld_swap" && a.is_active).length} aktif TLD swap`,
+      color:     "text-[#F5A623]",
+      filterKey: "active",
     },
     {
-      label: "Suphelı Domain",
-      value: summary?.suspicious_count ?? 0,
-      sub:   summary?.last_run_at
+      label:     "Suphelı Domain",
+      value:     summary?.suspicious_count ?? 0,
+      sub:       summary?.last_run_at
         ? `Son tespit: ${new Date(summary.last_run_at).toLocaleDateString("tr-TR")}`
         : "Henuz tarama yapilmadi",
-      color: "text-red-400",
+      color:     "text-red-400",
+      filterKey: "suspicious",
     },
   ];
 
   const FILTERS: { key: FilterType; label: string }[] = [
-    { key: "all",       label: `Tumu (${alerts.length})` },
-    { key: "suspicious",label: `Suphelı (${alerts.filter(a => a.is_suspicious).length})` },
-    { key: "active",    label: `Aktif (${alerts.filter(a => a.http_status !== null).length})` },
-    { key: "tld_swap",  label: `TLD Swap (${alerts.filter(a => a.variant_type === "tld_swap").length})` },
+    { key: "all",        label: `Tumu (${alerts.length})` },
+    { key: "suspicious", label: `Suphelı (${alerts.filter(a => a.is_suspicious).length})` },
+    { key: "active",     label: `Aktif (${alerts.filter(a => a.is_active).length})` },
+    { key: "tld_swap",   label: `TLD Swap (${alerts.filter(a => a.variant_type === "tld_swap" && a.is_active).length})` },
   ];
 
   return (
@@ -165,112 +179,154 @@ export default function AdminBrandMonitor() {
           </Button>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Cards — tıklanabilir */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {CARDS.map(card => (
-            <Card key={card.label} style={{ background: "#071828", border: "1px solid #0f2940" }}>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-xs text-slate-400 font-normal uppercase tracking-wide">{card.label}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className={`text-3xl font-bold ${card.color}`}>
-                  {loading ? "..." : card.value}
-                </div>
-                <div className="text-[11px] text-slate-600 mt-0.5">{card.sub}</div>
-              </CardContent>
-            </Card>
-          ))}
+          {CARDS.map(card => {
+            const isActive = filter === card.filterKey;
+            return (
+              <button
+                key={card.label}
+                onClick={() => selectCard(card.filterKey)}
+                className={`text-left rounded-lg transition-all ${
+                  isActive
+                    ? "ring-2 ring-[#00C8FF]/60 ring-offset-1 ring-offset-[#060D1A]"
+                    : "hover:ring-1 hover:ring-slate-600 hover:ring-offset-1 hover:ring-offset-[#060D1A]"
+                }`}
+                style={{ background: "transparent" }}
+              >
+                <Card
+                  style={{
+                    background: isActive ? "#091f38" : "#071828",
+                    border: isActive ? "1px solid #00C8FF40" : "1px solid #0f2940",
+                  }}
+                >
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-xs text-slate-400 font-normal uppercase tracking-wide flex items-center justify-between">
+                      {card.label}
+                      <span className="text-[10px] text-slate-600 normal-case tracking-normal font-normal">
+                        {isActive ? "Filtre aktif" : "Detay icin tikla"}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <div className={`text-3xl font-bold ${card.color}`}>
+                      {loading ? "..." : card.value}
+                    </div>
+                    <div className="text-[11px] text-slate-600 mt-0.5">{card.sub}</div>
+                  </CardContent>
+                </Card>
+              </button>
+            );
+          })}
         </div>
 
         {/* Alerts Table */}
-        <Card style={{ background: "#071828", border: "1px solid #0f2940" }}>
-          <CardHeader className="px-6 pt-5 pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base text-white">Uyari Listesi</CardTitle>
-              <div className="flex gap-2 flex-wrap">
-                {FILTERS.map(f => (
-                  <button
-                    key={f.key}
-                    onClick={() => setFilter(f.key)}
-                    className={`text-xs px-3 py-1.5 rounded border transition-colors ${
-                      filter === f.key
-                        ? "bg-[#00C8FF]/10 border-[#00C8FF]/40 text-[#00C8FF]"
-                        : "border-slate-700 text-slate-400 hover:border-slate-600"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="px-0 pb-0">
-            {loading ? (
-              <div className="text-center py-12 text-slate-500">Yukleniyor...</div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">Kayit bulunamadi</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-800 hover:bg-transparent">
-                    <TableHead className="text-slate-400 pl-6">Musteri Domain</TableHead>
-                    <TableHead className="text-slate-400">Sahte Domain</TableHead>
-                    <TableHead className="text-slate-400">Tip</TableHead>
-                    <TableHead className="text-slate-400 text-center">Durum</TableHead>
-                    <TableHead className="text-slate-400 text-center">HTTP</TableHead>
-                    <TableHead className="text-slate-400">Sayfa Basligi</TableHead>
-                    <TableHead className="text-slate-400 pr-6">Ilk Tespit</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((row, i) => (
-                    <TableRow key={`${row.variant_domain}-${i}`} className="border-slate-800 hover:bg-slate-800/30">
-                      <TableCell className="pl-6 py-3">
-                        <div className="font-mono text-sm text-slate-200">{row.customer_domain}</div>
-                        {row.customer_name && (
-                          <div className="text-[10px] text-slate-600 mt-0.5">{row.customer_name}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <span className="font-mono text-sm text-slate-300">{row.variant_domain}</span>
-                        {row.ip_address && (
-                          <div className="text-[10px] text-slate-600 mt-0.5">{row.ip_address}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <Badge className="text-[10px] bg-slate-800 text-slate-400 border-slate-700">
-                          {VARIANT_TYPE_TR[row.variant_type] ?? row.variant_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center py-3">
-                        {statusBadge(row)}
-                      </TableCell>
-                      <TableCell className="text-center py-3">
-                        {row.http_status !== null ? (
-                          <span className={`text-[11px] font-mono font-bold ${row.http_status === 200 ? "text-red-400" : "text-slate-400"}`}>
-                            {row.http_status}
-                          </span>
-                        ) : (
-                          <span className="text-slate-700 text-xs">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-3 max-w-[180px]">
-                        <span className="text-[11px] text-slate-500 truncate block" title={row.page_title ?? ""}>
-                          {row.page_title ?? "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="pr-6 py-3">
-                        <span className="text-[11px] text-slate-600">
-                          {new Date(row.first_detected).toLocaleDateString("tr-TR")}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+        <div ref={tableRef}>
+          <Card style={{ background: "#071828", border: "1px solid #0f2940" }}>
+            <CardHeader className="px-6 pt-5 pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle className="text-base text-white">
+                  Domain Listesi
+                  {filter !== "all" && (
+                    <span className="ml-2 text-sm font-normal text-slate-400">
+                      — {filtered.length} kayit
+                    </span>
+                  )}
+                </CardTitle>
+                <div className="flex gap-2 flex-wrap">
+                  {FILTERS.map(f => (
+                    <button
+                      key={f.key}
+                      onClick={() => setFilter(f.key)}
+                      className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                        filter === f.key
+                          ? "bg-[#00C8FF]/10 border-[#00C8FF]/40 text-[#00C8FF]"
+                          : "border-slate-700 text-slate-400 hover:border-slate-600"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-0 pb-0">
+              {loading ? (
+                <div className="text-center py-12 text-slate-500">Yukleniyor...</div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">Kayit bulunamadi</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-800 hover:bg-transparent">
+                      <TableHead className="text-slate-400 pl-6">Musteri Domain</TableHead>
+                      <TableHead className="text-slate-400">Sahte Domain</TableHead>
+                      <TableHead className="text-slate-400">Tip</TableHead>
+                      <TableHead className="text-slate-400 text-center">Durum</TableHead>
+                      <TableHead className="text-slate-400 text-center">HTTP</TableHead>
+                      <TableHead className="text-slate-400">Sayfa Basligi</TableHead>
+                      <TableHead className="text-slate-400 pr-6">Son Kontrol</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((row, i) => (
+                      <TableRow key={`${row.variant_domain}-${i}`} className="border-slate-800 hover:bg-slate-800/30">
+                        <TableCell className="pl-6 py-3">
+                          <div className="font-mono text-sm text-slate-200">{row.customer_domain}</div>
+                          {row.customer_name && (
+                            <div className="text-[10px] text-slate-600 mt-0.5">{row.customer_name}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <a
+                            href={`https://${row.variant_domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-sm text-slate-300 hover:text-[#00C8FF] transition-colors"
+                          >
+                            {row.variant_domain}
+                          </a>
+                          {row.ip_address && (
+                            <div className="text-[10px] text-slate-600 mt-0.5">{row.ip_address}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Badge className="text-[10px] bg-slate-800 text-slate-400 border-slate-700">
+                            {VARIANT_TYPE_TR[row.variant_type] ?? row.variant_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center py-3">
+                          {statusBadge(row)}
+                        </TableCell>
+                        <TableCell className="text-center py-3">
+                          {row.http_status !== null ? (
+                            <span className={`text-[11px] font-mono font-bold ${row.http_status === 200 ? "text-red-400" : "text-slate-400"}`}>
+                              {row.http_status}
+                            </span>
+                          ) : (
+                            <span className="text-slate-700 text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3 max-w-[180px]">
+                          <span className="text-[11px] text-slate-500 truncate block" title={row.page_title ?? ""}>
+                            {row.page_title ?? "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="pr-6 py-3">
+                          <span className="text-[11px] text-slate-600">
+                            {row.last_checked
+                              ? new Date(row.last_checked).toLocaleDateString("tr-TR")
+                              : new Date(row.first_detected).toLocaleDateString("tr-TR")}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AdminLayout>
   );

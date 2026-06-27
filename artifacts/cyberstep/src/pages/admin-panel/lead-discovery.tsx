@@ -951,6 +951,7 @@ export default function AdminLeadDiscovery() {
   const [resultsSearchInput, setResultsSearchInput] = useState("");
   const [resultsSearch, setResultsSearch] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingQualified, setIsExportingQualified] = useState(false);
 
   async function handleExcelExport() {
     if (isExporting) return;
@@ -962,6 +963,10 @@ export default function AdminLeadDiscovery() {
       if (filterHasContact) params.set("hasContact", "true");
       if (filterNotSent) params.set("notSent", "true");
       if (filterMunicipality) params.set("municipality", filterMunicipality);
+      if (filterSector === "__empty__") params.set("sectorEmpty", "true");
+      else if (filterSector) params.set("sector", filterSector);
+      if (filterCity === "__empty__") params.set("cityEmpty", "true");
+      else if (filterCity) params.set("city", filterCity);
 
       const res = await fetch(`${BASE}/lead-discovery/export?${params}`, { credentials: "include" });
       if (!res.ok) {
@@ -985,6 +990,51 @@ export default function AdminLeadDiscovery() {
       toast({ description: "Export sırasında hata oluştu.", variant: "destructive" });
     } finally {
       setIsExporting(false);
+    }
+  }
+
+  async function handleQualifiedExcelExport() {
+    if (isExportingQualified) return;
+    setIsExportingQualified(true);
+    try {
+      const params = new URLSearchParams();
+      if (qSearch)          params.set("search", qSearch);
+      if (qTier)            params.set("tier", qTier);
+      if (qContact === "has") params.set("hasContact", "true");
+      if (qContact === "no")  params.set("noContact", "true");
+      if (qTeaser === "sent")    params.set("teaserSent", "true");
+      if (qTeaser === "has")     params.set("hasTeaser", "true");
+      if (qTeaser === "notsent") params.set("notSent", "true");
+      if (qMinScore > 0)    params.set("minScore", String(qMinScore));
+      if (qCriticalPort)    params.set("criticalPort", "true");
+      if (qMunicipality)    params.set("municipality", qMunicipality);
+      if (qSector === "__empty__") params.set("sectorEmpty", "true");
+      else if (qSector)     params.set("sector", qSector);
+      if (qCity === "__empty__") params.set("cityEmpty", "true");
+      else if (qCity)       params.set("city", qCity);
+
+      const res = await fetch(`${BASE}/lead-discovery/export-qualified?${params}`, { credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Bilinmeyen hata" }));
+        toast({ description: (err as { error?: string }).error ?? "Export başarısız", variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10);
+      a.href     = url;
+      a.download = `cyberstep_qualified_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const total = res.headers.get("X-Total-Count");
+      toast({ description: `${total ?? ""} qualified lead Excel dosyası indirildi.` });
+    } catch {
+      toast({ description: "Export sırasında hata oluştu.", variant: "destructive" });
+    } finally {
+      setIsExportingQualified(false);
     }
   }
 
@@ -2373,8 +2423,15 @@ export default function AdminLeadDiscovery() {
                 </select>
 
                 <div className="ml-auto flex flex-wrap gap-1.5">
-                  <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => exportQualifiedCsv(qualifiedData?.rows ?? [])}>
-                    CSV İndir
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs border-emerald-700/60 text-emerald-400 hover:bg-emerald-900/30 hover:text-emerald-300 disabled:opacity-50"
+                    onClick={handleQualifiedExcelExport}
+                    disabled={isExportingQualified}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" />
+                    {isExportingQualified ? "Hazırlanıyor..." : "Excel İndir"}
                   </Button>
                   <Button size="sm" variant="outline" className="text-xs border-slate-700 text-slate-400" onClick={() => batchWebEnrich.mutate(30)} disabled={batchWebEnrich.isPending}>
                     {batchWebEnrich.isPending ? "..." : "Toplu Web (30)"}

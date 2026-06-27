@@ -734,6 +734,198 @@ router.get("/admin-panel/lead-discovery/export", requireAdmin, async (req: Reque
   }
 });
 
+// ─── GET /api/admin-panel/lead-discovery/export-qualified ────────────────────
+router.get("/admin-panel/lead-discovery/export-qualified", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const ExcelJS = (await import("exceljs")).default;
+
+    const minScore     = parseInt(req.query["minScore"] as string ?? "0");
+    const hasContact   = req.query["hasContact"]   === "true";
+    const noContact    = req.query["noContact"]    === "true";
+    const notSent      = req.query["notSent"]      === "true";
+    const hasTeaser    = req.query["hasTeaser"]    === "true";
+    const teaserSent   = req.query["teaserSent"]   === "true";
+    const criticalPort = req.query["criticalPort"] === "true";
+    const tier         = req.query["tier"] as string | undefined;
+    const search       = (req.query["search"] as string ?? "").trim();
+    const municipality = req.query["municipality"] as string | undefined;
+    const sectorEmpty  = req.query["sectorEmpty"]  === "true";
+    const sectorSearch = (req.query["sector"] as string ?? "").trim();
+    const cityEmpty    = req.query["cityEmpty"]    === "true";
+    const citySearch   = (req.query["city"] as string ?? "").trim();
+
+    const conditions: ReturnType<typeof sql | typeof eq | typeof isNotNull | typeof isNull>[] = [
+      eq(leadCandidatesTable.isQualified, true),
+    ];
+    if (minScore > 0)   conditions.push(sql`${leadCandidatesTable.riskScore} >= ${minScore}`);
+    if (hasContact)     conditions.push(isNotNull(leadCandidatesTable.contactEmail));
+    if (noContact)      conditions.push(isNull(leadCandidatesTable.contactEmail));
+    if (notSent)        conditions.push(isNull(leadCandidatesTable.teaserSentAt));
+    if (teaserSent)     conditions.push(isNotNull(leadCandidatesTable.teaserSentAt));
+    if (hasTeaser)      conditions.push(isNotNull(leadCandidatesTable.teaserSubject));
+    if (tier)           conditions.push(eq(leadCandidatesTable.tier, tier));
+    if (search)         conditions.push(sql`${leadCandidatesTable.domain} ILIKE ${"%" + search + "%"}`);
+    if (criticalPort)   conditions.push(sql`${leadCandidatesTable.domain} IN (
+      SELECT domain FROM customer_tech_stack
+      WHERE category = 'open_port' AND security_risk = 'critical' AND is_active = true
+    )`);
+    if (municipality === "only")    conditions.push(sql`(${leadCandidatesTable.isMunicipality} = true OR ${leadCandidatesTable.domain} LIKE '%.bel.tr')`);
+    if (municipality === "exclude") conditions.push(sql`(${leadCandidatesTable.isMunicipality} = false AND ${leadCandidatesTable.domain} NOT LIKE '%.bel.tr')`);
+    if (sectorEmpty)    conditions.push(sql`(${leadCandidatesTable.sector} IS NULL OR ${leadCandidatesTable.sector} = '')`);
+    else if (sectorSearch) conditions.push(sql`${leadCandidatesTable.sector} ILIKE ${"%" + sectorSearch + "%"}`);
+    if (cityEmpty)      conditions.push(sql`(${leadCandidatesTable.city} IS NULL OR ${leadCandidatesTable.city} = '')`);
+    else if (citySearch) conditions.push(sql`${leadCandidatesTable.city} ILIKE ${"%" + citySearch + "%"}`);
+
+    const where = and(...conditions);
+
+    const [{ total }] = await db.select({ total: count() }).from(leadCandidatesTable).where(where);
+    const totalNum = Number(total);
+
+    if (totalNum === 0) {
+      res.status(404).json({ error: "Export edilecek kayıt bulunamadı." });
+      return;
+    }
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "CyberStep.io";
+    wb.created = new Date();
+    const ws = wb.addWorksheet("Qualified Leads");
+
+    ws.columns = [
+      { header: "Domain",          key: "domain",       width: 32 },
+      { header: "Şirket Adı",      key: "companyName",  width: 28 },
+      { header: "Yetkili Adı",     key: "officerName",  width: 22 },
+      { header: "Yetkili Unvanı",  key: "officerTitle", width: 20 },
+      { header: "Email",           key: "email",        width: 30 },
+      { header: "Risk Skoru",      key: "riskScore",    width: 12 },
+      { header: "Risk Seviyesi",   key: "riskLevel",    width: 14 },
+      { header: "Tier",            key: "tier",         width: 10 },
+      { header: "Sektör",          key: "sector",       width: 18 },
+      { header: "Şehir",           key: "city",         width: 16 },
+      { header: "Teaser Durumu",   key: "teaserStatus", width: 16 },
+      { header: "Contact Kaynağı", key: "contactSrc",   width: 18 },
+      { header: "LinkedIn",        key: "linkedin",     width: 50 },
+      { header: "Kayıt Tarihi",    key: "createdAt",    width: 20 },
+    ];
+
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0E1A2E" } };
+      cell.font   = { bold: true, color: { argb: "FF00C8FF" } };
+      cell.border = { bottom: { style: "thin", color: { argb: "FF00C8FF" } } };
+    });
+    headerRow.height = 20;
+    ws.views = [{ state: "frozen", xSplit: 0, ySplit: 1 }];
+
+    const RISK_COLORS: Record<string, string> = {
+      critical: "FFFF4444",
+      high:     "FFFF8C00",
+      medium:   "FFF5A623",
+      low:      "FF00C8FF",
+    };
+
+    function getRiskLevel(score: number | null): string {
+      if (score === null || score === undefined) return "";
+      if (score < 30) return "critical";
+      if (score < 60) return "high";
+      if (score < 80) return "medium";
+      return "low";
+    }
+
+    function fmtDate(d: Date | string | null | undefined): string {
+      if (!d) return "";
+      const dt = d instanceof Date ? d : new Date(d as string);
+      if (isNaN(dt.getTime())) return "";
+      return `${String(dt.getDate()).padStart(2, "0")}.${String(dt.getMonth() + 1).padStart(2, "0")}.${dt.getFullYear()} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+    }
+
+    function buildLinkedIn(domain: string, companyName: string | null, officerName: string | null): string {
+      const slug = domain.split(".")[0] ?? "";
+      const company = companyName ?? (slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase());
+      if (officerName) {
+        return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${officerName} ${company}`)}`;
+      }
+      return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(company)}&titleKeyword=${encodeURIComponent("IT OR CTO OR CISO OR Genel Mudur")}`;
+    }
+
+    const BATCH = 1000;
+    const batches = Math.ceil(totalNum / BATCH);
+
+    for (let b = 0; b < batches; b++) {
+      const rows = await db.select({
+        domain:       leadCandidatesTable.domain,
+        companyName:  leadCandidatesTable.companyName,
+        officerName:  leadCandidatesTable.officerName,
+        officerTitle: leadCandidatesTable.officerTitle,
+        contactEmail: leadCandidatesTable.contactEmail,
+        contactSource:leadCandidatesTable.contactSource,
+        riskScore:    leadCandidatesTable.riskScore,
+        tier:         leadCandidatesTable.tier,
+        sector:       leadCandidatesTable.sector,
+        city:         leadCandidatesTable.city,
+        teaserSentAt: leadCandidatesTable.teaserSentAt,
+        teaserSubject:leadCandidatesTable.teaserSubject,
+        createdAt:    leadCandidatesTable.createdAt,
+      }).from(leadCandidatesTable)
+        .where(where)
+        .orderBy(desc(leadCandidatesTable.riskScore))
+        .limit(BATCH)
+        .offset(b * BATCH);
+
+      for (const row of rows) {
+        const riskLevel = getRiskLevel(row.riskScore);
+        const teaserStatus = row.teaserSentAt ? "Gönderildi" : row.teaserSubject ? "Hazır" : "Yok";
+
+        const excelRow = ws.addRow({
+          domain:       row.domain,
+          companyName:  row.companyName  ?? "",
+          officerName:  row.officerName  ?? "",
+          officerTitle: row.officerTitle ?? "",
+          email:        row.contactEmail ?? "",
+          riskScore:    row.riskScore    ?? "",
+          riskLevel:    riskLevel === "critical" ? "Kritik" : riskLevel === "high" ? "Yüksek" : riskLevel === "medium" ? "Orta" : riskLevel === "low" ? "Düşük" : "",
+          tier:         row.tier         ?? "",
+          sector:       row.sector       ?? "",
+          city:         row.city         ?? "",
+          teaserStatus,
+          contactSrc:   row.contactSource ?? "",
+          linkedin:     buildLinkedIn(row.domain, row.companyName ?? null, row.officerName ?? null),
+          createdAt:    fmtDate(row.createdAt),
+        });
+        excelRow.height = 18;
+
+        if (riskLevel && RISK_COLORS[riskLevel]) {
+          const cell = excelRow.getCell("riskLevel");
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RISK_COLORS[riskLevel]! } };
+          cell.font = { bold: true, color: { argb: "FF0E1A2E" } };
+        }
+
+        const emailCell = excelRow.getCell("email");
+        if (row.contactEmail) {
+          emailCell.value = { text: row.contactEmail, hyperlink: `mailto:${row.contactEmail}` };
+          emailCell.font  = { color: { argb: "FF00C8FF" }, underline: true };
+        }
+
+        const linkedinCell = excelRow.getCell("linkedin");
+        const linkedinUrl = buildLinkedIn(row.domain, row.companyName ?? null, row.officerName ?? null);
+        linkedinCell.value = { text: "LinkedIn Ara", hyperlink: linkedinUrl };
+        linkedinCell.font  = { color: { argb: "FF7CB9F4" }, underline: true };
+      }
+    }
+
+    const today  = new Date().toISOString().slice(0, 10);
+    const buffer = await wb.xlsx.writeBuffer();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="cyberstep_qualified_${today}.xlsx"`);
+    res.setHeader("X-Total-Count", String(totalNum));
+    res.send(Buffer.from(buffer));
+    logger.info({ totalNum, tier, search, municipality }, "Qualified Excel export tamamlandı");
+  } catch (err) {
+    logger.error({ err }, "Qualified Excel export hatası");
+    res.status(500).json({ error: "Export sırasında hata oluştu." });
+  }
+});
+
 // ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/contact ────────────
 router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));

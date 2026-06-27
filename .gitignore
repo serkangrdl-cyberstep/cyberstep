@@ -50,3 +50,6 @@ Thumbs.db
 
 # Replit Agent memory (internal use only)
 .agents/
+
+# Agent screenshot attachments (large binary files, no need to deploy)
+attached_assets/Screenshot_*.jpg

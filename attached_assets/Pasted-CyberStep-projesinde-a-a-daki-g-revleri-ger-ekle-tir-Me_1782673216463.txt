@@ -1,0 +1,235 @@
+CyberStep projesinde aşağıdaki görevleri gerçekleştir.
+Mevcut mimariye entegre et, hiçbir mevcut kodu bozma.
+
+## BAĞLAM
+Excel import ile lead_candidates tablosuna BIST şirket 
+verisi girildi. Tabloda şu yeni kolonlar mevcut:
+- bist_ticker: varchar
+- bist_company_name: varchar
+- bist_indexes: text (virgülle ayrılmış)
+- bist_sector: varchar
+- bist_market: varchar
+- is_public_company: boolean
+- is_bist30: boolean
+- is_bist100: boolean
+- is_bist500: boolean
+
+---
+
+## GÖREV 1: Admin Panel BIST Filtreleri
+
+### 1A: Lead Discovery API Filtreleri
+/api/admin-panel/lead-discovery route'una 
+mevcut filtrelerin YANINA şu query param'ları ekle:
+
+?is_public_company=true
+?bist_index=bist30|bist100|bist500
+?bist_sector=Finans|İmalat|Enerji|Gayrimenkul|
+             Enerji|Lojistik|Teknoloji|Sağlık|
+             Madencilik|Tarım|Diğer
+?bist_market=YILDIZ PAZAR|ANA PAZAR|
+             YAKIN İZLEME PAZARI
+
+Filtreleri mevcut WHERE clause'a AND ile ekle.
+bist_index parametresi gelince:
+- bist30 → is_bist30 = true
+- bist100 → is_bist100 = true  
+- bist500 → is_bist500 = true
+
+### 1B: Excel Export
+Mevcut GET /api/admin-panel/lead-discovery/export
+endpoint'ine şu kolonları mevcut kolonların 
+SAĞINA ekle:
+
+| Halka Açık | BIST Ticker | BIST Endeks | 
+| BIST Sektör | BIST Pazar |
+
+Halka Açık kolonu: is_public_company ? "Evet" : ""
+BIST Endeks kolonu: bist_indexes (virgüllü string)
+
+---
+
+## GÖREV 2: BIST Analiz Endpoint'i
+
+Yeni endpoint: GET /api/admin-panel/bist-analysis
+
+Bu endpoint lead_candidates tablosundaki 
+is_public_company = true kayıtları analiz eder
+ve şu JSON yapısını döner:
+
+{
+  "generated_at": "ISO timestamp",
+  "summary": {
+    "total_bist_companies": 0,
+    "with_domain": 0,
+    "with_domain_pct": 0,
+    "in_cyberstep_db": 0,
+    "in_cyberstep_db_pct": 0,
+    "with_cve": 0,
+    "with_open_ports": 0,
+    "with_critical_cve": 0,
+    "avg_open_ports": 0,
+    "avg_ai_score": 0
+  },
+  "by_index": {
+    "bist30": {
+      "total": 0, "with_cve": 0, 
+      "avg_ai_score": 0, "critical_cve_count": 0
+    },
+    "bist100": { ... },
+    "bist500": { ... }
+  },
+  "by_sector": [
+    {
+      "sector": "Finans",
+      "total": 0,
+      "with_cve": 0,
+      "critical_cve_count": 0,
+      "avg_open_ports": 0,
+      "avg_ai_score": 0,
+      "risk_level": "Yüksek|Orta|Düşük"
+    }
+  ],
+  "by_market": [
+    {
+      "market": "YILDIZ PAZAR",
+      "total": 0,
+      "avg_ai_score": 0,
+      "with_critical_cve": 0
+    }
+  ],
+  "by_region": [
+    {
+      "region": "Marmara",
+      "total": 0,
+      "avg_ai_score": 0
+    }
+  ],
+  "top_risk_companies": [
+    {
+      "ticker": "",
+      "company_name": "",
+      "domain": "",
+      "sector": "",
+      "market": "",
+      "ai_score": 0,
+      "critical_cve_count": 0,
+      "open_ports_count": 0,
+      "risk_level": ""
+    }
+  ],
+  "linkedin_cards": [...]
+}
+
+### risk_level hesaplama:
+Sektör bazında:
+- avg_ai_score >= 70 → "Yüksek"
+- avg_ai_score >= 40 → "Orta"
+- avg_ai_score < 40  → "Düşük"
+
+### top_risk_companies:
+is_public_company = true AND ai_score IS NOT NULL
+ORDER BY ai_score DESC LIMIT 20
+
+### linkedin_cards array:
+Otomatik üret, 4 kart:
+
+Kart 1 — Genel Özet:
+{
+  "id": "bist_genel",
+  "theme": "cyan",
+  "title": "BIST Şirketleri Siber Risk Özeti",
+  "subtitle": "CyberStep Araştırma | 2026",
+  "stats": [
+    {"label": "Halka Açık Şirket", 
+     "value": "{total_bist_companies}"},
+    {"label": "Siber Risk Tespit Edilen", 
+     "value": "%{with_cve_pct}"},
+    {"label": "Kritik CVE Bulunan", 
+     "value": "{with_critical_cve}"}
+  ]
+}
+
+Kart 2 — Endeks Karşılaştırması:
+{
+  "id": "bist_endeks",
+  "theme": "amber",
+  "title": "Endekse Göre Risk Profili",
+  "stats": [
+    {"label": "BIST 30 Kritik CVE", 
+     "value": "{bist30.critical_cve_count}"},
+    {"label": "BIST 100 Kritik CVE", 
+     "value": "{bist100.critical_cve_count}"},
+    {"label": "BIST 500 Kritik CVE", 
+     "value": "{bist500.critical_cve_count}"}
+  ]
+}
+
+Kart 3 — En Riskli Sektör:
+{
+  "id": "bist_sektor",
+  "theme": "red",
+  "title": "En Yüksek Riskli Sektörler",
+  "stats": [
+    // by_sector'dan risk_level="Yüksek" olanlar
+    // top 3
+  ]
+}
+
+Kart 4 — CTA:
+{
+  "id": "bist_cta",
+  "theme": "cyan",
+  "title": "Şirketinizin Risk Skorunu Öğrenin",
+  "subtitle": "cyberstep.ai",
+  "stats": []
+}
+
+---
+
+## GÖREV 3: Admin Panel UI — BIST Sekmesi
+
+Admin panelde mevcut sekmelerin yanına 
+"BIST Analizi" sekmesi ekle.
+
+Bu sekme /api/admin-panel/bist-analysis 
+endpoint'ini çağırır ve şunları gösterir:
+
+### Özet Kartları (üstte 4 kart):
+- Toplam BIST Şirketi
+- Domain Sahibi (%)
+- Kritik CVE Bulunan
+- Ortalama AI Skoru
+
+### Tablo 1: Endeks Bazlı Risk
+| Endeks | Şirket | CVE'li | Kritik CVE | Ort. Skor |
+BIST 30 / BIST 100 / BIST 500 satırları
+
+### Tablo 2: Sektör Bazlı Risk
+| Sektör | Şirket | Risk Seviyesi | Kritik CVE | Ort. Port |
+Renkli risk_level badge: 
+Yüksek=kırmızı, Orta=sarı, Düşük=yeşil
+
+### Tablo 3: En Riskli 20 Şirket
+| Ticker | Şirket | Sektör | Skor | Kritik CVE | Portlar |
+AI skora göre sıralı
+
+### Alt Kısım: LinkedIn Kartları
+Her 4 kart için önizleme kutusu göster
+Her kutunun yanında "Kopyala" butonu —
+JSON verisini panoya kopyalar
+
+UI için mevcut admin panel stilini kullan
+(koyu tema, mevcut tablo component'leri)
+
+---
+
+## ÖNEMLİ NOTLAR
+- Mevcut lead_candidates sorgularını bozma
+- bist-analysis endpoint'i sadece 
+  is_public_company=true kayıtları işler
+- domain_scans join'ini mevcut pattern ile yap:
+  lead_candidates.scan_id = domain_scans.id
+- ai_score null olan kayıtları ortalamadan hariç tut
+- wrapCron kullanma, bu bir endpoint
+- Tüm sayısal hesaplamalar DB'de yap (JS'de değil)

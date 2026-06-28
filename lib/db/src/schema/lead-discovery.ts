@@ -103,6 +103,10 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   bistIndexes: text("bist_indexes"),
   bistMarket: varchar("bist_market", { length: 150 }),
   companyEmail: varchar("company_email", { length: 255 }),
+  isPublicCompany: boolean("is_public_company").notNull().default(false),
+  isBist30: boolean("is_bist30").notNull().default(false),
+  isBist100: boolean("is_bist100").notNull().default(false),
+  isBist500: boolean("is_bist500").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

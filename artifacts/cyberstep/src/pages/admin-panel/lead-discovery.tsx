@@ -946,11 +946,15 @@ export default function AdminLeadDiscovery() {
   const [qMunicipality, setQMunicipality] = useState<"" | "only" | "exclude">("");
   const [qSector, setQSector] = useState(""); // "" | "__empty__" | free text
   const [qCity, setQCity] = useState(""); // "" | "__empty__" | free text
+  const [qBistOnly, setQBistOnly] = useState(false);
+  const [qBistIndex, setQBistIndex] = useState(""); // "" | "bist30" | "bist100" | "bist500"
   const [qPageInput, setQPageInput] = useState("");
   const [filterTier, setFilterTier] = useState<string>(""); // "", "tier1", "tier2", "tier3"
   const [filterMunicipality, setFilterMunicipality] = useState<"" | "only" | "exclude">("");
   const [filterSector, setFilterSector] = useState(""); // "" | "__empty__" | free text
   const [filterCity, setFilterCity] = useState(""); // "" | "__empty__" | free text
+  const [filterBistOnly, setFilterBistOnly] = useState(false);
+  const [filterBistIndex, setFilterBistIndex] = useState(""); // "" | "bist30" | "bist100" | "bist500"
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
@@ -1029,6 +1033,8 @@ export default function AdminLeadDiscovery() {
       else if (qSector)     params.set("sector", qSector);
       if (qCity === "__empty__") params.set("cityEmpty", "true");
       else if (qCity)       params.set("city", qCity);
+      if (qBistOnly)        params.set("bistOnly", "true");
+      if (qBistIndex)       params.set("bistIndex", qBistIndex);
 
       const res = await fetch(`${BASE}/lead-discovery/export-qualified?${params}`, { credentials: "include" });
       if (!res.ok) {
@@ -1207,7 +1213,7 @@ export default function AdminLeadDiscovery() {
   const { data: qualifiedData, isLoading: qualifiedLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort, qMunicipality, qSector, qCity],
+    queryKey: ["lead-qualified", qPage, qPageSize, qSearch, qTier, qSort, qContact, qTeaser, qMinScore, qCriticalPort, qMunicipality, qSector, qCity, qBistOnly, qBistIndex],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(qPage), pageSize: String(qPageSize), sortBy: qSort });
       if (qSearch) params.set("search", qSearch);
@@ -1224,6 +1230,8 @@ export default function AdminLeadDiscovery() {
       else if (qSector) params.set("sector", qSector);
       if (qCity === "__empty__") params.set("cityEmpty", "true");
       else if (qCity) params.set("city", qCity);
+      if (qBistOnly) params.set("bistOnly", "true");
+      if (qBistIndex) params.set("bistIndex", qBistIndex);
       return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
     },
     refetchInterval: 30_000,
@@ -1232,7 +1240,7 @@ export default function AdminLeadDiscovery() {
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch, filterSector, filterCity],
+    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch, filterSector, filterCity, filterBistOnly, filterBistIndex],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filterHasContact) params.set("hasContact", "true");
@@ -1243,6 +1251,8 @@ export default function AdminLeadDiscovery() {
       else if (filterSector) params.set("sector", filterSector);
       if (filterCity === "__empty__") params.set("cityEmpty", "true");
       else if (filterCity) params.set("city", filterCity);
+      if (filterBistOnly) params.set("bistOnly", "true");
+      if (filterBistIndex) params.set("bistIndex", filterBistIndex);
       if (filterQualified) {
         return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
       }
@@ -2526,6 +2536,25 @@ export default function AdminLeadDiscovery() {
                   <option value="Mersin">Mersin</option>
                 </select>
 
+                {/* BIST filtresi */}
+                <select
+                  value={qBistOnly ? (qBistIndex || "bist_all") : ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") { setQBistOnly(false); setQBistIndex(""); }
+                    else if (v === "bist_all") { setQBistOnly(true); setQBistIndex(""); }
+                    else { setQBistOnly(true); setQBistIndex(v); }
+                    setQPage(1);
+                  }}
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value="">BIST: Tümü</option>
+                  <option value="bist_all">Halka Açık (BIST)</option>
+                  <option value="bist30">BIST 30</option>
+                  <option value="bist100">BIST 100</option>
+                  <option value="bist500">BIST 500</option>
+                </select>
+
                 <div className="ml-auto flex flex-wrap gap-1.5">
                   <Button
                     size="sm"
@@ -2547,7 +2576,7 @@ export default function AdminLeadDiscovery() {
               </div>
 
               {/* Active filter tags */}
-              {(qSearch || qTier || qContact || qTeaser || qMinScore > 0 || qSector || qCity) && (
+              {(qSearch || qTier || qContact || qTeaser || qMinScore > 0 || qSector || qCity || qBistOnly) && (
                 <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800">
                   <span className="text-[11px] text-slate-500 self-center">Aktif:</span>
                   {qSearch && <span className="text-[11px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">"{qSearch}"</span>}
@@ -2557,9 +2586,10 @@ export default function AdminLeadDiscovery() {
                   {qMinScore > 0 && <span className="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">Risk ≥ {qMinScore}</span>}
                   {qSector && <span className="text-[11px] bg-purple-900/40 text-purple-300 px-2 py-0.5 rounded-full">Sektör: {qSector === "__empty__" ? "Boş" : qSector}</span>}
                   {qCity && <span className="text-[11px] bg-teal-900/40 text-teal-300 px-2 py-0.5 rounded-full">Şehir: {qCity === "__empty__" ? "Boş" : qCity}</span>}
+                  {qBistOnly && <span className="text-[11px] bg-amber-900/40 text-amber-300 px-2 py-0.5 rounded-full">BIST{qBistIndex ? `: ${qBistIndex.toUpperCase()}` : ": Halka Açık"}</span>}
                   <button
                     className="text-[11px] text-red-400 hover:text-red-300 underline ml-1"
-                    onClick={() => { setQSearch(""); setQSearchInput(""); setQTier(""); setQContact(""); setQTeaser(""); setQMinScore(0); setQSector(""); setQCity(""); setQPage(1); }}
+                    onClick={() => { setQSearch(""); setQSearchInput(""); setQTier(""); setQContact(""); setQTeaser(""); setQMinScore(0); setQSector(""); setQCity(""); setQBistOnly(false); setQBistIndex(""); setQPage(1); }}
                   >
                     Hepsini Temizle
                   </button>
@@ -2954,6 +2984,25 @@ export default function AdminLeadDiscovery() {
                     <option value="Konya">Konya</option>
                     <option value="Kocaeli">Kocaeli</option>
                     <option value="Mersin">Mersin</option>
+                  </select>
+
+                  {/* BIST filtresi */}
+                  <select
+                    value={filterBistOnly ? (filterBistIndex || "bist_all") : ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "") { setFilterBistOnly(false); setFilterBistIndex(""); }
+                      else if (v === "bist_all") { setFilterBistOnly(true); setFilterBistIndex(""); }
+                      else { setFilterBistOnly(true); setFilterBistIndex(v); }
+                      setPage(1);
+                    }}
+                    className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
+                  >
+                    <option value="">BIST: Tümü</option>
+                    <option value="bist_all">Halka Açık (BIST)</option>
+                    <option value="bist30">BIST 30</option>
+                    <option value="bist100">BIST 100</option>
+                    <option value="bist500">BIST 500</option>
                   </select>
                 </div>
               </div>

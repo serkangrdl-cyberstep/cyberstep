@@ -69,6 +69,57 @@ const CITY_ALIASES: Record<string, string> = {
   "denizli":    "Denizli",
 };
 
+export const CITY_TO_REGION: Record<string, string> = {
+  // MARMARA
+  "İstanbul": "Marmara", "Tekirdağ": "Marmara", "Edirne": "Marmara",
+  "Kırklareli": "Marmara", "Balıkesir": "Marmara", "Çanakkale": "Marmara",
+  "Bursa": "Marmara", "Yalova": "Marmara", "Kocaeli": "Marmara",
+  "Sakarya": "Marmara", "Düzce": "Marmara", "Bolu": "Marmara",
+  "Bilecik": "Marmara", "Eskişehir": "Marmara",
+  // EGE
+  "İzmir": "Ege", "Manisa": "Ege", "Afyonkarahisar": "Ege",
+  "Kütahya": "Ege", "Uşak": "Ege", "Denizli": "Ege", "Muğla": "Ege", "Aydın": "Ege",
+  // AKDENİZ
+  "Antalya": "Akdeniz", "Isparta": "Akdeniz", "Burdur": "Akdeniz",
+  "Konya": "Akdeniz", "Karaman": "Akdeniz", "Mersin": "Akdeniz",
+  "Adana": "Akdeniz", "Osmaniye": "Akdeniz", "Hatay": "Akdeniz",
+  "Kahramanmaraş": "Akdeniz",
+  // İÇ ANADOLU
+  "Ankara": "İç Anadolu", "Çankırı": "İç Anadolu", "Kırıkkale": "İç Anadolu",
+  "Kırşehir": "İç Anadolu", "Nevşehir": "İç Anadolu", "Aksaray": "İç Anadolu",
+  "Niğde": "İç Anadolu", "Kayseri": "İç Anadolu", "Sivas": "İç Anadolu",
+  "Yozgat": "İç Anadolu",
+  // KARADENİZ
+  "Zonguldak": "Karadeniz", "Bartın": "Karadeniz", "Karabük": "Karadeniz",
+  "Kastamonu": "Karadeniz", "Sinop": "Karadeniz", "Samsun": "Karadeniz",
+  "Ordu": "Karadeniz", "Giresun": "Karadeniz", "Trabzon": "Karadeniz",
+  "Rize": "Karadeniz", "Artvin": "Karadeniz", "Gümüşhane": "Karadeniz",
+  "Bayburt": "Karadeniz", "Amasya": "Karadeniz", "Tokat": "Karadeniz",
+  "Çorum": "Karadeniz",
+  // DOĞU ANADOLU
+  "Malatya": "Doğu Anadolu", "Elazığ": "Doğu Anadolu", "Tunceli": "Doğu Anadolu",
+  "Bingöl": "Doğu Anadolu", "Erzincan": "Doğu Anadolu", "Erzurum": "Doğu Anadolu",
+  "Kars": "Doğu Anadolu", "Ardahan": "Doğu Anadolu", "Iğdır": "Doğu Anadolu",
+  "Ağrı": "Doğu Anadolu", "Van": "Doğu Anadolu", "Bitlis": "Doğu Anadolu",
+  "Muş": "Doğu Anadolu",
+  // GÜNEYDOĞU ANADOLU
+  "Gaziantep": "Güneydoğu Anadolu", "Kilis": "Güneydoğu Anadolu",
+  "Adıyaman": "Güneydoğu Anadolu", "Şanlıurfa": "Güneydoğu Anadolu",
+  "Diyarbakır": "Güneydoğu Anadolu", "Mardin": "Güneydoğu Anadolu",
+  "Batman": "Güneydoğu Anadolu", "Şırnak": "Güneydoğu Anadolu",
+  "Siirt": "Güneydoğu Anadolu", "Hakkari": "Güneydoğu Anadolu",
+};
+
+export const REGIONS = [
+  "Marmara", "Ege", "Akdeniz", "İç Anadolu",
+  "Karadeniz", "Doğu Anadolu", "Güneydoğu Anadolu",
+] as const;
+
+export function getRegion(city: string | null | undefined): string | null {
+  if (!city) return null;
+  return CITY_TO_REGION[city] ?? null;
+}
+
 /**
  * Şehir adını normalize eder: "Istanbul" → "İstanbul", "Izmir" → "İzmir" vb.
  * TURKEY_CITIES listesinde olmayan değerleri null döndürür.
@@ -88,6 +139,7 @@ export function normalizeCity(raw: string | null | undefined): string | null {
 export interface EnrichmentResult {
   sector: string | null;
   city: string | null;
+  region: string | null;
   confidence: "high" | "medium" | "low";
   reasoning: string;
 }
@@ -148,6 +200,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
 
   const sector = parsed.sector && SECTOR_LIST.includes(parsed.sector) ? parsed.sector : null;
   const city = normalizeCity(parsed.city as string | null | undefined);
+  const region = getRegion(city);
   const confidence = (["high", "medium", "low"] as const).includes(parsed.confidence as "high" | "medium" | "low")
     ? (parsed.confidence as "high" | "medium" | "low")
     : "low";
@@ -156,5 +209,5 @@ SADECE JSON döndür, başka hiçbir şey yazma:
     logger.debug({ domain, raw }, "Haiku enrichment: sektör belirlenemedi");
   }
 
-  return { sector, city, confidence, reasoning: String(parsed.reasoning ?? "") };
+  return { sector, city, region, confidence, reasoning: String(parsed.reasoning ?? "") };
 }

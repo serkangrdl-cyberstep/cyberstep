@@ -72,6 +72,7 @@ export async function runEnrichmentBatch(): Promise<BatchResult> {
         UPDATE lead_candidates
         SET sector                  = COALESCE(sector, ${result.sector}),
             city                    = COALESCE(city, ${result.city}),
+            region                  = COALESCE(region, ${result.region}),
             enrichment_status       = ${result.sector ? "enriched" : "no_match"},
             enrichment_method       = 'haiku_inference',
             enrichment_confidence   = ${result.confidence},

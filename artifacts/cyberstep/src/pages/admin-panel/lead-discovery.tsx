@@ -1317,13 +1317,25 @@ export default function AdminLeadDiscovery() {
   };
   const batchImport = useMutation({
     mutationFn: async ({ rows, source }: { rows: ExcelRow[]; source: string }) => {
-      const r = await fetch(`${BASE}/lead-discovery/domain-add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows, source }),
-      });
-      if (!r.ok) throw new Error("İstek başarısız");
-      return r.json() as Promise<DomainAddEnrichedResult>;
+      const CHUNK = 150;
+      const acc: DomainAddEnrichedResult = { inserted: 0, enriched: 0, unchanged: 0, skipped: 0, total: 0, results: [] };
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const r = await fetch(`${BASE}/lead-discovery/domain-add`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: chunk, source }),
+        });
+        if (!r.ok) throw new Error("İstek başarısız");
+        const d = await r.json() as DomainAddEnrichedResult;
+        acc.inserted += d.inserted;
+        acc.enriched += d.enriched;
+        acc.unchanged += d.unchanged;
+        acc.skipped += d.skipped;
+        acc.total += d.total;
+        acc.results.push(...d.results);
+      }
+      return acc;
     },
     onSuccess: (d) => {
       const parts: string[] = [];
@@ -1387,8 +1399,8 @@ export default function AdminLeadDiscovery() {
           "unvan": "companyName", "firmaad": "companyName", "adi": "companyName",
           "kurumadi": "companyName", "companyname": "companyName",
           // sector
-          "anasektor": "sector", "sektor": "sector", "anakategori": "sector",
-          "kategori": "sector",
+          "anasektor": "sector", "sektor": "sector", "sector": "sector",
+          "anakategori": "sector", "kategori": "sector",
           // subSector
           "altsektor": "subSector", "altkategori": "subSector", "altsektoraciklama": "subSector",
           "aciklama": "subSector",

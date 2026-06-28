@@ -1505,7 +1505,8 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
 
   // Enriched = mevcut domain + en az bir zenginleştirme alanı dolu
   const hasEnrichment = (r: InputRow) =>
-    !!(r.companyName || r.sector || r.subSector || r.sourceList || r.listRank || r.city);
+    !!(r.companyName || r.sector || r.subSector || r.sourceList || r.listRank || r.city
+      || r.ticker || r.companyEmail || r.bistIndexes || r.bistMarket || r.address);
 
   let inserted = 0;
   let enriched = 0;

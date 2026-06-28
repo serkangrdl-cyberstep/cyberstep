@@ -177,7 +177,8 @@ const largeJsonParser = express.json({ limit: "5mb" });
 const urlencodedParser = express.urlencoded({ extended: true, limit: "512kb" });
 const needsLargeBody = (req: Request) =>
   (req.method === "PUT" && /^\/api\/admin-panel\/blog\/\d+$/.test(req.path)) ||
-  req.path === "/api/gemini/generate-image";
+  req.path === "/api/gemini/generate-image" ||
+  req.path === "/api/admin-panel/lead-discovery/domain-add";
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (skipJsonParsing(req.path)) return next();
   if (needsLargeBody(req)) return largeJsonParser(req, res, next);

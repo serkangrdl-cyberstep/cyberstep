@@ -965,6 +965,11 @@ export default function AdminLeadDiscovery() {
   const [editEmail, setEditEmail] = useState("");
   const [editName, setEditName] = useState("");
   const [editTitle, setEditTitle] = useState("");
+  // ─── BIST Retag ───────────────────────────────────────────────────────────
+  const [bistRetagInput, setBistRetagInput] = useState("");
+  const [bistRetagLoading, setBistRetagLoading] = useState(false);
+  const [bistRetagResult, setBistRetagResult] = useState<{ updated: number; notFound: string[] } | null>(null);
+
   // ─── CVE Raporu tab ───────────────────────────────────────────────────────
   const [cveMinCvss, setCveMinCvss] = useState("0.0");
 
@@ -4262,6 +4267,71 @@ export default function AdminLeadDiscovery() {
                       {bistFetching ? "Yükleniyor..." : "Yenile"}
                     </button>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* BIST Etiketleme Aracı */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">BIST Etiketleme</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Mevcut domain kayıtlarını BIST verileriyle etiketler. Her satır: <code className="bg-muted px-1 rounded">domain,ticker,bistIndexes,bistMarket</code><br />
+                  Örnek: <code className="bg-muted px-1 rounded">akbank.com,AKBNK,BIST 30,Yıldız</code> — bistIndexes boş bırakılabilir.
+                </p>
+                <textarea
+                  value={bistRetagInput}
+                  onChange={(e) => setBistRetagInput(e.target.value)}
+                  placeholder={"akbank.com,AKBNK,BIST 30,Yıldız\ngaranti.com.tr,GARAN,BIST 30,Yıldız\nkoçsistem.com.tr,KCSIT,BIST 100,Ana Pazar"}
+                  rows={6}
+                  className="w-full text-xs font-mono bg-muted border border-input rounded-md p-2 resize-y focus:outline-none"
+                />
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    disabled={bistRetagLoading || !bistRetagInput.trim()}
+                    onClick={async () => {
+                      setBistRetagLoading(true);
+                      setBistRetagResult(null);
+                      try {
+                        const lines = bistRetagInput.trim().split("\n").filter(Boolean);
+                        const rows = lines.map(line => {
+                          const parts = line.split(",").map(s => s.trim());
+                          return {
+                            domain:      parts[0] ?? "",
+                            ticker:      parts[1] ?? "",
+                            bistIndexes: parts[2] ?? "",
+                            bistMarket:  parts[3] ?? "",
+                          };
+                        }).filter(r => r.domain);
+                        const r = await fetch(`${BASE}/lead-discovery/bist-retag`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ rows }),
+                        });
+                        const data = await r.json() as { updated: number; notFound: string[] };
+                        setBistRetagResult(data);
+                        if (data.updated > 0) void bistRefetch();
+                      } catch {
+                        toast({ description: "BIST etiketleme hatası", variant: "destructive" });
+                      } finally {
+                        setBistRetagLoading(false);
+                      }
+                    }}
+                  >
+                    {bistRetagLoading ? "Etiketleniyor..." : "Etiketle"}
+                  </Button>
+                  {bistRetagResult && (
+                    <span className="text-xs text-muted-foreground">
+                      <span className="text-green-500 font-medium">{bistRetagResult.updated} güncellendi</span>
+                      {bistRetagResult.notFound.length > 0 && (
+                        <span className="text-muted-foreground ml-2">· {bistRetagResult.notFound.length} bulunamadı: {bistRetagResult.notFound.slice(0, 5).join(", ")}{bistRetagResult.notFound.length > 5 ? "..." : ""}</span>
+                      )}
+                    </span>
+                  )}
                 </div>
               </CardContent>
             </Card>

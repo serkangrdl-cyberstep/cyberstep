@@ -1949,6 +1949,58 @@ router.get("/admin-panel/lead-discovery/port-risk", requireAdmin, async (req: Re
   }
 });
 
+// ─── POST /api/admin-panel/lead-discovery/bist-retag ─────────────────────────
+// Mevcut lead_candidates kayıtlarını ticker/bistIndexes bilgisiyle etiketler.
+// Body: { rows: [{ domain, ticker, bistIndexes, bistMarket }] }
+// Sadece UPDATE yapar — yeni kayıt eklemez.
+router.post("/admin-panel/lead-discovery/bist-retag", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    type RetagRow = { domain?: string; ticker?: string; bistIndexes?: string; bistMarket?: string };
+    const rows: RetagRow[] = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    if (rows.length === 0) return void res.status(400).json({ error: "rows boş" });
+
+    const normalize = (d: string) =>
+      d.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim().toLowerCase();
+    const clean = (v: string | null | undefined): string | null => (v?.trim() || null);
+
+    let updated = 0;
+    const notFound: string[] = [];
+
+    for (const r of rows) {
+      if (!r.domain) continue;
+      const domain = normalize(r.domain);
+      const ticker = clean(r.ticker);
+      const bi = clean(r.bistIndexes);
+      const bm = clean(r.bistMarket);
+      const isPublic = ticker != null;
+      const isBist30  = !!(bi?.toUpperCase().includes("BIST 30"));
+      const isBist100 = !!(bi?.toUpperCase().includes("BIST 100"));
+      const isBist500 = !!(bi?.toUpperCase().includes("BIST 500"));
+
+      const result = await db.execute(sql`
+        UPDATE lead_candidates SET
+          ticker            = COALESCE(${ticker}, ticker),
+          bist_indexes      = COALESCE(${bi},     bist_indexes),
+          bist_market       = COALESCE(${bm},     bist_market),
+          is_public_company = is_public_company OR ${isPublic},
+          is_bist30         = is_bist30  OR ${isBist30},
+          is_bist100        = is_bist100 OR ${isBist100},
+          is_bist500        = is_bist500 OR ${isBist500},
+          updated_at        = now()
+        WHERE domain = ${domain}
+      `);
+      if ((result.rowCount ?? 0) > 0) updated++;
+      else notFound.push(domain);
+    }
+
+    req.log.info({ updated, notFound: notFound.length }, "BIST retag tamamlandı");
+    res.json({ updated, notFound });
+  } catch (err) {
+    req.log.error(err, "BIST retag hatası");
+    res.status(500).json({ error: "BIST retag başarısız" });
+  }
+});
+
 // ─── GET /api/admin-panel/bist-analysis ──────────────────────────────────────
 router.get("/admin-panel/bist-analysis", requireAdmin, async (req: Request, res: Response) => {
   try {

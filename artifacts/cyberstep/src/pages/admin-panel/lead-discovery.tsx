@@ -1093,6 +1093,30 @@ export default function AdminLeadDiscovery() {
     staleTime: 3 * 60 * 1000,
   });
 
+  type BistIndexStat = { total: number; with_cve: number; avg_ai_score: number; critical_cve_count: number };
+  type BistSectorRow = { sector: string; total: number; with_cve: number; critical_cve_count: number; avg_open_ports: number; avg_ai_score: number; risk_level: string };
+  type BistMarketRow = { market: string; total: number; avg_ai_score: number; with_critical_cve: number };
+  type BistTopRow = { ticker: string; company_name: string; domain: string; sector: string; market: string; ai_score: number; critical_cve_count: number; open_ports_count: number; risk_level: string };
+  type BistCard = { id: string; theme: string; title: string; stats: { label: string; value: string }[] };
+  type BistAnalysis = {
+    generated_at: string;
+    summary: { total_bist_companies: number; with_domain: number; with_domain_pct: number; in_cyberstep_db: number; in_cyberstep_db_pct: number; with_cve: number; with_cve_pct: number; with_open_ports: number; with_critical_cve: number; avg_open_ports: number; avg_ai_score: number };
+    by_index: { bist30: BistIndexStat; bist100: BistIndexStat; bist500: BistIndexStat };
+    by_sector: BistSectorRow[];
+    by_market: BistMarketRow[];
+    top_risk_companies: BistTopRow[];
+    linkedin_cards: BistCard[];
+  };
+  const { data: bistAnalysis, isLoading: bistLoading, refetch: bistRefetch, isFetching: bistFetching } = useQuery<BistAnalysis>({
+    queryKey: ["bist-analysis"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/bist-analysis`, { credentials: "include" });
+      if (!r.ok) throw new Error(`BIST analizi alınamadı: ${r.status}`);
+      return r.json() as Promise<BistAnalysis>;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
   const [isNormalizingCities, setIsNormalizingCities] = useState(false);
   async function handleNormalizeCities() {
     if (isNormalizingCities) return;
@@ -1770,6 +1794,7 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="cve-raporu">CVE Raporu</TabsTrigger>
             <TabsTrigger value="port-riski">Port Riski</TabsTrigger>
             <TabsTrigger value="zenginlestirme">Zenginleştirme</TabsTrigger>
+            <TabsTrigger value="bist-analizi">BIST Analizi</TabsTrigger>
           </TabsList>
         </div>
 
@@ -4156,6 +4181,259 @@ export default function AdminLeadDiscovery() {
                         ))}
                       </TableBody>
                     </Table>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── BIST ANALİZİ TAB ─────────────────────────────────────────────── */}
+        <TabsContent value="bist-analizi">
+          <div className="space-y-4">
+            {/* Araç çubuğu */}
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Halka açık BIST şirketlerinin siber risk profili (is_public_company = true satırları)
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    {bistAnalysis && (
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(bistAnalysis.generated_at).toLocaleString("tr-TR")} tarihli
+                      </span>
+                    )}
+                    <button
+                      onClick={() => { void bistRefetch(); }}
+                      disabled={bistFetching}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${bistFetching ? "animate-spin" : ""}`} />
+                      {bistFetching ? "Yükleniyor..." : "Yenile"}
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {bistLoading ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" /> BIST analizi yükleniyor...
+              </div>
+            ) : !bistAnalysis ? (
+              <div className="text-center py-16 text-muted-foreground text-sm">Veri alınamadı.</div>
+            ) : (
+              <>
+                {/* Özet kartları */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Toplam BIST Şirketi", value: bistAnalysis.summary.total_bist_companies, sub: null },
+                    { label: "Domain Bulunan", value: bistAnalysis.summary.with_domain, sub: `%${bistAnalysis.summary.with_domain_pct}` },
+                    { label: "CVE Tespit Edilen", value: bistAnalysis.summary.with_cve, sub: `%${bistAnalysis.summary.with_cve_pct}` },
+                    { label: "Kritik CVE Bulunan", value: bistAnalysis.summary.with_critical_cve, sub: null },
+                  ].map(card => (
+                    <Card key={card.label}>
+                      <CardContent className="pt-4 pb-3">
+                        <div className="text-xs text-muted-foreground mb-1">{card.label}</div>
+                        <div className="text-2xl font-bold">{card.value}</div>
+                        {card.sub && <div className="text-xs text-muted-foreground mt-0.5">{card.sub} oranında</div>}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Endeks özeti */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Endeks Bazlı Risk Özeti</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Endeks</TableHead>
+                          <TableHead className="text-right">Şirket</TableHead>
+                          <TableHead className="text-right">CVE Tespit</TableHead>
+                          <TableHead className="text-right">Kritik CVE</TableHead>
+                          <TableHead className="text-right">Ort. Skor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(["bist30", "bist100", "bist500"] as const).map(key => {
+                          const row = bistAnalysis.by_index[key];
+                          const label = key === "bist30" ? "BIST 30" : key === "bist100" ? "BIST 100" : "BIST 500";
+                          return (
+                            <TableRow key={key}>
+                              <TableCell className="font-medium">{label}</TableCell>
+                              <TableCell className="text-right">{row.total}</TableCell>
+                              <TableCell className="text-right">{row.with_cve}</TableCell>
+                              <TableCell className="text-right">{row.critical_cve_count > 0 ? <Badge variant="destructive">{row.critical_cve_count}</Badge> : "—"}</TableCell>
+                              <TableCell className="text-right">{row.avg_ai_score > 0 ? row.avg_ai_score.toFixed(1) : "—"}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Sektör risk tablosu */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Sektöre Göre Risk Dağılımı</CardTitle>
+                      <CardDescription className="text-xs">Düşük ort. skor = yüksek risk</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-72">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Sektör</TableHead>
+                              <TableHead className="text-right">Şirket</TableHead>
+                              <TableHead className="text-right">Kritik CVE</TableHead>
+                              <TableHead>Risk</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {bistAnalysis.by_sector.map(s => (
+                              <TableRow key={s.sector}>
+                                <TableCell className="text-xs">{s.sector}</TableCell>
+                                <TableCell className="text-right text-xs">{s.total}</TableCell>
+                                <TableCell className="text-right text-xs">{s.critical_cve_count > 0 ? s.critical_cve_count : "—"}</TableCell>
+                                <TableCell>
+                                  <Badge className={s.risk_level === "Yüksek" ? "bg-red-600/20 text-red-400 border-red-600/30" : s.risk_level === "Orta" ? "bg-amber-600/20 text-amber-400 border-amber-600/30" : "bg-green-600/20 text-green-400 border-green-600/30"}>
+                                    {s.risk_level}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {bistAnalysis.by_sector.length === 0 && (
+                              <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">Henüz veri yok — BIST CSV import edin</TableCell></TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pazar tablosu */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Pazara Göre Dağılım</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-72">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Pazar</TableHead>
+                              <TableHead className="text-right">Şirket</TableHead>
+                              <TableHead className="text-right">Kritik CVE</TableHead>
+                              <TableHead className="text-right">Ort. Skor</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {bistAnalysis.by_market.map(m => (
+                              <TableRow key={m.market}>
+                                <TableCell className="text-xs">{m.market}</TableCell>
+                                <TableCell className="text-right text-xs">{m.total}</TableCell>
+                                <TableCell className="text-right text-xs">{m.with_critical_cve > 0 ? <Badge variant="destructive">{m.with_critical_cve}</Badge> : "—"}</TableCell>
+                                <TableCell className="text-right text-xs">{m.avg_ai_score > 0 ? m.avg_ai_score.toFixed(1) : "—"}</TableCell>
+                              </TableRow>
+                            ))}
+                            {bistAnalysis.by_market.length === 0 && (
+                              <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">Henüz veri yok</TableCell></TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* En riskli şirketler */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">En Riskli BIST Şirketleri (ilk 20, düşük skor = yüksek risk)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <ScrollArea className="h-80">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Ticker</TableHead>
+                            <TableHead>Şirket</TableHead>
+                            <TableHead>Domain</TableHead>
+                            <TableHead>Sektör</TableHead>
+                            <TableHead>Pazar</TableHead>
+                            <TableHead className="text-right">Skor</TableHead>
+                            <TableHead className="text-right">Kritik CVE</TableHead>
+                            <TableHead className="text-right">Açık Port</TableHead>
+                            <TableHead>Risk</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bistAnalysis.top_risk_companies.map((c, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-xs font-medium">{c.ticker || "—"}</TableCell>
+                              <TableCell className="text-xs">{c.company_name || "—"}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{c.domain}</TableCell>
+                              <TableCell className="text-xs">{c.sector || "—"}</TableCell>
+                              <TableCell className="text-xs">{c.market || "—"}</TableCell>
+                              <TableCell className="text-right text-xs font-medium">{c.ai_score}</TableCell>
+                              <TableCell className="text-right text-xs">{c.critical_cve_count > 0 ? <Badge variant="destructive">{c.critical_cve_count}</Badge> : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{c.open_ports_count > 0 ? c.open_ports_count : "—"}</TableCell>
+                              <TableCell>
+                                <Badge className={c.risk_level === "Yüksek" ? "bg-red-600/20 text-red-400 border-red-600/30" : c.risk_level === "Orta" ? "bg-amber-600/20 text-amber-400 border-amber-600/30" : "bg-green-600/20 text-green-400 border-green-600/30"}>
+                                  {c.risk_level}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {bistAnalysis.top_risk_companies.length === 0 && (
+                            <TableRow><TableCell colSpan={9} className="text-center text-xs text-muted-foreground py-8">Tarama tamamlanmış BIST şirketi bulunamadı</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                {/* LinkedIn içerik kartları */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">LinkedIn / Sosyal Medya Içerik Kartları</CardTitle>
+                    <CardDescription className="text-xs">Kopyala butonuna basarak metni panoya alın</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {bistAnalysis.linkedin_cards.map(card => (
+                        <div key={card.id} className="border rounded-lg p-4 space-y-3 bg-muted/20">
+                          <div className="text-xs font-semibold text-primary">{card.title}</div>
+                          {card.stats.length > 0 && (
+                            <div className="space-y-1.5">
+                              {card.stats.map((s, i) => (
+                                <div key={i} className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">{s.label}</span>
+                                  <span className="font-medium">{s.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            className="w-full text-xs border border-input rounded px-2 py-1 hover:bg-accent"
+                            onClick={() => {
+                              const text = `${card.title}\n\n${card.stats.map(s => `• ${s.label}: ${s.value}`).join("\n")}\n\n— CyberStep.io`;
+                              void navigator.clipboard.writeText(text);
+                            }}
+                          >
+                            Kopyala
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </>

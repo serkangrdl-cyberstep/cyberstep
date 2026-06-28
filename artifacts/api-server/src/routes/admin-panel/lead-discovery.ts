@@ -460,6 +460,13 @@ router.get("/admin-panel/lead-discovery/qualified", requireAdmin, async (req: Re
   if (cityEmpty)      conditions.push(sql`(${leadCandidatesTable.city} IS NULL OR ${leadCandidatesTable.city} = '')`);
   else if (citySearch) conditions.push(sql`${leadCandidatesTable.city} ILIKE ${"%" + citySearch + "%"}`);
 
+  const bistOnly  = req.query["bistOnly"]  === "true";
+  const bistIndex = (req.query["bistIndex"] as string ?? "").trim();
+  if (bistOnly)                 conditions.push(eq(leadCandidatesTable.isPublicCompany, true));
+  if (bistIndex === "bist30")   conditions.push(eq(leadCandidatesTable.isBist30, true));
+  else if (bistIndex === "bist100") conditions.push(eq(leadCandidatesTable.isBist100, true));
+  else if (bistIndex === "bist500") conditions.push(eq(leadCandidatesTable.isBist500, true));
+
   const orderClause =
     sortBy === "risk_asc"   ? leadCandidatesTable.riskScore :
     sortBy === "domain_asc" ? leadCandidatesTable.domain :
@@ -507,6 +514,13 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   else if (sectorSearch) conditions.push(sql`${leadCandidatesTable.sector} ILIKE ${"%" + sectorSearch + "%"}`);
   if (cityEmpty)      conditions.push(sql`(${leadCandidatesTable.city} IS NULL OR ${leadCandidatesTable.city} = '')`);
   else if (citySearch) conditions.push(sql`${leadCandidatesTable.city} ILIKE ${"%" + citySearch + "%"}`);
+
+  const bistOnly  = req.query["bistOnly"]  === "true";
+  const bistIndex = (req.query["bistIndex"] as string ?? "").trim();
+  if (bistOnly)                 conditions.push(eq(leadCandidatesTable.isPublicCompany, true));
+  if (bistIndex === "bist30")   conditions.push(eq(leadCandidatesTable.isBist30, true));
+  else if (bistIndex === "bist100") conditions.push(eq(leadCandidatesTable.isBist100, true));
+  else if (bistIndex === "bist500") conditions.push(eq(leadCandidatesTable.isBist500, true));
 
   const rows = await db.select().from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined)
@@ -591,21 +605,25 @@ router.get("/admin-panel/lead-discovery/export", requireAdmin, async (req: Reque
     const ws = wb.addWorksheet("Domains");
 
     ws.columns = [
-      { header: "Domain",          key: "domain",      width: 32 },
-      { header: "IP Adresi",       key: "ip",          width: 16 },
-      { header: "Risk Skoru",      key: "riskScore",   width: 12 },
-      { header: "Risk Seviyesi",   key: "riskLevel",   width: 14 },
-      { header: "Durum",           key: "status",      width: 14 },
-      { header: "Kayıt Tarihi",    key: "createdAt",   width: 20 },
-      { header: "Son Tarama",      key: "lastScanned", width: 20 },
-      { header: "Ülke",            key: "country",     width: 8  },
-      { header: "Şehir",           key: "city",        width: 16 },
-      { header: "Sektör",          key: "sector",      width: 18 },
-      { header: "Şirket Adı",      key: "companyName", width: 26 },
-      { header: "Açık Port Sayısı",key: "portCount",   width: 16 },
-      { header: "CVE Sayısı",      key: "cveCount",    width: 12 },
-      { header: "WAF Tespit",      key: "waf",         width: 12 },
-      { header: "Kaynak",          key: "source",      width: 18 },
+      { header: "Domain",          key: "domain",          width: 32 },
+      { header: "IP Adresi",       key: "ip",              width: 16 },
+      { header: "Risk Skoru",      key: "riskScore",       width: 12 },
+      { header: "Risk Seviyesi",   key: "riskLevel",       width: 14 },
+      { header: "Durum",           key: "status",          width: 14 },
+      { header: "Kayıt Tarihi",    key: "createdAt",       width: 20 },
+      { header: "Son Tarama",      key: "lastScanned",     width: 20 },
+      { header: "Ülke",            key: "country",         width: 8  },
+      { header: "Şehir",           key: "city",            width: 16 },
+      { header: "Sektör",          key: "sector",          width: 18 },
+      { header: "Şirket Adı",      key: "companyName",     width: 26 },
+      { header: "Açık Port Sayısı",key: "portCount",       width: 16 },
+      { header: "CVE Sayısı",      key: "cveCount",        width: 12 },
+      { header: "WAF Tespit",      key: "waf",             width: 12 },
+      { header: "Kaynak",          key: "source",          width: 18 },
+      { header: "Halka Açık",      key: "isPublicCompany", width: 12 },
+      { header: "BIST Ticker",     key: "ticker",          width: 12 },
+      { header: "BIST Endeks",     key: "bistIndexes",     width: 28 },
+      { header: "BIST Pazar",      key: "bistMarket",      width: 16 },
     ];
 
     // Header satırı stili
@@ -650,17 +668,21 @@ router.get("/admin-panel/lead-discovery/export", requireAdmin, async (req: Reque
 
     for (let b = 0; b < batches; b++) {
       const rows = await db.select({
-        domain:        leadCandidatesTable.domain,
-        companyName:   leadCandidatesTable.companyName,
-        sector:        leadCandidatesTable.sector,
-        city:          leadCandidatesTable.city,
-        source:        leadCandidatesTable.source,
-        scanStatus:    leadCandidatesTable.scanStatus,
-        scanId:        leadCandidatesTable.scanId,
-        riskScore:     leadCandidatesTable.riskScore,
-        wafDetected:   leadCandidatesTable.wafDetected,
-        createdAt:     leadCandidatesTable.createdAt,
-        lastScannedAt: leadCandidatesTable.lastScannedAt,
+        domain:          leadCandidatesTable.domain,
+        companyName:     leadCandidatesTable.companyName,
+        sector:          leadCandidatesTable.sector,
+        city:            leadCandidatesTable.city,
+        source:          leadCandidatesTable.source,
+        scanStatus:      leadCandidatesTable.scanStatus,
+        scanId:          leadCandidatesTable.scanId,
+        riskScore:       leadCandidatesTable.riskScore,
+        wafDetected:     leadCandidatesTable.wafDetected,
+        createdAt:       leadCandidatesTable.createdAt,
+        lastScannedAt:   leadCandidatesTable.lastScannedAt,
+        isPublicCompany: leadCandidatesTable.isPublicCompany,
+        ticker:          leadCandidatesTable.ticker,
+        bistIndexes:     leadCandidatesTable.bistIndexes,
+        bistMarket:      leadCandidatesTable.bistMarket,
       }).from(leadCandidatesTable)
         .where(where)
         .orderBy(asc(leadCandidatesTable.id))
@@ -694,21 +716,25 @@ router.get("/admin-panel/lead-discovery/export", requireAdmin, async (req: Reque
         const cveCount  = scan ? ((scan.criticalCveCount ?? 0) + (scan.highCveCount ?? 0)) : null;
 
         const excelRow = ws.addRow({
-          domain:      row.domain,
-          ip:          scan?.originIp ?? "",
-          riskScore:   row.riskScore  ?? "",
-          riskLevel:   riskLevel === "critical" ? "Kritik" : riskLevel === "high" ? "Yüksek" : riskLevel === "medium" ? "Orta" : riskLevel === "low" ? "Düşük" : "",
-          status:      row.scanStatus ?? "",
-          createdAt:   fmtDate(row.createdAt),
-          lastScanned: fmtDate(row.lastScannedAt),
-          country:     scan?.country ?? "",
-          city:        row.city        ?? "",
-          sector:      row.sector      ?? "",
-          companyName: row.companyName ?? "",
-          portCount:   scan?.openPortsCount ?? "",
-          cveCount:    cveCount !== null ? cveCount : "",
-          waf:         row.wafDetected === true ? "Evet" : row.wafDetected === false ? "Hayır" : "",
-          source:      row.source ?? "",
+          domain:          row.domain,
+          ip:              scan?.originIp ?? "",
+          riskScore:       row.riskScore  ?? "",
+          riskLevel:       riskLevel === "critical" ? "Kritik" : riskLevel === "high" ? "Yüksek" : riskLevel === "medium" ? "Orta" : riskLevel === "low" ? "Düşük" : "",
+          status:          row.scanStatus ?? "",
+          createdAt:       fmtDate(row.createdAt),
+          lastScanned:     fmtDate(row.lastScannedAt),
+          country:         scan?.country ?? "",
+          city:            row.city        ?? "",
+          sector:          row.sector      ?? "",
+          companyName:     row.companyName ?? "",
+          portCount:       scan?.openPortsCount ?? "",
+          cveCount:        cveCount !== null ? cveCount : "",
+          waf:             row.wafDetected === true ? "Evet" : row.wafDetected === false ? "Hayır" : "",
+          source:          row.source ?? "",
+          isPublicCompany: row.isPublicCompany ? "Evet" : "",
+          ticker:          row.ticker      ?? "",
+          bistIndexes:     row.bistIndexes ?? "",
+          bistMarket:      row.bistMarket  ?? "",
         });
         excelRow.height = 18;
 
@@ -1446,24 +1472,36 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
     bistIndexes: string | null;
     bistMarket: string | null;
     address: string | null;
+    isPublicCompany: boolean;
+    isBist30: boolean;
+    isBist100: boolean;
+    isBist500: boolean;
   };
 
   let inputRows: InputRow[];
   if (Array.isArray(body.rows) && body.rows.length > 0) {
-    inputRows = body.rows.map(r => ({
-      domain: normalize(r.domain),
-      companyName: clean(r.companyName),
-      sector: clean(r.sector),
-      subSector: clean(r.subSector),
-      sourceList: clean(r.sourceList),
-      listRank: clean(r.listRank),
-      city: clean(r.city),
-      ticker: clean(r.ticker),
-      companyEmail: clean(r.companyEmail),
-      bistIndexes: clean(r.bistIndexes),
-      bistMarket: clean(r.bistMarket),
-      address: clean(r.address),
-    })).filter(r => r.domain.length > 0);
+    inputRows = body.rows.map(r => {
+      const tk = clean(r.ticker);
+      const bi = clean(r.bistIndexes);
+      return {
+        domain: normalize(r.domain),
+        companyName: clean(r.companyName),
+        sector: clean(r.sector),
+        subSector: clean(r.subSector),
+        sourceList: clean(r.sourceList),
+        listRank: clean(r.listRank),
+        city: clean(r.city),
+        ticker: tk,
+        companyEmail: clean(r.companyEmail),
+        bistIndexes: bi,
+        bistMarket: clean(r.bistMarket),
+        address: clean(r.address),
+        isPublicCompany: tk != null,
+        isBist30:  !!(bi?.includes("BIST 30")),
+        isBist100: !!(bi?.includes("BIST 100")),
+        isBist500: !!(bi?.includes("BIST 500")),
+      };
+    }).filter(r => r.domain.length > 0);
   } else if (Array.isArray(body.domains) && body.domains.length > 0) {
     const sec = clean(body.sector);
     inputRows = body.domains.map(d => ({
@@ -1479,6 +1517,10 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
       bistIndexes: null,
       bistMarket: null,
       address: null,
+      isPublicCompany: false,
+      isBist30: false,
+      isBist100: false,
+      isBist500: false,
     })).filter(r => r.domain.length > 0);
   } else {
     res.status(400).json({ error: "rows veya domains array gerekli" });
@@ -1524,7 +1566,8 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
       INSERT INTO lead_candidates
         (domain, company_name, sector, sub_sector, source_list, list_rank, city,
          ticker, company_email, bist_indexes, bist_market, scraped_address,
-         source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+         source, scan_status, tier, is_municipality, source_data, has_kev_match,
+         waf_enrichment_attempts, is_public_company, is_bist30, is_bist100, is_bist500)
       SELECT * FROM unnest(
         ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r.domain)}'`).join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(r => nt(r.companyName)).join(",")}]`)}::text[],
@@ -1544,10 +1587,15 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
         ${sql.raw(`ARRAY[${chunk.map(r => r.domain.endsWith(".bel.tr") || r.domain.includes(".gov.tr") ? "true" : "false").join(",")}]`)}::bool[],
         ${sql.raw(`ARRAY[${chunk.map(() => `'${e(meta)}'`).join(",")}]`)}::jsonb[],
         ${sql.raw(`ARRAY[${chunk.map(() => "false").join(",")}]`)}::bool[],
-        ${sql.raw(`ARRAY[${chunk.map(() => "0").join(",")}]`)}::int[]
+        ${sql.raw(`ARRAY[${chunk.map(() => "0").join(",")}]`)}::int[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.isPublicCompany ? "true" : "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.isBist30  ? "true" : "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.isBist100 ? "true" : "false").join(",")}]`)}::bool[],
+        ${sql.raw(`ARRAY[${chunk.map(r => r.isBist500 ? "true" : "false").join(",")}]`)}::bool[]
       ) AS t(domain, company_name, sector, sub_sector, source_list, list_rank, city,
              ticker, company_email, bist_indexes, bist_market, scraped_address,
-             source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
+             source, scan_status, tier, is_municipality, source_data, has_kev_match,
+             waf_enrichment_attempts, is_public_company, is_bist30, is_bist100, is_bist500)
       ON CONFLICT (domain) DO UPDATE SET
         company_name   = COALESCE(EXCLUDED.company_name,   lead_candidates.company_name),
         sector         = COALESCE(EXCLUDED.sector,         lead_candidates.sector),
@@ -1560,7 +1608,11 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
         bist_indexes   = COALESCE(EXCLUDED.bist_indexes,   lead_candidates.bist_indexes),
         bist_market    = COALESCE(EXCLUDED.bist_market,    lead_candidates.bist_market),
         scraped_address = COALESCE(EXCLUDED.scraped_address, lead_candidates.scraped_address),
-        updated_at     = now()
+        is_public_company = lead_candidates.is_public_company OR EXCLUDED.is_public_company,
+        is_bist30  = lead_candidates.is_bist30  OR EXCLUDED.is_bist30,
+        is_bist100 = lead_candidates.is_bist100 OR EXCLUDED.is_bist100,
+        is_bist500 = lead_candidates.is_bist500 OR EXCLUDED.is_bist500,
+        updated_at = now()
     `);
     inserted += result.rowCount ?? 0;
 
@@ -1894,6 +1946,205 @@ router.get("/admin-panel/lead-discovery/port-risk", requireAdmin, async (req: Re
   } catch (err) {
     req.log.error({ err }, "Port risk sorgusu başarısız");
     res.status(500).json({ error: "Port risk verisi alınamadı." });
+  }
+});
+
+// ─── GET /api/admin-panel/bist-analysis ──────────────────────────────────────
+router.get("/admin-panel/bist-analysis", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    type SrRow = Record<string, string | null>;
+
+    // --- Özet ---
+    const summaryResult = await db.execute<SrRow>(sql`
+      SELECT
+        COUNT(*)::text                                                                                                      AS total_bist_companies,
+        COUNT(CASE WHEN lc.domain IS NOT NULL THEN 1 END)::text                                                            AS with_domain,
+        COUNT(CASE WHEN lc.scan_id IS NOT NULL THEN 1 END)::text                                                           AS in_cyberstep_db,
+        COUNT(CASE WHEN (COALESCE(ds.critical_cve_count,0)+COALESCE(ds.high_cve_count,0))>0 THEN 1 END)::text             AS with_cve,
+        COUNT(CASE WHEN COALESCE(ds.open_ports_count,0)>0 THEN 1 END)::text                                               AS with_open_ports,
+        COUNT(CASE WHEN COALESCE(ds.critical_cve_count,0)>0 THEN 1 END)::text                                             AS with_critical_cve,
+        ROUND(COALESCE(AVG(NULLIF(ds.open_ports_count,0)),0),1)::text                                                     AS avg_open_ports,
+        ROUND(COALESCE(AVG(lc.risk_score),0),1)::text                                                                     AS avg_ai_score
+      FROM lead_candidates lc
+      LEFT JOIN domain_scans ds ON ds.id = lc.scan_id
+      WHERE lc.is_public_company = true
+    `);
+    const sr = (summaryResult.rows[0] ?? {}) as SrRow;
+    const totalBist = parseInt(sr.total_bist_companies ?? "0");
+    const withDomain = parseInt(sr.with_domain ?? "0");
+    const inDb = parseInt(sr.in_cyberstep_db ?? "0");
+    const withCve = parseInt(sr.with_cve ?? "0");
+    const summary = {
+      total_bist_companies: totalBist,
+      with_domain:          withDomain,
+      with_domain_pct:      totalBist > 0 ? Math.round(withDomain / totalBist * 100) : 0,
+      in_cyberstep_db:      inDb,
+      in_cyberstep_db_pct:  totalBist > 0 ? Math.round(inDb / totalBist * 100) : 0,
+      with_cve:             withCve,
+      with_cve_pct:         totalBist > 0 ? Math.round(withCve / totalBist * 100) : 0,
+      with_open_ports:      parseInt(sr.with_open_ports ?? "0"),
+      with_critical_cve:    parseInt(sr.with_critical_cve ?? "0"),
+      avg_open_ports:       parseFloat(sr.avg_open_ports ?? "0"),
+      avg_ai_score:         parseFloat(sr.avg_ai_score ?? "0"),
+    };
+
+    // --- Endekse göre ---
+    const byIndexResult = await db.execute<SrRow>(sql`
+      SELECT
+        COUNT(CASE WHEN lc.is_bist30 THEN 1 END)::text AS bist30_total,
+        COUNT(CASE WHEN lc.is_bist30 AND (COALESCE(ds.critical_cve_count,0)+COALESCE(ds.high_cve_count,0))>0 THEN 1 END)::text AS bist30_with_cve,
+        COALESCE(SUM(CASE WHEN lc.is_bist30 THEN ds.critical_cve_count ELSE 0 END),0)::text AS bist30_critical_cve,
+        ROUND(COALESCE(AVG(CASE WHEN lc.is_bist30 THEN lc.risk_score END),0),1)::text AS bist30_avg_score,
+        COUNT(CASE WHEN lc.is_bist100 THEN 1 END)::text AS bist100_total,
+        COUNT(CASE WHEN lc.is_bist100 AND (COALESCE(ds.critical_cve_count,0)+COALESCE(ds.high_cve_count,0))>0 THEN 1 END)::text AS bist100_with_cve,
+        COALESCE(SUM(CASE WHEN lc.is_bist100 THEN ds.critical_cve_count ELSE 0 END),0)::text AS bist100_critical_cve,
+        ROUND(COALESCE(AVG(CASE WHEN lc.is_bist100 THEN lc.risk_score END),0),1)::text AS bist100_avg_score,
+        COUNT(CASE WHEN lc.is_bist500 THEN 1 END)::text AS bist500_total,
+        COUNT(CASE WHEN lc.is_bist500 AND (COALESCE(ds.critical_cve_count,0)+COALESCE(ds.high_cve_count,0))>0 THEN 1 END)::text AS bist500_with_cve,
+        COALESCE(SUM(CASE WHEN lc.is_bist500 THEN ds.critical_cve_count ELSE 0 END),0)::text AS bist500_critical_cve,
+        ROUND(COALESCE(AVG(CASE WHEN lc.is_bist500 THEN lc.risk_score END),0),1)::text AS bist500_avg_score
+      FROM lead_candidates lc
+      LEFT JOIN domain_scans ds ON ds.id = lc.scan_id
+      WHERE lc.is_public_company = true
+    `);
+    const bi = (byIndexResult.rows[0] ?? {}) as SrRow;
+    const by_index = {
+      bist30:  { total: parseInt(bi.bist30_total  ?? "0"), with_cve: parseInt(bi.bist30_with_cve  ?? "0"), avg_ai_score: parseFloat(bi.bist30_avg_score  ?? "0"), critical_cve_count: parseInt(bi.bist30_critical_cve  ?? "0") },
+      bist100: { total: parseInt(bi.bist100_total ?? "0"), with_cve: parseInt(bi.bist100_with_cve ?? "0"), avg_ai_score: parseFloat(bi.bist100_avg_score ?? "0"), critical_cve_count: parseInt(bi.bist100_critical_cve ?? "0") },
+      bist500: { total: parseInt(bi.bist500_total ?? "0"), with_cve: parseInt(bi.bist500_with_cve ?? "0"), avg_ai_score: parseFloat(bi.bist500_avg_score ?? "0"), critical_cve_count: parseInt(bi.bist500_critical_cve ?? "0") },
+    };
+
+    // --- Sektöre göre ---
+    const sectorResult = await db.execute<SrRow>(sql`
+      SELECT
+        COALESCE(lc.sector,'Diğer') AS sector,
+        COUNT(*)::text AS total,
+        COUNT(CASE WHEN (COALESCE(ds.critical_cve_count,0)+COALESCE(ds.high_cve_count,0))>0 THEN 1 END)::text AS with_cve,
+        COALESCE(SUM(ds.critical_cve_count),0)::text AS critical_cve_count,
+        ROUND(COALESCE(AVG(ds.open_ports_count),0),1)::text AS avg_open_ports,
+        ROUND(COALESCE(AVG(lc.risk_score),0),1)::text AS avg_ai_score
+      FROM lead_candidates lc
+      LEFT JOIN domain_scans ds ON ds.id = lc.scan_id
+      WHERE lc.is_public_company = true
+      GROUP BY 1
+      ORDER BY COALESCE(AVG(lc.risk_score),100) ASC, COUNT(*) DESC
+    `);
+    const by_sector = (sectorResult.rows ?? []).map((r: SrRow) => {
+      const avgScore = parseFloat(r.avg_ai_score ?? "0");
+      return {
+        sector:             String(r.sector ?? "Diğer"),
+        total:              parseInt(r.total ?? "0"),
+        with_cve:           parseInt(r.with_cve ?? "0"),
+        critical_cve_count: parseInt(r.critical_cve_count ?? "0"),
+        avg_open_ports:     parseFloat(r.avg_open_ports ?? "0"),
+        avg_ai_score:       avgScore,
+        risk_level:         avgScore < 30 ? "Yüksek" : avgScore < 60 ? "Orta" : "Düşük",
+      };
+    });
+
+    // --- Pazara göre ---
+    const marketResult = await db.execute<SrRow>(sql`
+      SELECT
+        COALESCE(lc.bist_market,'Bilinmiyor') AS market,
+        COUNT(*)::text AS total,
+        ROUND(COALESCE(AVG(lc.risk_score),0),1)::text AS avg_ai_score,
+        COUNT(CASE WHEN COALESCE(ds.critical_cve_count,0)>0 THEN 1 END)::text AS with_critical_cve
+      FROM lead_candidates lc
+      LEFT JOIN domain_scans ds ON ds.id = lc.scan_id
+      WHERE lc.is_public_company = true
+      GROUP BY 1
+      ORDER BY COUNT(*) DESC
+    `);
+    const by_market = (marketResult.rows ?? []).map((r: SrRow) => ({
+      market:            String(r.market ?? "Bilinmiyor"),
+      total:             parseInt(r.total ?? "0"),
+      avg_ai_score:      parseFloat(r.avg_ai_score ?? "0"),
+      with_critical_cve: parseInt(r.with_critical_cve ?? "0"),
+    }));
+
+    // --- En riskli şirketler (düşük skor = yüksek risk) ---
+    const topRiskResult = await db.execute<SrRow>(sql`
+      SELECT
+        lc.ticker,
+        COALESCE(lc.company_name, lc.scraped_company_name) AS company_name,
+        lc.domain,
+        lc.sector,
+        lc.bist_market,
+        lc.risk_score::text AS ai_score,
+        COALESCE(ds.critical_cve_count,0)::text AS critical_cve_count,
+        COALESCE(ds.open_ports_count,0)::text AS open_ports_count
+      FROM lead_candidates lc
+      LEFT JOIN domain_scans ds ON ds.id = lc.scan_id
+      WHERE lc.is_public_company = true AND lc.risk_score IS NOT NULL
+      ORDER BY lc.risk_score ASC
+      LIMIT 20
+    `);
+    const top_risk_companies = (topRiskResult.rows ?? []).map((r: SrRow) => {
+      const aiScore = parseInt(r.ai_score ?? "0");
+      return {
+        ticker:             String(r.ticker ?? ""),
+        company_name:       String(r.company_name ?? ""),
+        domain:             String(r.domain ?? ""),
+        sector:             String(r.sector ?? ""),
+        market:             String(r.bist_market ?? ""),
+        ai_score:           aiScore,
+        critical_cve_count: parseInt(r.critical_cve_count ?? "0"),
+        open_ports_count:   parseInt(r.open_ports_count ?? "0"),
+        risk_level:         aiScore < 30 ? "Yüksek" : aiScore < 60 ? "Orta" : "Düşük",
+      };
+    });
+
+    // --- LinkedIn içerik kartları ---
+    const highRiskSectors = by_sector.filter(s => s.risk_level === "Yüksek").slice(0, 3);
+    const linkedin_cards = [
+      {
+        id: "bist_genel",
+        theme: "cyan",
+        title: "BIST Sirketi Siber Risk Ozeti",
+        stats: [
+          { label: "Halka Acik Sirket", value: String(summary.total_bist_companies) },
+          { label: "Siber Risk Tespit", value: `%${summary.with_cve_pct}` },
+          { label: "Kritik CVE", value: String(summary.with_critical_cve) },
+        ],
+      },
+      {
+        id: "bist_endeks",
+        theme: "amber",
+        title: "Endekse Gore Risk Profili",
+        stats: [
+          { label: "BIST 30 Kritik CVE", value: String(by_index.bist30.critical_cve_count) },
+          { label: "BIST 100 Kritik CVE", value: String(by_index.bist100.critical_cve_count) },
+          { label: "BIST 500 Kritik CVE", value: String(by_index.bist500.critical_cve_count) },
+        ],
+      },
+      {
+        id: "bist_sektor",
+        theme: "red",
+        title: "En Yuksek Riskli Sektorler",
+        stats: highRiskSectors.length > 0
+          ? highRiskSectors.map(s => ({ label: s.sector, value: `Kritik: ${s.critical_cve_count}` }))
+          : [{ label: "Henuz veri yok", value: "" }],
+      },
+      {
+        id: "bist_cta",
+        theme: "cyan",
+        title: "Sirketinizin Risk Skorunu Ogreniyi",
+        stats: [{ label: "cyberstep.io", value: "Ucretsiz Analiz" }],
+      },
+    ];
+
+    res.json({
+      generated_at: new Date().toISOString(),
+      summary,
+      by_index,
+      by_sector,
+      by_market,
+      top_risk_companies,
+      linkedin_cards,
+    });
+  } catch (err) {
+    req.log.error({ err }, "BIST analizi başarısız");
+    res.status(500).json({ error: "BIST analizi alınamadı." });
   }
 });
 

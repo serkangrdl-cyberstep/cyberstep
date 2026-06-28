@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X, Loader2, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -153,6 +154,22 @@ interface CveReportEntry {
 interface CveReport {
   total: number;
   cves: CveReportEntry[];
+}
+
+interface EnrichmentDashboard {
+  progress: {
+    total: number; sector_filled: number; city_filled: number; both_filled: number;
+    enriched: number; pending: number; no_match: number; failed: number;
+    last_haiku_run: string | null; last_sector_run: string | null; batch_running: boolean;
+  };
+  sector_dist: { sector: string; count: number }[];
+  city_dist: { city: string; count: number }[];
+  cron_history: {
+    job_name: string; status: string; started_at: string;
+    ended_at: string | null; processed_count: number | null;
+    duration_ms: number | null; error_message: string | null;
+  }[];
+  normalize_issues: { city: string; count: number }[];
 }
 
 interface PortRiskDomain {
@@ -1061,6 +1078,37 @@ export default function AdminLeadDiscovery() {
     refetchInterval: 15_000,
   });
 
+  const {
+    data: enrichmentDash,
+    isLoading: enrichmentLoading,
+    refetch: enrichmentRefetch,
+    isFetching: enrichmentFetching,
+  } = useQuery<EnrichmentDashboard>({
+    queryKey: ["enrichment-dashboard"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/enrichment/dashboard`, { credentials: "include" });
+      if (!r.ok) throw new Error(`Dashboard alınamadı: ${r.status}`);
+      return r.json() as Promise<EnrichmentDashboard>;
+    },
+    staleTime: 3 * 60 * 1000,
+  });
+
+  const [isNormalizingCities, setIsNormalizingCities] = useState(false);
+  async function handleNormalizeCities() {
+    if (isNormalizingCities) return;
+    setIsNormalizingCities(true);
+    try {
+      const r = await fetch(`${BASE}/enrichment/normalize-cities`, { method: "POST", credentials: "include" });
+      const data = await r.json() as { updated: number; details: { from: string; to: string; count: number }[] };
+      toast({ description: `${data.updated} kayıt normalize edildi.` });
+      void enrichmentRefetch();
+    } catch {
+      toast({ description: "Normalize işlemi başarısız.", variant: "destructive" });
+    } finally {
+      setIsNormalizingCities(false);
+    }
+  }
+
   const { data: portRisk, isLoading: portRiskLoading, refetch: portRiskRefetch, isFetching: portRiskFetching } = useQuery<PortRiskData>({
     queryKey: ["lead-discovery-port-risk"],
     queryFn: async () => {
@@ -1691,6 +1739,7 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>
             <TabsTrigger value="cve-raporu">CVE Raporu</TabsTrigger>
             <TabsTrigger value="port-riski">Port Riski</TabsTrigger>
+            <TabsTrigger value="zenginlestirme">Zenginleştirme</TabsTrigger>
           </TabsList>
         </div>
 
@@ -3845,6 +3894,238 @@ export default function AdminLeadDiscovery() {
                         </TableBody>
                       </Table>
                     )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── ZENGİNLEŞTİRME TAB ──────────────────────────────────────────── */}
+        <TabsContent value="zenginlestirme">
+          <div className="space-y-4">
+            {/* Üst araç çubuğu */}
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs text-muted-foreground">Claude Haiku ile sektör/şehir zenginleştirme durumu</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    {(enrichmentDash?.normalize_issues?.length ?? 0) > 0 && (
+                      <Button
+                        size="sm" variant="outline"
+                        className="text-xs border-amber-600/50 text-amber-500 hover:bg-amber-900/20"
+                        onClick={() => void handleNormalizeCities()}
+                        disabled={isNormalizingCities}
+                      >
+                        {isNormalizingCities ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+                        {isNormalizingCities ? "Düzeltiliyor..." : `${enrichmentDash!.normalize_issues.length} şehir adı düzelt`}
+                      </Button>
+                    )}
+                    <button
+                      onClick={() => { void enrichmentRefetch(); }}
+                      disabled={enrichmentFetching}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent font-medium disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${enrichmentFetching ? "animate-spin" : ""}`} />
+                      {enrichmentFetching ? "Yükleniyor..." : "Yenile"}
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {enrichmentLoading ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">Yükleniyor...</div>
+            ) : !enrichmentDash ? null : (
+              <>
+                {/* İlerleme kartları */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Toplam Domain", value: enrichmentDash.progress.total.toLocaleString("tr"), sub: "lead_candidates", color: "text-slate-300" },
+                    { label: "Sektör Dolu", value: enrichmentDash.progress.sector_filled.toLocaleString("tr"), sub: `%${Math.round(enrichmentDash.progress.sector_filled / enrichmentDash.progress.total * 100)}`, color: "text-emerald-400" },
+                    { label: "Şehir Dolu", value: enrichmentDash.progress.city_filled.toLocaleString("tr"), sub: `%${Math.round(enrichmentDash.progress.city_filled / enrichmentDash.progress.total * 100)}`, color: "text-blue-400" },
+                    { label: "Her İkisi Dolu", value: enrichmentDash.progress.both_filled.toLocaleString("tr"), sub: `%${Math.round(enrichmentDash.progress.both_filled / enrichmentDash.progress.total * 100)}`, color: "text-cyan-400" },
+                  ].map(c => (
+                    <Card key={c.label}>
+                      <CardContent className="pt-4 pb-3">
+                        <div className={`text-2xl font-bold leading-none ${c.color}`}>{c.value}</div>
+                        <div className="text-xs font-medium mt-1">{c.label}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">{c.sub}</div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Enrichment status dağılımı */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Enriched", value: enrichmentDash.progress.enriched, icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" /> },
+                    { label: "Pending", value: enrichmentDash.progress.pending, icon: <Clock className="h-4 w-4 text-yellow-400" /> },
+                    { label: "No Match", value: enrichmentDash.progress.no_match, icon: <XCircle className="h-4 w-4 text-slate-500" /> },
+                    { label: "Failed", value: enrichmentDash.progress.failed, icon: <XCircle className="h-4 w-4 text-red-500" /> },
+                  ].map(c => (
+                    <Card key={c.label}>
+                      <CardContent className="pt-4 pb-3 flex items-center gap-3">
+                        {c.icon}
+                        <div>
+                          <div className="text-xl font-bold leading-none">{c.value.toLocaleString("tr")}</div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">{c.label}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Son cron zamanları */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Card>
+                    <CardHeader className="pb-1 pt-4 px-4">
+                      <CardTitle className="text-sm">Son Haiku Çalışması</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <div className="text-sm font-mono text-slate-300">
+                        {enrichmentDash.progress.last_haiku_run
+                          ? new Date(enrichmentDash.progress.last_haiku_run).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })
+                          : "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Her gece 02:30 İstanbul • 500 domain/gece</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-1 pt-4 px-4">
+                      <CardTitle className="text-sm">Son Sektör Enrichment</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <div className="text-sm font-mono text-slate-300">
+                        {enrichmentDash.progress.last_sector_run
+                          ? new Date(enrichmentDash.progress.last_sector_run).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })
+                          : "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Her 6 saatte bir • keyword eşleştirme</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Normalize sorunları */}
+                {enrichmentDash.normalize_issues.length > 0 && (
+                  <Card className="border-amber-600/40 bg-amber-950/20">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-sm text-amber-400 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        Normalize Edilmemiş Şehir Adları ({enrichmentDash.normalize_issues.reduce((s, r) => s + r.count, 0)} kayıt)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Bu değerler "Istanbul", "Izmir" gibi ASCII varyantlar — düzelt butonu ile canonical forma çevrilir.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <div className="flex flex-wrap gap-2">
+                        {enrichmentDash.normalize_issues.slice(0, 20).map(r => (
+                          <Badge key={r.city} variant="outline" className="border-amber-600/40 text-amber-300 text-xs">
+                            {r.city} ({r.count})
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Sektör dağılımı */}
+                <Card>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm">Sektör Dağılımı</CardTitle>
+                    <CardDescription className="text-xs">{enrichmentDash.sector_dist.reduce((s, r) => s + r.count, 0).toLocaleString("tr")} kayıt etiketli</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    {enrichmentDash.sector_dist.length === 0 ? (
+                      <div className="text-xs text-muted-foreground py-4 text-center">Henüz sektör verisi yok</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={enrichmentDash.sector_dist.slice(0, 15)} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
+                          <XAxis type="number" tick={{ fontSize: 10 }} />
+                          <YAxis type="category" dataKey="sector" width={140} tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => v.toLocaleString("tr")} />
+                          <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                            {enrichmentDash.sector_dist.slice(0, 15).map((_, i) => (
+                              <Cell key={i} fill={`hsl(${200 + i * 12}, 70%, 55%)`} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Şehir dağılımı */}
+                <Card>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm">Şehir Dağılımı</CardTitle>
+                    <CardDescription className="text-xs">{enrichmentDash.city_dist.reduce((s, r) => s + r.count, 0).toLocaleString("tr")} kayıt etiketli</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    {enrichmentDash.city_dist.length === 0 ? (
+                      <div className="text-xs text-muted-foreground py-4 text-center">Henüz şehir verisi yok</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={enrichmentDash.city_dist.slice(0, 15)} margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
+                          <XAxis dataKey="city" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={50} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => v.toLocaleString("tr")} />
+                          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                            {enrichmentDash.city_dist.slice(0, 15).map((_, i) => (
+                              <Cell key={i} fill={`hsl(${160 + i * 15}, 60%, 50%)`} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Cron geçmişi */}
+                <Card>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm">Enrichment Cron Geçmişi</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs pl-4">Cron</TableHead>
+                          <TableHead className="text-xs">Durum</TableHead>
+                          <TableHead className="text-xs">Başlangıç</TableHead>
+                          <TableHead className="text-xs">Süre</TableHead>
+                          <TableHead className="text-xs">İşlenen</TableHead>
+                          <TableHead className="text-xs pr-4">Hata</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {enrichmentDash.cron_history.map((r, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-mono text-xs py-2 pl-4">{r.job_name}</TableCell>
+                            <TableCell className="text-xs py-2">
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+                                r.status === "ok" ? "border-emerald-600/50 text-emerald-400" :
+                                r.status === "error" ? "border-red-600/50 text-red-400" :
+                                "border-yellow-600/50 text-yellow-400"
+                              }`}>
+                                {r.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">
+                              {new Date(r.started_at).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">
+                              {r.duration_ms ? `${Math.round(r.duration_ms / 1000)} sn` : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs py-2">{r.processed_count ?? "—"}</TableCell>
+                            <TableCell className="text-xs py-2 pr-4 max-w-[200px] truncate text-red-400" title={r.error_message ?? ""}>
+                              {r.error_message ? r.error_message.slice(0, 60) + (r.error_message.length > 60 ? "…" : "") : "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </CardContent>
                 </Card>
               </>

@@ -8,7 +8,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { logger } from "../../lib/logger";
-import { enrichDomain } from "./haiku-enrichment";
+import { enrichDomain, normalizeCity } from "./haiku-enrichment";
 
 const BATCH_SIZE = 500;
 const DELAY_MS = 200; // 5 istek/sn rate limit

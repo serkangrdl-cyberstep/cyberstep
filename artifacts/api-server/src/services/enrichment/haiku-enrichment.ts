@@ -32,12 +32,58 @@ export const SECTOR_LIST = [
   "Diğer",
 ];
 
-const TURKEY_CITIES = [
+export const TURKEY_CITIES = [
   "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya",
   "Adana", "Konya", "Gaziantep", "Kayseri", "Mersin",
   "Eskişehir", "Diyarbakır", "Samsun", "Trabzon", "Kocaeli",
   "Manisa", "Denizli", "Şanlıurfa", "Malatya", "Balıkesir",
 ];
+
+// ASCII/variant → canonical Turkish mapping
+const CITY_ALIASES: Record<string, string> = {
+  "istanbul":   "İstanbul",
+  "istambul":   "İstanbul",
+  "izmir":      "İzmir",
+  "izmır":      "İzmir",
+  "sanliurfa":  "Şanlıurfa",
+  "şanliurfa":  "Şanlıurfa",
+  "urfa":       "Şanlıurfa",
+  "diyarbakir": "Diyarbakır",
+  "eskisehir":  "Eskişehir",
+  "eskişehir":  "Eskişehir",
+  "kocaeli":    "Kocaeli",
+  "balikesir":  "Balıkesir",
+  "balıkesir":  "Balıkesir",
+  "malatya":    "Malatya",
+  "ankara":     "Ankara",
+  "bursa":      "Bursa",
+  "antalya":    "Antalya",
+  "adana":      "Adana",
+  "konya":      "Konya",
+  "gaziantep":  "Gaziantep",
+  "kayseri":    "Kayseri",
+  "mersin":     "Mersin",
+  "samsun":     "Samsun",
+  "trabzon":    "Trabzon",
+  "manisa":     "Manisa",
+  "denizli":    "Denizli",
+};
+
+/**
+ * Şehir adını normalize eder: "Istanbul" → "İstanbul", "Izmir" → "İzmir" vb.
+ * TURKEY_CITIES listesinde olmayan değerleri null döndürür.
+ */
+export function normalizeCity(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  const alias = CITY_ALIASES[lower];
+  if (alias) return alias;
+  // Zaten listede varsa doğrudan döndür
+  if (TURKEY_CITIES.includes(trimmed)) return trimmed;
+  return null;
+}
 
 export interface EnrichmentResult {
   sector: string | null;
@@ -101,7 +147,7 @@ SADECE JSON döndür, başka hiçbir şey yazma:
   const parsed = extractJson(raw) as Partial<EnrichmentResult>;
 
   const sector = parsed.sector && SECTOR_LIST.includes(parsed.sector) ? parsed.sector : null;
-  const city = parsed.city && TURKEY_CITIES.includes(parsed.city) ? parsed.city : null;
+  const city = normalizeCity(parsed.city as string | null | undefined);
   const confidence = (["high", "medium", "low"] as const).includes(parsed.confidence as "high" | "medium" | "low")
     ? (parsed.confidence as "high" | "medium" | "low")
     : "low";

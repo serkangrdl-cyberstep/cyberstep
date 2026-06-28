@@ -1,9 +1,11 @@
 /**
  * Admin Panel — Haiku Domain Enrichment Endpoints
  *
- * POST /api/admin-panel/enrichment/run          — batch'i fire-and-forget başlat
- * GET  /api/admin-panel/enrichment/status       — istatistik + ilerleme
- * POST /api/admin-panel/enrichment/retry-failed — failed → pending sıfırla
+ * POST /api/admin-panel/enrichment/run             — batch'i fire-and-forget başlat
+ * GET  /api/admin-panel/enrichment/status          — istatistik + ilerleme
+ * POST /api/admin-panel/enrichment/retry-failed    — failed → pending sıfırla
+ * GET  /api/admin-panel/enrichment/dashboard       — sektör/şehir dağılımı + cron geçmişi
+ * POST /api/admin-panel/enrichment/normalize-cities — mevcut DB kayıtlarını normalize et
  */
 import { Router } from "express";
 import type { Request, Response } from "express";
@@ -97,6 +99,154 @@ router.post("/admin-panel/enrichment/retry-failed", requireAdmin, async (_req: R
     logger.info({ count }, "Failed enrichment kayıtları pending'e alındı");
     res.json({ reset: count, message: `${count} kayıt yeniden kuyruğa alındı` });
   } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── GET /api/admin-panel/enrichment/dashboard ───────────────────────────────
+router.get("/admin-panel/enrichment/dashboard", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const [progress, sectorDist, cityDist, cronHistory, normalizeIssues] = await Promise.all([
+      // Genel ilerleme
+      db.execute<{
+        total: number; sector_filled: number; city_filled: number;
+        both_filled: number; enriched: number; pending: number; no_match: number; failed: number;
+        last_haiku_run: string | null; last_sector_run: string | null;
+      }>(sql`
+        SELECT
+          COUNT(*)                                                               AS total,
+          COUNT(*) FILTER (WHERE sector IS NOT NULL AND sector != '')            AS sector_filled,
+          COUNT(*) FILTER (WHERE city IS NOT NULL AND city != '')               AS city_filled,
+          COUNT(*) FILTER (WHERE sector IS NOT NULL AND sector != ''
+                             AND city IS NOT NULL AND city != '')               AS both_filled,
+          COUNT(*) FILTER (WHERE enrichment_status = 'enriched')               AS enriched,
+          COUNT(*) FILTER (WHERE enrichment_status = 'pending')                AS pending,
+          COUNT(*) FILTER (WHERE enrichment_status = 'no_match')               AS no_match,
+          COUNT(*) FILTER (WHERE enrichment_status = 'failed')                 AS failed,
+          MAX(enrichment_completed_at)                                          AS last_haiku_run,
+          MAX(sector_enriched_at)                                               AS last_sector_run
+        FROM lead_candidates
+      `),
+
+      // Sektör dağılımı (tüm lead_candidates)
+      db.execute<{ sector: string; count: number }>(sql`
+        SELECT sector, COUNT(*) AS count
+        FROM lead_candidates
+        WHERE sector IS NOT NULL AND sector != ''
+        GROUP BY sector
+        ORDER BY count DESC
+        LIMIT 20
+      `),
+
+      // Şehir dağılımı
+      db.execute<{ city: string; count: number }>(sql`
+        SELECT city, COUNT(*) AS count
+        FROM lead_candidates
+        WHERE city IS NOT NULL AND city != ''
+        GROUP BY city
+        ORDER BY count DESC
+        LIMIT 20
+      `),
+
+      // Son cron çalışmaları (enrichment ile ilgili)
+      db.execute<{
+        job_name: string; status: string; started_at: string;
+        ended_at: string | null; processed_count: number | null; duration_ms: number | null; error_message: string | null;
+      }>(sql`
+        SELECT job_name, status, started_at, ended_at, processed_count, duration_ms, error_message
+        FROM cron_job_runs
+        WHERE job_name IN ('haiku_enrichment', 'sector_enrichment', 'waf_enrichment', 'lead_tr_enrich', 'lead_web_enrich')
+        ORDER BY started_at DESC
+        LIMIT 30
+      `),
+
+      // Normalize edilmemiş şehir değerleri (bug check)
+      db.execute<{ city: string; count: number }>(sql`
+        SELECT city, COUNT(*) AS count
+        FROM lead_candidates
+        WHERE city IS NOT NULL AND city != ''
+          AND city NOT IN (
+            'İstanbul','Ankara','İzmir','Bursa','Antalya',
+            'Adana','Konya','Gaziantep','Kayseri','Mersin',
+            'Eskişehir','Diyarbakır','Samsun','Trabzon','Kocaeli',
+            'Manisa','Denizli','Şanlıurfa','Malatya','Balıkesir'
+          )
+        GROUP BY city
+        ORDER BY count DESC
+        LIMIT 30
+      `),
+    ]);
+
+    const p = progress.rows[0] ?? {};
+
+    res.json({
+      progress: {
+        total:          Number(p.total ?? 0),
+        sector_filled:  Number(p.sector_filled ?? 0),
+        city_filled:    Number(p.city_filled ?? 0),
+        both_filled:    Number(p.both_filled ?? 0),
+        enriched:       Number(p.enriched ?? 0),
+        pending:        Number(p.pending ?? 0),
+        no_match:       Number(p.no_match ?? 0),
+        failed:         Number(p.failed ?? 0),
+        last_haiku_run: p.last_haiku_run ?? null,
+        last_sector_run:p.last_sector_run ?? null,
+        batch_running:  batchRunning,
+      },
+      sector_dist: sectorDist.rows.map(r => ({ sector: r.sector, count: Number(r.count) })),
+      city_dist:   cityDist.rows.map(r => ({ city: r.city, count: Number(r.count) })),
+      cron_history: cronHistory.rows.map(r => ({
+        job_name:        r.job_name,
+        status:          r.status,
+        started_at:      r.started_at,
+        ended_at:        r.ended_at,
+        processed_count: r.processed_count,
+        duration_ms:     r.duration_ms,
+        error_message:   r.error_message,
+      })),
+      normalize_issues: normalizeIssues.rows.map(r => ({ city: r.city, count: Number(r.count) })),
+    });
+  } catch (err) {
+    logger.error({ err }, "Enrichment dashboard hatası");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── POST /api/admin-panel/enrichment/normalize-cities ───────────────────────
+// Mevcut DB'deki non-canonical şehir adlarını düzeltir (Istanbul→İstanbul vb.)
+router.post("/admin-panel/enrichment/normalize-cities", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const aliases: Array<[string, string]> = [
+      ["Istanbul", "İstanbul"], ["Istambul", "İstanbul"], ["ISTANBUL", "İstanbul"],
+      ["Izmir", "İzmir"], ["IZMIR", "İzmir"], ["Izmır", "İzmir"],
+      ["Sanliurfa", "Şanlıurfa"], ["Şanliurfa", "Şanlıurfa"], ["Urfa", "Şanlıurfa"],
+      ["Diyarbakir", "Diyarbakır"], ["DIYARBAKIR", "Diyarbakır"],
+      ["Eskisehir", "Eskişehir"], ["ESKISEHIR", "Eskişehir"],
+      ["Balikesir", "Balıkesir"], ["BALIKESIR", "Balıkesir"],
+      ["Trabzon", "Trabzon"], ["Samsun", "Samsun"],
+    ];
+
+    let totalUpdated = 0;
+    const details: Array<{ from: string; to: string; count: number }> = [];
+
+    for (const [from, to] of aliases) {
+      const result = await db.execute<{ id: number }>(sql`
+        UPDATE lead_candidates
+        SET city = ${to}
+        WHERE city = ${from}
+        RETURNING id
+      `);
+      const count = result.rows.length;
+      if (count > 0) {
+        totalUpdated += count;
+        details.push({ from, to, count });
+      }
+    }
+
+    logger.info({ totalUpdated, details }, "Şehir normalizasyonu tamamlandı");
+    res.json({ updated: totalUpdated, details });
+  } catch (err) {
+    logger.error({ err }, "Şehir normalizasyon hatası");
     res.status(500).json({ error: String(err) });
   }
 });

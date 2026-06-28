@@ -98,6 +98,11 @@ export const leadCandidatesTable = pgTable("lead_candidates", {
   // domain → DNS A → ip-api.com batch → city (var), region (il), isp_organization (var)
   region: varchar("region", { length: 100 }),
   geoEnrichedAt: timestamp("geo_enriched_at"),
+  // ─── BIST / KAP ──────────────────────────────────────────────────────────────
+  ticker: varchar("ticker", { length: 20 }),
+  bistIndexes: text("bist_indexes"),
+  bistMarket: varchar("bist_market", { length: 150 }),
+  companyEmail: varchar("company_email", { length: 255 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

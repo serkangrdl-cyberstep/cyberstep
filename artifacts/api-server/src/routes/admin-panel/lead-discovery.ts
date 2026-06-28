@@ -1415,6 +1415,11 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
       sourceList?: string;
       listRank?: string;
       city?: string;
+      ticker?: string;
+      companyEmail?: string;
+      bistIndexes?: string;
+      bistMarket?: string;
+      address?: string;
     }>;
     domains?: string[];
     source?: string;
@@ -1436,6 +1441,11 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
     sourceList: string | null;
     listRank: string | null;
     city: string | null;
+    ticker: string | null;
+    companyEmail: string | null;
+    bistIndexes: string | null;
+    bistMarket: string | null;
+    address: string | null;
   };
 
   let inputRows: InputRow[];
@@ -1448,6 +1458,11 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
       sourceList: clean(r.sourceList),
       listRank: clean(r.listRank),
       city: clean(r.city),
+      ticker: clean(r.ticker),
+      companyEmail: clean(r.companyEmail),
+      bistIndexes: clean(r.bistIndexes),
+      bistMarket: clean(r.bistMarket),
+      address: clean(r.address),
     })).filter(r => r.domain.length > 0);
   } else if (Array.isArray(body.domains) && body.domains.length > 0) {
     const sec = clean(body.sector);
@@ -1459,6 +1474,11 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
       sourceList: clean(body.label ?? null),
       listRank: null,
       city: null,
+      ticker: null,
+      companyEmail: null,
+      bistIndexes: null,
+      bistMarket: null,
+      address: null,
     })).filter(r => r.domain.length > 0);
   } else {
     res.status(400).json({ error: "rows veya domains array gerekli" });
@@ -1502,6 +1522,7 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
     const result = await db.execute(sql`
       INSERT INTO lead_candidates
         (domain, company_name, sector, sub_sector, source_list, list_rank, city,
+         ticker, company_email, bist_indexes, bist_market, scraped_address,
          source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
       SELECT * FROM unnest(
         ${sql.raw(`ARRAY[${chunk.map(r => `'${e(r.domain)}'`).join(",")}]`)}::text[],
@@ -1511,6 +1532,11 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
         ${sql.raw(`ARRAY[${chunk.map(r => nt(r.sourceList)).join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(r => nt(r.listRank)).join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(r => nt(r.city)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.ticker)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.companyEmail)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.bistIndexes)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.bistMarket)).join(",")}]`)}::text[],
+        ${sql.raw(`ARRAY[${chunk.map(r => nt(r.address)).join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(() => `'${e(src)}'`).join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(() => "'pending'").join(",")}]`)}::text[],
         ${sql.raw(`ARRAY[${chunk.map(() => "'tier2'").join(",")}]`)}::text[],
@@ -1519,15 +1545,21 @@ router.post("/admin-panel/lead-discovery/domain-add", requireAdmin, async (req: 
         ${sql.raw(`ARRAY[${chunk.map(() => "false").join(",")}]`)}::bool[],
         ${sql.raw(`ARRAY[${chunk.map(() => "0").join(",")}]`)}::int[]
       ) AS t(domain, company_name, sector, sub_sector, source_list, list_rank, city,
+             ticker, company_email, bist_indexes, bist_market, scraped_address,
              source, scan_status, tier, is_municipality, source_data, has_kev_match, waf_enrichment_attempts)
       ON CONFLICT (domain) DO UPDATE SET
-        company_name = COALESCE(EXCLUDED.company_name, lead_candidates.company_name),
-        sector       = COALESCE(EXCLUDED.sector,       lead_candidates.sector),
-        sub_sector   = COALESCE(EXCLUDED.sub_sector,   lead_candidates.sub_sector),
-        source_list  = COALESCE(EXCLUDED.source_list,  lead_candidates.source_list),
-        list_rank    = COALESCE(EXCLUDED.list_rank,    lead_candidates.list_rank),
-        city         = COALESCE(EXCLUDED.city,         lead_candidates.city),
-        updated_at   = now()
+        company_name   = COALESCE(EXCLUDED.company_name,   lead_candidates.company_name),
+        sector         = COALESCE(EXCLUDED.sector,         lead_candidates.sector),
+        sub_sector     = COALESCE(EXCLUDED.sub_sector,     lead_candidates.sub_sector),
+        source_list    = COALESCE(EXCLUDED.source_list,    lead_candidates.source_list),
+        list_rank      = COALESCE(EXCLUDED.list_rank,      lead_candidates.list_rank),
+        city           = COALESCE(EXCLUDED.city,           lead_candidates.city),
+        ticker         = COALESCE(EXCLUDED.ticker,         lead_candidates.ticker),
+        company_email  = COALESCE(EXCLUDED.company_email,  lead_candidates.company_email),
+        bist_indexes   = COALESCE(EXCLUDED.bist_indexes,   lead_candidates.bist_indexes),
+        bist_market    = COALESCE(EXCLUDED.bist_market,    lead_candidates.bist_market),
+        scraped_address = COALESCE(EXCLUDED.scraped_address, lead_candidates.scraped_address),
+        updated_at     = now()
     `);
     inserted += result.rowCount ?? 0;
 

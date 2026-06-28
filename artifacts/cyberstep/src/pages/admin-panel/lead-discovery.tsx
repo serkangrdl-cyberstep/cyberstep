@@ -1062,7 +1062,7 @@ export default function AdminLeadDiscovery() {
   const [manualLookupResult, setManualLookupResult] = useState<{ rows: LeadCandidate[]; total: number } | null>(null);
   const [manualLookupLoading, setManualLookupLoading] = useState(false);
   const [singleDomain, setSingleDomain] = useState("");
-  type ExcelRow = { domain: string; companyName?: string; sector?: string; subSector?: string; sourceList?: string; listRank?: string; city?: string };
+  type ExcelRow = { domain: string; companyName?: string; sector?: string; subSector?: string; sourceList?: string; listRank?: string; city?: string; ticker?: string; companyEmail?: string; bistIndexes?: string; bistMarket?: string; address?: string };
   const [excelParsed, setExcelParsed] = useState<ExcelRow[]>([]);
   const [excelFileName, setExcelFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1385,20 +1385,33 @@ export default function AdminLeadDiscovery() {
           // companyName
           "firmaadi": "companyName", "sirketadi": "companyName", "sirketunvani": "companyName",
           "unvan": "companyName", "firmaad": "companyName", "adi": "companyName",
-          "kurumadi": "companyName",
+          "kurumadi": "companyName", "companyname": "companyName",
           // sector
           "anasektor": "sector", "sektor": "sector", "anakategori": "sector",
           "kategori": "sector",
           // subSector
-          "altsektor": "subSector", "altkategori": "subSector", "altsektöraçıklama": "subSector",
+          "altsektor": "subSector", "altkategori": "subSector", "altsektoraciklama": "subSector",
           "aciklama": "subSector",
           // sourceList
           "listekaynagi": "sourceList", "kaynak": "sourceList", "liste": "sourceList",
           // listRank
-          "sira": "listRank", "sirakod": "listRank", "bistkodu": "listRank",
+          "sira": "listRank", "sirakod": "listRank",
           "kod": "listRank", "no": "listRank",
           // city
-          "sehir": "city", "il": "city",
+          "sehir": "city", "il": "city", "city": "city",
+          // ticker (BIST)
+          "ticker": "ticker", "bistkodu": "ticker", "borsakodu": "ticker", "hissekodu": "ticker",
+          // companyEmail
+          "email": "companyEmail", "eposta": "companyEmail", "mail": "companyEmail",
+          "sirketmail": "companyEmail", "kurumsaleposta": "companyEmail",
+          // bistIndexes
+          "indexes": "bistIndexes", "endeks": "bistIndexes", "endeksler": "bistIndexes",
+          "bistendeks": "bistIndexes", "bistendeksleri": "bistIndexes",
+          // bistMarket
+          "market": "bistMarket", "pazar": "bistMarket", "borsapazari": "bistMarket",
+          "borsapazar": "bistMarket",
+          // address
+          "adres": "address", "address": "address", "sirketadresi": "address",
         };
 
         // Her header sütununu eşleştir
@@ -1437,6 +1450,11 @@ export default function AdminLeadDiscovery() {
               sourceList: get("sourceList") || undefined,
               listRank: get("listRank") || undefined,
               city: get("city") || undefined,
+              ticker: get("ticker") || undefined,
+              companyEmail: get("companyEmail") || undefined,
+              bistIndexes: get("bistIndexes") || undefined,
+              bistMarket: get("bistMarket") || undefined,
+              address: get("address") || undefined,
             });
           }
         } else {

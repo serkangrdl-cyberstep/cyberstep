@@ -128,7 +128,8 @@ export function normalizeCity(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  const lower = trimmed.toLowerCase();
+  // Remove combining dot above (U+0307) produced by İ/Ş.toLowerCase() in Node
+  const lower = trimmed.toLowerCase().replace(/\u0307/g, "");
   const alias = CITY_ALIASES[lower];
   if (alias) return alias;
   // Zaten listede varsa doğrudan döndür

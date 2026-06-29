@@ -4945,7 +4945,7 @@ export default function AdminLeadDiscovery() {
                         className="w-full h-7 text-xs rounded border border-input bg-background px-2 font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                         value={detailEditFields.ticker}
                         onChange={e => setDetailEditFields(f => ({ ...f, ticker: e.target.value.toUpperCase() }))}
-                        placeholder="AKBNK"
+                        placeholder="Örn: GARAN"
                       />
                     </div>
                     {/* BIST Endeks */}

@@ -522,6 +522,16 @@ router.get("/admin-panel/lead-discovery/candidates", requireAdmin, async (req: R
   else if (bistIndex === "bist100") conditions.push(eq(leadCandidatesTable.isBist100, true));
   else if (bistIndex === "bist500") conditions.push(eq(leadCandidatesTable.isBist500, true));
 
+  const sourceFilter  = (req.query["source"]  as string ?? "").trim();
+  const scanStatusFilter = (req.query["scanStatus"] as string ?? "").trim();
+  const isAliveFilter = req.query["isAlive"] as string | undefined; // "true" | "false"
+  const hasFortigateFilter = req.query["hasFortigate"] === "true";
+  if (sourceFilter)     conditions.push(eq(leadCandidatesTable.source, sourceFilter));
+  if (scanStatusFilter) conditions.push(eq(leadCandidatesTable.scanStatus, scanStatusFilter));
+  if (isAliveFilter === "true")  conditions.push(eq(leadCandidatesTable.isAlive, true));
+  if (isAliveFilter === "false") conditions.push(sql`(${leadCandidatesTable.isAlive} = false OR ${leadCandidatesTable.isAlive} IS NULL)`);
+  if (hasFortigateFilter) conditions.push(eq(leadCandidatesTable.hasFortigate, true));
+
   const rows = await db.select().from(leadCandidatesTable)
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(leadCandidatesTable.createdAt))
@@ -953,6 +963,39 @@ router.get("/admin-panel/lead-discovery/export-qualified", requireAdmin, async (
 });
 
 // ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/contact ────────────
+// ─── PATCH /api/admin-panel/lead-discovery/candidates/:id ────────────────────
+router.patch("/admin-panel/lead-discovery/candidates/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = parseInt(String(req.params["id"] ?? "0"));
+  if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
+  const body = req.body as {
+    companyName?: string; sector?: string; subSector?: string; city?: string;
+    ticker?: string; bistIndexes?: string; bistMarket?: string;
+    isPublicCompany?: boolean; sourceList?: string; tier?: string; notes?: string;
+  };
+  const clean = (v: string | undefined | null) => (typeof v === "string" ? v.trim() || null : undefined);
+  const bi = body.bistIndexes !== undefined ? (body.bistIndexes.trim() || null) : undefined;
+  const updateObj: Record<string, unknown> = { updatedAt: new Date() };
+  if (body.companyName  !== undefined) updateObj["companyName"]  = clean(body.companyName);
+  if (body.sector       !== undefined) updateObj["sector"]       = clean(body.sector);
+  if (body.subSector    !== undefined) updateObj["subSector"]    = clean(body.subSector);
+  if (body.city         !== undefined) updateObj["city"]         = clean(body.city);
+  if (body.ticker       !== undefined) updateObj["ticker"]       = clean(body.ticker);
+  if (bi !== undefined) {
+    updateObj["bistIndexes"] = bi;
+    updateObj["isBist30"]  = !!(bi?.includes("BIST 30"));
+    updateObj["isBist100"] = !!(bi?.includes("BIST 100"));
+    updateObj["isBist500"] = !!(bi?.includes("BIST 500"));
+  }
+  if (body.bistMarket   !== undefined) updateObj["bistMarket"]   = clean(body.bistMarket);
+  if (body.isPublicCompany !== undefined) updateObj["isPublicCompany"] = !!body.isPublicCompany;
+  if (body.sourceList   !== undefined) updateObj["sourceList"]   = clean(body.sourceList);
+  if (body.tier         !== undefined) updateObj["tier"]         = clean(body.tier);
+  if (body.notes        !== undefined) updateObj["notes"]        = clean(body.notes);
+  await db.update(leadCandidatesTable).set(updateObj).where(eq(leadCandidatesTable.id, id));
+  const [updated] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
+  res.json({ ok: true, candidate: updated });
+});
+
 router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { contactEmail, contactName, contactTitle } = req.body as {

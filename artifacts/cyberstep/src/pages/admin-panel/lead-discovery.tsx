@@ -214,6 +214,8 @@ interface LeadCandidate {
   domain: string;
   companyName: string | null;
   sector: string | null;
+  subSector: string | null;
+  sourceList: string | null;
   city: string | null;
   source: string;
   hasFortigate: boolean;
@@ -234,6 +236,7 @@ interface LeadCandidate {
   officerName: string | null;
   officerTitle: string | null;
   isrNotes: string | null;
+  notes: string | null;
   httpStatus: number | null;
   isAlive: boolean | null;
   responseTimeMs: number | null;
@@ -252,6 +255,16 @@ interface LeadCandidate {
   ispOrganization: string | null;
   isrPromotedAt: string | null;
   isrCustomerId: number | null;
+  ticker: string | null;
+  bistIndexes: string | null;
+  bistMarket: string | null;
+  isPublicCompany: boolean;
+  isBist30: boolean;
+  isBist100: boolean;
+  isBist500: boolean;
+  sectorConfidence: string | null;
+  wafEnrichmentStatus: string | null;
+  isMunicipality: boolean;
 }
 
 interface SubdomainSummary {
@@ -955,8 +968,19 @@ export default function AdminLeadDiscovery() {
   const [filterCity, setFilterCity] = useState(""); // "" | "__empty__" | free text
   const [filterBistOnly, setFilterBistOnly] = useState(false);
   const [filterBistIndex, setFilterBistIndex] = useState(""); // "" | "bist30" | "bist100" | "bist500"
+  const [filterSource, setFilterSource] = useState("");
+  const [filterScanStatus, setFilterScanStatus] = useState("");
+  const [filterIsAlive, setFilterIsAlive] = useState(""); // "" | "true" | "false"
+  const [filterHasFortigate, setFilterHasFortigate] = useState(false);
   const [teaserPreview, setTeaserPreview] = useState<LeadCandidate | null>(null);
   const [detailCandidate, setDetailCandidate] = useState<LeadCandidate | null>(null);
+  const [detailEditOpen, setDetailEditOpen] = useState(false);
+  const [detailEditFields, setDetailEditFields] = useState<{
+    companyName: string; sector: string; subSector: string; city: string;
+    ticker: string; bistIndexes: string; bistMarket: string; isPublicCompany: boolean;
+    sourceList: string; tier: string; notes: string;
+  }>({ companyName: "", sector: "", subSector: "", city: "", ticker: "", bistIndexes: "", bistMarket: "", isPublicCompany: false, sourceList: "", tier: "", notes: "" });
+  const [detailEditSaving, setDetailEditSaving] = useState(false);
   const [fingerprintResult, setFingerprintResult] = useState<{ stack: TechStackItem[]; stackCount: number; maturity: { score: number; level: string } | null } | null>(null);
   const [filterNoContact, setFilterNoContact] = useState(false);
   const [isrNotesEdit, setIsrNotesEdit] = useState("");
@@ -1245,7 +1269,7 @@ export default function AdminLeadDiscovery() {
   const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{
     rows: LeadCandidate[]; total: number;
   }>({
-    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch, filterSector, filterCity, filterBistOnly, filterBistIndex],
+    queryKey: ["lead-candidates", page, filterQualified, filterHasContact, filterNotSent, filterTier, filterMunicipality, resultsSearch, filterSector, filterCity, filterBistOnly, filterBistIndex, filterSource, filterScanStatus, filterIsAlive, filterHasFortigate],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filterHasContact) params.set("hasContact", "true");
@@ -1258,6 +1282,10 @@ export default function AdminLeadDiscovery() {
       else if (filterCity) params.set("city", filterCity);
       if (filterBistOnly) params.set("bistOnly", "true");
       if (filterBistIndex) params.set("bistIndex", filterBistIndex);
+      if (filterSource) params.set("source", filterSource);
+      if (filterScanStatus) params.set("scanStatus", filterScanStatus);
+      if (filterIsAlive) params.set("isAlive", filterIsAlive);
+      if (filterHasFortigate) params.set("hasFortigate", "true");
       if (filterQualified) {
         return fetch(`${BASE}/lead-discovery/qualified?${params}`).then((r) => r.json());
       }
@@ -3016,6 +3044,69 @@ export default function AdminLeadDiscovery() {
                     <option value="bist100">BIST 100</option>
                     <option value="bist500">BIST 500</option>
                   </select>
+
+                  {/* Kaynak filtresi */}
+                  <select
+                    value={filterSource}
+                    onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}
+                    className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
+                  >
+                    <option value="">Kaynak: Tümü</option>
+                    <option value="certstream-bridge">Certstream</option>
+                    <option value="shodan_free">Shodan</option>
+                    <option value="ct_discovery">crt.sh</option>
+                    <option value="ripe_dns_test">RIPE DNS</option>
+                    <option value="excel_import">Excel Import</option>
+                    <option value="manual_scan">Manuel</option>
+                  </select>
+
+                  {/* Tarama durumu filtresi */}
+                  <select
+                    value={filterScanStatus}
+                    onChange={(e) => { setFilterScanStatus(e.target.value); setPage(1); }}
+                    className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
+                  >
+                    <option value="">Tarama: Tümü</option>
+                    <option value="pending">Bekliyor</option>
+                    <option value="scanned">Tarandı</option>
+                    <option value="failed">Başarısız</option>
+                    <option value="qualified">Nitelendirilen</option>
+                    <option value="disqualified">Elenen</option>
+                  </select>
+
+                  {/* Site durumu filtresi */}
+                  <select
+                    value={filterIsAlive}
+                    onChange={(e) => { setFilterIsAlive(e.target.value); setPage(1); }}
+                    className="text-xs border rounded px-2 py-1 bg-background text-foreground h-7"
+                  >
+                    <option value="">Site: Tümü</option>
+                    <option value="true">Aktif</option>
+                    <option value="false">Pasif/Bilinmiyor</option>
+                  </select>
+
+                  {/* Fortinet filtresi */}
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <Checkbox
+                      checked={filterHasFortigate}
+                      onCheckedChange={(v) => { setFilterHasFortigate(!!v); setPage(1); }}
+                    />
+                    Fortinet
+                  </label>
+
+                  {/* Aktif filtre sayısı + temizle */}
+                  {(filterSource || filterScanStatus || filterIsAlive || filterHasFortigate || filterSector || filterCity || filterBistOnly) && (
+                    <button
+                      onClick={() => {
+                        setFilterSource(""); setFilterScanStatus(""); setFilterIsAlive("");
+                        setFilterHasFortigate(false); setFilterSector(""); setFilterCity("");
+                        setFilterBistOnly(false); setFilterBistIndex(""); setPage(1);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                    >
+                      Filtreleri temizle
+                    </button>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -4723,7 +4814,7 @@ export default function AdminLeadDiscovery() {
 
       {/* Lead Detail Dialog */}
       {!!detailCandidate && (
-        <Dialog open={!!detailCandidate} onOpenChange={() => { setDetailCandidate(null); setFingerprintResult(null); }}>
+        <Dialog open={!!detailCandidate} onOpenChange={() => { setDetailCandidate(null); setFingerprintResult(null); setDetailEditOpen(false); }}>
           <DialogContent className="max-w-xl w-[95vw] max-h-[90dvh] overflow-hidden flex flex-col p-0">
             <DialogHeader className="px-4 pt-4 pb-2 shrink-0 border-b">
               <DialogTitle className="font-mono text-base flex items-center gap-2">
@@ -4737,9 +4828,217 @@ export default function AdminLeadDiscovery() {
                 >
                   Siteyi Aç ↗
                 </a>
+                <button
+                  className={`ml-auto text-xs px-2 py-0.5 rounded border transition-colors font-sans font-normal ${detailEditOpen ? "bg-primary text-primary-foreground border-primary" : "border-input hover:bg-accent"}`}
+                  onClick={() => {
+                    if (!detailEditOpen) {
+                      setDetailEditFields({
+                        companyName:    detailCandidate.companyName    ?? "",
+                        sector:         detailCandidate.sector         ?? "",
+                        subSector:      detailCandidate.subSector      ?? "",
+                        city:           detailCandidate.city           ?? "",
+                        ticker:         detailCandidate.ticker         ?? "",
+                        bistIndexes:    detailCandidate.bistIndexes    ?? "",
+                        bistMarket:     detailCandidate.bistMarket     ?? "",
+                        isPublicCompany: detailCandidate.isPublicCompany ?? false,
+                        sourceList:     detailCandidate.sourceList     ?? "",
+                        tier:           detailCandidate.tier           ?? "",
+                        notes:          detailCandidate.notes          ?? "",
+                      });
+                    }
+                    setDetailEditOpen(v => !v);
+                  }}
+                >
+                  {detailEditOpen ? "Kapat" : "Düzenle"}
+                </button>
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 text-sm overflow-y-auto flex-1 min-h-0 overscroll-contain px-4 py-4">
+
+              {/* Manuel Düzenleme Formu */}
+              {detailEditOpen && (
+                <div className="border border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+                  <div className="text-xs font-semibold text-primary uppercase tracking-wide">Manuel Güncelleme</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {/* Şirket Adı */}
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground block mb-0.5">Şirket Adı</label>
+                      <input
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.companyName}
+                        onChange={e => setDetailEditFields(f => ({ ...f, companyName: e.target.value }))}
+                        placeholder="Şirket adı"
+                      />
+                    </div>
+                    {/* Sektör */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">Sektör</label>
+                      <select
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.sector}
+                        onChange={e => setDetailEditFields(f => ({ ...f, sector: e.target.value }))}
+                      >
+                        <option value="">—</option>
+                        <option>Finans</option><option>Saglik</option><option>Perakende</option>
+                        <option>Imalat</option><option>Bilisim</option><option>Lojistik</option>
+                        <option>Insaat</option><option>Egitim</option><option>Turizm</option>
+                        <option>Enerji</option><option>Tarım</option><option>Medya</option>
+                        <option>Telekomünikasyon</option><option>Otomotiv</option><option>Kamu</option>
+                      </select>
+                    </div>
+                    {/* Alt Sektör */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">Alt Sektör</label>
+                      <input
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.subSector}
+                        onChange={e => setDetailEditFields(f => ({ ...f, subSector: e.target.value }))}
+                        placeholder="Alt sektör"
+                      />
+                    </div>
+                    {/* Şehir */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">Şehir</label>
+                      <select
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.city}
+                        onChange={e => setDetailEditFields(f => ({ ...f, city: e.target.value }))}
+                      >
+                        <option value="">—</option>
+                        <option>Istanbul</option><option>Ankara</option><option>Izmir</option>
+                        <option>Bursa</option><option>Antalya</option><option>Adana</option>
+                        <option>Gaziantep</option><option>Konya</option><option>Kocaeli</option>
+                        <option>Mersin</option><option>Diyarbakır</option><option>Eskişehir</option>
+                        <option>Samsun</option><option>Trabzon</option><option>Manisa</option>
+                      </select>
+                    </div>
+                    {/* Tier */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">Tier</label>
+                      <select
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.tier}
+                        onChange={e => setDetailEditFields(f => ({ ...f, tier: e.target.value }))}
+                      >
+                        <option value="">—</option>
+                        <option value="tier1">Tier 1 — Qualified</option>
+                        <option value="tier2">Tier 2</option>
+                        <option value="tier3">Tier 3</option>
+                      </select>
+                    </div>
+                    {/* BIST Bölümü */}
+                    <div className="col-span-2 pt-1 border-t border-input">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer mb-2">
+                        <input
+                          type="checkbox"
+                          checked={detailEditFields.isPublicCompany}
+                          onChange={e => setDetailEditFields(f => ({ ...f, isPublicCompany: e.target.checked }))}
+                          className="rounded"
+                        />
+                        <span className="text-muted-foreground">Halka Açık Şirket (BIST)</span>
+                      </label>
+                    </div>
+                    {/* Ticker */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">BIST Ticker</label>
+                      <input
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.ticker}
+                        onChange={e => setDetailEditFields(f => ({ ...f, ticker: e.target.value.toUpperCase() }))}
+                        placeholder="AKBNK"
+                      />
+                    </div>
+                    {/* BIST Endeks */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">BIST Endeks</label>
+                      <select
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.bistIndexes}
+                        onChange={e => setDetailEditFields(f => ({ ...f, bistIndexes: e.target.value }))}
+                      >
+                        <option value="">—</option>
+                        <option value="BIST 30">BIST 30</option>
+                        <option value="BIST 100">BIST 100</option>
+                        <option value="BIST 500">BIST 500</option>
+                        <option value="BIST 30, BIST 100">BIST 30 + 100</option>
+                        <option value="BIST 30, BIST 100, BIST 500">BIST 30 + 100 + 500</option>
+                      </select>
+                    </div>
+                    {/* BIST Pazar */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">BIST Pazar</label>
+                      <select
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.bistMarket}
+                        onChange={e => setDetailEditFields(f => ({ ...f, bistMarket: e.target.value }))}
+                      >
+                        <option value="">—</option>
+                        <option value="Yıldız Pazar">Yıldız Pazar</option>
+                        <option value="Ana Pazar">Ana Pazar</option>
+                        <option value="Alt Pazar">Alt Pazar</option>
+                        <option value="Yakın İzleme Pazarı">Yakın İzleme Pazarı</option>
+                      </select>
+                    </div>
+                    {/* Liste Kaynağı */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-0.5">Liste Kaynağı</label>
+                      <input
+                        className="w-full h-7 text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.sourceList}
+                        onChange={e => setDetailEditFields(f => ({ ...f, sourceList: e.target.value }))}
+                        placeholder="KAP, Forbes500..."
+                      />
+                    </div>
+                    {/* Notlar */}
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground block mb-0.5">Notlar</label>
+                      <textarea
+                        rows={2}
+                        className="w-full text-xs rounded border border-input bg-background px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={detailEditFields.notes}
+                        onChange={e => setDetailEditFields(f => ({ ...f, notes: e.target.value }))}
+                        placeholder="Dahili not..."
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      disabled={detailEditSaving}
+                      onClick={async () => {
+                        setDetailEditSaving(true);
+                        try {
+                          const r = await fetch(`${BASE}/lead-discovery/candidates/${detailCandidate.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify(detailEditFields),
+                          });
+                          if (!r.ok) throw new Error("Güncelleme başarısız");
+                          const { candidate } = await r.json() as { candidate: LeadCandidate };
+                          setDetailCandidate(candidate);
+                          setDetailEditOpen(false);
+                          toast({ description: "Kayıt güncellendi" });
+                          void qc.invalidateQueries({ queryKey: ["lead-candidates"] });
+                        } catch {
+                          toast({ description: "Güncelleme sırasında hata oluştu", variant: "destructive" });
+                        } finally {
+                          setDetailEditSaving(false);
+                        }
+                      }}
+                    >
+                      {detailEditSaving ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Kaydediliyor...</> : "Kaydet"}
+                    </Button>
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setDetailEditOpen(false)}
+                    >
+                      Vazgeç
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Şirket bilgisi */}
               {detailCandidate.companyName && (
                 <div>

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X, Loader2, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X, Loader2, CheckCircle2, Clock, XCircle, Upload } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import pdfLeads from "../../data/pdf-leads-2026-06.json";
 import { AdminLayout } from "../../components/admin-layout";
@@ -1433,13 +1433,16 @@ export default function AdminLeadDiscovery() {
           // domain
           "domain": "domain", "websitesi": "domain", "internetadresi": "domain",
           "websiteniz": "domain", "webadres": "domain", "url": "domain",
+          "website": "domain", "webadresi": "domain", "internetsitesi": "domain",
+          "site": "domain", "weblink": "domain", "link": "domain",
           // companyName
           "firmaadi": "companyName", "sirketadi": "companyName", "sirketunvani": "companyName",
           "unvan": "companyName", "firmaad": "companyName", "adi": "companyName",
           "kurumadi": "companyName", "companyname": "companyName",
+          "ortaklikadi": "companyName", "sirketismi": "companyName", "isim": "companyName",
           // sector
           "anasektor": "sector", "sektor": "sector", "sector": "sector",
-          "anakategori": "sector", "kategori": "sector",
+          "anakategori": "sector", "kategori": "sector", "sektorgrubu": "sector",
           // subSector
           "altsektor": "subSector", "altkategori": "subSector", "altsektoraciklama": "subSector",
           "aciklama": "subSector",
@@ -1450,17 +1453,21 @@ export default function AdminLeadDiscovery() {
           "kod": "listRank", "no": "listRank",
           // city
           "sehir": "city", "il": "city", "city": "city",
-          // ticker (BIST)
+          // ticker (BIST) — KAP ve diğer BIST veri kaynaklarından gelen tüm olası isimler
           "ticker": "ticker", "bistkodu": "ticker", "borsakodu": "ticker", "hissekodu": "ticker",
+          "sembol": "ticker", "bistsembol": "ticker", "hissesembol": "ticker",
+          "sirketkodu": "ticker", "menkulsembol": "ticker", "enstrumankodu": "ticker",
+          "symbol": "ticker", "stocksymbol": "ticker", "code": "ticker",
           // companyEmail
           "email": "companyEmail", "eposta": "companyEmail", "mail": "companyEmail",
           "sirketmail": "companyEmail", "kurumsaleposta": "companyEmail",
           // bistIndexes
           "indexes": "bistIndexes", "endeks": "bistIndexes", "endeksler": "bistIndexes",
           "bistendeks": "bistIndexes", "bistendeksleri": "bistIndexes",
+          "endeksbilgisi": "bistIndexes", "hangiendeks": "bistIndexes",
           // bistMarket
           "market": "bistMarket", "pazar": "bistMarket", "borsapazari": "bistMarket",
-          "borsapazar": "bistMarket",
+          "borsapazar": "bistMarket", "islemgoru": "bistMarket", "borsa": "bistMarket",
           // address
           "adres": "address", "address": "address", "sirketadresi": "address",
         };
@@ -4276,63 +4283,216 @@ export default function AdminLeadDiscovery() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">BIST Etiketleme</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 <p className="text-xs text-muted-foreground">
-                  Mevcut domain kayıtlarını BIST verileriyle etiketler. Her satır: <code className="bg-muted px-1 rounded">domain,ticker,bistIndexes,bistMarket</code><br />
-                  Örnek: <code className="bg-muted px-1 rounded">akbank.com,AKBNK,BIST 30,Yıldız</code> — bistIndexes boş bırakılabilir.
+                  Mevcut domain kayıtlarını BIST verileriyle etiketler — yeni kayıt eklemez, sadece var olanları günceller.
+                  Aynı Excel dosyasını buradan yükleyerek ticker/endeks bilgilerini otomatik eşleştirebilirsiniz.
                 </p>
-                <textarea
-                  value={bistRetagInput}
-                  onChange={(e) => setBistRetagInput(e.target.value)}
-                  placeholder={"akbank.com,AKBNK,BIST 30,Yıldız\ngaranti.com.tr,GARAN,BIST 30,Yıldız\nkoçsistem.com.tr,KCSIT,BIST 100,Ana Pazar"}
-                  rows={6}
-                  className="w-full text-xs font-mono bg-muted border border-input rounded-md p-2 resize-y focus:outline-none"
-                />
-                <div className="flex items-center gap-3">
-                  <Button
-                    size="sm"
-                    disabled={bistRetagLoading || !bistRetagInput.trim()}
-                    onClick={async () => {
+
+                {/* Excel Upload */}
+                <div
+                  className="border-2 border-dashed border-input rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                  onClick={() => document.getElementById("bist-retag-file")?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files[0];
+                    if (!file) return;
+                    setBistRetagLoading(true);
+                    setBistRetagResult(null);
+                    try {
+                      const XLSX = await import("xlsx");
+                      const buf = await file.arrayBuffer();
+                      const wb = XLSX.read(buf, { type: "array" });
+                      const ws = wb.Sheets[wb.SheetNames[0]];
+                      const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+                      const norm = (s: string) => s.toLowerCase()
+                        .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g")
+                        .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ı/g, "i")
+                        .replace(/[^a-z0-9]/g, "");
+                      const COL: Record<string, "domain"|"ticker"|"bistIndexes"|"bistMarket"> = {
+                        "domain":"domain","websitesi":"domain","website":"domain","webadresi":"domain",
+                        "internetadresi":"domain","webadres":"domain","url":"domain","site":"domain","link":"domain",
+                        "ticker":"ticker","bistkodu":"ticker","borsakodu":"ticker","hissekodu":"ticker",
+                        "sembol":"ticker","bistsembol":"ticker","hissesembol":"ticker","sirketkodu":"ticker",
+                        "menkulsembol":"ticker","symbol":"ticker","code":"ticker",
+                        "endeks":"bistIndexes","endeksler":"bistIndexes","bistendeks":"bistIndexes",
+                        "indexes":"bistIndexes","endeksbilgisi":"bistIndexes",
+                        "pazar":"bistMarket","market":"bistMarket","borsapazari":"bistMarket","borsa":"bistMarket",
+                      };
+                      const keys = rawRows.length > 0 ? Object.keys(rawRows[0]) : [];
+                      const hmap: Record<string, "domain"|"ticker"|"bistIndexes"|"bistMarket"> = {};
+                      for (const k of keys) { const n = norm(k); if (COL[n]) hmap[k] = COL[n]; }
+                      const hasDomain = Object.values(hmap).includes("domain");
+                      const get = (row: Record<string,string>, field: string) => {
+                        const key = Object.entries(hmap).find(([,v]) => v === field)?.[0];
+                        return key ? String(row[key] ?? "").trim() : "";
+                      };
+                      const normDomain = (d: string) =>
+                        d.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/.*/,"").trim().toLowerCase();
+                      const rows: {domain:string;ticker:string;bistIndexes:string;bistMarket:string}[] = [];
+                      if (hasDomain) {
+                        for (const row of rawRows) {
+                          const d = normDomain(get(row,"domain"));
+                          if (d.length < 4) continue;
+                          rows.push({ domain: d, ticker: get(row,"ticker"), bistIndexes: get(row,"bistIndexes"), bistMarket: get(row,"bistMarket") });
+                        }
+                      }
+                      if (rows.length === 0) {
+                        toast({ description: `Domain kolonu bulunamadı. Desteklenen isimler: domain, website, web sitesi, url, site, link`, variant: "destructive" });
+                        return;
+                      }
+                      const r = await fetch(`${BASE}/lead-discovery/bist-retag`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        credentials: "include", body: JSON.stringify({ rows }),
+                      });
+                      const data = await r.json() as { updated: number; notFound: string[] };
+                      setBistRetagResult(data);
+                      if (data.updated > 0) void bistRefetch();
+                    } catch (err) {
+                      toast({ description: "Excel okunamadı", variant: "destructive" });
+                    } finally {
+                      setBistRetagLoading(false);
+                    }
+                  }}
+                >
+                  <input
+                    id="bist-retag-file"
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      e.target.value = "";
                       setBistRetagLoading(true);
                       setBistRetagResult(null);
                       try {
-                        const lines = bistRetagInput.trim().split("\n").filter(Boolean);
-                        const rows = lines.map(line => {
-                          const parts = line.split(",").map(s => s.trim());
-                          return {
-                            domain:      parts[0] ?? "",
-                            ticker:      parts[1] ?? "",
-                            bistIndexes: parts[2] ?? "",
-                            bistMarket:  parts[3] ?? "",
-                          };
-                        }).filter(r => r.domain);
+                        const XLSX = await import("xlsx");
+                        const buf = await file.arrayBuffer();
+                        const wb = XLSX.read(buf, { type: "array" });
+                        const ws = wb.Sheets[wb.SheetNames[0]];
+                        const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+                        const norm = (s: string) => s.toLowerCase()
+                          .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g")
+                          .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ı/g, "i")
+                          .replace(/[^a-z0-9]/g, "");
+                        const COL: Record<string, "domain"|"ticker"|"bistIndexes"|"bistMarket"> = {
+                          "domain":"domain","websitesi":"domain","website":"domain","webadresi":"domain",
+                          "internetadresi":"domain","webadres":"domain","url":"domain","site":"domain","link":"domain",
+                          "ticker":"ticker","bistkodu":"ticker","borsakodu":"ticker","hissekodu":"ticker",
+                          "sembol":"ticker","bistsembol":"ticker","hissesembol":"ticker","sirketkodu":"ticker",
+                          "menkulsembol":"ticker","symbol":"ticker","code":"ticker",
+                          "endeks":"bistIndexes","endeksler":"bistIndexes","bistendeks":"bistIndexes",
+                          "indexes":"bistIndexes","endeksbilgisi":"bistIndexes",
+                          "pazar":"bistMarket","market":"bistMarket","borsapazari":"bistMarket","borsa":"bistMarket",
+                        };
+                        const keys = rawRows.length > 0 ? Object.keys(rawRows[0]) : [];
+                        const hmap: Record<string, "domain"|"ticker"|"bistIndexes"|"bistMarket"> = {};
+                        for (const k of keys) { const n = norm(k); if (COL[n]) hmap[k] = COL[n]; }
+                        const hasDomain = Object.values(hmap).includes("domain");
+                        const get = (row: Record<string,string>, field: string) => {
+                          const key = Object.entries(hmap).find(([,v]) => v === field)?.[0];
+                          return key ? String(row[key] ?? "").trim() : "";
+                        };
+                        const normDomain = (d: string) =>
+                          d.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/.*/,"").trim().toLowerCase();
+                        const rows: {domain:string;ticker:string;bistIndexes:string;bistMarket:string}[] = [];
+                        if (hasDomain) {
+                          for (const row of rawRows) {
+                            const d = normDomain(get(row,"domain"));
+                            if (d.length < 4) continue;
+                            rows.push({ domain: d, ticker: get(row,"ticker"), bistIndexes: get(row,"bistIndexes"), bistMarket: get(row,"bistMarket") });
+                          }
+                        }
+                        if (rows.length === 0) {
+                          toast({ description: `Domain kolonu bulunamadı. Desteklenen isimler: domain, website, web sitesi, url, site, link`, variant: "destructive" });
+                          return;
+                        }
                         const r = await fetch(`${BASE}/lead-discovery/bist-retag`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          credentials: "include",
-                          body: JSON.stringify({ rows }),
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          credentials: "include", body: JSON.stringify({ rows }),
                         });
                         const data = await r.json() as { updated: number; notFound: string[] };
                         setBistRetagResult(data);
                         if (data.updated > 0) void bistRefetch();
                       } catch {
-                        toast({ description: "BIST etiketleme hatası", variant: "destructive" });
+                        toast({ description: "Excel okunamadı", variant: "destructive" });
                       } finally {
                         setBistRetagLoading(false);
                       }
                     }}
-                  >
-                    {bistRetagLoading ? "Etiketleniyor..." : "Etiketle"}
-                  </Button>
-                  {bistRetagResult && (
-                    <span className="text-xs text-muted-foreground">
-                      <span className="text-green-500 font-medium">{bistRetagResult.updated} güncellendi</span>
-                      {bistRetagResult.notFound.length > 0 && (
-                        <span className="text-muted-foreground ml-2">· {bistRetagResult.notFound.length} bulunamadı: {bistRetagResult.notFound.slice(0, 5).join(", ")}{bistRetagResult.notFound.length > 5 ? "..." : ""}</span>
-                      )}
-                    </span>
+                  />
+                  {bistRetagLoading ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Etiketleniyor...
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground py-2">
+                      <Upload className="h-5 w-5 mx-auto mb-1 text-muted-foreground/60" />
+                      BIST Excel dosyanızı buraya sürükleyin veya tıklayın
+                      <div className="text-xs mt-1 text-muted-foreground/60">
+                        Domain kolonu: <span className="font-mono">domain / website / web sitesi / url</span>
+                        &nbsp;·&nbsp; Ticker: <span className="font-mono">ticker / hisse kodu / sembol / borsa kodu</span>
+                      </div>
+                    </div>
                   )}
                 </div>
+
+                {bistRetagResult && (
+                  <div className={`text-sm rounded-md px-3 py-2 ${bistRetagResult.updated > 0 ? "bg-green-950/40 border border-green-800/40 text-green-400" : "bg-slate-800 text-muted-foreground"}`}>
+                    <span className="font-medium">{bistRetagResult.updated} kayıt güncellendi</span>
+                    {bistRetagResult.notFound.length > 0 && (
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        · {bistRetagResult.notFound.length} domain sistemde bulunamadı (önce Lead Import ile ekleyin)
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* CSV manuel giriş — alternatif */}
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Manuel CSV girişi (alternatif)</summary>
+                  <div className="mt-2 space-y-2">
+                    <p>Her satır: <code className="bg-muted px-1 rounded">domain,ticker,bistEndeks,bistPazar</code></p>
+                    <textarea
+                      value={bistRetagInput}
+                      onChange={(e) => setBistRetagInput(e.target.value)}
+                      placeholder={"akbank.com,AKBNK,BIST 30,Yıldız\ngaranti.com.tr,GARAN,BIST 30,Yıldız"}
+                      rows={5}
+                      className="w-full font-mono bg-muted border border-input rounded-md p-2 resize-y focus:outline-none"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={bistRetagLoading || !bistRetagInput.trim()}
+                      onClick={async () => {
+                        setBistRetagLoading(true);
+                        setBistRetagResult(null);
+                        try {
+                          const lines = bistRetagInput.trim().split("\n").filter(Boolean);
+                          const rows = lines.map(line => {
+                            const parts = line.split(",").map(s => s.trim());
+                            return { domain: parts[0] ?? "", ticker: parts[1] ?? "", bistIndexes: parts[2] ?? "", bistMarket: parts[3] ?? "" };
+                          }).filter(r => r.domain);
+                          const r = await fetch(`${BASE}/lead-discovery/bist-retag`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            credentials: "include", body: JSON.stringify({ rows }),
+                          });
+                          const data = await r.json() as { updated: number; notFound: string[] };
+                          setBistRetagResult(data);
+                          if (data.updated > 0) void bistRefetch();
+                        } catch {
+                          toast({ description: "BIST etiketleme hatası", variant: "destructive" });
+                        } finally {
+                          setBistRetagLoading(false);
+                        }
+                      }}
+                    >
+                      {bistRetagLoading ? "Etiketleniyor..." : "Etiketle"}
+                    </Button>
+                  </div>
+                </details>
               </CardContent>
             </Card>
 

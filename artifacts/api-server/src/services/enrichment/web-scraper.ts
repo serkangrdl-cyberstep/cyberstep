@@ -297,6 +297,103 @@ function extractAddress(text: string): string | null {
   return m ? m[0].replace(/\s+/g, " ").trim().slice(0, 300) : null;
 }
 
+// ─── mailto: href çıkarımı ────────────────────────────────────────────────────
+// Raw text regex'ten çok daha güvenilir — siteler genellikle tıklanabilir
+// mailto: linklerinde gerçek adresi yazar, metne gömülü adresi obfuskle eder.
+
+function extractMailtoEmails(html: string): string[] {
+  const found = new Set<string>();
+  const re = /href=["']mailto:([^"'?\s]+)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const e = m[1].toLowerCase().replace(/^mailto:/i, "");
+    if (e.includes("@") && e.length <= 100) found.add(e);
+  }
+  return Array.from(found);
+}
+
+// ─── HTML entity + metin obfuskasyon çözücü ──────────────────────────────────
+// Türk KOBİ sitelerinde yaygın: &#64; &#46; [at] (at) [dot] varyantları
+
+function decodeObfuscatedText(html: string): string {
+  return html
+    // Numerik HTML entity'ler → karakter
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    // Metin obfuskasyonu
+    .replace(/\s*\[\s*at\s*\]\s*/gi, "@")
+    .replace(/\s*\(\s*at\s*\)\s*/gi, "@")
+    .replace(/\s+at\s+(?=[a-z0-9])/gi, "@")
+    .replace(/\s*\[\s*dot\s*\]\s*/gi, ".")
+    .replace(/\s*\(\s*dot\s*\)\s*/gi, ".")
+    .replace(/\[arobase\]/gi, "@")
+    .replace(/\(arobase\)/gi, "@");
+}
+
+// ─── JSON-LD / Schema.org çıkarımı ───────────────────────────────────────────
+// WordPress, Joomla, OpenCart sitelerin büyük çoğunluğu LocalBusiness / Organization
+// schema'sı içeriyor: telephone, email, address (streetAddress + addressLocality).
+
+interface JsonLdContact {
+  phone:       string | null;
+  email:       string | null;
+  address:     string | null;
+  city:        string | null;
+  foundedYear: number | null;
+}
+
+function extractJsonLd(html: string): JsonLdContact {
+  const out: JsonLdContact = { phone: null, email: null, address: null, city: null, foundedYear: null };
+  const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = scriptRe.exec(html)) !== null) {
+    try {
+      const data: unknown = JSON.parse(m[1].trim());
+      const items = Array.isArray(data) ? data : [data];
+      for (const raw of items) {
+        if (!raw || typeof raw !== "object") continue;
+        const item = raw as Record<string, unknown>;
+
+        // telephone
+        if (!out.phone && typeof item.telephone === "string" && item.telephone.trim()) {
+          out.phone = item.telephone.trim();
+        }
+        // email
+        if (!out.email && typeof item.email === "string" && item.email.includes("@")) {
+          out.email = item.email.toLowerCase().trim();
+        }
+        // address (PostalAddress veya string)
+        const addr = item.address;
+        if (addr && !out.address) {
+          if (typeof addr === "string" && addr.length > 5) {
+            out.address = addr.slice(0, 300);
+          } else if (typeof addr === "object") {
+            const a = addr as Record<string, unknown>;
+            const parts = (["streetAddress", "addressLocality", "addressRegion"] as const)
+              .map(k => (typeof a[k] === "string" ? (a[k] as string).trim() : ""))
+              .filter(Boolean);
+            if (parts.length) out.address = parts.join(", ").slice(0, 300);
+            if (!out.city && typeof a.addressLocality === "string") {
+              out.city = (a.addressLocality as string).trim();
+            }
+          }
+        }
+        // foundingDate / foundingYear
+        if (!out.foundedYear) {
+          const founding = item.foundingDate ?? item.foundingYear;
+          if (founding) {
+            const yr = parseInt(String(founding), 10);
+            const now = new Date().getFullYear();
+            if (yr >= 1900 && yr <= now) out.foundedYear = yr;
+          }
+        }
+      }
+    } catch { /* geçersiz JSON-LD — atla */ }
+    if (out.phone && out.email && out.address && out.city && out.foundedYear) break;
+  }
+  return out;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -572,30 +669,54 @@ export async function scrapeDomain(
     anyPathExists(base, CAREER_PATHS),
   ]);
 
-  // ─── Regex ile hızlı çıkarım ─────────────────────────────────────────────
+  // ─── Çıkarım katmanları ───────────────────────────────────────────────────
   const combinedHtml = homeHtml + contactHtml;
+  const allHtml      = homeHtml + contactHtml + aboutHtml;
 
-  const emails = extractEmails(combinedHtml);
-  const email = rankBestEmail(emails);
+  // Katman 1: JSON-LD / Schema.org (en güvenilir, önce çek)
+  const jsonLd = extractJsonLd(allHtml);
+
+  // Katman 2: mailto: href + obfuskasyon çözme + ham regex (waterfall)
+  const decodedCombined = decodeObfuscatedText(combinedHtml);
+  const allEmails = [
+    ...extractMailtoEmails(combinedHtml),          // href="mailto:..."
+    ...extractEmails(decodedCombined),             // [at]/&#64; çözülmüş regex
+    ...(jsonLd.email ? [jsonLd.email] : []),       // JSON-LD email
+  ];
+  const email      = rankBestEmail(allEmails);
   const emailDomain = email ? (email.split("@")[1] ?? null) : null;
-  const phone = extractPhone(contactHtml || homeHtml);
-  const title = extractTitle(homeHtml);
-  const metaDesc = extractMetaDesc(homeHtml);
-  const linkedinUrl = extractLinkedin(combinedHtml);
-  const instagramUrl = extractInstagram(combinedHtml);
-  const cmsDetected = detectCms(homeHtml);
-  const hasEcommerce = detectEcommerce(homeHtml);
-  const isB2bRegex = detectB2b(homeHtml);
-  const foundedYearRegex = extractFoundedYear(homeHtml + aboutHtml);
 
-  const contactText = contactHtml ? stripHtml(contactHtml).slice(0, 700) : null;
-  const aboutText = aboutHtml ? stripHtml(aboutHtml).slice(0, 1000) : null;
-  const address = contactText ? extractAddress(contactText) : null;
+  // Telefon: JSON-LD > iletişim sayfası > homepage > obfuske çözülmüş
+  const phone = jsonLd.phone
+    ?? extractPhone(contactHtml || homeHtml)
+    ?? extractPhone(decodeObfuscatedText(contactHtml || homeHtml));
+
+  const title        = extractTitle(homeHtml);
+  const metaDesc     = extractMetaDesc(homeHtml);
+  const linkedinUrl  = extractLinkedin(combinedHtml);
+  const instagramUrl = extractInstagram(combinedHtml);
+  const cmsDetected  = detectCms(homeHtml);
+  const hasEcommerce = detectEcommerce(homeHtml);
+  const isB2bRegex   = detectB2b(homeHtml);
+
+  const contactText  = contactHtml ? stripHtml(contactHtml).slice(0, 700) : null;
+  const aboutText    = aboutHtml   ? stripHtml(aboutHtml).slice(0, 1000)  : null;
+
+  // Adres: JSON-LD > iletişim sayfası regex
+  const address      = jsonLd.address ?? (contactText ? extractAddress(contactText) : null);
+
+  // Kuruluş yılı: JSON-LD > regex
+  const foundedYearRegex = jsonLd.foundedYear ?? extractFoundedYear(homeHtml + aboutHtml);
 
   // ─── Ücretsiz şehir + sektör tespiti ─────────────────────────────────────
   const combinedText = [contactText, aboutText, address].filter(Boolean).join(" ");
-  const sectorText = [metaDesc, title, contactText, aboutText].filter(Boolean).join(" ");
-  const city = detectCityFromText(combinedText);
+  const sectorText   = [metaDesc, title, contactText, aboutText].filter(Boolean).join(" ");
+
+  // Şehir: JSON-LD addressLocality > regex (81 il)
+  const city = jsonLd.city
+    ? (normalizeCity(jsonLd.city) ?? jsonLd.city)
+    : detectCityFromText(combinedText);
+
   const { sector, confidence: sectorConfidence } = detectSector(sectorText);
 
   // ─── Sonuç birleştirme ────────────────────────────────────────────────────

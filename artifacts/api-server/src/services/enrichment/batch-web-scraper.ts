@@ -67,6 +67,11 @@ export async function runWebScrapeBatch(): Promise<WebScrapeBatchResult> {
             web_scrape_status = 'scraped'
             AND web_scraped_at < NOW() - INTERVAL '${sql.raw(String(REFRESH_DAYS))} days'
           )
+          OR (
+            web_scrape_status = 'scraped'
+            AND city IS NULL
+            AND web_scraped_at < NOW() - INTERVAL '7 days'
+          )
         )
       ORDER BY
         CASE

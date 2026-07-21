@@ -709,10 +709,12 @@ export async function scrapeDomain(
   const foundedYearRegex = jsonLd.foundedYear ?? extractFoundedYear(homeHtml + aboutHtml);
 
   // ─── Ücretsiz şehir + sektör tespiti ─────────────────────────────────────
-  const combinedText = [contactText, aboutText, address].filter(Boolean).join(" ");
+  // homeText: footer + header bölgesi şehir bilgisi için (250K → 3000 char yeterli)
+  const homeText     = homeHtml ? stripHtml(homeHtml).slice(0, 3000) : null;
+  const combinedText = [title, metaDesc, contactText, aboutText, address, homeText].filter(Boolean).join(" ");
   const sectorText   = [metaDesc, title, contactText, aboutText].filter(Boolean).join(" ");
 
-  // Şehir: JSON-LD addressLocality > regex (81 il)
+  // Şehir: JSON-LD addressLocality > geniş metin taraması (title+meta+contact+about+home)
   const city = jsonLd.city
     ? (normalizeCity(jsonLd.city) ?? jsonLd.city)
     : detectCityFromText(combinedText);

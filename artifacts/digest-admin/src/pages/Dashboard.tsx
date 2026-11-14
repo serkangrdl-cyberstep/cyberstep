@@ -112,6 +112,81 @@ function PipelineStep({
   );
 }
 
+// ─── İçerik sağlığı ───────────────────────────────────────────────────────────
+// Blog/haber akışı durursa (ör. Autoscale uykusunda cron'lar çalışmazsa) görünür uyarı.
+
+interface ContentHealth {
+  blog: { lastPublishedAt: string | null; daysSince: number | null; stale: boolean };
+  news: { lastCollectedAt: string | null; daysSince: number | null; stale: boolean };
+  digest: { lastApprovedAt: string | null; daysSince: number | null; pendingDrafts: number };
+  crons: Array<{ job: string; lastOkAt: string | null; lastRunAt: string | null; lastStatus: string | null; lastError: string | null }>;
+}
+
+const CRON_LABELS: Record<string, string> = {
+  digest_rss_collect: "Haber toplama (günlük)",
+  digest_enrich: "Haber zenginleştirme (günlük)",
+  digest_weekly_generate: "Haftalık digest taslağı (Cuma)",
+  blog_autopilot_mon: "Blog otomatik yazı (Pazartesi)",
+  blog_autopilot_thu: "Blog otomatik yazı (Perşembe)",
+  social_media_weekly: "Sosyal medya içeriği (Pazar)",
+  cron_catchup: "Kaçırılan işleri telafi (saatlik)",
+};
+
+function fmtWhen(iso: string | null): string {
+  if (!iso) return "hiç";
+  const d = new Date(iso);
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  return `${d.toLocaleDateString("tr-TR")} (${days === 0 ? "bugün" : `${days} gün önce`})`;
+}
+
+function ContentHealthCard() {
+  const q = useQuery<ContentHealth>({
+    queryKey: ["content-health"],
+    queryFn: () => apiFetch("/api/digest/content-health"),
+    refetchInterval: 120_000,
+  });
+  const h = q.data;
+  if (!h) return null;
+  const problems = [
+    h.blog.stale && `Son blog yazısı: ${fmtWhen(h.blog.lastPublishedAt)}`,
+    h.news.stale && `Son haber: ${fmtWhen(h.news.lastCollectedAt)}`,
+    h.digest.pendingDrafts > 0 && `${h.digest.pendingDrafts} haftalık digest onay bekliyor (onaylanmadan sitede yayınlanmaz)`,
+  ].filter(Boolean) as string[];
+
+  return (
+    <section className={`rounded-xl border p-5 ${problems.length ? "border-amber-500/40 bg-amber-500/5" : "border-emerald-500/30 bg-emerald-500/5"}`}>
+      <h2 className="font-semibold text-foreground">
+        {problems.length ? "İçerik akışında sorun var" : "İçerik akışı güncel"}
+      </h2>
+      {problems.length > 0 && (
+        <ul className="mt-2 space-y-1 text-sm text-amber-600 dark:text-amber-400">
+          {problems.map(p => <li key={p}>• {p}</li>)}
+        </ul>
+      )}
+      <div className="mt-4 grid gap-1.5 text-xs">
+        {h.crons.map(c => {
+          const failed = c.lastStatus === "error";
+          return (
+            <div key={c.job} className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+              <span className="w-56 text-muted-foreground">{CRON_LABELS[c.job] ?? c.job}</span>
+              <span className={failed ? "text-red-500" : "text-foreground"}>
+                son başarılı: {fmtWhen(c.lastOkAt)}
+              </span>
+              {failed && c.lastError && <span className="text-red-500 truncate max-w-full" title={c.lastError}>hata: {c.lastError}</span>}
+            </div>
+          );
+        })}
+      </div>
+      {problems.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Gece çalışan işler, sunucu uykudayken (Replit Autoscale) tetiklenmez. Sunucu artık her uyandığında
+          kaçırılan işleri telafi ediyor. Kalıcı çözüm: Replit'te yayın türünü Reserved VM yapmak.
+        </p>
+      )}
+    </section>
+  );
+}
+
 // ─── Ana sayfa ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -165,6 +240,8 @@ export default function Dashboard() {
           Digest, bülten ve içerik hattı — gerçek zamanlı operasyon özeti
         </p>
       </div>
+
+      <ContentHealthCard />
 
       {/* ── Haber Toplama Pipeline ──────────────────────────────────────────── */}
       <section>

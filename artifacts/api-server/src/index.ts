@@ -3652,6 +3652,18 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Skor v2 backfill cron kayıtlandı (her 10 dakika)");
 
+    // ─── Cron catch-up: Autoscale uykusunda kaçırılan işleri telafi et ──────
+    // Açılıştan 3 dk sonra (diğer cron'lar kaydedilmiş olur) ve saatte bir kontrol eder.
+    setTimeout(() => {
+      void import("./services/cronCatchup").then(({ runCronCatchup }) => runCronCatchup())
+        .catch((err) => logger.warn({ err }, "Cron catch-up başlatılamadı"));
+    }, 3 * 60 * 1000);
+    cron.schedule("20 * * * *", wrapCron("cron_catchup", "20 * * * *", async () => {
+      const { runCronCatchup } = await import("./services/cronCatchup");
+      return (await runCronCatchup()).length;
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Cron catch-up kayıtlandı (açılış + saatte bir)");
+
     // ─── Startup: Stale "running" kayıtları temizle ─────────────────────────
     // Server restart sırasında tamamlanamayan "running" durumundaki cron kayıtlarını düzelt.
     void cleanupStaleRunningJobs();

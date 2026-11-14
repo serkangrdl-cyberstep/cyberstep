@@ -49,6 +49,21 @@ Yeniden yazılan sayfaların eski hâlleri kod içinde duruyor; route'a bağlı 
 
 Üst menü ve footer da sadeleştirildi (`components/layout.tsx`, `components/footer.tsx`): ayrı "Araçlar" menüsü tek "Ücretsiz Araçlar" menüsünde birleşti; Haberler, Neden CyberStep ve İletişim üst menüden footer'a taşındı.
 
+## Yönetim paneli ve Marketing paneli (Kasım 2026)
+
+**Yönetim paneli** (`/panel`) menüsü 83 öğeden 40'a indi (`components/admin-layout.tsx`). Kaldırılan 43 ekran `ARCHIVED_ADMIN` listesinde (`lib/archived-routes.ts`); adresleri `/panel`'e yönlenir, kodları yerinde durur. Gruplar:
+
+- Servis kataloğu ve eski paketler (servis fiyatları, kataloğu, yönetimi, müşteri servisleri, muhasebe, iş paketleri, eski paket planları)
+- Müşteri başarı (sağlık, NPS, onboarding, referral, rozet avantajları, exposure skorları, iç tarama)
+- İstihbarat / teknografi (tech intelligence, technology discovery, intelligence, CTI, reputation, marka koruma, veri sızıntısı, executive dashboard)
+- SOC / NOC / entegrasyonlar (SOC, NOC, observability, Fortinet, M365, ServiceNow, IOC, kod güvenliği, remediation, DNS izleme, CT log izleme, KVKK bildirim)
+- Ortaklık yan ürünleri (danışmanlık, teknoloji ortakları, white label, kariyer)
+- Marketing paneline taşınanlar (özel günler, sosyal medya, demo raporlar, rozetler, marka kılavuzu); bu ekranlar Marketing panelinde (`/digest/`) mevcut
+
+Bir ekranı geri açmak için: `ARCHIVED_ADMIN`'den satırı silin ve `admin-layout.tsx` içindeki `NAV_SECTIONS`'a menü öğesini geri ekleyin (eski menü için `arsiv/oncesi-tprm-2026-11` branch'ine bakın).
+
+**Marketing paneli** (`artifacts/digest-admin`): Referral programı arşivlendi (`/referrallar` panoya yönlenir, `pages/Referrallar.tsx` duruyor). Menü başlıkları Türkçe karakterlerle düzeltildi. Panoya "İçerik sağlığı" kutusu eklendi (son blog / haber / digest ve içerik cron'larının son başarılı çalışması).
+
 ## Arka uç
 
 API route'ları ve cron'lar **kapatılmadı**: SOC, NOC, AI vb. backend modülleri çalışmaya devam ediyor. Yalnızca site ve menülerden erişim kaldırıldı. `sitemap.xml`'den arşivlenen sayfalar çıkarıldı. Bu modüllerin cron'larını kapatmak ayrı bir karar olarak bırakıldı.

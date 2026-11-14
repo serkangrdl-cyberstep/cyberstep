@@ -34,6 +34,31 @@ export const ARCHIVED_PORTAL: readonly string[] = [
   "/hesabim/ciso-asistan", "/hesabim/technology-discovery", "/hesabim/servislerim", "/hesabim/sepet",
 ];
 
+/**
+ * Yönetim paneli (/panel) sayfaları → /panel'e yönlenir ve admin menüsünde görünmez.
+ * Arka uç uç noktaları ve cron'lar çalışmaya devam eder; yalnızca panel ekranları gizlidir.
+ */
+export const ARCHIVED_ADMIN: readonly string[] = [
+  // Servis kataloğu ve eski paketler
+  "/panel/fiyatlar", "/panel/servis-fiyatlari", "/panel/servis-katalogu", "/panel/servis-yonetimi",
+  "/panel/musteri-servisleri", "/panel/muhasebe", "/panel/is-paketleri",
+  // Müşteri başarı (eski KOBİ modeli)
+  "/panel/saglik", "/panel/nps", "/panel/onboarding", "/panel/referrallar",
+  "/panel/rozet-avantajlari", "/panel/exposure-score", "/panel/ic-tarama",
+  // İstihbarat / teknografi
+  "/panel/tech-intelligence", "/panel/technology-discovery", "/panel/intelligence", "/panel/cti-istihbarat",
+  "/panel/reputation-monitor", "/panel/brand-monitor", "/panel/data-leakage", "/panel/executive-dashboard",
+  // SOC / NOC / entegrasyonlar
+  "/panel/soc", "/panel/noc", "/panel/observability", "/panel/fortinet",
+  "/panel/ms365", "/panel/servicenow", "/panel/ioc-kontroller", "/panel/kod-guvenligi",
+  "/panel/remediation", "/panel/dns-izleme", "/panel/ct-izleme", "/panel/kvkk",
+  // Ortaklık ve kurumsal yan ürünler
+  "/panel/danismanlik", "/panel/partnerlar", "/panel/whitelabel", "/panel/kariyer",
+  // Marketing paneline taşınanlar (/digest/)
+  "/panel/ozel-gunler", "/panel/sosyal-medya", "/panel/demo-raporlar", "/panel/rozetler",
+  "/panel/marka-kilavuzu",
+];
+
 /** Özel hedefe yönlenen arşiv sayfaları (içeriği başka bir sayfaya taşınanlar). */
 export const ARCHIVED_REDIRECT_TO: Readonly<Record<string, string>> = {
   "/neden-cyberstep": "/hakkimizda", // isim hikayesi ve ekip yeni Hakkımızda sayfasında
@@ -47,6 +72,7 @@ function matches(path: string, prefix: string): boolean {
 export function archivedRedirect(path: string): string | null {
   const p = path.split("?")[0]!.split("#")[0]!.replace(/\/+$/, "") || "/";
   for (const [from, to] of Object.entries(ARCHIVED_REDIRECT_TO)) if (matches(p, from)) return to;
+  if (ARCHIVED_ADMIN.some((r) => matches(p, r))) return "/panel";
   if (ARCHIVED_PORTAL.some((r) => matches(p, r))) return "/hesabim";
   if (ARCHIVED_PUBLIC.some((r) => matches(p, r))) return "/";
   return null;

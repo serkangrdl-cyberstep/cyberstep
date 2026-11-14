@@ -170,22 +170,25 @@ router.put("/digests/:id", async (req, res) => {
   res.json(updated);
 });
 
-router.post("/digests/:id/approve", async (req, res) => {
-  const id = parseInt(req.params["id"]!, 10);
+/**
+ * Digest'i onaylar (sitede yayınlar). sendEmails=true ise admin bildirimi, abone bülteni
+ * ve webhook da tetiklenir. Otomatik yayın (services/digestAutoPublish.ts) eski haftalar
+ * için sendEmails=false kullanır: abonelere aylar önceki bülten gönderilmez.
+ */
+export async function approveDigest(id: number, opts: { sendEmails: boolean }): Promise<boolean> {
   const [digest] = await db
     .select()
     .from(weeklyDigestsTable)
     .where(eq(weeklyDigestsTable.id, id))
     .limit(1);
-  if (!digest) {
-    res.status(404).json({ error: "Digest bulunamadı" });
-    return;
-  }
+  if (!digest) return false;
 
   await db
     .update(weeklyDigestsTable)
     .set({ status: "approved", approvedAt: new Date(), updatedAt: new Date() })
     .where(eq(weeklyDigestsTable.id, id));
+
+  if (!opts.sendEmails) return true;
 
   const adminEmail = process.env["ADMIN_EMAIL"] ?? process.env["SMTP_USER"];
   if (adminEmail) {
@@ -242,6 +245,16 @@ router.post("/digests/:id/approve", async (req, res) => {
     }
   }
 
+  return true;
+}
+
+router.post("/digests/:id/approve", async (req, res) => {
+  const id = parseInt(req.params["id"]!, 10);
+  const ok = await approveDigest(id, { sendEmails: true });
+  if (!ok) {
+    res.status(404).json({ error: "Digest bulunamadı" });
+    return;
+  }
   res.json({ success: true });
 });
 
@@ -332,7 +345,7 @@ router.get("/content-health", async (_req, res) => {
   const [drafts] = await db.select({ c: sql<number>`count(*)::int` })
     .from(weeklyDigestsTable).where(sql`${weeklyDigestsTable.status} <> 'approved'`);
 
-  const jobs = ["digest_rss_collect", "digest_enrich", "digest_weekly_generate", "blog_autopilot_mon", "blog_autopilot_thu", "social_media_weekly", "cron_catchup"];
+  const jobs = ["digest_rss_collect", "digest_enrich", "digest_weekly_generate", "digest_autopublish", "blog_autopilot_mon", "blog_autopilot_thu", "social_media_weekly", "cron_catchup"];
   const { rows } = await pool.query<{ job_name: string; last_ok: Date | null; last_any: Date | null; last_status: string | null; last_error: string | null }>(`
     SELECT j AS job_name,
       (SELECT max(started_at) FROM cron_job_runs WHERE job_name = j AND status = 'ok') AS last_ok,

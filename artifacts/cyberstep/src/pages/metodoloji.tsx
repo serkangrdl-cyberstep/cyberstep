@@ -7,12 +7,21 @@ import { useLanguage } from "@/contexts/language-context";
 
 // ─── Scoring methodology ──────────────────────────────────────────────────────
 
+// Skor v2 — kaynak: artifacts/api-server/src/lib/scoring/scoreV2.ts ve docs/skor-v2-metodoloji.md
 const DOMAIN_CHECKS = [
-  { id: "SPF",     weight: 1, max: 20, desc: "E-posta kaynak doğrulama — kimlik sahtekarlığını engeller" },
-  { id: "DMARC",  weight: 1, max: 20, desc: "E-posta kimlik doğrulama politikası + raporlama" },
-  { id: "DKIM",   weight: 1, max: 20, desc: "E-posta imzalama — içerik bütünlüğü garantisi" },
-  { id: "MX",     weight: 1, max: 10, desc: "E-posta alım altyapısı varlığı" },
-  { id: "SSL/TLS",weight: 1, max: 30, desc: "Sertifika geçerliliği + TLS versiyon kalitesi" },
+  { id: "Zafiyetler",  max: 30, desc: "Tespit edilen yazılım sürümlerine ait CVE'ler. CISA KEV −20, CVSS ≥9 −10, CVSS 7–8.9 −4, CVSS 4–6.9 −1. WAF ile hafifletilenlerde düzeltilmiş CVSS." },
+  { id: "Ağ",          max: 20, desc: "İnternete açık portlar. Kritik servis (RDP, SMB, veritabanı, Docker…) −10, yüksek riskli −5, orta −1. CDN arkasında beklenen portlar ceza almaz." },
+  { id: "İtibar",      max: 15, desc: "Spam kara listeleri −8; USOM, URLhaus, Google Safe Browsing −15; VirusTotal −10; AbuseIPDB ≥50 −8 (≥25 −4)." },
+  { id: "E-posta",     max: 15, desc: "SPF (−all 5, ~all 3.5, ?all 2), DMARC (reject 6, quarantine 5, none 2), DKIM 3, MX 1." },
+  { id: "Sızıntı",     max: 10, desc: "Kurum e-postalarının yer aldığı bilinen sızıntılar (HIBP): 0 → 10, 1 → 6, 2–3 → 3, 4+ → 0." },
+  { id: "TLS ve web",  max: 10, desc: "SSL geçerliliği (≥30 gün 7, 14–29 gün 5, ≤13 gün 3, geçersiz 0) ve HTTP güvenlik başlıkları (3)." },
+];
+
+const SCORE_CAPS = [
+  { cond: "CISA KEV listesindeki (aktif sömürülen) zafiyet", max: 49 },
+  { cond: "Fidye yazılımında kullanılan KEV zafiyeti", max: 39 },
+  { cond: "USOM / URLhaus / Google Safe Browsing kaydı", max: 39 },
+  { cond: "İnternete açık kritik servis (RDP, SMB vb.)", max: 59 },
 ];
 
 const RISK_SIGNALS = [
@@ -30,11 +39,11 @@ const RISK_SIGNALS = [
 ];
 
 const GRADES = [
-  { grade: "A", range: "90–100", risk: "Düşük Risk", color: "text-green-500", bg: "bg-green-500/10 border-green-200", desc: "Tüm temel kontroller yapılandırılmış, bilinen tehdit yok." },
-  { grade: "B", range: "70–89",  risk: "Orta Risk",  color: "text-yellow-500", bg: "bg-yellow-500/10 border-yellow-200", desc: "Temel kontroller büyük ölçüde mevcut, kısmen eksik yapılandırmalar var." },
-  { grade: "C", range: "50–69",  risk: "Yüksek Risk",color: "text-orange-500", bg: "bg-orange-500/10 border-orange-200", desc: "Önemli eksiklikler mevcut. İyileştirme planı oluşturulmalı." },
-  { grade: "D", range: "30–49",  risk: "Kritik Risk",color: "text-red-500",    bg: "bg-red-500/10 border-red-200",    desc: "Temel güvenlik kontrolleri büyük ölçüde eksik." },
-  { grade: "F", range: "0–29",   risk: "Acil Müdahale",color: "text-red-700",  bg: "bg-red-700/10 border-red-300",  desc: "Ciddi güvenlik açıkları ve/veya aktif tehdit tespiti." },
+  { grade: "A", range: "85–100", risk: "Düşük Risk",  color: "text-green-500",  bg: "bg-green-500/10 border-green-200",   desc: "Dış saldırı yüzeyi iyi yönetiliyor; ağır bulgu yok." },
+  { grade: "B", range: "70–84",  risk: "Düşük Risk",  color: "text-lime-600",   bg: "bg-lime-500/10 border-lime-200",     desc: "Temel kontroller yerinde; giderilmesi gereken sınırlı eksikler var." },
+  { grade: "C", range: "55–69",  risk: "Orta Risk",   color: "text-yellow-600", bg: "bg-yellow-500/10 border-yellow-200", desc: "Önemli eksiklikler mevcut. İyileştirme planı oluşturulmalı." },
+  { grade: "D", range: "40–54",  risk: "Yüksek Risk", color: "text-orange-500", bg: "bg-orange-500/10 border-orange-200", desc: "Ciddi açıklar var; tedarikçiden düzeltme talep edilmeli." },
+  { grade: "F", range: "0–39",   risk: "Kritik Risk", color: "text-red-600",    bg: "bg-red-600/10 border-red-300",       desc: "Aktif sömürülen zafiyet, zararlı listesi kaydı veya çok sayıda ağır bulgu." },
 ];
 
 const CVSS_LEVELS = [
@@ -77,7 +86,7 @@ export default function Metodoloji() {
   const { lang } = useLanguage();
   usePageMeta({
     title: "Değerlendirme Metodolojisi | CyberStep.io",
-    description: "CyberStep siber güvenlik skorlama metodolojisi: domain teknik analizi, Mini Değerlendirme soru ağırlıkları, CVSS, EPSS ve MITRE ATT&CK entegrasyonu.",
+    description: "CyberStep Risk Skoru v2 metodolojisi: zafiyet (CVE/KEV), ağ maruziyeti, itibar, e-posta güvenliği, veri sızıntısı ve TLS kategorileri, ağır bulgu tavanları, kapsama ve sektör kıyaslaması.",
   });
 
   return (
@@ -136,24 +145,41 @@ export default function Metodoloji() {
             Şirket personeline soru sormadan, yalnızca DNS/HTTP/SSL/IP altyapısından türetilir.
           </p>
 
-          <h3 className="font-semibold text-foreground mb-3 text-sm">1.1 Temel E-posta Güvenliği (Puanlama)</h3>
-          <div className="rounded-xl border border-border/50 bg-card overflow-hidden mb-6">
-            <div className="grid grid-cols-4 bg-muted/30 border-b border-border/30 px-5 py-2">
-              {["Kontrol", "Ağırlık", "Maks. Puan", "Açıklama"].map(h => (
+          <h3 className="font-semibold text-foreground mb-3 text-sm">1.1 Risk Skoru v2 Kategorileri (toplam 100 puan)</h3>
+          <div className="rounded-xl border border-border/50 bg-card overflow-hidden mb-4">
+            <div className="grid grid-cols-[110px_70px_1fr] bg-muted/30 border-b border-border/30 px-5 py-2 gap-3">
+              {["Kategori", "Maks.", "Nasıl puanlanır"].map(h => (
                 <span key={h} className="text-xs font-bold text-muted-foreground uppercase tracking-wide">{h}</span>
               ))}
             </div>
             {DOMAIN_CHECKS.map(c => (
-              <div key={c.id} className="grid grid-cols-4 items-center px-5 py-3 border-b border-border/20 last:border-0">
-                <span className="font-mono text-xs font-bold text-primary">{c.id}</span>
-                <span className="text-xs text-muted-foreground">Standart</span>
+              <div key={c.id} className="grid grid-cols-[110px_70px_1fr] items-center px-5 py-3 border-b border-border/20 last:border-0 gap-3">
+                <span className="text-xs font-bold text-primary">{c.id}</span>
                 <span className="text-xs font-bold text-foreground">{c.max}</span>
                 <span className="text-xs text-muted-foreground">{c.desc}</span>
               </div>
             ))}
           </div>
 
-          <h3 className="font-semibold text-foreground mb-3 text-sm">1.2 Tehdit İstihbaratı Sinyal Kaynakları</h3>
+          <h3 className="font-semibold text-foreground mb-3 text-sm">1.2 Ağır Bulgu Tavanları</h3>
+          <p className="text-xs text-muted-foreground mb-3">Ortalamanın ağır bir riski gizlemesini önlemek için, aşağıdaki bulgulardan biri varsa skor belirtilen değeri aşamaz.</p>
+          <div className="rounded-xl border border-border/50 bg-card overflow-hidden mb-4">
+            {SCORE_CAPS.map(c => (
+              <div key={c.cond} className="flex items-center justify-between px-5 py-3 border-b border-border/20 last:border-0 gap-3">
+                <span className="text-sm text-foreground">{c.cond}</span>
+                <span className="text-xs font-bold text-red-500 shrink-0">en fazla {c.max}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-8 text-xs text-muted-foreground space-y-1.5">
+            <p><strong className="text-foreground">Ölçülmeyen veri temiz sayılmaz.</strong> Bir kategori ölçülemediyse (ör. port verisi yok) skor yalnızca ölçülen kategorilerin azami puanı üzerinden 100'e ölçeklenir ve kapsama oranı ayrıca raporlanır.</p>
+            <p><strong className="text-foreground">Veri yetersiz.</strong> Alan adı çözümlenemiyorsa skor üretilmez.</p>
+            <p><strong className="text-foreground">Sektör kıyaslaması.</strong> Her domainin en son taramasının skoru, sektörüne göre gruplanır; en az 30 domaini olan sektörler yayınlanır.</p>
+          </div>
+
+          <h3 className="font-semibold text-foreground mb-3 text-sm">1.3 Kullanılan Kaynaklar</h3>
+
           <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
             <div className="grid grid-cols-3 bg-muted/30 border-b border-border/30 px-5 py-2">
               {["Sinyal", "Etki Seviyesi", "Kaynak"].map(h => (
@@ -235,8 +261,8 @@ export default function Metodoloji() {
             <h2 className="text-2xl font-bold text-foreground">3. Skor ve Grade Modeli</h2>
           </div>
           <p className="text-muted-foreground text-sm mb-8">
-            Domain tarama ve Mini Değerlendirme sonuçları ayrı ayrı 0–100 aralığına normalize edilir.
-            Kombine raporda her ikisi de gösterilir; Tam Değerlendirme (60 soru) sektörel benchmark ile karşılaştırılır.
+            Risk Skoru v2 ve Mini Değerlendirme sonuçları ayrı ayrı 0–100 aralığında gösterilir.
+            Harf notu ve risk seviyesi Risk Skoru v2 için aşağıdaki eşiklerle belirlenir.
           </p>
           <div className="space-y-3">
             {GRADES.map(g => (

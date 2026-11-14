@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { Switch, Route, Router as WouterRouter, useRoute, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useRoute, useLocation, Redirect } from "wouter";
+import { archivedRedirect } from "./lib/archived-routes";
+import type { ReactNode } from "react";
 import SaldiriSimulasyonu from "./pages/saldiri-simulasyonu";
 import FinansalKayip from "./pages/finansal-kayip";
 import MarkaKoruma from "./pages/marka-koruma";
@@ -291,8 +293,17 @@ function WhiteLabelRouter() {
   );
 }
 
+// Arşivlenen bölümlere gelen ziyaretçileri yönlendirir (bkz. lib/archived-routes.ts).
+function ArchivedRouteGuard({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  const to = archivedRedirect(location);
+  if (to) return <Redirect to={to} replace />;
+  return <>{children}</>;
+}
+
 function Router() {
   return (
+    <ArchivedRouteGuard>
     <Switch>
       {/* White label routes (wrapped with WhiteLabelProvider + own Layout) */}
       <Route path="/w/:slug/*?" component={WhiteLabelRouter} />
@@ -549,6 +560,7 @@ function Router() {
         </Layout>
       </Route>
     </Switch>
+    </ArchivedRouteGuard>
   );
 }
 

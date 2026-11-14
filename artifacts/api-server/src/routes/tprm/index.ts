@@ -353,6 +353,36 @@ async function getSessionCustomerEmail(req: Request): Promise<string | null> {
   return customer?.email?.trim().toLowerCase() ?? null;
 }
 
+// ─── Paket limitleri ─────────────────────────────────────────────────────────
+// Fiyat sayfasıyla (cyberstep/src/pages/pricing.tsx) aynı tutulmalı.
+// Paket, admin panelinden müşteriye subscription_plan + status=active olarak atanır.
+export const TPRM_PLAN_LIMITS: Record<string, number> = {
+  tprm_baslangic: 25,
+  tprm_profesyonel: 100,
+  tprm_kurumsal: Number.POSITIVE_INFINITY,
+};
+const TPRM_FREE_LIMIT = Number(process.env["TPRM_FREE_VENDOR_LIMIT"] ?? 5);
+// Eski ücretli paketlerdeki (starter/pro/enterprise) aktif müşteriler kesintiye uğramasın
+const LEGACY_PAID_LIMIT = TPRM_PLAN_LIMITS["tprm_baslangic"]!;
+
+async function getVendorLimit(req: Request): Promise<{ limit: number; plan: string | null }> {
+  const customerId = getCustomerId(req);
+  if (!customerId) return { limit: 0, plan: null };
+  const [c] = await db.select({ plan: customersTable.subscriptionPlan, status: customersTable.subscriptionStatus })
+    .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  const active = c?.status === "active" || c?.status === "trial";
+  const plan = c?.plan ?? null;
+  if (active && plan && TPRM_PLAN_LIMITS[plan] !== undefined) return { limit: TPRM_PLAN_LIMITS[plan]!, plan };
+  if (active && plan && plan !== "free") return { limit: LEGACY_PAID_LIMIT, plan };
+  return { limit: TPRM_FREE_LIMIT, plan: null };
+}
+
+async function countVendors(email: string): Promise<number> {
+  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(tprmVendorTable)
+    .where(eq(tprmVendorTable.customerEmail, email));
+  return row?.n ?? 0;
+}
+
 /** Oturumdaki müşteriye ait tedarikçiyi getirir; yoksa veya başkasınınsa null. */
 async function getOwnedVendor(req: Request, id: number) {
   const email = await getSessionCustomerEmail(req);
@@ -421,6 +451,66 @@ router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response)
   }
 });
 
+// ─── GET /api/tprm/vendors/report.pdf ─────────────────────────────────────────
+// Portföy raporu (KVKK md. 12 / 7545 / BDDK bağlamıyla) — services/tprmReportPdf.ts
+router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+    const customerId = getCustomerId(req)!;
+    const [customer] = await db.select({ companyName: customersTable.companyName, fullName: customersTable.fullName })
+      .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+
+    const rows = await db.select().from(tprmVendorTable)
+      .where(eq(tprmVendorTable.customerEmail, email))
+      .orderBy(tprmVendorTable.addedAt);
+    const withCtx = await withSectorContext(rows);
+
+    const { generatePortfolioReport } = await import("../../services/tprmReportPdf");
+    const buf = await generatePortfolioReport({
+      companyName: customer?.companyName || customer?.fullName || email,
+      generatedAt: new Date(),
+      vendors: withCtx.map(v => {
+        const stored = storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION
+          ? (v.lastScanData as unknown as StoredScanData).score
+          : null;
+        return {
+          domain: v.supplierDomain,
+          name: v.supplierName,
+          score: v.lastScanScore,
+          grade: stored && !stored.insufficientData ? stored.grade : null,
+          risk: v.riskLevel,
+          sector: v.sector,
+          sectorPercentile: v.sectorPercentile,
+          lastScanAt: v.lastScanAt,
+          questionnaireStatus: v.questionnaireStatus,
+          combinedScore: v.combinedScore,
+          insufficientData: !!stored?.insufficientData,
+          coverage: stored?.coverage ?? null,
+          findings: (stored?.findings ?? []).map(f => ({ severity: f.severity, title: f.title })),
+        };
+      }),
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Tedarikci_Portfoy_${date}.pdf"`);
+    res.setHeader("Content-Length", buf.length);
+    res.send(buf);
+  } catch (err) {
+    logger.error({ err }, "TPRM portfolio report error");
+    res.status(500).json({ error: "Rapor oluşturulamadı" });
+  }
+});
+
+// ─── GET /api/tprm/plan ───────────────────────────────────────────────────────
+router.get("/tprm/plan", requireCustomer, async (req: Request, res: Response) => {
+  const email = await getSessionCustomerEmail(req);
+  if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+  const { limit, plan } = await getVendorLimit(req);
+  res.json({ plan, limit: Number.isFinite(limit) ? limit : null, used: await countVendors(email) });
+});
+
 // ─── POST /api/tprm/vendors ───────────────────────────────────────────────────
 // Tedarikçi ekle + ilk taramayı background'da başlat
 
@@ -452,6 +542,18 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
       .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.supplierDomain, domain)));
     if (existing) {
       res.json(existing);
+      return;
+    }
+
+    const { limit } = await getVendorLimit(req);
+    const current = await countVendors(email);
+    if (current >= limit) {
+      res.status(402).json({
+        error: `Paketinizin tedarikçi limiti doldu (${limit}). Daha fazla tedarikçi için paketinizi yükseltin.`,
+        code: "VENDOR_LIMIT",
+        limit,
+        upgradeUrl: "/fiyatlar",
+      });
       return;
     }
 
@@ -536,7 +638,11 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
       .from(tprmVendorTable)
       .where(and(eq(tprmVendorTable.customerEmail, email), inArray(tprmVendorTable.supplierDomain, [...wanted.keys()])));
     const already = new Set(existingRows.map(r => r.domain));
-    const toInsert = [...wanted.entries()].filter(([d]) => !already.has(d));
+    const candidates = [...wanted.entries()].filter(([d]) => !already.has(d));
+    const { limit } = await getVendorLimit(req);
+    const remaining = Math.max(0, limit - await countVendors(email));
+    const toInsert = candidates.slice(0, remaining);
+    const overLimit = candidates.length - toInsert.length;
 
     const inserted = toInsert.length === 0 ? [] : await db.insert(tprmVendorTable)
       .values(toInsert.map(([supplierDomain, supplierName]) => ({ customerEmail: email, supplierDomain, supplierName })))
@@ -565,6 +671,8 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
       queuedForScan: queuedCount,
       skippedExisting: already.size,
       duplicatesInFile: rows.length - invalid.length - wanted.size,
+      overLimit,
+      limit: Number.isFinite(limit) ? limit : null,
       invalid,
       queue: scanQueueStats(),
     });

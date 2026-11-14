@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { isArchived } from "@/lib/archived-routes";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, LogOut,
@@ -123,6 +124,7 @@ function CustomerNav({
 
           <div className="flex items-center gap-2">
             {/* Cart */}
+            {!isArchived("/hesabim/sepet") && (
             <Link href="/hesabim/sepet">
               <button className="relative p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
                 <ShoppingCart className="h-4 w-4" />
@@ -133,6 +135,7 @@ function CustomerNav({
                 )}
               </button>
             </Link>
+            )}
 
             {/* Hesap dropdown */}
             <DropdownMenu>
@@ -180,7 +183,7 @@ function CustomerNav({
             { href: "/hesabim/kurulum", label: "Kurulum" },
             { href: "/hesabim/tedarikci-portfoyu", label: "Tedarikçi" },
             { href: "/hesabim/davet", label: "Davet" },
-          ].map(({ href, label }) => (
+          ].filter(({ href }) => !isArchived(href)).map(({ href, label }) => (
             <Link key={href} href={href}>
               <span className="block px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors whitespace-nowrap">
                 {label}
@@ -208,6 +211,7 @@ function NavLink({ href, icon, label, active }: { href: string; icon: React.Reac
 }
 
 function DropdownItem({ href, label, badge }: { href: string; label: string; badge?: string }) {
+  if (isArchived(href)) return null; // arşivlenen bölümler menüde görünmez
   return (
     <DropdownMenuItem asChild className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 gap-2">
       <Link href={href}>
@@ -598,11 +602,13 @@ function ActiveServicesWidget() {
             )}
           </div>
         </div>
+        {!isArchived("/hesabim/servislerim") && (
         <Link href="/hesabim/servislerim">
           <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-800 gap-1.5">
             Yönet <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </Link>
+        )}
       </CardContent>
     </Card>
   );
@@ -836,7 +842,7 @@ function DashboardTab({ customer }: { customer: { subscriptionPlan?: string | nu
             { href: "/hesabim/tedarikci-portfoyu", icon: Shield, label: "Tedarikçi", color: "text-violet-400" },
             { href: "/hesabim/ciso-asistan", icon: Activity, label: "CISO Asistan", color: "text-primary" },
             { href: "/hesabim/yonetim-raporu", icon: FileText, label: "YK Raporu", color: "text-sky-400" },
-          ].map(({ href, icon: Icon, label, color }) => (
+          ].filter(({ href }) => !isArchived(href)).map(({ href, icon: Icon, label, color }) => (
             <Link key={href} href={href}>
               <div className="border border-slate-800 rounded-xl p-3 hover:border-slate-700 hover:bg-slate-800/50 transition-colors text-center cursor-pointer">
                 <Icon className={`h-4 w-4 ${color} mx-auto mb-1.5`} />

@@ -1,0 +1,216 @@
+/**
+ * Tedarikçi Siber Risk Portföy Raporu (PDF).
+ * Denetim, yönetim kurulu ve mevzuat (KVKK md. 12, 7545 sayılı Kanun, BDDK destek hizmeti)
+ * süreçlerinde destekleyici kanıt olarak kullanılmak üzere.
+ *
+ * Saf üretici: veriyi parametre olarak alır, Buffer döner (veritabanı erişimi yok).
+ */
+import PDFDocument from "pdfkit";
+import path from "path";
+
+const FONT_DIR = "/usr/share/fonts/truetype/dejavu";
+const FONT = path.join(FONT_DIR, "DejaVuSans.ttf");
+const FONT_BOLD = path.join(FONT_DIR, "DejaVuSans-Bold.ttf");
+
+const NAVY = "#060D1A";
+const CYAN = "#00A6D6";
+const TEXT = "#1F2937";
+const MUTED = "#6B7280";
+const LINE = "#E5E7EB";
+const RISK_COLOR: Record<string, string> = {
+  "Düşük": "#16A34A", "Orta": "#D97706", "Yüksek": "#EA580C", "Kritik": "#DC2626",
+};
+
+export interface ReportFinding { severity: "critical" | "high" | "medium" | "low"; title: string }
+
+export interface ReportVendor {
+  domain: string;
+  name: string | null;
+  score: number | null;
+  grade: string | null;
+  risk: string | null;
+  sector: string | null;
+  sectorPercentile: number | null;
+  lastScanAt: Date | null;
+  questionnaireStatus: string;
+  combinedScore: number | null;
+  insufficientData: boolean;
+  coverage: number | null;
+  findings: ReportFinding[];
+}
+
+export interface PortfolioReportInput {
+  companyName: string;
+  generatedAt: Date;
+  vendors: ReportVendor[];
+}
+
+const SEV_TR: Record<ReportFinding["severity"], string> = { critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük" };
+const RISK_ORDER = ["Kritik", "Yüksek", "Orta", "Düşük"];
+
+function fmtDate(d: Date | null): string {
+  return d ? new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+}
+
+export async function generatePortfolioReport(input: PortfolioReportInput): Promise<Buffer> {
+  const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true, info: {
+    Title: "Tedarikçi Siber Risk Portföy Raporu",
+    Author: "CyberStep.io",
+    Subject: input.companyName,
+  } });
+  doc.registerFont("r", FONT);
+  doc.registerFont("b", FONT_BOLD);
+
+  const chunks: Buffer[] = [];
+  doc.on("data", (c: Buffer) => chunks.push(c));
+  const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
+
+  const W = doc.page.width - 96; // içerik genişliği
+  const scored = input.vendors.filter(v => v.score !== null && !v.insufficientData);
+  const counts: Record<string, number> = { Kritik: 0, Yüksek: 0, Orta: 0, Düşük: 0 };
+  for (const v of scored) if (v.risk && counts[v.risk] !== undefined) counts[v.risk]!++;
+  const pending = input.vendors.filter(v => v.score === null && !v.insufficientData).length;
+  const insufficient = input.vendors.filter(v => v.insufficientData).length;
+  const avg = scored.length ? Math.round(scored.reduce((a, v) => a + (v.score ?? 0), 0) / scored.length) : null;
+
+  const h2 = (t: string) => {
+    if (doc.y > doc.page.height - 140) doc.addPage();
+    doc.moveDown(0.6).font("b").fontSize(13).fillColor(NAVY).text(t);
+    doc.moveTo(48, doc.y + 3).lineTo(48 + W, doc.y + 3).strokeColor(CYAN).lineWidth(1).stroke();
+    doc.moveDown(0.6);
+  };
+  const para = (t: string, opts: PDFKit.Mixins.TextOptions = {}) =>
+    doc.font("r").fontSize(9.5).fillColor(TEXT).text(t, { align: "left", lineGap: 2, ...opts });
+
+  // ── Kapak şeridi ──────────────────────────────────────────────────────────
+  doc.rect(0, 0, doc.page.width, 150).fill(NAVY);
+  doc.font("b").fontSize(10).fillColor(CYAN).text("CYBERSTEP.IO", 48, 40);
+  doc.font("b").fontSize(22).fillColor("#FFFFFF").text("Tedarikçi Siber Risk Portföy Raporu", 48, 60, { width: W });
+  doc.font("r").fontSize(10).fillColor("#CBD5E1")
+    .text(`${input.companyName}  ·  ${fmtDate(input.generatedAt)}  ·  ${input.vendors.length} tedarikçi`, 48, 112, { width: W });
+  doc.y = 175;
+  doc.x = 48;
+
+  // ── Yönetici özeti ───────────────────────────────────────────────────────
+  h2("1. Yönetici Özeti");
+  const boxW = (W - 3 * 10) / 4;
+  const boxY = doc.y;
+  RISK_ORDER.forEach((r, i) => {
+    const x = 48 + i * (boxW + 10);
+    doc.roundedRect(x, boxY, boxW, 58, 6).strokeColor(LINE).lineWidth(1).stroke();
+    doc.font("b").fontSize(20).fillColor(RISK_COLOR[r]!).text(String(counts[r]), x, boxY + 8, { width: boxW, align: "center" });
+    doc.font("r").fontSize(8.5).fillColor(MUTED).text(`${r} risk`, x, boxY + 38, { width: boxW, align: "center" });
+  });
+  doc.y = boxY + 72;
+  doc.x = 48;
+  para(
+    `Portföydeki ${input.vendors.length} tedarikçinin ${scored.length} tanesi skorlandı` +
+    (avg !== null ? `; ortalama Risk Skoru ${avg}/100.` : ".") +
+    (pending ? ` ${pending} tedarikçinin taraması sürüyor.` : "") +
+    (insufficient ? ` ${insufficient} alan adına ulaşılamadı (veri yetersiz).` : ""),
+  );
+  const highRisk = scored.filter(v => v.risk === "Kritik" || v.risk === "Yüksek").sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+  if (highRisk.length > 0) {
+    doc.moveDown(0.4);
+    para(`Öncelikli aksiyon gerektiren tedarikçiler (${highRisk.length}): ` +
+      highRisk.slice(0, 8).map(v => `${v.name ?? v.domain} (${v.score})`).join(", ") +
+      (highRisk.length > 8 ? " ve diğerleri." : "."));
+  }
+
+  // ── Tedarikçi tablosu ────────────────────────────────────────────────────
+  h2("2. Tedarikçi Listesi");
+  const cols = [
+    { k: "Tedarikçi", w: 150 }, { k: "Skor", w: 40 }, { k: "Not", w: 30 }, { k: "Risk", w: 52 },
+    { k: "Sektör", w: 100 }, { k: "Son tarama", w: 62 }, { k: "Anket", w: W - 434 },
+  ];
+  const header = () => {
+    const y = doc.y;
+    doc.rect(48, y - 2, W, 16).fill("#F3F4F6");
+    let x = 48;
+    for (const c of cols) { doc.font("b").fontSize(8).fillColor(MUTED).text(c.k, x + 3, y + 2, { width: c.w - 6 }); x += c.w; }
+    doc.y = y + 18;
+  };
+  header();
+  const sorted = [...input.vendors].sort((a, b) => {
+    const ra = a.risk ? RISK_ORDER.indexOf(a.risk) : 9, rb = b.risk ? RISK_ORDER.indexOf(b.risk) : 9;
+    return ra - rb || (a.score ?? 999) - (b.score ?? 999);
+  });
+  for (const v of sorted) {
+    if (doc.y > doc.page.height - 70) { doc.addPage(); header(); }
+    const y = doc.y;
+    const cells = [
+      v.name ? `${v.name}\n${v.domain}` : v.domain,
+      v.insufficientData ? "—" : v.score === null ? "…" : String(v.score),
+      v.grade ?? "—",
+      v.insufficientData ? "Veri yok" : v.risk ?? "Bekliyor",
+      v.sector ? (v.sectorPercentile !== null ? `${v.sector} (%${v.sectorPercentile})` : v.sector) : "—",
+      fmtDate(v.lastScanAt),
+      v.questionnaireStatus === "completed" ? `Tamamlandı${v.combinedScore !== null ? ` (${v.combinedScore})` : ""}` : v.questionnaireStatus === "pending" ? "Bekliyor" : "—",
+    ];
+    let x = 48;
+    let rowH = 14;
+    cells.forEach((t, i) => {
+      const c = cols[i]!;
+      const isRisk = i === 3 && v.risk && RISK_COLOR[v.risk];
+      doc.font(i === 0 ? "b" : "r").fontSize(8).fillColor(isRisk ? RISK_COLOR[v.risk!]! : TEXT);
+      const h = doc.heightOfString(t, { width: c.w - 6 });
+      doc.text(t, x + 3, y, { width: c.w - 6 });
+      rowH = Math.max(rowH, h + 4);
+      x += c.w;
+    });
+    doc.moveTo(48, y + rowH).lineTo(48 + W, y + rowH).strokeColor(LINE).lineWidth(0.5).stroke();
+    doc.y = y + rowH + 3;
+  }
+  doc.x = 48;
+
+  // ── Kritik ve yüksek bulgular ─────────────────────────────────────────────
+  const withFindings = sorted.filter(v =>
+    !v.insufficientData && v.score !== null &&
+    v.findings.some(f => f.severity === "critical" || f.severity === "high"));
+  h2("3. Kritik ve Yüksek Bulgular");
+  if (withFindings.length === 0) {
+    para("Skorlanan tedarikçilerde kritik veya yüksek seviyede bulgu tespit edilmedi.");
+  } else {
+    for (const v of withFindings) {
+      if (doc.y > doc.page.height - 90) doc.addPage();
+      doc.font("b").fontSize(9.5).fillColor(NAVY).text(`${v.name ?? v.domain}  ·  ${v.score}/100 ${v.grade ?? ""}`);
+      for (const f of v.findings.filter(f => f.severity === "critical" || f.severity === "high").slice(0, 5)) {
+        doc.font("b").fontSize(8.5).fillColor(f.severity === "critical" ? RISK_COLOR["Kritik"]! : RISK_COLOR["Yüksek"]!)
+          .text(`${SEV_TR[f.severity]}: `, { continued: true })
+          .font("r").fillColor(TEXT).text(f.title);
+      }
+      doc.moveDown(0.5);
+    }
+  }
+
+  // ── Mevzuat bağlamı ──────────────────────────────────────────────────────
+  h2("4. Mevzuat Bağlamı");
+  para("KVKK (6698) md. 12: Veri sorumlusu, kişisel verilerin kendi adına başka bir gerçek veya tüzel kişi tarafından işlenmesi halinde, gerekli teknik ve idari tedbirlerin alınması hususunda bu kişilerle birlikte müştereken sorumludur. Bu rapor, veri işleyen konumundaki tedarikçilerin dışarıdan gözlemlenebilen güvenlik durumunun izlendiğine ilişkin destekleyici kanıt olarak kullanılabilir.");
+  doc.moveDown(0.4);
+  para("7545 sayılı Siber Güvenlik Kanunu: Kanun kapsamındaki kuruluşlara önleyici ve sürekli siber güvenlik yükümlülükleri ile zafiyet ve olay bildirimi yükümlülüğü getirmektedir. Tedarikçilerden kaynaklanan risklerin düzenli olarak ölçülmesi bu yükümlülüklerin yerine getirilmesini destekler.");
+  doc.moveDown(0.4);
+  para("BDDK destek hizmeti düzenlemeleri: Bankaların destek hizmeti sağlayıcılarına ilişkin risk değerlendirmesi yapması beklenmektedir. Bu raporun sürekli izleme çıktıları söz konusu değerlendirmelere girdi sağlayabilir.");
+  doc.moveDown(0.4);
+  para("Bu rapor hukuki görüş değildir ve mevzuata uyumun tek başına kanıtı sayılmaz; kurumunuzun uyum değerlendirmesi kapsamında diğer kontrollerle birlikte değerlendirilmelidir.", { oblique: true } as PDFKit.Mixins.TextOptions);
+
+  // ── Metodoloji ───────────────────────────────────────────────────────────
+  h2("5. Metodoloji Özeti");
+  para("CyberStep Risk Skoru v2, yalnızca herkese açık ve dışarıdan gözlemlenebilen sinyallerden hesaplanır; tedarikçinin sistemlerine erişilmez ve saldırı testi yapılmaz. Kategoriler ve azami puanlar: bilinen zafiyetler (CVE, CISA KEV) 30, ağ maruziyeti 20, itibar 15, e-posta güvenliği 15, veri sızıntısı 10, TLS ve web 10. Aktif sömürülen zafiyet (skor en fazla 49), fidye yazılımında kullanılan zafiyet veya USOM/URLhaus kaydı (en fazla 39) ve internete açık kritik servis (en fazla 59) skoru üstten sınırlar. Ölçülemeyen kategoriler temiz sayılmaz; skor ölçülen kategoriler üzerinden hesaplanır. Not eşikleri: A ≥85, B ≥70, C ≥55, D ≥40, F <40. Ayrıntılı metodoloji: cyberstep.io/metodoloji");
+
+  // ── Sayfa altlıkları ─────────────────────────────────────────────────────
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    // Alt marjın altına yazarken PDFKit'in yeni sayfa açmasını engelle
+    const bottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    doc.font("r").fontSize(7.5).fillColor(MUTED).text(
+      `CyberStep.io · Tedarikçi Siber Risk Portföy Raporu · ${input.companyName} · ${fmtDate(input.generatedAt)} · Sayfa ${i - range.start + 1}/${range.count}`,
+      48, doc.page.height - 32, { width: W, align: "center", lineBreak: false },
+    );
+    doc.page.margins.bottom = bottom;
+  }
+
+  doc.end();
+  return done;
+}

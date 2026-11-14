@@ -27,10 +27,93 @@ interface Vendor {
   questionnaireToken: string | null;
   combinedScore: number | null;
   riskLevel: string | null;
+  lastScanData: StoredScanData | null;
   crosssellSentAt: string | null;
   alertSentAt: string | null;
   monitoringActive: boolean;
   addedAt: string;
+}
+
+interface ScoreV2Category { key: string; label: string; maxPoints: number; points: number; measured: boolean }
+interface ScoreV2Finding { category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }
+interface StoredScanData {
+  scoreVersion?: string;
+  score?: {
+    score: number;
+    grade: string;
+    coverage: number;
+    categories: ScoreV2Category[];
+    findings: ScoreV2Finding[];
+    caps: string[];
+  };
+}
+
+const SEVERITY_STYLE: Record<ScoreV2Finding["severity"], string> = {
+  critical: "bg-red-500/15 text-red-400 border-red-500/30",
+  high: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  medium: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  low: "bg-muted text-muted-foreground border-border",
+};
+const SEVERITY_LABEL: Record<ScoreV2Finding["severity"], string> = {
+  critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük",
+};
+
+function ScoreBreakdown({ data }: { data: StoredScanData | null }) {
+  const s = data?.score;
+  if (!s) return null;
+  const unmeasured = s.categories.filter(c => !c.measured);
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {s.categories.map(c => {
+          const pct = c.measured && c.maxPoints > 0 ? Math.round((c.points / c.maxPoints) * 100) : null;
+          const color = pct === null ? "bg-muted" : pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
+          return (
+            <div key={c.key} className="rounded-md bg-muted/30 p-2">
+              <p className="text-[11px] text-muted-foreground">{c.label}</p>
+              {pct === null ? (
+                <p className="text-xs text-muted-foreground mt-1">Ölçülmedi</p>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold tabular-nums">{c.points}/{c.maxPoints}</p>
+                  <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+                    <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {s.caps.length > 0 && (
+        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          {s.caps.join(" · ")}
+        </div>
+      )}
+
+      {s.findings.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">Öne çıkan bulgular</p>
+          {s.findings.slice(0, 6).map((f, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs">
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${SEVERITY_STYLE[f.severity]}`}>
+                {SEVERITY_LABEL[f.severity]}
+              </Badge>
+              <span>{f.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {unmeasured.length > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Kapsama %{s.coverage}. Skora dahil edilmeyen (ölçülmemiş) kategoriler: {unmeasured.map(c => c.label).join(", ")}.
+          Yeniden tarama ile tamamlanabilir.
+        </p>
+      )}
+    </div>
+  );
 }
 
 const SECTORS = [
@@ -41,21 +124,23 @@ const SECTORS = [
 ];
 
 function riskColors(level: string | null) {
-  if (level === "Düşük") return { badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bar: "bg-emerald-500" };
-  if (level === "Orta")  return { badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",   bar: "bg-amber-500" };
+  if (level === "Düşük")  return { badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bar: "bg-emerald-500" };
+  if (level === "Orta")   return { badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",   bar: "bg-amber-500" };
+  if (level === "Yüksek") return { badge: "bg-orange-500/20 text-orange-400 border-orange-500/30", bar: "bg-orange-500" };
   return { badge: "bg-red-500/20 text-red-400 border-red-500/30", bar: "bg-red-500" };
 }
 
-function ScoreBar({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-xs text-muted-foreground">Bekleniyor...</span>;
+function ScoreBar({ score, grade }: { score: number | null; grade?: string }) {
+  if (score === null) return <span className="text-xs text-muted-foreground">Taranıyor...</span>;
   const pct = Math.min(100, Math.max(0, score));
-  const color = score >= 70 ? "bg-emerald-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
+  const color = score >= 70 ? "bg-emerald-500" : score >= 55 ? "bg-amber-500" : score >= 40 ? "bg-orange-500" : "bg-red-500";
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[80px]">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-sm font-semibold tabular-nums">{score}/100</span>
+      {grade && <span className="text-xs font-bold text-muted-foreground">{grade}</span>}
     </div>
   );
 }
@@ -109,14 +194,19 @@ export default function TedarikciPortfoyu() {
         body: JSON.stringify({ supplierDomain: domain, supplierName: newName.trim() || null }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
-      return res.json();
+      return res.json() as Promise<Vendor & { instantScore?: boolean; scanPending?: boolean }>;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["tprm-vendors", email] });
       setAddOpen(false);
       setNewDomain("");
       setNewName("");
-      toast({ title: "Tedarikçi eklendi", description: "Arka planda tarama başlatıldı." });
+      toast({
+        title: "Tedarikçi eklendi",
+        description: data?.instantScore
+          ? (data.scanPending ? "Mevcut veriden skor gösterildi; güncel tarama arka planda sürüyor." : "Skor CyberStep veritabanından anında hesaplandı.")
+          : "Arka planda tarama başlatıldı.",
+      });
     },
     onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
   });
@@ -171,7 +261,7 @@ export default function TedarikciPortfoyu() {
 
   const stats = {
     total: vendors.length,
-    high: vendors.filter(v => v.riskLevel === "Yüksek").length,
+    high: vendors.filter(v => v.riskLevel === "Yüksek" || v.riskLevel === "Kritik").length,
     mid: vendors.filter(v => v.riskLevel === "Orta").length,
     low: vendors.filter(v => v.riskLevel === "Düşük").length,
     pending: vendors.filter(v => v.lastScanScore === null).length,
@@ -271,7 +361,7 @@ export default function TedarikciPortfoyu() {
                         )}
                       </div>
                       <div className="mt-2 flex items-center gap-3 flex-wrap">
-                        <ScoreBar score={v.lastScanScore} />
+                        <ScoreBar score={v.lastScanScore} grade={v.lastScanData?.score?.grade} />
                         <TrendIcon current={v.lastScanScore} prev={v.prevScanScore} />
                         {v.lastScanAt && (
                           <span className="text-[10px] text-muted-foreground">
@@ -310,6 +400,8 @@ export default function TedarikciPortfoyu() {
                   {/* Detay paneli */}
                   {isExp && (
                     <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                      <ScoreBreakdown data={v.lastScanData} />
+
                       {/* Anket durumu */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">

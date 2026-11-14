@@ -3,14 +3,17 @@ import { db } from "@workspace/db";
 import { domainScansTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { requireApiKey, trackUsage, scoreToGrade, gradeToRisk } from "./middleware";
+import { requireApiKey, trackUsage } from "./middleware";
+import { normalizeDomain, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+
+const RISK_EN = { "Düşük": "low", "Orta": "medium", "Yüksek": "high", "Kritik": "critical" } as const;
 
 const router = Router();
 
 // ─── GET /api/v1/score/:domain/certificate ────────────────────────────────────
 // Badge / certification status — standard+ only
 router.get("/v1/score/:domain/certificate", requireApiKey, async (req: Request, res: Response) => {
-  const domain = String(req.params.domain).toLowerCase().trim();
+  const domain = normalizeDomain(String(req.params.domain));
   const start = req.v1StartedAt ?? Date.now();
 
   try {
@@ -26,15 +29,18 @@ router.get("/v1/score/:domain/certificate", requireApiKey, async (req: Request, 
       return;
     }
 
-    const grade = scoreToGrade(scan.overallScore);
+    const v2 = await scoreScanV2(scan);
+    const grade = v2.grade;
     const ms = Date.now() - start;
     await trackUsage(req.apiKey!.id, "/v1/score/certificate", domain, null, 200, ms);
 
     res.json({
       domain: scan.domain,
-      score: scan.overallScore,
+      score: v2.score,
       grade,
-      risk: gradeToRisk(grade),
+      risk: RISK_EN[v2.risk],
+      scoreVersion: v2.version,
+      coverage: v2.coverage,
       lastScanAt: scan.createdAt,
       badgeToken: scan.badgeToken ?? null,
       verificationUrl: scan.badgeToken

@@ -125,7 +125,8 @@ interface ContentHealth {
 const CRON_LABELS: Record<string, string> = {
   digest_rss_collect: "Haber toplama (günlük)",
   digest_enrich: "Haber zenginleştirme (günlük)",
-  digest_weekly_generate: "Haftalık digest taslağı (Cuma)",
+  digest_weekly_generate: "Haftalık digest üretimi (Cuma)",
+  digest_autopublish: "Digest otomatik yayın (günlük)",
   blog_autopilot_mon: "Blog otomatik yazı (Pazartesi)",
   blog_autopilot_thu: "Blog otomatik yazı (Perşembe)",
   social_media_weekly: "Sosyal medya içeriği (Pazar)",
@@ -150,7 +151,7 @@ function ContentHealthCard() {
   const problems = [
     h.blog.stale && `Son blog yazısı: ${fmtWhen(h.blog.lastPublishedAt)}`,
     h.news.stale && `Son haber: ${fmtWhen(h.news.lastCollectedAt)}`,
-    h.digest.pendingDrafts > 0 && `${h.digest.pendingDrafts} haftalık digest onay bekliyor (onaylanmadan sitede yayınlanmaz)`,
+    h.digest.pendingDrafts > 0 && `${h.digest.pendingDrafts} haftalık digest yayın bekliyor (otomatik yayın her sabah 05:30'da çalışır; kapatmak için Site Ayarları → digest.autoPublish = false)`,
   ].filter(Boolean) as string[];
 
   return (

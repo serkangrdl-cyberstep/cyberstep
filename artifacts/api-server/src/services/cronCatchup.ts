@@ -35,6 +35,7 @@ export const CATCHUP_JOBS: CatchupJob[] = [
   { name: "digest_rss_collect", maxAgeHours: 26 },
   { name: "digest_enrich", maxAgeHours: 26 },
   { name: "digest_weekly_generate", maxAgeHours: 8 * 24 },
+  { name: "digest_autopublish", maxAgeHours: 26 },
   { name: "blog_autopilot_mon", maxAgeHours: 4 * 24, group: ["blog_autopilot_mon", "blog_autopilot_thu"] },
   { name: "social_media_weekly", maxAgeHours: 8 * 24 },
   // Tedarikçi izleme

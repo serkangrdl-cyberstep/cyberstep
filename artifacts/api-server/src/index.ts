@@ -2531,9 +2531,19 @@ function startDigestCron() {
     try {
       const id = await generateWeeklyDigest();
       logger.info({ id }, "Digest: Haftalık digest oluşturuldu");
+      // Otomatik yayın: bu haftanın digest'i sitede yayınlanır ve abonelere gider
+      const { runDigestAutoPublish } = await import("./services/digestAutoPublish");
+      await runDigestAutoPublish();
     } catch (err) {
       logger.error({ err }, "Digest: Haftalık digest oluşturma başarısız");
     }
+  }), { timezone: "Europe/Istanbul" });
+
+  // Günlük otomatik yayın kontrolü: onay bekleyenler + haberi olan eksik haftalar
+  cron.schedule("30 5 * * *", wrapCron("digest_autopublish", "30 5 * * *", async () => {
+    const { runDigestAutoPublish } = await import("./services/digestAutoPublish");
+    const r = await runDigestAutoPublish();
+    return r.published;
   }), { timezone: "Europe/Istanbul" });
 
   logger.info("Digest cron scheduled (06:00 collect → 06:30 enrich → Fri 07:00 generate Istanbul)");

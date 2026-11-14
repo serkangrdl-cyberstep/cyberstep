@@ -90,7 +90,11 @@ export default function TedarikciPortfoyu() {
 
   const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
     queryKey: ["tprm-vendors", email],
-    queryFn: () => fetch(`/api/tprm/vendors?email=${encodeURIComponent(email)}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/tprm/vendors", { credentials: "include" });
+      if (!r.ok) throw new Error("Tedarikçi listesi yüklenemedi");
+      return r.json();
+    },
     enabled: !!email,
     refetchInterval: 15000,
   });
@@ -100,8 +104,9 @@ export default function TedarikciPortfoyu() {
       const domain = newDomain.trim().toLowerCase().replace(/^https?:\/\//, "");
       const res = await fetch("/api/tprm/vendors", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerEmail: email, supplierDomain: domain, supplierName: newName.trim() || null }),
+        body: JSON.stringify({ supplierDomain: domain, supplierName: newName.trim() || null }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
       return res.json();
@@ -117,12 +122,12 @@ export default function TedarikciPortfoyu() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}`, { method: "DELETE", credentials: "include" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tprm-vendors", email] }),
   });
 
   const rescanMutation = useMutation({
-    mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}/rescan`, { method: "POST" }).then(r => r.json()),
+    mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}/rescan`, { method: "POST", credentials: "include" }).then(r => r.json()),
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ["tprm-vendors", email] });
       toast({ title: "Yeniden tarama başlatıldı", description: "Sonuç birkaç dakika içinde güncellenir." });
@@ -134,6 +139,7 @@ export default function TedarikciPortfoyu() {
       if (!selectedVendor) throw new Error("Tedarikçi seçilmedi");
       const res = await fetch(`/api/tprm/vendors/${selectedVendor.id}/send-questionnaire`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyName, companySector }),
       });

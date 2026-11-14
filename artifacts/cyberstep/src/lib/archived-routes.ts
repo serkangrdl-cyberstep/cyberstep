@@ -34,6 +34,11 @@ export const ARCHIVED_PORTAL: readonly string[] = [
   "/hesabim/ciso-asistan", "/hesabim/technology-discovery", "/hesabim/servislerim", "/hesabim/sepet",
 ];
 
+/** Özel hedefe yönlenen arşiv sayfaları (içeriği başka bir sayfaya taşınanlar). */
+export const ARCHIVED_REDIRECT_TO: Readonly<Record<string, string>> = {
+  "/neden-cyberstep": "/hakkimizda", // isim hikayesi ve ekip yeni Hakkımızda sayfasında
+};
+
 function matches(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(prefix + "/") || path.startsWith(prefix + "#") || path.startsWith(prefix + "?");
 }
@@ -41,6 +46,7 @@ function matches(path: string, prefix: string): boolean {
 /** Arşivlenmiş bir yolsa yönlendirilecek adresi döner; değilse null. */
 export function archivedRedirect(path: string): string | null {
   const p = path.split("?")[0]!.split("#")[0]!.replace(/\/+$/, "") || "/";
+  for (const [from, to] of Object.entries(ARCHIVED_REDIRECT_TO)) if (matches(p, from)) return to;
   if (ARCHIVED_PORTAL.some((r) => matches(p, r))) return "/hesabim";
   if (ARCHIVED_PUBLIC.some((r) => matches(p, r))) return "/";
   return null;

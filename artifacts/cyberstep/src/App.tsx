@@ -56,7 +56,7 @@ import FullAssessmentRunner from "./pages/full-assessment-runner";
 import Payment from "./pages/payment";
 import AdminReview from "./pages/admin-review";
 import Hakkimizda from "./pages/hakkimizda";
-import NedenCyberStep from "./pages/neden-cyberstep";
+import NedenCyberStep from "./pages/archive/neden-cyberstep-legacy"; // arşivde — /neden-cyberstep → /hakkimizda yönlenir
 import Iletisim from "./pages/iletisim";
 import Kurumsal from "./pages/kurumsal";
 import PartnerPage from "./pages/partner";

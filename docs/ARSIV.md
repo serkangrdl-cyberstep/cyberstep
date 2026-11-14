@@ -44,6 +44,10 @@ Yeniden yazılan sayfaların eski hâlleri kod içinde duruyor; route'a bağlı 
 
 - `artifacts/cyberstep/src/pages/archive/home-legacy.tsx`: eski ana sayfa (KOBİ / EASM konumlandırması)
 - `artifacts/cyberstep/src/pages/archive/pricing-legacy.tsx`: eski fiyat sayfası (servis kataloğu)
+- `artifacts/cyberstep/src/pages/archive/hakkimizda-legacy.tsx`: eski Hakkımızda (KOBİ / AI güvenlik / CEM anlatısı)
+- `artifacts/cyberstep/src/pages/archive/neden-cyberstep-legacy.tsx`: eski "Neden CyberStep?" (isim hikayesi, zaman çizelgesi, ekip ve kariyer formu). `/neden-cyberstep` artık `/hakkimizda`'ya yönlenir (`ARCHIVED_REDIRECT_TO`). İsim hikayesi ve ekip bölümü yeni Hakkımızda sayfasına kısaltılarak taşındı.
+
+Üst menü ve footer da sadeleştirildi (`components/layout.tsx`, `components/footer.tsx`): ayrı "Araçlar" menüsü tek "Ücretsiz Araçlar" menüsünde birleşti; Haberler, Neden CyberStep ve İletişim üst menüden footer'a taşındı.
 
 ## Arka uç
 

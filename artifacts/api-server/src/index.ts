@@ -1994,6 +1994,12 @@ async function startup() {
     }
   });
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
+  // TPRM yeniden konumlandırma: footer sloganı hâlâ eski varsayılansa güncelle (özelleştirilmişse dokunma)
+  await db.execute(sql`
+    UPDATE site_settings SET value = 'Türkiye için tedarikçi siber risk skorlaması'
+    WHERE key = 'footer.tagline' AND value = 'KOBİ''ler için siber güvenlik risk analizi'
+  `).catch(() => {});
+
   // API anahtarlarını hash'le: düz metin anahtarlar SHA-256'ya çevrilir, key alanına yer tutucu yazılır.
   // Tek seferlik ve geri alınamaz: müşterilerin elindeki anahtarlar çalışmaya devam eder.
   await db.execute(sql`ALTER TABLE IF EXISTS api_product_keys ADD COLUMN IF NOT EXISTS key_hash TEXT`);

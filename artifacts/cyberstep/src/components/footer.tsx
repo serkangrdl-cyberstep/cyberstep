@@ -1,5 +1,5 @@
 import { isArchived } from "@/lib/archived-routes";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
@@ -45,30 +45,8 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
-function useHashNav() {
-  const [, navigate] = useLocation();
-  return (href: string) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    const hashIdx = href.indexOf("#");
-    if (hashIdx === -1) { navigate(href); return; }
-    const path = href.slice(0, hashIdx);
-    const hash = href.slice(hashIdx + 1);
-    const isSamePage = window.location.pathname === path;
-    const scroll = () => {
-      const el = document.getElementById(hash);
-      if (el) el.scrollIntoView({ behavior: "smooth" });
-    };
-    if (isSamePage) { scroll(); }
-    else {
-      navigate(path);
-      setTimeout(scroll, 150);
-    }
-  };
-}
-
 export function Footer() {
   const { lang } = useLanguage();
-  const hashNav = useHashNav();
 
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],
@@ -86,71 +64,75 @@ export function Footer() {
   const tagline = settings?.["footer.tagline"] ?? (lang === "en" ? "Supplier cyber risk ratings for Türkiye" : "Türkiye için tedarikçi siber risk skorlaması");
   const email = settings?.["contact.email"] ?? "info@cyberstep.io";
 
-  const toolLinks = lang === "en"
-    ? [
-        { label: "Data Leak Monitor",            href: "/sizinti-izleyici" },
-        { label: "Data Leakage Monitoring",       href: "/veri-sizintisi" },
-        { label: "Brand Protection",              href: "/marka-koruma" },
-        { label: "KVKK VERBİS Check",            href: "/kvkk-verbis" },
-        { label: "M365 Security Audit",           href: "/m365-denetim" },
-        { label: "Cyber Insurance Calculator",    href: "/siber-sigorta" },
-        { label: "KEP Requirement Guide",         href: "/kep-rehberi" },
-        { label: "ERP Security Scan",             href: "/erp-tarama" },
-        { label: "Sector Benchmarking",           href: "/sektorel-kiyaslama" },
-        { label: "KVKK Penalty Simulator",        href: "/kvkk-ceza-sim" },
-        { label: "Phishing Test",                 href: "/phishing-sim" },
-        { label: "Attack Simulation",             href: "/saldiri-simulasyonu" },
-        { label: "Cyber Loss Calculator",         href: "/finansal-kayip" },
-        { label: "Brand & Domain Protection",     href: "/marka-koruma" },
-        { label: "Supplier Risk Score",           href: "/tedarik-zinciri" },
-        { label: "Supplier Trust Badge",          href: "/guven-rozeti" },
-        { label: "Regulatory Compliance Analysis",href: "/dora-bddk-uyum" },
-      ]
-    : [
-        { label: "Sızıntı İzleyici",             href: "/sizinti-izleyici" },
-        { label: "Veri Sızıntısı İzleme",        href: "/veri-sizintisi" },
-        { label: "KVKK VERBİS Kontrol",          href: "/kvkk-verbis" },
-        { label: "M365 Güvenlik Denetimi",        href: "/m365-denetim" },
-        { label: "Siber Sigorta Hesaplayıcı",    href: "/siber-sigorta" },
-        { label: "KEP İhtiyaç Rehberi",          href: "/kep-rehberi" },
-        { label: "ERP Güvenlik Tarama",           href: "/erp-tarama" },
-        { label: "Sektörel Kıyaslama",           href: "/sektorel-kiyaslama" },
-        { label: "KVKK Ceza Simülatörü",         href: "/kvkk-ceza-sim" },
-        { label: "Phishing Testi",               href: "/phishing-sim" },
-        { label: "Saldırı Simülasyonu",          href: "/saldiri-simulasyonu" },
-        { label: "Siber Kayıp Hesaplayıcı",      href: "/finansal-kayip" },
-        { label: "Marka ve Domain Koruma",        href: "/marka-koruma" },
-        { label: "Tedarikçi Risk Skoru",          href: "/tedarik-zinciri" },
-        { label: "Tedarikçi Güven Rozeti",        href: "/guven-rozeti" },
-        { label: "Regülasyonlara Uyum Analizi",  href: "/dora-bddk-uyum" },
-      ];
+  const L = (tr: string, en: string) => (lang === "en" ? en : tr);
 
-  const whyLinks = lang === "en"
-    ? [
-        { label: "Our Story",          href: "/neden-cyberstep" },
-        { label: "Our Team",           href: "/neden-cyberstep#ekibimiz" },
-        { label: "How It Works",       href: "/neden-cyberstep#nasil-calisir" },
-        { label: "Platform Evolution", href: "/hakkimizda#platform-evrimi" },
-      ]
-    : [
-        { label: "İsmin Hikayesi",     href: "/neden-cyberstep" },
-        { label: "Ekibimiz",           href: "/neden-cyberstep#ekibimiz" },
-        { label: "Nasıl Çalışır?",    href: "/neden-cyberstep#nasil-calisir" },
-        { label: "Platform Evrimi",    href: "/hakkimizda#platform-evrimi" },
-      ];
+  // Footer sütunları — TPRM yapısı (Kasım 2026). Arşivlenen sayfalar isArchived ile ayrıca süzülür.
+  const columns: Array<{ title: string; links: Array<{ label: string; href: string }> }> = [
+    {
+      title: L("Tedarikçi Riski", "Supplier Risk"),
+      links: [
+        { label: L("Tedarikçi Risk Portföyü", "Supplier Risk Portfolio"), href: "/tedarik-zinciri" },
+        { label: L("Risk Skoru API", "Risk Score API"), href: "/skor-api" },
+        { label: L("Sektör Kıyaslaması", "Sector Benchmark"), href: "/sektor-raporu" },
+        { label: L("Tedarikçi Güven Rozeti", "Supplier Trust Badge"), href: "/guven-rozeti" },
+        { label: L("Tedarikçi Onboarding", "Supplier Onboarding"), href: "/tedarikci-onboarding" },
+        { label: L("Skor Metodolojisi", "Scoring Methodology"), href: "/metodoloji" },
+        { label: L("Paketler ve Fiyatlar", "Plans & Pricing"), href: "/fiyatlar" },
+      ],
+    },
+    {
+      title: L("Çözümler", "Solutions"),
+      links: [
+        { label: L("Banka ve Finans (BDDK / DORA)", "Banks & Finance (BDDK / DORA)"), href: "/dora-bddk-uyum" },
+        { label: L("Sigorta Şirketleri", "Insurers"), href: "/siber-sigorta" },
+        { label: L("Birleşme ve Satın Alma", "M&A Due Diligence"), href: "/ma-due-diligence" },
+        { label: L("Kurumsal Satın Alma", "Enterprise Procurement"), href: "/kurumsal" },
+        { label: L("KOBİ Risk Değerlendirmesi", "SME Risk Assessment"), href: "/assessment/start" },
+      ],
+    },
+    {
+      title: L("Ücretsiz Araçlar", "Free Tools"),
+      links: [
+        { label: L("Alan Adı Güvenlik Taraması", "Domain Security Scan"), href: "/domain-tarama" },
+        { label: L("DMARC Kontrol", "DMARC Check"), href: "/araclar/dmarc-kontrol" },
+        { label: L("SSL Kontrol", "SSL Check"), href: "/araclar/ssl-kontrol" },
+        { label: L("Dark Web Sorgulama", "Dark Web Lookup"), href: "/araclar/dark-web-sorgulama" },
+        { label: L("Sızıntı İzleyici", "Leak Monitor"), href: "/sizinti-izleyici" },
+        { label: L("KVKK Ceza Simülatörü", "KVKK Penalty Simulator"), href: "/kvkk-ceza-sim" },
+        { label: L("KVKK DPA Sözleşme Taslağı", "KVKK DPA Draft"), href: "/kvkk-dpa-olustur" },
+        { label: L("Tüm Araçlar", "All Tools"), href: "/araclar" },
+      ],
+    },
+    {
+      title: L("Şirket", "Company"),
+      links: [
+        { label: L("Hakkımızda", "About Us"), href: "/hakkimizda" },
+        { label: L("Blog", "Blog"), href: "/blog" },
+        { label: L("Siber Güvenlik Haberleri", "Security News"), href: "/haberler" },
+        { label: L("Haftalık Bülten", "Weekly Bulletin"), href: "/bulten/arsiv" },
+        { label: L("İş Ortaklığı", "Partner Program"), href: "/is-ortakligi" },
+        { label: L("İletişim", "Contact"), href: "/iletisim" },
+      ],
+    },
+  ];
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-auto">
       <div className="container mx-auto px-4 py-12 max-w-6xl">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
-          {/* Brand */}
-          <div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
+          {/* Marka */}
+          <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <Shield className="h-6 w-6 text-emerald-400" />
               <span className="font-bold text-white text-lg">{company}</span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed mb-4">{tagline}</p>
             <a href={`mailto:${email}`} className="text-emerald-400 text-sm hover:text-emerald-300 transition-colors">{email}</a>
+            <div className="mt-4">
+              <Link href="/iletisim?konu=Demo talebi" className="inline-flex items-center rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-500/20 transition-colors">
+                {L("Demo talep et", "Request a demo")}
+              </Link>
+            </div>
 
             {socialLinks && socialLinks.length > 0 && (
               <div className="flex items-center gap-3 mt-5">
@@ -172,80 +154,18 @@ export function Footer() {
             )}
           </div>
 
-          {/* Platform */}
-          <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.platform, lang)}</h4>
-            <ul className="space-y-2.5">
-              {[
-                { label: t(T.footer.miniAssessment, lang), href: "/assessment/start" },
-                { label: t(T.footer.fullAssessment, lang), href: "/assessment/full/start" },
-                { label: t(T.footer.pricing, lang), href: "/fiyatlar" },
-                { label: t(T.footer.dashboard, lang), href: "/dashboard" },
-                { label: t(T.footer.blog, lang), href: "/blog" },
-                { label: lang === "en" ? "Domain Security Scan"       : "Alan Adı Güvenlik Taraması",  href: "/domain-tarama" },
-                { label: lang === "en" ? "KVKK DPA Contract Draft"    : "KVKK DPA Sözleşme Taslağı",  href: "/kvkk-dpa-olustur" },
-                { label: lang === "en" ? "Cyber Panic Button"         : "Siber Panik Butonu",           href: "/siber-panik" },
-                { label: lang === "en" ? "Partner Program"            : "İş Ortaklığı",                 href: "/is-ortakligi" },
-              ].map(({ label, href }) => (
-                <li key={href}>
-                  <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Security Tools */}
-          <div>
-            <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">
-              {lang === "en" ? "Security Tools" : "Güvenlik Araçları"}
-            </h4>
-            <ul className="space-y-2.5">
-              {toolLinks.filter(({ href }) => !isArchived(href)).map(({ label, href }) => (
-                <li key={href}>
-                  <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Corporate + Why CyberStep */}
-          <div className="space-y-8">
-            <div>
-              <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{t(T.footer.corporate, lang)}</h4>
+          {columns.map(col => (
+            <div key={col.title}>
+              <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">{col.title}</h4>
               <ul className="space-y-2.5">
-                {[
-                  { label: t(T.footer.about, lang), href: "/hakkimizda" },
-                  { label: t(T.footer.contact, lang), href: "/iletisim" },
-                  { label: t(T.footer.kvkk, lang), href: "/kvkk" },
-                ].map(({ label, href }) => (
+                {col.links.filter(({ href }) => !isArchived(href)).map(({ label, href }) => (
                   <li key={href}>
                     <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
                   </li>
                 ))}
               </ul>
             </div>
-
-            <div>
-              <Link href="/neden-cyberstep">
-                <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer">
-                  {lang === "en" ? "Why CyberStep?" : "Neden CyberStep?"}
-                </h4>
-              </Link>
-              <ul className="space-y-2.5">
-                {whyLinks.map(item => (
-                  <li key={item.label}>
-                    <a
-                      href={item.href}
-                      onClick={hashNav(item.href)}
-                      className="text-slate-400 text-sm hover:text-white transition-colors cursor-pointer"
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
 
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">

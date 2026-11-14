@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Wrench, Unlock, Search, AlertTriangle } from "lucide-react";
+import { Shield, LogIn, User, Moon, Sun, Menu, X, ChevronRight, ChevronDown, Bot, Cpu, Mail, FileText, ActivitySquare, ShieldCheck, Unlock, Search, AlertTriangle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Footer } from "./footer";
 import { useWhiteLabel } from "@/contexts/white-label-context";
@@ -8,13 +8,11 @@ import { useCustomer } from "@/hooks/use-customer";
 import { useLanguage } from "@/contexts/language-context";
 import { TRANSLATIONS as T, t } from "@/lib/translations";
 
+// Sade üst menü (TPRM yapısı): Haberler / Neden CyberStep / İletişim footer'a ve Hakkımızda'ya taşındı
 const NAV_LINKS = (lang: "tr" | "en") => [
+  { href: "/fiyatlar", label: lang === "en" ? "Pricing" : "Fiyatlar" },
   { href: "/blog", label: t(T.nav.blog, lang) },
-  { href: "/haberler", label: lang === "en" ? "News" : "Haberler" },
-  { href: "/fiyatlar", label: t(T.nav.pricing, lang) },
   { href: "/hakkimizda", label: t(T.nav.about, lang) },
-  { href: "/neden-cyberstep", label: lang === "en" ? "Why CyberStep?" : "Neden CyberStep?" },
-  { href: "/iletisim", label: t(T.nav.contact, lang) },
 ];
 
 // "Tedarikçi Riski" menüsü (eski "AI Güvenlik" menüsünün yerini aldı — AI sayfaları arşivde)
@@ -38,23 +36,16 @@ const HIZMETLER_ITEMS = (lang: "tr" | "en") => [
 ];
 const SOLUTION_PATHS = ["/dora-bddk-uyum", "/siber-sigorta", "/ma-due-diligence", "/kurumsal"];
 
-const ARACLAR_ITEMS = (lang: "tr" | "en") => [
-  { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
-  { href: "/sizinti-izleyici", label: lang === "en" ? "Leak Monitor" : "Sızıntı İzleyici" },
-  { href: "/kvkk-ceza-sim", label: lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü" },
-  { href: "/sektorel-kiyaslama", label: lang === "en" ? "Sector Benchmarking" : "Sektörel Kıyaslama" },
-  { href: "/roi-hesaplayici", label: lang === "en" ? "ROI Calculator" : "ROI Hesaplayıcı" },
-  { href: "/marka-koruma", label: lang === "en" ? "Brand Protection" : "Marka Koruma" },
-  { href: "/araclar", label: lang === "en" ? "All Tools" : "Tüm Araçlar" },
-];
-
+// Tek "Ücretsiz Araçlar" menüsü (eski "Araçlar" ve "Ücretsiz Araçlar" birleştirildi)
 const FREE_ARACLAR_ITEMS = (lang: "tr" | "en") => [
   { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
   { href: "/araclar/dmarc-kontrol", label: lang === "en" ? "DMARC Check" : "DMARC Kontrol" },
   { href: "/araclar/ssl-kontrol", label: lang === "en" ? "SSL Check" : "SSL Kontrol" },
   { href: "/araclar/dark-web-sorgulama", label: lang === "en" ? "Dark Web Lookup" : "Dark Web Sorgulama" },
-  { href: "/araclar/kvkk-ceza-hesaplayici", label: lang === "en" ? "KVKK Penalty Calculator" : "KVKK Ceza Hesaplayıcı" },
-  { href: "/assessment/start", label: lang === "en" ? "Mini Risk Assessment" : "Mini Risk Değerlendirmesi" },
+  { href: "/sizinti-izleyici", label: lang === "en" ? "Leak Monitor" : "Sızıntı İzleyici" },
+  { href: "/assessment/start", label: lang === "en" ? "SME Risk Assessment" : "KOBİ Risk Değerlendirmesi" },
+  { href: "/kvkk-ceza-sim", label: lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü" },
+  { href: "/araclar", label: lang === "en" ? "All Tools" : "Tüm Araçlar" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -66,14 +57,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [freeOpen, setFreeOpen] = useState(false);
   const [mobileFreeOpen, setMobileFreeOpen] = useState(false);
   const [hizmetlerOpen, setHizmetlerOpen] = useState(false);
   const [mobileHizmetlerOpen, setMobileHizmetlerOpen] = useState(false);
   const aiRef = useRef<HTMLDivElement>(null);
-  const toolsRef = useRef<HTMLDivElement>(null);
   const freeRef = useRef<HTMLDivElement>(null);
   const hizmetlerRef = useRef<HTMLDivElement>(null);
 
@@ -81,9 +69,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     function handleClick(e: MouseEvent) {
       if (aiRef.current && !aiRef.current.contains(e.target as Node)) {
         setAiOpen(false);
-      }
-      if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) {
-        setToolsOpen(false);
       }
       if (freeRef.current && !freeRef.current.contains(e.target as Node)) {
         setFreeOpen(false);
@@ -242,42 +227,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         key={href}
                         href={href}
                         onClick={() => setFreeOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${href === "/araclar" ? "font-semibold text-primary border-t mt-1" : "text-foreground"}`}
                       >
                         {label}
+                        {href === "/araclar" && <ChevronRight className="h-3.5 w-3.5 ml-auto" />}
                       </Link>
                     ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {!wl && (
-              <div ref={toolsRef} className="relative">
-                <button
-                  onClick={() => setToolsOpen(v => !v)}
-                  className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
-                    toolsOpen ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  <Wrench className="h-3.5 w-3.5" />
-                  {lang === "en" ? "Tools" : "Araçlar"}
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${toolsOpen ? "rotate-180" : ""}`} />
-                </button>
-                {toolsOpen && (
-                  <div className="absolute top-full left-0 mt-1.5 w-56 bg-popover border rounded-xl shadow-xl z-50 py-2 overflow-hidden">
-                    {ARACLAR_ITEMS(lang).map(({ href, label }) => {
-                      const isAllTools = href === "/araclar";
-                      return (
-                      <Link
-                        key={href}
-                        href={href}
-                        onClick={() => setToolsOpen(false)}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${isAllTools ? "font-semibold text-primary border-t mt-1 pt-2.5" : "text-foreground"}`}
-                      >
-                        {isAllTools ? <>{label} <ChevronRight className="h-3.5 w-3.5 ml-auto" /></> : label}
-                      </Link>
-                      );
-                    })}
                   </div>
                 )}
               </div>
@@ -331,18 +286,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
 
             <Link
-              href={wl ? `/w/${wl.slug}/assessment/start` : "/assessment/start"}
+              href={wl ? `/w/${wl.slug}/assessment/start` : "/hesabim/tedarikci-portfoyu"}
               className="ml-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-primary-foreground hover:opacity-90 h-10 px-4 py-2"
               style={{ backgroundColor: primaryColor ?? "hsl(var(--primary))" }}
             >
-              {wl ? t(T.assessmentStart.startBtn, lang) : t(T.nav.startFree, lang)}
+              {wl ? t(T.assessmentStart.startBtn, lang) : (lang === "en" ? "Start free" : "Ücretsiz Başla")}
             </Link>
           </nav>
 
           {/* Mobile sağ taraf: CTA + hamburger */}
           <div className="flex md:hidden items-center gap-2">
             <Link
-              href={wl ? `/w/${wl.slug}/assessment/start` : "/assessment/start"}
+              href={wl ? `/w/${wl.slug}/assessment/start` : "/hesabim/tedarikci-portfoyu"}
               className="inline-flex items-center justify-center rounded-md text-xs font-semibold text-primary-foreground hover:opacity-90 h-9 px-3"
               style={{ backgroundColor: primaryColor ?? "hsl(var(--primary))" }}
             >
@@ -441,32 +396,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           key={href}
                           href={href}
                           onClick={() => { setMobileOpen(false); setMobileFreeOpen(false); }}
-                          className="flex items-center w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
-                        >
-                          {label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              {/* Araçlar accordion */}
-              {!wl && (
-                <div>
-                  <button
-                    onClick={() => setMobileToolsOpen(v => !v)}
-                    className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors text-foreground hover:bg-muted"
-                  >
-                    <span className="flex items-center gap-2"><Wrench className="h-4 w-4" />{lang === "en" ? "Tools" : "Araçlar"}</span>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileToolsOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {mobileToolsOpen && (
-                    <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3">
-                      {ARACLAR_ITEMS(lang).map(({ href, label }) => (
-                        <Link
-                          key={href}
-                          href={href}
-                          onClick={() => { setMobileOpen(false); setMobileToolsOpen(false); }}
                           className="flex items-center w-full px-2 py-2 rounded-md text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
                         >
                           {label}

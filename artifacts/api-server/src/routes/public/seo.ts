@@ -68,7 +68,6 @@ router.get("/sitemap.xml", async (_req, res) => {
       { url: "/sektor/imalat",    priority: "0.7", changefreq: "monthly" },
       // Kurumsal ve içerik
       { url: "/hakkimizda",                priority: "0.6", changefreq: "monthly" },
-      { url: "/neden-cyberstep",           priority: "0.6", changefreq: "monthly" },
       { url: "/iletisim",                  priority: "0.5", changefreq: "yearly"  },
       { url: "/blog",                      priority: "0.8", changefreq: "daily"   },
       { url: "/bulten/arsiv",              priority: "0.5", changefreq: "weekly"  },

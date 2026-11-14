@@ -30,7 +30,7 @@ async function seed() {
     "contact.address": "İstanbul, Türkiye",
     "kvkk.content": "6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında kişisel verileriniz CyberStep.io tarafından işlenmektedir. Verileriniz yalnızca siber güvenlik değerlendirme hizmetlerinin sunulması amacıyla toplanmakta ve üçüncü taraflarla paylaşılmamaktadır. Daha fazla bilgi için info@cyberstep.io adresine ulaşabilirsiniz.",
     "footer.company": "CyberStep.io",
-    "footer.tagline": "KOBİ'ler için siber güvenlik risk analizi",
+    "footer.tagline": "Türkiye için tedarikçi siber risk skorlaması",
   };
 
   for (const [key, value] of Object.entries(defaultSettings)) {

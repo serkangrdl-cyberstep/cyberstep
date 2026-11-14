@@ -3,14 +3,35 @@ import { db } from "@workspace/db";
 import { domainScansTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { requireApiKey, domainRateLimit, trackUsage, scoreToGrade, gradeToRisk } from "./middleware";
+import { requireApiKey, domainRateLimit, trackUsage } from "./middleware";
+import { normalizeDomain, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import type { ScoreV2Result } from "../../lib/scoring/scoreV2";
+
+const RISK_EN: Record<ScoreV2Result["risk"], string> = {
+  "Düşük": "low", "Orta": "medium", "Yüksek": "high", "Kritik": "critical",
+};
+
+/**
+ * Yanıtlarda ortak skor bloğu. `score` / `grade` / `risk` Skor v2'dir;
+ * `legacyScore` eski (e-posta + SSL ağırlıklı) skordur ve geçiş dönemi için korunur.
+ */
+function scoreFields(scan: { overallScore: number }, v2: ScoreV2Result) {
+  return {
+    score: v2.score,
+    grade: v2.grade,
+    risk: RISK_EN[v2.risk],
+    scoreVersion: v2.version,
+    coverage: v2.coverage,
+    legacyScore: scan.overallScore,
+  };
+}
 
 const router = Router();
 
 // ─── Shared: fetch latest scan for a domain ───────────────────────────────────
 async function getLatestScan(domain: string) {
   const [scan] = await db.select().from(domainScansTable)
-    .where(eq(domainScansTable.domain, domain.toLowerCase().trim()))
+    .where(eq(domainScansTable.domain, normalizeDomain(domain)))
     .orderBy(desc(domainScansTable.createdAt))
     .limit(1);
   return scan ?? null;
@@ -19,7 +40,7 @@ async function getLatestScan(domain: string) {
 // ─── GET /api/v1/score/:domain ────────────────────────────────────────────────
 // Quick score — freemium eligible
 router.get("/v1/score/:domain", requireApiKey, domainRateLimit, async (req: Request, res: Response) => {
-  const domain = String(req.params.domain).toLowerCase().trim();
+  const domain = normalizeDomain(String(req.params.domain));
   const start = req.v1StartedAt ?? Date.now();
 
   try {
@@ -32,17 +53,16 @@ router.get("/v1/score/:domain", requireApiKey, domainRateLimit, async (req: Requ
       return;
     }
 
-    const grade = scoreToGrade(scan.overallScore);
+    const v2 = await scoreScanV2(scan);
     const ms = Date.now() - start;
     await trackUsage(req.apiKey!.id, "/v1/score", domain, null, 200, ms);
 
     res.json({
       domain: scan.domain,
       status: "scanned",
-      score: scan.overallScore,
-      grade,
-      risk: gradeToRisk(grade),
+      ...scoreFields(scan, v2),
       lastScanAt: scan.createdAt,
+      topFindings: v2.findings.slice(0, 3).map(f => ({ severity: f.severity, title: f.title })),
       summary: {
         spf: scan.spfPass,
         dmarc: scan.dmarcPass,
@@ -59,7 +79,7 @@ router.get("/v1/score/:domain", requireApiKey, domainRateLimit, async (req: Requ
 // ─── GET /api/v1/score/:domain/full ──────────────────────────────────────────
 // Full scan results — standard+ only
 router.get("/v1/score/:domain/full", requireApiKey, domainRateLimit, async (req: Request, res: Response) => {
-  const domain = String(req.params.domain).toLowerCase().trim();
+  const domain = normalizeDomain(String(req.params.domain));
   const start = req.v1StartedAt ?? Date.now();
 
   try {
@@ -72,17 +92,20 @@ router.get("/v1/score/:domain/full", requireApiKey, domainRateLimit, async (req:
       return;
     }
 
-    const grade = scoreToGrade(scan.overallScore);
+    const v2 = await scoreScanV2(scan);
     const ms = Date.now() - start;
     await trackUsage(req.apiKey!.id, "/v1/score/full", domain, null, 200, ms);
 
     res.json({
       domain: scan.domain,
       status: "scanned",
-      score: scan.overallScore,
-      grade,
-      risk: gradeToRisk(grade),
+      ...scoreFields(scan, v2),
       lastScanAt: scan.createdAt,
+      scoreBreakdown: {
+        categories: v2.categories,
+        findings: v2.findings,
+        caps: v2.caps,
+      },
       email: {
         spf: { pass: scan.spfPass, record: scan.spfRecord },
         dmarc: { pass: scan.dmarcPass, record: scan.dmarcRecord },

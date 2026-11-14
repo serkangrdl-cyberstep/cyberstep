@@ -16,7 +16,16 @@ const RISK_EN: Record<ScoreV2Result["risk"], string> = {
  * `legacyScore` eski (e-posta + SSL ağırlıklı) skordur ve geçiş dönemi için korunur.
  */
 function scoreFields(scan: { overallScore: number }, v2: ScoreV2Result) {
+  if (v2.insufficientData) {
+    // Domain çözümlenemedi / anlamlı veri yok: skor üretilmez.
+    return {
+      score: null, grade: null, risk: null,
+      scoreVersion: v2.version, coverage: v2.coverage, insufficientData: true,
+      legacyScore: scan.overallScore,
+    };
+  }
   return {
+    insufficientData: false,
     score: v2.score,
     grade: v2.grade,
     risk: RISK_EN[v2.risk],

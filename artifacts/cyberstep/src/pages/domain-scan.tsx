@@ -76,6 +76,15 @@ interface ScanResult {
     total: number;
   } | null;
   overallScore: number;
+  scoreV2?: {
+    score: number;
+    grade: string;
+    risk: string;
+    coverage: number;
+    insufficientData: boolean;
+    caps: string[];
+    findings: Array<{ category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }>;
+  } | null;
   hibpBreachCount: number;
   hibpBreaches: HibpBreach[];
   blacklisted: boolean;
@@ -1879,7 +1888,10 @@ export default function DomainScanPage() {
     keywords: "domain güvenlik tarama, ssl kontrol, dmarc kontrol, domain blacklist kontrol, dark web sorgulama",
     canonicalPath: "/domain-tarama",
   });
-  const [domain, setDomain] = useState("");
+  // Ana sayfadaki "tedarikçi kontrol et" kutusundan ?domain= ile gelinirse alan doldurulur
+  const [domain, setDomain] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("domain")?.slice(0, 253) ?? ""; } catch { return ""; }
+  });
   const [email, setEmail] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [attackTeaserStatus, setAttackTeaserStatus] = useState<"idle" | "loading" | "ready">("idle");
@@ -1925,7 +1937,17 @@ export default function DomainScanPage() {
   });
 
   const result = scanMutation.data;
-  const scoreInfo = result ? ScoreColor(result.overallScore) : null;
+  // Skor v2 (lib/scoring/scoreV2.ts) gösterilir; yoksa eski skora düşülür.
+  const v2 = result?.scoreV2 && !result.scoreV2.insufficientData ? result.scoreV2 : null;
+  const displayScore = v2?.score ?? result?.overallScore ?? 0;
+  const displayGrade = v2?.grade ?? computeCreditGrade(displayScore);
+  const scoreInfo = result ? ScoreColor(displayScore) : null;
+  const { data: benchmark } = useQuery<{ available: boolean; percentile?: number; median?: number; sampleSize?: number }>({
+    queryKey: ["scan-benchmark", v2?.score],
+    queryFn: () => fetch(`/api/domain-scan/benchmark?score=${v2!.score}`).then(r => r.json()),
+    enabled: !!v2,
+    staleTime: 600_000,
+  });
 
   useEffect(() => {
     if (!result?.id) return;
@@ -2348,12 +2370,12 @@ export default function DomainScanPage() {
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
                 <img
-                  src={getDrStepMood(result.overallScore).src}
-                  alt={getDrStepMood(result.overallScore).label}
+                  src={getDrStepMood(displayScore).src}
+                  alt={getDrStepMood(displayScore).label}
                   className="w-20 h-20 object-contain shrink-0 hidden sm:block"
                 />
                 <div className="text-center shrink-0">
-                  <div className={`text-5xl font-black ${scoreInfo.text}`}>{result.overallScore}</div>
+                  <div className={`text-5xl font-black ${scoreInfo.text}`}>{displayScore}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">/ 100 puan</div>
                 </div>
                 <div className="flex-1">
@@ -2362,8 +2384,8 @@ export default function DomainScanPage() {
                     <Badge variant="outline" className={`font-bold border ${scoreInfo.bg} ${scoreInfo.text}`}>
                       {scoreInfo.label}
                     </Badge>
-                    <Badge variant="outline" className={`font-bold border text-xs ${CREDIT_GRADE_STYLE[computeCreditGrade(result.overallScore)] ?? ""}`}>
-                      {computeCreditGrade(result.overallScore)} Notu
+                    <Badge variant="outline" className={`font-bold border text-xs ${CREDIT_GRADE_STYLE[displayGrade] ?? ""}`}>
+                      {displayGrade} Notu
                     </Badge>
                     {result.blacklisted && (
                       <Badge variant="outline" className="font-bold border bg-red-100 text-red-700 border-red-200">
@@ -2392,26 +2414,38 @@ export default function DomainScanPage() {
                       </Badge>
                     )}
                   </div>
-                  <Progress value={result.overallScore} className="h-2.5 mb-2" />
+                  <Progress value={displayScore} className="h-2.5 mb-2" />
                   <p className="text-xs text-muted-foreground">
-                    {result.overallScore >= 80
-                      ? "E-posta güvenliğiniz iyi durumda. Aşağıdaki detayları inceleyin."
-                      : result.overallScore >= 60
-                      ? "Birkaç önemli güvenlik kaydı eksik. Aşağıdaki başarısız kontrolleri düzeltin."
+                    {displayScore >= 70
+                      ? "Dış saldırı yüzeyiniz iyi yönetiliyor. Aşağıdaki detayları inceleyin."
+                      : displayScore >= 55
+                      ? "Birkaç önemli güvenlik eksiği var. Aşağıdaki bulguları düzeltin."
                       : "Kritik güvenlik açıkları tespit edildi. Aşağıdaki adımları mümkün olan en kısa sürede tamamlayın."}
                   </p>
+                  {v2 && v2.caps.length > 0 && (
+                    <p className="mt-2 text-xs text-red-600">{v2.caps.join(" · ")}</p>
+                  )}
+                  {v2 && v2.findings.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {v2.findings.slice(0, 4).map((f, i) => (
+                        <li key={i} className="text-xs flex items-start gap-1.5">
+                          <span className={`shrink-0 font-semibold ${f.severity === "critical" ? "text-red-600" : f.severity === "high" ? "text-orange-600" : f.severity === "medium" ? "text-amber-600" : "text-muted-foreground"}`}>
+                            {f.severity === "critical" ? "Kritik" : f.severity === "high" ? "Yüksek" : f.severity === "medium" ? "Orta" : "Düşük"}
+                          </span>
+                          <span>{f.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {/* Sektör karşılaştırması */}
                   <div className="mt-2 text-xs text-muted-foreground border rounded-lg px-3 py-2 bg-muted/30 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
                     <span>
-                      {result.overallScore >= 86
-                        ? "CyberStep'te taranan domainlerin %92'si bu skorun altındadır — üst %8 güvenlik profili"
-                        : result.overallScore >= 76
-                        ? "CyberStep'te taranan domainlerin %78'i bu skorun altındadır — sektör ortalamasının belirgin üstünde"
-                        : result.overallScore >= 61
-                        ? "CyberStep'te taranan domainlerin %62'si bu skorun altındadır — sektör ortalaması civarında"
-                        : result.overallScore >= 41
-                        ? "CyberStep'te taranan domainlerin %55'i bu skorun üstündedir — iyileştirme fırsatı var"
-                        : "CyberStep'te taranan domainlerin %82'si bu skorun üstündedir — acil iyileştirme gerekiyor"}
+                      {benchmark?.available && benchmark.percentile != null
+                        ? benchmark.percentile >= 50
+                          ? `CyberStep'in taradığı ${benchmark.sampleSize?.toLocaleString("tr-TR")} Türk domaininin %${benchmark.percentile}'inden daha iyi (Türkiye medyanı ${benchmark.median})`
+                          : `CyberStep'in taradığı ${benchmark.sampleSize?.toLocaleString("tr-TR")} Türk domaininin %${100 - benchmark.percentile}'i bu skorun üstünde (Türkiye medyanı ${benchmark.median})`
+                        : "Skor; zafiyetler, açık portlar, itibar, e-posta güvenliği, sızıntılar ve TLS üzerinden hesaplanır."}
+                      {" "}<a href="/metodoloji" className="text-primary hover:underline">Metodoloji</a>
                     </span>
                     <a href="/roi-hesaplayici" className="sm:ml-auto shrink-0 text-primary hover:underline whitespace-nowrap font-medium">
                       Risk Maliyeti Hesapla →
@@ -2443,8 +2477,8 @@ export default function DomainScanPage() {
 
           {/* Paylaşılabilir Güvenlik Kartı */}
           <SecurityScoreCard
-            score={result.overallScore}
-            grade={result.letterGrade ?? computeCreditGrade(result.overallScore)}
+            score={displayScore}
+            grade={displayGrade}
             domain={result.domain}
             criticalCount={result.criticalCveCount ?? 0}
             highCount={result.highCveCount ?? 0}

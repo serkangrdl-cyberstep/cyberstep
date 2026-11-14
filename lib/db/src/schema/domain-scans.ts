@@ -150,8 +150,13 @@ export const domainScansTable = pgTable("domain_scans", {
   mailMxExists: boolean("mail_mx_exists"),
   mailReputationScore: integer("mail_reputation_score"), // 0-100
   mailCheckedAt: timestamp("mail_checked_at"),
+  // ─── Skor v2 (lib/scoring/scoreV2.ts) — scoreV2Backfill cron'u doldurur ─────
+  scoreV2: integer("score_v2"),
+  scoreV2Version: text("score_v2_version"),
+  scoreV2At: timestamp("score_v2_at"),
 }, (t) => [
   index("domain_scans_domain_idx").on(t.domain),
+  index("domain_scans_domain_created_idx").on(t.domain, t.createdAt),
 ]);
 
 export const insertDomainScanSchema = createInsertSchema(domainScansTable).omit({ id: true, createdAt: true });

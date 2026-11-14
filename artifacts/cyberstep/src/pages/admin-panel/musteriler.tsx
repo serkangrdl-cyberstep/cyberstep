@@ -42,7 +42,8 @@ const STATUS_COLORS: Record<string, string> = {
   trial:    "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-const PLANS = ["free", "starter", "pro", "enterprise"];
+// tprm_*: Tedarikçi Riski yıllık paketleri (pages/pricing.tsx) — tedarikçi limiti api-server/src/routes/tprm/index.ts
+const PLANS = ["tprm_baslangic", "tprm_profesyonel", "tprm_kurumsal", "free", "starter", "pro", "enterprise"];
 const STATUSES = ["active", "inactive", "trial"];
 
 function EditRow({ customer, onClose }: { customer: Customer; onClose: () => void }) {

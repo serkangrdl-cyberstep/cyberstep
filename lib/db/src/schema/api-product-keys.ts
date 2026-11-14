@@ -4,7 +4,11 @@ import { z } from "zod/v4";
 
 export const apiProductKeysTable = pgTable("api_product_keys", {
   id: serial("id").primaryKey(),
+  // Eski düz metin anahtar alanı. Hash'leme sonrası "hashed:<...>" yer tutucusu içerir;
+  // gerçek anahtar yalnızca oluşturulurken bir kez gösterilir.
   key: text("key").notNull().unique(),
+  keyHash: text("key_hash").unique(),     // SHA-256(hex) — doğrulama bununla yapılır
+  keyPrefix: text("key_prefix"),          // "csk_ab12cd34" — panelde tanımak için
   email: text("email").notNull(),
   company: text("company").notNull(),
   tier: text("tier").notNull().default("freemium"), // freemium | standard | enterprise

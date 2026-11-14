@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import { tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable, tprmVendorTable } from "@workspace/db";
-import { eq, and, lte, isNull, or } from "drizzle-orm";
+import { eq, and, lte, isNull, or, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { logger } from "../../lib/logger";
@@ -11,7 +11,11 @@ import { customersTable } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { domainScansTable } from "@workspace/db";
 import { SCORE_V2_VERSION, scoreV2Risk, type ScoreV2Result } from "../../lib/scoring/scoreV2";
-import { isScanFresh, normalizeDomain, scoreDomainV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import { isScanFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
+import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
+import { canonicalSector } from "../../lib/scoring/sectors";
+import { peekBenchmarkSnapshot, percentileInSector } from "../../services/sectorBenchmark";
 
 const router = Router();
 
@@ -90,12 +94,14 @@ async function applySupplierScore(
   const data: StoredScanData = { scoreVersion: SCORE_V2_VERSION, scanId: result.scanId, score: result.score };
   // Önceki skor v1 metodolojisiyle hesaplandıysa trend karşılaştırması anlamsızdır.
   const prevComparable = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION;
+  // Domain çözümlenemediyse skor gösterilmez; panel "veri yetersiz" der.
+  const insufficient = result.score.insufficientData;
   await db.update(tprmVendorTable).set({
-    prevScanScore: prevComparable ? vendor.lastScanScore : null,
-    lastScanScore: result.score.score,
+    prevScanScore: prevComparable && !insufficient ? vendor.lastScanScore : null,
+    lastScanScore: insufficient ? null : result.score.score,
     lastScanAt: result.scannedAt,
     lastScanData: data as unknown as Record<string, unknown>,
-    riskLevel: result.score.risk,
+    riskLevel: insufficient ? null : result.score.risk,
   }).where(eq(tprmVendorTable.id, vendor.id));
 }
 
@@ -347,6 +353,36 @@ async function getSessionCustomerEmail(req: Request): Promise<string | null> {
   return customer?.email?.trim().toLowerCase() ?? null;
 }
 
+// ─── Paket limitleri ─────────────────────────────────────────────────────────
+// Fiyat sayfasıyla (cyberstep/src/pages/pricing.tsx) aynı tutulmalı.
+// Paket, admin panelinden müşteriye subscription_plan + status=active olarak atanır.
+export const TPRM_PLAN_LIMITS: Record<string, number> = {
+  tprm_baslangic: 25,
+  tprm_profesyonel: 100,
+  tprm_kurumsal: Number.POSITIVE_INFINITY,
+};
+const TPRM_FREE_LIMIT = Number(process.env["TPRM_FREE_VENDOR_LIMIT"] ?? 5);
+// Eski ücretli paketlerdeki (starter/pro/enterprise) aktif müşteriler kesintiye uğramasın
+const LEGACY_PAID_LIMIT = TPRM_PLAN_LIMITS["tprm_baslangic"]!;
+
+async function getVendorLimit(req: Request): Promise<{ limit: number; plan: string | null }> {
+  const customerId = getCustomerId(req);
+  if (!customerId) return { limit: 0, plan: null };
+  const [c] = await db.select({ plan: customersTable.subscriptionPlan, status: customersTable.subscriptionStatus })
+    .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  const active = c?.status === "active" || c?.status === "trial";
+  const plan = c?.plan ?? null;
+  if (active && plan && TPRM_PLAN_LIMITS[plan] !== undefined) return { limit: TPRM_PLAN_LIMITS[plan]!, plan };
+  if (active && plan && plan !== "free") return { limit: LEGACY_PAID_LIMIT, plan };
+  return { limit: TPRM_FREE_LIMIT, plan: null };
+}
+
+async function countVendors(email: string): Promise<number> {
+  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(tprmVendorTable)
+    .where(eq(tprmVendorTable.customerEmail, email));
+  return row?.n ?? 0;
+}
+
 /** Oturumdaki müşteriye ait tedarikçiyi getirir; yoksa veya başkasınınsa null. */
 async function getOwnedVendor(req: Request, id: number) {
   const email = await getSessionCustomerEmail(req);
@@ -354,6 +390,48 @@ async function getOwnedVendor(req: Request, id: number) {
   const [vendor] = await db.select().from(tprmVendorTable)
     .where(and(eq(tprmVendorTable.id, id), eq(tprmVendorTable.customerEmail, email)));
   return vendor ?? null;
+}
+
+// ─── Sektör bağlamı ──────────────────────────────────────────────────────────
+// Her tedarikçiye sektörünü, sektör medyanını ve sektör içindeki yüzdelik dilimini ekler.
+// Benchmark henüz önbellekte yoksa alanlar null döner (istek bekletilmez).
+
+type VendorRow = typeof tprmVendorTable.$inferSelect;
+
+async function loadVendorSectors(domains: string[]): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  if (domains.length === 0) return map;
+  const result = await db.execute(sql`
+    SELECT d.domain,
+      COALESCE(
+        NULLIF(lc.sector, ''),
+        (SELECT NULLIF(ds.sector, '') FROM domain_scans ds WHERE ds.domain = d.domain ORDER BY ds.created_at DESC LIMIT 1)
+      ) AS sector
+    FROM unnest(ARRAY[${sql.join(domains.map(d => sql`${d}`), sql`, `)}]::text[]) AS d(domain)
+    LEFT JOIN lead_candidates lc ON lc.domain = d.domain
+  `);
+  for (const r of result.rows as Array<{ domain: string; sector: string | null }>) map.set(r.domain, r.sector);
+  return map;
+}
+
+async function withSectorContext(rows: VendorRow[]) {
+  const sectors = await loadVendorSectors([...new Set(rows.map(r => r.supplierDomain))]).catch(() => new Map<string, string | null>());
+  const snap = peekBenchmarkSnapshot();
+  return rows.map(r => {
+    const c = canonicalSector(sectors.get(r.supplierDomain) ?? null);
+    const stats = c && snap ? snap.sectors[c.slug] : undefined;
+    return {
+      ...r,
+      sector: c?.label ?? null,
+      sectorMedian: stats?.median ?? null,
+      sectorSampleSize: stats?.sampleSize ?? null,
+      // Yüzdelik yalnızca Skor v2 ile hesaplanmış skorlar için anlamlıdır.
+      sectorPercentile: stats && c && r.lastScanScore !== null && storedScoreVersion(r.lastScanData) === SCORE_V2_VERSION
+        ? percentileInSector(snap!, c.slug, r.lastScanScore)
+        : null,
+      overallMedian: snap?.all.median ?? null,
+    };
+  });
 }
 
 // ─── GET /api/tprm/vendors ────────────────────────────────────────────────────
@@ -366,11 +444,71 @@ router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response)
     const rows = await db.select().from(tprmVendorTable)
       .where(eq(tprmVendorTable.customerEmail, email))
       .orderBy(tprmVendorTable.addedAt);
-    res.json(rows);
+    res.json(await withSectorContext(rows));
   } catch (err) {
     logger.error({ err }, "TPRM vendors list error");
     res.status(500).json({ error: "Liste yüklenemedi" });
   }
+});
+
+// ─── GET /api/tprm/vendors/report.pdf ─────────────────────────────────────────
+// Portföy raporu (KVKK md. 12 / 7545 / BDDK bağlamıyla) — services/tprmReportPdf.ts
+router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+    const customerId = getCustomerId(req)!;
+    const [customer] = await db.select({ companyName: customersTable.companyName, fullName: customersTable.fullName })
+      .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+
+    const rows = await db.select().from(tprmVendorTable)
+      .where(eq(tprmVendorTable.customerEmail, email))
+      .orderBy(tprmVendorTable.addedAt);
+    const withCtx = await withSectorContext(rows);
+
+    const { generatePortfolioReport } = await import("../../services/tprmReportPdf");
+    const buf = await generatePortfolioReport({
+      companyName: customer?.companyName || customer?.fullName || email,
+      generatedAt: new Date(),
+      vendors: withCtx.map(v => {
+        const stored = storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION
+          ? (v.lastScanData as unknown as StoredScanData).score
+          : null;
+        return {
+          domain: v.supplierDomain,
+          name: v.supplierName,
+          score: v.lastScanScore,
+          grade: stored && !stored.insufficientData ? stored.grade : null,
+          risk: v.riskLevel,
+          sector: v.sector,
+          sectorPercentile: v.sectorPercentile,
+          lastScanAt: v.lastScanAt,
+          questionnaireStatus: v.questionnaireStatus,
+          combinedScore: v.combinedScore,
+          insufficientData: !!stored?.insufficientData,
+          coverage: stored?.coverage ?? null,
+          findings: (stored?.findings ?? []).map(f => ({ severity: f.severity, title: f.title })),
+        };
+      }),
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Tedarikci_Portfoy_${date}.pdf"`);
+    res.setHeader("Content-Length", buf.length);
+    res.send(buf);
+  } catch (err) {
+    logger.error({ err }, "TPRM portfolio report error");
+    res.status(500).json({ error: "Rapor oluşturulamadı" });
+  }
+});
+
+// ─── GET /api/tprm/plan ───────────────────────────────────────────────────────
+router.get("/tprm/plan", requireCustomer, async (req: Request, res: Response) => {
+  const email = await getSessionCustomerEmail(req);
+  if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+  const { limit, plan } = await getVendorLimit(req);
+  res.json({ plan, limit: Number.isFinite(limit) ? limit : null, used: await countVendors(email) });
 });
 
 // ─── POST /api/tprm/vendors ───────────────────────────────────────────────────
@@ -407,6 +545,18 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
       return;
     }
 
+    const { limit } = await getVendorLimit(req);
+    const current = await countVendors(email);
+    if (current >= limit) {
+      res.status(402).json({
+        error: `Paketinizin tedarikçi limiti doldu (${limit}). Daha fazla tedarikçi için paketinizi yükseltin.`,
+        code: "VENDOR_LIMIT",
+        limit,
+        upgradeUrl: "/fiyatlar",
+      });
+      return;
+    }
+
     const [inserted] = await db.insert(tprmVendorTable).values({
       customerEmail: email,
       supplierDomain: domain,
@@ -423,24 +573,112 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
     }
 
     // Tarama yoksa veya bayatsa arka planda yeni tarama başlat.
-    if (!prior || !isScanFresh(prior.scan)) {
-      const vendorId = vendor.id;
-      setImmediate(async () => {
-        try {
-          const result = await scanSupplierDomain(domain);
-          if (!result) return;
-          const [current] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendorId));
-          if (current) await applySupplierScore(current, result);
-        } catch (err) {
-          logger.error({ err, domain }, "Initial vendor scan error");
-        }
-      });
-    }
+    if (!prior || !isScanFresh(prior.scan)) queueVendorScan(vendor.id, domain);
 
     res.status(201).json({ ...vendor, instantScore: !!prior, scanPending: !prior || !isScanFresh(prior.scan) });
   } catch (err) {
     logger.error({ err }, "TPRM vendor add error");
     res.status(500).json({ error: "Tedarikçi eklenemedi" });
+  }
+});
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ─── Arka plan taraması (kuyruklu) ───────────────────────────────────────────
+
+function queueVendorScan(vendorId: number, domain: string): void {
+  enqueueScan(`vendor:${vendorId}`, async () => {
+    const result = await scanSupplierDomain(domain);
+    if (!result) return;
+    const [current] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendorId));
+    if (current) await applySupplierScore(current, result);
+  });
+}
+
+// ─── POST /api/tprm/vendors/bulk ──────────────────────────────────────────────
+// CSV'den toplu tedarikçi ekleme. İstemci CSV'yi ayrıştırıp satırları gönderir.
+// Mevcut taraması olanlar anında skorlanır; diğerleri kuyrukta taranır.
+
+export const BULK_MAX_ROWS = 500;
+
+router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Response) => {
+  const rows = (req.body as { rows?: unknown })?.rows;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    res.status(400).json({ error: "rows dizisi zorunlu" });
+    return;
+  }
+  if (rows.length > BULK_MAX_ROWS) {
+    res.status(400).json({ error: `Tek seferde en fazla ${BULK_MAX_ROWS} tedarikçi yüklenebilir` });
+    return;
+  }
+
+  try {
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+
+    const invalid: Array<{ row: number; value: string; reason: string }> = [];
+    const wanted = new Map<string, string | null>(); // domain → name
+    rows.forEach((raw, i) => {
+      const r = (raw ?? {}) as { domain?: unknown; name?: unknown };
+      const value = typeof r.domain === "string" ? r.domain : "";
+      const domain = normalizeDomain(value);
+      if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+        invalid.push({ row: i + 1, value: value.slice(0, 100), reason: "Geçersiz alan adı" });
+        return;
+      }
+      if (!wanted.has(domain)) {
+        const name = typeof r.name === "string" && r.name.trim() ? r.name.trim().slice(0, 200) : null;
+        wanted.set(domain, name);
+      }
+    });
+
+    const existingRows = wanted.size === 0 ? [] : await db.select({ domain: tprmVendorTable.supplierDomain })
+      .from(tprmVendorTable)
+      .where(and(eq(tprmVendorTable.customerEmail, email), inArray(tprmVendorTable.supplierDomain, [...wanted.keys()])));
+    const already = new Set(existingRows.map(r => r.domain));
+    const candidates = [...wanted.entries()].filter(([d]) => !already.has(d));
+    const { limit } = await getVendorLimit(req);
+    const remaining = Math.max(0, limit - await countVendors(email));
+    const toInsert = candidates.slice(0, remaining);
+    const overLimit = candidates.length - toInsert.length;
+
+    const inserted = toInsert.length === 0 ? [] : await db.insert(tprmVendorTable)
+      .values(toInsert.map(([supplierDomain, supplierName]) => ({ customerEmail: email, supplierDomain, supplierName })))
+      .returning();
+
+    // Anlık skorlar (tek sorgu)
+    const scored = await scoreDomainsV2(inserted.map(v => v.supplierDomain)).catch(() => new Map());
+    let instant = 0;
+    let queuedCount = 0;
+    for (const v of inserted) {
+      const prior = scored.get(v.supplierDomain);
+      if (prior) {
+        await applySupplierScore(v, { scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score });
+        instant++;
+      }
+      if (!prior || !isScanFresh(prior.scan)) {
+        queueVendorScan(v.id, v.supplierDomain);
+        queuedCount++;
+      }
+    }
+
+    logger.info({ email, added: inserted.length, instant, queued: queuedCount }, "TPRM toplu yükleme");
+    res.status(201).json({
+      added: inserted.length,
+      instantScored: instant,
+      queuedForScan: queuedCount,
+      skippedExisting: already.size,
+      duplicatesInFile: rows.length - invalid.length - wanted.size,
+      overLimit,
+      limit: Number.isFinite(limit) ? limit : null,
+      invalid,
+      queue: scanQueueStats(),
+    });
+  } catch (err) {
+    logger.error({ err }, "TPRM bulk add error");
+    res.status(500).json({ error: "Toplu yükleme başarısız" });
   }
 });
 
@@ -473,13 +711,9 @@ router.post("/tprm/vendors/:id/rescan", requireCustomer, async (req: Request, re
 
     res.json({ ok: true, message: "Tarama başlatıldı" });
 
-    setImmediate(async () => {
-      try {
-        const result = await getSupplierScore(vendor.supplierDomain, { force: true });
-        if (result) await applySupplierScore(vendor, result);
-      } catch (err) {
-        logger.error({ err }, "TPRM vendor rescan error");
-      }
+    enqueueScan(`vendor:${vendor.id}`, async () => {
+      const result = await getSupplierScore(vendor.supplierDomain, { force: true });
+      if (result) await applySupplierScore(vendor, result);
     });
   } catch (err) {
     logger.error({ err }, "TPRM vendor rescan route error");
@@ -553,6 +787,9 @@ export async function runVendorRescanCron(): Promise<void> {
 
   const { sendMail } = await import("../../services/email");
 
+  // Müşteri başına tek özet e-posta için uyarılar burada toplanır.
+  const alertsByCustomer = new Map<string, Array<{ vendorId: number; domain: string; score: number; risk: string; reasons: AlertReason[] }>>();
+
   for (const vendor of vendors) {
     try {
       // Keşif hattı bu domaini son 7 günde taradıysa yeniden taramaya gerek yok.
@@ -561,36 +798,21 @@ export async function runVendorRescanCron(): Promise<void> {
 
       const score = result.score.score;
       const riskLevel = result.score.risk;
-      // Uyarı yalnızca iki Skor v2 sonucu karşılaştırılabiliyorsa gönderilir
-      // (v1 → v2 geçişindeki metodoloji farkı sahte "skor düştü" uyarısı üretmesin).
-      const prevComparable = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION;
-      const prevScore = prevComparable ? vendor.lastScanScore : null;
-      const scoreDrop = prevScore !== null ? prevScore - score : null;
+      // Karşılaştırma yalnızca iki Skor v2 sonucu arasında yapılır
+      // (v1 → v2 geçişindeki metodoloji farkı sahte uyarı üretmesin).
+      const prevResult = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION
+        ? (vendor.lastScanData as unknown as StoredScanData).score
+        : null;
 
       await applySupplierScore(vendor, result);
 
-      // Skor 15+ puan düştüyse müşteriye uyarı e-postası gönder
-      if (scoreDrop !== null && scoreDrop >= 15) {
-        const alreadyAlerted = vendor.alertSentAt
-          && (Date.now() - vendor.alertSentAt.getTime()) < 7 * 24 * 60 * 60 * 1000;
-        if (!alreadyAlerted) {
-          await sendMail({
-            to: vendor.customerEmail,
-            subject: `Tedarikçi Uyarisi: ${vendor.supplierDomain} skoru dûstü`,
-            html: `<p>Merhaba,</p>
-<p><strong>${vendor.supplierDomain}</strong> adlı tedarikçinizin siber güvenlik skoru son taramada önemli ölçüde düştü.</p>
-<ul>
-  <li>Önceki skor: <strong>${prevScore}/100</strong></li>
-  <li>Güncel skor: <strong>${score}/100</strong></li>
-  <li>Risk seviyesi: <strong>${riskLevel}</strong></li>
-</ul>
-<p>Tedarikçi portföyünüzü incelemek için <a href="https://${(process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim()}/hesabim/tedarikci-portfoyu">CyberStep paneline giriş yapın</a>.</p>`,
-          });
-          await db.update(tprmVendorTable)
-            .set({ alertSentAt: new Date() })
-            .where(eq(tprmVendorTable.id, vendor.id));
-          logger.info({ domain: vendor.supplierDomain, scoreDrop }, "TPRM alert email sent");
-        }
+      const decision = result.score.insufficientData
+        ? { reasons: [], urgent: false }
+        : detectVendorAlert(prevResult?.insufficientData ? null : prevResult ?? null, result.score);
+      if (shouldSendAlert(decision, vendor.alertSentAt)) {
+        const list = alertsByCustomer.get(vendor.customerEmail) ?? [];
+        list.push({ vendorId: vendor.id, domain: vendor.supplierDomain, score, risk: riskLevel, reasons: decision.reasons });
+        alertsByCustomer.set(vendor.customerEmail, list);
       }
 
       // Yüksek riskli ve henüz cross-sell e-postası gönderilmemişse tedarikçiye gönder
@@ -621,6 +843,38 @@ export async function runVendorRescanCron(): Promise<void> {
       }
     } catch (err) {
       logger.error({ err, domain: vendor.supplierDomain }, "TPRM nightly vendor scan error");
+    }
+  }
+
+  // ── Müşteri başına özet uyarı e-postası ──────────────────────────────────
+  const baseUrl = (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim();
+  for (const [customerEmail, items] of alertsByCustomer) {
+    try {
+      const rowsHtml = items.map(it => `
+  <tr>
+    <td style="padding:6px 10px;border-bottom:1px solid #eee"><strong>${escapeHtml(it.domain)}</strong></td>
+    <td style="padding:6px 10px;border-bottom:1px solid #eee">${it.score}/100 · ${escapeHtml(it.risk)}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #eee">${it.reasons.map(r => escapeHtml(describeReason(r))).join("<br>")}</td>
+  </tr>`).join("");
+      await sendMail({
+        to: customerEmail,
+        subject: items.length === 1
+          ? `Tedarikçi uyarısı: ${items[0]!.domain}`
+          : `Tedarikçi uyarısı: ${items.length} tedarikçide önemli değişiklik`,
+        html: `<p>Merhaba,</p>
+<p>Son taramada tedarikçi portföyünüzde dikkat gerektiren değişiklikler tespit edildi.</p>
+<table style="border-collapse:collapse;font-size:14px">
+  <tr><th align="left" style="padding:6px 10px">Tedarikçi</th><th align="left" style="padding:6px 10px">Skor</th><th align="left" style="padding:6px 10px">Değişiklik</th></tr>
+  ${rowsHtml}
+</table>
+<p>Ayrıntılar için <a href="https://${baseUrl}/hesabim/tedarikci-portfoyu">tedarikçi portföyünüzü</a> inceleyin.</p>`,
+      });
+      await db.update(tprmVendorTable)
+        .set({ alertSentAt: new Date() })
+        .where(inArray(tprmVendorTable.id, items.map(i => i.vendorId)));
+      logger.info({ customerEmail, vendors: items.length }, "TPRM özet uyarı e-postası gönderildi");
+    } catch (err) {
+      logger.error({ err, customerEmail }, "TPRM uyarı e-postası gönderilemedi");
     }
   }
 

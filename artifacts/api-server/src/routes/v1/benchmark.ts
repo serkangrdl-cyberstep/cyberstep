@@ -1,98 +1,85 @@
 import { Router, type Request, type Response } from "express";
-import { db } from "@workspace/db";
-import { domainScansTable } from "@workspace/db";
-import { eq, avg, count, gte, lte, and, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { requireApiKey, trackUsage, scoreToGrade } from "./middleware";
+import { requireApiKey, trackUsage } from "./middleware";
+import { getBenchmarkSnapshot, MIN_SECTOR_SAMPLE, type SectorStats } from "../../services/sectorBenchmark";
+import { SECTOR_LABELS } from "../../lib/scoring/sectors";
+import { SCORE_V2_VERSION } from "../../lib/scoring/scoreV2";
 
 const router = Router();
 
-const VALID_SECTORS: Record<string, string> = {
-  saglik: "Sağlık",
-  finans: "Finans",
-  perakende: "Perakende",
-  bilisim: "Bilişim",
-  imalat: "İmalat",
-  insaat: "İnşaat",
-  lojistik: "Lojistik",
-  egitim: "Eğitim",
-  all: "Tüm Sektörler",
-};
+function pct(n: number, total: number): number {
+  return total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
+}
+
+function present(stats: SectorStats, generatedAt: string) {
+  const n = stats.sampleSize;
+  const d = stats.distribution;
+  const atRisk = pct(d.D + d.F, n);
+  return {
+    sector: stats.slug,
+    sectorLabel: stats.label,
+    sampleSize: n,
+    scoreVersion: SCORE_V2_VERSION,
+    dataAsOf: generatedAt,
+    scores: { mean: stats.mean, median: stats.median, p25: stats.p25, p75: stats.p75, p90: stats.p90 },
+    gradeDistribution: d,
+    gradeDistributionPct: { A: pct(d.A, n), B: pct(d.B, n), C: pct(d.C, n), D: pct(d.D, n), F: pct(d.F, n) },
+    insight: stats.median >= 70
+      ? `${stats.label} sektöründe medyan skor ${stats.median}; dış saldırı yüzeyi görece iyi yönetiliyor.`
+      : stats.median >= 55
+      ? `${stats.label} sektörü orta risk bölgesinde; domainlerin %${atRisk}'i D veya F notunda.`
+      : `${stats.label} sektörü yüksek risk bölgesinde; domainlerin %${atRisk}'i D veya F notunda.`,
+  };
+}
+
+// ─── GET /api/v1/benchmark/sectors ───────────────────────────────────────────
+// Yeterli örneklemi olan sektörlerin listesi
+router.get("/v1/benchmark/sectors", requireApiKey, async (req: Request, res: Response) => {
+  const start = req.v1StartedAt ?? Date.now();
+  try {
+    const snap = await getBenchmarkSnapshot();
+    await trackUsage(req.apiKey!.id, "/v1/benchmark", null, "sectors", 200, Date.now() - start);
+    res.json({
+      scoreVersion: SCORE_V2_VERSION,
+      dataAsOf: snap.generatedAt,
+      minSampleSize: MIN_SECTOR_SAMPLE,
+      totalDomains: snap.all.sampleSize,
+      sectors: Object.values(snap.sectors)
+        .sort((a, b) => b.sampleSize - a.sampleSize)
+        .map(s => ({ sector: s.slug, sectorLabel: s.label, sampleSize: s.sampleSize, median: s.median })),
+    });
+  } catch (err) {
+    logger.error({ err }, "v1/benchmark/sectors error");
+    res.status(500).json({ error: "Sunucu hatası." });
+  }
+});
 
 // ─── GET /api/v1/benchmark/:sector ───────────────────────────────────────────
 router.get("/v1/benchmark/:sector", requireApiKey, async (req: Request, res: Response) => {
   const sector = String(req.params.sector).toLowerCase().trim();
   const start = req.v1StartedAt ?? Date.now();
 
-  if (!VALID_SECTORS[sector]) {
-    res.status(400).json({
-      error: "Geçersiz sektör.",
-      validSectors: Object.keys(VALID_SECTORS),
-    });
+  if (sector !== "all" && !SECTOR_LABELS[sector]) {
+    res.status(400).json({ error: "Geçersiz sektör.", validSectors: ["all", ...Object.keys(SECTOR_LABELS)] });
     return;
   }
 
   try {
-    // Use all scans (domain_scans doesn't have a sector column; we use all data for benchmark)
-    // In future, when sector is stored per-company, filter by sector
-    const rows = await db.select({ score: domainScansTable.overallScore })
-      .from(domainScansTable)
-      .where(gte(domainScansTable.overallScore, 0));
+    const snap = await getBenchmarkSnapshot();
+    const stats = sector === "all" ? snap.all : snap.sectors[sector];
 
-    if (rows.length === 0) {
-      const ms = Date.now() - start;
-      await trackUsage(req.apiKey!.id, "/v1/benchmark", null, sector, 404, ms);
-      res.status(404).json({ error: "Yeterli veri bulunmamaktadır." });
+    if (!stats || stats.sampleSize === 0) {
+      await trackUsage(req.apiKey!.id, "/v1/benchmark", null, sector, 404, Date.now() - start);
+      res.status(404).json({
+        error: "Bu sektör için yeterli veri bulunmamaktadır.",
+        sector,
+        minSampleSize: MIN_SECTOR_SAMPLE,
+      });
       return;
     }
 
-    const scores = rows.map(r => r.score).sort((a, b) => a - b);
-    const n = scores.length;
-    const mean = scores.reduce((a, b) => a + b, 0) / n;
-    const median = n % 2 === 0 ? (scores[n / 2 - 1] + scores[n / 2]) / 2 : scores[Math.floor(n / 2)];
-    const p25 = scores[Math.floor(n * 0.25)];
-    const p75 = scores[Math.floor(n * 0.75)];
-    const p90 = scores[Math.floor(n * 0.90)];
-
-    const distribution = {
-      A: scores.filter(s => s >= 90).length,
-      B: scores.filter(s => s >= 70 && s < 90).length,
-      C: scores.filter(s => s >= 50 && s < 70).length,
-      D: scores.filter(s => s >= 30 && s < 50).length,
-      F: scores.filter(s => s < 30).length,
-    };
-
-    const ms = Date.now() - start;
-    await trackUsage(req.apiKey!.id, "/v1/benchmark", null, sector, 200, ms);
-
-    res.json({
-      sector,
-      sectorLabel: VALID_SECTORS[sector],
-      sampleSize: n,
-      dataAsOf: new Date().toISOString(),
-      scores: {
-        mean: Math.round(mean * 10) / 10,
-        median,
-        p25,
-        p75,
-        p90,
-        min: scores[0],
-        max: scores[n - 1],
-      },
-      gradeDistribution: distribution,
-      gradeDistributionPct: {
-        A: Math.round(distribution.A / n * 1000) / 10,
-        B: Math.round(distribution.B / n * 1000) / 10,
-        C: Math.round(distribution.C / n * 1000) / 10,
-        D: Math.round(distribution.D / n * 1000) / 10,
-        F: Math.round(distribution.F / n * 1000) / 10,
-      },
-      insight: mean >= 70
-        ? `${VALID_SECTORS[sector]} sektörü ortalamanın üzerinde siber güvenlik olgunluğuna sahip.`
-        : mean >= 50
-        ? `${VALID_SECTORS[sector]} sektörü orta risk bölgesinde. Sektörün %${Math.round((distribution.C + distribution.D + distribution.F) / n * 100)}'i acil iyileştirme gerektiriyor.`
-        : `${VALID_SECTORS[sector]} sektörü kritik risk bölgesinde. Aktüeryal modellerde yüksek prim çarpanı önerilir.`,
-    });
+    await trackUsage(req.apiKey!.id, "/v1/benchmark", null, sector, 200, Date.now() - start);
+    res.json(present(stats, snap.generatedAt));
   } catch (err) {
     logger.error({ err, sector }, "v1/benchmark error");
     res.status(500).json({ error: "Sunucu hatası." });

@@ -28,7 +28,12 @@ export default function Iletisim() {
     staleTime: 60000,
   });
 
-  const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
+  // Fiyat sayfasından ?konu=... ile gelinirse mesaj alanı hazır doldurulur
+  const [form, setForm] = useState(() => {
+    let konu = "";
+    try { konu = new URLSearchParams(window.location.search).get("konu")?.slice(0, 300) ?? ""; } catch { /* yok */ }
+    return { name: "", email: "", company: "", message: konu };
+  });
   const [sending, setSending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

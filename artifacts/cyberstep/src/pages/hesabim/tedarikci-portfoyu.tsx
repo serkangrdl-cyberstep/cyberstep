@@ -4,7 +4,7 @@ import {
   Building2, Plus, Trash2, RefreshCw, Globe, Shield, AlertTriangle,
   CheckCircle2, Clock, Loader2, ClipboardList, Copy, CheckCheck,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, ExternalLink,
-  Upload, Download,
+  Upload, Download, FileText,
 } from "lucide-react";
 import { parseVendorCsv, VENDOR_CSV_TEMPLATE, type VendorCsvRow } from "@/lib/vendor-csv";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,6 +125,8 @@ function ScoreBreakdown({ data }: { data: StoredScanData | null }) {
 }
 
 interface BulkResult {
+  overLimit?: number;
+  limit?: number | null;
   added: number;
   instantScored: number;
   queuedForScan: number;
@@ -223,6 +225,13 @@ export default function TedarikciPortfoyu() {
     enabled: !!email,
     refetchInterval: 15000,
   });
+
+  const { data: planInfo } = useQuery<{ plan: string | null; limit: number | null; used: number }>({
+    queryKey: ["tprm-plan", email, vendors.length],
+    queryFn: () => fetch("/api/tprm/plan", { credentials: "include" }).then(r => r.json()),
+    enabled: !!email,
+  });
+  const atLimit = planInfo?.limit != null && planInfo.used >= planInfo.limit;
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -361,8 +370,23 @@ export default function TedarikciPortfoyu() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Tedarikçilerinizin siber güvenlik skorlarını sürekli izleyin
           </p>
+          {planInfo && planInfo.limit != null && (
+            <p className={`text-xs mt-1 ${atLimit ? "text-amber-400" : "text-muted-foreground"}`}>
+              {planInfo.used} / {planInfo.limit} tedarikçi kullanılıyor
+              {" · "}
+              <a href="/fiyatlar" className="text-primary hover:underline">{atLimit ? "Paketi yükselt" : "Paketler"}</a>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {vendors.length > 0 && (
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <a href="/api/tprm/vendors/report.pdf">
+                <FileText className="h-4 w-4" />
+                PDF Rapor
+              </a>
+            </Button>
+          )}
           <Button onClick={() => { resetBulk(); setBulkOpen(true); }} size="sm" variant="outline" className="gap-1.5">
             <Upload className="h-4 w-4" />
             CSV Yükle
@@ -611,6 +635,12 @@ export default function TedarikciPortfoyu() {
                 <li>{bulkResult.queuedForScan} tanesi için tarama kuyruğa alındı (sonuçlar dakikalar içinde gelir)</li>
                 {bulkResult.skippedExisting > 0 && <li>{bulkResult.skippedExisting} tanesi portföyde zaten vardı</li>}
                 {bulkResult.duplicatesInFile > 0 && <li>{bulkResult.duplicatesInFile} tekrar eden satır atlandı</li>}
+                {(bulkResult.overLimit ?? 0) > 0 && (
+                  <li className="text-amber-400">
+                    {bulkResult.overLimit} tedarikçi paket limitiniz ({bulkResult.limit}) nedeniyle eklenmedi —{" "}
+                    <a href="/fiyatlar" className="underline">paketi yükseltin</a>
+                  </li>
+                )}
               </ul>
               {bulkResult.invalid.length > 0 && (
                 <div className="rounded-md bg-red-500/10 border border-red-500/20 p-2 text-xs">

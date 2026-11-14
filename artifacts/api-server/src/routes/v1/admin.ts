@@ -5,6 +5,13 @@ import { eq, desc, count, sql, and, gte } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { requireAdmin } from "../admin-panel/middleware";
 import { logger } from "../../lib/logger";
+import { hashApiKey } from "./middleware";
+
+/** Panel yanıtlarından gizli alanları çıkarır. */
+function publicKeyRow<T extends { key: string; keyHash?: string | null }>(row: T) {
+  const { key: _key, keyHash: _hash, ...rest } = row;
+  return rest;
+}
 
 const router = Router();
 
@@ -22,7 +29,7 @@ function generateKey(): string {
 router.get("/admin-panel/api-keys", requireAdmin, async (_req: Request, res: Response) => {
   try {
     const keys = await db.select().from(apiProductKeysTable).orderBy(desc(apiProductKeysTable.createdAt));
-    res.json(keys);
+    res.json(keys.map(publicKeyRow));
   } catch (err) {
     logger.error({ err }, "Failed to list API product keys");
     res.status(500).json({ error: "Sunucu hatası." });
@@ -100,8 +107,12 @@ router.post("/admin-panel/api-keys", requireAdmin, async (req: Request, res: Res
   const limits = TIER_LIMITS[tier] ?? TIER_LIMITS.freemium;
 
   try {
+    const plainKey = generateKey();
+    const keyHash = hashApiKey(plainKey);
     const [created] = await db.insert(apiProductKeysTable).values({
-      key: generateKey(),
+      key: `hashed:${keyHash.slice(0, 24)}`,
+      keyHash,
+      keyPrefix: plainKey.slice(0, 12),
       email,
       company,
       tier,
@@ -112,7 +123,12 @@ router.post("/admin-panel/api-keys", requireAdmin, async (req: Request, res: Res
     }).returning();
 
     logger.info({ id: created?.id, email, tier }, "API product key created");
-    res.status(201).json(created);
+    // Düz anahtar yalnızca bu yanıtta döner; veritabanında saklanmaz.
+    res.status(201).json({
+      ...(created ? publicKeyRow(created) : {}),
+      key: plainKey,
+      notice: "Bu anahtar yalnızca bir kez gösterilir. Güvenli bir yerde saklayın.",
+    });
   } catch (err) {
     logger.error({ err }, "Failed to create API product key");
     res.status(500).json({ error: "Sunucu hatası." });
@@ -143,7 +159,7 @@ router.patch("/admin-panel/api-keys/:id", requireAdmin, async (req: Request, res
 
     if (!updated) { res.status(404).json({ error: "API anahtarı bulunamadı." }); return; }
     logger.info({ id, tier, active }, "API product key updated");
-    res.json(updated);
+    res.json(updated ? publicKeyRow(updated) : updated);
   } catch (err) {
     logger.error({ err, id }, "Failed to update API product key");
     res.status(500).json({ error: "Sunucu hatası." });

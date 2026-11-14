@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { scoreDomainV2 } from "../../lib/scoring/scoreV2Loader";
 import { db } from "@workspace/db";
 import { domainScansTable, cisoLeadsTable, insertCisoLeadSchema, pricingPlansTable, partnerLeadsTable, insertPartnerLeadSchema, servicePricesTable, jobApplicationsTable, serviceCatalogTable, customerServiceSubscriptionsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
@@ -49,36 +50,33 @@ router.get("/public/domain-score/:domain", publicScoreLimiter, async (req: Reque
   }
 
   try {
-    const [scan] = await db
-      .select({
-        id: domainScansTable.id,
-        domain: domainScansTable.domain,
-        overallScore: domainScansTable.overallScore,
-        spfPass: domainScansTable.spfPass,
-        dmarcPass: domainScansTable.dmarcPass,
-        sslPass: domainScansTable.sslPass,
-        blacklisted: domainScansTable.blacklisted,
-        createdAt: domainScansTable.createdAt,
-      })
-      .from(domainScansTable)
-      .where(eq(domainScansTable.domain, domain))
-      .orderBy(desc(domainScansTable.createdAt))
-      .limit(1);
-
-    if (!scan) {
+    // Skor v2 — en son tarama + KEV (lib/scoring/scoreV2Loader.ts)
+    const found = await scoreDomainV2(domain);
+    if (!found) {
       res.json({ domain, status: "not_scanned" });
       return;
     }
+    const { scan, score: v2 } = found;
+    if (v2.insufficientData) {
+      res.json({ domain: scan.domain, status: "insufficient_data", lastScanAt: scan.createdAt });
+      return;
+    }
 
-    const score = scan.overallScore;
     res.json({
       domain: scan.domain,
       status: "scanned",
-      score,
-      grade: scoreToGrade(score),
-      risk: scoreToRisk(score),
+      score: v2.score,
+      grade: v2.grade,
+      // risk: İngilizce kod (mevcut araç sayfalarıyla uyumlu); riskLabel: Türkçe
+      risk: ({ "Düşük": "low", "Orta": "medium", "Yüksek": "high", "Kritik": "critical" } as const)[v2.risk],
+      riskLabel: v2.risk,
+      scoreVersion: v2.version,
+      coverage: v2.coverage,
       lastScanAt: scan.createdAt,
       scanId: scan.id,
+      // Public uç nokta: yalnızca bulgu başlıkları (en fazla 3) — ayrıntı için tam tarama
+      topFindings: v2.findings.slice(0, 3).map(f => ({ severity: f.severity, title: f.title })),
+      findingCount: v2.findings.length,
       summary: {
         spf: scan.spfPass,
         dmarc: scan.dmarcPass,

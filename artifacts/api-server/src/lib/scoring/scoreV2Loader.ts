@@ -90,3 +90,22 @@ export async function scoreDomainV2(domain: string): Promise<{ scan: DomainScanR
   if (!scan) return null;
   return { scan, score: await scoreScanV2(scan) };
 }
+
+/**
+ * Birden çok domain için son taramaları tek sorguda okur ve Skor v2 hesaplar
+ * (KEV sorgusu da tek seferde). Taraması olmayan domainler sonuçta yer almaz.
+ */
+export async function scoreDomainsV2(domains: string[]): Promise<Map<string, { scan: DomainScanRow; score: ScoreV2Result }>> {
+  const out = new Map<string, { scan: DomainScanRow; score: ScoreV2Result }>();
+  const list = [...new Set(domains.map(normalizeDomain))].filter(Boolean);
+  if (list.length === 0) return out;
+
+  const rows = await db.selectDistinctOn([domainScansTable.domain]).from(domainScansTable)
+    .where(inArray(domainScansTable.domain, list))
+    .orderBy(domainScansTable.domain, desc(domainScansTable.createdAt));
+
+  const inputs = rows.map(scanToScoreInput);
+  const kev = await loadKevLookup([...new Set(inputs.flatMap(cveIdsOf))]);
+  rows.forEach((scan, i) => out.set(scan.domain, { scan, score: computeScoreV2(inputs[i]!, kev) }));
+  return out;
+}

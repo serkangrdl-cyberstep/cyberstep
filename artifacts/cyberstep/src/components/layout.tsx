@@ -17,28 +17,31 @@ const NAV_LINKS = (lang: "tr" | "en") => [
   { href: "/iletisim", label: t(T.nav.contact, lang) },
 ];
 
+// "Tedarikçi Riski" menüsü (eski "AI Güvenlik" menüsünün yerini aldı — AI sayfaları arşivde)
 const AI_GUVENLIK_ITEMS = (lang: "tr" | "en") => [
-  { href: "/ai-guvenlik-degerlendirmesi", label: lang === "en" ? "AI Risk Assessment" : "AI Risk Değerlendirmesi", icon: ShieldCheck, available: true },
-  { href: "/ai-phishing-simulasyonu", label: lang === "en" ? "AI Phishing Simulation" : "AI Phishing Simülasyonu", icon: Mail, available: true },
-  { href: "/ai-arac-izleme", label: lang === "en" ? "AI Tool Monitoring" : "AI Araç İzleme", icon: ActivitySquare, available: true },
-  { href: "/ai-politika", label: lang === "en" ? "AI Policy Auto-Update" : "AI Politika Otogüncelleme", icon: FileText, available: true },
-  { href: "/eu-ai-act", label: lang === "en" ? "EU AI Act Compliance Score" : "EU AI Act Uyum Skoru", icon: Cpu, available: true },
-  { href: "/ai-red-team", label: lang === "en" ? "AI Red Team Report" : "AI Red Team Raporu", icon: Bot, available: true },
-  { href: "/ciso-asistan-paketi", label: lang === "en" ? "CISO Assistant" : "CISO Asistan", icon: ShieldCheck, available: true },
+  { href: "/tedarik-zinciri", label: lang === "en" ? "Supplier Risk Portfolio" : "Tedarikçi Risk Portföyü", icon: ShieldCheck, available: true },
+  { href: "/skor-api", label: lang === "en" ? "Risk Score API" : "Risk Skoru API", icon: Cpu, available: true },
+  { href: "/sektor-raporu", label: lang === "en" ? "Sector Benchmark" : "Sektör Kıyaslaması", icon: ActivitySquare, available: true },
+  { href: "/guven-rozeti", label: lang === "en" ? "Trust Badge for Suppliers" : "Tedarikçiler için Güven Rozeti", icon: Shield, available: true },
+  { href: "/tedarikci-onboarding", label: lang === "en" ? "Supplier Onboarding" : "Tedarikçi Onboarding", icon: FileText, available: true },
+  { href: "/metodoloji", label: lang === "en" ? "Scoring Methodology" : "Skor Metodolojisi", icon: Search, available: true },
 ];
+const TPRM_PATHS = ["/tedarik-zinciri", "/skor-api", "/sektor-raporu", "/guven-rozeti", "/tedarikci-onboarding", "/metodoloji"];
 
+// "Çözümler" menüsü (eski "Hizmetler" — servis kataloğu arşivde)
 const HIZMETLER_ITEMS = (lang: "tr" | "en") => [
-  { href: "/hizmetler#reputation", label: lang === "en" ? "Reputation & Blacklist Monitoring" : "Reputation & Kara Liste İzleme", icon: Shield },
-  { href: "/marka-koruma", label: lang === "en" ? "Brand Protection" : "Marka Koruma", icon: Search },
-  { href: "/veri-sizintisi", label: lang === "en" ? "Data Leakage Monitor" : "Veri Sızıntısı İzleme", icon: AlertTriangle },
-  { href: "/hizmetler#ciso-raporu", label: lang === "en" ? "CISO Executive Report" : "Aylık CISO Raporu", icon: FileText },
+  { href: "/dora-bddk-uyum", label: lang === "en" ? "Banks & Finance (BDDK / DORA)" : "Banka ve Finans (BDDK / DORA)", icon: Shield },
+  { href: "/siber-sigorta", label: lang === "en" ? "Insurers" : "Sigorta Şirketleri", icon: FileText },
+  { href: "/ma-due-diligence", label: lang === "en" ? "M&A Due Diligence" : "Birleşme ve Satın Alma", icon: Search },
+  { href: "/kurumsal", label: lang === "en" ? "Enterprise Procurement" : "Kurumsal Satın Alma", icon: ActivitySquare },
+  { href: "/assessment/start", label: lang === "en" ? "SME Risk Assessment" : "KOBİ Risk Değerlendirmesi", icon: AlertTriangle },
 ];
+const SOLUTION_PATHS = ["/dora-bddk-uyum", "/siber-sigorta", "/ma-due-diligence", "/kurumsal"];
 
 const ARACLAR_ITEMS = (lang: "tr" | "en") => [
   { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
   { href: "/sizinti-izleyici", label: lang === "en" ? "Leak Monitor" : "Sızıntı İzleyici" },
   { href: "/kvkk-ceza-sim", label: lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü" },
-  { href: "/m365-denetim", label: lang === "en" ? "Microsoft 365 Audit" : "Microsoft 365 Denetimi" },
   { href: "/sektorel-kiyaslama", label: lang === "en" ? "Sector Benchmarking" : "Sektörel Kıyaslama" },
   { href: "/roi-hesaplayici", label: lang === "en" ? "ROI Calculator" : "ROI Hesaplayıcı" },
   { href: "/marka-koruma", label: lang === "en" ? "Brand Protection" : "Marka Koruma" },
@@ -151,10 +154,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setAiOpen(v => !v)}
                   className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
-                    location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/ciso-asistan") ? "text-primary" : "text-muted-foreground"
+                    TPRM_PATHS.includes(location) ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  {lang === "en" ? "AI Security" : "AI Güvenlik"}
+                  {lang === "en" ? "Supplier Risk" : "Tedarikçi Riski"}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${aiOpen ? "rotate-180" : ""}`} />
                 </button>
                 {aiOpen && (
@@ -186,10 +189,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setHizmetlerOpen(v => !v)}
                   className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md ${
-                    location === "/hizmetler" || location === "/veri-sizintisi" ? "text-primary" : hizmetlerOpen ? "text-primary" : "text-muted-foreground"
+                    SOLUTION_PATHS.includes(location) ? "text-primary" : hizmetlerOpen ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  {lang === "en" ? "Services" : "Hizmetler"}
+                  {lang === "en" ? "Solutions" : "Çözümler"}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${hizmetlerOpen ? "rotate-180" : ""}`} />
                 </button>
                 {hizmetlerOpen && (
@@ -205,16 +208,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           <Icon className="h-4 w-4 text-[#00C8FF]" />
                         </div>
                         <span className="font-medium">{label}</span>
-                        <span className="ml-auto text-xs font-bold text-[#00C8FF] bg-[#00C8FF]/10 px-1.5 py-0.5 rounded">YENİ</span>
                       </Link>
                     ))}
                     <div className="border-t mt-1 pt-1">
                       <Link
-                        href="/hizmetler"
+                        href="/fiyatlar"
                         onClick={() => setHizmetlerOpen(false)}
                         className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-muted transition-colors"
                       >
-                        {lang === "en" ? "All Services" : "Tüm Hizmetler"} <ChevronRight className="h-3.5 w-3.5 ml-auto" />
+                        {lang === "en" ? "Plans & Pricing" : "Paketler ve Fiyatlar"} <ChevronRight className="h-3.5 w-3.5 ml-auto" />
                       </Link>
                     </div>
                   </div>
@@ -366,10 +368,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => setMobileAiOpen(v => !v)}
                     className={`flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      location.startsWith("/ai-") || location.startsWith("/eu-ai") || location.startsWith("/ciso-asistan") ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                      TPRM_PATHS.includes(location) ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
                     }`}
                   >
-                    {lang === "en" ? "AI Security" : "AI Güvenlik"}
+                    {lang === "en" ? "Supplier Risk" : "Tedarikçi Riski"}
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileAiOpen ? "rotate-180" : ""}`} />
                   </button>
                   {mobileAiOpen && (
@@ -396,7 +398,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => setMobileHizmetlerOpen(v => !v)}
                     className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors text-foreground hover:bg-muted"
                   >
-                    <span className="flex items-center gap-2"><Shield className="h-4 w-4" />{lang === "en" ? "Services" : "Hizmetler"}</span>
+                    <span className="flex items-center gap-2"><Shield className="h-4 w-4" />{lang === "en" ? "Solutions" : "Çözümler"}</span>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${mobileHizmetlerOpen ? "rotate-180" : ""}`} />
                   </button>
                   {mobileHizmetlerOpen && (
@@ -412,11 +414,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         </Link>
                       ))}
                       <Link
-                        href="/hizmetler"
+                        href="/fiyatlar"
                         onClick={() => { setMobileOpen(false); setMobileHizmetlerOpen(false); }}
                         className="flex items-center w-full px-2 py-2 rounded-md text-sm font-semibold text-primary hover:bg-muted transition-colors"
                       >
-                        {lang === "en" ? "All Services" : "Tüm Hizmetler"} →
+                        {lang === "en" ? "Plans & Pricing" : "Paketler ve Fiyatlar"} →
                       </Link>
                     </div>
                   )}

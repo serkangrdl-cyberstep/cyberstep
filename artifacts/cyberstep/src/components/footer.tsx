@@ -1,3 +1,4 @@
+import { isArchived } from "@/lib/archived-routes";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield } from "lucide-react";
@@ -82,7 +83,7 @@ export function Footer() {
   });
 
   const company = settings?.["footer.company"] ?? "CyberStep.io";
-  const tagline = settings?.["footer.tagline"] ?? (lang === "en" ? "Cybersecurity risk analysis for SMEs" : "KOBİ'ler için siber güvenlik risk analizi");
+  const tagline = settings?.["footer.tagline"] ?? (lang === "en" ? "Supplier cyber risk ratings for Türkiye" : "Türkiye için tedarikçi siber risk skorlaması");
   const email = settings?.["contact.email"] ?? "info@cyberstep.io";
 
   const toolLinks = lang === "en"
@@ -101,8 +102,8 @@ export function Footer() {
         { label: "Attack Simulation",             href: "/saldiri-simulasyonu" },
         { label: "Cyber Loss Calculator",         href: "/finansal-kayip" },
         { label: "Brand & Domain Protection",     href: "/marka-koruma" },
-        { label: "Supply Chain Scorecard",        href: "/tedarik-zinciri" },
-        { label: "AI Trust Badge",                href: "/guven-rozeti" },
+        { label: "Supplier Risk Score",           href: "/tedarik-zinciri" },
+        { label: "Supplier Trust Badge",          href: "/guven-rozeti" },
         { label: "Regulatory Compliance Analysis",href: "/dora-bddk-uyum" },
       ]
     : [
@@ -119,8 +120,8 @@ export function Footer() {
         { label: "Saldırı Simülasyonu",          href: "/saldiri-simulasyonu" },
         { label: "Siber Kayıp Hesaplayıcı",      href: "/finansal-kayip" },
         { label: "Marka ve Domain Koruma",        href: "/marka-koruma" },
-        { label: "Tedarik Zinciri Skorkart",      href: "/tedarik-zinciri" },
-        { label: "AI Güven Rozeti",              href: "/guven-rozeti" },
+        { label: "Tedarikçi Risk Skoru",          href: "/tedarik-zinciri" },
+        { label: "Tedarikçi Güven Rozeti",        href: "/guven-rozeti" },
         { label: "Regülasyonlara Uyum Analizi",  href: "/dora-bddk-uyum" },
       ];
 
@@ -199,7 +200,7 @@ export function Footer() {
               {lang === "en" ? "Security Tools" : "Güvenlik Araçları"}
             </h4>
             <ul className="space-y-2.5">
-              {toolLinks.map(({ label, href }) => (
+              {toolLinks.filter(({ href }) => !isArchived(href)).map(({ label, href }) => (
                 <li key={href}>
                   <Link href={href} className="text-slate-400 text-sm hover:text-white transition-colors">{label}</Link>
                 </li>

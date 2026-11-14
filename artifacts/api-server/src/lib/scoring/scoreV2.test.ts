@@ -118,3 +118,9 @@ test("SPF ve DMARC ayrıştırma", () => {
   assert.equal(parseDmarcPolicy("v=DMARC1;p=REJECT"), "reject");
   assert.equal(parseDmarcPolicy("v=DMARC1; sp=reject"), null);
 });
+
+test("çözümlenemeyen domain: veri yetersiz işaretlenir", () => {
+  const r = computeScoreV2({ referralSource: "discovery_pipeline", spfRecord: null, dmarcRecord: null, dmarcPass: false, dkimPass: false, mxPass: false, sslDaysUntilExpiry: null, cveSummary: [], shodanOpenPorts: null });
+  assert.equal(r.insufficientData, true);
+  assert.equal(computeScoreV2(clean).insufficientData, false);
+});

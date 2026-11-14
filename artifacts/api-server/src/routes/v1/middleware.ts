@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { createHash } from "crypto";
 import { db } from "@workspace/db";
 import { apiProductKeysTable, apiProductUsageTable } from "@workspace/db";
 import { eq, and, gte, sql } from "drizzle-orm";
@@ -59,8 +60,9 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
     return;
   }
 
+  // Anahtarlar SHA-256 hash olarak saklanır (bkz. index.ts startup migration)
   const [row] = await db.select().from(apiProductKeysTable).where(
-    and(eq(apiProductKeysTable.key, token), eq(apiProductKeysTable.active, true))
+    and(eq(apiProductKeysTable.keyHash, hashApiKey(token)), eq(apiProductKeysTable.active, true))
   ).limit(1);
 
   if (!row) {
@@ -176,4 +178,9 @@ export function scoreToGrade(score: number): "A" | "B" | "C" | "D" | "F" {
 
 export function gradeToRisk(grade: string): string {
   return grade === "A" ? "low" : grade === "B" ? "medium" : grade === "C" ? "high" : "critical";
+}
+
+/** API anahtarının saklanan biçimi: SHA-256 (hex). */
+export function hashApiKey(key: string): string {
+  return createHash("sha256").update(key, "utf8").digest("hex");
 }

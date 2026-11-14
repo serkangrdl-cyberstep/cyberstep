@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "validate:fortimanager": "tsx src/scripts/validate-fortimanager.ts",
     "test:subdomain-probe": "tsx src/scripts/test-subdomain-probe.ts",
-    "test:score": "tsx --test src/lib/scoring/scoreV2.test.ts"
+    "test:score": "tsx --test src/lib/scoring/scoreV2.test.ts src/lib/scoring/benchmarkAlerts.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.1057.0",

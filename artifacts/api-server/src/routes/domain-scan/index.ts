@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import { SCORE_V2_VERSION, type ScoreV2Result } from "../../lib/scoring/scoreV2";
 import rateLimit from "express-rate-limit";
 import dns from "dns/promises";
 import https from "https";
@@ -1799,7 +1801,24 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       })
       .returning();
 
-    logger.info({ domain, overallScore, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, cisaKevCount: cisaKevMatches.length, otxConfigured: otxData !== null, threatFoxIocs: threatFoxData.iocCount, feodoC2: feodoData.isC2, mozillaGrade: mozillaObs.grade, epssEnriched: cveSummaryWithEpss.length, scanId: scan?.id }, "Domain scan complete");
+    // Skor v2: tam tarama tamamlanır tamamlanmaz hesaplanır ve kalıcı yazılır
+    // (benchmark/backfill beklemeden). Kullanıcıya gösterilen ana skor budur.
+    let scoreV2: ScoreV2Result | null = null;
+    if (scan) {
+      try {
+        scoreV2 = await scoreScanV2(scan);
+        await db.update(domainScansTable).set({
+          scoreV2: scoreV2.insufficientData ? null : scoreV2.score,
+          scoreV2Version: SCORE_V2_VERSION,
+          scoreV2At: new Date(),
+        }).where(eq(domainScansTable.id, scan.id));
+      } catch (err) {
+        logger.warn({ err, scanId: scan.id }, "Skor v2 hesaplanamadı");
+      }
+    }
+    const displayScore = scoreV2 && !scoreV2.insufficientData ? scoreV2.score : overallScore;
+
+    logger.info({ domain, overallScore, scoreV2: scoreV2?.score, hibpBreaches: hibp.breachCount, blacklisted: blacklist.blacklisted, cisaKevCount: cisaKevMatches.length, otxConfigured: otxData !== null, threatFoxIocs: threatFoxData.iocCount, feodoC2: feodoData.isC2, mozillaGrade: mozillaObs.grade, epssEnriched: cveSummaryWithEpss.length, scanId: scan?.id }, "Domain scan complete");
 
     // Fire-and-forget: auto-trigger attack scenario analysis
     if (scan) {
@@ -1827,8 +1846,9 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
             const baseUrl = process.env["REPLIT_DOMAINS"]
               ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]?.trim()}`
               : "http://localhost:80";
-            const grade = overallScore >= 90 ? "A" : overallScore >= 70 ? "B" : overallScore >= 50 ? "C" : overallScore >= 30 ? "D" : "F";
-            const gradeColor = overallScore >= 70 ? "#16a34a" : overallScore >= 50 ? "#d97706" : "#dc2626";
+            const grade = scoreV2 && !scoreV2.insufficientData ? scoreV2.grade
+              : overallScore >= 90 ? "A" : overallScore >= 70 ? "B" : overallScore >= 50 ? "C" : overallScore >= 30 ? "D" : "F";
+            const gradeColor = displayScore >= 70 ? "#16a34a" : displayScore >= 55 ? "#d97706" : "#dc2626";
             const resultUrl = `${baseUrl}/domain-tarama?domain=${encodeURIComponent(domain)}&scanId=${scan.id}`;
             const rawPorts = (scan.shodanOpenPorts as Array<{ riskLevel?: string }> | null) ?? [];
             const criticalPorts = rawPorts.filter(p => p.riskLevel === "critical" || p.riskLevel === "high");
@@ -1845,14 +1865,14 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
               : "";
             await sendMail({
               to: email,
-              subject: `CyberStep: ${domain} güvenlik taraması tamamlandı — Skor ${overallScore}/100`,
+              subject: `CyberStep: ${domain} güvenlik taraması tamamlandı — Skor ${displayScore}/100`,
               html: `
                 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:8px;">
                   <h2 style="color:#60a5fa;margin-top:0;">Alan Adı Güvenlik Taraması Tamamlandı</h2>
                   <p style="color:#94a3b8;margin-bottom:20px;"><strong style="color:#e2e8f0;">${domain}</strong> için güvenlik taraması tamamlandı.</p>
                   <div style="background:#1e293b;border-radius:8px;padding:20px;margin-bottom:20px;text-align:center;">
                     <div style="display:inline-block;background:${gradeColor};color:#fff;font-size:36px;font-weight:900;width:64px;height:64px;line-height:64px;border-radius:12px;">${grade}</div>
-                    <p style="font-size:28px;font-weight:900;color:#fff;margin:12px 0 4px;">${overallScore}<span style="font-size:14px;font-weight:400;color:#94a3b8;">/100</span></p>
+                    <p style="font-size:28px;font-weight:900;color:#fff;margin:12px 0 4px;">${displayScore}<span style="font-size:14px;font-weight:400;color:#94a3b8;">/100</span></p>
                     <p style="color:#94a3b8;font-size:13px;margin:0;">Genel Güvenlik Skoru</p>
                   </div>
                   ${portNote || blacklistNote ? `<ul style="background:#1e293b;border-radius:8px;padding:16px 16px 16px 32px;margin-bottom:20px;">${portNote}${blacklistNote}</ul>` : ""}
@@ -2017,11 +2037,33 @@ Tespit edilen başlıca sorunlar: ${findingsText}
       });
     }
 
-    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss, sslNote: ssl.note, scoreBreakdown: scoreResult });
+    res.json({ ...scan, cisaKevMatches, otxData, threatFoxData, feodoData, mozillaObservatory: mozillaObs, cveSummaryWithEpss, sslNote: ssl.note, scoreBreakdown: scoreResult, scoreV2 });
   } catch (err) {
     logger.error({ err, domain }, "Domain scan failed");
     res.status(500).json({ error: "Tarama sırasında bir hata oluştu" });
   }
+});
+
+// ─── GET /api/domain-scan/benchmark?score=72 ────────────────────────────────
+// Public: bir Skor v2 değerinin Türkiye geneli (CyberStep veritabanı) içindeki yeri.
+// Benchmark henüz önbellekte değilse { available: false } döner (istek bekletilmez).
+router.get("/domain-scan/benchmark", async (req, res) => {
+  const score = Number(req.query["score"]);
+  if (!Number.isFinite(score) || score < 0 || score > 100) {
+    res.status(400).json({ error: "score 0-100 arası olmalı" });
+    return;
+  }
+  const { peekBenchmarkSnapshot, percentileInSector } = await import("../../services/sectorBenchmark");
+  const snap = peekBenchmarkSnapshot();
+  if (!snap || snap.all.sampleSize < 100) { res.json({ available: false }); return; }
+  res.setHeader("Cache-Control", "public, max-age=600");
+  res.json({
+    available: true,
+    percentile: percentileInSector(snap, "all", Math.round(score)),
+    median: snap.all.median,
+    sampleSize: snap.all.sampleSize,
+    dataAsOf: snap.generatedAt,
+  });
 });
 
 // ─── GET /api/domain-scan/:id ────────────────────────────────────────────────
@@ -2056,8 +2098,12 @@ router.get("/domain-scan/:id", async (req, res) => {
   const dmarcPolicyMatch = dmarcRecStr.match(/p=(\w+)/i);
   const dmarcPol = dmarcPolicyMatch ? dmarcPolicyMatch[1]!.toLowerCase() : null;
   const scoreBreakdown = calcScore(spfStrength, dmarcPol, scan.dkimPass ?? false, scan.mxPass ?? false, scan.sslDaysUntilExpiry ?? null);
+  const scoreV2 = await scoreScanV2(scan).catch(() => null);
 
-  res.json({ ...scan, sslNote, scoreBreakdown });
+  // Public uç nokta: taramayı talep eden kişinin e-postası ve iç alanlar dönülmez
+  // (ID'ler ardışık olduğu için aksi halde tüm talep edenlerin e-postaları toplanabilirdi).
+  const { email: _email, tenantId: _tenantId, ...publicScan } = scan;
+  res.json({ ...publicScan, sslNote, scoreBreakdown, scoreV2 });
 });
 
 // ─── GET /api/domain-scan/history/:domain ────────────────────────────────────
@@ -2319,6 +2365,14 @@ router.get("/domain-scan/:id/passport", async (req, res) => {
   }
 });
 
+// Rozetler Skor v2 notunu gösterir; veri yetersizse eski skora düşer.
+async function badgeScore(scan: typeof domainScansTable.$inferSelect): Promise<{ score: number; grade: string }> {
+  const v2 = await scoreScanV2(scan).catch(() => null);
+  if (v2 && !v2.insufficientData) return { score: v2.score, grade: v2.grade };
+  const score = scan.overallScore ?? 0;
+  return { score, grade: score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F" };
+}
+
 // ─── GET /api/trust-badge/:token ─────────────────────────────────────────────
 router.get("/trust-badge/:token", async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -2326,8 +2380,7 @@ router.get("/trust-badge/:token", async (req, res) => {
   const token = req.params.token;
   const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.badgeToken, token));
   if (!scan) return void res.status(404).json({ error: "Rozet bulunamadı" });
-  const score = scan.overallScore ?? 0;
-  const grade = score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
+  const { score, grade } = await badgeScore(scan);
   res.json({
     domain: scan.domain,
     score,
@@ -2349,8 +2402,7 @@ router.get("/trust-badge/:token/widget.js", async (req, res) => {
   const token = req.params.token;
   const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.badgeToken, token));
   if (!scan) return void res.status(404).send("// Badge not found");
-  const score = scan.overallScore ?? 0;
-  const grade = score >= 90 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
+  const { grade } = await badgeScore(scan);
   const color = grade === "A" ? "#16a34a" : grade === "B" ? "#65a30d" : grade === "C" ? "#d97706" : grade === "D" ? "#ea580c" : "#dc2626";
   const date = new Date(scan.createdAt).toLocaleDateString("tr-TR");
   const script = `(function(){

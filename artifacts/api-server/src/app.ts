@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
+import { mountStaticSite } from "./staticSite";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
@@ -680,6 +681,9 @@ app.post("/api/internal/delete-blog-posts", async (req: Request, res: Response) 
     res.status(500).json({ error: "Hata oluştu" });
   }
 });
+
+// ─── Replit dışı hosting: site + marketing paneli (SERVE_STATIC=true) ─────────
+mountStaticSite(app);
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {

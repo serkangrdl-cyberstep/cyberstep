@@ -50,6 +50,16 @@ async function checkGemini(): Promise<CheckResult> {
   const start = Date.now();
   const apiKey  = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
   const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
+  if ((!apiKey || !baseUrl) && process.env["GEMINI_API_KEY"]) {
+    // Replit dışı: resmi API'yi SDK ile tek tokenlık istekle doğrula
+    try {
+      const { ai } = await import("@workspace/integrations-gemini-ai");
+      await ai.models.generateContent({ model: "gemini-2.5-flash", contents: "ping", config: { maxOutputTokens: 1 } });
+      return { name: "Gemini API", ok: true, detail: "GEMINI_API_KEY ile erişildi", ms: Date.now() - start };
+    } catch (err) {
+      return { name: "Gemini API", ok: false, detail: String(err).slice(0, 200), ms: Date.now() - start };
+    }
+  }
   if (!apiKey || !baseUrl) {
     return { name: "Gemini API", ok: true, detail: "env yok — atlandı", ms: 0 };
   }

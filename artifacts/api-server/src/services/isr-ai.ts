@@ -1,20 +1,23 @@
-import { GoogleGenAI } from "@google/genai";
 import { logger } from "../lib/logger";
 
-// ─── Replit-managed Gemini client (for ISR email tasks) ───────────────────────
-function getClient() {
-  const apiKey = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
-  const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
-  if (!apiKey || !baseUrl) return null;
-  return new GoogleGenAI({ apiKey, httpOptions: { apiVersion: "", baseUrl } });
+// ─── Gemini istemcisi (ISR e-posta görevleri) ─────────────────────────────────
+// Ortak istemci: Replit (AI_INTEGRATIONS_*) veya Replit dışı (GEMINI_API_KEY)
+function hasGeminiConfig(): boolean {
+  return !!(process.env["AI_INTEGRATIONS_GEMINI_API_KEY"] || process.env["GEMINI_API_KEY"]);
+}
+async function getClient() {
+  if (!hasGeminiConfig()) return null;
+  const { ai } = await import("@workspace/integrations-gemini-ai");
+  return ai;
 }
 
 type AiGenerateFn = (prompt: string) => Promise<string>;
 
 function makeDefaultAiFn(): AiGenerateFn | null {
-  const client = getClient();
-  if (!client) return null;
+  if (!hasGeminiConfig()) return null;
   return async (prompt: string) => {
+    const client = await getClient();
+    if (!client) throw new Error("Gemini yapılandırılmamış");
     const result = await client.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],

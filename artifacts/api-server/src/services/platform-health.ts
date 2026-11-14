@@ -29,19 +29,17 @@ async function checkDatabase(): Promise<ServiceHealth> {
 async function checkGeminiAPI(): Promise<ServiceHealth> {
   const base = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
   const key  = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
-  if (!base || !key) {
-    return { name: "Gemini AI", status: "degraded", message: "Replit AI entegrasyonu yapılandırılmamış" };
-  }
-  return { name: "Gemini AI", status: "ok", message: "Replit yönetimli (gemini-2.5-flash)" };
+  if (base && key) return { name: "Gemini AI", status: "ok", message: "Replit yönetimli (gemini-2.5-flash)" };
+  if (process.env["GEMINI_API_KEY"]) return { name: "Gemini AI", status: "ok", message: "Kendi API anahtarı (GEMINI_API_KEY)" };
+  return { name: "Gemini AI", status: "degraded", message: "Gemini yapılandırılmamış (AI_INTEGRATIONS_* veya GEMINI_API_KEY)" };
 }
 
 async function checkClaudeAPI(): Promise<ServiceHealth> {
   const base = process.env["AI_INTEGRATIONS_ANTHROPIC_BASE_URL"];
   const key  = process.env["AI_INTEGRATIONS_ANTHROPIC_API_KEY"];
-  if (!base || !key) {
-    return { name: "Claude AI", status: "degraded", message: "Replit AI entegrasyonu yapılandırılmamış" };
-  }
-  return { name: "Claude AI", status: "ok", message: "Replit yönetimli (claude-sonnet-4-6)" };
+  if (base && key) return { name: "Claude AI", status: "ok", message: "Replit yönetimli (claude-sonnet-4-6)" };
+  if (process.env["ANTHROPIC_API_KEY"]) return { name: "Claude AI", status: "ok", message: "Kendi API anahtarı (ANTHROPIC_API_KEY)" };
+  return { name: "Claude AI", status: "degraded", message: "Claude yapılandırılmamış (AI_INTEGRATIONS_* veya ANTHROPIC_API_KEY)" };
 }
 
 async function checkEmailService(): Promise<ServiceHealth> {

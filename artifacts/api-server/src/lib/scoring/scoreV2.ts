@@ -69,6 +69,11 @@ export interface ScoreV2Result {
   findings: ScoreV2Finding[];
   /** Uygulanan tavanlar (varsa), insan okunur. */
   caps: string[];
+  /**
+   * Domain hakkında anlamlı veri yok (DNS/e-posta kaydı, sertifika ve port verisi
+   * yok — çoğunlukla domain çözümlenemedi). Bu durumda `score` gösterilmemeli.
+   */
+  insufficientData: boolean;
   scannedAt: string | null;
 }
 
@@ -326,6 +331,13 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
 
   const createdAt = input.createdAt ? new Date(input.createdAt) : null;
 
+  const hasAnySignal =
+    !!input.spfRecord || !!input.dmarcRecord || !!input.mxPass || !!input.dkimPass ||
+    input.sslDaysUntilExpiry != null ||
+    (Array.isArray(input.shodanOpenPorts) && input.shodanOpenPorts.length > 0) ||
+    (input.cveSummary?.length ?? 0) > 0 ||
+    !!input.blacklisted || !!input.usomListed;
+
   return {
     version: SCORE_V2_VERSION,
     score,
@@ -339,6 +351,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
       .sort((a, b) => b.deduction - a.deduction)
       .map((f) => ({ ...f, deduction: Math.round(f.deduction * 10) / 10 })),
     caps: appliedCaps,
+    insufficientData: !hasAnySignal,
     scannedAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : null,
   };
 }

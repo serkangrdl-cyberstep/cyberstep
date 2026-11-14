@@ -4,7 +4,9 @@ import {
   Building2, Plus, Trash2, RefreshCw, Globe, Shield, AlertTriangle,
   CheckCircle2, Clock, Loader2, ClipboardList, Copy, CheckCheck,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, ExternalLink,
+  Upload, Download,
 } from "lucide-react";
+import { parseVendorCsv, VENDOR_CSV_TEMPLATE, type VendorCsvRow } from "@/lib/vendor-csv";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,11 @@ interface Vendor {
   combinedScore: number | null;
   riskLevel: string | null;
   lastScanData: StoredScanData | null;
+  sector: string | null;
+  sectorMedian: number | null;
+  sectorSampleSize: number | null;
+  sectorPercentile: number | null;
+  overallMedian: number | null;
   crosssellSentAt: string | null;
   alertSentAt: string | null;
   monitoringActive: boolean;
@@ -45,6 +52,7 @@ interface StoredScanData {
     categories: ScoreV2Category[];
     findings: ScoreV2Finding[];
     caps: string[];
+    insufficientData?: boolean;
   };
 }
 
@@ -60,7 +68,7 @@ const SEVERITY_LABEL: Record<ScoreV2Finding["severity"], string> = {
 
 function ScoreBreakdown({ data }: { data: StoredScanData | null }) {
   const s = data?.score;
-  if (!s) return null;
+  if (!s || s.insufficientData) return null;
   const unmeasured = s.categories.filter(c => !c.measured);
   return (
     <div className="space-y-3">
@@ -116,6 +124,33 @@ function ScoreBreakdown({ data }: { data: StoredScanData | null }) {
   );
 }
 
+interface BulkResult {
+  added: number;
+  instantScored: number;
+  queuedForScan: number;
+  skippedExisting: number;
+  duplicatesInFile: number;
+  invalid: Array<{ row: number; value: string; reason: string }>;
+}
+
+const BULK_MAX_ROWS = 500;
+
+function SectorLine({ v }: { v: Vendor }) {
+  if (!v.sector && v.overallMedian === null) return null;
+  const parts: string[] = [];
+  if (v.sector) parts.push(`Sektör: ${v.sector}`);
+  if (v.sectorMedian !== null) parts.push(`sektör medyanı ${v.sectorMedian}`);
+  else if (v.overallMedian !== null) parts.push(`Türkiye medyanı ${v.overallMedian}`);
+  let tone = "text-muted-foreground";
+  if (v.sectorPercentile !== null) {
+    parts.push(v.sectorPercentile >= 50
+      ? `sektörünün %${v.sectorPercentile}'inden iyi`
+      : `sektörünün %${100 - v.sectorPercentile}'inden zayıf`);
+    if (v.sectorPercentile < 25) tone = "text-red-400";
+  }
+  return <span className={`text-[10px] ${tone}`}>{parts.join(" · ")}</span>;
+}
+
 const SECTORS = [
   "Üretim / İmalat", "Perakende / E-ticaret", "Lojistik / Taşımacılık",
   "Finans / Muhasebe", "Sağlık / Klinik", "Yazılım / BT Hizmetleri",
@@ -130,7 +165,8 @@ function riskColors(level: string | null) {
   return { badge: "bg-red-500/20 text-red-400 border-red-500/30", bar: "bg-red-500" };
 }
 
-function ScoreBar({ score, grade }: { score: number | null; grade?: string }) {
+function ScoreBar({ score, grade, insufficient }: { score: number | null; grade?: string; insufficient?: boolean }) {
+  if (insufficient) return <span className="text-xs text-amber-400">Domaine ulaşılamadı — alan adını kontrol edin</span>;
   if (score === null) return <span className="text-xs text-muted-foreground">Taranıyor...</span>;
   const pct = Math.min(100, Math.max(0, score));
   const color = score >= 70 ? "bg-emerald-500" : score >= 55 ? "bg-amber-500" : score >= 40 ? "bg-orange-500" : "bg-red-500";
@@ -160,6 +196,10 @@ export default function TedarikciPortfoyu() {
   const qc = useQueryClient();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<VendorCsvRow[]>([]);
+  const [bulkFileName, setBulkFileName] = useState<string | null>(null);
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
   const [newDomain, setNewDomain] = useState("");
   const [newName, setNewName] = useState("");
 
@@ -210,6 +250,48 @@ export default function TedarikciPortfoyu() {
     },
     onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
   });
+
+  const bulkMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/tprm/vendors/bulk", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: bulkRows }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
+      return res.json() as Promise<BulkResult>;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["tprm-vendors", email] });
+      setBulkResult(data);
+    },
+    onError: (e) => toast({ title: "Yükleme başarısız", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  function resetBulk() {
+    setBulkRows([]);
+    setBulkFileName(null);
+    setBulkResult(null);
+  }
+
+  async function onBulkFile(file: File | undefined) {
+    if (!file) return;
+    setBulkResult(null);
+    setBulkFileName(file.name);
+    const text = await file.text();
+    setBulkRows(parseVendorCsv(text));
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob(["\uFEFF" + VENDOR_CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tedarikci-sablonu.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}`, { method: "DELETE", credentials: "include" }),
@@ -264,7 +346,7 @@ export default function TedarikciPortfoyu() {
     high: vendors.filter(v => v.riskLevel === "Yüksek" || v.riskLevel === "Kritik").length,
     mid: vendors.filter(v => v.riskLevel === "Orta").length,
     low: vendors.filter(v => v.riskLevel === "Düşük").length,
-    pending: vendors.filter(v => v.lastScanScore === null).length,
+    pending: vendors.filter(v => v.lastScanScore === null && !v.lastScanData?.score?.insufficientData).length,
   };
 
   if (!customer) return null;
@@ -280,10 +362,16 @@ export default function TedarikciPortfoyu() {
             Tedarikçilerinizin siber güvenlik skorlarını sürekli izleyin
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Tedarikçi Ekle
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => { resetBulk(); setBulkOpen(true); }} size="sm" variant="outline" className="gap-1.5">
+            <Upload className="h-4 w-4" />
+            CSV Yükle
+          </Button>
+          <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Tedarikçi Ekle
+          </Button>
+        </div>
       </div>
 
       {/* İstatistik kartları */}
@@ -361,13 +449,14 @@ export default function TedarikciPortfoyu() {
                         )}
                       </div>
                       <div className="mt-2 flex items-center gap-3 flex-wrap">
-                        <ScoreBar score={v.lastScanScore} grade={v.lastScanData?.score?.grade} />
+                        <ScoreBar score={v.lastScanScore} grade={v.lastScanData?.score?.grade} insufficient={!!v.lastScanData?.score?.insufficientData} />
                         <TrendIcon current={v.lastScanScore} prev={v.prevScanScore} />
                         {v.lastScanAt && (
                           <span className="text-[10px] text-muted-foreground">
                             Son tarama: {new Date(v.lastScanAt).toLocaleDateString("tr-TR")}
                           </span>
                         )}
+                        <SectorLine v={v} />
                       </div>
                     </div>
 
@@ -483,6 +572,76 @@ export default function TedarikciPortfoyu() {
           })}
         </div>
       )}
+
+      {/* CSV Toplu Yükleme Dialogu */}
+      <Dialog open={bulkOpen} onOpenChange={(o) => { setBulkOpen(o); if (!o) resetBulk(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>CSV ile Toplu Tedarikçi Yükle</DialogTitle>
+          </DialogHeader>
+
+          {!bulkResult ? (
+            <div className="space-y-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                Excel'den "CSV (noktalı virgülle ayrılmış)" olarak kaydedin. Bir kolon alan adı (domain) olmalı;
+                firma adı kolonu opsiyonel. Tek seferde en fazla {BULK_MAX_ROWS} tedarikçi.
+              </p>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={downloadTemplate}>
+                <Download className="h-3 w-3" /> Örnek şablonu indir
+              </Button>
+              <Input type="file" accept=".csv,.txt,text/csv,text/plain" onChange={e => onBulkFile(e.target.files?.[0])} />
+              {bulkFileName && (
+                <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
+                  <p><strong>{bulkFileName}</strong>: {bulkRows.length} satır bulundu</p>
+                  {bulkRows.slice(0, 5).map((r, i) => (
+                    <p key={i} className="text-muted-foreground truncate">{r.domain}{r.name ? ` — ${r.name}` : ""}</p>
+                  ))}
+                  {bulkRows.length > 5 && <p className="text-muted-foreground">… ve {bulkRows.length - 5} satır daha</p>}
+                  {bulkRows.length > BULK_MAX_ROWS && (
+                    <p className="text-red-400">En fazla {BULK_MAX_ROWS} satır yüklenebilir; dosyayı bölün.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2 py-2 text-sm">
+              <p><strong>{bulkResult.added}</strong> tedarikçi eklendi.</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>{bulkResult.instantScored} tanesi CyberStep veritabanından anında skorlandı</li>
+                <li>{bulkResult.queuedForScan} tanesi için tarama kuyruğa alındı (sonuçlar dakikalar içinde gelir)</li>
+                {bulkResult.skippedExisting > 0 && <li>{bulkResult.skippedExisting} tanesi portföyde zaten vardı</li>}
+                {bulkResult.duplicatesInFile > 0 && <li>{bulkResult.duplicatesInFile} tekrar eden satır atlandı</li>}
+              </ul>
+              {bulkResult.invalid.length > 0 && (
+                <div className="rounded-md bg-red-500/10 border border-red-500/20 p-2 text-xs">
+                  <p className="text-red-400 mb-1">{bulkResult.invalid.length} satır geçersiz:</p>
+                  {bulkResult.invalid.slice(0, 8).map(r => (
+                    <p key={r.row} className="text-muted-foreground truncate">Satır {r.row}: {r.value || "(boş)"}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {!bulkResult ? (
+              <>
+                <Button variant="outline" onClick={() => setBulkOpen(false)}>Vazgeç</Button>
+                <Button
+                  onClick={() => bulkMutation.mutate()}
+                  disabled={bulkRows.length === 0 || bulkRows.length > BULK_MAX_ROWS || bulkMutation.isPending}
+                >
+                  {bulkMutation.isPending
+                    ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Yükleniyor...</>
+                    : `${bulkRows.length} Tedarikçiyi Yükle`}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setBulkOpen(false)}>Tamam</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tedarikçi Ekle Dialogu */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

@@ -28,6 +28,14 @@ Ortalamanın ağır bir riski gizlemesini önlemek için:
 
 Bazı kategoriler her taramada ölçülemez. Örneğin otomatik keşif taramalarında sızıntı sorgusu yapılmaz, port verisi her domain için mevcut değildir. Ölçülmeyen kategori **temiz sayılmaz**: skor yalnızca ölçülen kategorilerin azami puanı üzerinden 100'e ölçeklenir ve `coverage` alanında ölçülen ağırlık (%) raporlanır.
 
+## Veri yetersiz
+
+Domain çözümlenemiyorsa (DNS/e-posta kaydı, sertifika ve port verisinin hiçbiri yoksa) skor üretilmez: `insufficientData: true` döner, API `score: null` verir, tedarikçi portföyü "Domaine ulaşılamadı" gösterir ve domain benchmark'a dahil edilmez.
+
+## Sektör benchmark'ı
+
+Her domainin **en son** taramasının Skor v2'si kullanılır. Sektör, `lead_candidates.sector` (yoksa `domain_scans.sector`) değerinin sabit gruplara (`lib/scoring/sectors.ts`) normalize edilmesiyle bulunur. En az 30 domaini olan sektörler yayınlanır. Sonuç 1 saat önbelleklenir. Skorlar `domain_scans.score_v2` kolonunda saklanır ve `score_v2_backfill` cron'u (10 dakikada bir, en fazla 5.000 tarama) tarafından doldurulur.
+
 ## Not ve risk seviyesi
 
 | Skor | Not | Risk |

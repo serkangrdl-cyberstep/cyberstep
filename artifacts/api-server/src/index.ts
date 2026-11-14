@@ -1994,6 +1994,11 @@ async function startup() {
     }
   });
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS redirected_to TEXT`);
+  // Skor v2 kalıcı alanları + benchmark için "domain başına son tarama" indeksi
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS score_v2 INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS score_v2_version TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS score_v2_at TIMESTAMP`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS domain_scans_domain_created_idx ON domain_scans (domain, created_at)`);
   await ensureSocialMediaTables();
   await ensureAdminPermissions();
   await ensureIocTables();
@@ -3620,6 +3625,13 @@ startup()
       return 0;
     }), { timezone: "Europe/Istanbul" });
     logger.info("TPRM vendor rescan cron kayıtlandı (gece 02:00 Istanbul)");
+
+    // ─── Skor v2 Backfill: Her 10 dakikada en fazla 5.000 tarama ─────────────
+    cron.schedule("*/10 * * * *", wrapCron("score_v2_backfill", "*/10 * * * *", async () => {
+      const { runScoreV2Backfill } = await import("./services/scoreV2Backfill");
+      return runScoreV2Backfill();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("Skor v2 backfill cron kayıtlandı (her 10 dakika)");
 
     // ─── Startup: Stale "running" kayıtları temizle ─────────────────────────
     // Server restart sırasında tamamlanamayan "running" durumundaki cron kayıtlarını düzelt.

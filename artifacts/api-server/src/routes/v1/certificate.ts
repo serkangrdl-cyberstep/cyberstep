@@ -30,6 +30,11 @@ router.get("/v1/score/:domain/certificate", requireApiKey, async (req: Request, 
     }
 
     const v2 = await scoreScanV2(scan);
+    if (v2.insufficientData) {
+      await trackUsage(req.apiKey!.id, "/v1/score/certificate", domain, null, 422, Date.now() - start);
+      res.status(422).json({ error: "Domain için yeterli tarama verisi yok (çözümlenemedi).", domain, insufficientData: true });
+      return;
+    }
     const grade = v2.grade;
     const ms = Date.now() - start;
     await trackUsage(req.apiKey!.id, "/v1/score/certificate", domain, null, 200, ms);

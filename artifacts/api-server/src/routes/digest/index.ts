@@ -12,8 +12,24 @@ import { sendMail, sendDigestWeeklyEmail } from "../../services/email";
 import { newsletterSubscribersTable, weeklyBulletinsTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import { z } from "zod";
+import { requireAdmin } from "../../middleware/auth";
 
 const router = Router();
+
+// ─── Erişim kontrolü ──────────────────────────────────────────────────────────
+// Yalnızca public sitenin kullandığı iki okuma uç noktası açık kalır
+// (/haberler → GET /news, /haftalik-digest → GET /public-approved).
+// Diğer tüm uç noktalar (kaynak yönetimi, collect/enrich/generate, onay, istatistik)
+// admin oturumu gerektirir.
+const PUBLIC_DIGEST_PATHS = new Set(["/news", "/public-approved"]);
+
+router.use((req, res, next) => {
+  if (req.method === "GET" && PUBLIC_DIGEST_PATHS.has(req.path)) {
+    next();
+    return;
+  }
+  void requireAdmin(req, res, next);
+});
 
 // ─── News Sources ─────────────────────────────────────────────────────────────
 

@@ -7,6 +7,11 @@ import { eq, and, lte, isNull, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { logger } from "../../lib/logger";
+import { customersTable } from "@workspace/db";
+import { requireCustomer, getCustomerId } from "../../middleware/auth";
+import { domainScansTable } from "@workspace/db";
+import { SCORE_V2_VERSION, scoreV2Risk, type ScoreV2Result } from "../../lib/scoring/scoreV2";
+import { isScanFresh, normalizeDomain, scoreDomainV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
 
 const router = Router();
 
@@ -26,17 +31,72 @@ export const TPRM_QUESTIONS = [
   { id: 10, text: "Çalışanlarınıza yönelik sosyal mühendislik / phishing simülasyonu yapıyor musunuz?", weight: 1 },
 ];
 
-// ─── Yardımcı: tedarikçi domain taraması ─────────────────────────────────────
+// ─── Yardımcı: tedarikçi skoru (Skor v2) ─────────────────────────────────────
 
-async function scanSupplierDomain(domain: string): Promise<number | null> {
+interface SupplierScore {
+  scanId: number;
+  scannedAt: Date;
+  score: ScoreV2Result;
+}
+
+/** lastScanData içinde saklanan biçim. */
+interface StoredScanData {
+  scoreVersion: string;
+  scanId: number;
+  score: ScoreV2Result;
+}
+
+/** Domain için yeni bir tarama çalıştırır ve Skor v2 hesaplar. */
+async function scanSupplierDomain(domain: string): Promise<SupplierScore | null> {
   try {
     const { performDomainScan } = await import("../domain-scan/index");
     const result = await performDomainScan(domain);
     if (!result) return null;
-    return result.overallScore;
-  } catch {
+    const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, result.id));
+    if (!scan) return null;
+    return { scanId: scan.id, scannedAt: scan.createdAt, score: await scoreScanV2(scan) };
+  } catch (err) {
+    logger.error({ err, domain }, "TPRM supplier scan failed");
     return null;
   }
+}
+
+/**
+ * Mevcut taramayı kullanır; yoksa veya bayatsa (ya da force=true ise) yeni tarama yapar.
+ * CyberStep veritabanındaki taramalar sayesinde çoğu tedarikçi için anında sonuç verir.
+ */
+async function getSupplierScore(domain: string, opts: { force?: boolean } = {}): Promise<SupplierScore | null> {
+  if (!opts.force) {
+    const existing = await scoreDomainV2(domain).catch(() => null);
+    if (existing && isScanFresh(existing.scan)) {
+      return { scanId: existing.scan.id, scannedAt: existing.scan.createdAt, score: existing.score };
+    }
+  }
+  return scanSupplierDomain(domain);
+}
+
+function storedScoreVersion(data: unknown): string | null {
+  if (data && typeof data === "object" && "scoreVersion" in data) {
+    return String((data as { scoreVersion: unknown }).scoreVersion);
+  }
+  return null;
+}
+
+/** Vendor satırına Skor v2 sonucunu yazar. */
+async function applySupplierScore(
+  vendor: { id: number; lastScanScore: number | null; lastScanData: unknown },
+  result: SupplierScore,
+): Promise<void> {
+  const data: StoredScanData = { scoreVersion: SCORE_V2_VERSION, scanId: result.scanId, score: result.score };
+  // Önceki skor v1 metodolojisiyle hesaplandıysa trend karşılaştırması anlamsızdır.
+  const prevComparable = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION;
+  await db.update(tprmVendorTable).set({
+    prevScanScore: prevComparable ? vendor.lastScanScore : null,
+    lastScanScore: result.score.score,
+    lastScanAt: result.scannedAt,
+    lastScanData: data as unknown as Record<string, unknown>,
+    riskLevel: result.score.risk,
+  }).where(eq(tprmVendorTable.id, vendor.id));
 }
 
 // ─── POST /api/tprm/questionnaire ─────────────────────────────────────────────
@@ -217,7 +277,7 @@ ${scoredAnswers.map(a => `Q${a.questionId}: ${a.answer} (${a.score}/10)`).join("
     setImmediate(async () => {
       try {
         const score = combinedScore ?? selfScore;
-        const riskLevel = score >= 70 ? "Düşük" : score >= 40 ? "Orta" : "Yüksek";
+        const riskLevel = scoreV2Risk(score);
         await db.update(tprmVendorTable)
           .set({
             questionnaireStatus: "completed",
@@ -231,7 +291,7 @@ ${scoredAnswers.map(a => `Q${a.questionId}: ${a.answer} (${a.score}/10)`).join("
     res.json({
       selfScore,
       combinedScore,
-      riskLevel: (combinedScore ?? selfScore) >= 70 ? "Düşük" : (combinedScore ?? selfScore) >= 40 ? "Orta" : "Yüksek",
+      riskLevel: scoreV2Risk(combinedScore ?? selfScore),
       aiRiskComment,
       responseId: response.id,
     });
@@ -273,16 +333,36 @@ router.get("/tprm/questionnaire/:token/result", async (req: Request, res: Respon
 // VENDOR PORTFOLIO — kalıcı tedarikçi takibi
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ─── Oturum yardımcıları ─────────────────────────────────────────────────────
+// Tedarikçi portföyü yalnızca oturum açmış müşterinin kendi kayıtlarını görür.
+// customer_email kolonu korunuyor; değer artık istemciden değil oturumdan alınır.
+
+async function getSessionCustomerEmail(req: Request): Promise<string | null> {
+  const customerId = getCustomerId(req);
+  if (!customerId) return null;
+  const [customer] = await db.select({ email: customersTable.email })
+    .from(customersTable)
+    .where(eq(customersTable.id, customerId))
+    .limit(1);
+  return customer?.email?.trim().toLowerCase() ?? null;
+}
+
+/** Oturumdaki müşteriye ait tedarikçiyi getirir; yoksa veya başkasınınsa null. */
+async function getOwnedVendor(req: Request, id: number) {
+  const email = await getSessionCustomerEmail(req);
+  if (!email) return null;
+  const [vendor] = await db.select().from(tprmVendorTable)
+    .where(and(eq(tprmVendorTable.id, id), eq(tprmVendorTable.customerEmail, email)));
+  return vendor ?? null;
+}
+
 // ─── GET /api/tprm/vendors ────────────────────────────────────────────────────
 // Müşterinin tedarikçi listesi
 
-router.get("/tprm/vendors", async (req: Request, res: Response) => {
-  const email = (req.query["email"] as string ?? "").trim().toLowerCase();
-  if (!email) {
-    res.status(400).json({ error: "email parametresi zorunlu" });
-    return;
-  }
+router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response) => {
   try {
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
     const rows = await db.select().from(tprmVendorTable)
       .where(eq(tprmVendorTable.customerEmail, email))
       .orderBy(tprmVendorTable.addedAt);
@@ -296,53 +376,68 @@ router.get("/tprm/vendors", async (req: Request, res: Response) => {
 // ─── POST /api/tprm/vendors ───────────────────────────────────────────────────
 // Tedarikçi ekle + ilk taramayı background'da başlat
 
-router.post("/tprm/vendors", async (req: Request, res: Response) => {
-  const { customerEmail, supplierDomain, supplierName } = req.body as {
-    customerEmail?: string;
+router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response) => {
+  const { supplierDomain, supplierName } = req.body as {
     supplierDomain?: string;
     supplierName?: string;
   };
 
-  if (!customerEmail || !supplierDomain) {
-    res.status(400).json({ error: "customerEmail ve supplierDomain zorunlu" });
+  if (!supplierDomain || typeof supplierDomain !== "string") {
+    res.status(400).json({ error: "supplierDomain zorunlu" });
     return;
   }
 
-  const email = customerEmail.trim().toLowerCase();
-  const domain = supplierDomain.trim().toLowerCase().replace(/^https?:\/\//, "");
+  const domain = normalizeDomain(supplierDomain);
+
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+    res.status(400).json({ error: "Geçerli bir alan adı girin (örn. firma.com.tr)" });
+    return;
+  }
 
   try {
-    const [vendor] = await db.insert(tprmVendorTable).values({
-      customerEmail: email,
-      supplierDomain: domain,
-      supplierName: supplierName?.trim() ?? null,
-    })
-    .onConflictDoNothing()
-    .returning();
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
 
-    if (!vendor) {
-      const [existing] = await db.select().from(tprmVendorTable)
-        .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.supplierDomain, domain)));
+    // Tabloda (customer_email, supplier_domain) için unique index yok;
+    // mükerrer kaydı uygulama tarafında engelle.
+    const [existing] = await db.select().from(tprmVendorTable)
+      .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.supplierDomain, domain)));
+    if (existing) {
       res.json(existing);
       return;
     }
 
-    // Arka planda ilk taramayı başlat
-    setImmediate(async () => {
-      try {
-        const score = await scanSupplierDomain(domain);
-        if (score !== null) {
-          const riskLevel = score >= 70 ? "Düşük" : score >= 40 ? "Orta" : "Yüksek";
-          await db.update(tprmVendorTable)
-            .set({ lastScanScore: score, lastScanAt: new Date(), riskLevel })
-            .where(eq(tprmVendorTable.id, vendor.id));
-        }
-      } catch (err) {
-        logger.error({ err, domain }, "Initial vendor scan error");
-      }
-    });
+    const [inserted] = await db.insert(tprmVendorTable).values({
+      customerEmail: email,
+      supplierDomain: domain,
+      supplierName: typeof supplierName === "string" && supplierName.trim() ? supplierName.trim() : null,
+    }).returning();
+    let vendor = inserted!;
 
-    res.status(201).json(vendor);
+    // Anlık skor: CyberStep veritabanında bu domain için tarama varsa hemen kullan.
+    const prior = await scoreDomainV2(domain).catch(() => null);
+    if (prior) {
+      await applySupplierScore(vendor, { scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score });
+      const [refreshed] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendor.id));
+      if (refreshed) vendor = refreshed;
+    }
+
+    // Tarama yoksa veya bayatsa arka planda yeni tarama başlat.
+    if (!prior || !isScanFresh(prior.scan)) {
+      const vendorId = vendor.id;
+      setImmediate(async () => {
+        try {
+          const result = await scanSupplierDomain(domain);
+          if (!result) return;
+          const [current] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendorId));
+          if (current) await applySupplierScore(current, result);
+        } catch (err) {
+          logger.error({ err, domain }, "Initial vendor scan error");
+        }
+      });
+    }
+
+    res.status(201).json({ ...vendor, instantScore: !!prior, scanPending: !prior || !isScanFresh(prior.scan) });
   } catch (err) {
     logger.error({ err }, "TPRM vendor add error");
     res.status(500).json({ error: "Tedarikçi eklenemedi" });
@@ -351,10 +446,12 @@ router.post("/tprm/vendors", async (req: Request, res: Response) => {
 
 // ─── DELETE /api/tprm/vendors/:id ─────────────────────────────────────────────
 
-router.delete("/tprm/vendors/:id", async (req: Request, res: Response) => {
+router.delete("/tprm/vendors/:id", requireCustomer, async (req: Request, res: Response) => {
   const id = parseInt(req.params["id"] as string);
   if (!id) { res.status(400).json({ error: "Geçersiz id" }); return; }
   try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
     await db.delete(tprmVendorTable).where(eq(tprmVendorTable.id, id));
     res.json({ ok: true });
   } catch (err) {
@@ -366,28 +463,20 @@ router.delete("/tprm/vendors/:id", async (req: Request, res: Response) => {
 // ─── POST /api/tprm/vendors/:id/rescan ────────────────────────────────────────
 // Manuel yeniden tarama
 
-router.post("/tprm/vendors/:id/rescan", async (req: Request, res: Response) => {
+router.post("/tprm/vendors/:id/rescan", requireCustomer, async (req: Request, res: Response) => {
   const id = parseInt(req.params["id"] as string);
   if (!id) { res.status(400).json({ error: "Geçersiz id" }); return; }
 
   try {
-    const [vendor] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, id));
+    const vendor = await getOwnedVendor(req, id);
     if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
 
     res.json({ ok: true, message: "Tarama başlatıldı" });
 
     setImmediate(async () => {
       try {
-        const score = await scanSupplierDomain(vendor.supplierDomain);
-        if (score !== null) {
-          const riskLevel = score >= 70 ? "Düşük" : score >= 40 ? "Orta" : "Yüksek";
-          await db.update(tprmVendorTable).set({
-            prevScanScore: vendor.lastScanScore,
-            lastScanScore: score,
-            lastScanAt: new Date(),
-            riskLevel,
-          }).where(eq(tprmVendorTable.id, id));
-        }
+        const result = await getSupplierScore(vendor.supplierDomain, { force: true });
+        if (result) await applySupplierScore(vendor, result);
       } catch (err) {
         logger.error({ err }, "TPRM vendor rescan error");
       }
@@ -401,7 +490,7 @@ router.post("/tprm/vendors/:id/rescan", async (req: Request, res: Response) => {
 // ─── POST /api/tprm/vendors/:id/send-questionnaire ────────────────────────────
 // Tedarikçiye anket linki oluştur ve kaydet
 
-router.post("/tprm/vendors/:id/send-questionnaire", async (req: Request, res: Response) => {
+router.post("/tprm/vendors/:id/send-questionnaire", requireCustomer, async (req: Request, res: Response) => {
   const id = parseInt(req.params["id"] as string);
   const { companyName, companySector } = req.body as { companyName?: string; companySector?: string };
 
@@ -411,7 +500,7 @@ router.post("/tprm/vendors/:id/send-questionnaire", async (req: Request, res: Re
   }
 
   try {
-    const [vendor] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, id));
+    const vendor = await getOwnedVendor(req, id);
     if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
 
     const token = randomBytes(24).toString("hex");
@@ -466,19 +555,19 @@ export async function runVendorRescanCron(): Promise<void> {
 
   for (const vendor of vendors) {
     try {
-      const score = await scanSupplierDomain(vendor.supplierDomain);
-      if (score === null) continue;
+      // Keşif hattı bu domaini son 7 günde taradıysa yeniden taramaya gerek yok.
+      const result = await getSupplierScore(vendor.supplierDomain);
+      if (!result) continue;
 
-      const riskLevel = score >= 70 ? "Düşük" : score >= 40 ? "Orta" : "Yüksek";
-      const prevScore = vendor.lastScanScore;
+      const score = result.score.score;
+      const riskLevel = result.score.risk;
+      // Uyarı yalnızca iki Skor v2 sonucu karşılaştırılabiliyorsa gönderilir
+      // (v1 → v2 geçişindeki metodoloji farkı sahte "skor düştü" uyarısı üretmesin).
+      const prevComparable = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION;
+      const prevScore = prevComparable ? vendor.lastScanScore : null;
       const scoreDrop = prevScore !== null ? prevScore - score : null;
 
-      await db.update(tprmVendorTable).set({
-        prevScanScore: vendor.lastScanScore,
-        lastScanScore: score,
-        lastScanAt: new Date(),
-        riskLevel,
-      }).where(eq(tprmVendorTable.id, vendor.id));
+      await applySupplierScore(vendor, result);
 
       // Skor 15+ puan düştüyse müşteriye uyarı e-postası gönder
       if (scoreDrop !== null && scoreDrop >= 15) {
@@ -505,7 +594,7 @@ export async function runVendorRescanCron(): Promise<void> {
       }
 
       // Yüksek riskli ve henüz cross-sell e-postası gönderilmemişse tedarikçiye gönder
-      if (riskLevel === "Yüksek" && !vendor.crosssellSentAt && vendor.questionnaireStatus === "completed") {
+      if ((riskLevel === "Yüksek" || riskLevel === "Kritik") && !vendor.crosssellSentAt && vendor.questionnaireStatus === "completed") {
         // Anket yanıtından tedarikçi e-posta adresini bul
         const link = vendor.questionnaireToken
           ? (await db.select().from(tprmQuestionnaireLinkTable)

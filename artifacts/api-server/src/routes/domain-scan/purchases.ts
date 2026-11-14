@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { domainScanPurchasesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { requireAdmin } from "../../middleware/auth";
 
 const router = Router();
 
@@ -56,8 +57,9 @@ router.get("/domain-scan/purchase/check", async (req: Request, res: Response) =>
   res.json({ hasPaidAccess: !!purchase, scanId: purchase?.scanId ?? null });
 });
 
-// POST /api/domain-scan/purchase/:id/mark-paid — admin/webhook endpoint
-router.post("/domain-scan/purchase/:id/mark-paid", async (req: Request, res: Response) => {
+// POST /api/domain-scan/purchase/:id/mark-paid — yalnızca admin
+// (Ödeme webhook'u bağlandığında imza doğrulamalı ayrı bir uç nokta kullanılmalı.)
+router.post("/domain-scan/purchase/:id/mark-paid", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params["id"]);
   if (!id) { res.status(400).json({ error: "Geçersiz ID" }); return; }
 

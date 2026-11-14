@@ -318,6 +318,47 @@ router.get("/stats", async (req, res) => {
   });
 });
 
+// GET /api/digest/content-health — içerik akışı canlı mı? (admin)
+// Blog, haber ve digest'in en son ne zaman güncellendiğini ve ilgili cron'ların son
+// başarılı çalışmasını döner; marketing panosundaki uyarı kutusu bunu kullanır.
+router.get("/content-health", async (_req, res) => {
+  const { blogPostsTable } = await import("@workspace/db");
+  const { pool } = await import("@workspace/db");
+  const [lastBlog] = await db.select({ at: sql<Date | null>`max(${blogPostsTable.publishedAt})` })
+    .from(blogPostsTable).where(eq(blogPostsTable.status, "published"));
+  const [lastNews] = await db.select({ at: sql<Date | null>`max(${newsItemsTable.createdAt})` }).from(newsItemsTable);
+  const [lastDigest] = await db.select({ at: sql<Date | null>`max(${weeklyDigestsTable.approvedAt})` })
+    .from(weeklyDigestsTable).where(eq(weeklyDigestsTable.status, "approved"));
+  const [drafts] = await db.select({ c: sql<number>`count(*)::int` })
+    .from(weeklyDigestsTable).where(sql`${weeklyDigestsTable.status} <> 'approved'`);
+
+  const jobs = ["digest_rss_collect", "digest_enrich", "digest_weekly_generate", "blog_autopilot_mon", "blog_autopilot_thu", "social_media_weekly", "cron_catchup"];
+  const { rows } = await pool.query<{ job_name: string; last_ok: Date | null; last_any: Date | null; last_status: string | null; last_error: string | null }>(`
+    SELECT j AS job_name,
+      (SELECT max(started_at) FROM cron_job_runs WHERE job_name = j AND status = 'ok') AS last_ok,
+      (SELECT max(started_at) FROM cron_job_runs WHERE job_name = j) AS last_any,
+      (SELECT status FROM cron_job_runs WHERE job_name = j ORDER BY started_at DESC LIMIT 1) AS last_status,
+      (SELECT error_message FROM cron_job_runs WHERE job_name = j AND status = 'error' ORDER BY started_at DESC LIMIT 1) AS last_error
+    FROM unnest($1::text[]) AS j
+  `, [jobs]).catch(() => ({ rows: [] as never[] }));
+
+  const daysSince = (d: Date | null | undefined) => d ? Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000) : null;
+  const blogDays = daysSince(lastBlog?.at);
+  const newsDays = daysSince(lastNews?.at);
+  res.json({
+    blog: { lastPublishedAt: lastBlog?.at ?? null, daysSince: blogDays, stale: blogDays === null || blogDays > 7 },
+    news: { lastCollectedAt: lastNews?.at ?? null, daysSince: newsDays, stale: newsDays === null || newsDays > 2 },
+    digest: { lastApprovedAt: lastDigest?.at ?? null, daysSince: daysSince(lastDigest?.at), pendingDrafts: drafts?.c ?? 0 },
+    crons: rows.map(r => ({
+      job: r.job_name,
+      lastOkAt: r.last_ok,
+      lastRunAt: r.last_any,
+      lastStatus: r.last_status,
+      lastError: r.last_error ? String(r.last_error).slice(0, 300) : null,
+    })),
+  });
+});
+
 // GET /api/digest/dashboard — pazarlama dashboard için kapsamlı özet
 router.get("/dashboard", async (_req, res) => {
   const now     = new Date();

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation, Link } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Link, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
@@ -16,7 +16,7 @@ import IletisimBilgileri from "@/pages/IletisimBilgileri";
 import OzelGunler from "@/pages/OzelGunler";
 import Rozetler from "@/pages/Rozetler";
 import DemoRaporlar from "@/pages/DemoRaporlar";
-import Referrallar from "@/pages/Referrallar";
+// import Referrallar from "@/pages/Referrallar"; // arşivde
 import StepAI from "@/pages/StepAI";
 
 const queryClient = new QueryClient({
@@ -28,42 +28,38 @@ const queryClient = new QueryClient({
   },
 });
 
+// TPRM odaklı sadeleştirme (Kasım 2026). Referral programı arşivlendi:
+// sayfa kodu (pages/Referrallar.tsx) duruyor, /referrallar adresi panoya yönlenir.
 const NAV_SECTIONS = [
   {
-    label: "Digest",
+    label: "Haberler & Bülten",
     items: [
       { href: "/", label: "Pano" },
-      { href: "/news", label: "Haber Akisi" },
-      { href: "/digests", label: "Digestler" },
-      { href: "/sources", label: "Kaynaklar" },
+      { href: "/news", label: "Haber Akışı" },
+      { href: "/digests", label: "Haftalık Digestler" },
+      { href: "/sources", label: "Haber Kaynakları" },
     ],
   },
   {
-    label: "Icerik & Blog",
+    label: "İçerik",
     items: [
-      { href: "/blog", label: "Blog Yonetimi" },
+      { href: "/blog", label: "Blog Yönetimi" },
       { href: "/sosyal-medya", label: "Sosyal Medya" },
-      { href: "/ozel-gunler", label: "Ozel Gun Mesajlari" },
+      { href: "/ozel-gunler", label: "Özel Gün Mesajları" },
     ],
   },
   {
-    label: "Buyume & CRM",
+    label: "Satış Destek",
     items: [
-      { href: "/referrallar", label: "Referral Programi" },
-      { href: "/rozetler", label: "Rozet Yonetimi" },
+      { href: "/rozetler", label: "Güven Rozetleri" },
       { href: "/demo-raporlar", label: "Demo Raporlar" },
     ],
   },
   {
-    label: "Marka",
+    label: "Marka & Site",
     items: [
-      { href: "/step-ai", label: "Marka Kilavuzu" },
-    ],
-  },
-  {
-    label: "Site Ayarlari",
-    items: [
-      { href: "/iletisim", label: "Iletisim Bilgileri" },
+      { href: "/step-ai", label: "Marka Kılavuzu" },
+      { href: "/iletisim", label: "İletişim Bilgileri" },
     ],
   },
 ];
@@ -241,7 +237,7 @@ function AppLayout() {
             <Route path="/ozel-gunler" component={OzelGunler} />
             <Route path="/rozetler" component={Rozetler} />
             <Route path="/demo-raporlar" component={DemoRaporlar} />
-            <Route path="/referrallar" component={Referrallar} />
+            <Route path="/referrallar">{() => <Redirect to="/" replace />}</Route>{/* arşivde — bkz. NAV_SECTIONS notu */}
             <Route path="/step-ai" component={StepAI} />
             <Route component={NotFound} />
           </Switch>

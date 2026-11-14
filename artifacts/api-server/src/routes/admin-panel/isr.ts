@@ -927,11 +927,10 @@ Sadece JSON döndür:
 {"subject": "email konusu", "body": "email gövdesi (düz metin, HTML yok)"}`;
 
   void generateIsrCopilot; // keep import referenced
-  const { GoogleGenAI } = await import("@google/genai");
-  const apiKey = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
-  const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
-  if (!apiKey || !baseUrl) { res.status(503).json({ error: "AI servisi yapılandırılmamış" }); return; }
-  const client = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: "", baseUrl } });
+  if (!process.env["AI_INTEGRATIONS_GEMINI_API_KEY"] && !process.env["GEMINI_API_KEY"]) {
+    res.status(503).json({ error: "AI servisi yapılandırılmamış" }); return;
+  }
+  const { ai: client } = await import("@workspace/integrations-gemini-ai");
   const result = await client.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: prompt }] }],

@@ -43,9 +43,6 @@ const NAV_SECTIONS = [
       { icon: UserSquare2,     label: "Müşteriler ve Paketler",  href: "/panel/musteriler" },
       { icon: Globe,           label: "Alan Adı Taramaları",     href: "/panel/domain-taramalar" },
       { icon: Shield,          label: "Güven Rozeti",            href: "/panel/guven-rozeti-admin" },
-      { icon: FileText,        label: "KOBİ Değerlendirmeleri",  href: "/panel/degerlendirmeler" },
-      { icon: Users,           label: "Değerlendirme Soruları",  href: "/panel/sorular" },
-      { icon: FileText,        label: "YK Raporları",            href: "/panel/yonetim-raporlari" },
     ],
   },
   {
@@ -54,11 +51,8 @@ const NAV_SECTIONS = [
     items: [
       { icon: Globe,           label: "Domain Keşfi (Lead Discovery)", href: "/panel/lead-discovery" },
       { icon: BarChart3,       label: "Kaynak Dashboard",        href: "/panel/source-dashboard" },
-      { icon: Rocket,          label: "Growth Engine",           href: "/panel/growth-engine" },
       { icon: TrendingUp,      label: "Siber Güvenlik Endeksi",  href: "/panel/endeks-raporu" },
-      { icon: CalendarCheck,   label: "Dönemsel Risk Raporları", href: "/panel/risk-raporlari" },
       { icon: ShieldAlert,     label: "CVE İzleme",              href: "/panel/cve" },
-      { icon: Zap,             label: "Acil Tehdit Bildirimleri", href: "/panel/acil-tehditler" },
     ],
   },
   {
@@ -79,15 +73,6 @@ const NAV_SECTIONS = [
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
       { icon: ListTodo,        label: "Lead Kuyruğu",            href: "/panel/lead-gen/queue" },
       { icon: Target,          label: "Lead Kampanyaları",       href: "/panel/lead-gen/campaigns" },
-      { icon: ShoppingCart,    label: "ISR İş Listesi",          href: "/panel/isr" },
-    ],
-  },
-  {
-    title: "İş Ortakları",
-    dept: "ortaklar",
-    items: [
-      { icon: Building2,       label: "İş Ortakları",            href: "/panel/is-ortaklari" },
-      { icon: Handshake,       label: "İş Ortaklığı Başvuruları", href: "/panel/is-ortakligi-basvurulari" },
     ],
   },
   {

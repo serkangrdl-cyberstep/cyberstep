@@ -29,16 +29,14 @@ const TPRM_PATHS = ["/tedarik-zinciri", "/skor-api", "/sektor-raporu", "/guven-r
 // "Çözümler" menüsü (eski "Hizmetler" — servis kataloğu arşivde)
 const HIZMETLER_ITEMS = (lang: "tr" | "en") => [
   { href: "/kurumsal", label: lang === "en" ? "Enterprise Procurement" : "Kurumsal Satın Alma", icon: ActivitySquare },
-  { href: "/assessment/start", label: lang === "en" ? "SME Risk Assessment" : "KOBİ Risk Değerlendirmesi", icon: AlertTriangle },
 ];
-const SOLUTION_PATHS = ["/kurumsal", "/assessment"];
+const SOLUTION_PATHS = ["/kurumsal"];
 
 // Tek "Ücretsiz Araçlar" menüsü (eski "Araçlar" ve "Ücretsiz Araçlar" birleştirildi)
 const FREE_ARACLAR_ITEMS = (lang: "tr" | "en") => [
   { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
   { href: "/araclar/dmarc-kontrol", label: lang === "en" ? "DMARC Check" : "DMARC Kontrol" },
   { href: "/araclar/ssl-kontrol", label: lang === "en" ? "SSL Check" : "SSL Kontrol" },
-  { href: "/assessment/start", label: lang === "en" ? "SME Risk Assessment" : "KOBİ Risk Değerlendirmesi" },
   { href: "/araclar", label: lang === "en" ? "All Tools" : "Tüm Araçlar" },
 ];
 

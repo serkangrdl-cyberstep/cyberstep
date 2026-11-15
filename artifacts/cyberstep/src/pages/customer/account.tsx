@@ -718,11 +718,11 @@ function DashboardTab({ customer }: { customer: { subscriptionPlan?: string | nu
 
       {/* Quick actions — always visible */}
       <div className="grid grid-cols-3 gap-3">
-        <Link href="/assessment/start">
+        <Link href="/domain-tarama">
           <Card className="border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors cursor-pointer">
             <CardContent className="p-3 flex flex-col items-center text-center gap-1.5">
               <ShieldCheck className="h-5 w-5 text-emerald-400" />
-              <p className="text-white text-xs font-semibold">Değerlendirme</p>
+              <p className="text-white text-xs font-semibold">Alan Adı Taraması</p>
             </CardContent>
           </Card>
         </Link>
@@ -894,7 +894,7 @@ function PlanFeaturesWidget({ plan, status }: { plan?: string | null; status: st
           ))}
         </div>
         {!isFullPlan && (
-          <Link href="/assessment/full/start">
+          <Link href="/domain-tarama">
             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-2">
               Tam Plana Geç <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

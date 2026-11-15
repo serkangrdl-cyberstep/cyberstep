@@ -150,10 +150,10 @@ export default function SektorRaporu() {
                     Sektör benchmark raporu e-posta adresinize gönderildi. Ayrıca uzman ekibimiz sektörünüz için kişiselleştirilmiş analiz sunmak üzere 24 saat içinde sizinle iletişime geçecek.
                   </p>
                   <a
-                    href="/assessment/start"
+                    href="/domain-tarama"
                     className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors text-sm"
                   >
-                    Şirketinizi Değerlendirin <ArrowRight className="h-4 w-4" />
+                    Alan Adınızı Tarayın <ArrowRight className="h-4 w-4" />
                   </a>
                 </div>
               )}
@@ -228,12 +228,12 @@ export default function SektorRaporu() {
         <div className="container mx-auto px-4 max-w-2xl text-center space-y-4">
           <Shield className="h-8 w-8 text-emerald-400 mx-auto" />
           <h2 className="text-2xl font-bold">Sektör ortalamasının neresinde olduğunuzu öğrenin</h2>
-          <p className="text-slate-400">20 soruluk ücretsiz risk değerlendirmesi ile kişisel skor alın.</p>
+          <p className="text-slate-400">Alan adınızı ücretsiz tarayın, skorunuzu sektör ortalamasıyla karşılaştırın.</p>
           <a
-            href="/assessment/start"
+            href="/domain-tarama"
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-4 rounded-lg transition-colors"
           >
-            Ücretsiz Değerlendirme <ArrowRight className="h-4 w-4" />
+            Ücretsiz Tarama <ArrowRight className="h-4 w-4" />
           </a>
         </div>
       </section>

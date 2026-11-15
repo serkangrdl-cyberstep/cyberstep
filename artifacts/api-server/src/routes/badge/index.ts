@@ -56,7 +56,8 @@ router.get("/customer/badge", requireCustomer, async (req: Request, res: Respons
 
   if (!customer) { res.status(404).json({ error: "Müşteri bulunamadı" }); return; }
 
-  const isPaid = (customer.subscriptionPlan === "full" || customer.subscriptionPlan === "premium") && customer.subscriptionStatus === "active";
+  const PAID_PLANS = ["full", "premium", "baslangic", "profesyonel", "kurumsal"]; // eski ve TPRM paket kimlikleri
+  const isPaid = PAID_PLANS.includes(customer.subscriptionPlan ?? "") && customer.subscriptionStatus === "active";
   if (!isPaid) { res.status(403).json({ error: "Bu özellik ücretli plan gerektiriyor" }); return; }
 
   if (!customer.badgeToken) {

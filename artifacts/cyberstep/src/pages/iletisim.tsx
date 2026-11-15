@@ -136,10 +136,10 @@ export default function Iletisim() {
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
                 {lang === "en"
-                  ? "Start with a free Mini Assessment and see your results in 5 minutes."
-                  : "Ücretsiz Mini Değerlendirme ile hemen başlayın, 5 dakikada sonuçlarınızı görün."}
+                  ? "Start with a free domain scan and see your results in minutes."
+                  : "Ücretsiz alan adı taraması ile hemen başlayın, sonucunuzu dakikalar içinde görün."}
               </p>
-              <a href="/assessment/start" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+              <a href="/domain-tarama" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
                 {lang === "en" ? "Start Now" : "Hemen Başla"}
               </a>
             </div>

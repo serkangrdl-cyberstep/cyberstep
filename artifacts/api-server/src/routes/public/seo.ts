@@ -47,7 +47,6 @@ router.get("/sitemap.xml", async (_req, res) => {
       { url: "/fiyatlar",                  priority: "0.8", changefreq: "monthly" },
       // Ücretsiz araçlar ve değerlendirme
       { url: "/domain-tarama",             priority: "0.9", changefreq: "monthly" },
-      { url: "/assessment/start",          priority: "0.7", changefreq: "monthly" },
       { url: "/araclar",                   priority: "0.8", changefreq: "monthly" },
       { url: "/araclar/domain-guvenlik-taramasi", priority: "0.8", changefreq: "monthly" },
       { url: "/araclar/ssl-kontrol",              priority: "0.7", changefreq: "monthly" },

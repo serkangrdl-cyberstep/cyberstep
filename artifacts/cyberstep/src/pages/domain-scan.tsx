@@ -2916,18 +2916,18 @@ export default function DomainScanPage() {
                       Hemen Satın Al <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  {/* Ücretsiz değerlendirme */}
+                  {/* Tedarikçi izleme */}
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-2">
                     <div>
-                      <p className="font-bold text-sm">Ücretsiz Değerlendirme</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">20 soruluk mini risk değerlendirmesi + tarama detayları dahil.</p>
+                      <p className="font-bold text-sm">Tedarikçilerinizi İzleyin</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Tedarikçi portföyünüzü ekleyin, riskleri sürekli takip edin. İlk 5 tedarikçi ücretsiz.</p>
                     </div>
                     <p className="text-xl font-black text-foreground">Ücretsiz</p>
                     <a
-                      href="/assessment/start"
+                      href="/hesabim/tedarikci-portfoyu"
                       className="w-full inline-flex items-center justify-center gap-1.5 border border-primary/30 text-primary font-medium px-4 py-2 rounded-lg text-sm hover:bg-primary/5 transition-colors"
                     >
-                      Değerlendirmeye Başla <ArrowRight className="h-3.5 w-3.5" />
+                      Portföyü Başlat <ArrowRight className="h-3.5 w-3.5" />
                     </a>
                   </div>
                 </div>
@@ -3219,37 +3219,25 @@ export default function DomainScanPage() {
             </div>
           )}
 
-          {/* Değerlendirme Upsell Köprüsü */}
+          {/* TPRM köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                  {lang === "en" ? "Domain scan is just the start" : "Domain taraması bir başlangıç"}
-                </p>
                 <p className="text-base font-bold text-foreground mb-1">
-                  {lang === "en" ? "See your company's full cyber risk picture" : "Şirketinizin tüm siber risk tablosunu görün"}
+                  {lang === "en" ? "Check your suppliers the same way" : "Tedarikçilerinizi de aynı şekilde kontrol edin"}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {lang === "en"
-                    ? "This scan measures domain security. Move to the free 20-minute assessment for employee awareness, device protection, access management and KVKK compliance."
-                    : "Bu tarama alan adı güvenliğini ölçer. Çalışan farkındalığı, cihaz koruması, erişim yönetimi ve KVKK uyumu için 20 dakikalık ücretsiz değerlendirmeye geçin."}
+                    ? "Add your suppliers to a portfolio, see their risk scores and get alerted when a score drops."
+                    : "Tedarikçilerinizi portföye ekleyin, risk skorlarını görün; skor düştüğünde uyarı alın."}
                 </p>
               </div>
-              <div className="flex flex-col gap-2 shrink-0">
-                <a
-                  href="/assessment/start"
-                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg text-sm"
-                >
-                  {lang === "en" ? "Start Free Assessment" : "Ücretsiz Değerlendirme Başlat"}
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </a>
-                <a
-                  href="/assessment/full/start"
-                  className="inline-flex items-center justify-center gap-2 border border-primary/40 text-primary hover:bg-primary/5 font-medium px-5 py-2 rounded-lg text-xs"
-                >
-                  {lang === "en" ? "Full Assessment — 5,990 TL" : "Tam Değerlendirme — 5.990 TL"}
-                </a>
-              </div>
+              <a
+                href="/hesabim/tedarikci-portfoyu"
+                className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-5 py-2.5 rounded-lg text-sm transition-colors shrink-0"
+              >
+                {lang === "en" ? "Start Supplier Portfolio" : "Tedarikçi Portföyünü Başlat"}
+              </a>
             </div>
           </div>
         </>

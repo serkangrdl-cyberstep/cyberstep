@@ -182,9 +182,9 @@ export default function CustomerReports() {
             <h1 className="text-2xl font-bold text-white">Raporlarım</h1>
             <p className="text-slate-400 mt-1">Değerlendirmeleriniz ve alan adı taramalarınızın geçmişi</p>
           </div>
-          <Link href="/assessment/start">
+          <Link href="/domain-tarama">
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              Yeni Değerlendirme <ChevronRight className="ml-2 h-4 w-4" />
+              Yeni Tarama <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -325,8 +325,8 @@ export default function CustomerReports() {
                 <CardContent className="p-12 text-center">
                   <FileText className="h-12 w-12 text-slate-700 mx-auto mb-4" />
                   <p className="text-slate-400">Henüz değerlendirme bulunmuyor.</p>
-                  <Link href="/assessment/start">
-                    <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white">İlk Değerlendirmeyi Başlat</Button>
+                  <Link href="/domain-tarama">
+                    <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white">İlk Taramayı Başlat</Button>
                   </Link>
                 </CardContent>
               </Card>

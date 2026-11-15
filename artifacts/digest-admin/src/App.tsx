@@ -30,6 +30,7 @@ const queryClient = new QueryClient({
 
 // TPRM odaklı sadeleştirme (Kasım 2026). Referral programı arşivlendi:
 // sayfa kodu (pages/Referrallar.tsx) duruyor, /referrallar adresi panoya yönlenir.
+// 3. tur: Özel Gün Mesajları ve Güven Rozetleri (müşteri başarı rozetleri) da arşivde.
 const NAV_SECTIONS = [
   {
     label: "Haberler & Bülten",
@@ -45,13 +46,11 @@ const NAV_SECTIONS = [
     items: [
       { href: "/blog", label: "Blog Yönetimi" },
       { href: "/sosyal-medya", label: "Sosyal Medya" },
-      { href: "/ozel-gunler", label: "Özel Gün Mesajları" },
     ],
   },
   {
     label: "Satış Destek",
     items: [
-      { href: "/rozetler", label: "Güven Rozetleri" },
       { href: "/demo-raporlar", label: "Demo Raporlar" },
     ],
   },
@@ -234,8 +233,8 @@ function AppLayout() {
             <Route path="/blog" component={BlogYonetimi} />
             <Route path="/sosyal-medya" component={SosyalMedya} />
             <Route path="/iletisim" component={IletisimBilgileri} />
-            <Route path="/ozel-gunler" component={OzelGunler} />
-            <Route path="/rozetler" component={Rozetler} />
+            <Route path="/ozel-gunler">{() => <Redirect to="/" replace />}</Route>{/* arşivde — bkz. NAV üstündeki not */}
+            <Route path="/rozetler">{() => <Redirect to="/" replace />}</Route>
             <Route path="/demo-raporlar" component={DemoRaporlar} />
             <Route path="/referrallar">{() => <Redirect to="/" replace />}</Route>{/* arşivde — bkz. NAV_SECTIONS notu */}
             <Route path="/step-ai" component={StepAI} />

@@ -1,3 +1,4 @@
+import { isPublicDomain } from "../../lib/hostGuard";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import https from "node:https";
@@ -732,6 +733,10 @@ router.get("/waf-check", async (req: Request, res: Response): Promise<void> => {
     .replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   if (!raw || raw.length < 3 || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(raw)) {
     res.status(400).json({ error: "Geçerli bir alan adı girin (örnek: example.com)" });
+    return;
+  }
+  if (!(await isPublicDomain(raw))) {
+    res.status(400).json({ error: "Genel internette erişilebilir bir alan adı girin" });
     return;
   }
   try {

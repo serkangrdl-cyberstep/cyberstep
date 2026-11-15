@@ -1,4 +1,4 @@
-import { isInternalHostname } from "../../lib/hostGuard";
+import { isInternalHostname, isPublicDomain } from "../../lib/hostGuard";
 import { Router } from "express";
 import { scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
 import { SCORE_V2_VERSION, type ScoreV2Result } from "../../lib/scoring/scoreV2";
@@ -1409,6 +1409,11 @@ export async function performDomainScan(domain: string): Promise<{
   findings: Array<{ severity: string; title: string }>;
   cveSummary: Array<{ cvssScore: number; cveId?: string }>;
 } | null> {
+  // SSRF koruması: dahili/özel adrese çözülen alan adları taranmaz (tüm çağıranlar için).
+  if (!(await isPublicDomain(domain))) {
+    logger.warn({ domain }, "performDomainScan: dahili/özel adrese çözülen alan adı, tarama atlandı");
+    return null;
+  }
   try {
     const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
       checkSPF(domain),
@@ -1591,7 +1596,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     res.status(400).json({ error: "Geçersiz alan adı formatı" });
     return;
   }
-  if (isInternalHostname(domain)) {
+  if (isInternalHostname(domain) || !(await isPublicDomain(domain))) {
     res.status(400).json({ error: "Genel internette erişilebilir bir alan adı girin" });
     return;
   }

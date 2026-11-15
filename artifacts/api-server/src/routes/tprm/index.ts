@@ -1,4 +1,4 @@
-import { isInternalHostname } from "../../lib/hostGuard";
+import { isInternalHostname, isPublicDomain } from "../../lib/hostGuard";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { randomBytes } from "node:crypto";
@@ -539,7 +539,7 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
     res.status(400).json({ error: "Geçerli bir alan adı girin (örn. firma.com.tr)" });
     return;
   }
-  if (isInternalHostname(domain)) {
+  if (isInternalHostname(domain) || !(await isPublicDomain(domain))) {
     res.status(400).json({ error: "Genel internette erişilebilir bir alan adı girin" });
     return;
   }

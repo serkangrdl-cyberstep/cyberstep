@@ -25,6 +25,8 @@ export const ARCHIVED_PUBLIC: readonly string[] = [
   // SOC / tehdit istihbaratı ve diğer yan ürünler
   "/tehdit-istihbarati", "/zero-day-uyari", "/github-tarama", "/tarayici-eklentisi",
   "/on-premise", "/technology-discovery", "/sigorta-pazaryeri",
+  // Eski tek seferlik paket fiyatlı sayfalar (TPRM fiyatlandırmasıyla çelişiyordu)
+  "/sanal-ciso", "/ma-due-diligence", "/sektor",
 ];
 
 /** Müşteri portalı (/hesabim) sayfaları → /hesabim'e yönlenir. */

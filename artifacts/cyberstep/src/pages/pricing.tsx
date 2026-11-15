@@ -16,6 +16,8 @@ interface Plan {
   name: { tr: string; en: string };
   /** Yıllık fiyat (TL, KDV hariç). null = teklif. 0 = ücretsiz. */
   yearlyTry: number | null;
+  /** true ise fiyat "…'den başlayan" olarak gösterilir (kapsama göre artar). */
+  fromPrice?: boolean;
   suppliers: { tr: string; en: string };
   audience: { tr: string; en: string };
   features: Array<{ tr: string; en: string }>;
@@ -40,7 +42,7 @@ export const PLANS: Plan[] = [
   {
     id: "baslangic",
     name: { tr: "Başlangıç", en: "Starter" },
-    yearlyTry: 36000,
+    yearlyTry: 59000,
     suppliers: { tr: "25 tedarikçi", en: "25 suppliers" },
     audience: { tr: "KOBİ ve orta ölçekli şirketler", en: "SMEs and mid-market" },
     features: [
@@ -55,7 +57,7 @@ export const PLANS: Plan[] = [
   {
     id: "profesyonel",
     name: { tr: "Profesyonel", en: "Professional" },
-    yearlyTry: 96000,
+    yearlyTry: 149000,
     suppliers: { tr: "100 tedarikçi", en: "100 suppliers" },
     audience: { tr: "Kurumsal satın alma ve uyum ekipleri", en: "Procurement and compliance teams" },
     features: [
@@ -70,7 +72,8 @@ export const PLANS: Plan[] = [
   {
     id: "kurumsal",
     name: { tr: "Kurumsal", en: "Enterprise" },
-    yearlyTry: null,
+    yearlyTry: 600000,
+    fromPrice: true,
     suppliers: { tr: "500+ tedarikçi", en: "500+ suppliers" },
     audience: { tr: "Bankalar, holdingler, kamu", en: "Banks, holdings, public sector" },
     features: [
@@ -134,10 +137,13 @@ export default function Pricing() {
                   ) : (
                     <>
                       <p className="text-2xl font-bold">
-                        {fmt(p.yearlyTry)} TL <span className="text-sm font-normal text-muted-foreground">/ {en ? "year" : "yıl"}</span>
+                        {p.fromPrice && <span className="text-sm font-normal text-muted-foreground">{en ? "From " : ""}</span>}
+                        {fmt(p.yearlyTry)} TL{p.fromPrice && !en ? "'den başlayan" : ""} <span className="text-sm font-normal text-muted-foreground">/ {en ? "year" : "yıl"}</span>
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {en ? `≈ ${fmt(Math.round(p.yearlyTry / 12))} TL / month, billed annually` : `Aylık ≈ ${fmt(Math.round(p.yearlyTry / 12))} TL, yıllık faturalandırılır`}
+                        {p.fromPrice
+                          ? (en ? "Final price depends on supplier count and scope; annual contract" : "Nihai fiyat tedarikçi sayısı ve kapsama göre belirlenir; yıllık sözleşme")
+                          : (en ? `≈ ${fmt(Math.round(p.yearlyTry / 12))} TL / month, billed annually` : `Aylık ≈ ${fmt(Math.round(p.yearlyTry / 12))} TL, yıllık faturalandırılır`)}
                       </p>
                     </>
                   )}

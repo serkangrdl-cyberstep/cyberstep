@@ -2,7 +2,7 @@
 
 **Neden:** Replit bu uygulama tipinde (çok-artifact, `router="application"`) yalnızca
 Autoscale'e izin veriyor. Autoscale trafik yokken uyuyor → gece cron'ları
-(crt.sh, Shodan, Censys keşfi, haber toplama, bülten, blog) çalışmıyor; ayrıca
+(crt.sh, Shodan, haber toplama, bülten, blog) çalışmıyor; ayrıca
 birden çok makine açılınca cron'lar çift çalışabiliyor. Railway'de uygulama
 **tek, sürekli açık bir konteyner** olarak çalışır.
 
@@ -72,7 +72,7 @@ ama veri Replit'e bağlı kalır ve ileride ikinci taşıma gerekir.
 
 ### Adım 4 — Doğrulama (1–2 gün paralel)
 - Admin panel → Platform Sağlığı: AI, SMTP, Shodan yeşil mi?
-- Ertesi sabah: `cron_job_runs` tablosunda gece işleri `ok` mu? (crt.sh, shodan, censys, digest_rss_collect)
+- Ertesi sabah: `cron_job_runs` tablosunda gece işleri `ok` mu? (crt.sh, shodan, digest_rss_collect)
 - Domain sayısı artıyor mu? (`SELECT count(DISTINCT domain) FROM domain_scans;`)
 - Bir test e-postası (şifre sıfırlama) gelen linkler `https://cyberstep.io/...` mu?
 
@@ -126,7 +126,7 @@ ISR_SERKAN_EMAIL  ISR_TEAM_EMAIL
 
 **Keşif ve tehdit istihbaratı** (280K domain büyümesi bunlara bağlı)
 ```
-SHODAN_API_KEY  CENSYS_API_ID  CENSYS_API_KEY  CENSYS_API_SECRET
+SHODAN_API_KEY
 VIRUSTOTAL_API_KEY  GOOGLE_SAFE_BROWSING_API_KEY  ABUSEIPDB_API_KEY  OTX_API_KEY
 GREYNOISE_API_KEY  URLSCAN_API_KEY  NVD_API_KEY  VULNCHECK_API_KEY  HIBP_API_KEY
 DEHASHED_API_KEY  DEHASHED_EMAIL  NETCRAFT_API_KEY  MXTOOLBOX_API_KEY  HIVE_API_KEY

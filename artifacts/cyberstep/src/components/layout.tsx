@@ -28,23 +28,17 @@ const TPRM_PATHS = ["/tedarik-zinciri", "/skor-api", "/sektor-raporu", "/guven-r
 
 // "Çözümler" menüsü (eski "Hizmetler" — servis kataloğu arşivde)
 const HIZMETLER_ITEMS = (lang: "tr" | "en") => [
-  { href: "/dora-bddk-uyum", label: lang === "en" ? "Banks & Finance (BDDK / DORA)" : "Banka ve Finans (BDDK / DORA)", icon: Shield },
-  { href: "/siber-sigorta", label: lang === "en" ? "Insurers" : "Sigorta Şirketleri", icon: FileText },
-  { href: "/ma-due-diligence", label: lang === "en" ? "M&A Due Diligence" : "Birleşme ve Satın Alma", icon: Search },
   { href: "/kurumsal", label: lang === "en" ? "Enterprise Procurement" : "Kurumsal Satın Alma", icon: ActivitySquare },
   { href: "/assessment/start", label: lang === "en" ? "SME Risk Assessment" : "KOBİ Risk Değerlendirmesi", icon: AlertTriangle },
 ];
-const SOLUTION_PATHS = ["/dora-bddk-uyum", "/siber-sigorta", "/ma-due-diligence", "/kurumsal"];
+const SOLUTION_PATHS = ["/kurumsal", "/assessment"];
 
 // Tek "Ücretsiz Araçlar" menüsü (eski "Araçlar" ve "Ücretsiz Araçlar" birleştirildi)
 const FREE_ARACLAR_ITEMS = (lang: "tr" | "en") => [
   { href: "/domain-tarama", label: lang === "en" ? "Domain Security Scan" : "Alan Adı Güvenlik Taraması" },
   { href: "/araclar/dmarc-kontrol", label: lang === "en" ? "DMARC Check" : "DMARC Kontrol" },
   { href: "/araclar/ssl-kontrol", label: lang === "en" ? "SSL Check" : "SSL Kontrol" },
-  { href: "/araclar/dark-web-sorgulama", label: lang === "en" ? "Dark Web Lookup" : "Dark Web Sorgulama" },
-  { href: "/sizinti-izleyici", label: lang === "en" ? "Leak Monitor" : "Sızıntı İzleyici" },
   { href: "/assessment/start", label: lang === "en" ? "SME Risk Assessment" : "KOBİ Risk Değerlendirmesi" },
-  { href: "/kvkk-ceza-sim", label: lang === "en" ? "KVKK Penalty Simulator" : "KVKK Ceza Simülatörü" },
   { href: "/araclar", label: lang === "en" ? "All Tools" : "Tüm Araçlar" },
 ];
 

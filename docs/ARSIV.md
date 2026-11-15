@@ -36,6 +36,8 @@ Gizlenen başlıca bölümler:
 | SOC / NOC / tehdit istihbaratı | `/tehdit-istihbarati`, `/zero-day-uyari`, portalda `/hesabim/soc`, `/hesabim/noc*`, `/hesabim/ioc-*`, `/hesabim/whitelist`, `/hesabim/cloud-guvenlik`, `/hesabim/ic-tarama` |
 | Diğer | `/github-tarama`, `/tarayici-eklentisi`, `/on-premise`, `/technology-discovery`, `/sigorta-pazaryeri` |
 
+2. tur (TPRM dışı): `/dora-bddk-uyum`, `/siber-sigorta`, `/marka-koruma`, `/rakip-karsilastirma`, `/roi-hesaplayici`, `/finansal-kayip`, `/kvkk-ceza-sim`, `/kvkk-verbis`, `/kvkk-dpa-olustur`, `/kep-rehberi`, `/compliance-calendar`, `/veri-sizintisi`, `/sizinti-izleyici`, `/sektorel-kiyaslama`, `/siber-panik`, `/is-ortakligi`, `/araclar/kvkk-ceza-hesaplayici`, `/araclar/siber-risk-roi`, `/araclar/dark-web-sorgulama`, `/araclar/WAF-bypass-tarayıcı`.
+
 Açık kalanlar: TPRM çekirdeği, ücretsiz domain tarama, KOBİ değerlendirmesi, KVKK araçları, `/araclar` altındaki tüm ücretsiz araçlar, blog/CVE/bülten ve yasal sayfalar.
 
 ## Arşivlenen sayfa sürümleri

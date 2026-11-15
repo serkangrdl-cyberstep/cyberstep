@@ -21,23 +21,15 @@ const SECTORS = [
   { value: "diger", label: "Diğer" },
 ];
 
-const SECTOR_STATS: Record<string, { avgScore: number; topFindings: string[]; kvkkRate: number; breachRate: number }> = {
-  finans:    { avgScore: 58, kvkkRate: 62, breachRate: 34, topFindings: ["Zayıf MFA uygulaması", "API güvenlik açıkları", "Şifreli olmayan yedekler"] },
-  saglik:    { avgScore: 41, kvkkRate: 38, breachRate: 52, topFindings: ["Eski yazılım sürümleri", "Açık RDP portları", "KVKK uyumsuz veri saklama"] },
-  perakende: { avgScore: 49, kvkkRate: 45, breachRate: 47, topFindings: ["Ödeme sayfası güvenlik açıkları", "Zayıf SSL konfigürasyonu", "Müşteri veri sızıntısı riski"] },
-  bilisim:   { avgScore: 63, kvkkRate: 71, breachRate: 28, topFindings: ["Tedarikçi erişim yönetimi", "CI/CD pipeline güvenliği", "Açık kaynak bileşen riskleri"] },
-  imalat:    { avgScore: 35, kvkkRate: 29, breachRate: 41, topFindings: ["OT/IT ayrımı eksikliği", "Eski SCADA sistemleri", "Tedarikçi zincirine açık portlar"] },
-  lojistik:  { avgScore: 44, kvkkRate: 36, breachRate: 39, topFindings: ["Şifreli olmayan araç takip verileri", "Partner entegrasyon güvenliği", "DNS güvenlik eksiklikleri"] },
-  insaat:    { avgScore: 38, kvkkRate: 31, breachRate: 36, topFindings: ["Proje veri koruma eksikliği", "BIM platformu güvenlik açıkları", "İhale süreçlerinde veri maruziyeti"] },
-  hukuk:     { avgScore: 52, kvkkRate: 58, breachRate: 31, topFindings: ["Müvekkil belgelerinin şifreleme eksikliği", "E-posta güvenlik açıkları", "Uzaktan erişim riskleri"] },
-  egitim:    { avgScore: 37, kvkkRate: 33, breachRate: 44, topFindings: ["Öğrenci verisi KVKK uyumu", "Açık öğrenci portalları", "Eski LMS platformları"] },
-  diger:     { avgScore: 45, kvkkRate: 42, breachRate: 38, topFindings: ["Genel web uygulama güvenlik açıkları", "Zayıf şifre politikası", "Yama yönetimi eksikliği"] },
-};
+type SectorPreview = { avgScore: number; topFindings: string[]; kvkkRate: number; breachRate: number };
+
+const NOW = new Date();
+const PERIOD = `Q${Math.floor(NOW.getMonth() / 3) + 1}-${NOW.getFullYear()}`;
 
 export default function SektorRaporu() {
   const { lang } = useLanguage();
   usePageMeta({
-    title: "Sektörel Güvenlik Benchmark Raporu 2026 | CyberStep.io",
+    title: "Sektörel Güvenlik Benchmark Raporu | CyberStep.io",
     description: "Türkiye'de sektörünüzün siber güvenlik ortalaması nerede? Ücretsiz sektörel benchmark raporu indirin.",
     canonicalPath: "/sektor-raporu",
     lang: "tr",
@@ -50,11 +42,11 @@ export default function SektorRaporu() {
   const [company, setCompany] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [sectorPreview, setSectorPreview] = useState<typeof SECTOR_STATS["finans"] | null>(null);
+  const [sectorPreview, setSectorPreview] = useState<SectorPreview | null>(null);
 
   function handleSectorChange(val: string) {
     setSector(val);
-    setSectorPreview(SECTOR_STATS[val] ?? null);
+    setSectorPreview(null); // sabit/örnek sektör rakamları kaldırıldı; gerçek benchmark e-postayla gönderilir
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -72,7 +64,7 @@ export default function SektorRaporu() {
           visitorEmail: email.trim(),
           visitorCompany: company.trim(),
           visitorDomain: domain,
-          reportPeriod: "Q2-2026",
+          reportPeriod: PERIOD,
         }),
       });
       setDone(true);
@@ -91,7 +83,7 @@ export default function SektorRaporu() {
         <div className="container mx-auto px-4 max-w-3xl text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium mb-6">
             <BarChart2 className="h-4 w-4" />
-            Ücretsiz Benchmark Raporu — Q2 2026
+            Ücretsiz Benchmark Raporu — {PERIOD.replace("-", " ")}
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
             {lang === "en" ? <>Where Does Your Sector <span className="text-emerald-400">Stand?</span></> : <>Sektörünüz <span className="text-emerald-400">Nerede Duruyor?</span></>}
@@ -206,7 +198,7 @@ export default function SektorRaporu() {
               ) : (
                 <div className="bg-card border rounded-2xl p-8 text-center space-y-4 text-muted-foreground">
                   <BarChart2 className="h-12 w-12 mx-auto opacity-30" />
-                  <p className="text-sm">Sektörünüzü seçin — önizleme verisi burada görünecek.</p>
+                  <p className="text-sm">Sektörünüzü seçin ve e-posta adresinizi girin; benchmark raporu e-postanıza gönderilir.</p>
                 </div>
               )}
 
@@ -215,9 +207,7 @@ export default function SektorRaporu() {
                 <h3 className="font-semibold">Raporda Ne Var?</h3>
                 <ul className="space-y-2">
                   {[
-                    "Sektör ortalama güvenlik skoru (100+ şirket analizi)",
-                    "En yaygın 10 güvenlik açığı ve kapatma öncelikleri",
-                    "KVKK uyum oranı ve sektörel ceza geçmişi",
+                    "Sektör ortalama güvenlik skoru ve yüzdelik dilim",
                     "Sektörünüzün sektörler arası karşılaştırması",
                     "\"Şirketiniz ortalamanın neresinde?\" ücretsiz analiz",
                   ].map((item, i) => (

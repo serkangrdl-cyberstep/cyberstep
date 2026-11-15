@@ -27,6 +27,13 @@ export const ARCHIVED_PUBLIC: readonly string[] = [
   "/on-premise", "/technology-discovery", "/sigorta-pazaryeri",
   // Eski tek seferlik paket fiyatlı sayfalar (TPRM fiyatlandırmasıyla çelişiyordu)
   "/sanal-ciso", "/ma-due-diligence", "/sektor",
+  // TPRM dışı (Kasım 2026, 2. tur): sektör/uyum çözümleri, hesaplayıcılar, KVKK araçları, marka ve sızıntı izleme
+  "/dora-bddk-uyum", "/siber-sigorta", "/marka-koruma", "/rakip-karsilastirma", "/roi-hesaplayici",
+  "/finansal-kayip", "/kvkk-ceza-sim", "/kvkk-verbis", "/kvkk-dpa-olustur", "/kep-rehberi",
+  "/compliance-calendar", "/veri-sizintisi", "/sizinti-izleyici", "/sektorel-kiyaslama", "/siber-panik",
+  "/is-ortakligi",
+  "/araclar/kvkk-ceza-hesaplayici", "/araclar/siber-risk-roi", "/araclar/dark-web-sorgulama",
+  "/araclar/WAF-bypass-tarayıcı", "/araclar/WAF-bypass-taray%C4%B1c%C4%B1",
 ];
 
 /** Müşteri portalı (/hesabim) sayfaları → /hesabim'e yönlenir. */

@@ -1,3 +1,4 @@
+import { isArchived } from "@/lib/archived-routes";
 import { Link } from "wouter";
 import { ArrowRight, Globe, ShieldAlert, FileText, BarChart2, Search, AlertCircle, Target, Bot, Cpu, BookOpen, Scale, Building2, Zap, Activity, Shield, Mail, Layers, TrendingUp, Lock, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -97,11 +98,11 @@ export default function TumAraclar() {
       </div>
 
       <div className="container mx-auto px-4 max-w-5xl py-12 space-y-12">
-        {TOOL_CATEGORIES.map((cat) => (
+        {TOOL_CATEGORIES.filter((c) => c.tools.some((t) => !isArchived(t.href))).map((cat) => (
           <div key={cat.title}>
             <h2 className={`text-lg font-bold mb-4 ${cat.color}`}>{cat.title}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {cat.tools.map(({ href, label, icon: Icon, desc, badge }) => (
+              {cat.tools.filter((t) => !isArchived(t.href)).map(({ href, label, icon: Icon, desc, badge }) => (
                 <Link key={href} href={href}>
                   <div className={`group flex items-start gap-3 p-4 rounded-xl border ${cat.bg} hover:shadow-sm transition-all cursor-pointer`}>
                     <div className="shrink-0 mt-0.5">

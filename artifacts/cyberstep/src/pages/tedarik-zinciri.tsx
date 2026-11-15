@@ -316,23 +316,6 @@ function TprmReport({ result, companyName, sector }: { result: TedResult; compan
           </ol>
         </div>
       )}
-
-      {/* DORA bağlantısı */}
-      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex items-start gap-3">
-        <Zap className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="font-medium text-sm mb-1">DORA Madde 28 — ICT Üçüncü Taraf Riski</p>
-          <p className="text-xs text-muted-foreground mb-2">
-            DORA kapsamındaki kuruluşlar tedarikçilerinin ICT riskini belgelemek zorundadır.
-            Bu TPRM raporu Madde 28 yükümlülüğünüz için temel kayıt belgesidir.
-          </p>
-          <Link href="/dora-bddk-uyum">
-            <Button variant="outline" size="sm" className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-              DORA Uyum Analizinizi Açın <ChevronRight className="h-3 w-3 ml-1" />
-            </Button>
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }
@@ -343,7 +326,7 @@ export default function TedarikZinciri() {
   const { lang } = useLanguage();
   usePageMeta({
     title: "TPRM Modülü — Tedarik Zinciri Risk Yönetimi | CyberStep.io",
-    description: "Tedarikçilerinizin siber güvenlik durumunu tarayın, anket gönderin ve TPRM raporu alın. DORA Madde 28 uyumlu.",
+    description: "Tedarikçilerinizin siber güvenlik durumunu tarayın, anket gönderin ve TPRM raporu alın.",
     noIndex: false,
   });
 

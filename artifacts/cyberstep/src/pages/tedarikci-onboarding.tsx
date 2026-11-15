@@ -22,7 +22,6 @@ const VERDICTS = [
 
 const BENEFITS = [
   "Her yeni tedarikçi için standart güvenlik sürecini otomatikleştirir",
-  "Müşteri büyüyünce tedarikçi ağı otomatik lead kaynağı olur",
   "KVKK Madde 12 veri işleyen güvenliği yükümlülüğü için kanıt üretir",
   "Tedarikçi izni olmadan dış tarama başlatılabilir",
   "Birleşik rapor ihale dosyasına eklenebilir",
@@ -79,13 +78,9 @@ export default function TedarikciOnboarding() {
           </h1>
           <p className="text-white/80 text-base mb-6 max-w-xl leading-relaxed">
             Büyük şirketler yeni tedarikçi alırken siber güvenlik sorusu sormuyor.
-            CyberStep domain taraması + TPRM anketi + AI tavsiyesini birleştirerek 48 saat içinde
+            CyberStep domain taraması + TPRM anketi + AI tavsiyesini birleştirerek kısa sürede
             "Onayla / Şartlı / Reddet" kararını verir.
           </p>
-          <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-3 w-fit">
-            <Users className="h-4 w-4 text-emerald-400" />
-            <span className="text-sm text-white">Büyük müşteriyi kazanınca onun 50 tedarikçisi otomatik lead oluyor</span>
-          </div>
         </div>
       </section>
 

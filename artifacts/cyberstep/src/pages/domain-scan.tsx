@@ -2447,9 +2447,6 @@ export default function DomainScanPage() {
                         : "Skor; zafiyetler, açık portlar, itibar, e-posta güvenliği, sızıntılar ve TLS üzerinden hesaplanır."}
                       {" "}<a href="/metodoloji" className="text-primary hover:underline">Metodoloji</a>
                     </span>
-                    <a href="/roi-hesaplayici" className="sm:ml-auto shrink-0 text-primary hover:underline whitespace-nowrap font-medium">
-                      Risk Maliyeti Hesapla →
-                    </a>
                   </div>
                   <div className="mt-3 flex gap-2 flex-wrap">
                     <Button

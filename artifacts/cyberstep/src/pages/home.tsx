@@ -130,19 +130,16 @@ export default function Home() {
   ];
 
   const audiences = [
-    { icon: Landmark, href: "/dora-bddk-uyum", title: tx("Banka ve finans", "Banks & finance"), text: tx("BDDK dış hizmet ve DORA kapsamındaki tedarikçi denetimlerini kanıta dayalı yürütün.", "Run evidence-based supplier oversight under BDDK outsourcing rules and DORA.") },
-    { icon: ShieldCheck, href: "/siber-sigorta", title: tx("Sigorta şirketleri", "Insurers"), text: tx("Siber poliçe fiyatlamasında dışarıdan risk verisini API ile alın.", "Feed outside-in risk data into cyber policy underwriting via API.") },
+    { icon: Landmark, href: "/kurumsal", title: tx("Banka ve finans", "Banks & finance"), text: tx("Tedarikçilerinizin siber riskini kanıta dayalı, sürekli izleyin.", "Monitor your suppliers' cyber risk continuously and on evidence.") },
+    { icon: ShieldCheck, href: "/skor-api", title: tx("Sigorta şirketleri", "Insurers"), text: tx("Siber poliçe fiyatlamasında dışarıdan risk verisini API ile alın.", "Feed outside-in risk data into cyber policy underwriting via API.") },
     { icon: Building2, href: "/kurumsal", title: tx("Kurumsal satın alma", "Enterprise procurement"), text: tx("Yeni tedarikçiyi sözleşmeden önce, mevcutları sürekli değerlendirin.", "Assess new suppliers before contracting and existing ones continuously.") },
-    { icon: Handshake, href: "/ma-due-diligence", title: tx("Birleşme ve satın alma", "M&A due diligence"), text: tx("Hedef şirketin ve iştiraklerinin dış saldırı yüzeyini dakikalar içinde görün.", "See a target's external attack surface, and its subsidiaries', in minutes.") },
   ];
 
   const tools = [
     { href: "/domain-tarama", label: tx("Alan adı güvenlik taraması", "Domain security scan") },
     { href: "/araclar/dmarc-kontrol", label: tx("DMARC kontrol", "DMARC check") },
     { href: "/araclar/ssl-kontrol", label: tx("SSL kontrol", "SSL check") },
-    { href: "/araclar/dark-web-sorgulama", label: tx("Dark web sorgulama", "Dark web lookup") },
     { href: "/assessment/start", label: tx("KOBİ risk değerlendirmesi", "SME risk assessment") },
-    { href: "/kvkk-ceza-sim", label: tx("KVKK ceza simülatörü", "KVKK penalty simulator") },
   ];
 
   const faqs = [

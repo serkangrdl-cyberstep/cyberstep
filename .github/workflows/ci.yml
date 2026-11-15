@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tip kontrolü
+        run: pnpm run typecheck
+      - name: Derleme (API + site + panel)
+        run: |
+          pnpm --filter @workspace/api-server run build
+          PORT=3000 BASE_PATH=/ pnpm --filter @workspace/cyberstep run build
+          PORT=3000 BASE_PATH=/digest/ pnpm --filter @workspace/digest-admin run build

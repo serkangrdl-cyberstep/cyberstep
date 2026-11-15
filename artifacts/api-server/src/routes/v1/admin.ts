@@ -16,7 +16,7 @@ function publicKeyRow<T extends { key: string; keyHash?: string | null }>(row: T
 const router = Router();
 
 const TIER_LIMITS: Record<string, { dailyLimit: number; monthlyLimit: number }> = {
-  freemium:   { dailyLimit: 10,    monthlyLimit: 10 },
+  freemium:   { dailyLimit: 10,    monthlyLimit: 300 },
   standard:   { dailyLimit: 1000,  monthlyLimit: 1000 },
   enterprise: { dailyLimit: 999999, monthlyLimit: 999999 },
 };

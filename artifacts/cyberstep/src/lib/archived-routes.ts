@@ -34,6 +34,8 @@ export const ARCHIVED_PUBLIC: readonly string[] = [
   "/is-ortakligi",
   "/araclar/kvkk-ceza-hesaplayici", "/araclar/siber-risk-roi", "/araclar/dark-web-sorgulama",
   "/araclar/WAF-bypass-tarayıcı", "/araclar/WAF-bypass-taray%C4%B1c%C4%B1",
+  // Partner portalı ve beyaz etiket (TPRM odağı, 3. tur)
+  "/ortak", "/w",
 ];
 
 /** Müşteri portalı (/hesabim) sayfaları → /hesabim'e yönlenir. */
@@ -66,11 +68,18 @@ export const ARCHIVED_ADMIN: readonly string[] = [
   // Marketing paneline taşınanlar (/digest/)
   "/panel/ozel-gunler", "/panel/sosyal-medya", "/panel/demo-raporlar", "/panel/rozetler",
   "/panel/marka-kilavuzu",
+  // KOBİ değerlendirme, eski satış hunisi ve iş ortaklığı (TPRM odağı, 3. tur)
+  "/panel/degerlendirmeler", "/panel/sorular", "/panel/yonetim-raporlari", "/panel/growth-engine",
+  "/panel/risk-raporlari", "/panel/acil-tehditler", "/panel/isr", "/panel/is-ortaklari",
+  "/panel/is-ortakligi-basvurulari",
 ];
 
 /** Özel hedefe yönlenen arşiv sayfaları (içeriği başka bir sayfaya taşınanlar). */
 export const ARCHIVED_REDIRECT_TO: Readonly<Record<string, string>> = {
   "/neden-cyberstep": "/hakkimizda", // isim hikayesi ve ekip yeni Hakkımızda sayfasında
+  // KOBİ risk değerlendirmesi başlangıç sayfaları: giriş artık ücretsiz domain taraması
+  "/assessment/start": "/domain-tarama",
+  "/assessment/full/start": "/domain-tarama",
 };
 
 function matches(path: string, prefix: string): boolean {

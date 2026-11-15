@@ -38,6 +38,8 @@ Gizlenen başlıca bölümler:
 
 2. tur (TPRM dışı): `/dora-bddk-uyum`, `/siber-sigorta`, `/marka-koruma`, `/rakip-karsilastirma`, `/roi-hesaplayici`, `/finansal-kayip`, `/kvkk-ceza-sim`, `/kvkk-verbis`, `/kvkk-dpa-olustur`, `/kep-rehberi`, `/compliance-calendar`, `/veri-sizintisi`, `/sizinti-izleyici`, `/sektorel-kiyaslama`, `/siber-panik`, `/is-ortakligi`, `/araclar/kvkk-ceza-hesaplayici`, `/araclar/siber-risk-roi`, `/araclar/dark-web-sorgulama`, `/araclar/WAF-bypass-tarayıcı`.
 
+3. tur: KOBİ risk değerlendirmesi başlangıç sayfaları (`/assessment/start`, `/assessment/full/start` → `/domain-tarama`'ya yönlenir; sonuç/rapor adresleri `/assessment/:id` çalışır), partner portalı (`/ortak`), beyaz etiket (`/w`). Panelde: KOBİ Değerlendirmeleri, Değerlendirme Soruları, YK Raporları, Growth Engine, Dönemsel Risk Raporları, Acil Tehdit Bildirimleri, ISR İş Listesi, İş Ortakları ve Başvuruları. Marketing panelinde: Özel Gün Mesajları, Güven Rozetleri. Domain Keşfi ekranında teaser üretme/gönderme ve ISR listesine ekleme `LEGACY_OUTREACH = false` bayrağıyla gizli (`lead-discovery.tsx`).
+
 Açık kalanlar: TPRM çekirdeği, ücretsiz domain tarama, KOBİ değerlendirmesi, KVKK araçları, `/araclar` altındaki tüm ücretsiz araçlar, blog/CVE/bülten ve yasal sayfalar.
 
 ## Arşivlenen sayfa sürümleri

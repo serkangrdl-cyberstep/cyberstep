@@ -200,8 +200,8 @@ export default function GuvenRozeti() {
             {/* 3-Aşamalı Rozet Sistemi */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
               <div className="bg-slate-50 dark:bg-slate-800/60 px-5 py-3 border-b border-slate-200 dark:border-slate-700">
-                <p className="text-sm font-semibold">CyberStep Güven Rozeti — 3 Aşamalı Süreç</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Rozetinizi kazanmak için aşağıdaki adımları tamamlayın</p>
+                <p className="text-sm font-semibold">CyberStep Güven Rozeti — Nasıl Çalışır?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Rozetinizi almak için aşağıdaki adımları izleyin</p>
               </div>
 
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -219,67 +219,22 @@ export default function GuvenRozeti() {
                   </div>
                 </div>
 
-                {/* Aşama 2 — Kilitli */}
-                <div className="px-5 py-4 flex items-start gap-4">
-                  <div className="shrink-0 mt-0.5 flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
-                    <Globe className="h-4 w-4 text-slate-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-semibold text-muted-foreground">Aşama 2 — Mini Değerlendirme</p>
-                      <Badge variant="outline" className="text-xs text-muted-foreground">Kilitli</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      20 soruluk ücretsiz değerlendirmeyi tamamlayın. Skor ≥60 olduğunda temel rozet embed kodu açılır.
-                    </p>
-                    <Link href="/assessment/start">
-                      <Button size="sm" variant="outline" className="text-xs h-7">
-                        Değerlendirmeyi Başlat <ChevronRight className="h-3 w-3 ml-1" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Aşama 3 — Kilitli */}
+                {/* Rozet gömme kodu */}
                 <div className="px-5 py-4 flex items-start gap-4">
                   <div className="shrink-0 mt-0.5 flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
                     <Shield className="h-4 w-4 text-slate-400" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-semibold text-muted-foreground">Aşama 3 — Uzman Doğrulaması</p>
-                      <Badge variant="outline" className="text-xs text-muted-foreground">Kilitli</Badge>
+                      <p className="text-sm font-semibold text-muted-foreground">Aşama 2 — Canlı Rozet</p>
+                      <Badge variant="outline" className="text-xs text-muted-foreground">Ücretli paket</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">
-                      CyberStep uzmanı kapsamlı inceleme yapar ve resmi "Doğrulanmış" rozeti verir. 1 veya 2 yıl geçerli.
+                      Ücretli pakette rozet gömme kodunuz açılır; sitenizdeki rozet skorunuzu canlı olarak gösterir.
                     </p>
                     <a href="/fiyatlar" className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium">
                       Paketleri İncele <ChevronRight className="h-3 w-3" />
                     </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Preview — locked */}
-              <div className="bg-gradient-to-b from-slate-50 to-primary/5 dark:from-slate-800/40 dark:to-primary/10 px-5 py-4 border-t border-slate-200 dark:border-slate-700">
-                <p className="text-xs font-semibold text-muted-foreground mb-3">Rozet Önizlemesi (Kilide alındı)</p>
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="blur-sm opacity-50 bg-slate-950 rounded-lg p-4 border border-slate-700 flex items-center justify-center">
-                      <img src={badgeUrl ?? ""} alt="" className="h-16" />
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-white/90 dark:bg-slate-800/90 rounded-lg px-3 py-1.5 flex items-center gap-1.5 shadow-sm">
-                        <XCircle className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-xs font-medium text-slate-500">Aşama 2 Gerekli</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Embed kodu, Aşama 2 tamamlandıktan sonra kullanılabilir hale gelir.
-                      Web sitenize eklemek için önce ücretsiz değerlendirmeyi tamamlayın.
-                    </p>
                   </div>
                 </div>
               </div>

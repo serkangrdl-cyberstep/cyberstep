@@ -149,8 +149,8 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Platform genelindeki analiz istatistikleri</p>
         </div>
-        <Link href="/assessment/start">
-          <Button>Yeni Analiz Başlat</Button>
+        <Link href="/domain-tarama">
+          <Button>Yeni Tarama Başlat</Button>
         </Link>
       </div>
 
@@ -233,7 +233,7 @@ export default function Dashboard() {
             <ol className="space-y-2.5">
               {[
                 { step: "Alan adı tarama aracını test edin", href: "/domain-tarama", done: false },
-                { step: "İlk mini değerlendirmeyi tamamlayın", href: "/assessment/start", done: stats.totalAssessments > 0 },
+                { step: "İlk alan adı taramanızı yapın", href: "/domain-tarama", done: stats.totalAssessments > 0 },
                 { step: "E-posta drip şablonlarını kontrol edin (SMTP_USER + SMTP_PASS ayarlı olmalı)", href: null, done: false },
                 { step: "Fiyatlandırma sayfasını inceleyin", href: "/fiyatlar", done: false },
                 { step: "Güven rozetini test edin", href: "/guven-rozeti", done: false },

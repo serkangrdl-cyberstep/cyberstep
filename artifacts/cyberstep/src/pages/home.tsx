@@ -139,7 +139,6 @@ export default function Home() {
     { href: "/domain-tarama", label: tx("Alan adı güvenlik taraması", "Domain security scan") },
     { href: "/araclar/dmarc-kontrol", label: tx("DMARC kontrol", "DMARC check") },
     { href: "/araclar/ssl-kontrol", label: tx("SSL kontrol", "SSL check") },
-    { href: "/assessment/start", label: tx("KOBİ risk değerlendirmesi", "SME risk assessment") },
   ];
 
   const faqs = [

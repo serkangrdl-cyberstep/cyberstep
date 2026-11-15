@@ -691,9 +691,9 @@ export default function TedarikZinciri() {
                     <p className="text-muted-foreground text-sm mb-4">
                       Tedarikçilerinizi koruduğunuz kadar kendinizi de koruyun.
                     </p>
-                    <Link href="/assessment/start">
+                    <Link href="/domain-tarama">
                       <Button>
-                        Ücretsiz Değerlendirme Başlat <ChevronRight className="h-4 w-4 ml-1" />
+                        Ücretsiz Alan Adı Taraması <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
                     </Link>
                   </CardContent>

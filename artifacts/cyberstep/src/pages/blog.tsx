@@ -240,7 +240,7 @@ export default function Blog() {
           <div className="border border-border rounded-xl p-6 bg-card">
             <h3 className="font-semibold text-foreground mb-3">{t(T.blog.ctaTitle, lang)}</h3>
             <p className="text-muted-foreground text-sm mb-4">{t(T.blog.ctaSub, lang)}</p>
-            <Link href="/assessment/start">
+            <Link href="/domain-tarama">
               <Button className="w-full bg-emerald-500 hover:bg-emerald-400 text-white">{t(T.blog.ctaBtn, lang)}</Button>
             </Link>
           </div>

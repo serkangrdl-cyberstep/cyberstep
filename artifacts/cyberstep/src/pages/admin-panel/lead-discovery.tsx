@@ -991,6 +991,12 @@ function BistDrillRow({ co }: { co: _BistCveCo }) {
   );
 }
 
+/**
+ * Eski satış hunisi (teaser e-postası, ISR listesi) — TPRM odağıyla arşive alındı (Kasım 2026).
+ * Arka uç uç noktaları durur; geri açmak için true yapın.
+ */
+const LEGACY_OUTREACH = false;
+
 export default function AdminLeadDiscovery() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -1875,7 +1881,7 @@ export default function AdminLeadDiscovery() {
           { label: "Nitelendirme Bekleyen", value: stats?.pendingTier2 ?? 0, color: "text-amber-600" },
           { label: "Nitelendirilen", value: stats?.qualified ?? 0, color: "text-green-600" },
           { label: "Kontak Bulunan", value: stats?.withContact ?? 0, color: "text-blue-600" },
-          { label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" },
+          ...(LEGACY_OUTREACH ? [{ label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" }] : []),
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-3">
@@ -2164,10 +2170,12 @@ export default function AdminLeadDiscovery() {
                       <span className="text-muted-foreground">Contact Bulundu</span>
                       <span className="font-bold">{(stats?.withContact ?? 0).toLocaleString("tr-TR")}</span>
                     </div>
+                    {LEGACY_OUTREACH && (
                     <div className="bg-muted/40 rounded px-3 py-2 flex justify-between col-span-2">
                       <span className="text-muted-foreground">Teaser Gönderildi</span>
                       <span className="font-bold">{(stats?.teaserSent ?? 0).toLocaleString("tr-TR")}</span>
                     </div>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 space-y-1">
                     <div className="font-medium text-foreground/70 mb-1">Kontak kaynakları (öncelik sırasıyla)</div>
@@ -2177,7 +2185,7 @@ export default function AdminLeadDiscovery() {
                     <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0" />Web sitesi footer / iletişim sayfası</div>
                     <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />MERSİS — Ticaret Bakanlığı yetkili adı/unvanı</div>
                     <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0" />KAP — borsaya kote şirket yönetici bilgisi</div>
-                    <div className="mt-1 pt-1 border-t border-muted">Teaser: Claude claude-sonnet-4-6 ile üretilir</div>
+                    {LEGACY_OUTREACH && <div className="mt-1 pt-1 border-t border-muted">Teaser: Claude claude-sonnet-4-6 ile üretilir</div>}
                   </div>
                   <Button
                     variant="outline"
@@ -2467,7 +2475,7 @@ export default function AdminLeadDiscovery() {
               {[
                 { label: "Toplam Qualified", value: stats?.qualified ?? 0, color: "text-green-600" },
                 { label: "Contact Bulundu", value: stats?.withContact ?? 0, color: "text-blue-600" },
-                { label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" },
+                ...(LEGACY_OUTREACH ? [{ label: "Teaser Gönderildi", value: stats?.teaserSent ?? 0, color: "text-purple-600" }] : []),
                 { label: "Bu Sayfada", value: qualifiedData?.rows?.length ?? 0, color: "text-slate-400" },
               ].map((s) => (
                 <div key={s.label} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
@@ -2526,6 +2534,7 @@ export default function AdminLeadDiscovery() {
                   <option value="no">Contact Eksik</option>
                 </select>
 
+                {LEGACY_OUTREACH && (<>
                 {/* Teaser durumu */}
                 <select
                   value={qTeaser}
@@ -2537,6 +2546,7 @@ export default function AdminLeadDiscovery() {
                   <option value="sent">Gönderildi</option>
                   <option value="notsent">Gönderilmedi</option>
                 </select>
+                </>)}
 
                 {/* Min risk skoru */}
                 <select
@@ -2719,7 +2729,7 @@ export default function AdminLeadDiscovery() {
                         <TableHead className="text-slate-400 text-right w-14">Mail</TableHead>
                         <TableHead className="text-slate-400 w-[130px]">Sektör / Şehir</TableHead>
                         <TableHead className="text-slate-400">Contact</TableHead>
-                        <TableHead className="text-slate-400 w-28">Teaser</TableHead>
+                        {LEGACY_OUTREACH && <TableHead className="text-slate-400 w-28">Teaser</TableHead>}
                         <TableHead className="text-slate-400 text-right w-[110px]">İşlemler</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -2828,7 +2838,7 @@ export default function AdminLeadDiscovery() {
                             )}
                           </TableCell>
 
-                          {/* Teaser */}
+                          {LEGACY_OUTREACH && (
                           <TableCell className="py-2">
                             {c.teaserSentAt ? (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-800/50">Gönderildi</span>
@@ -2843,6 +2853,7 @@ export default function AdminLeadDiscovery() {
                               <span className="text-slate-600 text-[10px]">—</span>
                             )}
                           </TableCell>
+                          )}
 
                           {/* Actions — compact vertical stack */}
                           <TableCell className="py-1.5">
@@ -2864,6 +2875,7 @@ export default function AdminLeadDiscovery() {
                                     Kontak Ara
                                   </Button>
                                 )}
+                                {LEGACY_OUTREACH && (<>
                                 <Button size="sm" variant="ghost" className="text-[10px] h-5 px-1.5 text-slate-400 hover:text-slate-200 whitespace-nowrap"
                                   onClick={() => generateTeaser.mutate(c.id)} disabled={generateTeaser.isPending}>
                                   {c.teaserSubject ? "Yeniden Tara" : "Teaser"}
@@ -2874,6 +2886,7 @@ export default function AdminLeadDiscovery() {
                                     Gönder
                                   </Button>
                                 )}
+                                </>)}
                               </div>
                               <a href={buildLinkedInUrl(c)} target="_blank" rel="noopener noreferrer"
                                 className="inline-flex items-center text-[10px] h-5 px-1.5 rounded text-[#0A66C2] hover:bg-[#0A66C2]/10 whitespace-nowrap">
@@ -3191,7 +3204,7 @@ export default function AdminLeadDiscovery() {
                         <TableHead>Sektör / Şehir</TableHead>
                         <TableHead>Bulgular</TableHead>
                         <TableHead>İletişim</TableHead>
-                        <TableHead>Teaser</TableHead>
+                        {LEGACY_OUTREACH && <TableHead>Teaser</TableHead>}
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -3277,6 +3290,7 @@ export default function AdminLeadDiscovery() {
                               <span className="text-xs text-muted-foreground">Yok</span>
                             )}
                           </TableCell>
+                          {LEGACY_OUTREACH && (
                           <TableCell>
                             {c.teaserSentAt ? (
                               <Badge className="bg-green-100 text-green-700 text-xs">Gönderildi</Badge>
@@ -3291,6 +3305,7 @@ export default function AdminLeadDiscovery() {
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
+                          )}
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               <Button
@@ -3301,6 +3316,7 @@ export default function AdminLeadDiscovery() {
                               >
                                 Detay
                               </Button>
+                              {LEGACY_OUTREACH && (<>
                               {c.isQualified && (
                                 <Button
                                   size="sm"
@@ -3339,6 +3355,7 @@ export default function AdminLeadDiscovery() {
                                   </Button>
                                 )
                               )}
+                              </>)}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -5929,7 +5946,8 @@ export default function AdminLeadDiscovery() {
 
             </div>
 
-            {/* ISR Aksiyonları — varsayılan kapalı */}
+            {/* ISR Aksiyonları — arşiv (LEGACY_OUTREACH) */}
+            {LEGACY_OUTREACH && (
             <div className="mx-4 mb-2">
               <button
                 onClick={() => setIsrOpen(o => !o)}
@@ -5993,9 +6011,11 @@ export default function AdminLeadDiscovery() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Aksiyonlar — sabit alt bar */}
             <div className="flex gap-2 px-4 py-3 border-t shrink-0 flex-wrap bg-background">
+              {LEGACY_OUTREACH && (<>
               {detailCandidate.isQualified && (
                 <Button size="sm" variant="outline" onClick={() => { generateTeaser.mutate(detailCandidate.id); setDetailCandidate(null); }}>
                   {detailCandidate.teaserSubject ? "Teaser Yeniden Üret" : "Teaser Üret"}
@@ -6014,6 +6034,7 @@ export default function AdminLeadDiscovery() {
                   </Button>
                 )
               )}
+              </>)}
               <Button size="sm" variant="outline" className="text-cyan-600 border-cyan-200"
                 onClick={() => { setFingerprintResult(null); fingerprintLead.mutate(detailCandidate.domain); }}
                 disabled={fingerprintLead.isPending}>
@@ -6026,7 +6047,7 @@ export default function AdminLeadDiscovery() {
       )}
 
       {/* Teaser Preview Dialog */}
-      {!!teaserPreview && (
+      {LEGACY_OUTREACH && !!teaserPreview && (
         <Dialog open={!!teaserPreview} onOpenChange={() => setTeaserPreview(null)}>
           <DialogContent className="max-w-3xl w-[95vw]">
             <DialogHeader>

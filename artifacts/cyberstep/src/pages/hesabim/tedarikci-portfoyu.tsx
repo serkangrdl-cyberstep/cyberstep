@@ -29,6 +29,7 @@ interface Vendor {
   questionnaireToken: string | null;
   combinedScore: number | null;
   riskLevel: string | null;
+  criticality?: "kritik" | "onemli" | "standart";
   lastScanData: StoredScanData | null;
   sector: string | null;
   sectorMedian: number | null;
@@ -160,6 +161,13 @@ const SECTORS = [
   "Diğer",
 ];
 
+const CRITICALITY_LABEL: Record<string, string> = { kritik: "Kritik tedarikçi", onemli: "Önemli", standart: "Standart" };
+const CRITICALITY_BADGE: Record<string, string> = {
+  kritik: "border-red-500/40 text-red-400 bg-red-500/10",
+  onemli: "border-amber-500/40 text-amber-400 bg-amber-500/10",
+  standart: "border-border text-muted-foreground",
+};
+
 function riskColors(level: string | null) {
   if (level === "Düşük")  return { badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bar: "bg-emerald-500" };
   if (level === "Orta")   return { badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",   bar: "bg-amber-500" };
@@ -204,6 +212,7 @@ export default function TedarikciPortfoyu() {
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
   const [newDomain, setNewDomain] = useState("");
   const [newName, setNewName] = useState("");
+  const [newCriticality, setNewCriticality] = useState<"kritik" | "onemli" | "standart">("standart");
 
   const [questionnaireOpen, setQuestionnaireOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
@@ -240,7 +249,7 @@ export default function TedarikciPortfoyu() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ supplierDomain: domain, supplierName: newName.trim() || null }),
+        body: JSON.stringify({ supplierDomain: domain, supplierName: newName.trim() || null, criticality: newCriticality }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
       return res.json() as Promise<Vendor & { instantScore?: boolean; scanPending?: boolean }>;
@@ -250,6 +259,7 @@ export default function TedarikciPortfoyu() {
       setAddOpen(false);
       setNewDomain("");
       setNewName("");
+      setNewCriticality("standart");
       toast({
         title: "Tedarikçi eklendi",
         description: data?.instantScore
@@ -301,6 +311,20 @@ export default function TedarikciPortfoyu() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const criticalityMutation = useMutation({
+    mutationFn: async ({ id, criticality }: { id: number; criticality: string }) => {
+      const res = await fetch(`/api/tprm/vendors/${id}/criticality`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ criticality }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tprm-vendors", email] }),
+    onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}`, { method: "DELETE", credentials: "include" }),
@@ -357,6 +381,10 @@ export default function TedarikciPortfoyu() {
     low: vendors.filter(v => v.riskLevel === "Düşük").length,
     pending: vendors.filter(v => v.lastScanScore === null && !v.lastScanData?.score?.insufficientData).length,
   };
+
+  const criticalAtRisk = vendors.filter(
+    v => v.criticality === "kritik" && (v.riskLevel === "Yüksek" || v.riskLevel === "Kritik"),
+  );
 
   if (!customer) return null;
 
@@ -449,6 +477,13 @@ export default function TedarikciPortfoyu() {
         </Card>
       ) : (
         <div className="space-y-2">
+          {criticalAtRisk.length > 0 && (
+            <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
+              <strong>{criticalAtRisk.length} kritik tedarikçi</strong> yüksek veya kritik risk seviyesinde:{" "}
+              {criticalAtRisk.slice(0, 4).map(v => v.supplierDomain).join(", ")}
+              {criticalAtRisk.length > 4 ? " ve diğerleri" : ""}. Önce bunlara bakın.
+            </div>
+          )}
           {vendors.map(v => {
             const rc = riskColors(v.riskLevel);
             const isExp = expanded === v.id;
@@ -471,6 +506,15 @@ export default function TedarikciPortfoyu() {
                             {v.riskLevel} Risk
                           </Badge>
                         )}
+                        <select
+                          aria-label="Tedarikçi kritikliği"
+                          title="Bu tedarikçinin bir siber olayı sizin operasyonunuzu ne kadar etkiler?"
+                          value={v.criticality ?? "standart"}
+                          onChange={e => criticalityMutation.mutate({ id: v.id, criticality: e.target.value })}
+                          className={`text-[10px] rounded border px-1.5 py-0 bg-transparent cursor-pointer ${CRITICALITY_BADGE[v.criticality ?? "standart"]}`}
+                        >
+                          {Object.entries(CRITICALITY_LABEL).map(([k, l]) => <option key={k} value={k} className="bg-background text-foreground">{l}</option>)}
+                        </select>
                       </div>
                       <div className="mt-2 flex items-center gap-3 flex-wrap">
                         <ScoreBar score={v.lastScanScore} grade={v.lastScanData?.score?.grade} insufficient={!!v.lastScanData?.score?.insufficientData} />
@@ -702,6 +746,18 @@ export default function TedarikciPortfoyu() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Kritiklik</Label>
+              <select
+                value={newCriticality}
+                onChange={e => setNewCriticality(e.target.value as "kritik" | "onemli" | "standart")}
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              >
+                <option value="standart">Standart: aksarsa işimiz etkilenmez</option>
+                <option value="onemli">Önemli: aksarsa süreçlerimiz yavaşlar</option>
+                <option value="kritik">Kritik: aksarsa operasyonumuz durur</option>
+              </select>
             </div>
           </div>
           <DialogFooter>

@@ -54,7 +54,7 @@ export async function buildSecurityContext(customerId: number): Promise<string> 
       lines.push(`Açık Port Sayısı: ${externalScan.openPortsCount}`);
     }
     if (externalScan.httpHeadersScore !== null) {
-      lines.push(`HTTP Güvenlik Başlıkları: ${externalScan.httpHeadersScore}/100`);
+      lines.push(`HTTP Güvenlik Başlıkları: ${externalScan.httpHeadersScore}/5 başlık mevcut`);
     }
     if (externalScan.hasCdn || externalScan.wafDetected) {
       const wafDisplay = externalScan.cdnProvider ?? externalScan.wafProvider ?? "Tespit edildi";

@@ -1293,6 +1293,16 @@ async function ensureDomainScanEnrichmentColumns() {
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS ct_subdomain_count INTEGER NOT NULL DEFAULT 0`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS cve_summary JSONB NOT NULL DEFAULT '[]'`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS shodan_open_ports JSONB`);
+  await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS source_status JSONB`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS scan_interval_days INTEGER NOT NULL DEFAULT 7`);
+  {
+    const { missingScanSourceKeys } = await import("./lib/scanSources");
+    const missing = missingScanSourceKeys();
+    if (missing.length > 0) {
+      logger.warn({ missing: missing.map((m) => m.env) },
+        "Tarama kaynakları için API key eksik — bu kaynaklar taramalarda 'not_configured' olarak işaretlenir ve skora dahil edilmez");
+    }
+  }
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS shodan_vuln_count INTEGER NOT NULL DEFAULT 0`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS shodan_country TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS shodan_isp TEXT`);

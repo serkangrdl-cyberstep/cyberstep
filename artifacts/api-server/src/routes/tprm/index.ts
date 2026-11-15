@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import { tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable, tprmVendorTable } from "@workspace/db";
-import { eq, and, lte, isNull, or, inArray } from "drizzle-orm";
+import { eq, and, isNull, or, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { logger } from "../../lib/logger";
@@ -15,6 +15,7 @@ import { isScanFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
 import { canonicalSector } from "../../lib/scoring/sectors";
+import type { ScanSourceStatusMap } from "../../lib/scanSources";
 import { peekBenchmarkSnapshot, percentileInSector } from "../../services/sectorBenchmark";
 
 const router = Router();
@@ -37,10 +38,14 @@ export const TPRM_QUESTIONS = [
 
 // ─── Yardımcı: tedarikçi skoru (Skor v2) ─────────────────────────────────────
 
+type ScanDepth = "full" | "light";
+
 interface SupplierScore {
   scanId: number;
   scannedAt: Date;
   score: ScoreV2Result;
+  depth?: ScanDepth;
+  sources?: ScanSourceStatusMap | null;
 }
 
 /** lastScanData içinde saklanan biçim. */
@@ -48,17 +53,43 @@ interface StoredScanData {
   scoreVersion: string;
   scanId: number;
   score: ScoreV2Result;
+  /** "light" = keşif hattı taraması (itibar/sızıntı/başlık kontrolleri yok). */
+  depth?: ScanDepth;
+  /** Hangi veri kaynağı ölçüldü / key yok / erişilemedi (+ Shodan veri tarihi). */
+  sources?: ScanSourceStatusMap | null;
 }
 
-/** Domain için yeni bir tarama çalıştırır ve Skor v2 hesaplar. */
+/** Keşif hattının hafif taraması TPRM izlemesi için yeterli sayılmaz. */
+function scanDepthOf(scan: { referralSource: string | null }): ScanDepth {
+  return scan.referralSource === "discovery_pipeline" ? "light" : "full";
+}
+
+/** Tarama hem tam (TPRM'e uygun) hem de verilen süre içinde mi? */
+function isFullScanFresh(scan: { createdAt: Date | null; referralSource: string | null }, days?: number): boolean {
+  return scanDepthOf(scan) === "full" && isScanFresh(scan, days);
+}
+
+export const SCAN_INTERVAL_MIN_DAYS = 1;
+export const SCAN_INTERVAL_MAX_DAYS = 30;
+
+function parseScanInterval(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? parseInt(raw, 10) : NaN;
+  if (!Number.isInteger(n) || n < SCAN_INTERVAL_MIN_DAYS || n > SCAN_INTERVAL_MAX_DAYS) return null;
+  return n;
+}
+
+/** Domain için yeni bir TAM tarama çalıştırır ve Skor v2 hesaplar. */
 async function scanSupplierDomain(domain: string): Promise<SupplierScore | null> {
   try {
     const { performDomainScan } = await import("../domain-scan/index");
-    const result = await performDomainScan(domain);
+    const result = await performDomainScan(domain, { depth: "full" });
     if (!result) return null;
     const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, result.id));
     if (!scan) return null;
-    return { scanId: scan.id, scannedAt: scan.createdAt, score: await scoreScanV2(scan) };
+    return {
+      scanId: scan.id, scannedAt: scan.createdAt, score: await scoreScanV2(scan),
+      depth: "full", sources: (scan.sourceStatus as ScanSourceStatusMap | null) ?? null,
+    };
   } catch (err) {
     logger.error({ err, domain }, "TPRM supplier scan failed");
     return null;
@@ -66,14 +97,17 @@ async function scanSupplierDomain(domain: string): Promise<SupplierScore | null>
 }
 
 /**
- * Mevcut taramayı kullanır; yoksa veya bayatsa (ya da force=true ise) yeni tarama yapar.
- * CyberStep veritabanındaki taramalar sayesinde çoğu tedarikçi için anında sonuç verir.
+ * Mevcut tam taramayı kullanır; yoksa, hafifse, `maxAgeDays`'ten eskiyse
+ * (ya da force=true ise) yeni tam tarama yapar.
  */
-async function getSupplierScore(domain: string, opts: { force?: boolean } = {}): Promise<SupplierScore | null> {
+async function getSupplierScore(domain: string, opts: { force?: boolean; maxAgeDays?: number } = {}): Promise<SupplierScore | null> {
   if (!opts.force) {
     const existing = await scoreDomainV2(domain).catch(() => null);
-    if (existing && isScanFresh(existing.scan)) {
-      return { scanId: existing.scan.id, scannedAt: existing.scan.createdAt, score: existing.score };
+    if (existing && isFullScanFresh(existing.scan, opts.maxAgeDays)) {
+      return {
+        scanId: existing.scan.id, scannedAt: existing.scan.createdAt, score: existing.score,
+        depth: "full", sources: (existing.scan.sourceStatus as ScanSourceStatusMap | null) ?? null,
+      };
     }
   }
   return scanSupplierDomain(domain);
@@ -91,7 +125,10 @@ async function applySupplierScore(
   vendor: { id: number; lastScanScore: number | null; lastScanData: unknown },
   result: SupplierScore,
 ): Promise<void> {
-  const data: StoredScanData = { scoreVersion: SCORE_V2_VERSION, scanId: result.scanId, score: result.score };
+  const data: StoredScanData = {
+    scoreVersion: SCORE_V2_VERSION, scanId: result.scanId, score: result.score,
+    depth: result.depth ?? "light", sources: result.sources ?? null,
+  };
   // Önceki skor v1 metodolojisiyle hesaplandıysa trend karşılaştırması anlamsızdır.
   const prevComparable = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION;
   // Domain çözümlenemediyse skor gösterilmez; panel "veri yetersiz" der.
@@ -515,10 +552,16 @@ router.get("/tprm/plan", requireCustomer, async (req: Request, res: Response) =>
 // Tedarikçi ekle + ilk taramayı background'da başlat
 
 router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response) => {
-  const { supplierDomain, supplierName } = req.body as {
+  const { supplierDomain, supplierName, scanIntervalDays } = req.body as {
     supplierDomain?: string;
     supplierName?: string;
+    scanIntervalDays?: number;
   };
+  const interval = scanIntervalDays === undefined ? 7 : parseScanInterval(scanIntervalDays);
+  if (interval === null) {
+    res.status(400).json({ error: `scanIntervalDays ${SCAN_INTERVAL_MIN_DAYS}–${SCAN_INTERVAL_MAX_DAYS} arasında bir tam sayı olmalı` });
+    return;
+  }
 
   if (!supplierDomain || typeof supplierDomain !== "string") {
     res.status(400).json({ error: "supplierDomain zorunlu" });
@@ -561,21 +604,26 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
       customerEmail: email,
       supplierDomain: domain,
       supplierName: typeof supplierName === "string" && supplierName.trim() ? supplierName.trim() : null,
+      scanIntervalDays: interval,
     }).returning();
     let vendor = inserted!;
 
     // Anlık skor: CyberStep veritabanında bu domain için tarama varsa hemen kullan.
     const prior = await scoreDomainV2(domain).catch(() => null);
     if (prior) {
-      await applySupplierScore(vendor, { scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score });
+      await applySupplierScore(vendor, {
+        scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score,
+        depth: scanDepthOf(prior.scan), sources: (prior.scan.sourceStatus as ScanSourceStatusMap | null) ?? null,
+      });
       const [refreshed] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendor.id));
       if (refreshed) vendor = refreshed;
     }
 
-    // Tarama yoksa veya bayatsa arka planda yeni tarama başlat.
-    if (!prior || !isScanFresh(prior.scan)) queueVendorScan(vendor.id, domain);
+    // Tarama yoksa, hafifse (keşif hattı) veya bayatsa arka planda tam tarama başlat.
+    const needsScan = !prior || !isFullScanFresh(prior.scan, vendor.scanIntervalDays);
+    if (needsScan) queueVendorScan(vendor.id, domain);
 
-    res.status(201).json({ ...vendor, instantScore: !!prior, scanPending: !prior || !isScanFresh(prior.scan) });
+    res.status(201).json({ ...vendor, instantScore: !!prior, scanPending: needsScan });
   } catch (err) {
     logger.error({ err }, "TPRM vendor add error");
     res.status(500).json({ error: "Tedarikçi eklenemedi" });
@@ -655,10 +703,14 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
     for (const v of inserted) {
       const prior = scored.get(v.supplierDomain);
       if (prior) {
-        await applySupplierScore(v, { scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score });
+        await applySupplierScore(v, {
+          scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score,
+          depth: scanDepthOf(prior.scan), sources: (prior.scan.sourceStatus as ScanSourceStatusMap | null) ?? null,
+        });
         instant++;
       }
-      if (!prior || !isScanFresh(prior.scan)) {
+      // Hafif (keşif) taraması olanlar da kuyrukta tam taramaya alınır.
+      if (!prior || !isFullScanFresh(prior.scan, v.scanIntervalDays)) {
         queueVendorScan(v.id, v.supplierDomain);
         queuedCount++;
       }
@@ -721,6 +773,40 @@ router.post("/tprm/vendors/:id/rescan", requireCustomer, async (req: Request, re
   }
 });
 
+// ─── PATCH /api/tprm/vendors/:id ──────────────────────────────────────────────
+// İzleme ayarları: yeniden tarama sıklığı (gün) ve izlemenin açık/kapalı olması.
+
+router.patch("/tprm/vendors/:id", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  if (!id) { res.status(400).json({ error: "Geçersiz id" }); return; }
+
+  const body = req.body as { scanIntervalDays?: unknown; monitoringActive?: unknown };
+  const update: { scanIntervalDays?: number; monitoringActive?: boolean } = {};
+  if (body.scanIntervalDays !== undefined) {
+    const interval = parseScanInterval(body.scanIntervalDays);
+    if (interval === null) {
+      res.status(400).json({ error: `scanIntervalDays ${SCAN_INTERVAL_MIN_DAYS}–${SCAN_INTERVAL_MAX_DAYS} arasında bir tam sayı olmalı` });
+      return;
+    }
+    update.scanIntervalDays = interval;
+  }
+  if (body.monitoringActive !== undefined) {
+    if (typeof body.monitoringActive !== "boolean") { res.status(400).json({ error: "monitoringActive boolean olmalı" }); return; }
+    update.monitoringActive = body.monitoringActive;
+  }
+  if (Object.keys(update).length === 0) { res.status(400).json({ error: "Güncellenecek alan yok" }); return; }
+
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const [updated] = await db.update(tprmVendorTable).set(update).where(eq(tprmVendorTable.id, vendor.id)).returning();
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor update error");
+    res.status(500).json({ error: "Güncellenemedi" });
+  }
+});
+
 // ─── POST /api/tprm/vendors/:id/send-questionnaire ────────────────────────────
 // Tedarikçiye anket linki oluştur ve kaydet
 
@@ -770,15 +856,19 @@ router.post("/tprm/vendors/:id/send-questionnaire", requireCustomer, async (req:
 export async function runVendorRescanCron(): Promise<void> {
   logger.info("TPRM vendor nightly rescan started");
 
-  // Son 7 günde taranmamış veya hiç taranmamış aktif tedarikçiler
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // Taranması gelen aktif tedarikçiler:
+  //  - hiç taranmamış,
+  //  - son taraması tedarikçinin kendi aralığından (scan_interval_days) eski
+  //    (cron saatindeki kaymalar günlük taramayı atlatmasın diye 2 saat tolerans),
+  //  - ya da yalnızca keşif hattının hafif taramasıyla skorlanmış.
   const vendors = await db.select().from(tprmVendorTable)
     .where(
       and(
         eq(tprmVendorTable.monitoringActive, true),
         or(
           isNull(tprmVendorTable.lastScanAt),
-          lte(tprmVendorTable.lastScanAt, sevenDaysAgo),
+          sql`${tprmVendorTable.lastScanAt} <= now() - make_interval(days => ${tprmVendorTable.scanIntervalDays}) + interval '2 hours'`,
+          sql`coalesce(${tprmVendorTable.lastScanData}->>'depth', 'light') <> 'full'`,
         )
       )
     );
@@ -792,8 +882,8 @@ export async function runVendorRescanCron(): Promise<void> {
 
   for (const vendor of vendors) {
     try {
-      // Keşif hattı bu domaini son 7 günde taradıysa yeniden taramaya gerek yok.
-      const result = await getSupplierScore(vendor.supplierDomain);
+      // Başka bir tam tarama (ör. aynı domaini izleyen başka müşteri) aralık içindeyse yeniden kullanılır.
+      const result = await getSupplierScore(vendor.supplierDomain, { maxAgeDays: Math.max(vendor.scanIntervalDays - 0.1, 0.5) });
       if (!result) continue;
 
       const score = result.score.score;

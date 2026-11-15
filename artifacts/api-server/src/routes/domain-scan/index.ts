@@ -14,6 +14,7 @@ import { calculateLetterGrade } from "../../lib/scoring/letterGrade";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
 import { checkAndConsumeQuota } from "../../services/apiQuotaTracker";
+import { sourceEntry, type ScanSourceStatusMap } from "../../lib/scanSources";
 
 function isConnErr(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
@@ -407,6 +408,8 @@ async function checkShadowIT(domain: string): Promise<{ services: ShadowItServic
 async function checkHIBP(domain: string): Promise<{
   breachCount: number;
   breaches: Array<{ name: string; breachDate: string; pwnCount: number; dataClasses: string[] }>;
+  /** true = sorgu başarısız; breachCount=0 "sızıntı yok" anlamına gelmez. */
+  failed?: boolean;
 }> {
   return new Promise((resolve) => {
     const req = https.request(
@@ -437,16 +440,16 @@ async function checkHIBP(domain: string): Promise<{
                 })),
               });
             } else {
-              resolve({ breachCount: 0, breaches: [] });
+              resolve({ breachCount: 0, breaches: [], failed: true });
             }
           } catch {
-            resolve({ breachCount: 0, breaches: [] });
+            resolve({ breachCount: 0, breaches: [], failed: true });
           }
         });
       }
     );
-    req.on("error", () => resolve({ breachCount: 0, breaches: [] }));
-    req.on("timeout", () => { req.destroy(); resolve({ breachCount: 0, breaches: [] }); });
+    req.on("error", () => resolve({ breachCount: 0, breaches: [], failed: true }));
+    req.on("timeout", () => { req.destroy(); resolve({ breachCount: 0, breaches: [], failed: true }); });
     req.end();
   });
 }
@@ -790,7 +793,11 @@ export async function checkShodan(domain: string): Promise<{
   isp: string | null;
   cdn: CdnInfo;
   portRiskSummary: PortRiskSummary;
+  /** Shodan'ın bu IP'yi en son taradığı zaman (ISO). Veri tazeliği için raporlanır. */
+  lastUpdate?: string | null;
 } | null> {
+  // Dönüş sözleşmesi: null = ölçülemedi (key yok, kota, API hatası) → Skor v2 ağ
+  // kategorisini "ölçülmedi" sayar. Boş liste = ölçüldü, açık servis yok.
   const apiKey = process.env["SHODAN_API_KEY"];
   if (!apiKey) return null;
   if (!checkAndConsumeQuota("shodan")) {
@@ -814,7 +821,13 @@ export async function checkShodan(domain: string): Promise<{
           res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
           res.on("end", () => {
             try {
-              if (res.statusCode !== 200) { resolve(empty()); return; }
+              // 404 = Shodan bu IP'de indekslenmiş servis bilmiyor (ölçüldü, boş).
+              // Diğer kodlar (401 geçersiz key, 429 kota, 5xx) = ölçülemedi.
+              if (res.statusCode === 404) { resolve(empty()); return; }
+              if (res.statusCode !== 200) {
+                logger.warn({ domain, status: res.statusCode }, "Shodan host lookup başarısız — ağ kategorisi ölçülmedi sayılacak");
+                resolve(null); return;
+              }
               type ShodanHost = {
                 data?: Array<{
                   port: number;
@@ -829,6 +842,7 @@ export async function checkShodan(domain: string): Promise<{
                 vulns?: Record<string, unknown>;
                 country_code?: string;
                 org?: string;
+                last_update?: string;
               };
               const json = JSON.parse(data) as ShodanHost;
               const isp = json.org ?? null;
@@ -853,13 +867,13 @@ export async function checkShodan(domain: string): Promise<{
                 return (order[b.riskLevel] ?? 0) - (order[a.riskLevel] ?? 0);
               });
               const portRiskSummary = buildPortRiskSummary(openPorts);
-              resolve({ openPorts, vulnCount: Object.keys(json.vulns ?? {}).length, country: json.country_code ?? null, isp, cdn, portRiskSummary });
-            } catch { resolve(empty()); }
+              resolve({ openPorts, vulnCount: Object.keys(json.vulns ?? {}).length, country: json.country_code ?? null, isp, cdn, portRiskSummary, lastUpdate: json.last_update ?? null });
+            } catch { resolve(null); }
           });
         }
       );
-      req.on("error", () => resolve(empty()));
-      req.on("timeout", () => { req.destroy(); resolve(empty()); });
+      req.on("error", () => resolve(null));
+      req.on("timeout", () => { req.destroy(); resolve(null); });
       req.end();
     });
   } catch { return empty(); }
@@ -885,17 +899,22 @@ async function checkVirusTotal(domain: string): Promise<{
         res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 200 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
         res.on("end", () => {
           try {
-            if (res.statusCode !== 200) { resolve({ malicious: 0, suspicious: 0, reputation: 0 }); return; }
+            // 404 = VirusTotal domaini tanımıyor (tespit yok). Diğer kodlar = ölçülemedi.
+            if (res.statusCode === 404) { resolve({ malicious: 0, suspicious: 0, reputation: 0 }); return; }
+            if (res.statusCode !== 200) {
+              logger.warn({ domain, status: res.statusCode }, "VirusTotal sorgusu başarısız");
+              resolve(null); return;
+            }
             type VTResponse = { data?: { attributes?: { last_analysis_stats?: { malicious?: number; suspicious?: number }; reputation?: number } } };
             const json = JSON.parse(data) as VTResponse;
             const stats = json.data?.attributes?.last_analysis_stats ?? {};
             resolve({ malicious: stats.malicious ?? 0, suspicious: stats.suspicious ?? 0, reputation: json.data?.attributes?.reputation ?? 0 });
-          } catch { resolve({ malicious: 0, suspicious: 0, reputation: 0 }); }
+          } catch { resolve(null); }
         });
       }
     );
-    req.on("error", () => resolve({ malicious: 0, suspicious: 0, reputation: 0 }));
-    req.on("timeout", () => { req.destroy(); resolve({ malicious: 0, suspicious: 0, reputation: 0 }); });
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
     req.end();
   });
 }
@@ -911,7 +930,7 @@ async function checkAbuseIPDB(domain: string): Promise<{
   if (!apiKey) return null;
   try {
     const ips = await dns.resolve4(domain);
-    if (!ips || ips.length === 0) return { score: 0, totalReports: 0, countryCode: null, isp: null };
+    if (!ips || ips.length === 0) return null;
     const ip = ips[0]!;
     return new Promise((resolve) => {
       const req = https.request(
@@ -921,19 +940,22 @@ async function checkAbuseIPDB(domain: string): Promise<{
           res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 100 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
           res.on("end", () => {
             try {
-              if (res.statusCode !== 200) { resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); return; }
+              if (res.statusCode !== 200) {
+                logger.warn({ domain, status: res.statusCode }, "AbuseIPDB sorgusu başarısız");
+                resolve(null); return;
+              }
               type AbuseIPDBResp = { data?: { abuseConfidenceScore?: number; totalReports?: number; countryCode?: string; isp?: string } };
               const json = JSON.parse(data) as AbuseIPDBResp;
               resolve({ score: json.data?.abuseConfidenceScore ?? 0, totalReports: json.data?.totalReports ?? 0, countryCode: json.data?.countryCode ?? null, isp: json.data?.isp ?? null });
-            } catch { resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); }
+            } catch { resolve(null); }
           });
         }
       );
-      req.on("error", () => resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }));
-      req.on("timeout", () => { req.destroy(); resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); });
+      req.on("error", () => resolve(null));
+      req.on("timeout", () => { req.destroy(); resolve(null); });
       req.end();
     });
-  } catch { return { score: 0, totalReports: 0, countryCode: null, isp: null }; }
+  } catch { return null; }
 }
 
 function sanitizeDomain(raw: string): string {
@@ -1060,17 +1082,23 @@ async function checkGoogleSafeBrowsing(domain: string): Promise<{ flagged: boole
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
+        // 400/403 (geçersiz key, API kapalı) yanıtında da "matches" yoktur —
+        // bunu "temiz" saymamak için durum kodu kontrol edilir.
+        if (res.statusCode !== 200) {
+          logger.warn({ domain, status: res.statusCode }, "Google Safe Browsing sorgusu başarısız");
+          resolve(null); return;
+        }
         try {
           const parsed = JSON.parse(data) as { matches?: Array<{ threatType: string }> };
           const threats = (parsed.matches ?? []).map((m) => m.threatType);
           resolve({ flagged: threats.length > 0, threats });
         } catch {
-          resolve({ flagged: false, threats: [] });
+          resolve(null);
         }
       });
     });
-    r.on("error", () => resolve({ flagged: false, threats: [] }));
-    r.on("timeout", () => { r.destroy(); resolve({ flagged: false, threats: [] }); });
+    r.on("error", () => resolve(null));
+    r.on("timeout", () => { r.destroy(); resolve(null); });
     r.write(body);
     r.end();
   });
@@ -1402,12 +1430,20 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
 }
 
 // ─── performDomainScan: Direct call (used by discovery pipeline) ─────────────
-export async function performDomainScan(domain: string): Promise<{
+/**
+ * Arka plan taraması.
+ *  - depth "light" (varsayılan): keşif hattı için — DNS/e-posta, SSL, kara liste, USOM, Shodan.
+ *  - depth "full": TPRM tedarikçi izlemesi için — yukarıdakilere ek olarak HIBP, HTTP
+ *    başlıkları, URLhaus, CT log, VirusTotal, AbuseIPDB, Safe Browsing, KEP.
+ * Her iki modda da hangi kaynağın veri döndürdüğü `sourceStatus` alanına yazılır.
+ */
+export async function performDomainScan(domain: string, opts: { depth?: "light" | "full" } = {}): Promise<{
   id: number;
   overallScore: number;
   findings: Array<{ severity: string; title: string }>;
   cveSummary: Array<{ cvssScore: number; cveId?: string }>;
 } | null> {
+  const full = opts.depth === "full";
   try {
     const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
       checkSPF(domain),
@@ -1434,6 +1470,35 @@ export async function performDomainScan(domain: string): Promise<{
     const cveSummary: NvdCveEntry[] = shadowIt.services.length > 0
       ? await checkNvdCve(shadowIt.services).catch(() => [])
       : [];
+
+    // Tam mod (TPRM): itibar, sızıntı ve web kontrolleri. Hafif modda null kalır.
+    const ext = full
+      ? await (async () => {
+          const [hibp, httpHeaders, urlhaus, certTrans, virusTotal, abuseIpdb, safeBrowsing, kep] = await Promise.all([
+            checkHIBP(domain).catch(() => ({ breachCount: 0, breaches: [] as { name: string; breachDate: string; pwnCount: number; dataClasses: string[] }[], failed: true })),
+            checkHTTPHeaders(domain).catch(() => ({ score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, checkFailed: true })),
+            checkURLhaus(domain).catch(() => null),
+            checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0 })),
+            checkVirusTotal(domain).catch(() => null),
+            checkAbuseIPDB(domain).catch(() => null),
+            checkGoogleSafeBrowsing(domain).catch(() => null),
+            checkKEP(domain).catch(() => ({ configured: false, relays: [] as string[], secure: false })),
+          ]);
+          return { hibp, httpHeaders, urlhaus, certTrans, virusTotal, abuseIpdb, safeBrowsing, kep };
+        })()
+      : null;
+
+    const sourceStatus: ScanSourceStatusMap = {
+      shodan: sourceEntry("shodan", shodan, { lastUpdate: shodan?.lastUpdate ?? null }),
+      ...(ext ? {
+        hibp: sourceEntry("hibp", ext.hibp, { failed: ext.hibp.failed }),
+        http_headers: sourceEntry("http_headers", ext.httpHeaders, { failed: "checkFailed" in ext.httpHeaders && !!ext.httpHeaders.checkFailed }),
+        urlhaus: sourceEntry("urlhaus", ext.urlhaus),
+        virustotal: sourceEntry("virustotal", ext.virusTotal),
+        abuseipdb: sourceEntry("abuseipdb", ext.abuseIpdb),
+        safebrowsing: sourceEntry("safebrowsing", ext.safeBrowsing),
+      } : {}),
+    };
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
     const wafFields = await (async () => {
@@ -1515,13 +1580,16 @@ export async function performDomainScan(domain: string): Promise<{
         mxPass: mx.pass, mxRecords: mx.records,
         sslPass: ssl.pass, sslExpiry: ssl.expiryDate, sslIssuer: ssl.issuer, sslDaysUntilExpiry: ssl.daysUntilExpiry,
         overallScore: scoreResult.total,
-        hibpBreachCount: 0, hibpBreaches: [],
+        hibpBreachCount: ext?.hibp.breachCount ?? 0, hibpBreaches: ext?.hibp.breaches ?? [],
         blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
         shadowItServices: shadowIt.services,
-        httpHeadersScore: 0, httpHeadersDetails: { hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false },
-        urlhausListed: false, urlhausThreat: null,
+        httpHeadersScore: ext?.httpHeaders.score ?? 0,
+        httpHeadersDetails: ext
+          ? { hsts: ext.httpHeaders.hsts, xFrameOptions: ext.httpHeaders.xFrameOptions, xContentTypeOptions: ext.httpHeaders.xContentTypeOptions, csp: ext.httpHeaders.csp, referrerPolicy: ext.httpHeaders.referrerPolicy, checkFailed: ext.httpHeaders.checkFailed ?? false }
+          : { hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false },
+        urlhausListed: ext?.urlhaus?.listed ?? false, urlhausThreat: ext?.urlhaus?.threat ?? null,
         usomListed: usom.listed,
-        ctSubdomains: [], ctSubdomainCount: 0,
+        ctSubdomains: ext?.certTrans.subdomains ?? [], ctSubdomainCount: ext?.certTrans.count ?? 0,
         cveSummary,
         shodanOpenPorts: shodan?.openPorts ?? null,
         shodanVulnCount: shodan?.vulnCount ?? 0,
@@ -1531,13 +1599,21 @@ export async function performDomainScan(domain: string): Promise<{
         openPortsCount: shodan?.openPorts?.length ?? 0,
         criticalCveCount: cveSummary.filter((c) => (c.cvssScore ?? 0) >= 9).length,
         highCveCount: cveSummary.filter((c) => (c.cvssScore ?? 0) >= 7 && (c.cvssScore ?? 0) < 9).length,
-        virusTotalReputation: null, virusTotalMalicious: 0, virusTotalSuspicious: 0,
-        abuseIpdbScore: null, abuseIpdbTotalReports: 0, abuseIpdbCountry: null, abuseIpdbIsp: null,
-        safeBrowsingFlagged: null, safeBrowsingThreats: [],
+        virusTotalReputation: ext?.virusTotal?.reputation ?? null,
+        virusTotalMalicious: ext?.virusTotal?.malicious ?? 0,
+        virusTotalSuspicious: ext?.virusTotal?.suspicious ?? 0,
+        abuseIpdbScore: ext?.abuseIpdb?.score ?? null,
+        abuseIpdbTotalReports: ext?.abuseIpdb?.totalReports ?? 0,
+        abuseIpdbCountry: ext?.abuseIpdb?.countryCode ?? null,
+        abuseIpdbIsp: ext?.abuseIpdb?.isp ?? null,
+        safeBrowsingFlagged: ext?.safeBrowsing ? ext.safeBrowsing.flagged : null,
+        safeBrowsingThreats: ext?.safeBrowsing?.threats ?? [],
         sslLabsGrade: null,
         badgeToken: randomUUID(),
-        referralSource: "discovery_pipeline",
-        kepConfigured: false, kepRelays: [], kepSecure: false,
+        // "discovery_pipeline" Skor v2'de hafif tarama sayılır (başlık/sızıntı ölçülmedi).
+        referralSource: full ? "tprm_monitoring" : "discovery_pipeline",
+        kepConfigured: ext?.kep.configured ?? false, kepRelays: ext?.kep.relays ?? [], kepSecure: ext?.kep.secure ?? false,
+        sourceStatus,
         ...wafFields,
         originIp: null, originIpSource: null,
         letterGrade: calculateLetterGrade(scoreResult.total),
@@ -1553,9 +1629,12 @@ export async function performDomainScan(domain: string): Promise<{
       })),
       ...(blacklist.blacklisted ? [{ severity: "critical", title: "Kara liste kaydı tespit edildi" }] : []),
       ...(usom.listed ? [{ severity: "high", title: "USOM zararlı bağlantı listesinde" }] : []),
+      ...(ext?.urlhaus?.listed ? [{ severity: "critical", title: "URLhaus zararlı yazılım listesinde" }] : []),
+      ...(ext?.safeBrowsing?.flagged ? [{ severity: "critical", title: "Google Safe Browsing tarafından işaretlenmiş" }] : []),
+      ...((ext?.virusTotal?.malicious ?? 0) > 0 ? [{ severity: "high", title: `VirusTotal: ${ext!.virusTotal!.malicious} motor zararlı` }] : []),
     ];
 
-    logger.info({ domain, overallScore, scanId: scan.id }, "performDomainScan complete");
+    logger.info({ domain, overallScore, scanId: scan.id, depth: full ? "full" : "light", sourceStatus }, "performDomainScan complete");
     return { id: scan.id, overallScore, findings, cveSummary };
   } catch (err) {
     logger.error({ err, domain }, "performDomainScan failed");
@@ -1798,6 +1877,16 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         orphanedAssets: asnDiscovery?.orphanedAssets ?? null,
         censysRelatedHosts: censysResult?.relatedHosts ?? null,
         censysTotalFound: censysResult?.totalFound ?? null,
+        sourceStatus: {
+          shodan: sourceEntry("shodan", shodan, { lastUpdate: shodan?.lastUpdate ?? null }),
+          hibp: sourceEntry("hibp", hibp, { failed: "failed" in hibp && !!hibp.failed }),
+          http_headers: sourceEntry("http_headers", httpHeaders, { failed: !!httpHeaders.checkFailed }),
+          urlhaus: sourceEntry("urlhaus", urlhaus),
+          virustotal: sourceEntry("virustotal", virusTotal),
+          abuseipdb: sourceEntry("abuseipdb", abuseIpdb),
+          safebrowsing: sourceEntry("safebrowsing", safeBrowsing),
+          otx: sourceEntry("otx", otxData),
+        } satisfies ScanSourceStatusMap,
       })
       .returning();
 

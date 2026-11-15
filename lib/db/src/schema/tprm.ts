@@ -50,6 +50,8 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   alertSentAt: timestamp("alert_sent_at"),
   // Tarama aktif mi
   monitoringActive: boolean("monitoring_active").notNull().default(true),
+  // Yeniden tarama sıklığı (gün). Paket/kritiklik seviyesine göre 1–30.
+  scanIntervalDays: integer("scan_interval_days").notNull().default(7),
   addedAt: timestamp("added_at").notNull().defaultNow(),
 });
 

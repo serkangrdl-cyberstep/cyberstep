@@ -93,6 +93,7 @@ export interface ScoreV2Input {
   // TLS / web
   sslPass?: boolean | null;
   sslDaysUntilExpiry?: number | null;
+  /** Bulunan HTTP güvenlik başlığı sayısı, 0–5. */
   httpHeadersScore?: number | null;
 
   // Zafiyet
@@ -295,7 +296,8 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   else if (days <= 29) add("web", "medium", `SSL sertifikası ${days} gün içinde sona eriyor`, 7 - sslPoints);
 
   const headersMeasured = !lightweight && input.httpHeadersScore != null;
-  const headersPoints = headersMeasured ? Math.round((clamp(input.httpHeadersScore ?? 0, 0, 100) / 100) * 3 * 10) / 10 : 0;
+  // httpHeadersScore = bulunan güvenlik başlığı sayısı (0–5: HSTS, XFO, XCTO, CSP, Referrer-Policy).
+  const headersPoints = headersMeasured ? Math.round((clamp(input.httpHeadersScore ?? 0, 0, 5) / 5) * 3 * 10) / 10 : 0;
   if (headersMeasured && headersPoints < 2) add("web", "low", "HTTP güvenlik başlıkları eksik (HSTS, CSP vb.)", 3 - headersPoints);
   // Başlıklar ölçülmediyse web kategorisi yalnızca SSL üzerinden (7 puan) değerlendirilir.
   const webMax = headersMeasured ? MAX.web : 7;

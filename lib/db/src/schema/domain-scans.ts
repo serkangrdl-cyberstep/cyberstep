@@ -120,6 +120,9 @@ export const domainScansTable = pgTable("domain_scans", {
     isSameAsKnown: boolean;
   }>>(),
   censysTotalFound: integer("censys_total_found"),
+  // Dış kaynak durumları: hangi kaynak veri döndürdü, hangisinin key'i yok/hata verdi.
+  // Anahtar: shodan | virustotal | abuseipdb | safebrowsing | otx | hibp | http_headers | urlhaus
+  sourceStatus: jsonb("source_status").$type<Record<string, { status: "ok" | "not_configured" | "unavailable"; lastUpdate?: string | null }>>(),
   letterGrade: text("letter_grade"),
   isPubliclyShared: boolean("is_publicly_shared").notNull().default(false),
   freeScanSummary: text("free_scan_summary"),

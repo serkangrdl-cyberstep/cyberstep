@@ -11,7 +11,7 @@ const clean: ScoreV2Input = {
   dkimPass: true,
   mxPass: true,
   sslDaysUntilExpiry: 80,
-  httpHeadersScore: 100,
+  httpHeadersScore: 5,
   cveSummary: [],
   shodanOpenPorts: [{ port: 443, protocol: "tcp", service: "https", product: "", version: "" }],
   blacklisted: false,

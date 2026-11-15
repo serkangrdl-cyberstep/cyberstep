@@ -1299,8 +1299,8 @@ async function ensureDomainScanEnrichmentColumns() {
     const { missingScanSourceKeys } = await import("./lib/scanSources");
     const missing = missingScanSourceKeys();
     if (missing.length > 0) {
-      logger.warn({ missing: missing.map((m) => m.env) },
-        "Tarama kaynakları için API key eksik — bu kaynaklar taramalarda 'not_configured' olarak işaretlenir ve skora dahil edilmez");
+      logger.warn({ missing: missing.map((m) => `${m.env}${m.reason === "license_restricted" ? " (ticari lisans yok)" : ""}`) },
+        "Bazı tarama kaynakları kullanılamıyor — taramalarda işaretlenir ve skora dahil edilmez");
     }
   }
   await db.execute(sql`ALTER TABLE IF EXISTS domain_scans ADD COLUMN IF NOT EXISTS shodan_vuln_count INTEGER NOT NULL DEFAULT 0`);

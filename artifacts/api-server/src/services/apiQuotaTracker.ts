@@ -4,6 +4,7 @@
  * Redis gerektirmez — process-local, her restart'ta temiz başlar.
  */
 import { logger } from "../lib/logger";
+import { dailyLimitFor } from "../lib/providerPlans";
 
 interface QuotaEntry {
   date: string;
@@ -12,11 +13,9 @@ interface QuotaEntry {
 
 const quotaMap = new Map<string, QuotaEntry>();
 
-const DAILY_LIMITS: Record<string, number> = {
-  shodan: 100,
-  virustotal: 500,
-  abuseipdb: 1000,
-};
+// Sınırlar paket kaydından okunur (lib/providerPlans): <SAĞLAYICI>_PLAN ve <SAĞLAYICI>_DAILY_LIMIT.
+// Paket seçilmemişse eski sabitler (shodan 100, virustotal 500, abuseipdb 1000) geçerlidir.
+const TRACKED_SERVICES = ["shodan", "virustotal", "abuseipdb", "censys"] as const;
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -27,7 +26,7 @@ function todayStr(): string {
  * @returns true = istek gönderilebilir, false = kota doldu (isteği atla)
  */
 export function checkAndConsumeQuota(service: string): boolean {
-  const limit = DAILY_LIMITS[service];
+  const limit = dailyLimitFor(service);
   if (limit === undefined) return true;
 
   const today = todayStr();
@@ -57,7 +56,9 @@ export interface QuotaStatus {
 export function getQuotaStatus(): Record<string, QuotaStatus> {
   const today = todayStr();
   const result: Record<string, QuotaStatus> = {};
-  for (const [service, limit] of Object.entries(DAILY_LIMITS)) {
+  for (const service of TRACKED_SERVICES) {
+    const limit = dailyLimitFor(service);
+    if (limit === undefined) continue;
     const entry = quotaMap.get(service);
     const used = entry?.date === today ? entry.count : 0;
     result[service] = { used, limit, remaining: Math.max(0, limit - used), date: today };

@@ -5,12 +5,19 @@
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
 
+// USD / 1M token. Kasım 2026 liste fiyatları. Listede olmayan model $3/$15 varsayılır.
+// Claude Haiku 5.5: 100K token üzeri istemlerde fiyat 5 katına çıkar ($0,50/$2,50) — burada kısa istem fiyatı.
 const PRICING: Record<string, { input: number; output: number }> = {
+  "claude-haiku-5-5":           { input: 0.10,  output: 0.50  },
+  "claude-sonnet-5-5":          { input: 2.0,   output: 10.0  },
+  "claude-opus-5-5":            { input: 4.0,   output: 20.0  },
   "claude-sonnet-4-6":          { input: 3.0,   output: 15.0  },
-  "claude-haiku-4-5":           { input: 0.8,   output: 4.0   },
-  "claude-haiku-4-5-20251001":  { input: 0.8,   output: 4.0   },
+  "claude-sonnet-4-5":          { input: 3.0,   output: 15.0  },
+  "claude-haiku-4-5":           { input: 1.0,   output: 5.0   },
+  "claude-haiku-4-5-20251001":  { input: 1.0,   output: 5.0   },
   "claude-opus-4-6":            { input: 15.0,  output: 75.0  },
-  "gemini-2.0-flash":           { input: 0.075, output: 0.30  },
+  "gemini-2.5-flash":           { input: 0.30,  output: 2.50  },
+  "gemini-2.0-flash":           { input: 0.10,  output: 0.40  },
   "gemini-1.5-pro":             { input: 1.25,  output: 5.0   },
 };
 

@@ -2,9 +2,10 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { siteSettingsTable, pricingPlansTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
+import { PLAN_SETTING_KEYS, providerSummary } from "../../lib/providerPlans";
 
 // ─── Whitelist of API keys the admin can configure via the panel ─────────────
 const CONFIGURABLE_API_KEYS = new Set([
@@ -15,9 +16,20 @@ const CONFIGURABLE_API_KEYS = new Set([
   "WHOISXML_API_KEY",
   "OTX_API_KEY",
   "GREYNOISE_API_KEY",
-  // Censys
+  // Censys (legacy Search)
   "CENSYS_API_ID",
   "CENSYS_API_SECRET",
+  // Censys Platform (güncel API)
+  "CENSYS_PAT",
+  "CENSYS_ORG_ID",
+  // Google Web Risk (Safe Browsing'in ticari karşılığı)
+  "WEB_RISK_API_KEY",
+  // Veri sızıntısı / dark web
+  "DEHASHED_API_KEY",
+  "DEHASHED_EMAIL",
+  "HIBP_API_KEY",
+  // Paket seçimleri ve ticari mod (lib/providerPlans) — gizli değil, panelden seçilir
+  ...PLAN_SETTING_KEYS,
   // VulnCheck (CTI istihbarat)
   "VULNCHECK_API_KEY",
   // Ödeme (Iyzico)
@@ -167,6 +179,38 @@ router.put("/admin-panel/settings/apikeys", requireAdmin, async (req: Request, r
   res.json({ success: true, active: true });
 });
 
+// GET /api/admin-panel/provider-plans — ücretli sağlayıcı paketleri, sabit aylık maliyet,
+// günlük kota kullanımı, son 30 günün AI harcaması ve izlenen tedarikçi / ücretli müşteri sayısı.
+// Maliyet hesaplayıcısına gerçek rakam vermek için kullanılır.
+router.get("/admin-panel/provider-plans", requireAdmin, async (_req: Request, res: Response) => {
+  const summary = providerSummary();
+  const { getQuotaStatus } = await import("../../services/apiQuotaTracker");
+  let ai30d: Array<{ model: string; costUsd: number; calls: number }> = [];
+  let vendors = 0;
+  let paidCustomers = 0;
+  try {
+    const r = await db.execute(sql`
+      SELECT model, COALESCE(SUM(cost_usd), 0)::float AS cost_usd, COUNT(*)::int AS calls
+      FROM ai_cost_log WHERE recorded_at >= NOW() - INTERVAL '30 days'
+      GROUP BY model ORDER BY 2 DESC`);
+    ai30d = (r.rows as Array<{ model: string; cost_usd: number; calls: number }>).map((x) => ({ model: x.model, costUsd: Number(x.cost_usd), calls: Number(x.calls) }));
+  } catch (err) { logger.warn({ err }, "provider-plans: ai_cost_log okunamadı"); }
+  try {
+    const v = await db.execute(sql`SELECT COUNT(*)::int AS n FROM tprm_vendors WHERE monitoring_active = true`);
+    vendors = Number((v.rows[0] as { n?: number } | undefined)?.n ?? 0);
+    const c = await db.execute(sql`SELECT COUNT(*)::int AS n FROM customers WHERE subscription_status = 'active' AND subscription_plan LIKE 'tprm_%'`);
+    paidCustomers = Number((c.rows[0] as { n?: number } | undefined)?.n ?? 0);
+  } catch (err) { logger.warn({ err }, "provider-plans: sayımlar okunamadı"); }
+  res.json({
+    ...summary,
+    quotas: getQuotaStatus(),
+    ai30d,
+    ai30dTotalUsd: Math.round(ai30d.reduce((s, x) => s + x.costUsd, 0) * 100) / 100,
+    monitoredVendors: vendors,
+    paidCustomers,
+  });
+});
+
 // GET /api/admin-panel/settings/services — tüm dış servis durumları
 router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: Response) => {
   const env = process.env;
@@ -178,14 +222,14 @@ router.get("/admin-panel/settings/services", requireAdmin, (_req: Request, res: 
     { id: "threatfox",     name: "ThreatFox (Abuse.ch)",  category: "Tehdit İstihbaratı", always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "APT grupları ve fidye çeteleriyle ilişkili IOC (güvenlik ihlali göstergesi) veritabanı — 1M+ IOC", why: "Domain veya IP'nin bilinen siber saldırı altyapısıyla bağlantısını tespit eder", how: "Her taramada domain ThreatFox IOC veritabanında sorgulanır", setup: "Kurulum gerekmez. Ücretsiz API, kayıt gerektirmez.", docs: "https://threatfox.abuse.ch/api/" },
     { id: "usom",          name: "USOM",                  category: "Tehdit İstihbaratı", always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "BTK/USOM Türkiye siber tehdit kara listesi — yalnızca Türkiye kaynaklı", why: "Uluslararası listelerde görünmeyebilecek Türkiye'ye özgü tehditleri yakalar", how: "Domain taramasında USOM kara listesiyle eşleştirme yapılır", setup: "Kurulum gerekmez. usom.gov.tr'den çekilir.", docs: "https://www.usom.gov.tr/" },
     // ─── İtibar & Kötücül Yazılım ─────────────────────────────────────────
-    { id: "virustotal",    name: "VirusTotal",            category: "İtibar & Kötücül Yazılım", always: false, active: !!env["VIRUSTOTAL_API_KEY"],  cost: "freemium", costLabel: "Freemium",   envKey: "VIRUSTOTAL_API_KEY",          desc: "70+ antivirüs motorunun domain/IP taraması — Google altyapısı üzerinde çalışır", why: "Tek başına yetersiz kalan kara listelerinin aksine 70 farklı güvenlik firmasının analizini birleştirir", how: "Tarama raporunda zararlı/şüpheli motor sayısı gösterilir", setup: "virustotal.com'da ücretsiz hesap açın, API Keys bölümünden anahtarınızı alın.", docs: "https://developers.virustotal.com/", costNote: "Ücretsiz: 500 istek/gün | Premium: $30/ay" },
-    { id: "google-sb",     name: "Google Safe Browsing",  category: "İtibar & Kötücül Yazılım", always: false, active: !!env["GOOGLE_SAFE_BROWSING_API_KEY"], cost: "free", costLabel: "Ücretsiz", envKey: "GOOGLE_SAFE_BROWSING_API_KEY", desc: "Chrome/Firefox'un güvensiz işaretlediği domain listesi — 4B+ kullanıcı verisiyle", why: "En geniş kapsamlı gerçek kullanıcı tabanlı phishing ve malware tespiti", how: "Domain GSB API'siyle sorgulanır, tarama raporunda 'Google Safe Browsing' kartında gösterilir", setup: "console.cloud.google.com → Safe Browsing API'yi etkinleştirin → Credentials → API Key.", docs: "https://developers.google.com/safe-browsing/v4/get-started", costNote: "Tamamen ücretsiz: 10.000 istek/gün" },
-    { id: "abuseipdb",     name: "AbuseIPDB",             category: "İtibar & Kötücül Yazılım", always: false, active: !!env["ABUSEIPDB_API_KEY"],   cost: "freemium", costLabel: "Freemium",   envKey: "ABUSEIPDB_API_KEY",           desc: "Spam, brute-force ve DDoS saldırılarında kullanılan IP'lerin küresel raporlama veritabanı", why: "Mail/web sunucusu IP itibarını ölçer — kara listedeki IP e-posta deliverability'i mahveder", how: "Domain'in MX ve A kayıtlarındaki IP'ler sorgulanır, 'AbuseIPDB' kartında gösterilir", setup: "abuseipdb.com → hesap açın → API → Keys → Create Key.", docs: "https://www.abuseipdb.com/api.html", costNote: "Ücretsiz: 1.000/gün | Basic: $20/ay" },
+    { id: "virustotal",    name: "VirusTotal",            category: "İtibar & Kötücül Yazılım", always: false, active: !!env["VIRUSTOTAL_API_KEY"],  cost: "freemium", costLabel: "Freemium",   envKey: "VIRUSTOTAL_API_KEY",          desc: "70+ antivirüs motorunun domain/IP taraması — Google altyapısı üzerinde çalışır", why: "Tek başına yetersiz kalan kara listelerinin aksine 70 farklı güvenlik firmasının analizini birleştirir", how: "Tarama raporunda zararlı/şüpheli motor sayısı gösterilir", setup: "virustotal.com'da ücretsiz hesap açın, API Keys bölümünden anahtarınızı alın.", docs: "https://developers.virustotal.com/", costNote: "Public: ücretsiz, 500/gün — ticari üründe kullanılamaz | Premium: teklif" },
+    { id: "google-sb",     name: "Google Safe Browsing",  category: "İtibar & Kötücül Yazılım", always: false, active: !!env["GOOGLE_SAFE_BROWSING_API_KEY"], cost: "free", costLabel: "Ücretsiz", envKey: "GOOGLE_SAFE_BROWSING_API_KEY", desc: "Chrome/Firefox'un güvensiz işaretlediği domain listesi — 4B+ kullanıcı verisiyle", why: "En geniş kapsamlı gerçek kullanıcı tabanlı phishing ve malware tespiti", how: "Domain GSB API'siyle sorgulanır, tarama raporunda 'Google Safe Browsing' kartında gösterilir", setup: "console.cloud.google.com → Safe Browsing API'yi etkinleştirin → Credentials → API Key.", docs: "https://developers.google.com/safe-browsing/v4/get-started", costNote: "Ücretsiz ama yalnızca ticari olmayan kullanım — ticari kullanımda Web Risk (WEB_RISK_API_KEY)" },
+    { id: "abuseipdb",     name: "AbuseIPDB",             category: "İtibar & Kötücül Yazılım", always: false, active: !!env["ABUSEIPDB_API_KEY"],   cost: "freemium", costLabel: "Freemium",   envKey: "ABUSEIPDB_API_KEY",           desc: "Spam, brute-force ve DDoS saldırılarında kullanılan IP'lerin küresel raporlama veritabanı", why: "Mail/web sunucusu IP itibarını ölçer — kara listedeki IP e-posta deliverability'i mahveder", how: "Domain'in MX ve A kayıtlarındaki IP'ler sorgulanır, 'AbuseIPDB' kartında gösterilir", setup: "abuseipdb.com → hesap açın → API → Keys → Create Key.", docs: "https://www.abuseipdb.com/api.html", costNote: "Ücretsiz: 1.000/gün | Basic: $25/ay (10.000/gün) | Premium: $99/ay" },
     { id: "otx",           name: "AlienVault OTX",        category: "İtibar & Kötücül Yazılım", always: false, active: !!env["OTX_API_KEY"],         cost: "free",     costLabel: "Ücretsiz",   envKey: "OTX_API_KEY",                 desc: "200.000+ araştırmacının katkısıyla oluşan küresel tehdit istihbarat platformu", why: "Domain'in kaç aktif tehdit kampanyasında görüntülendiğini ve TR saldırılarıyla ilişkisini gösterir", how: "OTX API'si sorgulanır, pulse sayısı ve TR hedefli saldırı verisi rapora eklenir", setup: "otx.alienvault.com → ücretsiz kayıt → profil → API Key.", docs: "https://otx.alienvault.com/api/", costNote: "Tamamen ücretsiz" },
     { id: "greynoise",     name: "GreyNoise",             category: "İtibar & Kötücül Yazılım", always: false, active: !!env["GREYNOISE_API_KEY"],   cost: "freemium", costLabel: "Freemium",   envKey: "GREYNOISE_API_KEY",           desc: "İnternet genelinde port tarama yapan botları gerçek saldırganlardan ayıran IP niyeti platformu", why: "'Bu IP bizi hedef alıyor mu yoksa genel internet taraması mı yapıyor?' sorusunu yanıtlar", how: "Açık portlara bağlanan IP'lerin niyeti sınıflandırılır, raporda gösterilir", setup: "greynoise.io → ücretsiz Community hesabı → API Keys.", docs: "https://docs.greynoise.io/", costNote: "Community: Ücretsiz 1.000/gün | Teams: $99/ay" },
     // ─── Altyapı & Açık Yönetimi ──────────────────────────────────────────
-    { id: "shodan",        name: "Shodan",                category: "Altyapı & Açık Yönetimi", always: false, active: !!env["SHODAN_API_KEY"],       cost: "paid",     costLabel: "Ücretli",    envKey: "SHODAN_API_KEY",              desc: "Tüm internetin port ve servis haritası — açık portlar, çalışan yazılımlar, banner bilgileri", why: "Müşterinin bilmediği açık portları (RDP:3389, MongoDB:27017) ve donanım parmak izini ortaya çıkarır", how: "Domain IP'si Shodan'da sorgulanır, açık port listesi ve vuln sayısı rapora eklenir", setup: "shodan.io → hesap açın → Account → API Key. Member plan ($49/ay) tam erişim.", docs: "https://developer.shodan.io/api", costNote: "Free (çok sınırlı) | Member: $49/ay" },
-    { id: "censys",        name: "Censys",                category: "Altyapı & Açık Yönetimi", always: false, active: !!(env["CENSYS_API_ID"] && env["CENSYS_API_SECRET"]), cost: "freemium", costLabel: "Freemium", envKey: "CENSYS_API_ID", desc: "SSL sertifika parmak izi araması — aynı sertifikayı kullanan tüm IP'leri bulur; gizli altyapı ve shadow IT tespiti", why: "Bir domain'in sertifikasını taşıyan DNS'de görünmeyen gizli sunucuları, paylaşımlı hosting ve shadow IT varlıklarını ortaya çıkarır", how: "Domain'e ait SSL sertifika isimleri Censys Search API'siyle sorgulanır, eşleşen IP ve açık portlar tarama raporuna eklenir", setup: "censys.io'da hesap açın → Account → API → ID ve Secret kopyalayın → CENSYS_API_ID ve CENSYS_API_SECRET ekleyin.", docs: "https://search.censys.io/api", costNote: "Ücretsiz: 250 sorgu/ay | Starter: $99/ay" },
+    { id: "shodan",        name: "Shodan",                category: "Altyapı & Açık Yönetimi", always: false, active: !!env["SHODAN_API_KEY"],       cost: "paid",     costLabel: "Ücretli",    envKey: "SHODAN_API_KEY",              desc: "Tüm internetin port ve servis haritası — açık portlar, çalışan yazılımlar, banner bilgileri", why: "Müşterinin bilmediği açık portları (RDP:3389, MongoDB:27017) ve donanım parmak izini ortaya çıkarır", how: "Domain IP'si Shodan'da sorgulanır, açık port listesi ve vuln sayısı rapora eklenir", setup: "shodan.io → hesap açın → Account → API Key. Member plan ($49/ay) tam erişim.", docs: "https://developer.shodan.io/api", costNote: "Freelancer: $69/ay | Small Business: $359/ay | Corporate: $1.099/ay" },
+    { id: "censys",        name: "Censys",                category: "Altyapı & Açık Yönetimi", always: false, active: !!(env["CENSYS_API_ID"] && env["CENSYS_API_SECRET"]), cost: "freemium", costLabel: "Freemium", envKey: "CENSYS_API_ID", desc: "SSL sertifika parmak izi araması — aynı sertifikayı kullanan tüm IP'leri bulur; gizli altyapı ve shadow IT tespiti", why: "Bir domain'in sertifikasını taşıyan DNS'de görünmeyen gizli sunucuları, paylaşımlı hosting ve shadow IT varlıklarını ortaya çıkarır", how: "Domain'e ait SSL sertifika isimleri Censys Search API'siyle sorgulanır, eşleşen IP ve açık portlar tarama raporuna eklenir", setup: "censys.io'da hesap açın → Account → API → ID ve Secret kopyalayın → CENSYS_API_ID ve CENSYS_API_SECRET ekleyin.", docs: "https://search.censys.io/api", costNote: "Platform: Free 100 kredi/ay (yalnızca lookup) | Starter: $79/ay (500 kredi) | Starter Pro: $599/ay" },
     { id: "whoisxml",      name: "WhoisXML API",          category: "Altyapı & Açık Yönetimi", always: false, active: !!env["WHOISXML_API_KEY"],     cost: "freemium", costLabel: "Freemium",   envKey: "WHOISXML_API_KEY",            desc: "Domain kayıt geçmişi, sahiplik değişiklikleri, DNS geçmişi — Domain Hijacking tespiti", why: "Domain'in el değiştirip değiştirmediğini veya DNS'in manipüle edilip edilmediğini tespit eder", how: "WHOIS geçmişi sorgulanır, sahiplik değişikliği uyarısı rapora eklenir", setup: "whoisxmlapi.com → ücretsiz hesap (1.000 sorgu/ay) → API Key.", docs: "https://whois.whoisxmlapi.com/documentation/making-queries", costNote: "Ücretsiz: 1.000/ay | Basic: $29/ay" },
     // ─── Protokol & Sertifika Güvenliği — Ücretsiz ───────────────────────
     { id: "ssllabs",       name: "Qualys SSL Labs",       category: "Protokol & Sertifika",    always: true,  active: true,                              cost: "free",     costLabel: "Ücretsiz",   envKey: null,                          desc: "TLS protokol versiyonu, şifre zayıflığı, sertifika zinciri ve HSTS kontrolü — endüstri standardı", why: "A+ ile F arasında bağımsız harf notu verir; PCI-DSS uyumluluk için SSL notunun A olması zorunlu", how: "Önbellekten hızlı not alınır (24 saatlik cache), 'SSLLabs Notu' olarak gösterilir", setup: "Kurulum gerekmez. api.ssllabs.com açık API'si kullanılır.", docs: "https://github.com/ssllabs/ssllabs-scan/blob/master/ssllabs-api-docs-v3.md" },

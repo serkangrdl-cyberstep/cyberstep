@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminLayout } from "@/components/admin-layout";
 import { useToast } from "@/hooks/use-toast";
+import { ProviderPlansCard } from "@/components/provider-plans-card";
 
 interface IntegrationDef {
   id: string;
@@ -91,7 +92,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   // ─── İtibar & Kötücül Yazılım ──────────────────────────────────────────────
   {
     id: "virustotal", name: "VirusTotal", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🦠",
-    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 500 istek/gün | Premium: $30/ay",
+    cost: "freemium", costLabel: "Freemium", costNote: "Public ücretsiz (500/gün) ticari üründe kullanılamaz | Premium: teklif",
     envKey: "VIRUSTOTAL_API_KEY", always: false,
     desc: "70+ antivirüs motorunun domain/IP taraması — Google altyapısı üzerinde çalışır",
     why: "Tek bir kara listeye güvenmek yerine Kaspersky, Sophos, Crowdstrike gibi 70 farklı güvenlik firmasının analizini tek API ile toplar.",
@@ -101,7 +102,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   {
     id: "google-sb", name: "Google Safe Browsing", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🛡️",
-    cost: "free", costLabel: "Ücretsiz", costNote: "10.000 istek/gün ücretsiz",
+    cost: "free", costLabel: "Ücretsiz", costNote: "Yalnızca ticari olmayan kullanım — ticari kullanımda Google Web Risk",
     envKey: "GOOGLE_SAFE_BROWSING_API_KEY", always: false,
     desc: "Chrome/Firefox/Safari'nin güvensiz işaretlediği domain listesi — 4 milyar kullanıcı verisiyle beslenir",
     why: "En geniş kapsamlı gerçek kullanıcı tabanlı phishing ve malware tespiti. GSB'de işaretli domain Chrome'da doğrudan uyarı gösterir.",
@@ -111,13 +112,23 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   {
     id: "abuseipdb", name: "AbuseIPDB", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🚨",
-    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 1.000/gün | Basic: $20/ay",
+    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 1.000/gün | Basic: $25/ay | Premium: $99/ay",
     envKey: "ABUSEIPDB_API_KEY", always: false,
     desc: "Spam, brute-force ve DDoS saldırılarında kullanılan IP adreslerinin küresel raporlama veritabanı",
     why: "Mail sunucusu IP'si kara listedeyse e-postalar spam kutusuna düşer. Web sunucusu IP'si kötü itibarına sahipse SEO'yu olumsuz etkiler.",
     how: "Domain'in MX ve A kayıtlarındaki IP'ler sorgulanır. Abuse skoru ve rapor sayısı 'AbuseIPDB' kartında gösterilir.",
     setup: "1. abuseipdb.com'da ücretsiz hesap açın  2. Account → API Keys → Create Key  3. Anahtarı aşağıya yapıştırın.",
     docs: "https://www.abuseipdb.com/api.html",
+  },
+  {
+    id: "web-risk", name: "Google Web Risk", category: "İtibar & Kötücül Yazılım", type: "security", icon: "🛡️",
+    cost: "freemium", costLabel: "Freemium", costNote: "100.000 sorgu/ay ücretsiz, sonrası $0,50 / 1.000",
+    envKey: "WEB_RISK_API_KEY", always: false,
+    desc: "Safe Browsing listelerinin ticari kullanıma açık sürümü — phishing, malware, istenmeyen yazılım",
+    why: "Safe Browsing API'si yalnızca ticari olmayan kullanım içindir. Ücretli müşteriye hizmet verirken Web Risk kullanılmalıdır.",
+    how: "Key girildiğinde taramalar Safe Browsing yerine otomatik olarak Web Risk Lookup API'sini (uris.search) kullanır.",
+    setup: "1. console.cloud.google.com → faturalandırması açık bir proje  2. Web Risk API'yi etkinleştirin  3. Credentials → API Key (Web Risk ile sınırlayın).",
+    docs: "https://cloud.google.com/web-risk/docs",
   },
   {
     id: "otx", name: "AlienVault OTX", category: "İtibar & Kötücül Yazılım", type: "security", icon: "👁️",
@@ -245,12 +256,12 @@ const INTEGRATIONS: IntegrationDef[] = [
   // ─── Altyapı & Açık Yönetimi ───────────────────────────────────────────────
   {
     id: "shodan", name: "Shodan", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🔍",
-    cost: "paid", costLabel: "Ücretli", costNote: "Free (çok sınırlı) | Member: $49/ay",
+    cost: "paid", costLabel: "Ücretli", costNote: "Freelancer: $69/ay | Small Business: $359/ay | Corporate: $1.099/ay",
     envKey: "SHODAN_API_KEY", always: false,
     desc: "Tüm internetin port ve servis haritası — açık portlar, çalışan yazılımlar, donanım parmak izi",
     why: "Müşterinin bilmediği açık portları (RDP:3389, MongoDB:27017, Elasticsearch:9200) tespit eder. Veri sızdıran açık veritabanları sık bulunan kritik açık.",
     how: "Domain IP'si Shodan'da sorgulanır. Açık port listesi, ülke/ISP bilgisi ve bilinen CVE sayısı 'Shodan' kartında gösterilir.",
-    setup: "1. shodan.io'da hesap açın  2. Account → Overview → API Key  3. Member plan ($49/ay) tam API erişimi için gerekli.",
+    setup: "1. shodan.io'da hesap açın  2. Account → Overview → API Key  3. Ticari kullanım için en az Freelancer API planı ($69/ay) gerekir.",
     docs: "https://developer.shodan.io/api",
   },
   {
@@ -265,13 +276,33 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   {
     id: "censys", name: "Censys", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
-    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 250 sorgu/ay | Pro ücretli",
+    cost: "freemium", costLabel: "Freemium", costNote: "Legacy Search API — yeni kurulumda aşağıdaki Censys Platform girişlerini kullanın",
     envKey: "CENSYS_API_ID", always: false,
     desc: "İnternet genelinde host ve sertifika taraması — açık servisler, TLS yapılandırması ve cihaz parmak izi",
     why: "Shodan'a alternatif/tamamlayıcı internet tarama veri kaynağı. Açık servisleri ve sertifika ayrıntılarını farklı bir bakış açısıyla doğrular.",
     how: "Domain ve IP'ler Censys Search API'siyle sorgulanır; açık portlar, servisler ve sertifika bilgileri tarama raporuna eklenir.",
     setup: "1. censys.io'da hesap açın  2. Account → API → ID ve Secret  3. CENSYS_API_ID ve CENSYS_API_SECRET ekleyin.",
     docs: "https://search.censys.io/api",
+  },
+  {
+    id: "censys-platform-pat", name: "Censys Platform — PAT", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
+    cost: "paid", costLabel: "Ücretli", costNote: "Starter: $79/ay (500 kredi) | Starter Pro: $599/ay (4.000 kredi)",
+    envKey: "CENSYS_PAT", always: false,
+    desc: "Censys Platform API kişisel erişim anahtarı — sertifika adına göre gizli sunucu araması",
+    why: "Domain sertifikasını taşıyan ama DNS'te görünmeyen sunucuları bulur. TPRM taramasında tedarikçi başına 30 günde bir sorgulanır.",
+    how: "CenQL ile host.services.cert.names araması yapılır; sonuç 30 gün yeniden kullanılır (CENSYS_REFRESH_DAYS).",
+    setup: "1. platform.censys.io → kullanıcı menüsü → API Access → Create New Token  2. Arama için Starter paket gerekir  3. Organizasyon ID'sini de aşağıdaki girişe ekleyin.",
+    docs: "https://docs.censys.com/reference/get-started",
+  },
+  {
+    id: "censys-platform-org", name: "Censys Platform — Organizasyon ID", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
+    cost: "paid", costLabel: "Ücretli", costNote: "PAT ile birlikte gerekir",
+    envKey: "CENSYS_ORG_ID", always: false,
+    desc: "Censys Platform organizasyon kimliği (UUID)",
+    why: "Starter ve üstü paketlerde API istekleri organizasyona bağlanır; olmadan arama yapılamaz.",
+    how: "Her istekte organization_id parametresi ve X-Organization-ID başlığı olarak gönderilir.",
+    setup: "platform.censys.io → Organization settings → Organization ID değerini kopyalayın.",
+    docs: "https://docs.censys.com/reference/get-started",
   },
   {
     id: "binaryedge", name: "BinaryEdge", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
@@ -423,6 +454,36 @@ const INTEGRATIONS: IntegrationDef[] = [
     how: "Domain HIBP API'siyle sorgulanır. Kaç sızıntıda kaç hesap bulunduğu ve hangi sızıntılar olduğu raporda gösterilir.",
     setup: "Kurulum gerekmez.",
     docs: "https://haveibeenpwned.com/API/v3",
+  },
+  {
+    id: "hibp-api", name: "Have I Been Pwned — API", category: "E-posta & Kimlik", type: "security", icon: "💀",
+    cost: "paid", costLabel: "Ücretli", costNote: "Core 1: $5,29/ay (1 alan adı) | Core 3: $43,99/ay (5) | Core 5: $379/ay (20)",
+    envKey: "HIBP_API_KEY", always: false,
+    desc: "Doğrulanmış alan adındaki e-posta adreslerinin sızıntılarda yer alıp almadığını listeler",
+    why: "Müşterinin kendi alan adı için çalışan hesabı sızıntılarını gösterir. Tedarikçi alan adları doğrulanamadığı için TPRM'de değil, veri sızıntısı modülünde kullanılır.",
+    how: "Veri sızıntısı izleme modülü bu anahtarla domain search yapar.",
+    setup: "1. haveibeenpwned.com/API/Key → paket seçin  2. Alan adını DNS TXT kaydıyla doğrulayın  3. Anahtarı yapıştırın.",
+    docs: "https://haveibeenpwned.com/API/v3",
+  },
+  {
+    id: "dehashed-key", name: "DeHashed — API anahtarı", category: "E-posta & Kimlik", type: "security", icon: "🕳️",
+    cost: "paid", costLabel: "Ücretli", costNote: "Search aboneliği $21,99/ay + API kredisi (500 kredi $15)",
+    envKey: "DEHASHED_API_KEY", always: false,
+    desc: "Dark web ve sızıntı veritabanlarında alan adına ait kimlik bilgisi araması",
+    why: "Tedarikçi ve müşteri alan adlarına ait sızmış kimlik bilgilerini tespit eder; hesap ele geçirme riskinin erken göstergesidir.",
+    how: "Veri sızıntısı modülü alan adı sorgusu yapar; her sorgu 1 kredi harcar.",
+    setup: "1. dehashed.com → Search aboneliği  2. API kredisi satın alın  3. Hesap e-postasını da aşağıdaki girişe ekleyin.",
+    docs: "https://dehashed.com/docs",
+  },
+  {
+    id: "dehashed-email", name: "DeHashed — hesap e-postası", category: "E-posta & Kimlik", type: "security", icon: "🕳️",
+    cost: "paid", costLabel: "Ücretli", costNote: "API anahtarıyla birlikte gerekir",
+    envKey: "DEHASHED_EMAIL", always: false,
+    desc: "DeHashed hesabının e-posta adresi (API kimlik doğrulaması için)",
+    why: "DeHashed API'si e-posta ve anahtarla birlikte kimlik doğrular.",
+    how: "Her istekte API anahtarıyla birlikte gönderilir.",
+    setup: "DeHashed hesabınıza kayıtlı e-posta adresini girin.",
+    docs: "https://dehashed.com/docs",
   },
   {
     id: "spf-dmarc", name: "SPF / DMARC / DKIM", category: "E-posta & Kimlik", type: "security", icon: "✉️",
@@ -931,6 +992,8 @@ export default function AdminEntegrasyonlar() {
   return (
     <AdminLayout title="Entegrasyon Merkezi" description="Tüm güvenlik veri kaynakları, API bağlantıları ve servis durumları">
       <div className="max-w-5xl space-y-6">
+
+        <ProviderPlansCard />
 
         {/* Stats — tıklanabilir filtre */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

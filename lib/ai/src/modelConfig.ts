@@ -115,5 +115,20 @@ export const MODEL_CONFIG: Record<ModelTask, ModelEntry> = {
 };
 
 export function getModel(task: ModelTask): string {
-  return MODEL_CONFIG[task].model;
+  return applyModelOverride(MODEL_CONFIG[task].model);
+}
+
+/**
+ * Model ailesi geçersiz kılma — kod değiştirmeden yeni nesil modele geçmek için.
+ *   AI_HAIKU_MODEL=claude-haiku-5-5    → tüm claude-haiku-* görevleri
+ *   AI_SONNET_MODEL=claude-sonnet-5-5  → tüm claude-sonnet-* görevleri
+ * Tanımlı değilse MODEL_CONFIG'deki model kullanılır. Replit AI proxy'si yeni modelleri
+ * desteklemeyebilir; bu yüzden varsayılan değişmedi, Railway'de ANTHROPIC_API_KEY ile açılır.
+ */
+export function applyModelOverride(model: string): string {
+  const env: Record<string, string | undefined> =
+    typeof process !== "undefined" && process.env ? process.env : {};
+  if (model.startsWith("claude-haiku") && env["AI_HAIKU_MODEL"]) return env["AI_HAIKU_MODEL"]!;
+  if (model.startsWith("claude-sonnet") && env["AI_SONNET_MODEL"]) return env["AI_SONNET_MODEL"]!;
+  return model;
 }

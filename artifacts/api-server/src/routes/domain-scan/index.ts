@@ -9,12 +9,13 @@ import axios from "axios";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable, customerTechStackTable } from "@workspace/db";
-import { eq, desc, count, sql, and, or, gte } from "drizzle-orm";
+import { eq, desc, count, sql, and, or, gte, isNotNull } from "drizzle-orm";
 import { calculateLetterGrade } from "../../lib/scoring/letterGrade";
 import { logger } from "../../lib/logger";
 import { getCustomerId } from "../../middleware/auth";
 import { checkAndConsumeQuota } from "../../services/apiQuotaTracker";
 import { sourceEntry, type ScanSourceStatusMap } from "../../lib/scanSources";
+import { providerUsable } from "../../lib/providerPlans";
 
 function isConnErr(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
@@ -799,7 +800,7 @@ export async function checkShodan(domain: string): Promise<{
   // Dönüş sözleşmesi: null = ölçülemedi (key yok, kota, API hatası) → Skor v2 ağ
   // kategorisini "ölçülmedi" sayar. Boş liste = ölçüldü, açık servis yok.
   const apiKey = process.env["SHODAN_API_KEY"];
-  if (!apiKey) return null;
+  if (!apiKey || !providerUsable("shodan").usable) return null;
   if (!checkAndConsumeQuota("shodan")) {
     logger.info({ domain }, "Shodan günlük kota aşıldı — tarama atlanıyor");
     return null;
@@ -886,7 +887,8 @@ async function checkVirusTotal(domain: string): Promise<{
   reputation: number;
 } | null> {
   const apiKey = process.env["VIRUSTOTAL_API_KEY"];
-  if (!apiKey) return null;
+  // Ücretsiz (Public) API ticari üründe kullanılamaz: COMMERCIAL_MODE'da VIRUSTOTAL_PLAN=premium gerekir.
+  if (!apiKey || !providerUsable("virustotal").usable) return null;
   if (!checkAndConsumeQuota("virustotal")) {
     logger.info({ domain }, "VirusTotal günlük kota aşıldı — tarama atlanıyor");
     return null;
@@ -927,7 +929,11 @@ async function checkAbuseIPDB(domain: string): Promise<{
   isp: string | null;
 } | null> {
   const apiKey = process.env["ABUSEIPDB_API_KEY"];
-  if (!apiKey) return null;
+  if (!apiKey || !providerUsable("abuseipdb").usable) return null;
+  if (!checkAndConsumeQuota("abuseipdb")) {
+    logger.info({ domain }, "AbuseIPDB günlük kota aşıldı — tarama atlanıyor");
+    return null;
+  }
   try {
     const ips = await dns.resolve4(domain);
     if (!ips || ips.length === 0) return null;
@@ -1058,7 +1064,49 @@ async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: 
 }
 
 // ─── Google Safe Browsing API ────────────────────────────────────────────────
+/**
+ * Google Web Risk (Safe Browsing'in ticari karşılığı). Lookup API: uris.search,
+ * ayda 100 bin çağrıya kadar ücretsiz. Yanıt temizse {} döner, eşleşmede { threat: {...} }.
+ */
+async function checkWebRisk(domain: string): Promise<{ flagged: boolean; threats: string[] } | null> {
+  const apiKey = process.env["WEB_RISK_API_KEY"];
+  if (!apiKey) return null;
+  const lookup = (uri: string) => new Promise<string[] | null>((resolve) => {
+    const qs = ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"].map((t) => `threatTypes=${t}`).join("&");
+    const req = https.request(
+      { hostname: "webrisk.googleapis.com", path: `/v1/uris:search?${qs}&uri=${encodeURIComponent(uri)}&key=${encodeURIComponent(apiKey)}`, method: "GET", timeout: 8000, headers: { "Accept": "application/json" } },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          if (res.statusCode !== 200) {
+            logger.warn({ domain, status: res.statusCode }, "Web Risk sorgusu başarısız");
+            resolve(null); return;
+          }
+          try {
+            const parsed = JSON.parse(data || "{}") as { threat?: { threatTypes?: string[] } };
+            resolve(parsed.threat?.threatTypes ?? []);
+          } catch { resolve(null); }
+        });
+      },
+    );
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+    req.end();
+  });
+  const results = await Promise.all([lookup(`https://${domain}/`), lookup(`http://${domain}/`)]);
+  if (results.every((r) => r === null)) return null;
+  const threats = [...new Set(results.flatMap((r) => r ?? []))];
+  return { flagged: threats.length > 0, threats };
+}
+
+/**
+ * Safe Browsing kontrolü. Web Risk key'i varsa onu kullanır (ticari kullanım için doğru olan).
+ * Yoksa ücretsiz Safe Browsing API'sine düşer; COMMERCIAL_MODE'da o da kullanılmaz (lisans).
+ */
 async function checkGoogleSafeBrowsing(domain: string): Promise<{ flagged: boolean; threats: string[] } | null> {
+  if (providerUsable("webrisk").usable) return checkWebRisk(domain);
+  if (!providerUsable("safebrowsing").usable) return null;
   const apiKey = process.env["GOOGLE_SAFE_BROWSING_API_KEY"];
   if (!apiKey) return null;
   return new Promise((resolve) => {
@@ -1488,6 +1536,25 @@ export async function performDomainScan(domain: string, opts: { depth?: "light" 
         })()
       : null;
 
+    // Censys (tam mod): kredi başına ücretli olduğu için son CENSYS_REFRESH_DAYS (varsayılan 30)
+    // gün içindeki sonuç yeniden kullanılır; yoksa yeni sorgu atılır.
+    const censys = full
+      ? await (async () => {
+          const refreshDays = Math.max(1, Number(process.env["CENSYS_REFRESH_DAYS"] ?? 30) || 30);
+          const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
+          const [prev] = await db.select({ hosts: domainScansTable.censysRelatedHosts, total: domainScansTable.censysTotalFound })
+            .from(domainScansTable)
+            .where(and(eq(domainScansTable.domain, domain), isNotNull(domainScansTable.censysTotalFound), gte(domainScansTable.createdAt, cutoff)))
+            .orderBy(desc(domainScansTable.createdAt))
+            .limit(1)
+            .catch(() => []);
+          if (prev) return { relatedHosts: prev.hosts ?? [], totalFound: prev.total ?? 0 };
+          const { enrichWithCensys } = await import("../../services/censysEnrichment");
+          const r = await enrichWithCensys(domain, null).catch(() => null);
+          return r ? { relatedHosts: r.relatedHosts, totalFound: r.totalFound } : null;
+        })()
+      : null;
+
     const sourceStatus: ScanSourceStatusMap = {
       shodan: sourceEntry("shodan", shodan, { lastUpdate: shodan?.lastUpdate ?? null }),
       ...(ext ? {
@@ -1612,6 +1679,8 @@ export async function performDomainScan(domain: string, opts: { depth?: "light" 
         badgeToken: randomUUID(),
         // "discovery_pipeline" Skor v2'de hafif tarama sayılır (başlık/sızıntı ölçülmedi).
         referralSource: full ? "tprm_monitoring" : "discovery_pipeline",
+        censysRelatedHosts: censys?.relatedHosts ?? null,
+        censysTotalFound: censys?.totalFound ?? null,
         kepConfigured: ext?.kep.configured ?? false, kepRelays: ext?.kep.relays ?? [], kepSecure: ext?.kep.secure ?? false,
         sourceStatus,
         ...wafFields,

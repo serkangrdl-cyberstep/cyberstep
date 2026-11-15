@@ -47,9 +47,7 @@ export default function Kurumsal() {
     "Critical finding and risk escalation alerts",
     "Supplier self-assessment questionnaire",
     "Portfolio PDF report (KVKK / Law 7545)",
-    "Board summary report",
     "Sector benchmark and percentile",
-    "BDDK support-service / DORA reporting support",
     "Custom contract and SLA",
   ] : [
     "500+ tedarikçilik portföy",
@@ -58,9 +56,7 @@ export default function Kurumsal() {
     "Kritik bulgu ve risk artışı uyarıları",
     "Tedarikçi öz-değerlendirme anketi",
     "Portföy PDF raporu (KVKK / 7545)",
-    "Yönetim kurulu özet raporu",
     "Sektör kıyaslaması ve yüzdelik dilim",
-    "BDDK destek hizmeti / DORA raporlama desteği",
     "Özel sözleşme ve SLA",
   ];
 

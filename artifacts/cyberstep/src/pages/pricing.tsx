@@ -63,7 +63,6 @@ export const PLANS: Plan[] = [
     features: [
       { tr: "Başlangıç paketindeki her şey", en: "Everything in Starter" },
       { tr: "Sektör kıyaslaması ve yüzdelik dilim", en: "Sector benchmark and percentile" },
-      { tr: "Yönetim kurulu özet raporu", en: "Board summary report" },
       { tr: "Öncelikli destek", en: "Priority support" },
     ],
     cta: { tr: "Teklif iste", en: "Request a quote", href: "/iletisim?konu=Tedarikçi Riski - Profesyonel paket" },
@@ -79,7 +78,6 @@ export const PLANS: Plan[] = [
     features: [
       { tr: "Profesyonel paketteki her şey", en: "Everything in Professional" },
       { tr: "Risk Skoru API erişimi", en: "Risk Score API access" },
-      { tr: "BDDK destek hizmeti / DORA raporlama desteği", en: "BDDK support-service / DORA reporting support" },
       { tr: "Özel sözleşme ve SLA", en: "Custom contract and SLA" },
     ],
     cta: { tr: "Satış ekibiyle görüş", en: "Talk to sales", href: "/iletisim?konu=Tedarikçi Riski - Kurumsal paket" },

@@ -289,6 +289,32 @@ export default function Home() {
         </div>
       </section>
 
+      {/* TPRM nedir */}
+      <section className="py-16 bg-muted/30 border-y" id="tprm-nedir">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold">{tx("TPRM nedir?", "What is TPRM?")}</h2>
+            <p className="text-muted-foreground mt-2 max-w-3xl mx-auto">
+              {tx("TPRM (Third-Party Risk Management), iş ortaklarınızdan ve tedarikçilerinizden gelen siber riski belirleme, ölçme ve sürekli izleme yöntemidir. Kendi sisteminiz sağlam olsa bile, verinize veya sürecinize erişimi olan bir tedarikçi saldırıya uğrarsa sonuç size de yansır.",
+                  "TPRM (Third-Party Risk Management) is the practice of identifying, measuring and continuously monitoring cyber risk that comes from your partners and suppliers. Even if your own systems are sound, an incident at a supplier with access to your data or processes reaches you too.")}
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              { n: "1", t: tx("Belirleyin", "Identify"), d: tx("Hangi tedarikçilerin aksaması işinizi durdurur? Önce bu kritik listeyi çıkarın.", "Which suppliers would stop your business if they failed? Start by listing them.") },
+              { n: "2", t: tx("Ölçün", "Measure"), d: tx("Her tedarikçinin dışarıdan görünen güvenlik durumunu 0–100 skorla ve A–F notla görün, sektör medyanıyla karşılaştırın.", "See each supplier's outside-in security posture as a 0–100 score and A–F grade, compared with the sector median.") },
+              { n: "3", t: tx("İzleyin", "Monitor"), d: tx("Yıllık anket yerine sürekli tarama. Skor düştüğünde veya yeni bir kritik açık çıktığında haberdar olun.", "Continuous scanning instead of an annual questionnaire. Get told when a score drops or a critical exposure appears.") },
+            ].map((c) => (
+              <div key={c.n} className="rounded-xl border p-5 bg-card">
+                <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center mb-3">{c.n}</div>
+                <p className="font-semibold">{c.t}</p>
+                <p className="text-sm text-muted-foreground mt-1.5">{c.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Neden şimdi */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 max-w-5xl">

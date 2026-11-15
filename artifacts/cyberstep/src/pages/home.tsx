@@ -32,6 +32,26 @@ const SEVERITY_CLS = {
   critical: "text-red-400", high: "text-orange-400", medium: "text-amber-400", low: "text-slate-400",
 } as const;
 
+const ROBOT_BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+type RobotName = "maskot" | "tarama" | "alarm" | "rapor" | "zafer" | "mutlu" | "dikkat";
+const ROBOT_ASPECT: Record<RobotName, [number, number]> = {
+  maskot: [302, 420], tarama: [315, 420], alarm: [329, 420], rapor: [350, 420],
+  zafer: [337, 420], mutlu: [317, 420], dikkat: [306, 420],
+};
+
+/** Step AI robot maskotu. Dekoratif: alt metin boş (yanındaki metin anlamı taşır). */
+function Robot({ name, className = "", alt = "" }: { name: RobotName; className?: string; alt?: string }) {
+  const [w, h] = ROBOT_ASPECT[name];
+  return <img src={`${ROBOT_BASE}/robot/${name}.webp`} width={w} height={h} alt={alt} loading="lazy" decoding="async" className={className} />;
+}
+
+/** Skora göre robot ruh hali (marka kılavuzu: A/B mutlu, C/D dikkat, F alarm). */
+function moodFor(score: number): RobotName {
+  if (score >= 70) return "mutlu";
+  if (score >= 40) return "dikkat";
+  return "alarm";
+}
+
 function gradeColor(score: number): string {
   if (score >= 70) return "text-emerald-400 border-emerald-400/40";
   if (score >= 55) return "text-amber-400 border-amber-400/40";
@@ -152,6 +172,11 @@ export default function Home() {
       <section className="py-16 md:py-24 bg-secondary text-secondary-foreground relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-secondary to-secondary pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10">
+          <img
+            src={`${ROBOT_BASE}/robot/maskot.webp`} width={302} height={420}
+            alt={tx("Step AI, CyberStep'in yapay zekâ destekli tarama robotu", "Step AI, CyberStep's AI-powered scanning robot")}
+            className="hidden xl:block absolute right-0 top-1/2 -translate-y-1/2 w-52 h-auto drop-shadow-[0_0_40px_rgba(0,200,255,0.25)]"
+          />
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary text-sm font-medium">
               <ShieldCheck className="h-4 w-4" />
@@ -179,13 +204,20 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={checking || !domain.trim()}
-                className="inline-flex items-center justify-center rounded-md font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 disabled:opacity-60"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 disabled:opacity-60"
               >
                 {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-2" />{tx("Tedarikçiyi kontrol et", "Check supplier")}</>}
               </button>
             </form>
 
             {checkError && <p className="text-sm text-red-300">{checkError}</p>}
+
+            {checking && (
+              <div className="flex items-center justify-center gap-3 text-sm text-white/80" role="status">
+                <Robot name="tarama" className="h-20 w-auto" />
+                <span>{tx("Step AI taranıyor…", "Step AI is scanning…")}</span>
+              </div>
+            )}
 
             {result && (
               <div className="max-w-xl mx-auto text-left rounded-xl border border-white/15 bg-white/5 p-4">
@@ -195,13 +227,14 @@ export default function Home() {
                       <div className={`h-14 w-14 rounded-lg border-2 flex items-center justify-center text-2xl font-black ${gradeColor(result.score)}`}>
                         {result.grade}
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold text-white">{result.domain}</p>
                         <p className="text-sm text-white/70">
                           {result.score}/100 · {tx("Risk", "Risk")}: {result.riskLabel}
                           {result.lastScanAt && <> · {tx("Son tarama", "Last scan")}: {new Date(result.lastScanAt).toLocaleDateString(en ? "en-GB" : "tr-TR")}</>}
                         </p>
                       </div>
+                      <Robot name={moodFor(result.score)} className="h-20 w-auto shrink-0" />
                     </div>
                     {result.topFindings && result.topFindings.length > 0 && (
                       <ul className="space-y-1">
@@ -255,12 +288,15 @@ export default function Home() {
       {/* Neden şimdi */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold">{tx("Tedarikçi riski artık sizin riskiniz", "Your suppliers' risk is your risk")}</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              {tx("Saldırganlar çoğu zaman hedefe en zayıf tedarikçiden ulaşır. Yasal yükümlülükler de bu riskin yönetilmesini bekliyor.",
-                  "Attackers often reach their target through the weakest supplier, and regulation now expects this risk to be managed.")}
-            </p>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-10 text-center md:text-left">
+            <Robot name="alarm" className="h-28 w-auto shrink-0 bg-secondary rounded-2xl p-3" />
+            <div>
+              <h2 className="text-3xl font-bold">{tx("Tedarikçi riski artık sizin riskiniz", "Your suppliers' risk is your risk")}</h2>
+              <p className="text-muted-foreground mt-2 max-w-2xl">
+                {tx("Saldırganlar çoğu zaman hedefe en zayıf tedarikçiden ulaşır. Yasal yükümlülükler de bu riskin yönetilmesini bekliyor. Anketler yavaş, beyana dayalı ve hızla eskiyen bir resim veriyor.",
+                    "Attackers often reach their target through the weakest supplier, and regulation now expects this risk to be managed. Questionnaires are slow, self-reported and out of date almost immediately.")}
+              </p>
+            </div>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
             {[
@@ -347,11 +383,39 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Neler alırsınız */}
+      <section className="py-16 bg-muted/30 border-y">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="flex flex-col md:flex-row items-center gap-10">
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold">{tx("Portföyün tamamı tek ekranda", "Your whole portfolio on one screen")}</h2>
+              <ul className="mt-6 space-y-5">
+                {[
+                  { t: tx("Sektör kıyaslaması", "Sector benchmark"), d: tx("Her tedarikçinin sektöründeki yüzdelik dilimi.", "Each supplier's percentile within its sector.") },
+                  { t: tx("Akıllı uyarılar", "Smart alerts"), d: tx("Kritik bulgu veya skor düşüşünde tek özet e-posta.", "One summary e-mail on a critical finding or score drop.") },
+                  { t: tx("Portföy PDF raporu", "Portfolio PDF report"), d: tx("KVKK ve 7545 denetimlerine hazır kanıt raporu.", "Evidence report ready for KVKK and Law 7545 audits.") },
+                  { t: tx("Risk Skoru API", "Risk Score API"), d: tx("Satın alma ve poliçe sistemlerine doğrudan veri (Kurumsal).", "Feed purchasing and underwriting systems directly (Enterprise).") },
+                ].map((i) => (
+                  <li key={i.t} className="flex gap-3">
+                    <BadgeCheck className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">{i.t}</p>
+                      <p className="text-sm text-muted-foreground">{i.d}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Robot name="rapor" className="h-72 w-auto shrink-0 bg-secondary rounded-2xl p-5" />
+          </div>
+        </div>
+      </section>
+
       {/* Tedarikçiler için güven rozeti */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="rounded-2xl border p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center">
-            <BadgeCheck className="h-14 w-14 text-primary shrink-0" />
+            <Robot name="zafer" className="h-28 w-auto shrink-0 bg-secondary rounded-2xl p-3" />
             <div className="flex-1 text-center md:text-left">
               <h3 className="text-xl font-bold">{tx("Tedarikçi misiniz? Skorunuzu kanıtlayın.", "Are you a supplier? Prove your score.")}</h3>
               <p className="text-sm text-muted-foreground mt-1">
@@ -414,6 +478,7 @@ export default function Home() {
       {/* Son CTA */}
       <section className="py-16 bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4 max-w-3xl text-center space-y-4">
+          <Robot name="mutlu" className="h-28 w-auto mx-auto" />
           <h2 className="text-3xl font-bold text-white">{tx("İlk tedarikçi listenizi bugün yükleyin", "Upload your first supplier list today")}</h2>
           <p className="text-white/70">
             {tx("Kurulum yok, tedarikçiden onay gerekmiyor. Excel listenizle başlayın.", "No setup, no supplier consent needed. Start with your Excel list.")}

@@ -606,6 +606,9 @@ export default function TedarikciPortfoyu() {
 
           {!bulkResult ? (
             <div className="space-y-3 py-2">
+              <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">
+                Yalnızca siber olay yaşarsa sizi etkileyecek kritik tedarikçileri yükleyin; ara sıra alım yapılan firmaları listeye almayın.
+              </p>
               <p className="text-xs text-muted-foreground">
                 Excel'den "CSV (noktalı virgülle ayrılmış)" olarak kaydedin. Bir kolon alan adı (domain) olmalı;
                 firma adı kolonu opsiyonel. Tek seferde en fazla {BULK_MAX_ROWS} tedarikçi.
@@ -680,6 +683,9 @@ export default function TedarikciPortfoyu() {
             <DialogTitle>Tedarikçi Ekle</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">
+              Siber olay yaşarsa işinizi, verinizi veya müşterilerinizi etkileyecek firmaları ekleyin (API/veri sağlayıcı, yan sanayi, bulut ve yazılım hizmeti, veri işleyen). Birkaç kez alım yaptığınız firmalar için skor anlamlı olmaz.
+            </p>
             <div className="space-y-1.5">
               <Label>Domain Adresi *</Label>
               <Input

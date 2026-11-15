@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
+import { PLANS } from "@/pages/pricing";
 import {
   Shield, AlertTriangle, CheckCircle2, XCircle, Loader2, Plus,
   Trash2, ChevronRight, RotateCcw, Globe, Lock, Mail, Building2,
@@ -71,85 +72,39 @@ function Check({ pass, label }: { pass: boolean; label: string }) {
   );
 }
 
-const TIERS = [
-  {
-    num: 1,
-    name: "Temel",
-    sub: "Ücretsiz",
-    icon: Shield,
-    color: "border-violet-500/30 bg-violet-500/5",
-    iconColor: "text-violet-400",
-    features: [
-      "10 tedarikçi domain taraması",
-      "DNS, SPF, DMARC, SSL kontrolü",
-      "AI ile birleşik risk skorkartı",
-      "Avrupa alıcıları uyum notu",
-      "Tedarikçiye anket linki gönder",
-    ],
-  },
-  {
-    num: 2,
-    name: "Pro",
-    sub: "Yakında",
-    icon: BarChart2,
-    color: "border-blue-500/30 bg-blue-500/5",
-    iconColor: "text-blue-400",
-    features: [
-      "Tedarikçi skor takibi ve tarihçesi",
-      "'Bu skor 3 aydır düşüyor' uyarıları",
-      "Tüm tedarikçiler için trend grafiği",
-      "DORA Art.28 üçüncü taraf raporu",
-      "Excel / PDF dışa aktarım",
-    ],
-    badge: "Yakında",
-  },
-  {
-    num: 3,
-    name: "Kurumsal",
-    sub: "Kurumsal",
-    icon: Crown,
-    color: "border-amber-500/30 bg-amber-500/5",
-    iconColor: "text-amber-400",
-    features: [
-      "Otomatik tedarikçi anketi kampanyası",
-      "Beyan + tarama = bileşik risk skoru",
-      "Tedarikçi portalı (kendi markanızla)",
-      "API entegrasyonu ve webhook",
-      "SLA garantili destek",
-    ],
-    badge: "Yakında",
-  },
-];
+const PLAN_STYLE: Record<string, { icon: typeof Shield; color: string; iconColor: string }> = {
+  ucretsiz: { icon: Shield, color: "border-violet-500/30 bg-violet-500/5", iconColor: "text-violet-400" },
+  baslangic: { icon: BarChart2, color: "border-blue-500/30 bg-blue-500/5", iconColor: "text-blue-400" },
+  profesyonel: { icon: BarChart2, color: "border-cyan-500/30 bg-cyan-500/5", iconColor: "text-cyan-400" },
+  kurumsal: { icon: Crown, color: "border-amber-500/30 bg-amber-500/5", iconColor: "text-amber-400" },
+};
 
 function TierCards() {
   return (
-    <div className="grid md:grid-cols-3 gap-4 mb-10">
-      {TIERS.map((tier) => {
-        const Icon = tier.icon;
+    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      {PLANS.map((plan) => {
+        const st = PLAN_STYLE[plan.id] ?? PLAN_STYLE.ucretsiz;
+        const Icon = st.icon;
         return (
-          <div key={tier.num} className={`rounded-xl border p-5 ${tier.color}`}>
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className={`p-2 rounded-lg bg-background/40`}>
-                  <Icon className={`h-5 w-5 ${tier.iconColor}`} />
-                </div>
-                <div>
-                  <p className="font-bold text-sm">Kademe {tier.num} — {tier.name}</p>
-                  <p className="text-xs text-muted-foreground">{tier.sub}</p>
-                </div>
+          <div key={plan.id} className={`rounded-xl border p-5 ${st.color}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-background/40">
+                <Icon className={`h-5 w-5 ${st.iconColor}`} />
               </div>
-              {tier.badge && (
-                <Badge variant="outline" className="text-xs border-current opacity-60">{tier.badge}</Badge>
-              )}
+              <div>
+                <p className="font-bold text-sm">{plan.name.tr}</p>
+                <p className="text-xs text-muted-foreground">{plan.suppliers.tr}</p>
+              </div>
             </div>
-            <ul className="space-y-1.5">
-              {tier.features.map((f, i) => (
+            <ul className="space-y-1.5 mb-3">
+              {plan.features.map((f, i) => (
                 <li key={i} className="flex items-start gap-2 text-xs">
-                  <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${tier.num === 1 ? tier.iconColor : "text-muted-foreground/50"}`} />
-                  <span className={tier.num === 1 ? "" : "text-muted-foreground/70"}>{f}</span>
+                  <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${st.iconColor}`} />
+                  <span>{f.tr}</span>
                 </li>
               ))}
             </ul>
+            <Link href="/fiyatlar" className="text-xs font-medium text-primary hover:underline">Fiyatı gör →</Link>
           </div>
         );
       })}

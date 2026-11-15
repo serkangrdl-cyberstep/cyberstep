@@ -2720,7 +2720,7 @@ startup()
         logger.info({ workflow: workflowId, correlationId }, "Certstream dispatch tetiklendi — run izleniyor");
         watchRunInBackground({ pat, repo, workflowId, dispatchedAt, correlationId, logContext: { trigger: "cron" } });
       } else {
-        logger.warn({ status: result.httpStatus, workflow: workflowId }, "Certstream dispatch başarısız");
+        logger.warn({ status: result.httpStatus, workflow: workflowId }, `Certstream dispatch başarısız (HTTP ${result.httpStatus}${result.httpStatus === 401 ? " — GITHUB_PAT geçersiz/süresi dolmuş" : result.httpStatus === 404 ? " — repo/workflow bulunamadı veya PAT yetkisiz" : ""})`);
       }
       return result.dispatched ? 1 : 0;
     }), { timezone: "Europe/Istanbul" });

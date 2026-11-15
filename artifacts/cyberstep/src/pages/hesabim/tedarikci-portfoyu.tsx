@@ -665,7 +665,7 @@ export default function TedarikciPortfoyu() {
                 <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
                   <p><strong>{bulkFileName}</strong>: {bulkRows.length} satır bulundu</p>
                   {bulkRows.slice(0, 5).map((r, i) => (
-                    <p key={i} className="text-muted-foreground truncate">{r.domain}{r.name ? ` — ${r.name}` : ""}</p>
+                    <p key={i} className="text-muted-foreground truncate">{r.domain}{r.name ? ` — ${r.name}` : ""}{r.criticality !== "standart" ? ` [${r.criticality === "kritik" ? "Kritik" : "Önemli"}]` : ""}</p>
                   ))}
                   {bulkRows.length > 5 && <p className="text-muted-foreground">… ve {bulkRows.length - 5} satır daha</p>}
                   {bulkRows.length > BULK_MAX_ROWS && (

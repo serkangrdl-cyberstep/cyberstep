@@ -3,13 +3,24 @@
  * - Ayraç otomatik: ";" (Excel Türkçe), "," veya sekme
  * - Başlık satırı varsa kolonlar adlarına göre bulunur (domain / alan adı / web sitesi, ad / firma / unvan)
  * - Başlık yoksa nokta içeren ilk kolon domain, diğer ilk kolon ad sayılır
+ * - Kritiklik kolonu (opsiyonel): kritik / önemli / standart; yoksa standart
  * - Tek kolonluk düz liste (her satıra bir domain) de kabul edilir
  */
 
-export interface VendorCsvRow { domain: string; name: string | null }
+export type VendorCriticality = "kritik" | "onemli" | "standart";
+export interface VendorCsvRow { domain: string; name: string | null; criticality: VendorCriticality }
 
 const DOMAIN_HEADERS = ["domain", "alan adi", "alanadi", "alan adı", "web", "website", "web sitesi", "url", "site"];
 const NAME_HEADERS = ["ad", "adi", "adı", "isim", "name", "firma", "firma adi", "firma adı", "tedarikci", "tedarikçi", "unvan", "şirket", "sirket", "company"];
+
+const CRITICALITY_HEADERS = ["kritiklik", "kritiklik seviyesi", "önem", "onem", "önem derecesi", "criticality", "priority", "öncelik", "oncelik"];
+
+function parseCriticality(v: string): VendorCriticality {
+  const t = v.toLowerCase().trim();
+  if (["kritik", "critical", "yüksek", "yuksek", "high"].includes(t)) return "kritik";
+  if (["önemli", "onemli", "important", "orta", "medium"].includes(t)) return "onemli";
+  return "standart";
+}
 
 function splitLine(line: string, delim: string): string[] {
   const out: string[] = [];
@@ -48,6 +59,7 @@ export function parseVendorCsv(text: string): VendorCsvRow[] {
 
   let domainCol = -1;
   let nameCol = -1;
+  let critCol = -1;
   let start = 0;
 
   const header = table[0]!.map(h => h.toLowerCase().trim());
@@ -55,6 +67,7 @@ export function parseVendorCsv(text: string): VendorCsvRow[] {
   if (hDomain >= 0) {
     domainCol = hDomain;
     nameCol = header.findIndex((h, i) => i !== hDomain && NAME_HEADERS.includes(h));
+    critCol = header.findIndex((h, i) => i !== hDomain && i !== nameCol && CRITICALITY_HEADERS.includes(h));
     start = 1;
   } else {
     const first = table[0]!;
@@ -75,9 +88,10 @@ export function parseVendorCsv(text: string): VendorCsvRow[] {
     const domain = (cells[domainCol] ?? "").trim();
     if (!domain) continue;
     const name = nameCol >= 0 ? (cells[nameCol] ?? "").trim() || null : null;
-    rows.push({ domain, name });
+    const criticality = critCol >= 0 ? parseCriticality(cells[critCol] ?? "") : "standart";
+    rows.push({ domain, name, criticality });
   }
   return rows;
 }
 
-export const VENDOR_CSV_TEMPLATE = "domain;firma adi\nornekfirma.com.tr;Örnek Firma A.Ş.\ntedarikci2.com;Tedarikçi 2 Ltd.\n";
+export const VENDOR_CSV_TEMPLATE = "domain;firma adi;kritiklik\nornekfirma.com.tr;Örnek Firma A.Ş.;kritik\ntedarikci2.com;Tedarikçi 2 Ltd.;onemli\ntedarikci3.com;Tedarikçi 3 Ltd.;standart\n";

@@ -7,8 +7,8 @@ import { useLanguage } from "@/contexts/language-context";
 export default function Kurumsal() {
   const { lang } = useLanguage();
   usePageMeta({
-    title: lang === "en" ? "Enterprise Cybersecurity Platform | CyberStep.io" : "Kurumsal Siber Güvenlik Platformu | CyberStep.io",
-    description: lang === "en" ? "Continuous exposure management for mid-size and large enterprises. Firewall integration, white-label, SLA guarantee, enterprise onboarding." : "Orta ve büyük ölçekli şirketler için sürekli maruz kalma yönetimi. Firewall entegrasyonu, white-label, SLA garantisi, kurumsal onboarding.",
+    title: lang === "en" ? "Enterprise Supplier Risk Management | CyberStep.io" : "Kurumsal Tedarikçi Risk Yönetimi | CyberStep.io",
+    description: lang === "en" ? "Continuous supplier cyber risk monitoring for enterprise procurement and risk teams: portfolio scoring, drop alerts, PDF reports and API." : "Kurumsal satın alma ve risk ekipleri için sürekli tedarikçi siber risk izleme: portföy skoru, düşüş uyarıları, PDF raporu ve API.",
     canonicalPath: "/kurumsal",
   });
 
@@ -32,52 +32,48 @@ export default function Kurumsal() {
   }
 
   const DIFFERENTIATORS = [
-    { icon: Globe, title: lang === "en" ? "Turkey-Specific Intelligence" : "Türkiye'ye Özgü İstihbarat", desc: lang === "en" ? "USOM correlation, KVKK integration, Turkey sector benchmarks. What global tools can't do." : "USOM korelasyonu, KVKK entegrasyonu, Türkiye sektör benchmarkları. Global araçların yapamadığı şey." },
-    { icon: Layers, title: lang === "en" ? "Integration Ecosystem" : "Entegrasyon Ekosistemi", desc: lang === "en" ? "Native integration with Fortinet, Check Point, Palo Alto, QRadar, CrowdStrike. Plugs into your existing infrastructure." : "Fortinet, Check Point, Palo Alto, QRadar, CrowdStrike ile native entegrasyon. Mevcut altyapınıza eklenir." },
-    { icon: Lock, title: lang === "en" ? "Closed-Loop Verification" : "Kapalı Döngü Doğrulama", desc: lang === "en" ? "We don't just detect. We relay findings to your security system, and re-scan to verify once resolved." : "Sadece tespit etmiyoruz. Bulguyu güvenlik sisteminize iletiyoruz, düzeltilince yeniden tarayıp doğruluyoruz." },
-    { icon: BarChart3, title: lang === "en" ? "Board-Level Reporting" : "Yönetim Kurulu Raporlaması", desc: lang === "en" ? "Alongside the technical report, a financial risk summary presentable to CFO and board of directors. In TRY." : "Teknik raporun yanı sıra CFO ve yönetim kuruluna sunulabilecek finansal risk özeti. TL bazında." },
-    { icon: Zap, title: lang === "en" ? "Continuous Exposure Management" : "Sürekli Maruz Kalma Yönetimi", desc: lang === "en" ? "Weekly delta report, automatic re-scanning, instant alerts. Not a one-time assessment — a live platform." : "Haftalık delta raporu, otomatik yeniden tarama, anlık alarm. Tek seferlik değerlendirme değil, canlı platform." },
-    { icon: HeadphonesIcon, title: lang === "en" ? "Dedicated Support" : "Dedike Destek", desc: lang === "en" ? "Dedicated account manager for enterprise clients, priority support line and SLA guarantee." : "Kurumsal müşterilere özel hesap yöneticisi, öncelikli destek hattı ve SLA garantisi." },
+    { icon: Globe, title: lang === "en" ? "Turkey-Specific Intelligence" : "Türkiye'ye Özgü İstihbarat", desc: lang === "en" ? "USOM correlation, KVKK context and Turkey sector benchmarks. What global tools can't do." : "USOM korelasyonu, KVKK bağlamı ve Türkiye sektör kıyaslaması. Global araçların yapamadığı şey." },
+    { icon: Layers, title: lang === "en" ? "Supplier Portfolio" : "Tedarikçi Portföyü", desc: lang === "en" ? "Add suppliers one by one or by CSV, tag their criticality and see the critical ones at risk first." : "Tedarikçileri tek tek ya da CSV ile ekleyin, kritiklik seviyesini işaretleyin, riskteki kritik tedarikçileri öne çıkarın." },
+    { icon: Zap, title: lang === "en" ? "Continuous Monitoring & Alerts" : "Sürekli İzleme ve Uyarı", desc: lang === "en" ? "Suppliers are re-scanned automatically. A score drop triggers an e-mail alert. Not a one-time assessment." : "Tedarikçiler otomatik yeniden taranır. Skor düşüşünde e-posta uyarısı gelir. Tek seferlik değerlendirme değil." },
+    { icon: Lock, title: lang === "en" ? "No Supplier Cooperation Needed" : "Tedarikçiden İzin Gerekmez", desc: lang === "en" ? "Scores come from external, passive scanning of public data. You see the risk without sending a questionnaire." : "Skor, kamuya açık verinin dış ve pasif taranmasından gelir. Anket göndermeden riski görürsünüz." },
+    { icon: BarChart3, title: lang === "en" ? "Audit-Ready Reporting" : "Denetime Hazır Raporlama", desc: lang === "en" ? "A portfolio PDF report for KVKK, BDDK and internal audit files." : "KVKK, BDDK ve iç denetim dosyaları için portföy PDF raporu." },
+    { icon: HeadphonesIcon, title: lang === "en" ? "Risk Score API" : "Risk Skoru API", desc: lang === "en" ? "Feed supplier scores directly into your procurement and risk systems." : "Tedarikçi skorlarını satın alma ve risk sistemlerinize doğrudan aktarın." },
   ];
 
   const FEATURES = lang === "en" ? [
-    "Unlimited domain and subdomain scanning",
-    "Firewall integration (Fortinet, Palo Alto, Check Point)",
-    "White-label portal — under your own brand",
-    "API access and SIEM integration",
-    "Board report (automated, monthly)",
-    "AI security services package included",
-    "KVKK DPA contract management",
-    "Weekly threat intelligence digest",
-    "Dedicated account manager",
-    "SLA guarantee — 4-hour critical incident response",
-    "EU AI Act compliance score and reporting",
-    "Multi-user panel — team access",
+    "500+ suppliers in one portfolio",
+    "Everything in Professional",
+    "Risk Score API access",
+    "Critical finding and risk escalation alerts",
+    "Supplier self-assessment questionnaire",
+    "Portfolio PDF report (KVKK / Law 7545)",
+    "Board summary report",
+    "Sector benchmark and percentile",
+    "BDDK support-service / DORA reporting support",
+    "Custom contract and SLA",
   ] : [
-    "Sınırsız domain ve subdomain taraması",
-    "Firewall entegrasyonu (Fortinet, Palo Alto, Check Point)",
-    "White-label portal — kendi markanızla",
-    "API erişimi ve SIEM entegrasyonu",
-    "Yönetim kurulu raporu (otomatik, aylık)",
-    "AI güvenlik servisleri paketi dahil",
-    "KVKK DPA sözleşme yönetimi",
-    "Haftalık tehdit istihbaratı özeti",
-    "Dedike hesap yöneticisi",
-    "SLA garantisi — 4 saat kritik olay yanıtı",
-    "EU AI Act uyum skoru ve raporlaması",
-    "Çok kullanıcılı panel — ekip erişimi",
+    "500+ tedarikçilik portföy",
+    "Profesyonel paketteki her şey",
+    "Risk Skoru API erişimi",
+    "Kritik bulgu ve risk artışı uyarıları",
+    "Tedarikçi öz-değerlendirme anketi",
+    "Portföy PDF raporu (KVKK / 7545)",
+    "Yönetim kurulu özet raporu",
+    "Sektör kıyaslaması ve yüzdelik dilim",
+    "BDDK destek hizmeti / DORA raporlama desteği",
+    "Özel sözleşme ve SLA",
   ];
 
   const TIMELINE = lang === "en" ? [
-    { day: "Day 1", title: "Onboarding & Discovery", desc: "Current infrastructure mapping, integration setup, first full scan." },
-    { day: "Week 1", title: "First Risk Reports", desc: "External attack surface report, AI security score, KVKK compliance status." },
-    { day: "Week 2", title: "Integration Completion", desc: "Firewall rules synchronized, SIEM alert stream active, team training." },
-    { day: "Month 1+", title: "Continuous Monitoring", desc: "Weekly delta report, monthly board summary, quarterly policy update." },
+    { day: "Day 1", title: "Portfolio Setup", desc: "Upload your supplier list by CSV and mark critical suppliers." },
+    { day: "Day 1", title: "First Scores", desc: "Every supplier is scanned; you get a ranked risk list." },
+    { day: "Week 1", title: "Alerts & Reports", desc: "E-mail alerts are active; first portfolio PDF report for your files." },
+    { day: "Month 1+", title: "Continuous Monitoring", desc: "Automatic re-scans, API integration." },
   ] : [
-    { day: "Gün 1", title: "Onboarding ve Keşif", desc: "Mevcut altyapı haritalaması, entegrasyon kurulumu, ilk tam tarama." },
-    { day: "Hafta 1", title: "İlk Risk Raporları", desc: "Dış saldırı yüzeyi raporu, AI güvenlik skoru, KVKK uyum durumu." },
-    { day: "Hafta 2", title: "Entegrasyon Tamamlama", desc: "Firewall kuralları senkronize, SIEM alarm akışı aktif, takım eğitimi." },
-    { day: "Ay 1+", title: "Sürekli İzleme", desc: "Haftalık delta raporu, aylık yönetim kurulu özeti, çeyreklik politika güncellemesi." },
+    { day: "Gün 1", title: "Portföy Kurulumu", desc: "Tedarikçi listesini CSV ile yükleyin, kritik tedarikçileri işaretleyin." },
+    { day: "Gün 1", title: "İlk Skorlar", desc: "Her tedarikçi taranır; risk sırasına göre liste hazır olur." },
+    { day: "Hafta 1", title: "Uyarılar ve Rapor", desc: "E-posta uyarıları aktif; dosyalarınız için ilk portföy PDF raporu." },
+    { day: "Ay 1+", title: "Sürekli İzleme", desc: "Otomatik yeniden tarama, API entegrasyonu." },
   ];
 
   return (
@@ -93,10 +89,10 @@ export default function Kurumsal() {
               {lang === "en" ? "Enterprise" : "Kurumsal"}
             </div>
             <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-              {lang === "en" ? <>Continuous Exposure Management.<br /><span className="text-emerald-400">In Turkish. Built for Turkey.</span></> : <>Sürekli Maruz Kalma Yönetimi.<br /><span className="text-emerald-400">Türkçe. Türkiye'ye Özel.</span></>}
+              {lang === "en" ? <>Continuous Supplier Risk Monitoring.<br /><span className="text-emerald-400">In Turkish. Built for Turkey.</span></> : <>Sürekli Tedarikçi Risk İzleme.<br /><span className="text-emerald-400">Türkçe. Türkiye'ye Özel.</span></>}
             </h1>
             <p className="text-slate-300 text-lg mb-4 leading-relaxed">
-              {lang === "en" ? "External attack surface, AI tool security, KVKK compliance, firewall integration and automated reporting — in one platform. Designed for mid-size and large enterprises." : "Dış saldırı yüzeyi, AI araç güvenliği, KVKK uyumu, firewall entegrasyonu ve otomatik raporlama — tek platformda. Orta ve büyük ölçekli şirketler için tasarlandı."}
+              {lang === "en" ? "See the cyber risk of your suppliers without asking them: portfolio scoring, drop alerts, audit reports and API. Designed for enterprise procurement and risk teams." : "Tedarikçilerinizin siber riskini onlara sormadan görün: portföy skoru, düşüş uyarıları, denetim raporu ve API. Kurumsal satın alma ve risk ekipleri için tasarlandı."}
             </p>
             <p className="text-slate-400 text-sm mb-8">
               {lang === "en" ? "An alternative to SecurityScorecard or BitSight's English enterprise pricing. With Turkey-specific intelligence." : "SecurityScorecard veya BitSight'ın İngilizce kurumsal fiyatlandırmasına alternatif. Türkiye'ye özgü istihbarat ile."}
@@ -142,18 +138,12 @@ export default function Kurumsal() {
               ["Turkish interface", false, false, true],
               ["KVKK integration", false, false, true],
               ["USOM correlation", false, false, true],
-              ["AI tool security", false, false, true],
-              ["EU AI Act compliance", false, false, true],
-              ["Closed-loop verification", false, false, true],
               ["Turkey sector benchmarks", false, false, true],
               ["Risk estimation in TRY", false, false, true],
             ] : [
               ["Türkçe arayüz", false, false, true],
               ["KVKK entegrasyonu", false, false, true],
               ["USOM korelasyonu", false, false, true],
-              ["AI araç güvenliği", false, false, true],
-              ["EU AI Act uyumu", false, false, true],
-              ["Kapalı döngü doğrulama", false, false, true],
               ["Türkiye sektör benchmark", false, false, true],
               ["TL bazında risk tahmini", false, false, true],
             ]).map(([feature, ss, bs, cs], i) => (
@@ -234,7 +224,7 @@ export default function Kurumsal() {
             <CalendarCheck className="h-10 w-10 text-emerald-400 mx-auto mb-4" />
             <h2 className="text-3xl font-bold mb-3">{lang === "en" ? "Request a Demo" : "Demo Talep Edin"}</h2>
             <p className="text-slate-400">
-              {lang === "en" ? "We arrange a personalized demo meeting. We review your current infrastructure and show how CyberStep integrates." : "Size özel bir demo toplantısı ayarlıyoruz. Mevcut altyapınızı inceleyip CyberStep'in nasıl entegre olacağını gösteriyoruz."}
+              {lang === "en" ? "We arrange a personalized demo meeting. We review your supplier list and show how CyberStep scores it." : "Size özel bir demo toplantısı ayarlıyoruz. Mevcut altyapınızı inceleyip CyberStep'in nasıl entegre olacağını gösteriyoruz."}
             </p>
           </div>
 

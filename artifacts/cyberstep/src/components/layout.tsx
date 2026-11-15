@@ -195,15 +195,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <span className="font-medium">{label}</span>
                       </Link>
                     ))}
-                    <div className="border-t mt-1 pt-1">
-                      <Link
-                        href="/fiyatlar"
-                        onClick={() => setHizmetlerOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-muted transition-colors"
-                      >
-                        {lang === "en" ? "Plans & Pricing" : "Paketler ve Fiyatlar"} <ChevronRight className="h-3.5 w-3.5 ml-auto" />
-                      </Link>
-                    </div>
                   </div>
                 )}
               </div>
@@ -368,13 +359,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           {label}
                         </Link>
                       ))}
-                      <Link
-                        href="/fiyatlar"
-                        onClick={() => { setMobileOpen(false); setMobileHizmetlerOpen(false); }}
-                        className="flex items-center w-full px-2 py-2 rounded-md text-sm font-semibold text-primary hover:bg-muted transition-colors"
-                      >
-                        {lang === "en" ? "Plans & Pricing" : "Paketler ve Fiyatlar"} →
-                      </Link>
                     </div>
                   )}
                 </div>

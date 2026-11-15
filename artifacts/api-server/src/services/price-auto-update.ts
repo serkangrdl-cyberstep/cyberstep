@@ -4,7 +4,7 @@ import { sendMail } from "./email";
 import { fetchTufeAnnualRate } from "./tufe-fetcher";
 import { logger } from "../lib/logger";
 
-const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
+const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.io";
 
 function applyRate(value: string | null | undefined, rate: number): string | null {
   if (!value) return null;

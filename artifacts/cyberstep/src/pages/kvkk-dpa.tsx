@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ const DATA_CATEGORY_OPTIONS = [
 ];
 
 export default function KvkkDpa() {
+  usePageMeta({ title: "KVKK Veri İşleme Sözleşmesi (DPA)", description: "Veri sorumlusu ve veri işleyen arasındaki KVKK uyumlu veri işleme sözleşmesini indirin." });
   const { lang } = useLanguage();
   const [form, setForm] = useState({
     companyName: "",

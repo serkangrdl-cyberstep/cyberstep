@@ -3,7 +3,7 @@ import { eq, and, isNotNull, inArray, sql } from "drizzle-orm";
 import { sendMail } from "../email";
 import { logger } from "../../lib/logger";
 
-const SOC_ADMIN_EMAIL = process.env["SOC_ADMIN_EMAIL"] ?? process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
+const SOC_ADMIN_EMAIL = process.env["SOC_ADMIN_EMAIL"] ?? process.env["ADMIN_EMAIL"] ?? "info@cyberstep.io";
 const TELEGRAM_TOKEN  = process.env["ADMIN_TELEGRAM_BOT_TOKEN"];
 const TELEGRAM_CHAT   = process.env["ADMIN_TELEGRAM_CHAT_ID"];
 

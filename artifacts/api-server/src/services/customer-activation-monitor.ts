@@ -3,7 +3,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { sendMail } from "./email";
 import { logger } from "../lib/logger";
 
-const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
+const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.io";
 
 function getBaseUrl(): string {
   const domains = process.env["REPLIT_DOMAINS"];

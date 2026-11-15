@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, Calendar, ChevronRight, Eye, Database, Lock, UserCheck, Trash2 } from "lucide-react";
 import { Link } from "wouter";
@@ -52,6 +53,7 @@ const SECTIONS = [
 ];
 
 export default function GizlilikPolitikasi() {
+  usePageMeta({ title: "Gizlilik Politikası", description: "CyberStep.io gizlilik politikası: hangi verileri topladığımız, nasıl kullandığımız ve haklarınız." });
   const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],

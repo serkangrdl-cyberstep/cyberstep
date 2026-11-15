@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { Shield, FileText, Database, Eye, Lock, UserCheck, Trash2, Mail, ChevronRight, Globe } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -123,6 +124,7 @@ const SECTIONS = [
 ];
 
 export default function Kvkk() {
+  usePageMeta({ title: "KVKK Aydınlatma Metni", description: "6698 sayılı KVKK kapsamında kişisel verilerin işlenmesine ilişkin aydınlatma metni." });
   const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],

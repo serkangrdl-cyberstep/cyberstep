@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/language-context";
@@ -16,6 +17,7 @@ interface BulletinSummary {
 }
 
 export default function BulletinArchivePage() {
+  usePageMeta({ title: "Haftalık Siber Güvenlik Bülteni Arşivi", description: "CyberStep haftalık siber güvenlik bülteni: önceki sayılar ve öne çıkan açıklar." });
   const { lang } = useLanguage();
   const { data: bulletins = [], isLoading } = useQuery<BulletinSummary[]>({
     queryKey: ["bulletin-archive"],

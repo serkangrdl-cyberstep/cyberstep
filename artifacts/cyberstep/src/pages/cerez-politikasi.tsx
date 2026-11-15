@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useQuery } from "@tanstack/react-query";
 import { Cookie, Calendar, ChevronRight, Shield, BarChart3, Megaphone, Settings } from "lucide-react";
 import { Link } from "wouter";
@@ -47,6 +48,7 @@ const COOKIE_CATEGORIES = [
 ];
 
 export default function CerezPolitikasi() {
+  usePageMeta({ title: "Çerez Politikası", description: "CyberStep.io'da kullanılan çerezler, amaçları ve tercihlerinizi nasıl yönetebileceğiniz." });
   const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],

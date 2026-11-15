@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Calendar, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
@@ -51,6 +52,7 @@ const SECTIONS = [
 ];
 
 export default function KullanimKosullari() {
+  usePageMeta({ title: "Kullanım Koşulları", description: "CyberStep.io hizmetinin kullanım koşulları ve tarafların sorumlulukları." });
   const { lang } = useLanguage();
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["public-settings"],

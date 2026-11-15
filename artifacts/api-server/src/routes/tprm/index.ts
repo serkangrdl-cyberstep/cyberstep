@@ -627,9 +627,9 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
     if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
 
     const invalid: Array<{ row: number; value: string; reason: string }> = [];
-    const wanted = new Map<string, string | null>(); // domain → name
+    const wanted = new Map<string, { name: string | null; criticality: (typeof CRITICALITY_LEVELS)[number] }>(); // domain → ad + kritiklik
     rows.forEach((raw, i) => {
-      const r = (raw ?? {}) as { domain?: unknown; name?: unknown };
+      const r = (raw ?? {}) as { domain?: unknown; name?: unknown; criticality?: unknown };
       const value = typeof r.domain === "string" ? r.domain : "";
       const domain = normalizeDomain(value);
       if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
@@ -638,7 +638,7 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
       }
       if (!wanted.has(domain)) {
         const name = typeof r.name === "string" && r.name.trim() ? r.name.trim().slice(0, 200) : null;
-        wanted.set(domain, name);
+        wanted.set(domain, { name, criticality: parseCriticality(r.criticality) });
       }
     });
 
@@ -653,7 +653,7 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
     const overLimit = candidates.length - toInsert.length;
 
     const inserted = toInsert.length === 0 ? [] : await db.insert(tprmVendorTable)
-      .values(toInsert.map(([supplierDomain, supplierName]) => ({ customerEmail: email, supplierDomain, supplierName })))
+      .values(toInsert.map(([supplierDomain, meta]) => ({ customerEmail: email, supplierDomain, supplierName: meta.name, criticality: meta.criticality })))
       .returning();
 
     // Anlık skorlar (tek sorgu)

@@ -67,3 +67,7 @@ Bir ekranı geri açmak için: `ARCHIVED_ADMIN`'den satırı silin ve `admin-lay
 ## Arka uç
 
 API route'ları ve cron'lar **kapatılmadı**: SOC, NOC, AI vb. backend modülleri çalışmaya devam ediyor. Yalnızca site ve menülerden erişim kaldırıldı. `sitemap.xml`'den arşivlenen sayfalar çıkarıldı. Bu modüllerin cron'larını kapatmak ayrı bir karar olarak bırakıldı.
+
+## Eski fiyatlı sayfalar (15 Kasım 2026)
+
+TPRM fiyatlandırmasıyla (Başlangıç 59.000, Profesyonel 149.000, Kurumsal 600.000 TL'den) çelişen eski tek seferlik paket fiyatlarını gösteren sayfalar arşive alındı: `/sanal-ciso`, `/ma-due-diligence`, `/sektor` (ve `/sektor/:slug`). Kod yerinde; geri açmak için `archived-routes.ts` listesinden satırları silmek yeterli.

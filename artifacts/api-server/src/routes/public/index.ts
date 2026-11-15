@@ -13,10 +13,21 @@ const router = Router();
 
 const publicScoreLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 30,
+  limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Çok fazla istek, 1 dakika sonra tekrar deneyin." },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
+});
+
+// Toplu veri çekmeyi (scraping) zorlaştırmak için günlük IP tavanı.
+// Anahtarlı /v1 API bundan etkilenmez; ücretsiz sorgu sayfası için 100/gün yeterlidir.
+const publicScoreDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Günlük ücretsiz sorgu sınırına ulaştınız. Daha fazlası için API anahtarı alın: https://cyberstep.io/skor-api" },
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
 });
 
@@ -35,7 +46,7 @@ function scoreToRisk(score: number): string {
 }
 
 // GET /api/public/domain-score/:domain
-router.get("/public/domain-score/:domain", publicScoreLimiter, async (req: Request, res: Response) => {
+router.get("/public/domain-score/:domain", publicScoreLimiter, publicScoreDailyLimiter, async (req: Request, res: Response) => {
   const rawParam = req.params["domain"];
   const raw = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   if (!raw || raw.length > 253) {

@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { apiProductKeysTable, apiProductUsageTable } from "@workspace/db";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 
 // In-memory domain rate limit: keyId → domain → last request timestamp
 const domainRateMap = new Map<string, number>();
@@ -32,7 +33,7 @@ declare global {
 
 // Tier configs
 const TIER_CONFIG: Record<ApiKeyTier, { dailyLimit: number; monthlyLimit: number; endpoints: string[] }> = {
-  freemium:   { dailyLimit: 10,    monthlyLimit: 10,     endpoints: ["/v1/score"] },
+  freemium:   { dailyLimit: 10,    monthlyLimit: 300,    endpoints: ["/v1/score"] },
   standard:   { dailyLimit: 1000,  monthlyLimit: 1000,   endpoints: ["/v1/score", "/v1/score/full", "/v1/score/certificate", "/v1/scan/trigger", "/v1/benchmark"] },
   enterprise: { dailyLimit: 999999, monthlyLimit: 999999, endpoints: ["/v1/score", "/v1/score/full", "/v1/score/certificate", "/v1/scan/trigger", "/v1/benchmark"] },
 };
@@ -48,8 +49,28 @@ async function maybeResetDailyUsage(row: { id: number; usageResetDate: Date }) {
   }
 }
 
+// ─── Anahtar tahmin/kaba kuvvet koruması ─────────────────────────────────────
+// Geçersiz anahtar denemeleri IP başına dakikada 10 ile sınırlanır; geçerli
+// anahtarla yapılan başarılı istekler sayılmaz.
+const badKeyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla geçersiz anahtar denemesi. Bir dakika sonra tekrar deneyin." },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket?.remoteAddress ?? "unknown"),
+});
+
 // ─── Main API key middleware ──────────────────────────────────────────────────
-export async function requireApiKey(req: Request, res: Response, next: NextFunction) {
+export function requireApiKey(req: Request, res: Response, next: NextFunction) {
+  badKeyLimiter(req, res, (err?: unknown) => {
+    if (err) return next(err);
+    void checkApiKey(req, res, next);
+  });
+}
+
+async function checkApiKey(req: Request, res: Response, next: NextFunction) {
   req.v1StartedAt = Date.now();
 
   const auth = req.headers.authorization ?? "";

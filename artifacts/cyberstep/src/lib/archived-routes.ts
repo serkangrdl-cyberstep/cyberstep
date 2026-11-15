@@ -71,7 +71,7 @@ export const ARCHIVED_ADMIN: readonly string[] = [
   // KOBİ değerlendirme, eski satış hunisi ve iş ortaklığı (TPRM odağı, 3. tur)
   "/panel/degerlendirmeler", "/panel/sorular", "/panel/yonetim-raporlari", "/panel/growth-engine",
   "/panel/risk-raporlari", "/panel/acil-tehditler", "/panel/isr", "/panel/is-ortaklari",
-  "/panel/is-ortakligi-basvurulari",
+  "/panel/is-ortakligi-basvurulari", "/panel/lead-gen", // Lead Kuyruğu ve Kampanyaları (giden e-posta hunisi)
 ];
 
 /** Özel hedefe yönlenen arşiv sayfaları (içeriği başka bir sayfaya taşınanlar). */

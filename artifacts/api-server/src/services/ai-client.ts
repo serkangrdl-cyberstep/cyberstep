@@ -17,7 +17,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { ai as replitAi } from "@workspace/integrations-gemini-ai";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { getModel, MODEL_CONFIG, type ModelTask } from "@workspace/ai";
+import { getModel, applyModelOverride, MODEL_CONFIG, type ModelTask } from "@workspace/ai";
 import { db } from "@workspace/db";
 import { tenantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -55,7 +55,7 @@ function makeReplitGemini(model = "gemini-2.5-flash", task?: string): AiGenerate
 
 // ─── Replit-managed Claude Sonnet (ücretli plan, API key gerekmez) ────────────
 function makeReplitClaude(model?: string, task?: string): AiGenerateFn {
-  const resolvedModel = model ?? getModel("ai-client-claude");
+  const resolvedModel = applyModelOverride(model ?? getModel("ai-client-claude"));
   return async (prompt: string) => {
     const message = await anthropic.messages.create({
       model: resolvedModel,

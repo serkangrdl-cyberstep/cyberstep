@@ -8,6 +8,8 @@
  *   - TPRM raporu müşteriye hangi kaynakların ne zaman kontrol edildiğini gösterebilir.
  */
 
+import { providerUsable, type ProviderId } from "./providerPlans";
+
 export type ScanSourceKey =
   | "shodan"
   | "virustotal"
@@ -18,7 +20,8 @@ export type ScanSourceKey =
   | "http_headers"
   | "urlhaus";
 
-export type ScanSourceState = "ok" | "not_configured" | "unavailable";
+/** license_restricted = key var ama paketin lisansı ticari kullanıma izin vermiyor (COMMERCIAL_MODE). */
+export type ScanSourceState = "ok" | "not_configured" | "unavailable" | "license_restricted";
 
 export interface ScanSourceStatusEntry {
   status: ScanSourceState;
@@ -40,6 +43,15 @@ export const SCAN_SOURCE_ENV: Record<ScanSourceKey, string | null> = {
   urlhaus: null,
 };
 
+/** Lisans/paket kuralı olan kaynaklar → sağlayıcı kaydındaki karşılıkları. */
+const SOURCE_PROVIDERS: Partial<Record<ScanSourceKey, ProviderId[]>> = {
+  shodan: ["shodan"],
+  virustotal: ["virustotal"],
+  abuseipdb: ["abuseipdb"],
+  // Web Risk (ticari) varsa o, yoksa Safe Browsing (ticari olmayan) kullanılır.
+  safebrowsing: ["webrisk", "safebrowsing"],
+};
+
 export const SCAN_SOURCE_LABELS: Record<ScanSourceKey, string> = {
   shodan: "Shodan (açık port / servis)",
   virustotal: "VirusTotal (zararlı içerik)",
@@ -52,8 +64,23 @@ export const SCAN_SOURCE_LABELS: Record<ScanSourceKey, string> = {
 };
 
 export function isSourceConfigured(key: ScanSourceKey): boolean {
+  return sourceAvailability(key).usable;
+}
+
+/** Kaynak bu ortamda kullanılabilir mi; değilse neden (key yok / lisans). */
+export function sourceAvailability(key: ScanSourceKey): { usable: boolean; reason?: "not_configured" | "license_restricted" } {
+  const providers = SOURCE_PROVIDERS[key];
+  if (providers) {
+    let reason: "not_configured" | "license_restricted" = "not_configured";
+    for (const id of providers) {
+      const u = providerUsable(id);
+      if (u.usable) return { usable: true };
+      if (u.reason === "license_restricted") reason = "license_restricted";
+    }
+    return { usable: false, reason };
+  }
   const env = SCAN_SOURCE_ENV[key];
-  return env === null || !!process.env[env];
+  return env === null || !!process.env[env] ? { usable: true } : { usable: false, reason: "not_configured" };
 }
 
 /**
@@ -65,16 +92,24 @@ export function sourceEntry(
   result: unknown,
   opts: { failed?: boolean; lastUpdate?: string | null } = {},
 ): ScanSourceStatusEntry {
-  if (!isSourceConfigured(key)) return { status: "not_configured" };
+  const avail = sourceAvailability(key);
+  if (!avail.usable) return { status: avail.reason ?? "not_configured" };
   if (result === null || result === undefined || opts.failed) return { status: "unavailable" };
   return opts.lastUpdate !== undefined ? { status: "ok", lastUpdate: opts.lastUpdate } : { status: "ok" };
 }
 
 /** Key'i tanımlı olmayan tarama kaynakları (açılışta uyarı ve admin paneli için). */
-export function missingScanSourceKeys(): Array<{ key: ScanSourceKey; env: string }> {
+// Not: safebrowsing için GOOGLE_SAFE_BROWSING_API_KEY yerine WEB_RISK_API_KEY de yeterlidir.
+export function missingScanSourceKeys(): Array<{ key: ScanSourceKey; env: string; reason: "not_configured" | "license_restricted" }> {
   return (Object.keys(SCAN_SOURCE_ENV) as ScanSourceKey[])
-    .filter((k) => SCAN_SOURCE_ENV[k] !== null && !process.env[SCAN_SOURCE_ENV[k]!])
-    .map((k) => ({ key: k, env: SCAN_SOURCE_ENV[k]! }));
+    .filter((k) => SCAN_SOURCE_ENV[k] !== null)
+    .map((k) => ({ k, a: sourceAvailability(k) }))
+    .filter(({ a }) => !a.usable)
+    .map(({ k, a }) => ({
+      key: k,
+      env: k === "safebrowsing" ? "WEB_RISK_API_KEY (ya da GOOGLE_SAFE_BROWSING_API_KEY)" : SCAN_SOURCE_ENV[k]!,
+      reason: a.reason ?? "not_configured",
+    }));
 }
 
 /** Kaynak ölçüldü mü? Durum kaydı yoksa (eski taramalar) eski davranış korunur. */

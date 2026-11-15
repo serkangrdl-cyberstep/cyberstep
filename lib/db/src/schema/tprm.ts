@@ -44,6 +44,8 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   questionnaireToken: text("questionnaire_token"),
   combinedScore: integer("combined_score"),
   riskLevel: text("risk_level"),              // Düşük | Orta | Yüksek
+  // Tedarikçinin iş süreçleri için önemi: kritik | onemli | standart
+  criticality: text("criticality").notNull().default("standart"),
   // Cross-sell
   crosssellSentAt: timestamp("crosssell_sent_at"),
   // Uyarı

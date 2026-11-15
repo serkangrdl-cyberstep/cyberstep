@@ -398,6 +398,13 @@ async function getOwnedVendor(req: Request, id: number) {
 
 type VendorRow = typeof tprmVendorTable.$inferSelect;
 
+const CRITICALITY_LEVELS = ["kritik", "onemli", "standart"] as const;
+function parseCriticality(v: unknown): (typeof CRITICALITY_LEVELS)[number] {
+  return typeof v === "string" && (CRITICALITY_LEVELS as readonly string[]).includes(v)
+    ? (v as (typeof CRITICALITY_LEVELS)[number])
+    : "standart";
+}
+
 async function loadVendorSectors(domains: string[]): Promise<Map<string, string | null>> {
   const map = new Map<string, string | null>();
   if (domains.length === 0) return map;
@@ -561,6 +568,7 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
       customerEmail: email,
       supplierDomain: domain,
       supplierName: typeof supplierName === "string" && supplierName.trim() ? supplierName.trim() : null,
+      criticality: parseCriticality((req.body as { criticality?: unknown }).criticality),
     }).returning();
     let vendor = inserted!;
 
@@ -683,6 +691,26 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
 });
 
 // ─── DELETE /api/tprm/vendors/:id ─────────────────────────────────────────────
+
+// PATCH /api/tprm/vendors/:id/criticality — tedarikçi kritikliğini değiştir
+router.patch("/tprm/vendors/:id/criticality", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  if (!id) { res.status(400).json({ error: "Geçersiz id" }); return; }
+  const raw = (req.body as { criticality?: unknown })?.criticality;
+  if (typeof raw !== "string" || !(CRITICALITY_LEVELS as readonly string[]).includes(raw)) {
+    res.status(400).json({ error: "Kritiklik: kritik, onemli veya standart olmalı" });
+    return;
+  }
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    await db.update(tprmVendorTable).set({ criticality: raw }).where(eq(tprmVendorTable.id, id));
+    res.json({ ok: true, criticality: raw });
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor criticality error");
+    res.status(500).json({ error: "Güncellenemedi" });
+  }
+});
 
 router.delete("/tprm/vendors/:id", requireCustomer, async (req: Request, res: Response) => {
   const id = parseInt(req.params["id"] as string);

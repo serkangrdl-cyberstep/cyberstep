@@ -5,7 +5,7 @@
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
 COPY . .
 RUN pnpm install --frozen-lockfile
 # API sunucusu (esbuild) + iki statik ön yüz (Vite)

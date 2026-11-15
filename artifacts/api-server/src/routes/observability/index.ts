@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, pool } from "@workspace/db";
 import { observabilityIntegrationsTable, observabilityEventsTable } from "@workspace/db";
-import { requireCustomer, getCustomerId } from "../../middleware/auth";
+import { requireCustomer, requireAdmin, getCustomerId } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { encryptSecret } from "../../services/fabric-crypto";
 import {
@@ -20,7 +20,8 @@ const router = Router();
 
 // ─── Prometheus scrape endpoint ───────────────────────────────────────────────
 
-router.get("/metrics", async (_req, res) => {
+// Yalnızca yönetici: süreç ve sayaç bilgileri herkese açık olmamalı.
+router.get("/metrics", requireAdmin, async (_req, res) => {
   try {
     const metrics = await getMetrics();
     res.set("Content-Type", getContentType());

@@ -1,3 +1,4 @@
+import { isInternalHostname } from "../../lib/hostGuard";
 import { Router } from "express";
 import { scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
 import { SCORE_V2_VERSION, type ScoreV2Result } from "../../lib/scoring/scoreV2";
@@ -1588,6 +1589,10 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
   // basic domain pattern check
   if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/.test(domain)) {
     res.status(400).json({ error: "Geçersiz alan adı formatı" });
+    return;
+  }
+  if (isInternalHostname(domain)) {
+    res.status(400).json({ error: "Genel internette erişilebilir bir alan adı girin" });
     return;
   }
 

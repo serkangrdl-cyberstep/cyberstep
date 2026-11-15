@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -63,6 +64,7 @@ interface Credits {
 }
 
 export default function IocSorgu() {
+  usePageMeta({ title: "IOC Sorgulama", description: "IP, alan adı veya dosya özetini kötü amaçlı göstergelere (IOC) karşı sorgulayın." });
   const { lang } = useLanguage();
   const { toast } = useToast();
   const [inputValue, setInputValue] = useState("");

@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,6 +42,7 @@ interface SubmitResult {
 }
 
 export default function TprmAnket() {
+  usePageMeta({ title: "Tedarikçi Güvenlik Anketi", description: "Müşteriniz tarafından gönderilen tedarikçi siber güvenlik anketi.", noIndex: true });
   const { lang } = useLanguage();
   const [, params] = useRoute("/tprm/anket/:token");
   const token = params?.token ?? "";

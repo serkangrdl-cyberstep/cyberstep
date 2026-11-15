@@ -2,7 +2,7 @@ import { pool } from "@workspace/db";
 import { sendMail } from "./email";
 import { logger } from "../lib/logger";
 
-const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
+const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.io";
 
 async function ensureInvoicesTable(): Promise<void> {
   await pool.query(`

@@ -182,19 +182,19 @@ export default function AdminSettings() {
                   </CardTitle>
                   <p className="text-slate-400 text-sm mt-1">
                     Platforma ait her bildirim türü için ayrı gönderen adresi tanımlayın.
-                    Boş bırakılan alanlar varsayılan adresi (<span className="font-mono text-slate-300">info@cyberstep.com</span>) kullanır.
+                    Boş bırakılan alanlar varsayılan adresi (<span className="font-mono text-slate-300">info@cyberstep.io</span>) kullanır.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {[
-                    { key: "email.from.default",       label: "Varsayılan Gönderen",          placeholder: "info@cyberstep.com",        desc: "Tüm e-postalar için temel gönderen adres" },
-                    { key: "email.from.notifications",  label: "Admin Bildirimleri",            placeholder: "info@cyberstep.com",        desc: "Yeni değerlendirme, uyarı ve sistem bildirimleri" },
-                    { key: "email.from.reports",        label: "Müşteri Raporları",             placeholder: "raporlar@cyberstep.com",    desc: "Risk analizi raporu ve değerlendirme sonuçları" },
-                    { key: "email.from.soc",            label: "SOC Uyarıları",                 placeholder: "soc@cyberstep.com",         desc: "SOC triage, SLA aşımı ve kritik uyarılar" },
-                    { key: "email.from.invoices",       label: "Fatura & Abonelik",             placeholder: "fatura@cyberstep.com",      desc: "Ödeme onayı, fatura ve abonelik bildirimleri" },
-                    { key: "email.from.renewal",        label: "Yenileme Hatırlatıcıları",      placeholder: "yenileme@cyberstep.com",    desc: "Sertifika ve abonelik yenileme hatırlatmaları" },
-                    { key: "email.from.boardreport",    label: "Yönetim Raporu",                placeholder: "yonetim@cyberstep.com",     desc: "Aylık yönetim kurulu raporu gönderimi" },
-                    { key: "email.from.onboarding",     label: "Onboarding E-postaları",        placeholder: "hosgeldiniz@cyberstep.com", desc: "Yeni müşteri karşılama ve kurulum adımları" },
+                    { key: "email.from.default",       label: "Varsayılan Gönderen",          placeholder: "info@cyberstep.io",        desc: "Tüm e-postalar için temel gönderen adres" },
+                    { key: "email.from.notifications",  label: "Admin Bildirimleri",            placeholder: "info@cyberstep.io",        desc: "Yeni değerlendirme, uyarı ve sistem bildirimleri" },
+                    { key: "email.from.reports",        label: "Müşteri Raporları",             placeholder: "raporlar@cyberstep.io",    desc: "Risk analizi raporu ve değerlendirme sonuçları" },
+                    { key: "email.from.soc",            label: "SOC Uyarıları",                 placeholder: "soc@cyberstep.io",         desc: "SOC triage, SLA aşımı ve kritik uyarılar" },
+                    { key: "email.from.invoices",       label: "Fatura & Abonelik",             placeholder: "fatura@cyberstep.io",      desc: "Ödeme onayı, fatura ve abonelik bildirimleri" },
+                    { key: "email.from.renewal",        label: "Yenileme Hatırlatıcıları",      placeholder: "yenileme@cyberstep.io",    desc: "Sertifika ve abonelik yenileme hatırlatmaları" },
+                    { key: "email.from.boardreport",    label: "Yönetim Raporu",                placeholder: "yonetim@cyberstep.io",     desc: "Aylık yönetim kurulu raporu gönderimi" },
+                    { key: "email.from.onboarding",     label: "Onboarding E-postaları",        placeholder: "hosgeldiniz@cyberstep.io", desc: "Yeni müşteri karşılama ve kurulum adımları" },
                   ].map(({ key, label, placeholder, desc }) => (
                     <div key={key} className="space-y-1.5">
                       <Label className="text-slate-300 flex items-center gap-2">
@@ -229,7 +229,7 @@ export default function AdminSettings() {
                       { label: "SMTP Sunucusu", value: "smtp.gmail.com:587 (STARTTLS)" },
                       { label: "SMTP_USER", value: "Ortam değişkeninde tanımlı" },
                       { label: "SMTP_PASS", value: "Secret olarak saklanıyor" },
-                      { label: "ADMIN_EMAIL", value: "Ortam değişkeninden okunur (varsayılan: info@cyberstep.com)" },
+                      { label: "ADMIN_EMAIL", value: "Ortam değişkeninden okunur (varsayılan: info@cyberstep.io)" },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg border border-slate-700">
                         <span className="text-slate-400 text-sm">{label}</span>

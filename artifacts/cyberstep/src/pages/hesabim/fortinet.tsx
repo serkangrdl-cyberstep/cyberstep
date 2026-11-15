@@ -319,7 +319,7 @@ function Wizard(props: {
             <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 text-slate-300 text-xs space-y-2">
               <p className="font-medium text-slate-200">FortiGate kısa kurulum:</p>
               <p>Log &amp; Report &gt; Log Settings &gt; bir HTTPS/webhook hedefi ekleyin ve yukarıdaki adresi girin. Format olarak JSON, CEF veya FortiLog (key=value) desteklenir.</p>
-              <p className="text-amber-300/80">Not: Replit IP adresleri sabit değildir; FortiManager kullanacaksanız "Trusted Hosts" ayarını buna göre yapın.</p>
+              <p className="text-amber-300/80">Not: Sunucu IP adresleri sabit değildir; FortiManager kullanacaksanız "Trusted Hosts" ayarını buna göre yapın.</p>
             </div>
             <div className="flex justify-between pt-2">
               <Button variant="ghost" className="text-slate-400" onClick={() => onSetup({ setupStep: 1 })}>Geri</Button>
@@ -414,7 +414,7 @@ function FortiManagerStep(props: { integration: Integration; onBack: () => void;
             </div>
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-amber-200 text-xs flex gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              Parolanız AES-256 ile şifrelenerek saklanır. Replit egress IP'leri sabit olmadığından FortiManager Trusted Hosts ayarını geniş tutmanız gerekebilir.
+              Parolanız AES-256 ile şifrelenerek saklanır. Sunucu çıkış IP'leri sabit olmadığından FortiManager Trusted Hosts ayarını geniş tutmanız gerekebilir.
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" className="border-slate-700" onClick={() => save.mutate()} disabled={save.isPending || !form.fmUrl || !form.fmUsername || !form.fmPassword}>

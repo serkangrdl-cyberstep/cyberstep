@@ -20,28 +20,28 @@ const ARCH_LAYERS = [
     title: "Uygulama Katmanı",
     items: [
       "Node.js 24 · Express 5 — minimum yüzey, minimal bağımlılık",
-      "Tüm giriş Zod şeması ile doğrulanır, ham kullanıcı verisi asla DB'ye ulaşmaz",
-      "Oturum token'ları httpOnly cookie — XSS erişimi imkansız",
+      "Girişler sunucu tarafında doğrulanır; sorgular parametreli çalışır",
+      "Oturum çerezleri httpOnly, Secure ve SameSite=Strict",
       "Rate limiting: endpoint bazlı, IP bazlı ve API key bazlı",
-      "Structured JSON logging — hassas veri asla log'a yazılmaz",
+      "Yapılandırılmış JSON log; hassas veri loglanmaz",
     ],
   },
   {
     icon: Database,
     title: "Veri Katmanı",
     items: [
-      "PostgreSQL — Replit managed, colocated (Türkiye yakın bölge)",
-      "Drizzle ORM — parametreli sorgular, SQL injection imkansız",
-      "Şifreler asla saklanmaz (Clerk / Replit Auth — federated)",
+      "PostgreSQL — Railway yönetimli, Amsterdam (AB) bölgesi",
+      "Drizzle ORM ve parametreli sorgular; SQL enjeksiyonuna karşı düzenli kod taraması",
+      "Parolalar yalnızca bcrypt ile hashlenerek saklanır; düz metin parola tutulmaz",
       "Kişisel veri minimizasyonu — sadece gerekli alanlar toplanır",
-      "Backup: otomatik günlük, 7 günlük retention",
+      "Yedekleme: otomatik günlük ve haftalık veritabanı yedeği",
     ],
   },
   {
     icon: Cpu,
     title: "AI İşleme Katmanı",
     items: [
-      "Gemini 2.5 Flash — Replit AI Integrations proxy üzerinden",
+      "Anthropic Claude ve Google Gemini — doğrudan kendi API anahtarlarımızla",
       "Kullanıcı verisi AI sağlayıcısına gönderilmez; yalnızca anonim teknik bulgular",
       "AI çıktıları DB'de saklanır, kullanıcıya atfedilir",
     ],
@@ -51,7 +51,7 @@ const ARCH_LAYERS = [
     title: "Ağ ve Altyapı",
     items: [
       "Tüm servisler özel ağ üzerinde iletişim kurar (public port açığı yok)",
-      "Bağımlılık denetimi: npm audit entegrasyonu",
+      "Bağımlılıklar düzenli olarak güvenlik taramasından geçirilir",
       "Secrets management: environment variable (hardcoded sır yok)",
     ],
   },
@@ -72,9 +72,9 @@ const DATA_POLICIES = [
     category: "Veri Aktarımı",
     icon: RefreshCw,
     policies: [
-      { label: "Üçüncü taraf aktarım", detail: "Gemini AI: anonim teknik bulgular; HIBP, VirusTotal, Shodan: domain adı sorgusu" },
+      { label: "Üçüncü taraf aktarım", detail: "Claude / Gemini: anonim teknik bulgular; HIBP, VirusTotal, Shodan: domain adı sorgusu" },
       { label: "Yurt dışı aktarım", detail: "KVKK Madde 9 kapsamında açık rıza + teknik kontrol" },
-      { label: "Alt işleyenler", detail: "Replit (altyapı), Clerk (kimlik), Google (AI) — GDPR/KVKK uyumlu" },
+      { label: "Alt işleyenler", detail: "Railway (altyapı), Anthropic ve Google (AI), Cloudflare (DNS) — GDPR/KVKK uyumlu" },
       { label: "Satış veya devir", detail: "Müşteri verisi asla üçüncü tarafa satılmaz" },
     ],
   },
@@ -91,17 +91,18 @@ const DATA_POLICIES = [
 ];
 
 const ENCRYPTION = [
-  { label: "Aktarımda şifreleme", val: "TLS 1.3", detail: "Tüm istemci-sunucu iletişimi" },
+  { label: "Aktarımda şifreleme", val: "TLS", detail: "Tüm istemci-sunucu iletişimi" },
   { label: "Bekleyen veri", val: "AES-256", detail: "Veritabanı disk şifreleme (managed DB)" },
-  { label: "Oturum token'ları", val: "httpOnly Secure", detail: "XSS ile erişilemez" },
+  { label: "Oturum çerezleri", val: "httpOnly Secure", detail: "JavaScript ile okunamaz" },
   { label: "API anahtarları", val: "csk_ prefix · 48 hex", detail: "Kriptografik güçlü rastgelelik" },
-  { label: "Parola", val: "Saklanmaz", detail: "Clerk federated auth — parola CyberStep'e hiç gelmez" },
+  { label: "Parola", val: "bcrypt hash", detail: "Düz metin parola saklanmaz" },
 ];
 
 const SUBPROCESSORS = [
-  { name: "Replit Inc.", role: "Altyapı / Barındırma", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },
-  { name: "Clerk Inc.", role: "Kimlik Doğrulama", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },
+  { name: "Railway Corp.", role: "Altyapı / Barındırma (Amsterdam bölgesi)", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },
+  { name: "Anthropic PBC", role: "Claude AI İşleme", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },
   { name: "Google LLC", role: "Gemini AI İşleme", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },
+  { name: "Cloudflare Inc.", role: "DNS", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },
   { name: "Have I Been Pwned", role: "İhlal Veritabanı", country: "Avustralya", dpa: "Kamuya açık API", gdpr: false },
   { name: "Shodan LLC", role: "Port / Servis Tarama", country: "ABD", dpa: "Ticari sözleşme", gdpr: false },
   { name: "VirusTotal (Google)", role: "Domain İtibar", country: "ABD", dpa: "GDPR DPA mevcut", gdpr: true },

@@ -2,7 +2,7 @@ import { pool } from "@workspace/db";
 import { sendMail } from "./email";
 import { logger } from "../lib/logger";
 
-const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
+const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.io";
 const TELEGRAM_TOKEN = process.env["ADMIN_TELEGRAM_BOT_TOKEN"];
 const TELEGRAM_CHAT  = process.env["ADMIN_TELEGRAM_CHAT_ID"];
 

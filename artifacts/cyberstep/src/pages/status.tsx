@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, AlertTriangle, AlertOctagon, XCircle, Clock } from "lucide-react";
 
@@ -55,6 +56,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function StatusPage() {
+  usePageMeta({ title: "Sistem Durumu", description: "CyberStep servislerinin anlık durumu." });
   const { data, isLoading } = useQuery<StatusData>({
     queryKey: ["public-status"],
     queryFn: () => fetch("/api/public/status").then(r => r.json()),

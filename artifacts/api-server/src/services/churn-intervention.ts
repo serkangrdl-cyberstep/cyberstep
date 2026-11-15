@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { sendMail } from "./email";
 import { logger } from "../lib/logger";
 
-const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.com";
+const ADMIN_EMAIL = process.env["ADMIN_EMAIL"] ?? "info@cyberstep.io";
 const CHURN_THRESHOLD = 40;
 
 function getBaseUrl(): string {

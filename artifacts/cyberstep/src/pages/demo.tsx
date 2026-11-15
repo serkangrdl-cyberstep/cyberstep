@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, Download, FileText, Lock, CheckCircle, Mail, Building2, User, AlertCircle, Loader2 } from "lucide-react";
@@ -103,6 +104,7 @@ interface DownloadState {
 }
 
 export default function DemoPage() {
+  usePageMeta({ title: "Demo Rapor", description: "CyberStep tedarikçi risk raporu örneğini indirin." });
   const { lang } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState<LeadForm>({ name: "", email: "", company: "" });

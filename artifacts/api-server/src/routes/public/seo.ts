@@ -43,8 +43,6 @@ router.get("/sitemap.xml", async (_req, res) => {
       { url: "/tedarikci-onboarding",      priority: "0.7", changefreq: "monthly" },
       { url: "/metodoloji",                priority: "0.7", changefreq: "monthly" },
       // Çözümler
-      { url: "/dora-bddk-uyum",            priority: "0.8", changefreq: "monthly" },
-      { url: "/siber-sigorta",             priority: "0.8", changefreq: "monthly" },
       { url: "/kurumsal",                  priority: "0.7", changefreq: "monthly" },
       { url: "/fiyatlar",                  priority: "0.8", changefreq: "monthly" },
       // Ücretsiz araçlar ve değerlendirme
@@ -54,11 +52,6 @@ router.get("/sitemap.xml", async (_req, res) => {
       { url: "/araclar/domain-guvenlik-taramasi", priority: "0.8", changefreq: "monthly" },
       { url: "/araclar/ssl-kontrol",              priority: "0.7", changefreq: "monthly" },
       { url: "/araclar/dmarc-kontrol",            priority: "0.7", changefreq: "monthly" },
-      { url: "/araclar/kvkk-ceza-hesaplayici",    priority: "0.7", changefreq: "monthly" },
-      { url: "/araclar/dark-web-sorgulama",       priority: "0.7", changefreq: "monthly" },
-      { url: "/araclar/siber-risk-roi",           priority: "0.6", changefreq: "monthly" },
-      { url: "/kvkk-ceza-sim",             priority: "0.6", changefreq: "monthly" },
-      { url: "/sektorel-kiyaslama",        priority: "0.6", changefreq: "monthly" },
       // Kurumsal ve içerik
       { url: "/hakkimizda",                priority: "0.6", changefreq: "monthly" },
       { url: "/iletisim",                  priority: "0.5", changefreq: "yearly"  },

@@ -130,32 +130,27 @@ const TIERS = [
     name: "Freemium",
     price: "0 TL",
     unit: "/ ay",
-    quota: "Günlük 10 çağrı",
+    quota: "Günlük 10, aylık 300 çağrı",
     features: [
       "GET /v1/score/{domain} endpoint'i",
       "JSON yanıt · HTTPS",
-      "Sandbox test ortamı",
       "E-posta destek",
     ],
-    notIncluded: ["/full, /certificate, /benchmark", "Webhook desteği", "SLA garantisi"],
+    notIncluded: ["/full, /certificate, /benchmark", "Webhook desteği"],
     cta: "Ücretsiz Başla",
     highlight: false,
   },
   {
     name: "Standart",
-    price: "490 TL",
-    unit: "/ ay",
+    price: "Görüşme",
+    unit: "",
     quota: "Aylık 1.000 çağrı",
     badge: "En Popüler",
     features: [
       "Tüm 5 endpoint",
       "Webhook desteği",
       "Domain başına saatlik rate limit",
-      "Aylık kullanım raporu",
-      "SLA %99.9",
-      "Telefon destek",
     ],
-    extra: "1.000 ek çağrı = 150 TL",
     notIncluded: [],
     cta: "Standart Başla",
     highlight: true,
@@ -167,11 +162,7 @@ const TIERS = [
     quota: "Sınırsız çağrı",
     features: [
       "Tüm Standart özellikler",
-      "Özel SLA · %99.99",
-      "White-label seçeneği",
-      "Özel endpoint geliştirme",
-      "Tehdit istihbaratı feed (opsiyonel)",
-      "Dedicated müşteri temsilcisi",
+      "Özel sözleşme ve SLA (teklifte belirlenir)",
     ],
     notIncluded: [],
     cta: "Teklif Al",
@@ -180,8 +171,8 @@ const TIERS = [
 ];
 
 const USE_CASES = [
-  { icon: ShoppingCart, title: "E-Ticaret / Pazaryeri", example: "Trendyol, HepsiBurada", desc: "Satıcı güvenlik skoru profilde gösterilir." },
-  { icon: Users, title: "İK Platformu", example: "LinkedIn, Kariyer.net", desc: "Kurumsal işveren değerlendirmesinde kullanılır." },
+  { icon: ShoppingCart, title: "E-Ticaret / Pazaryeri", example: "Satıcı onboarding sistemleri", desc: "Satıcı güvenlik skoru profilde gösterilir." },
+  { icon: Users, title: "İK Platformu", example: "İşe alım platformları", desc: "Kurumsal işveren değerlendirmesinde kullanılır." },
   { icon: Building2, title: "Bankacılık / Fintech", example: "KOBİ kredi platformları", desc: "Kredi başvurusunda otomatik risk değerlendirmesi." },
   { icon: Truck, title: "Lojistik / Tedarik", example: "Tedarik yönetim yazılımları", desc: "Tedarikçi ekleme onayında kullanılır." },
   { icon: Shield, title: "Siber Güvenlik Yazılımı", example: "SIEM, GRC platformları", desc: "Türkiye domain skoru mevcut platforma eklenir." },
@@ -190,7 +181,6 @@ const USE_CASES = [
 
 const ABUSE_CONTROLS = [
   { icon: Key, title: "Domain başına rate limit", desc: "Aynı domain için saatte 1 sorgu. Toplu rakip taraması engellenir." },
-  { icon: BarChart3, title: "Anomali uyarısı", desc: "Bir API key'den 100+ farklı domain sorgulandığında admin panelinde uyarı." },
   { icon: AlertTriangle, title: "ToS kısıtlaması", desc: "Rakip istihbaratı ve toplu veri toplama kullanım şartlarına aykırı." },
 ];
 
@@ -217,7 +207,7 @@ export default function SkorApi() {
   const { lang } = useLanguage();
   usePageMeta({
     title: "Skor API v1 | CyberStep.io",
-    description: "CyberStep domain güvenlik skoru API'si. 5 endpoint, 3 katman fiyatlandırma, webhook desteği. Freemium günlük 10 çağrı ücretsiz.",
+    description: "CyberStep domain güvenlik skoru API'si. Tedarikçi skorunu kendi sistemlerinize aktarın. Freemium günlük 10 çağrı ücretsiz; tüm endpoint'ler ve webhook Kurumsal pakette.",
   });
 
   const { toast } = useToast();
@@ -265,9 +255,8 @@ export default function SkorApi() {
                 Freemium'dan Kurumsal'a sıfır entegrasyon maliyetiyle başlayın.
               </p>
               <div className="flex items-center gap-4 text-sm text-white/60 mb-8">
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />&lt;200ms yanıt</span>
                 <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />REST · JSON</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />%99.9 SLA</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-400" />HTTPS</span>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button asChild size="lg" className="bg-primary hover:bg-primary/90 font-semibold px-8">
@@ -302,8 +291,8 @@ curl -H "Authorization: Bearer csk_your_key" \\
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             {[
               { val: "5", label: "Endpoint" },
-              { val: "< 200ms", label: "P99 Yanıt Süresi" },
-              { val: "%99.9", label: "SLA (Standart+)" },
+              { val: "JSON", label: "Yanıt Biçimi" },
+              { val: "HTTPS", label: "Taşıma" },
               { val: "/v1/", label: "Versiyonlu API" },
             ].map(s => (
               <div key={s.label} className="rounded-xl border border-border/50 p-4 bg-card/50">
@@ -379,7 +368,6 @@ curl -H "Authorization: Bearer csk_your_key" \\
                     {t.unit && <span className="text-sm text-muted-foreground mb-1">{t.unit}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">{t.quota}</p>
-                  {t.extra && <p className="text-xs text-orange-500 mt-1">{t.extra}</p>}
                 </div>
                 <div className="flex-1 space-y-2">
                   {t.features.map(f => (
@@ -566,7 +554,7 @@ X-CyberStep-Scan-Id: scan_1748599200_x7k2m1
               {sending ? "Gonderiliyor..." : "API Erişimi Talep Et"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-            <p className="text-center text-xs text-muted-foreground">Freemium plan için kredi kartı gerekmez. Standart plan 14 gün ücretsiz.</p>
+            <p className="text-center text-xs text-muted-foreground">Freemium plan için kredi kartı gerekmez.</p>
           </form>
         </div>
       </section>

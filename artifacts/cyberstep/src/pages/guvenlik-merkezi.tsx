@@ -387,7 +387,7 @@ export default function GuvenlikMerkezi() {
               </div>
               <div className="flex flex-col gap-2 shrink-0">
                 <Button asChild size="sm" className="bg-primary hover:bg-primary/90 font-semibold">
-                  <Link href="/kvkk-dpa-olustur">DPA Talep Et <ArrowRight className="h-3.5 w-3.5 ml-1.5" /></Link>
+                  <Link href="/iletisim?konu=DPA talebi">DPA Talep Et <ArrowRight className="h-3.5 w-3.5 ml-1.5" /></Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
                   <a href="mailto:kvkk@cyberstep.io">kvkk@cyberstep.io</a>

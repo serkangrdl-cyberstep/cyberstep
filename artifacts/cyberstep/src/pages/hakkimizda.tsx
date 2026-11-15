@@ -205,9 +205,6 @@ export default function Hakkimizda() {
             <Link href="/iletisim?konu=Demo talebi" className="inline-flex items-center justify-center rounded-md font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6">
               {tx("Demo talep et", "Request a demo")} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
-            <Link href="/is-ortakligi" className="inline-flex items-center justify-center rounded-md font-medium border border-white/20 text-white hover:bg-white/10 h-12 px-6">
-              {tx("İş ortaklığı", "Partner program")}
-            </Link>
           </div>
         </div>
       </section>

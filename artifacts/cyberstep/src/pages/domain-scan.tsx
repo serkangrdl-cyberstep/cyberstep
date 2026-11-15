@@ -2102,19 +2102,6 @@ export default function DomainScanPage() {
     return () => clearInterval(interval);
   }, [attackTeaserStatus, result?.id]);
 
-  const handleBuyDomainScan = useCallback(async () => {
-    if (!result?.id || !result?.domain) return;
-    try {
-      const res = await fetch("/api/domain-scan/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email || result.email, domain: result.domain, scanId: result.id }),
-      });
-      const data = await res.json() as { id?: number };
-      window.location.href = `/fiyatlar?from=domain-scan&ref=${data.id ?? ""}&email=${encodeURIComponent(email || "")}`;
-    } catch { /* silent */ }
-  }, [result, email]);
-
   return (
     <div className="container mx-auto px-4 py-10 max-w-3xl">
       {/* Header */}
@@ -2898,24 +2885,10 @@ export default function DomainScanPage() {
                 ))}
               </div>
 
-              {/* Upsell CTA — 2 seçenek */}
+              {/* TPRM CTA */}
               <div className="bg-gradient-to-b from-transparent via-primary/5 to-primary/10 px-5 py-5 border-t border-primary/20">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tüm detaylara erişmek için</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Ücretli tek tarama */}
-                  <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 flex flex-col gap-2">
-                    <div>
-                      <p className="font-bold text-sm text-primary">Ücretli Alan Adı Taraması</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Bu domain için tek seferlik tam rapor. Değerlendirme gerekmez.</p>
-                    </div>
-                    <p className="text-xl font-black text-foreground">990 TL <span className="text-xs font-normal text-muted-foreground">+ KDV</span></p>
-                    <button
-                      onClick={handleBuyDomainScan}
-                      className="w-full inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity"
-                    >
-                      Hemen Satın Al <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Sonraki adım</p>
+                <div className="grid grid-cols-1 gap-3">
                   {/* Tedarikçi izleme */}
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-2">
                     <div>
@@ -3163,61 +3136,6 @@ export default function DomainScanPage() {
             </div>
           )}
           {/* ── END CT Log Sertifika Olayları ─────────────────────────────── */}
-
-          {/* Sonraki Adım — Kayıtlı kullanıcılar için hizmet upsell bloğu */}
-          {sessionCustomer && result && (
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
-              <div className="bg-slate-50 dark:bg-slate-800/60 px-5 py-3 border-b border-slate-200 dark:border-slate-700">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bu Bulgular Ne Anlama Geliyor?</p>
-              </div>
-              <div className="px-5 py-4">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Raporunuzdaki{" "}
-                  <span className="font-semibold text-foreground">
-                    {(() => {
-                      const mxAbsent = !result.mxPass && result.mxRecords.length === 0;
-                      return result.cveSummary.filter(c => (c.adjustedCvssScore ?? c.cvssScore) >= 7).length +
-                        (!mxAbsent && !result.spfPass ? 1 : 0) +
-                        (!mxAbsent && !result.dmarcPass ? 1 : 0) +
-                        (result.hibpBreachCount > 0 ? 1 : 0) +
-                        (result.blacklisted ? 1 : 0);
-                    })()} bulgu
-                  </span>
-                  {", "}
-                  <span className="font-mono text-sm">{result.domain}</span> için doğrudan aksiyon gerektiren güvenlik açıklarını gösteriyor. CyberStep, bu bulguları kapatmanıza yardımcı olacak somut adımlar sunan hizmetler sağlıyor:
-                </p>
-                <div className="space-y-2 mb-4">
-                  <a
-                    href="/fiyatlandirma"
-                    className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">AI Saldırı Yüzeyi Analizi</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Bulgularınızın detaylı MITRE ATT&amp;CK senaryoları ve önceliklendirilmiş aksiyon planı</p>
-                    </div>
-                    <span className="text-xs font-bold text-primary shrink-0 mt-0.5 whitespace-nowrap">4.990 TL</span>
-                  </a>
-                  <a
-                    href="/fiyatlandirma"
-                    className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">Sürekli İzleme</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Bu bulguların durumunu aylık takip edin, yeni riskler ortaya çıktığında haberdar olun</p>
-                    </div>
-                    <span className="text-xs font-bold text-primary shrink-0 mt-0.5 whitespace-nowrap">490 TL/ay</span>
-                  </a>
-                </div>
-                <a
-                  href="/fiyatlandirma"
-                  className="w-full inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground font-medium px-4 py-2.5 rounded-lg text-sm hover:opacity-90 transition-opacity"
-                >
-                  Ücretli Hizmetleri İncele
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </a>
-              </div>
-            </div>
-          )}
 
           {/* TPRM köprüsü */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">

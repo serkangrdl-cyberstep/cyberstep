@@ -147,6 +147,10 @@ export default function Home() {
 
   const faqs = [
     {
+      q: tx("Hangi tedarikçileri portföye eklemeliyim?", "Which suppliers should I add to my portfolio?"),
+      a: tx("Bir siber olay yaşadıklarında sizi etkileyecek olanları: API ile veri aldığınız veya verdiğiniz firmalar, üretiminiz için parça ya da hizmet aldığınız yan sanayi, iş sürecinizi taşıyan bulut ve yazılım hizmetleri, verilerinizi işleyen veya sistemlerinize erişimi olan firmalar. Birkaç kez alım yaptığınız, olası bir siber olayın operasyonunuzu etkilemeyeceği firmaları eklemeyin.", "Those who would affect you if they suffered a cyber incident: firms you exchange data with through APIs, sub-suppliers providing parts or services for your production, cloud and software services running your business process, and firms that process your data or have access to your systems. Leave out firms you have bought from a few times whose incident would not affect your operations."),
+    },
+    {
       q: tx("Tedarikçilerin bir şey kurması veya onay vermesi gerekiyor mu?", "Do suppliers need to install anything or give consent?"),
       a: tx("Hayır. Skor yalnızca herkese açık bilgilerden (DNS kayıtları, sertifikalar, internete açık servisler, itibar listeleri) hesaplanır. Tedarikçinin sistemlerine erişilmez veya saldırı testi yapılmaz.", "No. The score is built only from public information (DNS records, certificates, internet-facing services, reputation lists). We never access supplier systems or run intrusive tests."),
     },
@@ -309,6 +313,51 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground mt-1.5">{c.d}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Tedarikçi tanımı */}
+      <section className="py-16 bg-muted/30 border-y" id="tedarikci-tanimi">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold">{tx("Hangi tedarikçiler kapsamda?", "Which suppliers are in scope?")}</h2>
+            <p className="text-muted-foreground mt-2 max-w-3xl mx-auto">
+              {tx("CyberStep'te tedarikçi, bir siber olay yaşadığında sizin operasyonunuzu, verilerinizi veya müşterilerinizi etkileyebilecek iş ortağıdır. Ölçüt alım hacmi ya da sıklığı değil, bağımlılık ve etkidir.",
+                  "In CyberStep, a supplier is a business partner whose cyber incident could affect your operations, your data or your customers. The test is dependency and impact, not purchase volume or frequency.")}
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {[
+              { icon: Network, t: tx("Veri ve API sağlayıcıları", "Data and API providers"), d: tx("Sistemlerinize API ile veri akıtan ya da sizden veri alan firmalar. Onların kesintisi veya ele geçirilmesi doğrudan size yansır.", "Firms that feed data into your systems through an API, or receive data from you. Their outage or compromise reaches you directly.") },
+              { icon: Building2, t: tx("Üretim ve yan sanayi", "Production and sub-suppliers"), d: tx("Üretiminiz için parça, hammadde veya hizmet aldığınız firmalar. Siber saldırıyla durdukları gün sizin hattınız da durabilir.", "Firms supplying parts, materials or services for your production. The day a cyberattack stops them, your line can stop too.") },
+              { icon: Globe2, t: tx("Bulut ve yazılım hizmetleri", "Cloud and software services"), d: tx("ERP, CRM, barındırma, ödeme veya e-posta gibi iş sürecinizi taşıyan hizmetler.", "Services that carry your business process, such as ERP, CRM, hosting, payments or e-mail.") },
+              { icon: Lock, t: tx("Veri işleyenler ve erişimi olanlar", "Data processors and firms with access"), d: tx("Müşteri veya çalışan verisini sizin adınıza işleyen, ya da entegratör ve uzaktan bakım gibi sistemlerinize erişimi olan firmalar.", "Firms that process customer or employee data on your behalf, or that have access to your systems, such as integrators and remote maintenance.") },
+            ].map((c) => (
+              <div key={c.t} className="rounded-xl border p-5 bg-card flex gap-4">
+                <c.icon className="h-8 w-8 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">{c.t}</p>
+                  <p className="text-sm text-muted-foreground mt-1.5">{c.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 grid md:grid-cols-2 gap-4">
+            <div className="rounded-xl border-2 border-primary/40 p-5 bg-card">
+              <p className="font-semibold">{tx("Tek soru yeterli", "One question is enough")}</p>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                {tx("Bu firma bir siber olay yaşarsa işim, verim veya müşterilerim etkilenir mi? Cevap evetse tedarikçiniz kapsamdadır.",
+                    "If this firm suffers a cyber incident, would my business, my data or my customers be affected? If yes, it is in scope.")}
+              </p>
+            </div>
+            <div className="rounded-xl border p-5 bg-card">
+              <p className="font-semibold">{tx("Kapsam dışı", "Out of scope")}</p>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                {tx("Birkaç kez alım yaptığınız, bir siber olayın operasyonunuzu etkilemeyeceği firmalar. Bunları portföye eklemeyin; skorları anlamlı bir karar üretmez ve paket kotanızı harcar. Önce kritik tedarikçilerle başlayın.",
+                    "Firms you have bought from a few times, whose cyber incident would not affect your operations. Leave them out: their scores drive no real decision and use up your plan quota. Start with your critical suppliers.")}
+              </p>
+            </div>
           </div>
         </div>
       </section>

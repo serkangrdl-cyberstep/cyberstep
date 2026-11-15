@@ -16,6 +16,8 @@ interface Plan {
   name: { tr: string; en: string };
   /** Yıllık fiyat (TL, KDV hariç). null = teklif. 0 = ücretsiz. */
   yearlyTry: number | null;
+  /** true = fiyat "başlayan" fiyattır (tedarikçi sayısına göre artar). */
+  fromPrice?: boolean;
   suppliers: { tr: string; en: string };
   audience: { tr: string; en: string };
   features: Array<{ tr: string; en: string }>;
@@ -40,7 +42,7 @@ export const PLANS: Plan[] = [
   {
     id: "baslangic",
     name: { tr: "Başlangıç", en: "Starter" },
-    yearlyTry: 36000,
+    yearlyTry: 59000,
     suppliers: { tr: "25 tedarikçi", en: "25 suppliers" },
     audience: { tr: "KOBİ ve orta ölçekli şirketler", en: "SMEs and mid-market" },
     features: [
@@ -55,7 +57,7 @@ export const PLANS: Plan[] = [
   {
     id: "profesyonel",
     name: { tr: "Profesyonel", en: "Professional" },
-    yearlyTry: 96000,
+    yearlyTry: 149000,
     suppliers: { tr: "100 tedarikçi", en: "100 suppliers" },
     audience: { tr: "Kurumsal satın alma ve uyum ekipleri", en: "Procurement and compliance teams" },
     features: [
@@ -70,7 +72,8 @@ export const PLANS: Plan[] = [
   {
     id: "kurumsal",
     name: { tr: "Kurumsal", en: "Enterprise" },
-    yearlyTry: null,
+    yearlyTry: 600000,
+    fromPrice: true,
     suppliers: { tr: "500+ tedarikçi", en: "500+ suppliers" },
     audience: { tr: "Bankalar, holdingler, kamu", en: "Banks, holdings, public sector" },
     features: [
@@ -133,6 +136,9 @@ export default function Pricing() {
                     <p className="text-2xl font-bold">{en ? "Free" : "Ücretsiz"}</p>
                   ) : (
                     <>
+                      {p.fromPrice && (
+                        <p className="text-xs text-muted-foreground">{en ? "Starting from" : "Başlayan fiyatlarla"}</p>
+                      )}
                       <p className="text-2xl font-bold">
                         {fmt(p.yearlyTry)} TL <span className="text-sm font-normal text-muted-foreground">/ {en ? "year" : "yıl"}</span>
                       </p>

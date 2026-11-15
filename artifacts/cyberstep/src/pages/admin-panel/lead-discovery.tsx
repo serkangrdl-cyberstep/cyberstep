@@ -1,3 +1,4 @@
+import { readSheetRows } from "@/lib/read-sheet";
 import { useState, useRef } from "react";
 import { ChevronDown, ChevronUp, Download, AlertTriangle, ShieldAlert, RefreshCw, Search, X, Loader2, CheckCircle2, Clock, XCircle, Upload } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -1512,12 +1513,8 @@ export default function AdminLeadDiscovery() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const XLSX = await import("xlsx");
-        const wb = XLSX.read(evt.target?.result, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-
         // Sütun başlıklarıyla oku (ilk satır header)
-        const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+        const rawRows = await readSheetRows(file);
 
         // Esnek başlık eşleştirmesi — büyük/küçük harf + Türkçe karakter toleranslı
         const normalize = (s: string) =>
@@ -1614,8 +1611,7 @@ export default function AdminLeadDiscovery() {
           }
         } else {
           // Fallback: header yoksa veya domain sütunu eşleşmediyse — ilk URL'yi al (eski davranış)
-          const fallbackRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { header: "A", defval: "" });
-          for (const row of fallbackRows) {
+          for (const row of rawRows) {
             for (const val of Object.values(row)) {
               const v = String(val ?? "").trim();
               if (!v || v.length < 4) continue;
@@ -1630,8 +1626,8 @@ export default function AdminLeadDiscovery() {
 
         setExcelParsed(results);
         if (results.length === 0) toast({ description: "Hiç domain algılanamadı. URL içeren bir sütun olmalı.", variant: "destructive" });
-      } catch {
-        toast({ description: "Dosya okunamadı.", variant: "destructive" });
+      } catch (err) {
+        toast({ description: err instanceof Error && err.message ? err.message : "Dosya okunamadı.", variant: "destructive" });
       }
     };
     reader.readAsArrayBuffer(file);
@@ -4497,11 +4493,7 @@ export default function AdminLeadDiscovery() {
                     setBistRetagLoading(true);
                     setBistRetagResult(null);
                     try {
-                      const XLSX = await import("xlsx");
-                      const buf = await file.arrayBuffer();
-                      const wb = XLSX.read(buf, { type: "array" });
-                      const ws = wb.Sheets[wb.SheetNames[0]];
-                      const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+                      const rawRows = await readSheetRows(file);
                       const norm = (s: string) => s.toLowerCase()
                         .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g")
                         .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ı/g, "i")
@@ -4564,11 +4556,7 @@ export default function AdminLeadDiscovery() {
                       setBistRetagLoading(true);
                       setBistRetagResult(null);
                       try {
-                        const XLSX = await import("xlsx");
-                        const buf = await file.arrayBuffer();
-                        const wb = XLSX.read(buf, { type: "array" });
-                        const ws = wb.Sheets[wb.SheetNames[0]];
-                        const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+                        const rawRows = await readSheetRows(file);
                         const norm = (s: string) => s.toLowerCase()
                           .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g")
                           .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ı/g, "i")

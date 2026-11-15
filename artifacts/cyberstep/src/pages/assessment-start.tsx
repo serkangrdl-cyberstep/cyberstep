@@ -35,9 +35,9 @@ const formSchema = z.object({
   contactName: z.string().min(2, { message: "Yetkili kişi adı en az 2 karakter olmalıdır." }),
   email: z.string().email({ message: "Geçerli bir e-posta adresi giriniz." }),
   phone: z.string().optional(),
-  sector: z.string({ required_error: "Lütfen bir sektör seçiniz." }),
-  employeeCount: z.string({ required_error: "Lütfen çalışan sayısını seçiniz." }),
-  assessmentType: z.enum(["mini", "full"], { required_error: "Lütfen değerlendirme tipi seçiniz." }),
+  sector: z.string({ error: "Lütfen bir sektör seçiniz." }),
+  employeeCount: z.string({ error: "Lütfen çalışan sayısını seçiniz." }),
+  assessmentType: z.enum(["mini", "full"], { error: "Lütfen değerlendirme tipi seçiniz." }),
   companyDomain: z.string().optional(),
 });
 

@@ -6,6 +6,7 @@
 import { db, domainScansTable, cveIntelligenceTable } from "@workspace/db";
 import { desc, eq, inArray } from "drizzle-orm";
 import { computeScoreV2, cveIdsOf, type KevLookup, type ScoreV2Input, type ScoreV2Result } from "./scoreV2";
+import { sourceMeasured, type ScanSourceStatusMap } from "../scanSources";
 
 export type DomainScanRow = typeof domainScansTable.$inferSelect;
 
@@ -50,6 +51,11 @@ export async function loadKevLookup(cveIds: string[]): Promise<KevLookup> {
 }
 
 export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
+  // Key'i olmayan / hata veren kaynaklar null'a çekilir → Skor v2 onları "ölçülmedi"
+  // sayar. Böylece erişilemeyen bir kaynak tam puan (temiz) olarak hesaba girmez.
+  // source_status kaydı olmayan eski taramalarda davranış değişmez.
+  const src = scan.sourceStatus as ScanSourceStatusMap | null;
+  const ok = (k: Parameters<typeof sourceMeasured>[1]) => sourceMeasured(src, k);
   return {
     referralSource: scan.referralSource,
     createdAt: scan.createdAt,
@@ -61,19 +67,19 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
     mxPass: scan.mxPass,
     sslPass: scan.sslPass,
     sslDaysUntilExpiry: scan.sslDaysUntilExpiry,
-    httpHeadersScore: scan.httpHeadersScore,
+    httpHeadersScore: ok("http_headers") ? scan.httpHeadersScore : null,
     cveSummary: scan.cveSummary,
-    shodanOpenPorts: scan.shodanOpenPorts,
+    shodanOpenPorts: ok("shodan") ? scan.shodanOpenPorts : null,
     shodanIsp: scan.shodanIsp,
     blacklisted: scan.blacklisted,
     blacklistCount: scan.blacklistCount,
     usomListed: scan.usomListed,
     urlhausListed: scan.urlhausListed,
-    safeBrowsingFlagged: scan.safeBrowsingFlagged,
-    virusTotalReputation: scan.virusTotalReputation,
-    virusTotalMalicious: scan.virusTotalMalicious,
-    abuseIpdbScore: scan.abuseIpdbScore,
-    hibpBreachCount: scan.hibpBreachCount,
+    safeBrowsingFlagged: ok("safebrowsing") ? scan.safeBrowsingFlagged : null,
+    virusTotalReputation: ok("virustotal") ? scan.virusTotalReputation : null,
+    virusTotalMalicious: ok("virustotal") ? scan.virusTotalMalicious : null,
+    abuseIpdbScore: ok("abuseipdb") ? scan.abuseIpdbScore : null,
+    hibpBreachCount: ok("hibp") ? scan.hibpBreachCount : null,
   };
 }
 

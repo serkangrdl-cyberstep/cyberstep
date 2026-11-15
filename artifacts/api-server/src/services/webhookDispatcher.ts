@@ -4,6 +4,8 @@
  */
 
 import { createHmac } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { encryptSecret, decryptSecret } from "./fabric-crypto";
@@ -40,7 +42,34 @@ const PRIVATE_RANGES = [
   /^::1$/,
   /^fc00:/i,
   /^fd/i,
+  /^fe80:/i,
+  /^0\./,
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT
+  /^::ffff:/i,
+  /^::$/,
 ];
+
+const BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost", ".railway.internal"];
+
+function isPrivateAddress(addr: string): boolean {
+  return PRIVATE_RANGES.some((re) => re.test(addr));
+}
+
+/** Teslimat anında DNS çözümleyip dahili adreslere (ör. Railway özel ağı) gidişi engeller. */
+async function assertPublicDestination(rawUrl: string): Promise<void> {
+  const host = new URL(rawUrl).hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (BLOCKED_HOST_SUFFIXES.some((suf) => host.endsWith(suf))) {
+    throw new Error("Dahili ağ adresine webhook gönderilemez");
+  }
+  if (isIP(host)) {
+    if (isPrivateAddress(host)) throw new Error("Özel/dahili ağ adresine webhook gönderilemez");
+    return;
+  }
+  const addrs = await lookup(host, { all: true });
+  if (addrs.length === 0 || addrs.some((a) => isPrivateAddress(a.address))) {
+    throw new Error("Özel/dahili ağ adresine webhook gönderilemez");
+  }
+}
 
 export function validateWebhookUrl(url: string): void {
   let parsed: URL;
@@ -52,6 +81,9 @@ export function validateWebhookUrl(url: string): void {
   const host = parsed.hostname.toLowerCase();
   if (!host || host === "localhost" || !host.includes(".")) {
     throw new Error("Geçersiz hostname");
+  }
+  if (BLOCKED_HOST_SUFFIXES.some((suf) => host.endsWith(suf))) {
+    throw new Error("Dahili ağ adresine webhook gönderilemez");
   }
   for (const re of PRIVATE_RANGES) {
     if (re.test(host)) throw new Error("Özel/dahili ağ adresine webhook gönderilemez");
@@ -81,7 +113,9 @@ async function deliverWebhook(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(cfg.url, { method: "POST", headers, body, signal: controller.signal });
+    await assertPublicDestination(cfg.url);
+    // Yönlendirmeler izlenmez: kontrol edilen adresten dahili bir adrese sıçranamaz.
+    const res = await fetch(cfg.url, { method: "POST", headers, body, signal: controller.signal, redirect: "manual" });
     const resBody = await res.text().catch(() => "");
     return { ok: res.ok, status: res.status, body: resBody.slice(0, 500) };
   } finally {

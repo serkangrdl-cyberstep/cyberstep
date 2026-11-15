@@ -218,8 +218,11 @@ router.post("/public/job-application", jobAppLimiter, async (req: Request, res: 
     const corporate = isCorporateEmail(email);
     await db.insert(jobApplicationsTable).values({ fullName: fullName.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), cvFileName: cvFileName ?? null, cvFileData: cvFileData ?? null, position: position ?? null, message: message ?? null, isCorporateEmail: corporate });
     if (corporate) {
-      const domain = email.split("@")[1]!;
-      await db.execute(sql.raw(`INSERT INTO lead_gen_leads (domain, score, discovery_method, status, created_at) VALUES ('${domain}', 40, 'job_application', 'new', now()) ON CONFLICT (domain) DO NOTHING`));
+      const domain = (email.split("@")[1] ?? "").trim().toLowerCase();
+      // Kullanıcı girdisi: yalnızca geçerli bir alan adı biçimi kabul edilir ve parametre olarak bağlanır.
+      if (/^[a-z0-9][a-z0-9.-]{0,251}\.[a-z]{2,}$/.test(domain)) {
+        await db.execute(sql`INSERT INTO lead_gen_leads (domain, score, discovery_method, status, created_at) VALUES (${domain}, 40, 'job_application', 'new', now()) ON CONFLICT (domain) DO NOTHING`);
+      }
     }
     logger.info({ email, corporate }, "New job application");
     res.status(201).json({ ok: true });

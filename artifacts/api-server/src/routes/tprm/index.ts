@@ -1,3 +1,4 @@
+import { isInternalHostname } from "../../lib/hostGuard";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { randomBytes } from "node:crypto";
@@ -538,6 +539,10 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
     res.status(400).json({ error: "Geçerli bir alan adı girin (örn. firma.com.tr)" });
     return;
   }
+  if (isInternalHostname(domain)) {
+    res.status(400).json({ error: "Genel internette erişilebilir bir alan adı girin" });
+    return;
+  }
 
   try {
     const email = await getSessionCustomerEmail(req);
@@ -632,7 +637,7 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
       const r = (raw ?? {}) as { domain?: unknown; name?: unknown; criticality?: unknown };
       const value = typeof r.domain === "string" ? r.domain : "";
       const domain = normalizeDomain(value);
-      if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+      if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain) || isInternalHostname(domain)) {
         invalid.push({ row: i + 1, value: value.slice(0, 100), reason: "Geçersiz alan adı" });
         return;
       }

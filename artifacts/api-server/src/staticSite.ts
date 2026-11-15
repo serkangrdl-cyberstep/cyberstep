@@ -66,6 +66,15 @@ function mountSpa(app: Express, urlPrefix: string, dir: string) {
 export function mountStaticSite(app: Express): void {
   if (process.env["SERVE_STATIC"] !== "true") return;
   const root = process.env["STATIC_ROOT"] ?? process.cwd();
+  // www → çıplak alan adı (SEO için tek kanonik adres). API rotaları bundan önce
+  // kayıtlı olduğu için yalnızca eşleşmeyen GET/HEAD istekleri buraya düşer.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if ((req.method === "GET" || req.method === "HEAD") && /^www\./i.test(req.hostname)) {
+      res.redirect(301, `https://${req.hostname.replace(/^www\./i, "")}${req.originalUrl}`);
+      return;
+    }
+    next();
+  });
   // Sıra önemli: önce /digest (panel), sonra / (site)
   const panel = mountSpa(app, "/digest", path.join(root, "artifacts/digest-admin/dist/public"));
   const site = mountSpa(app, "/", path.join(root, "artifacts/cyberstep/dist/public"));

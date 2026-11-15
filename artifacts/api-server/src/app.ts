@@ -112,6 +112,7 @@ const buildAllowedOrigins = (): Set<string> => {
   const replitDomains = process.env["REPLIT_DOMAINS"] ?? "";
   for (const d of replitDomains.split(",").map((s) => s.trim()).filter(Boolean)) {
     origins.add(`https://${d}`);
+    if (!d.startsWith("www.")) origins.add(`https://www.${d}`);
   }
   // Dev: allow localhost variants
   if (process.env["NODE_ENV"] !== "production") {

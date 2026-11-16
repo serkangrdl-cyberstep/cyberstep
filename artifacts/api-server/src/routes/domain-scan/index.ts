@@ -9,7 +9,7 @@ import http from "http";
 import axios from "axios";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
-import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable, customerTechStackTable } from "@workspace/db";
+import { domainScansTable, scanLeadsTable, customersTable, domainScanSubdomainsTable, customerTechStackTable, tprmVendorTable } from "@workspace/db";
 import { eq, desc, count, sql, and, or, gte } from "drizzle-orm";
 import { calculateLetterGrade } from "../../lib/scoring/letterGrade";
 import { logger } from "../../lib/logger";
@@ -2069,6 +2069,44 @@ Tespit edilen başlıca sorunlar: ${findingsText}
   }
 });
 
+// ─── Ayrıntılı rapor erişimi ─────────────────────────────────────────────────
+// Kural: müşterinin tedarikçi portföyündeki alan adı → ayrıntılı rapor (ücretsiz plan dahil);
+// ücretli plan (aktif, "free" dışı) veya eski full/pro hesap → her alan adı + MITRE senaryosu.
+async function computeReportAccess(req: import("express").Request, rawDomain: string): Promise<{ fullAccess: boolean; mitre: boolean; reason: "none" | "portfolio" | "plan" }> {
+  const customerId = getCustomerId(req);
+  if (!customerId) return { fullAccess: false, mitre: false, reason: "none" };
+  const [c] = await db.select({ email: customersTable.email, plan: customersTable.subscriptionPlan, status: customersTable.subscriptionStatus })
+    .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  if (!c) return { fullAccess: false, mitre: false, reason: "none" };
+  const plan = c.plan ?? "";
+  const active = c.status === "active" || c.status === "trial";
+  const legacy = plan === "full" || plan === "pro";
+  const paid = (active && plan !== "" && plan !== "free") || legacy;
+  if (paid) return { fullAccess: true, mitre: true, reason: "plan" };
+
+  const domain = rawDomain.trim().toLowerCase().replace(/^www\./, "");
+  const email = c.email?.trim().toLowerCase();
+  if (!domain || !email) return { fullAccess: false, mitre: false, reason: "none" };
+  const [row] = await db.select({ id: tprmVendorTable.id }).from(tprmVendorTable)
+    .where(and(
+      eq(tprmVendorTable.customerEmail, email),
+      or(eq(tprmVendorTable.supplierDomain, domain), eq(tprmVendorTable.supplierDomain, `www.${domain}`)),
+    )).limit(1);
+  return row ? { fullAccess: true, mitre: false, reason: "portfolio" } : { fullAccess: false, mitre: false, reason: "none" };
+}
+
+// GET /api/domain-scan/access?domain=x.com — oturumdaki kullanıcı için rapor erişimi
+router.get("/domain-scan/access", async (req, res) => {
+  try {
+    const domain = typeof req.query["domain"] === "string" ? sanitizeDomain(req.query["domain"]) : "";
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await computeReportAccess(req, domain));
+  } catch (err) {
+    logger.error({ err }, "domain-scan access error");
+    res.json({ fullAccess: false, mitre: false, reason: "none" });
+  }
+});
+
 // ─── GET /api/domain-scan/benchmark?score=72 ────────────────────────────────
 // Public: bir Skor v2 değerinin Türkiye geneli (CyberStep veritabanı) içindeki yeri.
 // Benchmark henüz önbellekte değilse { available: false } döner (istek bekletilmez).
@@ -2211,7 +2249,8 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
     // Ücretsiz rapor: scan.tenantId yoksa VE isteği yapan oturum açmış değilse
     const pdfSessionTenantId = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | null | undefined ?? null;
     const pdfCustomerId = getCustomerId(req);
-    const isFreeReport = !scan.tenantId && !pdfSessionTenantId && !pdfCustomerId;
+    const pdfAccess = pdfCustomerId ? await computeReportAccess(req, scan.domain) : null;
+    const isFreeReport = !scan.tenantId && !pdfSessionTenantId && !pdfAccess?.fullAccess;
 
     // Score breakdown — PDF için de hesaplanıyor
     const pdfSpfStr = scan.spfRecord ?? "";

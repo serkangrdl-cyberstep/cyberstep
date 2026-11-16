@@ -463,6 +463,12 @@ ${activeCves.length > 0
   : `${scenarioRules.length + 1}. ⛔ CVE KURALI: Güvenilir aktif CVE yok — senaryo başlığında veya içeriğinde hiçbir CVE ID YAZMA. WordPress/jQuery gibi genel teknoloji terimleri kullan.`
 }
 
+DOĞRULUK KURALLARI
+==================
+- Yalnızca yukarıdaki tarama verisinden çıkarılabilen bulgulara dayan. Veride kanıtı olmayan sonuçlar (veritabanına erişim, ödeme bilgisinin sızması, belirli bir uygulamanın varlığı) yazma; "olabilir/mümkün" diliyle ve kanıtlı bulguyla sınırlı kal.
+- KVKK atıfı gerekiyorsa yalnızca şunları kullan: veri güvenliği yükümlülüğü ve ihlal bildirimi için m.12, idari para cezaları için m.18. Ceza tutarı yazma, başka madde numarası uydurma.
+- MITRE ATT&CK kodu ile adı resmi ATT&CK sözlüğüyle birebir uyuşmalı (örn. T1190 Exploit Public-Facing Application, T1566 Phishing, T1195 Supply Chain Compromise, T1557 Adversary-in-the-Middle, T1598 Phishing for Information, T1595 Active Scanning, T1583 Acquire Infrastructure). Emin değilsen kodu ekleme.
+
 GÖREV
 =====
 Bu verilerden hareketle en olası 2 saldırı senaryosunu oluştur. Her senaryo kısa ve pratik olmalı.
@@ -488,7 +494,7 @@ Sadece şu JSON'u döndür, başka metin ekleme:
         {"kod": "T1190", "isim": "Açık Uygulama İstismarı"}
       ],
       "etki": "İş etkisi — operasyonel, finansal, itibar (1-2 cümle)",
-      "kvkk_etkisi": "KVKK riski ve tahmini yaptırım (1 cümle)",
+      "kvkk_etkisi": "KVKK açısından olası yükümlülük (1 cümle; tutar veya ceza miktarı yazma)",
       "acil_onlemler": [
         "1. İlk önlem",
         "2. İkinci önlem"

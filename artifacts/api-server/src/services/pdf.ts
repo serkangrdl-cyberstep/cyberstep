@@ -66,6 +66,15 @@ const GRAY:    [number, number, number] = [100, 116, 139];
 const LIGHT:   [number, number, number] = [241, 245, 249];
 const WHITE:   [number, number, number] = [255, 255, 255];
 
+/** Metni kelime sınırında kısaltır; kesildiyse "…" ekler (cümle ortasında kesilmesin). */
+function clip(text: string, max: number): string {
+  const t = (text ?? "").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const sp = cut.lastIndexOf(" ");
+  return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.\-–—]+$/, "")}…`;
+}
+
 export function generateReportPDF(data: ReportData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -307,6 +316,8 @@ interface DomainScanData {
     lastSeen?: string | null;
   }> | null;
   censysTotalFound?: number | null;
+  safeBrowsingFlagged?: boolean | null;
+  safeBrowsingThreats?: string[] | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;
@@ -750,7 +761,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       doc.fillColor(DARK).fontSize(10).font(FONT_BOLD).text(chk.label, MARGIN + 20, cy + 3, { width: 200, lineBreak: false });
       doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(chk.weight, MARGIN + 20, cy + 3, { width: CONTENT_W - 20, align: "right" });
       if (chk.detail) {
-        doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(chk.detail.substring(0, 90), MARGIN + 20, cy + 17, { width: CONTENT_W - 20 });
+        doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(clip(chk.detail, 110), MARGIN + 20, cy + 17, { width: CONTENT_W - 20 });
         doc.y = cy + 32;
       } else {
         doc.y = cy + 22;
@@ -829,7 +840,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     // Subdomains — 1-50: bilgi (ok=true), >50: uyarı (ok=false)
     if (data.ctSubdomainCount > 0) {
       intelRow(
-        "Sertifika Seffafligi (crt.sh)",
+        "Sertifika Şeffaflığı (crt.sh)",
         data.ctSubdomainCount <= 50
           ? `${data.ctSubdomainCount} alt alan adı tespit edildi — güncelliği doğrulayın`
           : `${data.ctSubdomainCount} alt alan adı — çok sayıda subdomain saldırı yüzeyini artırabilir`,
@@ -875,7 +886,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         doc.fillColor(cvssColor).fontSize(8).font(FONT_BOLD).text(`CVSS ${cve.cvssScore}`, MARGIN + 6, cy + 4, { width: 55, lineBreak: false });
         doc.fillColor(DARK).fontSize(8).font(FONT_BOLD).text(cve.cveId, MARGIN + 64, cy + 4, { lineBreak: false, width: 110 });
         doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR).text(
-          `${cve.service}: ${cve.description.substring(0, 110)}`,
+          `${cve.service}: ${clip(cve.description, 130)}`,
           MARGIN + 6, cy + 18, { width: CONTENT_W - 12 }
         );
         doc.y = cy + 38;
@@ -902,9 +913,19 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       if (data.abuseIpdbScore !== null) {
         const aOk = data.abuseIpdbScore < 25;
         intelRow(
-          "IP Kotuye Kullanim Gecmisi",
+          "IP Kötüye Kullanım Geçmişi",
           `Güven skoru: %${data.abuseIpdbScore} — son 90 günde ${data.abuseIpdbTotalReports} rapor${data.abuseIpdbCountry ? `. Konum: ${data.abuseIpdbCountry}` : ""}${data.abuseIpdbIsp ? `, ${data.abuseIpdbIsp}` : ""}`,
           aOk
+        );
+      }
+
+      if (data.safeBrowsingFlagged != null) {
+        intelRow(
+          "Google Safe Browsing",
+          data.safeBrowsingFlagged
+            ? `Zararlı olarak işaretli${data.safeBrowsingThreats?.length ? ` (${data.safeBrowsingThreats.join(", ")})` : ""}`
+            : "Temiz — Google zararlı site listesinde yok",
+          !data.safeBrowsingFlagged
         );
       }
 
@@ -916,7 +937,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         const sOk = criticalPorts.length === 0 && data.shodanVulnCount === 0;
         let portStr: string;
         if (ports.length === 0) {
-          portStr = "Acik port tespit edilmedi";
+          portStr = "Açık port tespit edilmedi";
         } else if (cdnPorts.length === ports.length) {
           portStr = `${ports.length} port tespit edildi — tamamı CDN/proxy altyapısına ait (${data.shodanIsp ?? "bilinmiyor"}), gerçek sunucu riski yok`;
         } else {
@@ -928,10 +949,19 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           if (data.shodanCountry || data.shodanIsp) portStr += ` (${[data.shodanCountry, data.shodanIsp].filter(Boolean).join(", ")})`;
         }
         intelRow(
-          "Internet Maruziyeti Analizi",
+          "İnternet Maruziyeti Analizi",
           `${portStr}${data.shodanVulnCount > 0 ? ` ${data.shodanVulnCount} bilinen güvenlik açığı mevcut.` : ""}`,
           sOk
         );
+      }
+
+      if (data.censysRelatedHosts && data.censysRelatedHosts.length > 0) {
+        const parts = data.censysRelatedHosts.slice(0, 2).map((h) => {
+          const seen = h.lastSeen ? new Date(h.lastSeen) : null;
+          const days = seen && !Number.isNaN(seen.getTime()) ? Math.max(0, Math.floor((Date.now() - seen.getTime()) / 86_400_000)) : null;
+          return `${h.ip}${h.ports.length ? ` — portlar: ${h.ports.slice(0, 8).join(", ")}` : ""}${days !== null ? ` — son tarama: ${days === 0 ? "bugün" : `${days} gün önce`}` : ""}`;
+        });
+        intelRow("Censys Güncel Servis Doğrulaması", parts.join("; "), true);
       }
       doc.y += 4;
     }
@@ -1052,9 +1082,9 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         // Giriş noktası
         if (s.giris_noktasi) {
           doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
-            .text("Giris Noktasi:", MARGIN + 8, doc.y, { width: 70, lineBreak: false });
+            .text("Giriş Noktası:", MARGIN + 8, doc.y, { width: 70, lineBreak: false });
           doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
-            .text(s.giris_noktasi.substring(0, 160), MARGIN + 82, doc.y - 10, { width: CONTENT_W - 88 });
+            .text(clip(s.giris_noktasi, 220), MARGIN + 82, doc.y - 10, { width: CONTENT_W - 88 });
           doc.y += 4;
         }
 
@@ -1062,12 +1092,12 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         if (s.saldiri_zinciri && s.saldiri_zinciri.length > 0) {
           checkPageBreak(doc, 14);
           doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
-            .text("Saldiri Zinciri:", MARGIN + 8, doc.y, { width: CONTENT_W - 16 });
+            .text("Saldırı Zinciri:", MARGIN + 8, doc.y, { width: CONTENT_W - 16 });
           doc.y += 2;
           for (const step of s.saldiri_zinciri.slice(0, 4)) {
             checkPageBreak(doc, 12);
             doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR)
-              .text(`  ${step.substring(0, 140)}`, MARGIN + 16, doc.y, { width: CONTENT_W - 24 });
+              .text(`  ${clip(step, 180)}`, MARGIN + 16, doc.y, { width: CONTENT_W - 24 });
             doc.y += 2;
           }
           doc.y += 2;
@@ -1078,7 +1108,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
           .text("Etki:", MARGIN + 8, doc.y, { width: 30, lineBreak: false });
         doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
-          .text(s.etki.substring(0, 200), MARGIN + 42, doc.y - 10, { width: CONTENT_W - 48 });
+          .text(clip(s.etki, 260), MARGIN + 42, doc.y - 10, { width: CONTENT_W - 48 });
         doc.y += 4;
 
         // KVKK
@@ -1288,18 +1318,11 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     // flag = false → switchToPage pageAdded'ı tetiklese bile header çizilmez
     headerListenerActive = false;
 
-    const range = doc.bufferedPageRange();
-    const contentPages = range.count - 1; // kapak hariç içerik sayfası sayısı
-
-    // Sadece içerik sayfalarına footer çiz (index 1'den başla, 0 = kapak)
-    for (let i = 1; i < range.count; i++) {
-      doc.switchToPage(range.start + i);
-      _drawFooter(i, contentPages);
-    }
-    // Kapak sayfasına dokunma — kapak footer'ı zaten kapak çiziminde yapıldı
-
     // Son sayfada: hakkında + yasal uyarı bloğu
-    doc.switchToPage(range.start + range.count - 1);
+    {
+      const lastRange = doc.bufferedPageRange();
+      doc.switchToPage(lastRange.start + lastRange.count - 1);
+    }
     checkPageBreak(doc, 120);
     const aboutY = doc.y + 12;
     doc.moveTo(MARGIN, aboutY).lineTo(MARGIN + CONTENT_W, aboutY)
@@ -1315,7 +1338,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     doc.moveDown(0.5);
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7.5)
       .text(
-        "Bu rapor, Step AI — CyberStep'in yapay zeka güvenlik analisti — tarafından otomatik olarak hazırlanmış ve uzman ekibimiz tarafından gözden geçirilmiştir.",
+        "Bu rapor, Step AI — CyberStep'in yapay zeka güvenlik analisti — tarafından otomatik olarak hazırlanmıştır; bulgular insan incelemesinden geçmemiştir.",
         MARGIN, doc.y + 2, { width: CONTENT_W, lineGap: 2 }
       );
     doc.moveDown(0.8);
@@ -1326,6 +1349,16 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         "Bu rapor, kamuya açık kaynaklardan pasif tarama yöntemiyle hazırlanmıştır. Sonuçlar bilgilendirme amaçlıdır; eksiksizlik veya doğruluk garantisi verilmez. CyberStep.io, bu rapordaki bulgulara dayanılarak alınan kararlardan doğacak zararlardan sorumlu tutulamaz. © 2026 CyberStep.io",
         MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
       );
+
+    // Footer, tüm içerik (hakkında + yasal uyarı dahil) bittikten sonra çizilir; sayfa sayısı doğru olur
+    {
+      const range = doc.bufferedPageRange();
+      const contentPages = range.count - 1; // kapak hariç
+      for (let i = 1; i < range.count; i++) {
+        doc.switchToPage(range.start + i);
+        _drawFooter(i, contentPages);
+      }
+    }
 
     doc.flushPages();
     doc.end();

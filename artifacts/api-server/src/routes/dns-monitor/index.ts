@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { requireCustomer } from "../../middleware/auth";
+import { getCustomerId, requireCustomer } from "../../middleware/auth";
 import { logger } from "../../lib/logger";
 import { resolveDnsSnapshot } from "../../services/dnsResolver";
 
@@ -11,7 +11,7 @@ const router = Router();
 // ─── Portal: watched domains ──────────────────────────────────────────────────
 
 router.get("/portal/dns-monitor/domains", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as unknown as { customerId: number }).customerId;
+  const customerId = getCustomerId(req) as number;
   try {
     const result = await db.execute(sql`
       SELECT id, domain, is_active, created_at, last_checked_at
@@ -27,7 +27,7 @@ router.get("/portal/dns-monitor/domains", requireCustomer, async (req: Request, 
 });
 
 router.post("/portal/dns-monitor/domains", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as unknown as { customerId: number }).customerId;
+  const customerId = getCustomerId(req) as number;
   const { domain } = req.body as { domain?: string };
 
   if (!domain || typeof domain !== "string") {
@@ -82,7 +82,7 @@ router.post("/portal/dns-monitor/domains", requireCustomer, async (req: Request,
 });
 
 router.delete("/portal/dns-monitor/domains/:id", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as unknown as { customerId: number }).customerId;
+  const customerId = getCustomerId(req) as number;
   const id = Number(req.params["id"]);
 
   try {
@@ -99,7 +99,7 @@ router.delete("/portal/dns-monitor/domains/:id", requireCustomer, async (req: Re
 // ─── Portal: change events ────────────────────────────────────────────────────
 
 router.get("/portal/dns-monitor/changes", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as unknown as { customerId: number }).customerId;
+  const customerId = getCustomerId(req) as number;
   const domain = req.query["domain"] as string | undefined;
 
   try {
@@ -121,7 +121,7 @@ router.get("/portal/dns-monitor/changes", requireCustomer, async (req: Request, 
 // ─── Portal: current snapshot ─────────────────────────────────────────────────
 
 router.get("/portal/dns-monitor/snapshot/:domain", requireCustomer, async (req: Request, res: Response) => {
-  const customerId = (req as unknown as { customerId: number }).customerId;
+  const customerId = getCustomerId(req) as number;
   const domain = req.params["domain"]!;
 
   try {

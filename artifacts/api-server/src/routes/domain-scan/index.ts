@@ -1097,7 +1097,7 @@ interface OtxData {
 
 async function checkOTX(domain: string): Promise<OtxData | null> {
   const apiKey = process.env["OTX_API_KEY"];
-  if (!apiKey) return null;
+  if (!apiKey) { logger.info("OTX: OTX_API_KEY tanımlı değil, atlanıyor"); return null; }
   return new Promise((resolve) => {
     const req = https.request(
       {
@@ -1112,19 +1112,23 @@ async function checkOTX(domain: string): Promise<OtxData | null> {
         res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 300 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
         res.on("end", () => {
           try {
-            if (res.statusCode !== 200) { resolve(null); return; }
+            if (res.statusCode !== 200) {
+              logger.warn({ status: res.statusCode }, `OTX: istek başarısız (HTTP ${res.statusCode}), sonuç atlanıyor`);
+              resolve(null);
+              return;
+            }
             type OtxResp = { pulse_info?: { count?: number; pulses?: Array<{ targeted_countries?: string[] }> }; reputation?: number };
             const json = JSON.parse(data) as OtxResp;
             const pulseCount = json.pulse_info?.count ?? 0;
             const pulses = json.pulse_info?.pulses ?? [];
             const maliciousCount = pulses.filter(p => (p.targeted_countries ?? []).includes("TR")).length;
             resolve({ pulseCount, reputation: json.reputation ?? 0, maliciousCount });
-          } catch { resolve(null); }
+          } catch (e) { logger.warn({ err: String(e) }, `OTX: yanıt işlenemedi: ${String(e).slice(0, 120)}`); resolve(null); }
         });
       }
     );
-    req.on("error", () => resolve(null));
-    req.on("timeout", () => { req.destroy(); resolve(null); });
+    req.on("error", (e) => { logger.warn({ err: String(e) }, `OTX: bağlantı hatası: ${String(e).slice(0, 120)}`); resolve(null); });
+    req.on("timeout", () => { logger.warn("OTX: zaman aşımı"); req.destroy(); resolve(null); });
     req.end();
   });
 }

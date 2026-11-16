@@ -2320,7 +2320,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       asnNumber: scan.asnNumber,
       asnName: scan.asnName,
       orphanedAssets: isFreeReport ? null : (scan.orphanedAssets as Array<{ subdomain: string; ip: string; isWafProtected: boolean; risk: "high" | "medium" | "low"; reason: string }> | null),
-      censysRelatedHosts: isFreeReport ? null : (scan.censysRelatedHosts as Array<{ ip: string; ports: number[]; services: string[]; countryCode: string | null; city: string | null; isSameAsKnown: boolean }> | null),
+      censysRelatedHosts: isFreeReport ? null : (scan.censysRelatedHosts as Array<{ ip: string; lastSeen?: string | null; ports: number[]; services: string[]; countryCode: string | null; city: string | null; isSameAsKnown: boolean }> | null),
       censysTotalFound: isFreeReport ? null : (scan.censysTotalFound ?? null),
       isFreeReport,
       blacklistScore:      scan.blacklistScore      ?? undefined,

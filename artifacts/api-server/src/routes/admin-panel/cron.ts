@@ -92,12 +92,12 @@ export const CRON_DEFS = [
   {
     name: "censys_discovery",
     label: "Censys SSL Keşfi",
-    description: "Censys SSL sertifika verisiyle .tr TLD'li domainleri keşfeder — CENSYS_API_KEY gerekli",
+    description: "Censys SSL sertifika verisiyle .tr TLD'li domainleri keşfeder — CENSYS_API_TOKEN gerekli",
     defaultSchedule: "0 7 * * *",
     scheduleLabel: "Her gece 07:00",
     defaultEnabled: true,
     defaultLimit: 100,
-    requiresApiKey: "CENSYS_API_KEY",
+    requiresApiKey: "CENSYS_API_TOKEN",
     category: "lead-gen",
   },
   {

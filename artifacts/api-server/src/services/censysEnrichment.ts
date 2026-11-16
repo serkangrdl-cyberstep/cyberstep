@@ -1,14 +1,22 @@
 /**
- * Censys v2 SSL sertifika parmak izi zenginleştirme servisi.
- * Domain için SSL sertifikası sunan tüm IP'leri Censys Search API'siyle bulur.
+ * Censys Platform sertifika-isim zenginleştirme servisi.
+ * Domain için SSL sertifikası sunan IP'leri Censys Platform API'siyle bulur.
  * Gizli altyapı, paylaşımlı hosting ve shadow IT tespitinde kullanılır.
  *
- * Kimlik: CENSYS_API_ID + CENSYS_API_SECRET (Basic Auth)
- * Endpoint: GET /v2/hosts/search?q=services.tls.certificates.leaf_data.names:{domain}
+ * Kimlik: CENSYS_API_TOKEN (bkz. censysPlatform.ts)
+ * Sorgu: host.services.cert.names = "{domain}"
  */
 
-import axios from "axios";
 import { logger } from "../lib/logger";
+import {
+  CensysApiError,
+  censysSearch,
+  getCensysToken,
+  isCensysConfigured,
+  unwrapHit,
+} from "./censysPlatform";
+
+export { isCensysConfigured };
 
 export interface CensysRelatedHost {
   ip: string;
@@ -25,98 +33,59 @@ export interface CensysResult {
   queryDomain: string;
 }
 
-interface CensysHit {
-  ip?: string;
-  services?: Array<{
-    port?: number;
-    transport_protocol?: string;
-    service_name?: string;
-    extended_service_name?: string;
-  }>;
-  location?: {
-    country_code?: string;
-    city?: string;
+function toRelatedHost(
+  hit: Record<string, unknown>,
+  knownIp?: string | null,
+): CensysRelatedHost | null {
+  const host = unwrapHit(hit, "host_v1");
+  if (!host) return null;
+  const ip = typeof host["ip"] === "string" ? (host["ip"] as string) : null;
+  if (!ip) return null;
+
+  const svcs = (host["services"] as Array<Record<string, unknown>> | undefined) ?? [];
+  const ports = svcs
+    .map((s) => s["port"])
+    .filter((p): p is number => typeof p === "number");
+  const services = svcs
+    .map((s) => s["protocol"] ?? s["extended_service_name"] ?? s["service_name"])
+    .filter((s): s is string => typeof s === "string")
+    .filter((s, i, arr) => arr.indexOf(s) === i);
+  const loc = host["location"] as Record<string, unknown> | undefined;
+
+  return {
+    ip,
+    ports,
+    services,
+    countryCode: typeof loc?.["country_code"] === "string" ? (loc["country_code"] as string) : null,
+    city: typeof loc?.["city"] === "string" ? (loc["city"] as string) : null,
+    isSameAsKnown: knownIp != null && ip === knownIp,
   };
-}
-
-interface CensysSearchResponse {
-  result?: {
-    hits?: CensysHit[];
-    total?: number;
-  };
-}
-
-function getCredentials(): { id: string; secret: string } | null {
-  const id = process.env["CENSYS_API_ID"];
-  const secret = process.env["CENSYS_API_SECRET"];
-  if (!id || !secret) return null;
-  return { id, secret };
-}
-
-export function isCensysConfigured(): boolean {
-  return getCredentials() !== null;
 }
 
 export async function enrichWithCensys(
   domain: string,
   knownIp?: string | null,
 ): Promise<CensysResult | null> {
-  const creds = getCredentials();
-  if (!creds) {
-    logger.debug({ domain }, "censysEnrichment: API kimliği yok, atlanıyor");
+  if (!isCensysConfigured()) {
+    logger.debug({ domain }, "censysEnrichment: API token yok, atlanıyor");
     return null;
   }
 
-  const query = `services.tls.certificates.leaf_data.names:${domain}`;
-
+  const safe = domain.replace(/[^a-zA-Z0-9.\-]/g, "");
   try {
-    const resp = await axios.get<CensysSearchResponse>(
-      "https://search.censys.io/api/v2/hosts/search",
-      {
-        params: { q: query, per_page: 20, virtual_hosts: "INCLUDE" },
-        auth: { username: creds.id, password: creds.secret },
-        timeout: 15_000,
-        headers: { "User-Agent": "CyberStep.io/1.0 SecurityResearch" },
-      },
-    );
-
-    const hits = resp.data?.result?.hits ?? [];
-    const total = resp.data?.result?.total ?? 0;
-
-    const relatedHosts: CensysRelatedHost[] = hits.map((hit) => {
-      const ports = (hit.services ?? [])
-        .map((s) => s.port)
-        .filter((p): p is number => typeof p === "number");
-
-      const services = (hit.services ?? [])
-        .map((s) => s.extended_service_name ?? s.service_name)
-        .filter((s): s is string => typeof s === "string")
-        .filter((s, i, arr) => arr.indexOf(s) === i);
-
-      return {
-        ip: hit.ip ?? "bilinmiyor",
-        ports,
-        services,
-        countryCode: hit.location?.country_code ?? null,
-        city: hit.location?.city ?? null,
-        isSameAsKnown: knownIp != null && hit.ip === knownIp,
-      };
-    });
+    const { hits, total } = await censysSearch(`host.services.cert.names = "${safe}"`, 20);
+    const relatedHosts = hits
+      .map((h) => toRelatedHost(h, knownIp))
+      .filter((h): h is CensysRelatedHost => h !== null);
 
     logger.info(
       { domain, totalFound: total, returned: relatedHosts.length },
       "censysEnrichment: tamamlandı",
     );
-
     return { relatedHosts, totalFound: total, queryDomain: domain };
-  } catch (err: unknown) {
-    const status =
-      axios.isAxiosError(err) ? err.response?.status : undefined;
-    if (status === 401 || status === 403) {
-      logger.warn({ domain }, "censysEnrichment: kimlik doğrulama hatası — API kimliği geçersiz");
-    } else if (status === 429) {
-      logger.warn({ domain }, "censysEnrichment: rate limit aşıldı");
-    } else {
+  } catch (err) {
+    // Ayrıntı censysPlatform içinde zaten günlüğe yazıldı
+    if (!(err instanceof CensysApiError)) {
       logger.warn({ domain, err: String(err) }, "censysEnrichment: hata");
     }
     return null;
@@ -125,40 +94,21 @@ export async function enrichWithCensys(
 
 export async function testCensysConnection(): Promise<{
   ok: boolean;
-  quota?: { used: number; allowance: number };
   message: string;
 }> {
-  const creds = getCredentials();
-  if (!creds) {
-    return { ok: false, message: "CENSYS_API_ID veya CENSYS_API_SECRET eksik." };
+  if (!getCensysToken()) {
+    return { ok: false, message: "CENSYS_API_TOKEN eksik." };
   }
-
   try {
-    const resp = await axios.get<{
-      code?: string;
-      quota?: { used: number; allowance: number };
-    }>(
-      "https://search.censys.io/api/v2/account",
-      {
-        auth: { username: creds.id, password: creds.secret },
-        timeout: 10_000,
-        headers: { "User-Agent": "CyberStep.io/1.0 SecurityResearch" },
-      },
-    );
-
-    const quota = resp.data?.quota;
-    return {
-      ok: true,
-      quota,
-      message: quota
-        ? `Bağlantı başarılı. Kullanılan: ${quota.used} / ${quota.allowance} sorgu`
-        : "Bağlantı başarılı.",
-    };
-  } catch (err: unknown) {
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-    if (status === 401 || status === 403) {
-      return { ok: false, message: "API kimliği geçersiz — ID veya Secret hatalı." };
+    const { total } = await censysSearch('host.ip = "8.8.8.8"', 1);
+    return { ok: true, message: `Bağlantı başarılı (arama endpoint'i çalışıyor, ${total} sonuç).` };
+  } catch (err) {
+    const status = err instanceof CensysApiError ? err.status : undefined;
+    const detail = err instanceof Error ? err.message : String(err);
+    if (status === 401) return { ok: false, message: `Token geçersiz. ${detail}` };
+    if (status === 403) {
+      return { ok: false, message: `Token geçerli ama bu hesap arama API'sine yetkili değil (Free kısıtı olabilir). ${detail}` };
     }
-    return { ok: false, message: `Bağlantı hatası: ${String(err)}` };
+    return { ok: false, message: `Bağlantı hatası. ${detail}` };
   }
 }

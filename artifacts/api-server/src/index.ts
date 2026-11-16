@@ -3188,7 +3188,7 @@ startup()
     logger.info("VirusTotal subdomain cron scheduled (Salı 04:00 Istanbul, limit 50)");
 
     // ─── Lead Discovery: Censys SSL — Her gece 07:00 ──────────────────────────
-    // CENSYS_API_ID + CENSYS_API_SECRET gerekli (censys.io ücretsiz hesap); 250 sorgu/ay limit
+    // CENSYS_API_TOKEN gerekli (platform.censys.io Personal Access Token)
     cron.schedule("0 7 * * *", wrapCron("censys_discovery", "0 7 * * *", async () => {
       if (!await cronIsEnabled("censys_discovery")) { logger.info("Censys cron devre dışı, atlanıyor"); return 0; }
       const result = await runCensysDiscovery();

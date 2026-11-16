@@ -1627,6 +1627,10 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       email: customersTable.email,
     }).from(customersTable).where(eq(customersTable.id, customerId));
 
+    // Oturum açmış müşterinin taraması hesap e-postasına bağlanır; müşteri paneli
+    // taramaları e-posta eşleşmesiyle listeler (formda farklı e-posta yazılsa bile).
+    if (customer?.email) email = customer.email;
+
     if (customer?.domainScanLimit !== null && customer?.domainScanLimit !== undefined) {
       const [scanCountRow] = await db.select({ cnt: count() })
         .from(domainScansTable)

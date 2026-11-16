@@ -185,6 +185,7 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
 
     // Düzeltme 3: skor-MITRE tutarlılık kontrolü
     validateReportConsistency(result, scan.overallScore ?? 50);
+    sanitizeSslScenarios(result, scan.sslDaysUntilExpiry ?? null);
 
     await db.update(domainScansTable)
       .set({ attackScenariosStatus: "complete", attackScenariosJson: result })
@@ -217,6 +218,51 @@ function validateReportConsistency(result: AttackScenariosResult, overallScore: 
     logger.warn({ score: overallScore, mitre: level }, "MITRE Kritik skora göre tutarsız — Orta'ya düzeltiliyor");
     result.genel_tehdit_seviyesi = "Orta";
   }
+}
+
+/**
+ * Sertifika henüz geçerliyken yapay zekâ bazen "MITM / ARP spoofing / DNS hijacking" senaryosu yazıyor.
+ * Süresi dolmamış bir sertifika bu saldırıyı mümkün kılmaz; senaryoyu veriyle uyumlu, deterministik
+ * bir "süre dolumu → hizmet kesintisi ve güven kaybı" senaryosuyla değiştirir.
+ */
+const SSL_TITLE_RE = /ssl|sertifika|tls/i;
+const MITM_RE = /man-in-the-middle|mitm|arp spoof|dns hijack|ortadaki adam|T1557|T1598/i;
+
+function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | null): void {
+  if (daysLeft === null || daysLeft <= 0) return;
+  const urgent = daysLeft <= 7;
+  const level = urgent ? "Yüksek" : "Orta";
+  result.senaryolar = (result.senaryolar ?? []).map((sc) => {
+    const text = JSON.stringify(sc);
+    if (!SSL_TITLE_RE.test(sc.baslik ?? "") || !MITM_RE.test(text)) return sc;
+    logger.warn({ baslik: sc.baslik, daysLeft }, "SSL senaryosunda geçersiz MITM kurgusu — deterministik senaryoyla değiştirildi");
+    return {
+      ...sc,
+      baslik: "SSL Sertifikasının Süresi Dolması — Hizmet Kesintisi ve Güven Kaybı",
+      olasilik: level,
+      acillik: urgent ? "Acil" : "Orta",
+      giris_noktasi: `Sertifikanın ${daysLeft} gün içinde sona ermesi ve yenileme sürecinin aksaması.`,
+      saldiri_zinciri: [
+        "1. Keşif: Sertifika bitiş tarihi herkese açık olarak görülebilir.",
+        "2. Tetikleyici: Yenileme yapılmazsa sertifika süresi dolar.",
+        "3. Etki: Tarayıcılar güvenlik uyarısı gösterir; kullanıcılar siteye erişemez ya da uyarıyı geçmeye alışır.",
+        "4. Sonuç: Hizmet kesintisi, müşteri güveninde ve itibarda kayıp.",
+      ],
+      mitre_teknikler: [],
+      etki: "Sertifika yenilenmezse web sitesi ve bağlı hizmetler erişilemez hale gelir; müşteri güveni ve itibar zarar görür.",
+      kvkk_etkisi: "",
+      acil_onlemler: [
+        "1. Sertifikayı hemen yenile",
+        "2. Otomatik yenileme (ACME) kur",
+        "3. Bitiş tarihi için izleme ve uyarı tanımla",
+      ],
+    } as typeof sc;
+  });
+  result.once_kapat = (result.once_kapat ?? []).map((it) =>
+    MITM_RE.test(`${it.aksiyon} ${it.neden}`)
+      ? { ...it, neden: "Süresi dolan sertifika tarayıcı uyarısına ve hizmet kesintisine yol açar." }
+      : it
+  );
 }
 
 function buildPrompt(scan: typeof domainScansTable.$inferSelect): string {
@@ -465,6 +511,10 @@ ${activeCves.length > 0
 
 DOĞRULUK KURALLARI
 ==================
+- Her saldırı adımı yukarıdaki tarama bulgularından birine dayanmalı. Veride olmayan zafiyet, RCE, web shell, SQL injection kanıtı varmış gibi yazma; olasılığı "olabilir" diliyle ve bulguyla sınırlı anlat.
+- Google Analytics, Google Tag Manager, Google Fonts gibi SaaS hizmetlerini "güncellenecek yazılım" veya "bağımlılık zaafiyeti" olarak gösterme. Versiyonu alınamayan bileşen için "tespit et ve güncelle" aksiyonu yazma.
+- Sertifika geçerliyse (süresi dolmamışsa) MITM, ARP spoofing, DNS hijacking yazma; sertifika riski yalnızca süre dolumu, hizmet kesintisi ve güven kaybıdır.
+- Türkçe yazım ve dilbilgisine dikkat et; kısa, düzgün cümleler kur.
 - Yalnızca yukarıdaki tarama verisinden çıkarılabilen bulgulara dayan. Veride kanıtı olmayan sonuçlar (veritabanına erişim, ödeme bilgisinin sızması, belirli bir uygulamanın varlığı) yazma; "olabilir/mümkün" diliyle ve kanıtlı bulguyla sınırlı kal.
 - KVKK atıfı gerekiyorsa yalnızca şunları kullan: veri güvenliği yükümlülüğü ve ihlal bildirimi için m.12, idari para cezaları için m.18. Ceza tutarı yazma, başka madde numarası uydurma.
 - MITRE ATT&CK kodu ile adı resmi ATT&CK sözlüğüyle birebir uyuşmalı (örn. T1190 Exploit Public-Facing Application, T1566 Phishing, T1195 Supply Chain Compromise, T1557 Adversary-in-the-Middle, T1598 Phishing for Information, T1595 Active Scanning, T1583 Acquire Infrastructure). Emin değilsen kodu ekleme.

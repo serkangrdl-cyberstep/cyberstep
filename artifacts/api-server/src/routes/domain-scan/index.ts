@@ -2366,6 +2366,8 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       abuseIpdbTotalReports: scan.abuseIpdbTotalReports,
       abuseIpdbCountry: scan.abuseIpdbCountry,
       abuseIpdbIsp: scan.abuseIpdbIsp,
+      safeBrowsingFlagged: scan.safeBrowsingFlagged ?? null,
+      safeBrowsingThreats: (scan.safeBrowsingThreats as string[] | null) ?? [],
       createdAt: scan.createdAt.toISOString(),
       wafNote: pdfWafNote,
       confidenceScore: scan.confidenceScore ?? undefined,

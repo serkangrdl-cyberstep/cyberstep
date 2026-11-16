@@ -29,7 +29,6 @@ export const CATCHUP_JOBS: CatchupJob[] = [
   // Yeni domain keşfi ve tarama
   { name: "crtsh", maxAgeHours: 6 },
   { name: "shodan", maxAgeHours: 26 },
-  { name: "censys_discovery", maxAgeHours: 26 },
   { name: "usom_refresh", maxAgeHours: 26 },
   // İçerik: haberler, bülten, blog, sosyal medya
   { name: "digest_rss_collect", maxAgeHours: 26 },

@@ -2747,19 +2747,18 @@ export default function DomainScanPage() {
                   </div>
                 )}
 
-                {/* Censys SSL Parmak İzi Zenginleştirme */}
+                {/* Censys güncel servis doğrulaması */}
                 {result.censysRelatedHosts && result.censysRelatedHosts.length > 0 && (
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Shield className="h-4 w-4 text-violet-500" />
-                      <p className="text-sm font-semibold">Censys SSL Parmak İzi Analizi</p>
+                      <p className="text-sm font-semibold">Censys Güncel Servis Verisi</p>
                       <span className="ml-auto text-xs font-medium text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">
-                        {result.censysTotalFound ?? result.censysRelatedHosts.length} IP bulundu
+                        {result.censysTotalFound ?? result.censysRelatedHosts.length} IP doğrulandı
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Bu domain'in SSL sertifikasını kullanan tüm IP'ler Censys üzerinden tespit edildi.
-                      Bilinmeyen IP'ler gizli altyapı veya shadow IT varlığına işaret edebilir.
+                      Bu domain'in IP adreslerindeki açık servisler Censys'in güncel tarama verisiyle doğrulandı.
                     </p>
                     <div className="space-y-1.5">
                       {result.censysRelatedHosts.map((host, i) => (

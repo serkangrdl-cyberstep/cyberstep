@@ -17,7 +17,6 @@ import { runNetcraftDiscovery } from "./services/leadDiscovery/netcraftDiscovery
 import { runBgpToolsDiscovery } from "./services/leadDiscovery/bgpToolsDiscovery";
 import { runUrlscanDiscovery } from "./services/leadDiscovery/urlscanDiscovery";
 import { runVirusTotalDiscovery } from "./services/leadDiscovery/virusTotalDiscovery";
-import { runCensysDiscovery } from "./services/leadDiscovery/censysDiscovery";
 import { runSearchDorking } from "./services/leadDiscovery/searchDorking";
 import { runCompanyRegistryDiscovery } from "./services/leadDiscovery/companyRegistryDiscovery";
 import { getSourceQualityStats } from "./routes/admin-panel/source-stats";
@@ -3187,15 +3186,6 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("VirusTotal subdomain cron scheduled (Salı 04:00 Istanbul, limit 50)");
 
-    // ─── Lead Discovery: Censys SSL — Her gece 07:00 ──────────────────────────
-    // CENSYS_API_TOKEN gerekli (platform.censys.io Personal Access Token)
-    cron.schedule("0 7 * * *", wrapCron("censys_discovery", "0 7 * * *", async () => {
-      if (!await cronIsEnabled("censys_discovery")) { logger.info("Censys cron devre dışı, atlanıyor"); return 0; }
-      const result = await runCensysDiscovery();
-      return result.addedToLeads;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("Censys discovery cron scheduled (daily 07:00 Istanbul, 3 TLD sorgusu)");
-
     // ─── Lead Discovery: Bing Dorking — Her gece 08:00 ────────────────────────
     // API key gerektirmez; Bing sonuçlarından .tr domain keşfi
     cron.schedule("0 8 * * *", wrapCron("search_dorking", "0 8 * * *", async () => {
@@ -3747,7 +3737,6 @@ startup()
         { name: "scan_lead_drip",           thresholdHours: 2   },
         { name: "lead_web_enrich",           thresholdHours: 25  },
         { name: "lead_tr_enrich",           thresholdHours: 25  },
-        { name: "censys_discovery",         thresholdHours: 25  },
         { name: "search_dorking",           thresholdHours: 25  },
         { name: "servicenow_health",        thresholdHours: 2   },
         { name: "noc_baseline",             thresholdHours: 2   },

@@ -1067,16 +1067,22 @@ async function checkGoogleSafeBrowsing(domain: string): Promise<{ flagged: boole
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
         try {
+          if (res.statusCode !== 200) {
+            // Anahtar/kota/etkinleştirme hatası "temiz" gibi gösterilmesin
+            logger.warn({ status: res.statusCode }, "Safe Browsing: istek başarısız, sonuç atlanıyor");
+            resolve(null);
+            return;
+          }
           const parsed = JSON.parse(data) as { matches?: Array<{ threatType: string }> };
           const threats = (parsed.matches ?? []).map((m) => m.threatType);
           resolve({ flagged: threats.length > 0, threats });
         } catch {
-          resolve({ flagged: false, threats: [] });
+          resolve(null);
         }
       });
     });
-    r.on("error", () => resolve({ flagged: false, threats: [] }));
-    r.on("timeout", () => { r.destroy(); resolve({ flagged: false, threats: [] }); });
+    r.on("error", () => resolve(null));
+    r.on("timeout", () => { r.destroy(); resolve(null); });
     r.write(body);
     r.end();
   });

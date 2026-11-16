@@ -682,6 +682,8 @@ export default function AdminEntegrasyonlar() {
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [shodanTest, setShodanTest] = useState<{ ok: boolean; message?: string; error?: string; plan?: string; queryCredits?: number; searchApiOk?: boolean } | null>(null);
   const [shodanTesting, setShodanTesting] = useState(false);
+  const [censysTest, setCensysTest] = useState<{ ok: boolean; message: string } | null>(null);
+  const [censysTesting, setCensysTesting] = useState(false);
 
   const { data: apiKeys = {} } = useQuery<Record<string, boolean>>({
     queryKey: ["admin-apikeys"],
@@ -866,6 +868,37 @@ export default function AdminEntegrasyonlar() {
                   <p className="text-xs text-slate-600">
                     Ortam değişken adı: <code className="text-slate-500">{integration.envKey}</code>
                   </p>
+                  {integration.id === "censys" && (
+                    <div className="mt-2 space-y-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          setCensysTesting(true);
+                          setCensysTest(null);
+                          try {
+                            const r = await fetch("/api/admin-panel/settings/apikeys/test-censys", {
+                              method: "POST", credentials: "include",
+                            });
+                            setCensysTest(await r.json() as { ok: boolean; message: string });
+                          } catch {
+                            setCensysTest({ ok: false, message: "Bağlantı hatası" });
+                          } finally {
+                            setCensysTesting(false);
+                          }
+                        }}
+                        disabled={censysTesting}
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs"
+                      >
+                        {censysTesting ? "Test ediliyor..." : "Censys Token'ını Test Et"}
+                      </Button>
+                      {censysTest && (
+                        <div className={`rounded p-2.5 text-xs ${censysTest.ok ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300" : "bg-red-500/10 border border-red-500/30 text-red-300"}`}>
+                          {censysTest.message}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {integration.id === "shodan" && (
                     <div className="mt-2 space-y-2">
                       <Button

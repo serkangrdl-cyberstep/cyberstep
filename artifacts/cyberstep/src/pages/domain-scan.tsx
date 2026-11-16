@@ -228,7 +228,7 @@ function ShodanCard({ openPorts, vulnCount, country, isp, wafDetected, domain }:
                 <div className="mt-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 flex items-start gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-orange-700">
-                    {openPorts.length} açık port tespit edildi. Bu portların hangi servislere ait olduğu, risk seviyesi ve kapatma önerileri ücretli raporda yer almaktadır.
+                    {openPorts.length} açık port tespit edildi. Bu portların hangi servislere ait olduğu, risk seviyesi ve kapatma önerileri abone hesaplarda görüntülenen detaylı raporda yer almaktadır.
                   </p>
                 </div>
               )}
@@ -2819,7 +2819,7 @@ export default function DomainScanPage() {
               {/* Header */}
               <div className="bg-slate-50 dark:bg-slate-800/60 px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
                 <Lock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold text-muted-foreground">Detaylı Güvenlik Raporu — Ücretli Pakete Dahil</span>
+                <span className="text-sm font-semibold text-muted-foreground">Detaylı Güvenlik Raporu — Abone Hesaplara Özel</span>
               </div>
 
               {/* Tehdit analizi teaser */}
@@ -2855,7 +2855,7 @@ export default function DomainScanPage() {
                     )}
                   </div>
                   <p className="text-xs text-red-600/80 dark:text-red-400/70">
-                    Saldırı zinciri detayları, MITRE ATT&CK haritalama ve aksiyon planı ücretli pakette görüntülenir.
+                    Saldırı zinciri detayları, MITRE ATT&CK haritalama ve aksiyon planı yalnızca abone hesaplarda görüntülenir.
                   </p>
                 </div>
               )}

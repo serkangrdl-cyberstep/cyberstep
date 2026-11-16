@@ -481,7 +481,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     const scoreDesc = data.overallScore >= 80
       ? "Temel güvenlik önlemleri büyük ölçüde yerinde."
       : data.overallScore >= 60 ? "Önemli güvenlik eksiklikleri mevcut."
-      : data.overallScore >= 40 ? "Kritik güvenlik açıkları tespit edildi."
+      : data.overallScore >= 40 ? (data.cveSummary.length > 0 ? "Kritik güvenlik açıkları tespit edildi." : "Ciddi yapılandırma eksiklikleri tespit edildi.")
       : "Ciddi siber risk altındasınız.";
 
     // Tüm sayfa koyu zemin
@@ -748,8 +748,8 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     sectionTitle("E-posta ve SSL Güvenlik Kontrolleri");
     const checks = [
       { label: "SPF Kaydı", pass: data.spfPass, detail: data.spfRecord, weight: "20 puan" },
-      { label: "DMARC Politikası", pass: data.dmarcPass, detail: data.dmarcRecord, weight: "25 puan" },
-      { label: "DKIM İmzası", pass: data.dkimPass, detail: data.dkimSelectors.join(", ") || null, weight: "20 puan" },
+      { label: "DMARC Politikası", pass: data.dmarcPass, detail: data.dmarcRecord ?? (data.dmarcPass ? null : "DMARC kaydı bulunamadı — alan adı sahte e-postaya karşı korumasız."), weight: "25 puan" },
+      { label: "DKIM İmzası", pass: data.dkimPass, detail: data.dkimSelectors.join(", ") || (data.dkimPass ? null : "Yaygın DKIM seçicilerinde imza bulunamadı."), weight: "20 puan" },
       { label: "MX Kayıtları", pass: data.mxPass, detail: data.mxRecords[0]?.exchange ?? null, weight: "10 puan" },
       { label: "SSL/TLS Sertifikası", pass: data.sslPass, detail: data.sslDaysUntilExpiry !== null ? `${data.sslIssuer ?? ""} - ${data.sslDaysUntilExpiry} gün geçerli` : null, weight: "25 puan" },
     ];
@@ -966,8 +966,9 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         );
       }
 
-      if (data.censysRelatedHosts && data.censysRelatedHosts.length > 0) {
-        const parts = data.censysRelatedHosts.slice(0, 2).map((h) => {
+      const censysHosts = (data.censysRelatedHosts ?? []).filter((h) => h.ports.length > 0 || h.lastSeen);
+      if (censysHosts.length > 0) {
+        const parts = censysHosts.slice(0, 2).map((h) => {
           const seen = h.lastSeen ? new Date(h.lastSeen) : null;
           const days = seen && !Number.isNaN(seen.getTime()) ? Math.max(0, Math.floor((Date.now() - seen.getTime()) / 86_400_000)) : null;
           return `${h.ip}${h.ports.length ? ` — portlar: ${h.ports.slice(0, 8).join(", ")}` : ""}${days !== null ? ` — son tarama: ${days === 0 ? "bugün" : `${days} gün önce`}` : ""}`;

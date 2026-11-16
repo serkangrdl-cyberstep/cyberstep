@@ -1969,7 +1969,17 @@ export default function DomainScanPage() {
     retry: false,
     staleTime: 60_000,
   });
-  const hasFullAccess = ["full", "pro"].includes(sessionCustomer?.subscriptionPlan ?? "");
+  // Ayrıntılı rapor erişimi sunucuda hesaplanır: portföydeki tedarikçi (ücretsiz dahil) veya ücretli plan
+  const { data: reportAccess } = useQuery<{ fullAccess: boolean; mitre: boolean; reason: string }>({
+    queryKey: ["domain-scan-access", result?.domain, sessionCustomer ? "auth" : "anon"],
+    queryFn: () =>
+      fetch(`/api/domain-scan/access?domain=${encodeURIComponent(result?.domain ?? "")}`, { credentials: "include" })
+        .then(r => r.json()),
+    enabled: !!result?.domain,
+    staleTime: 30_000,
+  });
+  const hasFullAccess = reportAccess?.fullAccess ?? false;
+  const hasMitreAccess = reportAccess?.mitre ?? false;
 
   // ── DNS İzleme hooks (sadece oturum açık müşteriler) ──────────────────────
   const {
@@ -2810,7 +2820,14 @@ export default function DomainScanPage() {
                     <Swords className="h-4 w-4 text-orange-500 shrink-0" />
                     <p className="text-sm font-semibold">Yapay Zeka Saldırı Senaryosu Analizi (MITRE ATT&CK)</p>
                   </div>
-                  <AttackScenarioPanel scanId={result.id} />
+                  {hasMitreAccess ? (
+                    <AttackScenarioPanel scanId={result.id} />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Yapay zeka saldırı senaryosu analizi ücretli planlarda (Başlangıç ve üzeri) sunulur.{" "}
+                      <a href="/fiyatlar" className="text-primary font-medium hover:underline">Planları inceleyin</a>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

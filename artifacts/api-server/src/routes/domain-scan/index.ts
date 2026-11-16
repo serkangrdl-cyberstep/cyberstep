@@ -922,7 +922,12 @@ async function checkAbuseIPDB(domain: string): Promise<{
           res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 100 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
           res.on("end", () => {
             try {
-              if (res.statusCode !== 200) { resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); return; }
+              if (res.statusCode !== 200) {
+                // Hata (401 anahtar, 429 kota ...) "temiz" gibi gösterilmemeli: veri yok say
+                logger.warn({ status: res.statusCode }, "AbuseIPDB: istek başarısız, sonuç atlanıyor");
+                resolve(null);
+                return;
+              }
               type AbuseIPDBResp = { data?: { abuseConfidenceScore?: number; totalReports?: number; countryCode?: string; isp?: string } };
               const json = JSON.parse(data) as AbuseIPDBResp;
               resolve({ score: json.data?.abuseConfidenceScore ?? 0, totalReports: json.data?.totalReports ?? 0, countryCode: json.data?.countryCode ?? null, isp: json.data?.isp ?? null });
@@ -930,11 +935,11 @@ async function checkAbuseIPDB(domain: string): Promise<{
           });
         }
       );
-      req.on("error", () => resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }));
-      req.on("timeout", () => { req.destroy(); resolve({ score: 0, totalReports: 0, countryCode: null, isp: null }); });
+      req.on("error", () => resolve(null));
+      req.on("timeout", () => { req.destroy(); resolve(null); });
       req.end();
     });
-  } catch { return { score: 0, totalReports: 0, countryCode: null, isp: null }; }
+  } catch { return null; }
 }
 
 function sanitizeDomain(raw: string): string {

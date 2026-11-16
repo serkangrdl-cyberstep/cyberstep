@@ -205,15 +205,13 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
 
     // ─── HAKKINDA + YASAL UYARI ──────────────────────────
     checkPageBreak(doc, 120);
-    const aboutY2 = doc.y + 12;
-    doc.moveTo(MARGIN, aboutY2).lineTo(MARGIN + CONTENT_W, aboutY2)
-      .lineWidth(0.5).strokeColor([148, 163, 184]).stroke();
+    doc.y += 12;
     doc.moveDown(0.6);
     doc.fillColor(PRIMARY).font(FONT_BOLD).fontSize(9)
       .text("CyberStep.io Hakkında", MARGIN, doc.y, { width: CONTENT_W });
     doc.fillColor(GRAY).font(FONT_REGULAR).fontSize(8)
       .text(
-        "CyberStep.io, Türkiye'deki işletmelerin siber güvenlik risklerini hızlı ve anlaşılır biçimde görselleştiren yapay zeka destekli bir değerlendirme platformudur. Tüm siber güvenlik hizmetlerimiz için cyberstep.io adresini ziyaret edin.",
+        "CyberStep.io, Türk şirketlerinin tedarikçilerinin siber riskini dışarıdan, ölçülebilir ve şeffaf biçimde görmesini sağlayan bir tedarikçi siber risk skorlama (TPRM) platformudur. Yalnızca herkese açık, dışarıdan doğrulanabilen sinyallere bakar: DNS ve e-posta kayıtları, sertifikalar, internete açık servisler, zafiyetler ve itibar listeleri. Tedarikçiden anket, kurulum veya onay istemez. Skor altı ağırlıklı kategoriden hesaplanır; metodoloji cyberstep.io/metodoloji adresinde açıkça yayımlanır. Türkiye odaklı alan adı veritabanı, USOM kayıtları, sektör kıyaslaması ve sürekli izleme sunar.",
         MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
       );
     doc.moveDown(0.8);
@@ -232,7 +230,7 @@ export function generateReportPDF(data: ReportData): Promise<Buffer> {
     doc.rect(0, footerY, W, 50).fill(DARK);
     doc.fillColor([148, 163, 184]).fontSize(8).font(FONT_REGULAR)
       .text(
-        `CyberStep.io  ·  Bu rapor uzman incelemesinden geçmiştir  ·  Değerlendirme #${data.assessmentId}`,
+        `CyberStep.io  ·  Bu rapor otomatik olarak hazırlanmıştır  ·  Değerlendirme #${data.assessmentId}`,
         MARGIN, footerY + 18, { width: CONTENT_W, align: "center" }
       );
 
@@ -959,6 +957,10 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           portStr = parts.join("; ") || `${ports.length} port tespit edildi`;
           if (data.shodanCountry || data.shodanIsp) portStr += ` (${[data.shodanCountry, data.shodanIsp].filter(Boolean).join(", ")})`;
         }
+        if (ports.length > 0) {
+          const list = ports.slice(0, 12).map((p) => `${p.port}/${p.protocol}${p.service ? ` (${p.service})` : ""}`).join(", ");
+          portStr += ` — portlar: ${list}${ports.length > 12 ? ` ve ${ports.length - 12} port daha` : ""}`;
+        }
         intelRow(
           "İnternet Maruziyeti Analizi",
           `${portStr}${data.shodanVulnCount > 0 ? ` ${data.shodanVulnCount} bilinen güvenlik açığı mevcut.` : ""}`,
@@ -1336,15 +1338,13 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       doc.switchToPage(lastRange.start + lastRange.count - 1);
     }
     checkPageBreak(doc, 120);
-    const aboutY = doc.y + 12;
-    doc.moveTo(MARGIN, aboutY).lineTo(MARGIN + CONTENT_W, aboutY)
-      .lineWidth(0.5).strokeColor([148, 163, 184]).stroke();
+    doc.y += 12;
     doc.moveDown(0.6);
     doc.fillColor(CS_CYAN).font(FONT_BOLD).fontSize(9)
       .text("CyberStep.io Hakkında", MARGIN, doc.y, { width: CONTENT_W });
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(8)
       .text(
-        "CyberStep.io, Türkiye'deki işletmelerin siber güvenlik risklerini hızlı ve anlaşılır biçimde görselleştiren yapay zeka destekli bir değerlendirme platformudur. Tüm siber güvenlik hizmetlerimiz için cyberstep.io adresini ziyaret edin.",
+        "CyberStep.io, Türk şirketlerinin tedarikçilerinin siber riskini dışarıdan, ölçülebilir ve şeffaf biçimde görmesini sağlayan bir tedarikçi siber risk skorlama (TPRM) platformudur. Yalnızca herkese açık, dışarıdan doğrulanabilen sinyallere bakar: DNS ve e-posta kayıtları, sertifikalar, internete açık servisler, zafiyetler ve itibar listeleri. Tedarikçiden anket, kurulum veya onay istemez. Skor altı ağırlıklı kategoriden hesaplanır; metodoloji cyberstep.io/metodoloji adresinde açıkça yayımlanır. Türkiye odaklı alan adı veritabanı, USOM kayıtları, sektör kıyaslaması ve sürekli izleme sunar.",
         MARGIN, doc.y + 3, { width: CONTENT_W, lineGap: 2 }
       );
     doc.moveDown(0.5);

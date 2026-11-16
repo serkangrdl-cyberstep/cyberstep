@@ -75,3 +75,9 @@ API route'ları ve cron'lar **kapatılmadı**: SOC, NOC, AI vb. backend modülle
 ## Eski fiyatlı sayfalar (15 Kasım 2026)
 
 TPRM fiyatlandırmasıyla (Başlangıç 59.000, Profesyonel 149.000, Kurumsal 600.000 TL'den) çelişen eski tek seferlik paket fiyatlarını gösteren sayfalar arşive alındı: `/sanal-ciso`, `/ma-due-diligence`, `/sektor` (ve `/sektor/:slug`). Kod yerinde; geri açmak için `archived-routes.ts` listesinden satırları silmek yeterli.
+
+## Eski outreach cron'ları (17 Kasım 2026)
+
+Eski satış yapısının giden e-posta ve ISR cron'ları artık **varsayılan olarak başlamıyor**: `scan_lead_drip`, `free_scan_followup` ve `startIsrImapCron` altındaki hepsi (`isr_imap`, `teaser_reply_poll`, `teaser_followup`, `isr_leadgen_d3`, D+7 takip). Kod yerinde. Geri açmak için Railway'de `LEGACY_OUTREACH_CRONS=true` verip yeniden dağıtmak yeterli.
+
+`email_sequence` açık kalır: kayıt, assessment satın alma ve SOC aktivasyonu gibi müşteri yaşam döngüsü e-postalarını gönderir. Alan keşfi cron'ları (certstream, crt.sh, BGP, RIPE vb.) de çalışmaya devam eder.

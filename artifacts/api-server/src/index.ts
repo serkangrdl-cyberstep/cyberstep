@@ -2648,12 +2648,19 @@ function startGrowthEngineCrons() {
 startup()
   .then(() => {
     startReminderCron();
-    startScanLeadDripCron();
+    // Eski satış yapısının giden e-posta / ISR cron'ları arşivlendi (docs/ARSIV.md).
+    // Gerekirse LEGACY_OUTREACH_CRONS=true ile yeniden açılır.
+    const legacyOutreach = process.env["LEGACY_OUTREACH_CRONS"] === "true";
+    if (legacyOutreach) startScanLeadDripCron();
     startLeadWebEnrichCron();
     startLeadTrEnrichCron();
     startAiScoreRetryCron();
-    startFreeScanFollowupCron();
-    startIsrImapCron();
+    if (legacyOutreach) {
+      startFreeScanFollowupCron();
+      startIsrImapCron();
+    } else {
+      logger.info("Eski outreach cron'ları kapalı (scan_lead_drip, free_scan_followup, ISR/teaser: LEGACY_OUTREACH_CRONS=true ile açılır)");
+    }
     startInflationReminderCron();
     startEmergingThreatCron();
     startBlogAutopilotCron();

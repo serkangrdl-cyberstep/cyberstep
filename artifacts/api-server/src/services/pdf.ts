@@ -1043,7 +1043,8 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         doc.y += 4;
       }
 
-      // 3. Bilgi notu
+      // 3. Bilgi notu — yalnızca öncelikli alt alan adı varsa
+      if (highPri.length > 0) {
       checkPageBreak(doc, 22);
       const noteY = doc.y;
       doc.rect(MARGIN, noteY, CONTENT_W, 18).fill([240, 249, 255]);
@@ -1054,6 +1055,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           MARGIN + 10, noteY + 5, { width: CONTENT_W - 14, lineBreak: false },
         );
       doc.y = noteY + 24;
+      }
     }
 
     // ── MITRE ATT&CK Saldiri Senaryolari ────────────────────────────────────
@@ -1131,7 +1133,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           doc.fillColor([37, 99, 235]).fontSize(7.5).font(FONT_BOLD)
             .text("KVKK:", MARGIN + 8, doc.y, { width: 34, lineBreak: false });
           doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR)
-            .text(s.kvkk_etkisi.substring(0, 160), MARGIN + 46, doc.y - 10, { width: CONTENT_W - 52 });
+            .text(clip(s.kvkk_etkisi, 220), MARGIN + 46, doc.y - 10, { width: CONTENT_W - 52 });
           doc.y += 4;
         }
 
@@ -1162,7 +1164,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
             .text(`${item.oncelik}.  ${item.aksiyon}`, MARGIN + 20, ay, { width: CONTENT_W - 24 });
           const afterTitle = doc.y + 3;
           doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
-            .text(item.neden.substring(0, 220), MARGIN + 20, afterTitle, { width: CONTENT_W - 24 });
+            .text(clip(item.neden, 260), MARGIN + 20, afterTitle, { width: CONTENT_W - 24 });
           const blockEnd = doc.y + 10;
           // Sol kırmızı çizgi
           doc.moveTo(MARGIN + 8, ay - 2).lineTo(MARGIN + 8, blockEnd - 4).strokeColor([220, 38, 38]).lineWidth(2).stroke();

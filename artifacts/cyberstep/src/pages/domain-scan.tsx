@@ -2675,6 +2675,12 @@ export default function DomainScanPage() {
                         <span><span className="font-medium">Google Safe Browsing: </span>{!result.safeBrowsingFlagged ? "Zararlı site listesinde değil" : `Zararlı olarak işaretli${result.safeBrowsingThreats?.length ? ` (${result.safeBrowsingThreats.join(", ")})` : ""}`}</span>
                       </div>
                     )}
+                    {result.otxData != null && (
+                      <div className="flex items-start gap-2">
+                        {result.otxData.pulseCount === 0 ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}
+                        <span><span className="font-medium">AlienVault OTX: </span>{result.otxData.pulseCount === 0 ? "Tehdit istihbaratı kayıtlarında yer almıyor" : `${result.otxData.pulseCount} tehdit kaydında (pulse) geçiyor${result.otxData.maliciousCount > 0 ? `, ${result.otxData.maliciousCount} tanesi Türkiye'yi hedefliyor` : ""}`}</span>
+                      </div>
+                    )}
                     {result.abuseIpdbScore !== null && (
                       <div className="flex items-start gap-2">
                         {result.abuseIpdbScore < 25 ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}

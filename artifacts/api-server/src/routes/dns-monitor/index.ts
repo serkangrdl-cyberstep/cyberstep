@@ -21,7 +21,7 @@ router.get("/portal/dns-monitor/domains", requireCustomer, async (req: Request, 
     `);
     res.json((result as unknown as { rows: unknown[] }).rows);
   } catch (err) {
-    logger.error({ err }, "GET dns-monitor/domains failed");
+    logger.error({ err }, `GET dns-monitor/domains failed: ${err instanceof Error ? err.message : String(err)}`.slice(0, 300));
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

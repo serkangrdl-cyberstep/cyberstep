@@ -5,7 +5,8 @@
  * Opsiyonel: CENSYS_ORG_ID (ücretli organizasyon hesapları için; Free'de gerekmez).
  * Eski search.censys.io (ID/Secret) API'si kaldırıldı; bu dosya onun yerini alır.
  *
- * Arama: POST https://api.platform.censys.io/v3/global/search/query
+ * Free hesapta yalnızca lookup endpoint'leri açıktır (GET /v3/global/asset/host/{ip});
+ * arama (search/query) Starter+ ve organizasyon ID gerektirir.
  */
 import axios from "axios";
 import { logger } from "../lib/logger";
@@ -89,4 +90,30 @@ export function unwrapHit(
   if (!node || typeof node !== "object") return null;
   const resource = node["resource"] as Record<string, unknown> | undefined;
   return resource && typeof resource === "object" ? resource : node;
+}
+
+/** Tek IP için güncel host kaydı (Free hesapta da çalışır). Kayıt yoksa null. */
+export async function censysHostLookup(ip: string): Promise<Record<string, unknown> | null> {
+  const token = getCensysToken();
+  if (!token) throw new CensysApiError(undefined, "CENSYS_API_TOKEN tanımlı değil");
+  try {
+    const resp = await axios.get(`${BASE_URL}/asset/host/${encodeURIComponent(ip)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "User-Agent": "CyberStep.io/1.0 SecurityResearch",
+      },
+      timeout: 20_000,
+      validateStatus: (st) => (st >= 200 && st < 300) || st === 404,
+    });
+    if (resp.status === 404) return null;
+    const result = (resp.data as { result?: Record<string, unknown> })?.result;
+    if (!result) return null;
+    const resource = result["resource"] as Record<string, unknown> | undefined;
+    return resource && typeof resource === "object" ? resource : result;
+  } catch (err) {
+    const e = describeError(err);
+    logger.warn({ ip, status: e.status, detail: e.message }, "censysPlatform: host lookup başarısız");
+    throw e;
+  }
 }

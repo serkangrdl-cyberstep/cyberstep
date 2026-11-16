@@ -713,7 +713,7 @@ async function checkNvdCve(services: Array<{ name: string; risk: string; version
     await new Promise<void>((resolve) => {
       const path = `/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(keyword)}&resultsPerPage=5&cvssV3Severity=CRITICAL`;
       const req = https.request(
-        { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 8000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" } },
+        { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 8000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0", ...(process.env["NVD_API_KEY"] ? { apiKey: process.env["NVD_API_KEY"] } : {}) } },
         (res) => {
           let data = "";
           let size = 0;

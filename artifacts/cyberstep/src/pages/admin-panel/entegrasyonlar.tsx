@@ -266,12 +266,12 @@ const INTEGRATIONS: IntegrationDef[] = [
   {
     id: "censys", name: "Censys", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
     cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 250 sorgu/ay | Pro ücretli",
-    envKey: "CENSYS_API_ID", always: false,
+    envKey: "CENSYS_API_TOKEN", always: false,
     desc: "İnternet genelinde host ve sertifika taraması — açık servisler, TLS yapılandırması ve cihaz parmak izi",
     why: "Shodan'a alternatif/tamamlayıcı internet tarama veri kaynağı. Açık servisleri ve sertifika ayrıntılarını farklı bir bakış açısıyla doğrular.",
-    how: "Domain ve IP'ler Censys Search API'siyle sorgulanır; açık portlar, servisler ve sertifika bilgileri tarama raporuna eklenir.",
-    setup: "1. censys.io'da hesap açın  2. Account → API → ID ve Secret  3. CENSYS_API_ID ve CENSYS_API_SECRET ekleyin.",
-    docs: "https://search.censys.io/api",
+    how: "Domain ve IP'ler Censys Platform API'siyle sorgulanır; açık portlar, servisler ve sertifika bilgileri tarama raporuna eklenir.",
+    setup: "1. platform.censys.io'da hesap açın  2. Kullanıcı ikonu → API Access → Create New Token  3. CENSYS_API_TOKEN olarak ekleyin.",
+    docs: "https://docs.censys.com/reference/get-started",
   },
   {
     id: "binaryedge", name: "BinaryEdge", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",

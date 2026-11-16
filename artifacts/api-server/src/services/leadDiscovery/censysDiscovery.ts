@@ -1,21 +1,19 @@
 /**
  * Censys tabanlı Türk domain keşfi.
  *
- * CENSYS_API_ID ve CENSYS_API_SECRET env değişkenleri tanımlı değilse erken çıkar.
- * Censys Search API v2 ile .tr TLD'li SSL sertifikalarını tarar,
+ * CENSYS_API_TOKEN tanımlı değilse erken çıkar.
+ * Censys Platform API ile .tr TLD'li SSL sertifikalarını tarar,
  * bulunan domain'leri lead_candidates tablosuna ekler.
  *
- * Ücretsiz tier: 250 sorgu/ay — 3 TLD × 1 sorgu/gün = ayda ~90 sorgu.
- * API: https://search.censys.io/api/v2/hosts/search
+ * API: POST https://api.platform.censys.io/v3/global/search/query
  */
-import axios from "axios";
 import { db } from "@workspace/db";
 import { discoveryRunsTable, leadCandidatesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { shouldExcludeFromPipeline } from "../leadScoringService";
+import { CensysApiError, censysSearch, isCensysConfigured, unwrapHit } from "../censysPlatform";
 
-const CENSYS_SEARCH_URL = "https://search.censys.io/api/v2/hosts/search";
 const TR_TLDS = ["com.tr", "net.tr", "org.tr", "bel.tr"];
 
 function extractRootDomain(hostname: string): string {
@@ -25,29 +23,21 @@ function extractRootDomain(hostname: string): string {
   return parts.slice(-2).join(".");
 }
 
+/** Sertifika kaydındaki .tr isimlerini çıkarır (şema farklarına toleranslı). */
 function extractDomainsFromHit(hit: Record<string, unknown>): string[] {
-  const domains: string[] = [];
-  const services = (hit["services"] as Array<Record<string, unknown>> | undefined) ?? [];
-
-  for (const svc of services) {
-    const tls = svc["tls"] as Record<string, unknown> | undefined;
-    if (!tls) continue;
-    const certs = tls["certificates"] as Record<string, unknown> | undefined;
-    const leaf = (certs?.["leaf_data"] as Record<string, unknown> | undefined);
-    const subject = (leaf?.["subject"] as Record<string, unknown> | undefined);
-    const cn = subject?.["common_name"] as string | undefined;
-    if (cn && typeof cn === "string" && cn.endsWith(".tr") && !cn.startsWith("*")) {
-      domains.push(cn.toLowerCase());
-    }
-    const names = (leaf?.["names"] as string[] | undefined) ?? [];
-    for (const n of names) {
-      if (typeof n === "string" && n.endsWith(".tr") && !n.startsWith("*")) {
-        domains.push(n.toLowerCase());
-      }
-    }
+  const cert = unwrapHit(hit, "certificate_v1");
+  if (!cert) return [];
+  const out: string[] = [];
+  const names = cert["names"];
+  if (Array.isArray(names)) for (const n of names) if (typeof n === "string") out.push(n);
+  const parsed = cert["parsed"] as Record<string, unknown> | undefined;
+  const cn = (parsed?.["subject"] as Record<string, unknown> | undefined)?.["common_name"];
+  if (Array.isArray(cn)) {
+    for (const n of cn) if (typeof n === "string") out.push(n);
+  } else if (typeof cn === "string") {
+    out.push(cn);
   }
-
-  return [...new Set(domains)];
+  return [...new Set(out.map((n) => n.toLowerCase()).filter((n) => n.endsWith(".tr") && !n.startsWith("*")))];
 }
 
 export interface CensysDiscoveryResult {
@@ -56,25 +46,9 @@ export interface CensysDiscoveryResult {
   addedToLeads: number;
 }
 
-function buildCensysAuth(): { auth?: { username: string; password: string }; headers?: Record<string, string> } | null {
-  const singleKey = process.env["CENSYS_API_KEY"];
-  const apiId = process.env["CENSYS_API_ID"];
-  const apiSecret = process.env["CENSYS_API_SECRET"];
-
-  if (singleKey) {
-    return { headers: { Authorization: `Bearer ${singleKey}` } };
-  }
-  if (apiId && apiSecret) {
-    return { auth: { username: apiId, password: apiSecret } };
-  }
-  return null;
-}
-
 export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
-  const censysAuth = buildCensysAuth();
-
-  if (!censysAuth) {
-    logger.info("CENSYS_API_KEY (veya CENSYS_API_ID+SECRET) tanımlı değil — Censys discovery atlanıyor");
+  if (!isCensysConfigured()) {
+    logger.info("CENSYS_API_TOKEN tanımlı değil — Censys discovery atlanıyor");
     return { runId: 0, domainsFound: 0, addedToLeads: 0 };
   }
 
@@ -90,23 +64,7 @@ export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
 
     for (const tld of TR_TLDS) {
       try {
-        const resp = await axios.post(
-          CENSYS_SEARCH_URL,
-          {
-            q: `services.tls.certificates.leaf_data.subject.common_name: "*.${tld}"`,
-            per_page: 100,
-          },
-          {
-            ...(censysAuth.auth ? { auth: censysAuth.auth } : {}),
-            headers: {
-              "User-Agent": "CyberStep-SecurityResearch/1.0",
-              ...(censysAuth.headers ?? {}),
-            },
-            timeout: 20_000,
-          },
-        );
-
-        const hits = ((resp.data as Record<string, unknown>)?.["result"] as Record<string, unknown>)?.["hits"] as Array<Record<string, unknown>> ?? [];
+        const { hits } = await censysSearch(`cert.names = "${tld}"`, 100);
 
         for (const hit of hits) {
           for (const domain of extractDomainsFromHit(hit)) {
@@ -120,8 +78,10 @@ export async function runCensysDiscovery(): Promise<CensysDiscoveryResult> {
         logger.info({ tld, hits: hits.length }, "Censys: TLD taraması tamamlandı");
         await new Promise(r => setTimeout(r, 2_000));
       } catch (err: unknown) {
-        const status = axios.isAxiosError(err) ? err.response?.status : null;
+        const status = err instanceof CensysApiError ? err.status : null;
         logger.warn({ tld, status, err: String(err) }, "Censys: TLD taraması başarısız, devam ediliyor");
+        // Yetki/kota sorunu tüm TLD'lerde tekrarlanır; boşuna devam etme
+        if (status === 401 || status === 403 || status === 429) break;
       }
     }
 

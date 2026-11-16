@@ -146,6 +146,7 @@ interface ScanResult {
     countryCode: string | null;
     city: string | null;
     isSameAsKnown: boolean;
+    lastSeen?: string | null;
   }> | null;
   censysTotalFound?: number | null;
   createdAt: string;
@@ -2770,6 +2771,16 @@ export default function DomainScanPage() {
                           {host.ports.length > 0 && (
                             <span className="ml-auto text-muted-foreground font-mono">{host.ports.slice(0, 5).join(", ")}</span>
                           )}
+                          {host.lastSeen && (() => {
+                            const d = new Date(host.lastSeen);
+                            if (Number.isNaN(d.getTime())) return null;
+                            const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000));
+                            return (
+                              <span className="text-muted-foreground">
+                                Son tarama: {days === 0 ? "bugün" : `${days} gün önce`}
+                              </span>
+                            );
+                          })()}
                           {host.isSameAsKnown && (
                             <span className="text-green-600 font-medium">Bilinen IP</span>
                           )}

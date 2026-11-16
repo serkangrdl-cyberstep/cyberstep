@@ -304,6 +304,7 @@ interface DomainScanData {
     countryCode: string | null;
     city: string | null;
     isSameAsKnown: boolean;
+    lastSeen?: string | null;
   }> | null;
   censysTotalFound?: number | null;
   attackScenarios?: {

@@ -318,6 +318,7 @@ interface DomainScanData {
   censysTotalFound?: number | null;
   safeBrowsingFlagged?: boolean | null;
   safeBrowsingThreats?: string[] | null;
+  otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;
@@ -563,12 +564,12 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       .text(`Siz ${data.overallScore}`, MARGIN + CBAR_W + 8, BAR_Y + 11);
 
     // Güvenilirlik göstergesi
-    if (data.confidenceScore != null) {
+    if (data.confidenceScore != null && data.wafDetected) {
       const confY = BAR_Y + 36;
       const confColor: [number, number, number] =
         data.confidenceScore >= 80 ? [22, 163, 74] :
         data.confidenceScore >= 60 ? [217, 119, 6] : [220, 38, 38];
-      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7).text("Tarama Güvenilirliği", MARGIN, confY);
+      doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7).text("WAF Tespit Güvenilirliği", MARGIN, confY);
       const CBAR_W2 = 130;
       doc.rect(MARGIN, confY + 13, CBAR_W2, 4).fill(CS_CARD);
       doc.rect(MARGIN, confY + 13, CBAR_W2 * (data.confidenceScore / 100), 4).fill(confColor);
@@ -916,6 +917,16 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           "IP Kötüye Kullanım Geçmişi",
           `Güven skoru: %${data.abuseIpdbScore} — son 90 günde ${data.abuseIpdbTotalReports} rapor${data.abuseIpdbCountry ? `. Konum: ${data.abuseIpdbCountry}` : ""}${data.abuseIpdbIsp ? `, ${data.abuseIpdbIsp}` : ""}`,
           aOk
+        );
+      }
+
+      if (data.otxData != null) {
+        intelRow(
+          "AlienVault OTX",
+          data.otxData.pulseCount === 0
+            ? "Tehdit istihbaratı kayıtlarında yer almıyor"
+            : `${data.otxData.pulseCount} tehdit kaydında geçiyor${data.otxData.maliciousCount ? ` (${data.otxData.maliciousCount} tanesi Türkiye hedefli)` : ""}`,
+          data.otxData.pulseCount === 0
         );
       }
 

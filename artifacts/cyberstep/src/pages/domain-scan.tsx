@@ -2409,7 +2409,7 @@ export default function DomainScanPage() {
                         }`}
                         title={result.confidenceNote ?? undefined}
                       >
-                        Güvenilirlik %{result.confidenceScore}
+                        WAF tespit güvenilirliği %{result.confidenceScore}
                         {result.wafDetected && result.wafProvider && ` · WAF`}
                       </Badge>
                     )}

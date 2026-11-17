@@ -96,6 +96,30 @@ export default function CustomerReports() {
     enabled: !!customer,
   });
 
+  const { data: vendorsRaw, isLoading: loadingV } = useQuery<Array<{ id: number; supplierDomain: string; supplierName: string | null; lastScanScore: number | null; lastScanAt: string | null; questionnaireStatus: string }>>({
+    queryKey: ["customer-tprm-vendors"],
+    queryFn: () => fetch("/api/tprm/vendors", { credentials: "include" }).then(r => r.json()),
+    enabled: !!customer,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const vendors = Array.isArray(vendorsRaw) ? vendorsRaw : [];
+  const [downloadingVendorId, setDownloadingVendorId] = useState<number | null>(null);
+  async function downloadVendorPDF(id: number, domain: string) {
+    setDownloadingVendorId(id);
+    try {
+      const res = await fetch(`/api/tprm/vendors/${id}/report.pdf`, { credentials: "include" });
+      if (!res.ok) throw new Error("PDF indirilemedi");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `CyberStep_Tedarikci_${domain}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingVendorId(null);
+    }
+  }
+
   const { data: domainScans = [], isLoading: loadingD } = useQuery<CustomerDomainScan[]>({
     queryKey: ["customer-domain-scans"],
     queryFn: () => fetch("/api/customer/domain-scans", { credentials: "include" }).then(r => r.json()),
@@ -310,6 +334,9 @@ export default function CustomerReports() {
             <TabsTrigger value="domains" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
               <Globe className="h-4 w-4 mr-2" /> Alan Adı Taramaları ({domainScans.length})
             </TabsTrigger>
+            <TabsTrigger value="vendors" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
+              <FileText className="h-4 w-4 mr-2" /> Tedarikçi Raporları ({vendors.length})
+            </TabsTrigger>
             <TabsTrigger value="annual" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
               <BarChart3 className="h-4 w-4 mr-2" /> Yıllık Raporlar
             </TabsTrigger>
@@ -393,6 +420,39 @@ export default function CustomerReports() {
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          {/* Tedarikçi (TPRM) Raporları */}
+          <TabsContent value="vendors" className="mt-4 space-y-3">
+            {loadingV && <div className="text-center py-12 text-slate-500">Yükleniyor...</div>}
+            {!loadingV && vendors.length === 0 && (
+              <Card className="bg-slate-900 border-slate-700">
+                <CardContent className="p-12 text-center">
+                  <p className="text-slate-400">Henüz tedarikçi eklenmedi.</p>
+                  <Link href="/hesabim/tedarikci-portfoyu">
+                    <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white">Tedarikçi Portföyü</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
+            {vendors.map((v) => (
+              <Card key={v.id} className="bg-slate-900 border-slate-700">
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white truncate">{v.supplierName ?? v.supplierDomain}</p>
+                    <p className="text-xs text-slate-400">
+                      {v.supplierDomain} · Skor: {v.lastScanScore ?? "—"}
+                      {v.lastScanAt ? ` · ${new Date(v.lastScanAt).toLocaleDateString("tr-TR")}` : ""}
+                      {v.questionnaireStatus === "completed" ? " · Anket tamamlandı" : v.questionnaireStatus === "pending" ? " · Anket bekliyor" : ""}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" disabled={v.lastScanScore === null || downloadingVendorId === v.id}
+                    onClick={() => downloadVendorPDF(v.id, v.supplierDomain)}>
+                    {downloadingVendorId === v.id ? "İndiriliyor..." : "PDF"}
+                  </Button>
                 </CardContent>
               </Card>
             ))}

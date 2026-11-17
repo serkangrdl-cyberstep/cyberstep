@@ -318,6 +318,7 @@ interface DomainScanData {
   trMedian?: number | null;
   blacklistResults?: Array<{ list: string; listed: boolean; code?: string }> | null;
   uncheckedSources?: string[] | null;
+  tprmExtra?: PdfTprmExtra | null;
   safeBrowsingFlagged?: boolean | null;
   safeBrowsingThreats?: string[] | null;
   otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
@@ -855,6 +856,36 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       data.usomListed ? "USOM zararlı domain listesinde kayıtlı" : unchecked.has("usom") ? NA : "Temiz — USOM listesinde yok",
       data.usomListed ? false : unchecked.has("usom") ? null : true
     );
+
+    // TPRM derin tarama kaynakları (yalnızca tam taramada ölçülür)
+    if (data.tprmExtra) {
+      const x = data.tprmExtra;
+      intelRow(
+        "Botnet C2 (Feodo Tracker)",
+        unchecked.has("feodo") ? NA : x.feodoC2Ips.length > 0 ? `Sunucu IP'si botnet C2 listesinde: ${x.feodoC2Ips.join(", ")}` : "Temiz — botnet C2 listesinde yok",
+        x.feodoC2Ips.length > 0 ? false : unchecked.has("feodo") ? null : true
+      );
+      intelRow(
+        "Zararlı IOC (ThreatFox)",
+        unchecked.has("threatfox") ? NA : x.threatFoxIocCount > 0 ? `${x.threatFoxIocCount} zararlı gösterge kaydı` : "Temiz — IOC kaydı yok",
+        x.threatFoxIocCount > 0 ? false : unchecked.has("threatfox") ? null : true
+      );
+      intelRow(
+        "Alt Alan Adları (sahipsiz CNAME)",
+        unchecked.has("ct") ? NA : x.danglingCnames.length > 0 ? `${x.danglingCnames.length} sahipsiz kayıt: ${x.danglingCnames.slice(0, 3).join("; ")}` : `Sahipsiz kayıt yok (${x.subdomainsChecked} alt alan kontrol edildi)`,
+        x.danglingCnames.length > 0 ? false : unchecked.has("ct") ? null : true
+      );
+      intelRow(
+        "TLS Yapılandırması (SSL Labs)",
+        x.sslLabsGrade ? `Not: ${x.sslLabsGrade}` : x.sslLabsPending ? "Değerlendirme başlatıldı; sonuç bir sonraki taramada" : NA,
+        x.sslLabsGrade ? !["C", "D", "E", "F", "T", "M"].includes(x.sslLabsGrade) : null
+      );
+      intelRow(
+        "Tehdit Kampanyaları (OTX, bilgi amaçlı)",
+        unchecked.has("otx") ? NA : `${x.otx?.pulseCount ?? 0} kampanyada anılıyor (skora dahil değil)`,
+        null
+      );
+    }
 
     // Shadow IT
     const highRisk = data.shadowItServices.filter(s => s.risk === "Yuksek");
@@ -1579,6 +1610,11 @@ export function generateDomainScanPassport(data: PassportData): Promise<Buffer> 
 }
 
 // ─── Siber Sigorta Hazırlık Raporu ───────────────────────────────────────────
+export interface PdfTprmExtra {
+  feodoC2Ips: string[]; threatFoxIocCount: number; danglingCnames: string[]; subdomainsChecked: number;
+  sslLabsGrade?: string | null; sslLabsPending?: boolean; otx?: { pulseCount: number; trTargetedPulses: number } | null;
+}
+
 export interface InsuranceReportData {
   companyName: string;
   sector: string;

@@ -56,7 +56,7 @@ function buildUncheckedSources(c: {
   spf?: { unchecked?: boolean }; dmarc?: { unchecked?: boolean }; dkim?: { unchecked?: boolean }; mx?: { unchecked?: boolean };
   /** Shodan sorgusu yapılamadıysa/başarısız olduysa true (ağ maruziyeti ölçülemedi). */
   shodanFailed?: boolean;
-  nvdFailed?: boolean; feodoUnchecked?: boolean; threatFoxUnchecked?: boolean; ctFailed?: boolean;
+  nvdFailed?: boolean; sslLabsUnchecked?: boolean; otxUnchecked?: boolean; feodoUnchecked?: boolean; threatFoxUnchecked?: boolean; ctFailed?: boolean;
 }): string[] {
   return [
     ...(c.hibp?.unchecked ? ["hibp"] : []),
@@ -67,6 +67,8 @@ function buildUncheckedSources(c: {
     ...(c.shadowIt?.unchecked ? ["shadowit"] : []),
     ...(c.shodanFailed ? ["shodan"] : []),
     ...(c.nvdFailed ? ["nvd"] : []),
+    ...(c.sslLabsUnchecked ? ["ssllabs"] : []),
+    ...(c.otxUnchecked ? ["otx"] : []),
     ...(c.feodoUnchecked ? ["feodo"] : []),
     ...(c.threatFoxUnchecked ? ["threatfox"] : []),
     ...(c.ctFailed ? ["ct"] : []),
@@ -1595,6 +1597,34 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
   });
 }
 
+/**
+ * TPRM: SSL Labs notu. Önce 7 günlük önbellek; yoksa yeni değerlendirme başlatılır (sonucu sonraki taramada okunur).
+ * Not hazır değilse "ölçülemedi" (skoru etkilemez), temiz/iyi sayılmaz.
+ */
+async function checkSSLLabsTprm(domain: string): Promise<{ grade: string | null; pending: boolean }> {
+  const get = (path: string) => new Promise<{ status?: string; endpoints?: Array<{ grade?: string }> } | null>((resolve) => {
+    const r = https.request({ hostname: "api.ssllabs.com", path, method: "GET", timeout: 12000, headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", "Accept": "application/json" } }, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => { try { resolve(res.statusCode === 200 ? JSON.parse(data) : null); } catch { resolve(null); } });
+    });
+    r.on("error", () => resolve(null));
+    r.on("timeout", () => { r.destroy(); resolve(null); });
+    r.end();
+  });
+  const h = encodeURIComponent(domain);
+  const cached = await get(`/api/v3/analyze?host=${h}&publish=off&fromCache=on&maxAge=168&all=done`);
+  if (cached?.status === "READY" && cached.endpoints?.length) {
+    const order = ["A+", "A", "A-", "B", "C", "D", "E", "F", "T", "M"];
+    const grades = cached.endpoints.map((e) => e.grade).filter(Boolean) as string[];
+    const worst = [...order].reverse().find((g) => grades.includes(g)) ?? grades[0] ?? null;
+    return { grade: worst, pending: false };
+  }
+  if (cached?.status === "IN_PROGRESS" || cached?.status === "DNS") return { grade: null, pending: true };
+  const started = await get(`/api/v3/analyze?host=${h}&publish=off&startNew=on&all=done`);
+  return { grade: null, pending: started !== null };
+}
+
 // ─── performDomainScan: Direct call (used by discovery pipeline) ─────────────
 /**
  * opts.full=true: skora girdi olan tüm kaynaklar (HIBP, HTTP başlıkları, URLhaus, Safe Browsing,
@@ -1657,15 +1687,18 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
     // Derin tarama (yalnızca TPRM tam modu): tüm A kayıtları için botnet C2, ThreatFox IOC, sahipsiz alt alan adları.
     const deep = full ? await (async () => {
       const dnsP = await import("dns/promises");
-      const [ips, tf, ct] = await Promise.all([
+      const [ips, tf, ct, ssll, otx, epss] = await Promise.all([
         dnsP.resolve4(domain).catch(() => [] as string[]),
         checkThreatFox(domain).catch(() => ({ iocCount: 0, threatType: null, malwareName: null, unchecked: true } as ThreatFoxResult)),
         checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0, failed: true as boolean | undefined })),
+        checkSSLLabsTprm(domain).catch(() => ({ grade: null as string | null, pending: false })),
+        checkOTX(domain).catch(() => null),
+        cveSummary.length > 0 ? enrichWithEpss(cveSummary).catch(() => [] as NvdCveEntryWithEpss[]) : Promise.resolve([] as NvdCveEntryWithEpss[]),
       ]);
       const feodo = await checkFeodoIps(ips).catch(() => ({ c2Ips: [] as string[], unchecked: true }));
       const { findDanglingCnames } = await import("../../services/tprmDeepScan");
       const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
-      return { ips, tf, ct, feodo, dangling };
+      return { ips, tf, ct, feodo, dangling, ssll, otx, epss };
     })() : null;
     const tprmExtra = deep ? {
       feodoC2Ips: deep.feodo.c2Ips,
@@ -1675,6 +1708,10 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       subdomainsChecked: deep.dangling.checked,
       resolvedIpCount: deep.ips.length,
       nvdQueried: nvdRes.queried,
+      sslLabsGrade: deep.ssll.grade,
+      sslLabsPending: deep.ssll.pending,
+      epss: Object.fromEntries(deep.epss.map((e) => [e.cveId, { score: e.epssScore, percentile: e.epssPercentile }])),
+      otx: deep.otx ? { pulseCount: deep.otx.pulseCount, trTargetedPulses: deep.otx.maliciousCount } : null,
     } : null;
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
@@ -1780,7 +1817,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         abuseIpdbScore: abuseIpdb?.score ?? null, abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0, abuseIpdbCountry: abuseIpdb?.countryCode ?? null, abuseIpdbIsp: abuseIpdb?.isp ?? null,
         safeBrowsingFlagged: safeBrowsing ? safeBrowsing.flagged : null, safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: null,
-        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null, nvdFailed: nvdRes.failed, feodoUnchecked: deep?.feodo.unchecked, threatFoxUnchecked: deep?.tf.unchecked, ctFailed: deep?.ct.failed }),
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null, nvdFailed: nvdRes.failed, sslLabsUnchecked: deep ? deep.ssll.grade === null : undefined, otxUnchecked: deep ? deep.otx === null : undefined, feodoUnchecked: deep?.feodo.unchecked, threatFoxUnchecked: deep?.tf.unchecked, ctFailed: deep?.ct.failed }),
         tprmExtra,
         badgeToken: randomUUID(),
         referralSource: full ? "tprm_scan" : "discovery_pipeline",

@@ -187,3 +187,11 @@ test("HIBP bulgusu e-posta değil alan adı hizmetine atfedilir", () => {
   const f = r.findings.find((x) => x.category === "breaches");
   assert.ok(f && /Alan adına ait hizmet 5 bilinen veri ihlalinde/.test(f.title));
 });
+
+test("SSL Labs notu F ise web puanı düşer ve bulgu üretir; A ise etkilemez", () => {
+  const good = computeScoreV2({ ...clean, sslDaysUntilExpiry: 90, sslLabsGrade: "A" });
+  const bad = computeScoreV2({ ...clean, sslDaysUntilExpiry: 90, sslLabsGrade: "F" });
+  assert.ok(bad.score < good.score);
+  assert.ok(bad.findings.some((f) => /SSL Labs notu F/.test(f.title)));
+  assert.ok(!good.findings.some((f) => /SSL Labs/.test(f.title)));
+});

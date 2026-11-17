@@ -133,6 +133,7 @@ interface CveDomainEntry {
   matchedProduct: string | null;
   matchedVersion: string | null;
   confidence: number | null;
+  evidence?: "verified" | "version" | "product";
   isPatched: boolean | null;
   wafDetected: boolean | null;
   wafProvider: string | null;
@@ -154,6 +155,7 @@ interface CveReportEntry {
 
 interface CveReport {
   total: number;
+  hiddenUnverifiedMatches?: number;
   cves: CveReportEntry[];
 }
 
@@ -1177,6 +1179,7 @@ export default function AdminLeadDiscovery() {
   const [cveSeverity, setCveSeverity] = useState("");
   const [cveOnlyExploit, setCveOnlyExploit] = useState(false);
   const [cveOnlyKev, setCveOnlyKev] = useState(false);
+  const [cveShowUnverified, setCveShowUnverified] = useState(false);
   const [cveExpanded, setCveExpanded] = useState<Set<string>>(new Set());
 
   // ─── Queries ─────────────────────────────────────────────────────────────
@@ -1257,12 +1260,13 @@ export default function AdminLeadDiscovery() {
   const [portRiskFilter, setPortRiskFilter] = useState<"all" | "mysql" | "ftp" | "rdp" | "vnc" | "mongo" | "redis">("all");
 
   const { data: cveReport, isLoading: cveLoading, isFetching: cveFetching, refetch: cveRefetch } = useQuery<CveReport>({
-    queryKey: ["lead-discovery-cve-report", cveMinCvss, cveSeverity, cveOnlyExploit, cveOnlyKev],
+    queryKey: ["lead-discovery-cve-report", cveMinCvss, cveSeverity, cveOnlyExploit, cveOnlyKev, cveShowUnverified],
     queryFn: async () => {
       const params = new URLSearchParams({ minCvss: cveMinCvss });
       if (cveSeverity) params.set("severity", cveSeverity);
       if (cveOnlyExploit) params.set("exploit", "1");
       if (cveOnlyKev) params.set("kev", "1");
+      if (cveShowUnverified) params.set("unverified", "1");
       const r = await fetch(`${BASE}/lead-discovery/cve-report?${params}`, { credentials: "include", cache: "no-store" });
       if (!r.ok) throw new Error(`CVE raporu alınamadı: ${r.status}`);
       return r.json() as Promise<CveReport>;
@@ -3879,6 +3883,10 @@ export default function AdminLeadDiscovery() {
                     <Checkbox checked={cveOnlyKev} onCheckedChange={v => { setCveOnlyKev(!!v); setCveExpanded(new Set()); }} className="h-4 w-4" />
                     <span className="text-xs">CISA KEV</span>
                   </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <Checkbox checked={cveShowUnverified} onCheckedChange={v => { setCveShowUnverified(!!v); setCveExpanded(new Set()); }} className="h-4 w-4" />
+                    <span className="text-xs">Sürümsüz ürün eşleşmelerini de göster</span>
+                  </label>
                   <div className="ml-auto flex items-center gap-2">
                     <button
                       onClick={() => { cveReenrich.mutate(); }}
@@ -3917,6 +3925,13 @@ export default function AdminLeadDiscovery() {
                 </div>
               </CardContent>
             </Card>
+
+            {cveReport && !cveShowUnverified && (cveReport.hiddenUnverifiedMatches ?? 0) > 0 && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                {cveReport.hiddenUnverifiedMatches?.toLocaleString("tr-TR")} eşleşme gizlendi: yalnızca ürün adına dayanıyor, sürüm tespit edilemedi (eski gevşek eşleştirme).
+                Bunlar "etkileniyor" anlamına gelmez; tedarikçi taramasında (TPRM) CVE yalnızca sürüm aralığı doğrulanınca yazılır.
+              </div>
+            )}
 
             {/* Özet istatistikler */}
             {cveReport && (
@@ -4032,6 +4047,11 @@ export default function AdminLeadDiscovery() {
                                           <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                                             {d.matchedProduct && (
                                               <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{d.matchedProduct}{d.matchedVersion ? ` ${d.matchedVersion}` : ""}</span>
+                                            )}
+                                            {d.evidence && (
+                                              <Badge variant="outline" className={`text-[9px] px-1 py-0 ${d.evidence === "verified" ? "text-emerald-500 border-emerald-500/50" : d.evidence === "version" ? "text-sky-500 border-sky-500/50" : "text-amber-500 border-amber-500/50"}`}>
+                                                {d.evidence === "verified" ? "sürüm doğrulandı" : d.evidence === "version" ? "sürüm var, aralık doğrulanmadı" : "sürüm yok, doğrulanmadı"}
+                                              </Badge>
                                             )}
                                             {d.confidence != null && (
                                               <Badge variant="outline" className="text-[9px] px-1 py-0">{d.confidence}%</Badge>

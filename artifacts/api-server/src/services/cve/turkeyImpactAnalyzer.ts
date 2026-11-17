@@ -1,4 +1,5 @@
 import { db, cveTrackerTable, cveDomainMatchesTable, customerTechStackTable, domainScansTable } from "@workspace/db";
+import { evaluateVersionEvidence, isVersionVulnerable } from "./versionEvidence";
 import { eq, ilike, and, sql, isNotNull } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import type { CVEEntry } from "./cveFeedReader";
@@ -170,31 +171,6 @@ function checkCategoryCompatibility(
     note: `${cveCategory.toUpperCase()} CVE — ${shadowType} kategorisi uyuşmuyor, doğrulama gerekli` };
 }
 
-/** Simple version comparison without semver — returns true if currentVersion falls in [start, end) */
-function isVersionVulnerable(
-  currentVersion: string,
-  startInclusive?: string,
-  endExclusive?: string,
-): boolean {
-  if (!startInclusive && !endExclusive) return true;
-  try {
-    const parse = (v: string) => v.split(".").map(p => parseInt(p.replace(/[^0-9]/g, "")) || 0);
-    const cmp = (a: number[], b: number[]): number => {
-      for (let i = 0; i < Math.max(a.length, b.length); i++) {
-        const diff = (a[i] ?? 0) - (b[i] ?? 0);
-        if (diff !== 0) return diff;
-      }
-      return 0;
-    };
-    const curr = parse(currentVersion);
-    if (startInclusive && cmp(curr, parse(startInclusive)) < 0) return false;
-    if (endExclusive && cmp(curr, parse(endExclusive)) >= 0) return false;
-    return true;
-  } catch {
-    return true;
-  }
-}
-
 export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactResult> {
   await db.update(cveTrackerTable).set({
     status: "scanning",
@@ -305,7 +281,8 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
           continue;
         }
 
-        const finalConfidence = Math.max(0, Math.min(100, 75 + compat.confidenceDelta));
+        const ev = evaluateVersionEvidence(matched.version, product, Math.max(0, Math.min(100, 75 + compat.confidenceDelta)), compat.note);
+        if (ev.skip) continue;
 
         matchMap.set(scan.domain, {
           domain: scan.domain,
@@ -313,8 +290,8 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
           leadCandidateId: null,
           matchedProduct: matched.name,
           matchedVersion: matched.version ?? null,
-          confidence: finalConfidence,
-          matchNote: compat.note ?? null,
+          confidence: ev.confidence,
+          matchNote: ev.note,
         });
         break;
       }
@@ -450,15 +427,16 @@ export async function rematchCveDomains(): Promise<{ newMatches: number; cveCoun
         const compat = checkCategoryCompatibility(cveCategory, shadowType);
         if (!compat.compatible) continue;
 
-        const finalConfidence = Math.max(0, Math.min(100, 70 + compat.confidenceDelta));
+        const ev = evaluateVersionEvidence(matched.version, product, Math.max(0, Math.min(100, 70 + compat.confidenceDelta)), compat.note);
+        if (ev.skip) continue;
 
         toInsert.push({
           cveId: cve.cveId,
           domain: scan.domain,
           matchedProduct: matched.name,
           matchedVersion: matched.version,
-          confidence: finalConfidence,
-          matchNote: compat.note,
+          confidence: ev.confidence,
+          matchNote: ev.note,
         });
         break;
       }

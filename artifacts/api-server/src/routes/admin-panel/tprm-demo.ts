@@ -205,6 +205,8 @@ router.post("/admin-panel/tprm-demo-seed/reassess", requireAdmin, async (req: Re
     for (const o of out) {
       const x = rows.find((y) => y.id === o["vendorId"]);
       o["after"] = { remediationStatus: x?.remediationStatus, scoreNow: x?.lastScanScore, scoreBeforeRemediation: x?.scoreBeforeRemediation, contactEmail: x?.supplierContactEmail };
+      const [sc] = await db.select({ x: domainScansTable.tprmExtra, u: domainScansTable.uncheckedSources, at: domainScansTable.createdAt }).from(domainScansTable).where(eq(domainScansTable.domain, String(o["domain"]))).orderBy(desc(domainScansTable.createdAt)).limit(1);
+      o["scanExtra"] = sc ? { at: sc.at, unchecked: sc.u, extra: sc.x } : null;
       const ev = await call(`/api/tprm/vendors/${o["vendorId"]}/events`);
       o["events"] = ((await ev.json()) as { events: Array<{ kind: string }> }).events.map((e) => e.kind);
     }

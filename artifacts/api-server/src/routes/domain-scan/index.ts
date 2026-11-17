@@ -2656,6 +2656,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       safeBrowsingFlagged: scan.safeBrowsingFlagged ?? null,
       safeBrowsingThreats: (scan.safeBrowsingThreats as string[] | null) ?? [],
       uncheckedSources: (scan.uncheckedSources as string[] | null) ?? [],
+      tprmExtra: (scan.tprmExtra as import("../../services/pdf").PdfTprmExtra | null) ?? null,
       otxData: (scan.otxData as { pulseCount: number; reputation: number; maliciousCount: number } | null) ?? null,
       createdAt: scan.createdAt.toISOString(),
       wafNote: pdfWafNote,

@@ -93,7 +93,10 @@ export interface ScoreV2Input {
   // TLS / web
   sslPass?: boolean | null;
   sslDaysUntilExpiry?: number | null;
+  /** 0-100 (5 başlıktan her biri 20 puan). */
   httpHeadersScore?: number | null;
+  /** X-Powered-By başlığı değeri (yazılım bilgisi sızıntısı); puan düşürmez, düşük bulgu olarak listelenir. */
+  xPoweredBy?: string | null;
   /** SSL bağlantısı ölçülemedi (zaman aşımı/ağ hatası): "sertifika yok" sayılmaz, web kategorisi skora dahil edilmez. */
   sslUnchecked?: boolean;
 
@@ -300,6 +303,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   const headersMeasured = !lightweight && input.httpHeadersScore != null;
   const headersPoints = headersMeasured ? Math.round((clamp(input.httpHeadersScore ?? 0, 0, 100) / 100) * 3 * 10) / 10 : 0;
   if (headersMeasured && headersPoints < 2) add("web", "low", "HTTP güvenlik başlıkları eksik (HSTS, CSP vb.)", 3 - headersPoints);
+  if (headersMeasured && input.xPoweredBy) add("web", "low", `X-Powered-By başlığı yazılım bilgisini açığa vuruyor (${input.xPoweredBy.slice(0, 60)})`, 0);
   // Başlıklar ölçülmediyse web kategorisi yalnızca SSL üzerinden (7 puan) değerlendirilir.
   const webMax = headersMeasured ? MAX.web : 7;
   const webPoints = clamp(sslPoints + headersPoints, 0, webMax);

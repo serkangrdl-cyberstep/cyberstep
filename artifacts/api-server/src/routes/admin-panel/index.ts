@@ -35,6 +35,7 @@ import cveAdminRouter from "./cve-admin";
 import musteriProvizyonRouter from "./musteri-provizyon";
 import adminsRouter from "./admins";
 import iocControlsRouter from "./ioc-controls";
+import tprmDemoRouter from "./tprm-demo";
 import ctiIntelRouter from "./cti-intel";
 import indexReportsRouter from "./index-reports";
 import badgeAdminRouter from "./badge-admin";
@@ -48,6 +49,7 @@ import dataLeakageRouter from "./data-leakage";
 
 const router = Router();
 router.use(authRouter);
+router.use(tprmDemoRouter);
 router.use(tenantsRouter);
 router.use(settingsRouter);
 router.use(analyticsRouter);

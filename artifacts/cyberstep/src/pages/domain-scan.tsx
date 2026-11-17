@@ -2668,11 +2668,17 @@ export default function DomainScanPage() {
                             {result.blacklisted ? <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" /> : unc.includes("dnsbl") ? Q : <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />}
                             <span><span className="font-medium">Kara Liste: </span>{result.blacklisted ? `${result.blacklistCount} listede işaretli` : unc.includes("dnsbl") ? NA : "Sorgulanan kara listelerde yok"}</span>
                           </div>
-                          {unc.includes("urlhaus") && (
-                            <div className="flex items-start gap-2">{Q}<span><span className="font-medium">URLhaus: </span>{NA}</span></div>
+                          {!result.urlhausListed && (
+                            <div className="flex items-start gap-2">
+                              {unc.includes("urlhaus") ? Q : <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />}
+                              <span><span className="font-medium">URLhaus: </span>{unc.includes("urlhaus") ? NA : "Zararlı URL listesinde yok"}</span>
+                            </div>
                           )}
-                          {unc.includes("usom") && (
-                            <div className="flex items-start gap-2">{Q}<span><span className="font-medium">BTK USOM: </span>{NA}</span></div>
+                          {!result.usomListed && (
+                            <div className="flex items-start gap-2">
+                              {unc.includes("usom") ? Q : <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />}
+                              <span><span className="font-medium">USOM (Siber Güvenlik Başkanlığı): </span>{unc.includes("usom") ? NA : "Zararlı adres listesinde yok"}</span>
+                            </div>
                           )}
                         </>
                       );

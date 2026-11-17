@@ -316,6 +316,7 @@ interface DomainScanData {
   censysTotalFound?: number | null;
   scoreCategories?: Array<{ label: string; points: number; maxPoints: number; measured: boolean }> | null;
   trMedian?: number | null;
+  blacklistResults?: Array<{ list: string; listed: boolean; code?: string }> | null;
   uncheckedSources?: string[] | null;
   safeBrowsingFlagged?: boolean | null;
   safeBrowsingThreats?: string[] | null;
@@ -754,16 +755,16 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       { label: "DMARC Politikası", pass: data.dmarcPass, detail: data.dmarcRecord ?? (data.dmarcPass ? null : "DMARC kaydı bulunamadı — alan adı sahte e-postaya karşı korumasız."), weight: "25 puan" },
       { label: "DKIM İmzası", pass: data.dkimPass, detail: data.dkimSelectors.join(", ") || (data.dkimPass ? null : "Yaygın DKIM seçicilerinde imza bulunamadı."), weight: "20 puan" },
       { label: "MX Kayıtları", pass: data.mxPass, detail: data.mxRecords[0]?.exchange ?? null, weight: "10 puan" },
-      { label: "SSL/TLS Sertifikası", pass: data.sslPass, detail: data.sslDaysUntilExpiry !== null ? `${data.sslIssuer ?? ""} - ${data.sslDaysUntilExpiry} gün geçerli` : null, weight: "25 puan" },
+      { label: "SSL/TLS Sertifikası", pass: data.sslPass, detail: data.sslDaysUntilExpiry !== null ? `${data.sslIssuer ?? ""} - ${data.sslDaysUntilExpiry} gün geçerli` : (data.uncheckedSources ?? []).includes("ssl") ? "Bu taramada ölçülemedi (bağlantı hatası); skora dahil edilmedi" : "Geçerli sertifika doğrulanamadı", weight: "" },
     ];
     for (const chk of checks) {
       checkPageBreak(doc, 34);
       const cy = doc.y;
-      const passColor: [number, number, number] = chk.pass ? [22, 163, 74] : [220, 38, 38];
+      const sslUnmeasured = chk.label.startsWith("SSL") && (data.uncheckedSources ?? []).includes("ssl");
+      const passColor: [number, number, number] = sslUnmeasured ? [148, 163, 184] : chk.pass ? [22, 163, 74] : [220, 38, 38];
       doc.circle(MARGIN + 7, cy + 9, 7).fill(passColor);
-      doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD).text(chk.pass ? "+" : "!", MARGIN + 4, cy + 6, { width: 7, align: "center" });
+      doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD).text(sslUnmeasured ? "?" : chk.pass ? "+" : "!", MARGIN + 4, cy + 6, { width: 7, align: "center" });
       doc.fillColor(DARK).fontSize(10).font(FONT_BOLD).text(chk.label, MARGIN + 20, cy + 3, { width: 200, lineBreak: false });
-      doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(chk.weight, MARGIN + 20, cy + 3, { width: CONTENT_W - 20, align: "right" });
       if (chk.detail) {
         doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(clip(chk.detail, 110), MARGIN + 20, cy + 17, { width: CONTENT_W - 20 });
         doc.y = cy + 32;
@@ -813,13 +814,13 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     const unchecked = new Set(data.uncheckedSources ?? []);
     const NA = "Bu taramada kontrol edilemedi";
     intelRow(
-      "Bilinen İhlal Kaydı (HIBP herkese açık liste)",
-      unchecked.has("hibp") ? NA : data.hibpBreachCount === 0 ? "Alan adı, ihlal edilmiş servisler listesinde yer almıyor" : `${data.hibpBreachCount} ihlal kaydı bulundu`,
+      "Bilinen İhlal Kaydı (HIBP)",
+      unchecked.has("hibp") ? NA : data.hibpBreachCount === 0 ? "Alan adı, HIBP'deki ihlal edilmiş servisler listesinde yer almıyor" : `${data.hibpBreachCount} ihlal kaydı bulundu`,
       unchecked.has("hibp") ? null : data.hibpBreachCount === 0
     );
     intelRow(
       "Kara Liste (DNSBL)",
-      data.blacklisted ? `${data.blacklistCount} spam listesinde kayıtlı` : unchecked.has("dnsbl") ? NA : "Temiz — sorgulanan kara listelerde yok",
+      data.blacklisted ? `${data.blacklistCount} listede kayıtlı${(data.blacklistResults ?? []).filter((r) => r.listed).length ? `: ${(data.blacklistResults ?? []).filter((r) => r.listed).map((r) => r.list + (r.code ? ` (${r.code})` : "")).join(", ")}` : ""} — web sunucusu IP'sinin e-posta/spam itibarı` : unchecked.has("dnsbl") ? NA : "Temiz — sorgulanan kara listelerde yok",
       data.blacklisted ? false : unchecked.has("dnsbl") ? null : true
     );
     intelRow(
@@ -1120,7 +1121,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           for (const step of s.saldiri_zinciri.slice(0, 4)) {
             checkPageBreak(doc, 12);
             doc.fillColor(GRAY).fontSize(7).font(FONT_REGULAR)
-              .text(`  ${clip(step, 180)}`, MARGIN + 16, doc.y, { width: CONTENT_W - 24 });
+              .text(`  ${clip(step, 280)}`, MARGIN + 16, doc.y, { width: CONTENT_W - 24 });
             doc.y += 2;
           }
           doc.y += 2;
@@ -1162,6 +1163,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       // ── Oncelikli Aksiyon Listesi ──────────────────────────────────────────
       const onceKapat = data.attackScenarios.once_kapat ?? [];
       if (onceKapat.length > 0) {
+        checkPageBreak(doc, 110);
         sectionTitle("Öncelikli Aksiyon Listesi");
         for (const item of onceKapat) {
           checkPageBreak(doc, 60);

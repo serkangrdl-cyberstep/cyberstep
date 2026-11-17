@@ -62,6 +62,7 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
     sslPass: scan.sslPass,
     sslDaysUntilExpiry: scan.sslDaysUntilExpiry,
     httpHeadersScore: scan.httpHeadersScore,
+    sslUnchecked: ((scan.uncheckedSources as string[] | null) ?? []).includes("ssl"),
     cveSummary: scan.cveSummary,
     shodanOpenPorts: scan.shodanOpenPorts,
     shodanIsp: scan.shodanIsp,

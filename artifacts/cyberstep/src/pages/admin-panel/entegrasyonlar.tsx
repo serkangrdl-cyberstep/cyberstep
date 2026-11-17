@@ -31,6 +31,30 @@ interface IntegrationDef {
   superAdminOnly?: boolean;
 }
 
+/**
+ * TPRM odağı (Kasım 2026): TPRM tedarikçi taramasına ve satış sürecine hizmet etmeyen entegrasyonlar arşivdedir.
+ * Kayıtlar silinmedi; "Arşivlenenleri göster" ile görünür, listeden çıkarmak için bu kümeden silinir.
+ */
+const ARCHIVED_INTEGRATIONS = new Set<string>([
+  // Güvenlik vendor feed'leri, CTI platformları, güvenlik cihazı bağlantıları (SOC/NOC arşivde)
+  "fortiguard", "unit42", "checkpoint-tc", "cisco-talos", "misp", "opencti",
+  "fortigate", "panos", "checkpoint-fw", "cisco-asa", "cloudflare-radar",
+  // Eski ürünler: satış asistanı, takvim, AI analiz modülleri
+  "isr-imap", "calendly", "eu-aiact", "ai-red-team", "deepfake-analizi", "sahte-dokuman",
+  // Bildirim/ITSM kanalları (TPRM bildirimleri e-postayla)
+  "webhook", "telegram", "netgsm", "teams", "opsgenie", "servicenow", "ms365",
+]);
+
+/** TPRM taramasındaki rolü: skor = Risk Skoru v2'ye girer; genel = yalnızca genel domain taramasında; plan = ücretli plan sonrası eklenecek. */
+const TPRM_ROLE: Record<string, { label: string; cls: string }> = {
+  ...Object.fromEntries(["cisa-kev", "urlhaus", "usom", "virustotal", "google-sb", "abuseipdb", "shodan", "nvd-cve", "hibp", "spf-dmarc", "dnsbl"]
+    .map(id => [id, { label: "TPRM skorunda", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
+  ...Object.fromEntries(["otx", "threatfox", "feodo-tracker", "ssllabs", "mozilla-obs", "crt-sh", "censys", "epss"]
+    .map(id => [id, { label: "TPRM taramasına bağlı değil", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" }])),
+  ...Object.fromEntries(["securitytrails", "binaryedge", "greynoise", "whoisxml", "vulncheck"]
+    .map(id => [id, { label: "TPRM için planlı", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" }])),
+};
+
 const INTEGRATIONS: IntegrationDef[] = [
   // ─── Tehdit İstihbaratı ─────────────────────────────────────────────────────
   {
@@ -722,7 +746,9 @@ export default function AdminEntegrasyonlar() {
     return "needs-setup";
   };
 
-  const PUBLIC = INTEGRATIONS.filter(i => !i.superAdminOnly);
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = INTEGRATIONS.filter(i => !i.superAdminOnly && ARCHIVED_INTEGRATIONS.has(i.id)).length;
+  const PUBLIC = INTEGRATIONS.filter(i => !i.superAdminOnly && (showArchived || !ARCHIVED_INTEGRATIONS.has(i.id)));
 
   // Stats
   const totalActive      = PUBLIC.filter(i => isActive(i)).length;
@@ -772,6 +798,8 @@ export default function AdminEntegrasyonlar() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center flex-wrap gap-1.5 mb-1">
                 <span className="text-white font-semibold text-sm">{integration.name}</span>
+                {ARCHIVED_INTEGRATIONS.has(integration.id) && <span className="text-xs px-1.5 py-0.5 rounded border bg-slate-700 text-slate-400 border-slate-600">Arşiv</span>}
+                {TPRM_ROLE[integration.id] && <span className={`text-xs px-1.5 py-0.5 rounded border ${TPRM_ROLE[integration.id]!.cls}`}>{TPRM_ROLE[integration.id]!.label}</span>}
                 {status === "active"
                   ? <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"><CheckCircle className="h-3 w-3" /> Aktif</span>
                   : status === "needs-api"
@@ -964,6 +992,13 @@ export default function AdminEntegrasyonlar() {
   return (
     <AdminLayout title="Entegrasyon Merkezi" description="Tüm güvenlik veri kaynakları, API bağlantıları ve servis durumları">
       <div className="max-w-5xl space-y-6">
+
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span>TPRM odağı: {archivedCount} eski entegrasyon arşivde (silinmedi).</span>
+          <button className="underline hover:text-white" onClick={() => setShowArchived(v => !v)}>
+            {showArchived ? "Arşivlenenleri gizle" : `Arşivlenenleri göster (${archivedCount})`}
+          </button>
+        </div>
 
         {/* Stats — tıklanabilir filtre */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

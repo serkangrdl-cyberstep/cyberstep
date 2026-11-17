@@ -186,6 +186,7 @@ async function generateAttackScenarios(scanId: number, scan: typeof domainScansT
     // Düzeltme 3: skor-MITRE tutarlılık kontrolü
     validateReportConsistency(result, scan.overallScore ?? 50);
     sanitizeSslScenarios(result, scan.sslDaysUntilExpiry ?? null);
+    normalizeMitre(result);
 
     await db.update(domainScansTable)
       .set({ attackScenariosStatus: "complete", attackScenariosJson: result })
@@ -227,6 +228,29 @@ function validateReportConsistency(result: AttackScenariosResult, overallScore: 
  */
 const SSL_TITLE_RE = /ssl|sertifika|tls/i;
 const MITM_RE = /man-in-the-middle|mitm|arp spoof|dns hijack|ortadaki adam|T1557|T1598/i;
+
+const MITRE_NAMES: Record<string, string> = {
+  T1190: "Açık Uygulama İstismarı (Exploit Public-Facing Application)",
+  T1566: "Kimlik Avı (Phishing)",
+  T1598: "Bilgi Toplamaya Yönelik Kimlik Avı (Phishing for Information)",
+  T1195: "Tedarik Zinciri Ele Geçirme (Supply Chain Compromise)",
+  T1557: "Ortadaki Adam (Adversary-in-the-Middle)",
+  T1595: "Aktif Tarama (Active Scanning)",
+  T1583: "Altyapı Edinme (Acquire Infrastructure)",
+  T1189: "Drive-by Ele Geçirme (Drive-by Compromise)",
+  T1133: "Harici Uzak Servisler (External Remote Services)",
+  T1078: "Geçerli Hesaplar (Valid Accounts)",
+  T1110: "Kaba Kuvvet (Brute Force)",
+};
+
+/** MITRE kodu-ad eşleşmesini resmî listeye göre düzeltir; bilinmeyen kodları atar (uydurma ad riskine karşı). */
+function normalizeMitre(result: AttackScenariosResult): void {
+  for (const sc of result.senaryolar ?? []) {
+    sc.mitre_teknikler = (sc.mitre_teknikler ?? [])
+      .filter((t) => MITRE_NAMES[t.kod] !== undefined)
+      .map((t) => ({ kod: t.kod, isim: MITRE_NAMES[t.kod]! }));
+  }
+}
 
 function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | null): void {
   if (daysLeft === null || daysLeft <= 0) return;
@@ -442,7 +466,7 @@ WAF etkilemeyen bulgular: SSL süresi, e-posta güvenliği, HIBP sızıntıları
   if (dmarcPolicy === "reject") {
     scenarioRules.push("E-posta sahteciliği/phishing senaryosu KESİNLİKLE ÜRETME — DMARC p=reject aktif, e-posta sahteciliği teknik olarak engellendi.");
   } else if (dmarcPolicy === "quarantine") {
-    scenarioRules.push("⛔ KURAL — E-POSTA SENARYOSU: DMARC p=quarantine aktif. E-posta senaryosu üreteceksen seviye ZORUNLU OLARAK maksimum 'Orta' olmalı. 'Yüksek' veya 'Kritik' KESİNLİKLE OLAMAZ. SPF durumundan bağımsız bu kural geçerlidir.");
+    scenarioRules.push("E-posta sahteciliği/phishing senaryosu ÜRETME — DMARC p=quarantine aktif; sahte e-postalar spam klasörüne düşer. 'p=reject önerilir' yalnızca düşük öncelikli aksiyon listesinde geçebilir, senaryo olmaz.");
   } else {
     scenarioRules.push(`E-posta sahteciliği/phishing senaryosu üretebilirsin, seviye 'Yüksek' olabilir — DMARC ${dmarcPolicy === "none" ? "p=none (izleme modu, gerçek koruma yok)" : "kaydı yok (hiç koruma yok)"}.`);
   }
@@ -527,6 +551,7 @@ DOĞRULUK KURALLARI
 - Her saldırı adımı yukarıdaki tarama bulgularından birine dayanmalı. Veride olmayan zafiyet, RCE, web shell, SQL injection kanıtı varmış gibi yazma; olasılığı "olabilir" diliyle ve bulguyla sınırlı anlat.
 - Google Analytics, Google Tag Manager, Google Fonts gibi SaaS hizmetlerini "güncellenecek yazılım" veya "bağımlılık zaafiyeti" olarak gösterme. Versiyonu alınamayan bileşen için "tespit et ve güncelle" aksiyonu yazma.
 - Sertifika geçerliyse (süresi dolmamışsa) MITM, ARP spoofing, DNS hijacking yazma; sertifika riski yalnızca süre dolumu, hizmet kesintisi ve güven kaybıdır.
+- "WAF tespit edilmedi" ile "WAF yok" aynı şey değildir; "WAF yok/yokluğu" yazma, "WAF tespit edilemedi" de. Kara liste bulgusu ile WAF eksikliği arasında nedensellik kurma. Veri sızıntısı/kimlik bilgisi çalınması gibi sonuçları kanıtsız kesin ifade etme.
 - Türkçe yazım ve dilbilgisine dikkat et; kısa, düzgün cümleler kur.
 - Yalnızca yukarıdaki tarama verisinden çıkarılabilen bulgulara dayan. Veride kanıtı olmayan sonuçlar (veritabanına erişim, ödeme bilgisinin sızması, belirli bir uygulamanın varlığı) yazma; "olabilir/mümkün" diliyle ve kanıtlı bulguyla sınırlı kal.
 - KVKK atıfı gerekiyorsa yalnızca şunları kullan: veri güvenliği yükümlülüğü ve ihlal bildirimi için m.12, idari para cezaları için m.18. Ceza tutarı yazma, başka madde numarası uydurma.

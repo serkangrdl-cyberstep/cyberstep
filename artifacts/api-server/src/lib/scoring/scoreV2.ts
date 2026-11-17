@@ -94,6 +94,8 @@ export interface ScoreV2Input {
   sslPass?: boolean | null;
   sslDaysUntilExpiry?: number | null;
   httpHeadersScore?: number | null;
+  /** SSL bağlantısı ölçülemedi (zaman aşımı/ağ hatası): "sertifika yok" sayılmaz, web kategorisi skora dahil edilmez. */
+  sslUnchecked?: boolean;
 
   // Zafiyet
   cveSummary?: Array<{ cveId: string; cvssScore: number; adjustedCvssScore?: number; wafMitigated?: boolean }> | null;
@@ -290,7 +292,8 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   // SSL 7 · HTTP güvenlik başlıkları 3 (başlıklar yalnızca tam taramada ölçülür).
   const days = input.sslDaysUntilExpiry;
   const sslPoints = days == null || days <= 0 ? 0 : days <= 13 ? 3 : days <= 29 ? 5 : 7;
-  if (days == null) add("web", "high", "Geçerli SSL/TLS sertifikasına ulaşılamadı", 7);
+  if (days == null && input.sslUnchecked) { /* ölçülemedi — bulgu üretme */ }
+  else if (days == null) add("web", "high", "Geçerli SSL/TLS sertifikasına ulaşılamadı", 7);
   else if (days <= 0) add("web", "high", "SSL sertifikasının süresi dolmuş", 7);
   else if (days <= 29) add("web", "medium", `SSL sertifikası ${days} gün içinde sona eriyor`, 7 - sslPoints);
 
@@ -308,7 +311,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
     { key: "reputation", label: LABELS.reputation, maxPoints: MAX.reputation, points: repPoints, measured: true },
     { key: "email", label: LABELS.email, maxPoints: MAX.email, points: emailPoints, measured: true },
     { key: "breaches", label: LABELS.breaches, maxPoints: MAX.breaches, points: breachPoints, measured: breachesMeasured },
-    { key: "web", label: LABELS.web, maxPoints: webMax, points: webPoints, measured: true },
+    { key: "web", label: LABELS.web, maxPoints: webMax, points: webPoints, measured: !input.sslUnchecked },
   ];
 
   const measured = categories.filter((c) => c.measured);

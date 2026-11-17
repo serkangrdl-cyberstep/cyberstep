@@ -120,18 +120,25 @@ async function checkMX(domain: string): Promise<{ pass: boolean; records: Array<
   }
 }
 
-async function checkSSL(domain: string): Promise<{
+async function checkSSLOnce(domain: string): Promise<{
   pass: boolean;
   expiryDate: string | null;
   issuer: string | null;
   daysUntilExpiry: number | null;
   note: string | null;
+  unchecked?: boolean;
 }> {
-  const SSL_UNREACHABLE_NOTE =
-    "SSL sertifikası alınamadı. Alan adı HTTPS üzerinden erişilemiyor veya geçersiz/süresi dolmuş sertifika kullanıyor olabilir.";
+  const CERT_PROBLEM_NOTE =
+    "SSL sertifikası geçersiz, süresi dolmuş veya alan adıyla uyumsuz; HTTPS doğrulaması başarısız.";
+  const UNMEASURED_NOTE = "SSL sertifikası bu taramada alınamadı (bağlantı hatası veya zaman aşımı); sonuç ölçülemedi.";
+  // Gerçek sertifika sorunu kodları — bunlar "ölçülemedi" değil, doğrulanmış sorundur.
+  const CERT_ERRORS = new Set([
+    "CERT_HAS_EXPIRED", "DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN", "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+    "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "ERR_TLS_CERT_ALTNAME_INVALID", "CERT_NOT_YET_VALID", "CERT_REVOKED",
+  ]);
   return new Promise((resolve) => {
     const req = https.request(
-      { hostname: domain, port: 443, method: "HEAD", timeout: 8000, rejectUnauthorized: true },
+      { hostname: domain, port: 443, method: "HEAD", timeout: 12000, rejectUnauthorized: true },
       (res) => {
         try {
           const cert = (res.socket as any).getPeerCertificate?.();
@@ -151,17 +158,45 @@ async function checkSSL(domain: string): Promise<{
               note,
             });
           } else {
-            resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE });
+            resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true });
           }
         } catch {
-          resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE });
+          resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true });
         }
       }
     );
-    req.on("error", () => resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE }));
-    req.on("timeout", () => { req.destroy(); resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: SSL_UNREACHABLE_NOTE }); });
+    req.on("error", (err) => {
+      const code = (err as NodeJS.ErrnoException).code ?? "";
+      if (CERT_ERRORS.has(code)) {
+        resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: CERT_PROBLEM_NOTE });
+      } else {
+        logger.warn({ domain, code }, "SSL: bağlantı hatası — ölçülemedi");
+        resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true });
+      }
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true });
+    });
     req.end();
   });
+}
+
+/** Geçici ağ hatası "sertifika yok" sayılmasın: ölçülemeyen denemeleri 3 kereye kadar tekrar dener. */
+async function checkSSL(domain: string): Promise<{
+  pass: boolean;
+  expiryDate: string | null;
+  issuer: string | null;
+  daysUntilExpiry: number | null;
+  note: string | null;
+  unchecked?: boolean;
+}> {
+  let last = await checkSSLOnce(domain);
+  for (let attempt = 2; attempt <= 3 && last.unchecked; attempt++) {
+    await new Promise((r) => setTimeout(r, 1500 * (attempt - 1)));
+    last = await checkSSLOnce(domain);
+  }
+  return last;
 }
 
 export interface ScoreBreakdown {
@@ -469,7 +504,7 @@ const DNSBLS = [
 async function checkBlacklists(domain: string): Promise<{
   blacklisted: boolean;
   blacklistCount: number;
-  results: Array<{ list: string; listed: boolean }>;
+  results: Array<{ list: string; listed: boolean; code?: string }>;
   unchecked?: boolean;
 }> {
   let ip: string | null = null;
@@ -488,25 +523,26 @@ async function checkBlacklists(domain: string): Promise<{
       try {
         const answers = await dns.resolve4(`${reversed}.${dnsbl}`);
         // 127.255.255.x = "bu çözümleyiciden sorgu kabul edilmiyor" hata kodudur, kara liste kaydı değil
-        if (answers.some((a) => a.startsWith("127.255.255."))) return { list: dnsbl, listed: null as boolean | null };
-        return { list: dnsbl, listed: answers.some((a) => a.startsWith("127.")) as boolean | null };
+        if (answers.some((a) => a.startsWith("127.255.255."))) return { list: dnsbl, listed: null as boolean | null, code: undefined as string | undefined };
+        // Spamhaus PBL (127.0.0.10/11): "bu IP aralığı doğrudan e-posta göndermemeli" bilgilendirmesidir (dinamik/konut/ISP aralığı),
+        // kötü niyet kaydı değildir; kara liste sayılmaz.
+        const real = dnsbl === "zen.spamhaus.org" ? answers.filter((a) => !/^127\.0\.0\.(10|11)$/.test(a)) : answers;
+        return { list: dnsbl, listed: real.some((a) => a.startsWith("127.")) as boolean | null, code: real[0] };
       } catch (err) {
         const code = (err as NodeJS.ErrnoException).code;
         // NXDOMAIN/NODATA = kayıt yok = temiz; diğer hatalar (timeout, SERVFAIL, REFUSED) = ölçülemedi
-        return { list: dnsbl, listed: (code === "ENOTFOUND" || code === "ENODATA") ? false : null as boolean | null };
+        return { list: dnsbl, listed: (code === "ENOTFOUND" || code === "ENODATA") ? false : null as boolean | null, code: undefined as string | undefined };
       }
     })
   );
   const measured = raw.filter((r) => r.listed !== null);
-  const results = measured.map((r) => ({ list: r.list, listed: r.listed === true }));
+  const results = measured.map((r) => ({ list: r.list, listed: r.listed === true, ...(r.code ? { code: r.code } : {}) }));
   const listedCount = results.filter((r) => r.listed).length;
   if (measured.length < 3) logger.warn({ domain, measured: measured.length }, "DNSBL: yeterli liste yanıt vermedi");
   return { blacklisted: listedCount > 0, blacklistCount: listedCount, results, unchecked: measured.length < 3 && listedCount === 0 };
 }
 
 // ─── USOM Zararlı Alan Listesi (Ulusal Siber Olaylar Müdahale Merkezi) ─────────
-let _usomDomains: Set<string> = new Set();
-let _usomLastFetch = 0;
 
 async function checkKEP(domain: string): Promise<{ configured: boolean; relays: string[]; secure: boolean }> {
   const KEP_PATTERNS = ["kep.tr", "kayitlielektronikposta", "hs01.kep", "hs02.kep", "hs03.kep", "hs04.kep", "ptt.kep"];
@@ -537,66 +573,47 @@ async function checkKEP(domain: string): Promise<{ configured: boolean; relays: 
   }
 }
 
+/**
+ * USOM artık T.C. Siber Güvenlik Başkanlığı (siberguvenlik.gov.tr) altında. Eski
+ * www.usom.gov.tr/url-list.txt adresi API belgesi sayfasına yönleniyor; yönlendirme
+ * takip edilmediği için liste boş yükleniyordu. Liste artık domain başına API ile sorgulanır
+ * (GET /api/address/index?q=<domain>). Bu fonksiyon geriye dönük uyumluluk için kaldı.
+ */
 export async function refreshUsomList(): Promise<void> {
-  return new Promise((resolve) => {
-    const req = https.request(
-      {
-        hostname: "www.usom.gov.tr",
-        path: "/url-list.txt",
-        method: "GET",
-        timeout: 15000,
-        headers: { "User-Agent": "CyberStep.io Security Scanner/1.0" },
-      },
-      (res) => {
-        let data = "";
-        let size = 0;
-        res.on("data", (chunk: Buffer) => {
-          size += chunk.length;
-          if (size > 10 * 1024 * 1024) { res.destroy(); resolve(); return; }
-          data += chunk.toString();
-        });
-        res.on("end", () => {
-          try {
-            const domains = new Set<string>();
-            for (const line of data.split("\n")) {
-              const raw = line.trim();
-              if (!raw || raw.startsWith("#")) continue;
-              try {
-                const url = raw.startsWith("http") ? raw : `http://${raw}`;
-                const parsed = new URL(url);
-                const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-                if (host && host.includes(".")) domains.add(host);
-              } catch {
-                const bare = raw.replace(/^https?:\/\//i, "").split("/")[0]!.split(":")[0]!.toLowerCase().replace(/^www\./, "");
-                if (bare && bare.includes(".")) domains.add(bare);
-              }
-            }
-            _usomDomains = domains;
-            _usomLastFetch = Date.now();
-            logger.info({ count: domains.size }, "USOM zararlı alan listesi güncellendi");
-          } catch (parseErr) {
-            logger.warn({ parseErr }, "USOM listesi ayrıştırılamadı, mevcut liste korunuyor");
-          }
-          resolve();
-        });
-      }
-    );
-    req.on("error", (err) => { logger.warn({ err }, "USOM liste indirme hatası"); resolve(); });
-    req.on("timeout", () => { req.destroy(); resolve(); });
-    req.end();
-  });
+  logger.info("USOM: liste indirme kaldırıldı; domain başına siberguvenlik.gov.tr API'si sorgulanır");
 }
 
+const _usomCache = new Map<string, { at: number; listed: boolean }>();
+
 async function checkUsomList(domain: string): Promise<{ listed: boolean; unchecked?: boolean }> {
-  if (_usomDomains.size === 0) {
-    // Sunucu yeniden başladıktan sonraki ilk taramada liste boştur; "temiz" demeden önce yükle
-    await refreshUsomList().catch(() => {});
-  } else if (Date.now() - _usomLastFetch > 23 * 60 * 60 * 1000) {
-    refreshUsomList().catch(() => {});
-  }
-  if (_usomDomains.size === 0) { logger.warn("USOM listesi yüklenemedi — sonuç 'kontrol edilemedi'"); return { listed: false, unchecked: true }; }
   const bare = domain.toLowerCase().replace(/^www\./, "");
-  return { listed: _usomDomains.has(bare) };
+  const cached = _usomCache.get(bare);
+  if (cached && Date.now() - cached.at < 60 * 60 * 1000) return { listed: cached.listed };
+  try {
+    const res = await axios.get("https://siberguvenlik.gov.tr/api/address/index", {
+      params: { q: bare },
+      timeout: 10_000,
+      headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", Accept: "application/json" },
+      validateStatus: () => true,
+    });
+    const body = res.data as { totalCount?: number; models?: Array<{ url?: string; criticality_level?: number }> } | string;
+    if (res.status !== 200 || typeof body !== "object" || body === null || typeof body.totalCount !== "number") {
+      logger.warn({ status: res.status }, "USOM API beklenmeyen yanıt — 'kontrol edilemedi'");
+      return { listed: false, unchecked: true };
+    }
+    // q alt dizgi eşleşmesi yapabilir: yalnızca domainin kendisi veya alt alanı sayılır
+    const listed = (body.models ?? []).some((m) => {
+      let host = (m.url ?? "").toLowerCase().trim();
+      try { host = new URL(host.startsWith("http") ? host : `http://${host}`).hostname; } catch { /* ham değer kalsın */ }
+      host = host.replace(/^www\./, "");
+      return host === bare || host.endsWith(`.${bare}`);
+    });
+    _usomCache.set(bare, { at: Date.now(), listed });
+    return { listed };
+  } catch (err) {
+    logger.warn({ err: String(err).slice(0, 160) }, "USOM API hatası — 'kontrol edilemedi'");
+    return { listed: false, unchecked: true };
+  }
 }
 
 // ─── Certificate Transparency — crt.sh ───────────────────────────────────────
@@ -1838,6 +1855,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
           ...(blacklist.unchecked ? ["dnsbl"] : []),
           ...(urlhaus.unchecked ? ["urlhaus"] : []),
           ...(usom.unchecked ? ["usom"] : []),
+          ...(ssl.unchecked ? ["ssl"] : []),
         ],
         sslLabsGrade: sslLabs.grade,
         badgeToken: randomUUID(),
@@ -2358,6 +2376,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       sslPass: scan.sslPass, sslExpiry: scan.sslExpiry, sslIssuer: scan.sslIssuer, sslDaysUntilExpiry: scan.sslDaysUntilExpiry,
       hibpBreachCount: scan.hibpBreachCount,
       blacklisted: scan.blacklisted, blacklistCount: scan.blacklistCount,
+      blacklistResults: (scan.blacklistResults as Array<{ list: string; listed: boolean; code?: string }> | null) ?? [],
       shadowItServices: (scan.shadowItServices as Array<{ name: string; category: string; risk: string }>) ?? [],
       httpHeadersScore: scan.httpHeadersScore,
       httpHeadersDetails: scan.httpHeadersDetails as { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; checkFailed?: boolean } | null,

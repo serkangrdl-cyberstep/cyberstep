@@ -1825,6 +1825,8 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
   const severityFilter = String(req.query["severity"] ?? "");
   const onlyExploit = req.query["exploit"] === "1";
   const onlyKev = req.query["kev"] === "1";
+  // Varsayılan: sürümü bilinmeyen ve güveni düşük (<80) salt ürün-adı eşleşmelerini gizle (eski gevşek eşleştirme gürültüsü).
+  const includeUnverified = req.query["unverified"] === "1";
 
   const conditions = [gte(cveTrackerTable.cvssScore, String(minCvss))];
   if (severityFilter) conditions.push(eq(cveTrackerTable.severity, severityFilter));
@@ -1869,6 +1871,7 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
         matchedProduct: cveDomainMatchesTable.matchedProduct,
         matchedVersion: cveDomainMatchesTable.matchedVersion,
         confidence: cveDomainMatchesTable.confidence,
+        matchNote: cveDomainMatchesTable.matchNote,
         isPatched: cveDomainMatchesTable.isPatched,
         wafDetected: leadCandidatesTable.wafDetected,
         wafProvider: leadCandidatesTable.wafProvider,
@@ -1887,13 +1890,18 @@ router.get("/admin-panel/lead-discovery/cve-report", requireAdmin, async (req: R
       domainMap.set(row.cveId, list);
     }
 
-    const cves = cveList.map(c => ({
-      ...c,
-      cvssScore: c.cvssScore != null ? Number(c.cvssScore) : null,
-      domains: domainMap.get(c.cveId) ?? [],
-    }));
+    // Kanıt düzeyi: verified (sürüm aralığı doğrulandı) | version (sürüm var, aralık doğrulanmadı) | product (yalnızca ürün adı)
+    const evidenceOf = (d: { matchedVersion: string | null; matchNote: string | null }): "verified" | "version" | "product" =>
+      d.matchNote?.includes("Sürüm aralığı doğrulandı") ? "verified" : d.matchedVersion ? "version" : "product";
+    let hiddenPairs = 0;
+    const cves = cveList.map(c => {
+      const all = (domainMap.get(c.cveId) ?? []).map(d => ({ ...d, evidence: evidenceOf(d) }));
+      const shown = includeUnverified ? all : all.filter(d => d.evidence !== "product" || (d.confidence ?? 0) >= 80);
+      hiddenPairs += all.length - shown.length;
+      return { ...c, cvssScore: c.cvssScore != null ? Number(c.cvssScore) : null, affectedDomainCount: shown.length, domains: shown };
+    }).filter(c => c.domains.length > 0);
 
-    res.json({ total: cves.length, cves });
+    res.json({ total: cves.length, hiddenUnverifiedMatches: hiddenPairs, cves });
   } catch (err: unknown) {
     req.log.error({ err }, "CVE raporu sorgusu başarısız");
     res.status(500).json({ error: "CVE raporu alınamadı." });

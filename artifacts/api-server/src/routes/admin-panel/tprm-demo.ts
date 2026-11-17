@@ -255,6 +255,24 @@ router.post("/admin-panel/tprm-demo-seed/add-vendors", requireAdmin, async (req:
 router.post("/admin-panel/tprm-demo-seed/cve-probe", requireAdmin, async (req: Request, res: Response) => {
   const domains = ((req.body as { domains?: string[] })?.domains ?? []).map((d) => String(d).toLowerCase().trim()).slice(0, 5);
   const { enrichWithEpss } = await import("../domain-scan/index");
+  if ((req.body as { candidates?: boolean })?.candidates) {
+    // Banner'ında eski/kesin sürüm görülen domainler (NVD+EPSS akışını sınamak için aday)
+    const rows = await pool.query(`
+      SELECT DISTINCT ON (domain) domain, p->>'product' AS product, p->>'version' AS version, created_at
+      FROM domain_scans, jsonb_array_elements(COALESCE(shodan_open_ports, '[]'::jsonb)) AS p
+      WHERE created_at > now() - interval '120 days'
+        AND (p->>'product' ~* '^(apache httpd|openssh|nginx|proftpd|vsftpd|exim smtpd|postfix smtpd)$')
+        AND (p->>'version') ~ '^[0-9]+\\.[0-9]+(\\.[0-9]+)?$'
+        AND (
+          (p->>'product' ~* '^apache httpd$' AND (p->>'version') ~ '^2\\.(2|4\\.([0-9]|[1-3][0-9]|4[0-9]|5[0-2]))(\\.|$)')
+          OR (p->>'product' ~* '^openssh$' AND (p->>'version') ~ '^([1-7]|8\\.[0-8])\\.?')
+          OR (p->>'product' ~* '^nginx$' AND (p->>'version') ~ '^1\\.([0-9]|1[0-8])\\.')
+        )
+      ORDER BY domain, created_at DESC
+      LIMIT 25`);
+    res.json({ candidates: rows.rows });
+    return;
+  }
   const out: Array<Record<string, unknown>> = [];
   for (const d of domains) {
     const rows = await db.select({ at: domainScansTable.createdAt, src: domainScansTable.referralSource, cve: domainScansTable.cveSummary }).from(domainScansTable).where(eq(domainScansTable.domain, d)).orderBy(desc(domainScansTable.createdAt)).limit(6);

@@ -3,9 +3,12 @@ import { db, pool, customersTable, tprmVendorTable, tprmVendorEventTable } from 
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
-/** E-posta servisi (SMTP) tanımlı mı? Değilse e-posta gönderen düğmeler pasif kalır. */
+/**
+ * E-posta servisi aktif mi? SMTP tanımlı olsa bile TPRM_EMAIL_ENABLED=true verilmedikçe
+ * tedarikçiye/müşteriye e-posta gönderen düğme ve bildirimler pasif kalır (servis doğrulanana kadar).
+ */
 export function isEmailConfigured(): boolean {
-  return !!(process.env["SMTP_USER"] && process.env["SMTP_PASS"]);
+  return process.env["TPRM_EMAIL_ENABLED"] === "true" && !!(process.env["SMTP_USER"] && process.env["SMTP_PASS"]);
 }
 
 export function appBaseUrl(): string {

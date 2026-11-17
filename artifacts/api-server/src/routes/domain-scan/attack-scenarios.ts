@@ -303,6 +303,17 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
     } as typeof sc;
   });
   result.risk_ozet = (result.risk_ozet ?? "").replace(/uğrayacak/g, "uğrayabilir").replace(/görünecek(tir)?/g, "görünebilir");
+  // "WAF tespit edilemedi" ≠ "WAF yok": özetten WAF'a dayalı iddia cümle parçasını at (öncesi kalır).
+  result.risk_ozet = result.risk_ozet
+    .split(/(?<=\.)\s+/)
+    .map((sent) => {
+      const i = sent.search(/(,\s*|\s+ve\s+)?WAF\b/i);
+      if (i < 0) return sent;
+      const head = sent.slice(0, i).trim().replace(/[,;]$/, "");
+      return head ? `${head}.` : "";
+    })
+    .filter(Boolean)
+    .join(" ");
   // Üçüncü taraf SaaS (Analytics/Tag Manager/Fonts) için "versiyon güncelle/denetle" aksiyonu anlamsız; at
   result.once_kapat = (result.once_kapat ?? []).filter((it) => !/analytics|tag manager|google fonts/i.test(`${it.aksiyon ?? ""}`));
   result.once_kapat = (result.once_kapat ?? []).map((it) =>

@@ -10,7 +10,7 @@
  *   2. Ağ maruziyeti (internete açık portlar) ..... 20
  *   3. İtibar (kara listeler, USOM, URLhaus vb.) .. 15
  *   4. E-posta güvenliği (SPF / DMARC / DKIM / MX)  15
- *   5. Veri sızıntısı (HIBP) ...................... 10
+ *   5. Veri ihlali geçmişi (HIBP) ...................... 10
  *   6. TLS ve web yapılandırması .................. 10
  *
  * Ölçülmemiş kategoriler "temiz" sayılmaz: skor yalnızca ölçülen kategorilerin
@@ -118,6 +118,12 @@ export interface ScoreV2Input {
   virusTotalReputation?: number | null;
   virusTotalMalicious?: number | null;
   abuseIpdbScore?: number | null;
+  /** Feodo Tracker botnet C2 listesinde eşleşen IP'ler (tüm A kayıtları). */
+  feodoC2Ips?: string[] | null;
+  /** ThreatFox'ta alan adı için kayıtlı IOC sayısı. */
+  threatFoxIocCount?: number | null;
+  /** DNS'te hedefi alınabilir (dangling) CNAME sayısı — subdomain takeover riski. */
+  danglingCnames?: string[] | null;
 
   // Sızıntı
   hibpBreachCount?: number | null;
@@ -134,7 +140,7 @@ const LABELS: Record<ScoreV2CategoryKey, string> = {
   network: "Ağ maruziyeti",
   reputation: "İtibar",
   email: "E-posta güvenliği",
-  breaches: "Veri sızıntısı",
+  breaches: "Veri ihlali geçmişi",
   web: "TLS ve web yapılandırması",
 };
 
@@ -162,6 +168,18 @@ export function scoreV2Risk(score: number): ScoreV2Risk {
   return "Kritik";
 }
 
+const RISK_ORDER: ScoreV2Risk[] = ["Düşük", "Orta", "Yüksek", "Kritik"];
+
+/**
+ * Risk etiketi skordan türetilir ama bulgu şiddetini gizlemez: kritik bulgu varken "Düşük",
+ * yüksek bulgu varken "Düşük" risk gösterilmez (kritik → en az Yüksek, yüksek → en az Orta).
+ */
+export function riskWithFloor(score: number, findings: Array<{ severity: string; deduction?: number }>): ScoreV2Risk {
+  const base = scoreV2Risk(score);
+  const floor: ScoreV2Risk = findings.some((f) => f.severity === "critical") ? "Yüksek" : findings.some((f) => f.severity === "high") ? "Orta" : "Düşük";
+  return RISK_ORDER.indexOf(floor) > RISK_ORDER.indexOf(base) ? floor : base;
+}
+
 export function parseSpfPolicy(record: string | null | undefined): "hardfail" | "softfail" | "neutral" | "pass_all" | "none" {
   if (!record) return "none";
   const r = record.toLowerCase();
@@ -187,7 +205,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   const unchecked = new Set(input.uncheckedSources ?? []);
   const sslUnchecked = !!input.sslUnchecked || unchecked.has("ssl");
   const emailUnchecked = unchecked.has("email");
-  const vulnUnchecked = unchecked.has("shadowit");
+  const vulnUnchecked = unchecked.has("shadowit") || unchecked.has("nvd");
   // Hem DNSBL hem USOM ölçülemediyse itibar kategorisinde dayanak kalmaz.
   const reputationUnchecked = unchecked.has("dnsbl") && unchecked.has("usom");
   const findings: ScoreV2Finding[] = [];
@@ -240,6 +258,9 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
       }
     }
   }
+  if ((input.danglingCnames?.length ?? 0) > 0) {
+    netDeduction += add("network", "high", `${input.danglingCnames!.length} alt alan adı sahipsiz bir hizmeti gösteriyor (subdomain takeover riski): ${input.danglingCnames!.slice(0, 2).join(", ")}`, 5);
+  }
   const netPoints = clamp(MAX.network - netDeduction, 0, MAX.network);
 
   // ── 3. İtibar ────────────────────────────────────────────────────────────
@@ -260,6 +281,14 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   if (input.safeBrowsingFlagged === true) {
     repDeduction += add("reputation", "critical", "Google Safe Browsing tarafından işaretlenmiş", 15);
     caps.push({ max: 39, reason: "Google Safe Browsing kaydı" });
+  }
+  if ((input.feodoC2Ips?.length ?? 0) > 0) {
+    caps.push({ max: 39, reason: "Botnet C2 listesinde (Feodo Tracker)" });
+    repDeduction += add("reputation", "critical", `Sunucu IP'si botnet C2 listesinde (${input.feodoC2Ips!.slice(0, 3).join(", ")})`, 15);
+  }
+  if ((input.threatFoxIocCount ?? 0) > 0) {
+    caps.push({ max: 49, reason: "ThreatFox zararlı IOC kaydı" });
+    repDeduction += add("reputation", "high", `Alan adı ThreatFox zararlı göstergeleri (IOC) arasında (${input.threatFoxIocCount})`, 10);
   }
   if (input.virusTotalReputation != null && (input.virusTotalMalicious ?? 0) > 0) {
     repDeduction += add("reputation", "high", `VirusTotal'da ${input.virusTotalMalicious} motor zararlı olarak işaretliyor`, 10);
@@ -296,7 +325,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   const breaches = input.hibpBreachCount ?? 0;
   const breachPoints = breaches === 0 ? 10 : breaches === 1 ? 6 : breaches <= 3 ? 3 : 0;
   if (breachesMeasured && breaches > 0) {
-    add("breaches", breaches >= 4 ? "high" : "medium", `${breaches} bilinen veri sızıntısında alan adı e-postaları`, 10 - breachPoints);
+    add("breaches", breaches >= 4 ? "high" : "medium", `Alan adına ait hizmet ${breaches} bilinen veri ihlalinde yer alıyor (HIBP)`, 10 - breachPoints);
   }
 
   // ── 6. TLS ve web ────────────────────────────────────────────────────────
@@ -357,7 +386,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
     version: SCORE_V2_VERSION,
     score,
     grade: scoreV2Grade(score),
-    risk: scoreV2Risk(score),
+    risk: riskWithFloor(score, findings.filter((f) => f.deduction > 0)),
     coverage,
     // Ölçülmeyen kategoriler 0 puan ve measured:false ile döner (skora dahil edilmedi).
     categories: categories.map((c) => ({ ...c, points: c.measured ? Math.round(c.points * 10) / 10 : 0 })),

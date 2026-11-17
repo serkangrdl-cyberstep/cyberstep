@@ -26,3 +26,11 @@ test("yapılandırma yoksa doğrulanamaz (null); başka ürünse null", () => {
   assert.equal(cveAffectsVersion(undefined, "jquery:jquery", "3.4.1"), null);
   assert.equal(cveAffectsVersion(cfg({ criteria: "cpe:2.3:a:other:thing:*:*:*:*:*:*:*:*" }), "jquery:jquery", "3.4.1"), null);
 });
+
+test("ürün yalnızca platform (vulnerable:false) ise etkilenmez — eklenti CVE'si WordPress'e atfedilmez", () => {
+  const cfg = [{ nodes: [{ cpeMatch: [
+    { vulnerable: true, criteria: "cpe:2.3:a:ninjaforms:ninja_forms:*:*:*:*:*:wordpress:*:*", versionEndExcluding: "2.9.42" },
+    { vulnerable: false, criteria: "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*" },
+  ] }] }];
+  assert.equal(cveAffectsVersion(cfg, "wordpress:wordpress", "6.4.2"), false);
+});

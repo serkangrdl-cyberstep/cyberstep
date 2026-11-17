@@ -89,6 +89,9 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
     virusTotalMalicious: scan.virusTotalMalicious,
     abuseIpdbScore: scan.abuseIpdbScore,
     hibpBreachCount: scan.hibpBreachCount,
+    feodoC2Ips: (scan.tprmExtra as { feodoC2Ips?: string[] } | null)?.feodoC2Ips ?? null,
+    threatFoxIocCount: (scan.tprmExtra as { threatFoxIocCount?: number } | null)?.threatFoxIocCount ?? null,
+    danglingCnames: (scan.tprmExtra as { danglingCnames?: string[] } | null)?.danglingCnames ?? null,
   };
 }
 

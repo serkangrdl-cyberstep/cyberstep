@@ -1,7 +1,7 @@
 // Çalıştırma: pnpm --filter @workspace/api-server run test:score
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeScoreV2, parseDmarcPolicy, parseSpfPolicy, type ScoreV2Input } from "./scoreV2";
+import { computeScoreV2, riskWithFloor, parseDmarcPolicy, parseSpfPolicy, type ScoreV2Input } from "./scoreV2";
 
 const clean: ScoreV2Input = {
   referralSource: "user",
@@ -151,4 +151,39 @@ test("DNSBL ve USOM birlikte ölçülemediyse itibar ölçülmedi; biri ölçül
 
 test("SPF redirect= takip edilmiş birleşik kayıtta hedefin -all politikası geçerli sayılır", () => {
   assert.equal(parseSpfPolicy("v=spf1 redirect=_spf.example.com → v=spf1 include:_a.example.com -all"), "hardfail");
+});
+
+test("risk etiketi bulgu şiddetini gizlemez: yüksek bulgu varken 'Düşük' olmaz", () => {
+  assert.equal(riskWithFloor(90, [{ severity: "high" }]), "Orta");
+  assert.equal(riskWithFloor(90, [{ severity: "critical" }]), "Yüksek");
+  assert.equal(riskWithFloor(30, [{ severity: "high" }]), "Kritik");
+  assert.equal(riskWithFloor(90, [{ severity: "medium" }]), "Düşük");
+});
+
+test("Feodo C2 eşleşmesi skoru 39'a sınırlar ve kritik bulgu üretir", () => {
+  const r = computeScoreV2({ ...clean, feodoC2Ips: ["1.2.3.4"] });
+  assert.ok(r.score <= 39);
+  assert.ok(r.findings.some((f) => /botnet C2/i.test(f.title)));
+});
+
+test("ThreatFox IOC skoru 49'a sınırlar", () => {
+  const r = computeScoreV2({ ...clean, threatFoxIocCount: 2 });
+  assert.ok(r.score <= 49);
+});
+
+test("sahipsiz CNAME ağ bulgusu üretir ve risk en az Orta olur", () => {
+  const r = computeScoreV2({ ...clean, shodanOpenPorts: [], danglingCnames: ["old.x.com → gone.herokuapp.com"] });
+  assert.ok(r.findings.some((f) => /subdomain takeover/i.test(f.title)));
+  assert.notEqual(r.risk, "Düşük");
+});
+
+test("NVD sorgusu başarısızsa zafiyet kategorisi ölçülmedi sayılır", () => {
+  const r = computeScoreV2({ ...clean, uncheckedSources: ["nvd"] });
+  assert.equal(r.categories.find((c) => c.key === "vulnerabilities")?.measured, false);
+});
+
+test("HIBP bulgusu e-posta değil alan adı hizmetine atfedilir", () => {
+  const r = computeScoreV2({ ...clean, hibpBreachCount: 5 });
+  const f = r.findings.find((x) => x.category === "breaches");
+  assert.ok(f && /Alan adına ait hizmet 5 bilinen veri ihlalinde/.test(f.title));
 });

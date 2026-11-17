@@ -48,7 +48,7 @@ export function actionsFromFindings(findings: FindingLike[], max = 6): ActionIte
       push("dmarc", "DMARC politikasını p=quarantine ve ardından p=reject yönünde sıkılaştırın; rua raporlarını izleyin.", "DMARC yokken veya yalnızca izleme modundayken sahte e-postalar engellenmez.");
     } else if (/DKIM/i.test(t)) {
       push("dkim", "E-posta gönderen sistemlerde DKIM imzalamayı etkinleştirin.", "DKIM imzası, e-postaların değiştirilmediğini ve alan adınızdan geldiğini doğrular.");
-    } else if (/veri sızıntı/i.test(t)) {
+    } else if (/veri sızıntı|veri ihlali/i.test(t)) {
       push("breach", "Sızıntıda yer alan hesapların parolalarını sıfırlayın ve çok faktörlü doğrulamayı zorunlu kılın.", "Sızan kimlik bilgileri hesap ele geçirme saldırılarında kullanılır.");
     } else if (/SSL|sertifika/i.test(t)) {
       push("ssl", "SSL/TLS sertifikasını yenileyin ve otomatik yenilemeyi (ör. ACME/Let's Encrypt) etkinleştirin.", "Süresi dolan veya doğrulanamayan sertifika tarayıcı uyarısına ve hizmet kesintisine yol açar.");

@@ -40,9 +40,11 @@ export function cveAffectsVersion(
   if (!configurations || configurations.length === 0) return null;
   const needle = `:${vendorProduct}:`;
   let sawProduct = false;
+  let sawPlatformOnly = false;
   for (const cfg of configurations) {
     for (const node of cfg.nodes ?? []) {
       for (const m of node.cpeMatch ?? []) {
+        if (m.criteria?.includes(needle) && m.vulnerable === false) { sawPlatformOnly = true; continue; }
         if (m.vulnerable === false || !m.criteria?.includes(needle)) continue;
         sawProduct = true;
         const parts = m.criteria.split(":");
@@ -60,5 +62,7 @@ export function cveAffectsVersion(
       }
     }
   }
-  return sawProduct ? false : null;
+  // Ürün yalnızca "üzerinde çalıştığı platform" (vulnerable:false) olarak geçiyorsa (ör. WordPress eklentisi CVE'si)
+  // zafiyet platformun kendisinde değildir → etkilenmiyor.
+  return sawProduct || sawPlatformOnly ? false : null;
 }

@@ -56,6 +56,7 @@ function buildUncheckedSources(c: {
   spf?: { unchecked?: boolean }; dmarc?: { unchecked?: boolean }; dkim?: { unchecked?: boolean }; mx?: { unchecked?: boolean };
   /** Shodan sorgusu yapılamadıysa/başarısız olduysa true (ağ maruziyeti ölçülemedi). */
   shodanFailed?: boolean;
+  nvdFailed?: boolean; feodoUnchecked?: boolean; threatFoxUnchecked?: boolean; ctFailed?: boolean;
 }): string[] {
   return [
     ...(c.hibp?.unchecked ? ["hibp"] : []),
@@ -65,6 +66,10 @@ function buildUncheckedSources(c: {
     ...(c.ssl?.unchecked ? ["ssl"] : []),
     ...(c.shadowIt?.unchecked ? ["shadowit"] : []),
     ...(c.shodanFailed ? ["shodan"] : []),
+    ...(c.nvdFailed ? ["nvd"] : []),
+    ...(c.feodoUnchecked ? ["feodo"] : []),
+    ...(c.threatFoxUnchecked ? ["threatfox"] : []),
+    ...(c.ctFailed ? ["ct"] : []),
     ...((c.spf?.unchecked || c.dmarc?.unchecked || c.dkim?.unchecked || c.mx?.unchecked) ? ["email"] : []),
   ];
 }
@@ -664,7 +669,7 @@ async function checkUsomList(domain: string): Promise<{ listed: boolean; uncheck
 // ─── Certificate Transparency — crt.sh ───────────────────────────────────────
 // axios + 3-retry (503/502/429/network) kullanır; native https.request'e göre
 // production Replit ortamında çok daha güvenilir.
-async function checkCertTransparency(domain: string): Promise<{ subdomains: string[]; count: number }> {
+async function checkCertTransparency(domain: string): Promise<{ subdomains: string[]; count: number; failed?: boolean }> {
   const maxAttempts = 3;
   const baseDelay = 2_000; // 2s, 4s
 
@@ -701,7 +706,7 @@ async function checkCertTransparency(domain: string): Promise<{ subdomains: stri
       if (!isRetryable || attempt === maxAttempts) {
         const detail = axios.isAxiosError(err) ? `HTTP ${status ?? "ağ hatası"}: ${err.message}` : String(err);
         logger.warn({ domain, attempt, detail }, "crt.sh erişilemiyor — subdomain keşfi atlanıyor");
-        return { subdomains: [], count: 0 };
+        return { subdomains: [], count: 0, failed: true };
       }
 
       const delay = baseDelay * Math.pow(2, attempt - 1);
@@ -734,9 +739,20 @@ const NVD_CPE: Record<string, string> = {
   PrestaShop: "prestashop:prestashop",
   OpenCart: "opencart:opencart",
   jQuery: "jquery:jquery",
+  // Sunucu yazılımları (Shodan banner sürümü; yalnızca kesin sürüm)
+  "Apache HTTP Server": "apache:http_server",
+  nginx: "nginx:nginx",
+  OpenSSH: "openbsd:openssh",
+  "Microsoft IIS": "microsoft:internet_information_services",
+  ProFTPD: "proftpd:proftpd",
+  vsftpd: "vsftpd_project:vsftpd",
+  Exim: "exim:exim",
+  Postfix: "postfix:postfix",
+  MySQL: "oracle:mysql",
+  "Apache Tomcat": "apache:tomcat",
 };
 
-interface NvdCveEntry { service: string; cveId: string; description: string; cvssScore: number; }
+interface NvdCveEntry { service: string; cveId: string; description: string; cvssScore: number; /** banner: açık porttaki ürün sürümüne göre (dağıtım yamaları nedeniyle doğrulanmamış). */ source?: "banner"; }
 
 // ─── Firmware / Network Device Extraction ─────────────────────────────────────
 
@@ -789,63 +805,103 @@ function extractFirmwareDevices(
   return devices;
 }
 
-async function checkNvdCve(services: Array<{ name: string; risk: string; version?: string }>): Promise<NvdCveEntry[]> {
-  const targets = services
-    .filter(s => NVD_SERVICE_KEYWORDS[s.name] && (s.risk === "Yüksek" || s.risk === "Orta"))
-    .slice(0, 2);
-  if (targets.length === 0) return [];
-  const results: NvdCveEntry[] = [];
-  // Bug 6: CVE yaş filtresi — versiyon bilinmiyorsa son 3 yılın CVE'lerini al
-  for (const service of targets) {
-    const keyword = NVD_SERVICE_KEYWORDS[service.name]!;
-    const hasKnownVersion = service.version && service.version !== "unknown";
-    // Sürüm tespit edilemediyse CVE atfedilmez: anahtar kelime eşleşmesi tedarikçinin gerçekten
-    // etkilendiğini göstermez (ör. eklentiye ait kritik bir CVE). Yanlış zafiyet iddiası üretmemek için atlanır.
-    const cpe = NVD_CPE[service.name];
-    if (!hasKnownVersion || !cpe) continue;
-    void keyword;
-    await new Promise<void>((resolve) => {
-      const vms = `cpe:2.3:a:${cpe}:${service.version}:*:*:*:*:*:*:*`;
-      const path = `/rest/json/cves/2.0?virtualMatchString=${encodeURIComponent(vms)}&resultsPerPage=20&cvssV3Severity=CRITICAL`;
-      const req = https.request(
-        { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 8000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0", ...(process.env["NVD_API_KEY"] ? { apiKey: process.env["NVD_API_KEY"] } : {}) } },
-        (res) => {
-          let data = "";
-          let size = 0;
-          res.on("data", (chunk: Buffer) => {
-            size += chunk.length;
-            if (size > 1500 * 1024) { res.destroy(); resolve(); return; }
-            data += chunk.toString();
-          });
-          res.on("end", () => {
-            try {
-              type NvdResp = { vulnerabilities?: Array<{ cve: { id: string; descriptions: Array<{ lang: string; value: string }>; metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }>; cvssMetricV30?: Array<{ cvssData: { baseScore: number } }> }; configurations?: NvdConfiguration[] } }> };
-              const json = JSON.parse(data) as NvdResp;
-              let added = 0;
-              for (const vuln of (json.vulnerabilities ?? [])) {
-                if (added >= 2) break;
-                const cveId = vuln.cve.id;
-                // Sürüm aralığı doğrulaması: yapılandırma verisi varsa ve sürüm etkilenmiyorsa atla.
-                if (cveAffectsVersion(vuln.cve.configurations, cpe, String(service.version)) === false) continue;
-                const desc = vuln.cve.descriptions.find(d => d.lang === "en")?.value ?? "";
-                // CVSS skoru yoksa varsayılan uydurulmaz; kayıt atlanır.
-                const score = vuln.cve.metrics?.cvssMetricV31?.[0]?.cvssData.baseScore ?? vuln.cve.metrics?.cvssMetricV30?.[0]?.cvssData.baseScore;
-                if (typeof score !== "number") continue;
-                results.push({ service: service.name, cveId, description: desc.substring(0, 250), cvssScore: score });
-                added++;
-              }
-            } catch { /* ignore */ }
-            resolve();
-          });
-        }
-      );
-      req.on("error", () => resolve());
-      req.on("timeout", () => { req.destroy(); resolve(); });
-      req.end();
-    });
-    await new Promise(r => setTimeout(r, 300));
+type NvdSvc = { name: string; risk: string; version?: string; source?: "html" | "banner" };
+
+/** Shodan ürün adı → NVD_CPE anahtarı. Banner sürümleri dağıtım yamalarıyla (backport) düzeltilmiş olabilir; bulgu "doğrulanmamış" etiketlenir. */
+const BANNER_PRODUCT_TO_SERVICE: Array<{ pattern: RegExp; name: string }> = [
+  { pattern: /^apache httpd$/i, name: "Apache HTTP Server" },
+  { pattern: /^nginx$/i, name: "nginx" },
+  { pattern: /^openssh$/i, name: "OpenSSH" },
+  { pattern: /^microsoft iis httpd$/i, name: "Microsoft IIS" },
+  { pattern: /^proftpd$/i, name: "ProFTPD" },
+  { pattern: /^vsftpd$/i, name: "vsftpd" },
+  { pattern: /^exim smtpd$/i, name: "Exim" },
+  { pattern: /^postfix smtpd$/i, name: "Postfix" },
+  { pattern: /^mysql$/i, name: "MySQL" },
+  { pattern: /^apache tomcat/i, name: "Apache Tomcat" },
+];
+
+/** Açık portlardaki ürün+kesin sürüm bilgisinden NVD sorgusu yapılabilecek servisleri çıkarır. */
+export function bannerServicesFromPorts(ports: Array<{ product?: string; version?: string }> | null | undefined): NvdSvc[] {
+  const out = new Map<string, NvdSvc>();
+  for (const p of ports ?? []) {
+    const hit = BANNER_PRODUCT_TO_SERVICE.find((m) => m.pattern.test((p.product ?? "").trim()));
+    const v = (p.version ?? "").trim();
+    if (!hit || !/^\d+\.\d+(\.\d+)?([.-]?p\d+)?$/i.test(v)) continue; // yalnızca kesin sürüm
+    out.set(`${hit.name}@${v}`, { name: hit.name, risk: "Orta", version: v, source: "banner" });
   }
-  return results;
+  return [...out.values()];
+}
+
+function nvdGet(vms: string, severity: "CRITICAL" | "HIGH"): Promise<{ ok: boolean; items: Array<{ id: string; desc: string; score: number; cfg?: NvdConfiguration[] }> }> {
+  const attempt = () => new Promise<{ ok: boolean; items: Array<{ id: string; desc: string; score: number; cfg?: NvdConfiguration[] }>; retry: boolean }>((resolve) => {
+    const path = `/rest/json/cves/2.0?virtualMatchString=${encodeURIComponent(vms)}&resultsPerPage=100&cvssV3Severity=${severity}`;
+    const req = https.request(
+      { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 15000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0", ...(process.env["NVD_API_KEY"] ? { apiKey: process.env["NVD_API_KEY"] } : {}) } },
+      (res) => {
+        let data = ""; let size = 0;
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 4000 * 1024) { res.destroy(); resolve({ ok: false, items: [], retry: false }); return; } data += chunk.toString(); });
+        res.on("end", () => {
+          if (res.statusCode !== 200) { resolve({ ok: false, items: [], retry: [403, 429, 500, 502, 503, 504].includes(res.statusCode ?? 0) }); return; }
+          try {
+            type NvdResp = { vulnerabilities?: Array<{ cve: { id: string; descriptions: Array<{ lang: string; value: string }>; metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }>; cvssMetricV30?: Array<{ cvssData: { baseScore: number } }> }; configurations?: NvdConfiguration[] } }> };
+            const json = JSON.parse(data) as NvdResp;
+            const items = (json.vulnerabilities ?? []).flatMap((v) => {
+              // CVSS skoru yoksa varsayılan uydurulmaz; kayıt atlanır.
+              const score = v.cve.metrics?.cvssMetricV31?.[0]?.cvssData.baseScore ?? v.cve.metrics?.cvssMetricV30?.[0]?.cvssData.baseScore;
+              if (typeof score !== "number") return [];
+              return [{ id: v.cve.id, desc: v.cve.descriptions.find((d) => d.lang === "en")?.value ?? "", score, cfg: v.cve.configurations }];
+            });
+            resolve({ ok: true, items, retry: false });
+          } catch { resolve({ ok: false, items: [], retry: false }); }
+        });
+      },
+    );
+    req.on("error", () => resolve({ ok: false, items: [], retry: true }));
+    req.on("timeout", () => { req.destroy(); resolve({ ok: false, items: [], retry: true }); });
+    req.end();
+  });
+  return (async () => {
+    const first = await attempt();
+    if (first.ok || !first.retry) return first;
+    await new Promise((r) => setTimeout(r, 7000));
+    return attempt();
+  })();
+}
+
+/**
+ * Sürümü bilinen servisler için NVD sorgusu. Yalnızca sürüm aralığı DOĞRULANAN kayıtlar atfedilir
+ * (yapılandırma verisi yoksa veya ürün yalnızca platform olarak geçiyorsa atlanır).
+ * NVD'ye ulaşılamazsa `failed: true` döner — çağıran bunu "ölçülemedi" olarak işaretlemelidir (temiz sayılmaz).
+ */
+async function checkNvdCveDetailed(services: NvdSvc[]): Promise<{ entries: NvdCveEntry[]; failed: boolean; queried: number }> {
+  const targets = services
+    .filter((s) => NVD_CPE[s.name] && s.version && s.version !== "unknown" && (s.source === "banner" || s.risk === "Yüksek" || s.risk === "Orta"))
+    .slice(0, 8);
+  const entries: NvdCveEntry[] = [];
+  let failed = false;
+  for (const svc of targets) {
+    const cpe = NVD_CPE[svc.name]!;
+    const raw = String(svc.version);
+    const m = /^(\d+(?:\.\d+)*)[.-]?(p\d+)$/i.exec(raw);
+    const baseVersion = m ? m[1]! : raw;
+    const vms = `cpe:2.3:a:${cpe}:${baseVersion}:${m ? m[2]!.toLowerCase() : "*"}:*:*:*:*:*:*`;
+    for (const [sev, keep] of [["CRITICAL", 3], ["HIGH", 2]] as const) {
+      const r = await nvdGet(vms, sev);
+      if (!r.ok) { failed = true; continue; }
+      r.items
+        .filter((it) => cveAffectsVersion(it.cfg, cpe, baseVersion) === true)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, keep)
+        .forEach((it) => entries.push({ service: svc.name, cveId: it.id, description: it.desc.substring(0, 250), cvssScore: it.score, ...(svc.source === "banner" ? { source: "banner" as const } : {}) }));
+      await new Promise((res) => setTimeout(res, process.env["NVD_API_KEY"] ? 700 : 6500));
+    }
+  }
+  return { entries, failed, queried: targets.length };
+}
+
+async function checkNvdCve(services: Array<{ name: string; risk: string; version?: string }>): Promise<NvdCveEntry[]> {
+  return (await checkNvdCveDetailed(services)).entries;
 }
 
 // ─── Shodan internet exposure check ──────────────────────────────────────────
@@ -1372,14 +1428,24 @@ async function checkFeodoTracker(domain: string): Promise<{ isC2: boolean; match
   } catch { return { isC2: false, matchedIps: [] }; }
 }
 
+/** Tüm A kayıtları için Feodo C2 eşleşmesi. Önbellek boşsa (liste indirilemedi) "temiz" denmez: unchecked. */
+export async function checkFeodoIps(ips: string[]): Promise<{ c2Ips: string[]; unchecked: boolean }> {
+  if (Date.now() - _feodoLastFetch > 6 * 60 * 60 * 1000) await refreshFeodoCache().catch(() => {});
+  if (_feodoCache.size === 0) return { c2Ips: [], unchecked: true };
+  return { c2Ips: ips.filter((ip) => _feodoCache.has(ip)), unchecked: false };
+}
+
 // Warm up Feodo cache at startup
 refreshFeodoCache().catch(() => {});
 
 // ─── ThreatFox (Abuse.ch) — IOC veritabanı (ücretsiz) ──────────────────────
-interface ThreatFoxResult { iocCount: number; threatType: string | null; malwareName: string | null }
+interface ThreatFoxResult { iocCount: number; threatType: string | null; malwareName: string | null; /** Sorgu yapılamadı (anahtar yok/hata): "temiz" sayılmaz. */ unchecked?: boolean }
 
 async function checkThreatFox(domain: string): Promise<ThreatFoxResult> {
   const defaultResult: ThreatFoxResult = { iocCount: 0, threatType: null, malwareName: null };
+  const failedResult: ThreatFoxResult = { ...defaultResult, unchecked: true };
+  // abuse.ch API anahtarı olmadan yanıt vermez — anahtar yoksa "temiz" denmez, ölçülemedi sayılır.
+  if (!process.env["ABUSECH_AUTH_KEY"]) return failedResult;
   return new Promise((resolve) => {
     const body = JSON.stringify({ query: "search_ioc", search_term: domain });
     const req = https.request(
@@ -1397,20 +1463,20 @@ async function checkThreatFox(domain: string): Promise<ThreatFoxResult> {
       },
       (res) => {
         let data = ""; let size = 0;
-        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(defaultResult); return; } data += chunk.toString(); });
+        res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(failedResult); return; } data += chunk.toString(); });
         res.on("end", () => {
           try {
             type TFResp = { query_status?: string; data?: Array<{ threat_type?: string; malware_printable?: string }> };
             const json = JSON.parse(data) as TFResp;
             if (json.query_status === "ok" && json.data && json.data.length > 0) {
               resolve({ iocCount: json.data.length, threatType: json.data[0]?.threat_type ?? null, malwareName: json.data[0]?.malware_printable ?? null });
-            } else { resolve(defaultResult); }
-          } catch { resolve(defaultResult); }
+            } else if (json.query_status === "ok" || json.query_status === "no_result") { resolve(defaultResult); } else { resolve(failedResult); }
+          } catch { resolve(failedResult); }
         });
       }
     );
-    req.on("error", () => resolve(defaultResult));
-    req.on("timeout", () => { req.destroy(); resolve(defaultResult); });
+    req.on("error", () => resolve(failedResult));
+    req.on("timeout", () => { req.destroy(); resolve(failedResult); });
     req.write(body);
     req.end();
   });
@@ -1569,9 +1635,11 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
     );
     const overallScore = scoreResult.total;
 
-    const cveSummary: NvdCveEntry[] = shadowIt.services.length > 0
-      ? await checkNvdCve(shadowIt.services).catch(() => [])
-      : [];
+    const nvdServices: NvdSvc[] = [...shadowIt.services, ...bannerServicesFromPorts(shodan?.openPorts)];
+    const nvdRes = nvdServices.length > 0
+      ? await checkNvdCveDetailed(nvdServices).catch(() => ({ entries: [] as NvdCveEntry[], failed: true, queried: 0 }))
+      : { entries: [] as NvdCveEntry[], failed: false, queried: 0 };
+    const cveSummary: NvdCveEntry[] = nvdRes.entries;
 
     // Tam mod: skora girdi olan zenginleştirme kaynakları (hataları tek tek yakalanır, "ölçülemedi" olur).
     const full = opts.full === true;
@@ -1585,6 +1653,29 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
           checkGoogleSafeBrowsing(domain).catch(() => null),
         ])
       : [null, null, null, null, null] as const;
+
+    // Derin tarama (yalnızca TPRM tam modu): tüm A kayıtları için botnet C2, ThreatFox IOC, sahipsiz alt alan adları.
+    const deep = full ? await (async () => {
+      const dnsP = await import("dns/promises");
+      const [ips, tf, ct] = await Promise.all([
+        dnsP.resolve4(domain).catch(() => [] as string[]),
+        checkThreatFox(domain).catch(() => ({ iocCount: 0, threatType: null, malwareName: null, unchecked: true } as ThreatFoxResult)),
+        checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0, failed: true as boolean | undefined })),
+      ]);
+      const feodo = await checkFeodoIps(ips).catch(() => ({ c2Ips: [] as string[], unchecked: true }));
+      const { findDanglingCnames } = await import("../../services/tprmDeepScan");
+      const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
+      return { ips, tf, ct, feodo, dangling };
+    })() : null;
+    const tprmExtra = deep ? {
+      feodoC2Ips: deep.feodo.c2Ips,
+      threatFoxIocCount: deep.tf.iocCount,
+      threatFoxMalware: deep.tf.malwareName,
+      danglingCnames: deep.dangling.dangling,
+      subdomainsChecked: deep.dangling.checked,
+      resolvedIpCount: deep.ips.length,
+      nvdQueried: nvdRes.queried,
+    } : null;
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
     const wafFields = await (async () => {
@@ -1689,7 +1780,8 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         abuseIpdbScore: abuseIpdb?.score ?? null, abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0, abuseIpdbCountry: abuseIpdb?.countryCode ?? null, abuseIpdbIsp: abuseIpdb?.isp ?? null,
         safeBrowsingFlagged: safeBrowsing ? safeBrowsing.flagged : null, safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: null,
-        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null }),
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null, nvdFailed: nvdRes.failed, feodoUnchecked: deep?.feodo.unchecked, threatFoxUnchecked: deep?.tf.unchecked, ctFailed: deep?.ct.failed }),
+        tprmExtra,
         badgeToken: randomUUID(),
         referralSource: full ? "tprm_scan" : "discovery_pipeline",
         kepConfigured: false, kepRelays: [], kepSecure: false,

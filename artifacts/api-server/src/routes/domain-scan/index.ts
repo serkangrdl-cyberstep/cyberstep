@@ -1529,7 +1529,7 @@ async function checkMozillaObservatory(domain: string): Promise<MozillaObsResult
 // ─── EPSS (FIRST.org) — CVE istismar olasılığı zenginleştirme ───────────────
 interface NvdCveEntryWithEpss extends NvdCveEntry { epssScore: number | null; epssPercentile: number | null }
 
-async function enrichWithEpss(cves: NvdCveEntry[]): Promise<NvdCveEntryWithEpss[]> {
+export async function enrichWithEpss(cves: NvdCveEntry[]): Promise<NvdCveEntryWithEpss[]> {
   if (cves.length === 0) return [];
   return new Promise((resolve) => {
     const ids = cves.map(c => c.cveId).join(",");

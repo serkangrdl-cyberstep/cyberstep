@@ -849,6 +849,7 @@ async function checkNvdCve(services: Array<{ name: string; risk: string; version
 }
 
 // ─── Shodan internet exposure check ──────────────────────────────────────────
+import { actionsFromFindings } from "../../services/findingActions";
 import { cveAffectsVersion, type NvdConfiguration } from "../../services/nvdVersionMatch";
 import { detectCdn, classifyPort, buildPortRiskSummary, type ClassifiedPort, type CdnInfo, type PortRiskSummary } from "../../services/portRiskClassifier";
 interface ShodanPort extends ClassifiedPort {}
@@ -2518,6 +2519,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       originIp: scan.originIp ?? undefined,
       originIpSource: scan.originIpSource ?? undefined,
       attackScenarios: isFreeReport ? null : attackScenariosData,
+      fallbackActions: isFreeReport || !pdfV2 || pdfV2.insufficientData ? null : actionsFromFindings(pdfV2.findings),
       scoreBreakdown: pdfScoreBreakdown,
       asnNumber: scan.asnNumber,
       asnName: scan.asnName,

@@ -321,6 +321,8 @@ interface DomainScanData {
   safeBrowsingFlagged?: boolean | null;
   safeBrowsingThreats?: string[] | null;
   otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
+  /** Yapay zeka senaryosu olmayan raporlarda bulgulardan türetilen öncelikli aksiyonlar. */
+  fallbackActions?: Array<{ oncelik: number; aksiyon: string; neden: string }> | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
     risk_ozet?: string;
@@ -1193,6 +1195,25 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         }
         doc.y += 4;
       }
+    }
+
+    // ── Öncelikli aksiyonlar (senaryo yoksa bulgulardan türetilmiş) ───────────
+    if (!data.isFreeReport && !(data.attackScenarios && data.attackScenarios.senaryolar.length > 0) && (data.fallbackActions?.length ?? 0) > 0) {
+      checkPageBreak(doc, 110);
+      sectionTitle("Öncelikli Aksiyon Listesi");
+      for (const item of data.fallbackActions!) {
+        checkPageBreak(doc, 60);
+        const ay = doc.y;
+        doc.fillColor(DARK).fontSize(9).font(FONT_BOLD)
+          .text(`${item.oncelik}.  ${item.aksiyon}`, MARGIN + 20, ay, { width: CONTENT_W - 24 });
+        const afterTitle = doc.y + 3;
+        doc.fillColor(GRAY).fontSize(7.5).font(FONT_REGULAR)
+          .text(clip(item.neden, 260), MARGIN + 20, afterTitle, { width: CONTENT_W - 24 });
+        const blockEnd = doc.y + 10;
+        doc.moveTo(MARGIN + 8, ay - 2).lineTo(MARGIN + 8, blockEnd - 4).strokeColor([220, 38, 38]).lineWidth(2).stroke();
+        doc.y = blockEnd;
+      }
+      doc.y += 4;
     }
 
     // ─── Reputation & Güvenilirlik Analizi ────────────────────────────────────

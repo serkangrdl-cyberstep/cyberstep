@@ -941,7 +941,7 @@ export async function detectFinalDomain(domain: string): Promise<string | null> 
   });
 }
 
-export async function checkShodan(domain: string): Promise<{
+export async function checkShodan(domain: string, opts: { priority?: boolean } = {}): Promise<{
   openPorts: ShodanPort[];
   vulnCount: number;
   country: string | null;
@@ -951,7 +951,7 @@ export async function checkShodan(domain: string): Promise<{
 } | null> {
   const apiKey = process.env["SHODAN_API_KEY"];
   if (!apiKey) return null;
-  if (!checkAndConsumeQuota("shodan")) {
+  if (!checkAndConsumeQuota("shodan", { priority: opts.priority })) {
     logger.info({ domain }, "Shodan günlük kota aşıldı — tarama atlanıyor");
     return null;
   }
@@ -1655,7 +1655,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       checkBlacklists(domain),
       checkShadowIT(domain),
       checkUsomList(domain),
-      checkShodan(domain).catch(() => null),
+      checkShodan(domain, { priority: opts.full === true }).catch(() => null),
     ]);
 
     const scoreResult = calcScore(

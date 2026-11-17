@@ -12,7 +12,7 @@ import { customersTable } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { domainScansTable } from "@workspace/db";
 import { SCORE_V2_VERSION, scoreV2Risk, type ScoreV2Result } from "../../lib/scoring/scoreV2";
-import { isScanFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import { isScanCompleteAndFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
 import { canonicalSector } from "../../lib/scoring/sectors";
@@ -49,13 +49,23 @@ interface StoredScanData {
   scoreVersion: string;
   scanId: number;
   score: ScoreV2Result;
+  /** Son tarama denemesi başarısız olduysa zamanı; arayüz "tarama başarısız" gösterir. */
+  scanErrorAt?: string;
+}
+
+/** Tarama başarısız oldu: önceki skor korunur, ama başarısızlık sessiz kalmaz. */
+async function markScanFailed(vendor: { id: number; lastScanData: unknown }): Promise<void> {
+  const prev = (vendor.lastScanData && typeof vendor.lastScanData === "object" ? vendor.lastScanData : {}) as Record<string, unknown>;
+  await db.update(tprmVendorTable)
+    .set({ lastScanData: { ...prev, scanErrorAt: new Date().toISOString() } })
+    .where(eq(tprmVendorTable.id, vendor.id));
 }
 
 /** Domain için yeni bir tarama çalıştırır ve Skor v2 hesaplar. */
 async function scanSupplierDomain(domain: string): Promise<SupplierScore | null> {
   try {
     const { performDomainScan } = await import("../domain-scan/index");
-    const result = await performDomainScan(domain);
+    const result = await performDomainScan(domain, { full: true });
     if (!result) return null;
     const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, result.id));
     if (!scan) return null;
@@ -73,7 +83,7 @@ async function scanSupplierDomain(domain: string): Promise<SupplierScore | null>
 async function getSupplierScore(domain: string, opts: { force?: boolean } = {}): Promise<SupplierScore | null> {
   if (!opts.force) {
     const existing = await scoreDomainV2(domain).catch(() => null);
-    if (existing && isScanFresh(existing.scan)) {
+    if (existing && isScanCompleteAndFresh(existing.scan)) {
       return { scanId: existing.scan.id, scannedAt: existing.scan.createdAt, score: existing.score };
     }
   }
@@ -586,9 +596,9 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
     }
 
     // Tarama yoksa veya bayatsa arka planda yeni tarama başlat.
-    if (!prior || !isScanFresh(prior.scan)) queueVendorScan(vendor.id, domain);
+    if (!prior || !isScanCompleteAndFresh(prior.scan)) queueVendorScan(vendor.id, domain);
 
-    res.status(201).json({ ...vendor, instantScore: !!prior, scanPending: !prior || !isScanFresh(prior.scan) });
+    res.status(201).json({ ...vendor, instantScore: !!prior, scanPending: !prior || !isScanCompleteAndFresh(prior.scan) });
   } catch (err) {
     logger.error({ err }, "TPRM vendor add error");
     res.status(500).json({ error: "Tedarikçi eklenemedi" });
@@ -604,9 +614,10 @@ function escapeHtml(s: string): string {
 function queueVendorScan(vendorId: number, domain: string): void {
   enqueueScan(`vendor:${vendorId}`, async () => {
     const result = await scanSupplierDomain(domain);
-    if (!result) return;
     const [current] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendorId));
-    if (current) await applySupplierScore(current, result);
+    if (!current) return;
+    if (!result) { await markScanFailed(current); return; }
+    await applySupplierScore(current, result);
   });
 }
 
@@ -671,7 +682,7 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
         await applySupplierScore(v, { scanId: prior.scan.id, scannedAt: prior.scan.createdAt, score: prior.score });
         instant++;
       }
-      if (!prior || !isScanFresh(prior.scan)) {
+      if (!prior || !isScanCompleteAndFresh(prior.scan)) {
         queueVendorScan(v.id, v.supplierDomain);
         queuedCount++;
       }
@@ -747,6 +758,7 @@ router.post("/tprm/vendors/:id/rescan", requireCustomer, async (req: Request, re
     enqueueScan(`vendor:${vendor.id}`, async () => {
       const result = await getSupplierScore(vendor.supplierDomain, { force: true });
       if (result) await applySupplierScore(vendor, result);
+      else await markScanFailed(vendor);
     });
   } catch (err) {
     logger.error({ err }, "TPRM vendor rescan route error");
@@ -827,7 +839,7 @@ export async function runVendorRescanCron(): Promise<void> {
     try {
       // Keşif hattı bu domaini son 7 günde taradıysa yeniden taramaya gerek yok.
       const result = await getSupplierScore(vendor.supplierDomain);
-      if (!result) continue;
+      if (!result) { await markScanFailed(vendor); continue; }
 
       const score = result.score.score;
       const riskLevel = result.score.risk;

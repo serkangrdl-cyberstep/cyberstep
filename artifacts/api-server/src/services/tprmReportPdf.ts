@@ -140,7 +140,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     const y = doc.y;
     const cells = [
       v.name ? `${v.name}\n${v.domain}` : v.domain,
-      v.insufficientData ? "—" : v.score === null ? "…" : String(v.score),
+      v.insufficientData ? "—" : v.score === null ? "…" : `${v.score}${v.coverage !== null && v.coverage < 100 ? `\n(kapsam %${v.coverage})` : ""}`,
       v.grade ?? "—",
       v.insufficientData ? "Veri yok" : v.risk ?? "Bekliyor",
       v.sector ? (v.sectorPercentile !== null ? `${v.sector} (%${v.sectorPercentile})` : v.sector) : "—",

@@ -84,6 +84,7 @@ interface ScanResult {
     insufficientData: boolean;
     caps: string[];
     findings: Array<{ category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }>;
+    categories?: Array<{ key: string; label: string; maxPoints: number; points: number; measured: boolean }>;
   } | null;
   hibpBreachCount: number;
   uncheckedSources?: string[] | null;
@@ -2507,35 +2508,44 @@ export default function DomainScanPage() {
             </Card>
           )}
 
-          {/* Score breakdown */}
-          {result.scoreBreakdown && (
+          {/* Score breakdown — Skor v2 kategorileri (ekrandaki skorla aynı model); yoksa eski döküm */}
+          {(v2?.categories?.length || result.scoreBreakdown) && (
             <Card className="shadow-sm mb-6 border border-border/50">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Puan Dökümü</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { label: "SPF", key: "spf" as const, max: 20 },
-                    { label: "DMARC", key: "dmarc" as const, max: 25 },
-                    { label: "DKIM", key: "dkim" as const, max: 20 },
-                    { label: "MX", key: "mx" as const, max: 10 },
-                    { label: "SSL", key: "ssl" as const, max: 25 },
-                  ].map(({ label, key, max }) => {
-                    const val = result.scoreBreakdown![key];
-                    const pct = Math.round((val / max) * 100);
-                    const color = pct === 100 ? "text-green-600" : pct >= 50 ? "text-yellow-600" : "text-red-500";
-                    return (
-                      <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2 bg-muted/20">
-                        <span className="text-xs text-muted-foreground font-medium">{label}</span>
-                        <span className={`text-xs font-bold tabular-nums ${color}`}>{val}<span className="text-muted-foreground font-normal">/{max}</span></span>
-                      </div>
-                    );
-                  })}
-                  {result.scoreBreakdown.portDeduction > 0 && (
-                    <div className="flex items-center justify-between rounded-md border border-red-200 px-3 py-2 bg-red-50/50">
-                      <span className="text-xs text-red-600 font-medium">Port Kesintisi</span>
-                      <span className="text-xs font-bold text-red-600 tabular-nums">-{result.scoreBreakdown.portDeduction}</span>
-                    </div>
-                  )}
+                  {v2?.categories?.length
+                    ? v2.categories.map((c) => {
+                        const pct = c.maxPoints > 0 ? Math.round((c.points / c.maxPoints) * 100) : 0;
+                        const color = !c.measured ? "text-muted-foreground" : pct === 100 ? "text-green-600" : pct >= 50 ? "text-yellow-600" : "text-red-500";
+                        return (
+                          <div key={c.key} className="flex items-center justify-between rounded-md border px-3 py-2 bg-muted/20">
+                            <span className="text-xs text-muted-foreground font-medium">{c.label}</span>
+                            {c.measured ? (
+                              <span className={`text-xs font-bold tabular-nums ${color}`}>{Math.round(c.points * 10) / 10}<span className="text-muted-foreground font-normal">/{c.maxPoints}</span></span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">ölçülemedi</span>
+                            )}
+                          </div>
+                        );
+                      })
+                    : [
+                        { label: "SPF", key: "spf" as const, max: 20 },
+                        { label: "DMARC", key: "dmarc" as const, max: 25 },
+                        { label: "DKIM", key: "dkim" as const, max: 20 },
+                        { label: "MX", key: "mx" as const, max: 10 },
+                        { label: "SSL", key: "ssl" as const, max: 25 },
+                      ].map(({ label, key, max }) => {
+                        const val = result.scoreBreakdown![key];
+                        const pct = Math.round((val / max) * 100);
+                        const color = pct === 100 ? "text-green-600" : pct >= 50 ? "text-yellow-600" : "text-red-500";
+                        return (
+                          <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2 bg-muted/20">
+                            <span className="text-xs text-muted-foreground font-medium">{label}</span>
+                            <span className={`text-xs font-bold tabular-nums ${color}`}>{val}<span className="text-muted-foreground font-normal">/{max}</span></span>
+                          </div>
+                        );
+                      })}
                 </div>
               </CardContent>
             </Card>

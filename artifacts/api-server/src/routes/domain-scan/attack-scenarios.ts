@@ -264,8 +264,13 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
     if (/http.*başlık|başlık.*eksik|zayıf.*başlık/i.test(sc.baslik ?? "")) {
       return {
         ...sc,
+        baslik: "HTTP Güvenlik Başlıklarının Eksikliği — Tarayıcı Koruma Katmanı Zayıf",
         olasilik: "Orta",
         acillik: "Orta",
+        acil_onlemler: [
+          "1. HTTP güvenlik başlıklarını yapılandırın: HSTS, X-Content-Type-Options, X-Frame-Options (veya CSP frame-ancestors) ve Content-Security-Policy",
+          "2. CSP'yi önce rapor modunda (Report-Only) deneyip sonra zorunlu hale getirin",
+        ],
         etki: "Savunma katmanı eksiktir; başka bir zafiyetle birleştiğinde istemci tarafı saldırıların etkisi artar.",
         kvkk_etkisi: "",
         giris_noktasi: "Eksik HTTP güvenlik başlıkları (HSTS, CSP, X-Frame-Options vb.), tarayıcı tabanlı saldırılara karşı bir savunma katmanını devre dışı bırakır.",
@@ -316,7 +321,16 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
     .join(" ");
   // Üçüncü taraf SaaS (Analytics/Tag Manager/Fonts) için "versiyon güncelle/denetle" aksiyonu anlamsız; at
   result.once_kapat = (result.once_kapat ?? []).filter((it) => !/analytics|tag manager|google fonts/i.test(`${it.aksiyon ?? ""}`));
+  // WAF tespit edilememesi WAF yok demek değildir; WAF/rate-limit'e dayalı aksiyon başlık aksiyonuna çevrilir.
   result.once_kapat = (result.once_kapat ?? []).map((it) =>
+    /\bWAF\b|rate limit|brute force|bot saldır/i.test(`${it.aksiyon ?? ""} ${it.neden ?? ""}`)
+      ? {
+          ...it,
+          aksiyon: "HTTP güvenlik başlıklarını yapılandırın (HSTS, X-Frame-Options, CSP, X-Content-Type-Options).",
+          neden: "Başlıklar tarayıcı tabanlı saldırılara karşı ek bir savunma katmanı sağlar; yapılandırması düşük maliyetlidir.",
+        }
+      : it
+  ).map((it) =>
     sslValid && /ssl|sertifika/i.test(it.aksiyon ?? "")
       ? { ...it, neden: `Sertifika yenilenmezse ${days} gün sonra tarayıcılar güvenlik uyarısı gösterir ve site erişilemez hale gelir.` }
       : it

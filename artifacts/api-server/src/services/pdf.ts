@@ -271,7 +271,7 @@ interface DomainScanData {
   blacklisted: boolean; blacklistCount: number;
   shadowItServices: Array<{ name: string; category: string; risk: string }>;
   httpHeadersScore: number;
-  httpHeadersDetails: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean } | null;
+  httpHeadersDetails: { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; xPoweredBy?: string | null } | null;
   urlhausListed: boolean; urlhausThreat: string | null;
   usomListed: boolean;
   ctSubdomainCount: number;
@@ -795,6 +795,11 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       doc.fillColor(hic).fontSize(8).font(FONT_BOLD).text(hi.ok ? "+" : "-", MARGIN + 4, hiy, { lineBreak: false, width: 10 });
       doc.fillColor(DARK).fontSize(8).font(FONT_REGULAR).text(hi.label, MARGIN + 16, hiy, { width: CONTENT_W - 16 });
       doc.y = hiy + 13;
+    }
+    if (hd?.xPoweredBy) {
+      checkPageBreak(doc, 16);
+      doc.fillColor([217, 119, 6]).fontSize(8).font(FONT_REGULAR)
+        .text(`i  Sunucu yazılım bilgisini açığa vuruyor: X-Powered-By: ${hd.xPoweredBy.slice(0, 60)} (düşük risk)`, MARGIN + 4, doc.y, { width: CONTENT_W - 8 });
     }
     doc.y += 10;
 

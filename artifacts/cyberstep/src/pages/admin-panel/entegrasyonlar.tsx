@@ -41,15 +41,17 @@ const ARCHIVED_INTEGRATIONS = new Set<string>([
   "fortigate", "panos", "checkpoint-fw", "cisco-asa", "cloudflare-radar",
   // Eski ürünler: satış asistanı, takvim, AI analiz modülleri
   "isr-imap", "calendly", "eu-aiact", "ai-red-team", "deepfake-analizi", "sahte-dokuman",
+  // Lead keşfi (satış/CRM tarafı; TPRM taramasında kullanılmaz)
+  "certstream", "netcraft", "bgptools", "ripe-asn", "ripe-dns", "ripe-stat", "hackertarget", "mersis", "kap",
   // Bildirim/ITSM kanalları (TPRM bildirimleri e-postayla)
   "webhook", "telegram", "netgsm", "teams", "opsgenie", "servicenow", "ms365",
 ]);
 
 /** TPRM taramasındaki rolü: skor = Risk Skoru v2'ye girer; genel = yalnızca genel domain taramasında; plan = ücretli plan sonrası eklenecek. */
 const TPRM_ROLE: Record<string, { label: string; cls: string }> = {
-  ...Object.fromEntries(["cisa-kev", "urlhaus", "usom", "virustotal", "google-sb", "abuseipdb", "shodan", "nvd-cve", "hibp", "spf-dmarc", "dnsbl"]
+  ...Object.fromEntries(["cisa-kev", "urlhaus", "threatfox", "feodo-tracker", "crt-sh", "usom", "virustotal", "google-sb", "abuseipdb", "shodan", "nvd-cve", "hibp", "spf-dmarc", "dnsbl"]
     .map(id => [id, { label: "TPRM skorunda", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
-  ...Object.fromEntries(["otx", "threatfox", "feodo-tracker", "ssllabs", "mozilla-obs", "crt-sh", "censys", "epss"]
+  ...Object.fromEntries(["otx", "ssllabs", "mozilla-obs", "censys", "epss"]
     .map(id => [id, { label: "TPRM taramasına bağlı değil", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" }])),
   ...Object.fromEntries(["securitytrails", "binaryedge", "greynoise", "whoisxml", "vulncheck"]
     .map(id => [id, { label: "TPRM için planlı", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" }])),

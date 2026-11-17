@@ -252,6 +252,20 @@ router.post("/admin-panel/tprm-demo-seed/add-vendors", requireAdmin, async (req:
   }
 });
 
+router.post("/admin-panel/tprm-demo-seed/cve-probe", requireAdmin, async (req: Request, res: Response) => {
+  const domains = ((req.body as { domains?: string[] })?.domains ?? []).map((d) => String(d).toLowerCase().trim()).slice(0, 5);
+  const { enrichWithEpss } = await import("../domain-scan/index");
+  const out: Array<Record<string, unknown>> = [];
+  for (const d of domains) {
+    const rows = await db.select({ at: domainScansTable.createdAt, src: domainScansTable.referralSource, cve: domainScansTable.cveSummary }).from(domainScansTable).where(eq(domainScansTable.domain, d)).orderBy(desc(domainScansTable.createdAt)).limit(6);
+    out.push({ domain: d, scans: rows.map((r) => ({ at: r.at, src: r.src, cves: (r.cve ?? []).map((c) => `${c.cveId} ${c.cvssScore} (${c.service})`) })) });
+  }
+  const ids = [...new Set(out.flatMap((o) => (o["scans"] as Array<{ cves: string[] }>).flatMap((s) => s.cves.map((c) => c.split(" ")[0]!))))].slice(0, 10);
+  const probe = ids.length ? await enrichWithEpss(ids.map((id) => ({ service: "probe", cveId: id, description: "", cvssScore: 0 }))) : [];
+  const known = await enrichWithEpss([{ service: "probe", cveId: "CVE-2021-44228", description: "", cvssScore: 10 }]);
+  res.json({ domains: out, epssForFound: probe.map((p) => ({ id: p.cveId, epss: p.epssScore, pct: p.epssPercentile })), epssKnownCve: known.map((p) => ({ id: p.cveId, epss: p.epssScore, pct: p.epssPercentile })) });
+});
+
 router.delete("/admin-panel/tprm-demo-seed", requireAdmin, async (_req: Request, res: Response) => {
   const vs = await db.select({ id: tprmVendorTable.id }).from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, DEMO_EMAIL));
   if (vs.length) await db.delete(tprmVendorTable).where(and(eq(tprmVendorTable.customerEmail, DEMO_EMAIL), inArray(tprmVendorTable.id, vs.map((v) => v.id))));

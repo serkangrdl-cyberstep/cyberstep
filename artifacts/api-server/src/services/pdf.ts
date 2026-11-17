@@ -314,6 +314,9 @@ interface DomainScanData {
     lastSeen?: string | null;
   }> | null;
   censysTotalFound?: number | null;
+  scoreCategories?: Array<{ label: string; points: number; maxPoints: number; measured: boolean }> | null;
+  trMedian?: number | null;
+  uncheckedSources?: string[] | null;
   safeBrowsingFlagged?: boolean | null;
   safeBrowsingThreats?: string[] | null;
   otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
@@ -461,12 +464,12 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
       doc.y += 12;
     };
 
-    const intelRow = (label: string, value: string, ok: boolean) => {
+    const intelRow = (label: string, value: string, ok: boolean | null) => {
       checkPageBreak(doc, 28);
       const iy = doc.y;
-      const ic: [number, number, number] = ok ? [22, 163, 74] : [220, 38, 38];
+      const ic: [number, number, number] = ok === null ? [148, 163, 184] : ok ? [22, 163, 74] : [220, 38, 38];
       doc.circle(MARGIN + 7, iy + 8, 7).fill(ic);
-      doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD).text(ok ? "+" : "!", MARGIN + 4, iy + 5, { width: 7, align: "center" });
+      doc.fillColor(WHITE).fontSize(8).font(FONT_BOLD).text(ok === null ? "?" : ok ? "+" : "!", MARGIN + 4, iy + 5, { width: 7, align: "center" });
       doc.fillColor(DARK).fontSize(10).font(FONT_BOLD).text(label, MARGIN + 20, iy + 2, { lineBreak: false, width: 200 });
       doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(value, MARGIN + 20, iy + 16, { width: CONTENT_W - 20 });
       doc.y = iy + 32;
@@ -554,9 +557,10 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     // TR sektör karşılaştırma barı
     const BAR_Y = LVL_Y + 72;
     const CBAR_W = 144;
-    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7).text("TR Ort. 58", MARGIN, BAR_Y);
+    const trMed = data.trMedian ?? null;
+    doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7).text(trMed != null ? `TR Medyanı ${trMed}` : "TR kıyaslaması hazırlanıyor", MARGIN, BAR_Y);
     doc.rect(MARGIN, BAR_Y + 13, CBAR_W, 4).fill(CS_CARD);
-    doc.rect(MARGIN, BAR_Y + 13, CBAR_W * 0.58, 4).fill(CS_PANEL);
+    if (trMed != null) doc.rect(MARGIN, BAR_Y + 13, CBAR_W * (trMed / 100), 4).fill(CS_PANEL);
     doc.rect(MARGIN, BAR_Y + 13, CBAR_W * (data.overallScore / 100), 4).fill(scoreCol);
     doc.fillColor(CS_MUTED).font(FONT_REGULAR).fontSize(7)
       .text(`Siz ${data.overallScore}`, MARGIN + CBAR_W + 8, BAR_Y + 11);
@@ -709,11 +713,12 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
     }
 
     // ── Puan Dökümü ───────────────────────────────────────────────────────────
-    if (data.scoreBreakdown) {
+    if (data.scoreBreakdown || data.scoreCategories) {
       sectionTitle("Puan Dökümü");
       checkPageBreak(doc, 48);
-      const bd = data.scoreBreakdown;
-      const cols: Array<{ label: string; val: number; max: number }> = [
+      const bd = data.scoreBreakdown ?? { spf: 0, dmarc: 0, dkim: 0, mx: 0, ssl: 0, portDeduction: 0 };
+      const v2Cols = data.scoreCategories?.filter((c) => c.measured).map((c) => ({ label: c.label, val: Math.round(c.points * 10) / 10, max: c.maxPoints }));
+      const cols: Array<{ label: string; val: number; max: number }> = v2Cols && v2Cols.length > 0 ? v2Cols : [
         { label: "SPF",   val: bd.spf,   max: 20 },
         { label: "DMARC", val: bd.dmarc, max: 25 },
         { label: "DKIM",  val: bd.dkim,  max: 20 },
@@ -805,25 +810,27 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
 
     // ── Risk Istihbarati ──────────────────────────────────────────────────────
     sectionTitle("Risk İstihbaratı");
+    const unchecked = new Set(data.uncheckedSources ?? []);
+    const NA = "Bu taramada kontrol edilemedi";
     intelRow(
-      "Veri Sızıntısı (HIBP)",
-      data.hibpBreachCount === 0 ? "Temiz — sızıntı kaydı yok" : `${data.hibpBreachCount} sızıntı kaydı bulundu`,
-      data.hibpBreachCount === 0
+      "Bilinen İhlal Kaydı (HIBP herkese açık liste)",
+      unchecked.has("hibp") ? NA : data.hibpBreachCount === 0 ? "Alan adı, ihlal edilmiş servisler listesinde yer almıyor" : `${data.hibpBreachCount} ihlal kaydı bulundu`,
+      unchecked.has("hibp") ? null : data.hibpBreachCount === 0
     );
     intelRow(
       "Kara Liste (DNSBL)",
-      data.blacklisted ? `${data.blacklistCount} spam listesinde kayıtlı` : "Temiz — hiçbir kara listede yok",
-      !data.blacklisted
+      data.blacklisted ? `${data.blacklistCount} spam listesinde kayıtlı` : unchecked.has("dnsbl") ? NA : "Temiz — sorgulanan kara listelerde yok",
+      data.blacklisted ? false : unchecked.has("dnsbl") ? null : true
     );
     intelRow(
       "URLhaus Zararlı URL",
-      data.urlhausListed ? `Zararlı işaretlendi${data.urlhausThreat ? `: ${data.urlhausThreat}` : ""}` : "Temiz — zararlı URL listesinde yok",
-      !data.urlhausListed
+      data.urlhausListed ? `Zararlı işaretlendi${data.urlhausThreat ? `: ${data.urlhausThreat}` : ""}` : unchecked.has("urlhaus") ? NA : "Temiz — zararlı URL listesinde yok",
+      data.urlhausListed ? false : unchecked.has("urlhaus") ? null : true
     );
     intelRow(
       "USOM Ulusal Kara Liste",
-      data.usomListed ? "USOM zararlı domain listesinde kayıtlı" : "Temiz — USOM listesinde yok",
-      !data.usomListed
+      data.usomListed ? "USOM zararlı domain listesinde kayıtlı" : unchecked.has("usom") ? NA : "Temiz — USOM listesinde yok",
+      data.usomListed ? false : unchecked.has("usom") ? null : true
     );
 
     // Shadow IT

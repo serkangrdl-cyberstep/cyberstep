@@ -234,8 +234,21 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
   const level = urgent ? "Yüksek" : "Orta";
   result.senaryolar = (result.senaryolar ?? []).map((sc) => {
     const text = JSON.stringify(sc);
-    if (!SSL_TITLE_RE.test(sc.baslik ?? "") || !MITM_RE.test(text)) return sc;
-    logger.warn({ baslik: sc.baslik, daysLeft }, "SSL senaryosunda geçersiz MITM kurgusu — deterministik senaryoyla değiştirildi");
+    if (/http.*başlık|başlık.*eksik/i.test(sc.baslik ?? "") && /analytics|tag manager/i.test(text)) {
+      return {
+        ...sc,
+        giris_noktasi: "Eksik HTTP güvenlik başlıkları (HSTS, CSP, X-Frame-Options vb.), tarayıcı tabanlı saldırılara karşı bir savunma katmanını devre dışı bırakır.",
+        saldiri_zinciri: [
+          "1. Keşif: Tarama sonucunda HTTP güvenlik başlıklarının eksik olduğu görülür.",
+          "2. Zemin: HSTS yoksa protokol düşürme, X-Frame-Options yoksa clickjacking, CSP yoksa enjekte edilen script'lerin çalışması kolaylaşır.",
+          "3. Not: Bu bulgu tek başına istismar değildir; ayrı bir uygulama zafiyeti veya kullanıcı etkileşimi gerektirir.",
+          "4. Etki: Başka bir zafiyetle birleştiğinde oturum ve kullanıcı verileri risk altına girebilir.",
+        ],
+        mitre_teknikler: [],
+      } as typeof sc;
+    }
+    if (!SSL_TITLE_RE.test(sc.baslik ?? "")) return sc;
+    if (MITM_RE.test(text)) logger.warn({ baslik: sc.baslik, daysLeft }, "SSL senaryosunda geçersiz MITM kurgusu — deterministik senaryoyla değiştirildi");
     return {
       ...sc,
       baslik: "SSL Sertifikasının Süresi Dolması — Hizmet Kesintisi ve Güven Kaybı",

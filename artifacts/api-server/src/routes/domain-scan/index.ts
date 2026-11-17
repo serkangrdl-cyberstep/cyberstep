@@ -408,6 +408,7 @@ async function checkShadowIT(domain: string): Promise<{ services: ShadowItServic
 async function checkHIBP(domain: string): Promise<{
   breachCount: number;
   breaches: Array<{ name: string; breachDate: string; pwnCount: number; dataClasses: string[] }>;
+  unchecked?: boolean;
 }> {
   return new Promise((resolve) => {
     const req = https.request(
@@ -438,58 +439,69 @@ async function checkHIBP(domain: string): Promise<{
                 })),
               });
             } else {
-              resolve({ breachCount: 0, breaches: [] });
+              logger.warn({ status: res.statusCode }, "HIBP: istek başarısız, sonuç 'kontrol edilemedi' sayılıyor");
+              resolve({ breachCount: 0, breaches: [], unchecked: true });
             }
           } catch {
-            resolve({ breachCount: 0, breaches: [] });
+            resolve({ breachCount: 0, breaches: [], unchecked: true });
           }
         });
       }
     );
-    req.on("error", () => resolve({ breachCount: 0, breaches: [] }));
-    req.on("timeout", () => { req.destroy(); resolve({ breachCount: 0, breaches: [] }); });
+    req.on("error", (e) => { logger.warn({ err: String(e) }, "HIBP: bağlantı hatası"); resolve({ breachCount: 0, breaches: [], unchecked: true }); });
+    req.on("timeout", () => { req.destroy(); logger.warn("HIBP: zaman aşımı"); resolve({ breachCount: 0, breaches: [], unchecked: true }); });
     req.end();
   });
 }
 
 // ─── DNSBL blacklist check ────────────────────────────────────────────────────
+// Not: dnsbl.sorbs.net, spam.dnsbl.sorbs.net (2024'te kapandı) ve dnsbl.abuse.ch (DNSBL değil)
+// listeden çıkarıldı: bunlar her zaman "temiz" döndürüp yanlış güven veriyordu.
 const DNSBLS = [
   "zen.spamhaus.org",
   "bl.spamcop.net",
-  "dnsbl.sorbs.net",
   "b.barracudacentral.org",
   "dnsbl-1.uceprotect.net",
-  "dnsbl.abuse.ch",
-  "spam.dnsbl.sorbs.net",
+  "psbl.surriel.com",
+  "dnsbl.dronebl.org",
 ];
 
 async function checkBlacklists(domain: string): Promise<{
   blacklisted: boolean;
   blacklistCount: number;
   results: Array<{ list: string; listed: boolean }>;
+  unchecked?: boolean;
 }> {
   let ip: string | null = null;
   try {
     const addresses = await dns.resolve4(domain);
     ip = addresses[0] ?? null;
   } catch {
-    return { blacklisted: false, blacklistCount: 0, results: [] };
+    return { blacklisted: false, blacklistCount: 0, results: [], unchecked: true };
   }
-  if (!ip) return { blacklisted: false, blacklistCount: 0, results: [] };
+  if (!ip) return { blacklisted: false, blacklistCount: 0, results: [], unchecked: true };
 
   const reversed = ip.split(".").reverse().join(".");
-  const results = await Promise.all(
+  // listed: true | false | null (null = liste yanıt vermedi / açık çözümleyici reddi → ölçülemedi)
+  const raw = await Promise.all(
     DNSBLS.map(async (dnsbl) => {
       try {
-        await dns.resolve4(`${reversed}.${dnsbl}`);
-        return { list: dnsbl, listed: true };
-      } catch {
-        return { list: dnsbl, listed: false };
+        const answers = await dns.resolve4(`${reversed}.${dnsbl}`);
+        // 127.255.255.x = "bu çözümleyiciden sorgu kabul edilmiyor" hata kodudur, kara liste kaydı değil
+        if (answers.some((a) => a.startsWith("127.255.255."))) return { list: dnsbl, listed: null as boolean | null };
+        return { list: dnsbl, listed: answers.some((a) => a.startsWith("127.")) as boolean | null };
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        // NXDOMAIN/NODATA = kayıt yok = temiz; diğer hatalar (timeout, SERVFAIL, REFUSED) = ölçülemedi
+        return { list: dnsbl, listed: (code === "ENOTFOUND" || code === "ENODATA") ? false : null as boolean | null };
       }
     })
   );
+  const measured = raw.filter((r) => r.listed !== null);
+  const results = measured.map((r) => ({ list: r.list, listed: r.listed === true }));
   const listedCount = results.filter((r) => r.listed).length;
-  return { blacklisted: listedCount > 0, blacklistCount: listedCount, results };
+  if (measured.length < 3) logger.warn({ domain, measured: measured.length }, "DNSBL: yeterli liste yanıt vermedi");
+  return { blacklisted: listedCount > 0, blacklistCount: listedCount, results, unchecked: measured.length < 3 && listedCount === 0 };
 }
 
 // ─── USOM Zararlı Alan Listesi (Ulusal Siber Olaylar Müdahale Merkezi) ─────────
@@ -575,10 +587,14 @@ export async function refreshUsomList(): Promise<void> {
   });
 }
 
-async function checkUsomList(domain: string): Promise<{ listed: boolean }> {
-  if (Date.now() - _usomLastFetch > 23 * 60 * 60 * 1000) {
+async function checkUsomList(domain: string): Promise<{ listed: boolean; unchecked?: boolean }> {
+  if (_usomDomains.size === 0) {
+    // Sunucu yeniden başladıktan sonraki ilk taramada liste boştur; "temiz" demeden önce yükle
+    await refreshUsomList().catch(() => {});
+  } else if (Date.now() - _usomLastFetch > 23 * 60 * 60 * 1000) {
     refreshUsomList().catch(() => {});
   }
+  if (_usomDomains.size === 0) { logger.warn("USOM listesi yüklenemedi — sonuç 'kontrol edilemedi'"); return { listed: false, unchecked: true }; }
   const bare = domain.toLowerCase().replace(/^www\./, "");
   return { listed: _usomDomains.has(bare) };
 }
@@ -1012,30 +1028,43 @@ async function checkHTTPHeaders(domain: string): Promise<{
 }
 
 // ─── URLhaus malware DB check (abuse.ch) — no API key required ───────────────
-async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: string | null }> {
+async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: string | null; unchecked?: boolean }> {
+  // abuse.ch, 30 Haziran 2025'ten beri tüm API'lerde Auth-Key ister (ücretsiz: auth.abuse.ch).
+  const authKey = process.env["ABUSECH_AUTH_KEY"];
+  if (!authKey) {
+    logger.info("URLhaus: ABUSECH_AUTH_KEY tanımlı değil — 'kontrol edilemedi' sayılıyor");
+    return { listed: false, threat: null, unchecked: true };
+  }
   return new Promise((resolve) => {
-    const body = `url=https%3A%2F%2F${encodeURIComponent(domain)}`;
+    const body = `host=${encodeURIComponent(domain)}`;
     const reqOpts = {
       hostname: "urlhaus-api.abuse.ch",
-      path: "/v1/lookup/",
+      path: "/v1/host/",
       method: "POST",
       timeout: 8000,
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(body) },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(body), "Auth-Key": authKey },
     };
     const r = https.request(reqOpts, (res) => {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
         try {
-          const parsed = JSON.parse(data) as { query_status?: string; threat?: string };
-          resolve({ listed: parsed.query_status === "is_host", threat: parsed.threat ?? null });
+          if (res.statusCode !== 200) {
+            logger.warn({ status: res.statusCode }, "URLhaus: istek başarısız (anahtar geçersiz olabilir) — 'kontrol edilemedi'");
+            resolve({ listed: false, threat: null, unchecked: true });
+            return;
+          }
+          const parsed = JSON.parse(data) as { query_status?: string; urls?: Array<{ threat?: string }> };
+          if (parsed.query_status === "ok") resolve({ listed: true, threat: parsed.urls?.[0]?.threat ?? null });
+          else if (parsed.query_status === "no_results") resolve({ listed: false, threat: null });
+          else { logger.warn({ qs: parsed.query_status }, "URLhaus: beklenmeyen durum"); resolve({ listed: false, threat: null, unchecked: true }); }
         } catch {
-          resolve({ listed: false, threat: null });
+          resolve({ listed: false, threat: null, unchecked: true });
         }
       });
     });
-    r.on("error", () => resolve({ listed: false, threat: null }));
-    r.on("timeout", () => { r.destroy(); resolve({ listed: false, threat: null }); });
+    r.on("error", (e) => { logger.warn({ err: String(e) }, "URLhaus: bağlantı hatası"); resolve({ listed: false, threat: null, unchecked: true }); });
+    r.on("timeout", () => { r.destroy(); logger.warn("URLhaus: zaman aşımı"); resolve({ listed: false, threat: null, unchecked: true }); });
     r.write(body);
     r.end();
   });
@@ -1280,7 +1309,7 @@ async function checkThreatFox(domain: string): Promise<ThreatFoxResult> {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(body),
           "User-Agent": "CyberStep.io Security Scanner/1.0",
-          "Auth-Key": "anonymous",
+          "Auth-Key": process.env["ABUSECH_AUTH_KEY"] ?? "anonymous",
         },
       },
       (res) => {
@@ -1681,9 +1710,9 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
     // Faz 2: Zenginleştirme kontrolleri — skor hesaplandıktan sonra paralel çalışır.
     // Bu gruptaki hatalar tek tek yakalanır; skor etkilenmez.
     const [hibp, httpHeaders, urlhaus, certTrans, virusTotal, abuseIpdb, safeBrowsing, sslLabs, kep] = await Promise.all([
-      checkHIBP(domain).catch(() => ({ breachCount: 0, breaches: [] as { name: string; breachDate: string; pwnCount: number; dataClasses: string[] }[] })),
+      checkHIBP(domain).catch(() => ({ breachCount: 0, breaches: [] as { name: string; breachDate: string; pwnCount: number; dataClasses: string[] }[], unchecked: true as boolean | undefined })),
       checkHTTPHeaders(domain).catch(() => ({ score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, checkFailed: true })),
-      checkURLhaus(domain).catch(() => ({ listed: false, threat: null as string | null })),
+      checkURLhaus(domain).catch(() => ({ listed: false, threat: null as string | null, unchecked: true as boolean | undefined })),
       checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0 })),
       checkVirusTotal(domain).catch(() => null),
       checkAbuseIPDB(domain).catch(() => null),
@@ -1804,6 +1833,12 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
         safeBrowsingThreats: safeBrowsing?.threats ?? [],
         otxData: otxData ?? null,
+        uncheckedSources: [
+          ...(hibp.unchecked ? ["hibp"] : []),
+          ...(blacklist.unchecked ? ["dnsbl"] : []),
+          ...(urlhaus.unchecked ? ["urlhaus"] : []),
+          ...(usom.unchecked ? ["usom"] : []),
+        ],
         sslLabsGrade: sslLabs.grade,
         badgeToken: randomUUID(),
         letterGrade: calculateLetterGrade(overallScore),
@@ -2265,6 +2300,8 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       pdfSpfStr.includes("?all") ? "neutral" : "none";
     const pdfDmarcMatch = (scan.dmarcRecord ?? "").match(/p=(\w+)/i);
     const pdfDmarcPol = pdfDmarcMatch ? pdfDmarcMatch[1]!.toLowerCase() : null;
+    const pdfV2 = await scoreScanV2(scan).catch(() => null);
+    const pdfBenchMedian = (await import("../../services/sectorBenchmark").then(m => m.peekBenchmarkSnapshot()).catch(() => null))?.all.median ?? null;
     const pdfScoreBreakdown = calcScore(pdfSpfStrength, pdfDmarcPol, scan.dkimPass ?? false, scan.mxPass ?? false, scan.sslDaysUntilExpiry ?? null);
 
     const pdfWafNote =
@@ -2311,7 +2348,9 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
     const buf = await generateDomainScanPDF({
       id: scan.id,
       domain: scan.domain,
-      overallScore: scan.overallScore,
+      overallScore: pdfV2 && !pdfV2.insufficientData ? pdfV2.score : scan.overallScore,
+      scoreCategories: pdfV2 && !pdfV2.insufficientData ? pdfV2.categories.map(c => ({ label: c.label, points: c.points, maxPoints: c.maxPoints, measured: c.measured })) : null,
+      trMedian: pdfBenchMedian,
       spfPass: scan.spfPass, spfRecord: scan.spfRecord,
       dmarcPass: scan.dmarcPass, dmarcRecord: scan.dmarcRecord,
       dkimPass: scan.dkimPass, dkimSelectors: scan.dkimSelectors as string[],
@@ -2369,6 +2408,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       abuseIpdbIsp: scan.abuseIpdbIsp,
       safeBrowsingFlagged: scan.safeBrowsingFlagged ?? null,
       safeBrowsingThreats: (scan.safeBrowsingThreats as string[] | null) ?? [],
+      uncheckedSources: (scan.uncheckedSources as string[] | null) ?? [],
       otxData: (scan.otxData as { pulseCount: number; reputation: number; maliciousCount: number } | null) ?? null,
       createdAt: scan.createdAt.toISOString(),
       wafNote: pdfWafNote,

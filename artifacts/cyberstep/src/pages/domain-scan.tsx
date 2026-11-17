@@ -86,6 +86,7 @@ interface ScanResult {
     findings: Array<{ category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }>;
   } | null;
   hibpBreachCount: number;
+  uncheckedSources?: string[] | null;
   hibpBreaches: HibpBreach[];
   blacklisted: boolean;
   blacklistCount: number;
@@ -2653,14 +2654,29 @@ export default function DomainScanPage() {
                     <p className="text-sm font-semibold">Risk İstihbaratı</p>
                   </div>
                   <div className="space-y-2 text-xs">
-                    <div className="flex items-start gap-2">
-                      {result.hibpBreachCount === 0 ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}
-                      <span><span className="font-medium">HIBP Veri Sızıntısı: </span>{result.hibpBreachCount === 0 ? "Kayıtlı sızıntı yok" : `${result.hibpBreachCount} sızıntı kaydı bulundu`}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      {!result.blacklisted ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}
-                      <span><span className="font-medium">Kara Liste: </span>{result.blacklisted ? `${result.blacklistCount} listede işaretli` : "Hiçbir kara listede değil"}</span>
-                    </div>
+                    {(() => {
+                      const unc = result.uncheckedSources ?? [];
+                      const NA = <span className="text-muted-foreground">Bu taramada kontrol edilemedi</span>;
+                      const Q = <span className="h-3.5 w-3.5 mt-0.5 shrink-0 rounded-full bg-slate-300 text-white text-[9px] leading-[14px] text-center font-bold">?</span>;
+                      return (
+                        <>
+                          <div className="flex items-start gap-2">
+                            {unc.includes("hibp") ? Q : result.hibpBreachCount === 0 ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />}
+                            <span><span className="font-medium">Bilinen ihlal kaydı (HIBP herkese açık liste): </span>{unc.includes("hibp") ? NA : result.hibpBreachCount === 0 ? "Alan adı ihlal edilmiş servisler listesinde yok" : `${result.hibpBreachCount} ihlal kaydı bulundu`}</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            {result.blacklisted ? <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" /> : unc.includes("dnsbl") ? Q : <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />}
+                            <span><span className="font-medium">Kara Liste: </span>{result.blacklisted ? `${result.blacklistCount} listede işaretli` : unc.includes("dnsbl") ? NA : "Sorgulanan kara listelerde yok"}</span>
+                          </div>
+                          {unc.includes("urlhaus") && (
+                            <div className="flex items-start gap-2">{Q}<span><span className="font-medium">URLhaus: </span>{NA}</span></div>
+                          )}
+                          {unc.includes("usom") && (
+                            <div className="flex items-start gap-2">{Q}<span><span className="font-medium">BTK USOM: </span>{NA}</span></div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {result.urlhausListed && (
                       <div className="flex items-start gap-2">
                         <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />

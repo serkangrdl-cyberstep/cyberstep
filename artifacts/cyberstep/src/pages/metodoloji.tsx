@@ -175,7 +175,7 @@ export default function Metodoloji() {
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-8 text-xs text-muted-foreground space-y-1.5">
             <p><strong className="text-foreground">Ölçülmeyen veri temiz sayılmaz.</strong> Bir kategori ölçülemediyse (ör. port verisi yok) skor yalnızca ölçülen kategorilerin azami puanı üzerinden 100'e ölçeklenir ve kapsama oranı ayrıca raporlanır.</p>
             <p><strong className="text-foreground">Veri yetersiz.</strong> Alan adı çözümlenemiyorsa skor üretilmez.</p>
-            <p><strong className="text-foreground">Sektör kıyaslaması.</strong> Her domainin en son taramasının skoru, sektörüne göre gruplanır; en az 30 domaini olan sektörler yayınlanır.</p>
+            <p><strong className="text-foreground">Sektör kıyaslaması.</strong> Her domainin en son taramasının skoru, sektörüne göre gruplanır; en az 30 domaini olan sektörler yayınlanır. Ekranda görülen "taranan Türk domain" sayısı, en az bir taraması tamamlanmış ve skoru hesaplanmış benzersiz domainleri ifade eder; keşfedilmiş ama henüz taranmamış adaylar bu sayıya dahil değildir.</p>
           </div>
 
           <h3 className="font-semibold text-foreground mb-3 text-sm">1.3 Kullanılan Kaynaklar</h3>

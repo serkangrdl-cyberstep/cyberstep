@@ -61,7 +61,11 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
     mxPass: scan.mxPass,
     sslPass: scan.sslPass,
     sslDaysUntilExpiry: scan.sslDaysUntilExpiry,
-    httpHeadersScore: scan.httpHeadersScore,
+    // Saklanan değer 0-5 (mevcut başlık sayısı); skor modeli 0-100 bekler. Kontrol başarısızsa ölçülmedi sayılır.
+    httpHeadersScore: scan.httpHeadersScore == null || (scan.httpHeadersDetails as { checkFailed?: boolean } | null)?.checkFailed
+      ? null
+      : Math.min(100, scan.httpHeadersScore * 20),
+    xPoweredBy: (scan.httpHeadersDetails as { xPoweredBy?: string | null } | null)?.xPoweredBy ?? null,
     sslUnchecked: ((scan.uncheckedSources as string[] | null) ?? []).includes("ssl"),
     cveSummary: scan.cveSummary,
     shodanOpenPorts: scan.shodanOpenPorts,

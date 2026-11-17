@@ -992,9 +992,10 @@ async function checkHTTPHeaders(domain: string): Promise<{
   xContentTypeOptions: boolean;
   csp: boolean;
   referrerPolicy: boolean;
+  xPoweredBy?: string | null;
   checkFailed?: boolean;
 }> {
-  const failed = { score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, checkFailed: true };
+  const failed = { score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, xPoweredBy: null, checkFailed: true };
 
   function parseHeaders(h: import("http").IncomingHttpHeaders) {
     const hsts = !!h["strict-transport-security"];
@@ -1002,7 +1003,7 @@ async function checkHTTPHeaders(domain: string): Promise<{
     const xcto = !!(h["x-content-type-options"]);
     const csp  = !!(h["content-security-policy"]);
     const rp   = !!(h["referrer-policy"]);
-    return { score: [hsts, xfo, xcto, csp, rp].filter(Boolean).length, hsts, xFrameOptions: xfo, xContentTypeOptions: xcto, csp, referrerPolicy: rp };
+    return { score: [hsts, xfo, xcto, csp, rp].filter(Boolean).length, hsts, xFrameOptions: xfo, xContentTypeOptions: xcto, csp, referrerPolicy: rp, xPoweredBy: h["x-powered-by"] ? String(h["x-powered-by"]).slice(0, 80) : null };
   }
 
   type ReqOpts = { hostname: string; port: number; method: string; path?: string };
@@ -1825,7 +1826,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         blacklistResults: blacklist.results,
         shadowItServices: shadowIt.services,
         httpHeadersScore: httpHeaders.score,
-        httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy, checkFailed: httpHeaders.checkFailed ?? false },
+        httpHeadersDetails: { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, xPoweredBy: (httpHeaders as { xPoweredBy?: string | null }).xPoweredBy ?? null, referrerPolicy: httpHeaders.referrerPolicy, checkFailed: httpHeaders.checkFailed ?? false },
         urlhausListed: urlhaus.listed,
         urlhausThreat: urlhaus.threat,
         usomListed: usom.listed,

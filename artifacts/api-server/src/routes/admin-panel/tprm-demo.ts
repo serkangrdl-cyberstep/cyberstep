@@ -152,6 +152,12 @@ router.post("/admin-panel/tprm-demo-seed", requireAdmin, async (req: Request, re
   }
 });
 
+/** POST /api/admin-panel/tprm-demo-seed/password — demo müşteriye giriş şifresi atar (yalnızca test). */
+router.post("/admin-panel/tprm-demo-seed/password", requireAdmin, async (_req: Request, res: Response) => {
+  const r = await db.update(customersTable).set({ passwordHash: "$2b$12$mr6MHx/JQc74r0VWGuNUEenP1uUaf2tMfNmJs03HQbGFDJnCu7lJe" }).where(eq(customersTable.email, DEMO_EMAIL)).returning({ id: customersTable.id });
+  res.json({ updated: r.length });
+});
+
 /** DELETE /api/admin-panel/tprm-demo-seed — yalnızca Sasa demo müşterisinin tedarikçilerini siler. */
 router.delete("/admin-panel/tprm-demo-seed", requireAdmin, async (_req: Request, res: Response) => {
   const vs = await db.select({ id: tprmVendorTable.id }).from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, DEMO_EMAIL));

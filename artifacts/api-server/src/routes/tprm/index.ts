@@ -6,13 +6,13 @@ import { db } from "@workspace/db";
 import { tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable, tprmVendorTable } from "@workspace/db";
 import { eq, and, lte, isNull, or, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { ai } from "@workspace/integrations-gemini-ai";
 import { logger } from "../../lib/logger";
 import { customersTable } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { domainScansTable } from "@workspace/db";
 import { SCORE_V2_VERSION, scoreV2Risk, type ScoreV2Result } from "../../lib/scoring/scoreV2";
 import { isScanCompleteAndFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import { loadVendorQuestionnaire } from "../../services/tprmQuestionnaire";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
 import { canonicalSector } from "../../lib/scoring/sectors";
@@ -23,18 +23,8 @@ const router = Router();
 // ─── TPRM Anket Soruları ──────────────────────────────────────────────────────
 // 10 soru, Evet=10/Kısmen=5/Hayır=0 → max 100
 
-export const TPRM_QUESTIONS = [
-  { id: 1, text: "Çalışanlarınız yılda en az bir kez siber güvenlik eğitimi alıyor mu?", weight: 1 },
-  { id: 2, text: "Tüm kritik sistem hesaplarında çok faktörlü doğrulama (MFA) aktif mi?", weight: 1 },
-  { id: 3, text: "E-posta güvenliği için SPF, DKIM ve DMARC kaydı uyguluyor musunuz?", weight: 1 },
-  { id: 4, text: "Yazılım ve işletim sistemleri otomatik veya zamanında güncelleniyor mu?", weight: 1 },
-  { id: 5, text: "Kritik verilerinizin düzenli yedeği alınıyor ve geri yükleme test ediliyor mu?", weight: 1 },
-  { id: 6, text: "Bir siber güvenlik olay müdahale planınız (CSIRP) var mı?", weight: 1 },
-  { id: 7, text: "Sisteminize erişen üçüncü tarafların erişimleri izleniyor ve yönetiliyor mu?", weight: 1 },
-  { id: 8, text: "Müşteri ve iş ortağı verilerini şifreli saklıyor musunuz?", weight: 1 },
-  { id: 9, text: "Son 12 ayda bir güvenlik açığı taraması veya sızma testi yaptırdınız mı?", weight: 1 },
-  { id: 10, text: "Çalışanlarınıza yönelik sosyal mühendislik / phishing simülasyonu yapıyor musunuz?", weight: 1 },
-];
+import { TPRM_QUESTIONS } from "../../services/tprmQuestions";
+export { TPRM_QUESTIONS };
 
 // ─── Yardımcı: tedarikçi skoru (Skor v2) ─────────────────────────────────────
 
@@ -119,46 +109,10 @@ async function applySupplierScore(
 // ─── POST /api/tprm/questionnaire ─────────────────────────────────────────────
 // Tedarikçi için anket linki oluştur
 
-router.post("/tprm/questionnaire", async (req: Request, res: Response) => {
-  const { companyName, companySector, supplierDomain, supplierName, scanScore, scanData } = req.body as {
-    companyName?: string;
-    companySector?: string;
-    supplierDomain?: string;
-    supplierName?: string;
-    scanScore?: number;
-    scanData?: unknown;
-  };
-
-  if (!companyName || !companySector || !supplierDomain) {
-    res.status(400).json({ error: "companyName, companySector ve supplierDomain zorunludur" });
-    return;
-  }
-
-  const token = randomBytes(24).toString("hex");
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 gün
-
-  try {
-    const [link] = await db.insert(tprmQuestionnaireLinkTable).values({
-      companyName,
-      companySector,
-      supplierDomain,
-      supplierName: supplierName ?? null,
-      token,
-      scanScore: scanScore ?? null,
-      scanData: (scanData ?? null) as Record<string, unknown> | null,
-      expiresAt,
-    }).returning();
-
-    res.json({
-      token,
-      link: `/tprm/anket/${token}`,
-      expiresAt: expiresAt.toISOString(),
-      id: link.id,
-    });
-  } catch (err) {
-    logger.error({ err }, "TPRM questionnaire link creation error");
-    res.status(500).json({ error: "Link oluşturulamadı" });
-  }
+router.post("/tprm/questionnaire", (_req: Request, res: Response) => {
+  // Anket linkini yalnızca giriş yapmış müşteri, kendi tedarikçisi için üretebilir
+  // (POST /api/tprm/vendors/:id/send-questionnaire). Anonim üretim ve dışarıdan skor yazma kapatıldı.
+  res.status(410).json({ error: "Anket linki müşteri panelindeki Tedarikçi Portföyü üzerinden oluşturulur." });
 });
 
 // ─── GET /api/tprm/questionnaire/:token ───────────────────────────────────────
@@ -189,15 +143,11 @@ router.get("/tprm/questionnaire/:token", async (req: Request, res: Response) => 
       companySector: link.companySector,
       supplierDomain: link.supplierDomain,
       supplierName: link.supplierName,
-      scanScore: link.scanScore,
       expiresAt: link.expiresAt,
       questions: TPRM_QUESTIONS,
       alreadyCompleted: !!existing,
-      existingResult: existing ? {
-        selfScore: existing.selfScore,
-        combinedScore: existing.combinedScore,
-        completedAt: existing.completedAt,
-      } : null,
+      // Tedarikçiye skor/risk/tarama bilgisi gösterilmez; yalnızca tamamlandığı bilgisi.
+      existingResult: existing ? { completedAt: existing.completedAt } : null,
     });
   } catch (err) {
     logger.error({ err }, "TPRM questionnaire get error");
@@ -218,6 +168,17 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
 
   if (!supplierContactName || !supplierContactEmail || !answers?.length) {
     res.status(400).json({ error: "Tüm alanlar zorunludur" });
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supplierContactEmail)) {
+    res.status(400).json({ error: "Geçerli bir e-posta adresi girin" });
+    return;
+  }
+  const validIds = new Set(TPRM_QUESTIONS.map(q => q.id));
+  const answeredIds = new Set(answers.map(a => a.questionId));
+  if (answers.length !== validIds.size || answeredIds.size !== validIds.size || ![...answeredIds].every(id => validIds.has(id))
+      || !answers.every(a => a.answer === "evet" || a.answer === "kismen" || a.answer === "hayir")) {
+    res.status(400).json({ error: "Tüm soruları yanıtlayın" });
     return;
   }
 
@@ -243,7 +204,7 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       return;
     }
 
-    // Calculate self score (10 points per question: evet=10, kismen=5, hayir=0)
+    // Beyan puanı (Evet=10 / Kısmen=5 / Hayır=0). Taramayla BİRLEŞTİRİLMEZ; doğrulanmamış beyan olarak saklanır.
     const scoredAnswers = answers.map(a => ({
       questionId: a.questionId,
       answer: a.answer,
@@ -251,108 +212,27 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
     }));
     const selfScore = scoredAnswers.reduce((sum, a) => sum + a.score, 0);
 
-    // Combined score: 60% scan + 40% self-assessment
-    let combinedScore: number | null = null;
-    if (link.scanScore !== null && link.scanScore !== undefined) {
-      combinedScore = Math.round(link.scanScore * 0.6 + selfScore * 0.4);
-    }
-
-    // AI risk değerlendirmesi
-    let aiRiskComment = "";
-    try {
-      const prompt = `Sen tedarikçi risk uzmanısın. Tedarikçi beyanı:
-Sektör: ${link.companySector}
-Alan adı: ${link.supplierDomain}
-Domain tarama skoru: ${link.scanScore !== null ? link.scanScore + "/100" : "mevcut değil"}
-Tedarikçi öz-değerlendirme skoru: ${selfScore}/100
-Bileşik risk skoru: ${combinedScore !== null ? combinedScore + "/100" : selfScore + "/100"}
-
-Yanıtlar:
-${scoredAnswers.map(a => `Q${a.questionId}: ${a.answer} (${a.score}/10)`).join("\n")}
-
-2-3 cümle ile bu tedarikçinin risk profilini Türkçe yaz. Somut risk varsa belirt.`;
-
-      const result = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-      aiRiskComment = result.text?.trim() ?? "";
-    } catch {
-      // AI yorumu isteğe bağlı
-    }
-
     const [response] = await db.insert(tprmQuestionnaireResponseTable).values({
       linkId: link.id,
       supplierContactName,
       supplierContactEmail,
       answers: scoredAnswers as unknown as Record<string, unknown>[],
       selfScore,
-      combinedScore,
+      combinedScore: null,
     }).returning();
 
-    // Vendor kaydı varsa güncelle
-    setImmediate(async () => {
-      try {
-        const score = combinedScore ?? selfScore;
-        const riskLevel = scoreV2Risk(score);
-        await db.update(tprmVendorTable)
-          .set({
-            questionnaireStatus: "completed",
-            combinedScore: score,
-            riskLevel,
-          })
-          .where(eq(tprmVendorTable.questionnaireToken, token));
-      } catch { /* ignore */ }
-    });
+    // Vendor yalnızca "tamamlandı" olarak işaretlenir; risk skoru/seviyesi taramadan gelir ve anketle değişmez.
+    await db.update(tprmVendorTable)
+      .set({ questionnaireStatus: "completed" })
+      .where(eq(tprmVendorTable.questionnaireToken, token));
 
-    res.json({
-      selfScore,
-      combinedScore,
-      riskLevel: scoreV2Risk(combinedScore ?? selfScore),
-      aiRiskComment,
-      responseId: response.id,
-    });
+    // Tedarikçiye skor, risk seviyesi veya yapay zeka yorumu dönmez.
+    res.json({ ok: true, responseId: response!.id });
   } catch (err) {
     logger.error({ err }, "TPRM questionnaire submit error");
     res.status(500).json({ error: "Yanıtlar gönderilemedi" });
   }
 });
-
-// ─── GET /api/tprm/questionnaire/:token/result ────────────────────────────────
-// Sonuçları incele (şirket için)
-
-router.get("/tprm/questionnaire/:token/result", async (req: Request, res: Response) => {
-  const token = req.params["token"] as string;
-  try {
-    const [link] = await db.select().from(tprmQuestionnaireLinkTable)
-      .where(eq(tprmQuestionnaireLinkTable.token, token));
-
-    if (!link) {
-      res.status(404).json({ error: "Bulunamadı" });
-      return;
-    }
-
-    const [response] = await db.select().from(tprmQuestionnaireResponseTable)
-      .where(eq(tprmQuestionnaireResponseTable.linkId, link.id));
-
-    res.json({
-      link,
-      response: response ?? null,
-      questions: TPRM_QUESTIONS,
-    });
-  } catch (err) {
-    logger.error({ err }, "TPRM result get error");
-    res.status(500).json({ error: "Sonuçlar yüklenemedi" });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// VENDOR PORTFOLIO — kalıcı tedarikçi takibi
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── Oturum yardımcıları ─────────────────────────────────────────────────────
-// Tedarikçi portföyü yalnızca oturum açmış müşterinin kendi kayıtlarını görür.
-// customer_email kolonu korunuyor; değer artık istemciden değil oturumdan alınır.
 
 async function getSessionCustomerEmail(req: Request): Promise<string | null> {
   const customerId = getCustomerId(req);
@@ -786,6 +666,21 @@ router.post("/tprm/vendors/:id/rescan", requireCustomer, async (req: Request, re
   }
 });
 
+// ─── GET /api/tprm/vendors/:id/questionnaire ──────────────────────────────────
+// Müşteri için: tedarikçinin anket durumu, beyanları ve taramayla çelişen beyanlar.
+router.get("/tprm/vendors/:id/questionnaire", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  if (!id) { res.status(400).json({ error: "Geçersiz id" }); return; }
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    res.json({ questionnaire: await loadVendorQuestionnaire(vendor) });
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor questionnaire error");
+    res.status(500).json({ error: "Anket sonucu yüklenemedi" });
+  }
+});
+
 // ─── POST /api/tprm/vendors/:id/send-questionnaire ────────────────────────────
 // Tedarikçiye anket linki oluştur ve kaydet
 
@@ -801,6 +696,13 @@ router.post("/tprm/vendors/:id/send-questionnaire", requireCustomer, async (req:
   try {
     const vendor = await getOwnedVendor(req, id);
     if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+
+    // Aynı tedarikçi için önceki bekleyen link geçersiz kılınır (tek aktif link).
+    if (vendor.questionnaireToken && vendor.questionnaireStatus !== "completed") {
+      await db.update(tprmQuestionnaireLinkTable)
+        .set({ expiresAt: new Date() })
+        .where(eq(tprmQuestionnaireLinkTable.token, vendor.questionnaireToken));
+    }
 
     const token = randomBytes(24).toString("hex");
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

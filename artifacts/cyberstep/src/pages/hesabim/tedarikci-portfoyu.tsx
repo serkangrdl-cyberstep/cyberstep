@@ -177,6 +177,58 @@ function riskColors(level: string | null) {
   return { badge: "bg-red-500/20 text-red-400 border-red-500/30", bar: "bg-red-500" };
 }
 
+interface QuestionnaireView {
+  status: "pending" | "completed" | "expired";
+  completedAt: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  selfScore: number | null;
+  answers: Array<{ questionId: number; text: string; answer: "evet" | "kismen" | "hayir" }>;
+  contradictions: Array<{ questionId: number; text: string; beyan: string; bulgu: string }>;
+}
+
+function VendorQuestionnairePanel({ vendorId }: { vendorId: number }) {
+  const { data, isLoading } = useQuery<{ questionnaire: QuestionnaireView | null }>({
+    queryKey: ["tprm-vendor-questionnaire", vendorId],
+    queryFn: () => fetch(`/api/tprm/vendors/${vendorId}/questionnaire`, { credentials: "include" }).then(r => r.json()),
+  });
+  if (isLoading) return <div className="text-xs text-muted-foreground">Anket sonucu yükleniyor…</div>;
+  const q = data?.questionnaire;
+  if (!q || q.status !== "completed") return null;
+  const label = { evet: "Evet", kismen: "Kısmen", hayir: "Hayır" } as const;
+  const color = { evet: "text-emerald-400", kismen: "text-amber-400", hayir: "text-red-400" } as const;
+  return (
+    <div className="rounded-lg bg-muted/30 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Tedarikçi Beyanı (Anket) — doğrulanmamıştır, tarama skoruna dahil değildir</p>
+          <p className="text-2xl font-bold mt-0.5">{q.selfScore ?? "—"}/100</p>
+        </div>
+        <p className="text-[10px] text-muted-foreground text-right">
+          {q.contactName}{q.contactEmail ? ` · ${q.contactEmail}` : ""}<br />
+          {q.completedAt ? new Date(q.completedAt).toLocaleDateString("tr-TR") : ""}
+        </p>
+      </div>
+      {q.contradictions.length > 0 && (
+        <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 space-y-1">
+          <p className="text-xs font-semibold text-red-400">Beyan ile tarama bulgusu çelişiyor</p>
+          {q.contradictions.map(c => (
+            <p key={c.questionId} className="text-xs text-muted-foreground">• {c.text} — Beyan: {c.beyan}. {c.bulgu}</p>
+          ))}
+        </div>
+      )}
+      <ul className="space-y-1">
+        {q.answers.map(a => (
+          <li key={a.questionId} className="flex items-start justify-between gap-3 text-xs">
+            <span className="text-muted-foreground">{a.text}</span>
+            <span className={`font-semibold shrink-0 ${color[a.answer]}`}>{label[a.answer]}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ScoreBar({ score, grade, insufficient }: { score: number | null; grade?: string; insufficient?: boolean }) {
   if (insufficient) return <span className="text-xs text-amber-400">Domaine ulaşılamadı — alan adını kontrol edin</span>;
   if (score === null) return <span className="text-xs text-muted-foreground">Taranıyor...</span>;
@@ -619,16 +671,8 @@ export default function TedarikciPortfoyu() {
                         </div>
                       </div>
 
-                      {/* Bileşik skor */}
-                      {v.combinedScore !== null && (
-                        <div className="rounded-lg bg-muted/30 p-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Bileşik Skor (Tarama + Anket)</p>
-                            <p className="text-2xl font-bold mt-0.5">{v.combinedScore}/100</p>
-                          </div>
-                          <Shield className={`h-8 w-8 ${v.combinedScore >= 70 ? "text-emerald-400" : v.combinedScore >= 40 ? "text-amber-400" : "text-red-400"}`} />
-                        </div>
-                      )}
+                      {/* Tedarikçi beyanı (anket) — tarama skoruyla birleştirilmez */}
+                      {v.questionnaireStatus === "completed" && <VendorQuestionnairePanel vendorId={v.id} />}
 
                       {/* Uyarı bildirimleri */}
                       {v.alertSentAt && (

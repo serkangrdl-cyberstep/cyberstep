@@ -27,18 +27,14 @@ interface QuestionnaireData {
   companySector: string;
   supplierDomain: string;
   supplierName: string | null;
-  scanScore: number | null;
   expiresAt: string;
   questions: Question[];
   alreadyCompleted: boolean;
-  existingResult: { selfScore: number; combinedScore: number | null; completedAt: string } | null;
+  existingResult: { completedAt: string } | null;
 }
 
 interface SubmitResult {
-  selfScore: number;
-  combinedScore: number | null;
-  riskLevel: string;
-  aiRiskComment: string;
+  ok: boolean;
 }
 
 export default function TprmAnket() {
@@ -141,9 +137,6 @@ export default function TprmAnket() {
   }
 
   if (data.alreadyCompleted && data.existingResult && !submitResult) {
-    const level = data.existingResult.combinedScore !== null
-      ? (data.existingResult.combinedScore >= 70 ? "Düşük" : data.existingResult.combinedScore >= 40 ? "Orta" : "Yüksek")
-      : (data.existingResult.selfScore >= 70 ? "Düşük" : data.existingResult.selfScore >= 40 ? "Orta" : "Yüksek");
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <Card className="max-w-lg w-full">
@@ -154,11 +147,6 @@ export default function TprmAnket() {
               Bu anketi daha önce tamamladınız.{" "}
               {new Date(data.existingResult.completedAt).toLocaleDateString("tr-TR")} tarihinde gönderildi.
             </p>
-            <div className="rounded-xl border bg-muted/30 p-5 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Bileşik Risk Skoru</p>
-              <p className="text-4xl font-bold mb-2">{data.existingResult.combinedScore ?? data.existingResult.selfScore}/100</p>
-              <Badge variant="outline" className={`text-xs ${riskColor(level)}`}>{level} Risk</Badge>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -173,32 +161,9 @@ export default function TprmAnket() {
             <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
             <h2 className="font-bold text-xl mb-2">Anket Gönderildi</h2>
             <p className="text-muted-foreground text-sm mb-6">
-              {data.companyName} ekibine iletildi. Teşekkürler.
+              Yanıtlarınız {data.companyName} ekibine iletildi. Teşekkürler.
             </p>
 
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div className="rounded-xl border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground mb-1">Öz-Değerlendirme</p>
-                <p className="text-3xl font-bold">{submitResult.selfScore}/100</p>
-              </div>
-              {submitResult.combinedScore !== null && (
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Bileşik Skor</p>
-                  <p className="text-3xl font-bold">{submitResult.combinedScore}/100</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">tarama + beyan</p>
-                </div>
-              )}
-            </div>
-
-            <Badge variant="outline" className={`text-sm px-3 py-1 ${riskColor(submitResult.riskLevel)}`}>
-              {submitResult.riskLevel} Risk
-            </Badge>
-
-            {submitResult.aiRiskComment && (
-              <p className="text-sm text-muted-foreground leading-relaxed mt-4 text-left bg-muted/30 rounded-lg p-4">
-                {submitResult.aiRiskComment}
-              </p>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -234,14 +199,8 @@ export default function TprmAnket() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               <strong className="text-foreground">{data.companyName}</strong> tedarik zinciri risk yönetimi (TPRM)
               çerçevesinde sizinle iş ortaklığını değerlendiriyor. Bu anket yaklaşık <strong>3 dakika</strong> sürer.
-              Yanıtlarınız teknik domain tarama verileriyle birleştirilerek bileşik bir risk skoru oluşturulur.
+              Yanıtlarınız yalnızca bu anketi gönderen şirkete iletilir.
             </p>
-            {data.scanScore !== null && (
-              <div className="mt-3 flex items-center gap-2 text-xs">
-                <Globe className="h-3.5 w-3.5 text-violet-400" />
-                <span>Domain teknik tarama skoru: <strong>{data.scanScore}/100</strong></span>
-              </div>
-            )}
           </CardContent>
         </Card>
 

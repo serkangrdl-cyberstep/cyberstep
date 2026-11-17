@@ -322,6 +322,14 @@ interface DomainScanData {
   safeBrowsingThreats?: string[] | null;
   otxData?: { pulseCount: number; reputation: number; maliciousCount: number } | null;
   /** Yapay zeka senaryosu olmayan raporlarda bulgulardan türetilen öncelikli aksiyonlar. */
+  /** Tedarikçi beyanı (anket) özeti; yalnızca portföy tedarikçisi raporunda. Tarama skoruyla birleştirilmez. */
+  questionnaire?: {
+    completedAt: string | null;
+    contactName: string | null;
+    selfScore: number | null;
+    answers: Array<{ questionId: number; text: string; answer: "evet" | "kismen" | "hayir" }>;
+    contradictions: Array<{ questionId: number; text: string; beyan: string; bulgu: string }>;
+  } | null;
   fallbackActions?: Array<{ oncelik: number; aksiyon: string; neden: string }> | null;
   attackScenarios?: {
     genel_tehdit_seviyesi: string;
@@ -1214,6 +1222,39 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         doc.y = blockEnd;
       }
       doc.y += 4;
+    }
+
+    // ── Tedarikçi beyanı (anket) ────────────────────────────────────────────
+    if (!data.isFreeReport && data.questionnaire && data.questionnaire.answers.length > 0) {
+      const q = data.questionnaire;
+      checkPageBreak(doc, 120);
+      sectionTitle("Tedarikçi Beyanı (Anket)");
+      doc.fillColor(GRAY).fontSize(8).font(FONT_REGULAR).text(
+        `Beyan puanı: ${q.selfScore ?? "—"}/100 — tedarikçinin kendi beyanıdır, doğrulanmamıştır ve tarama skoruna dahil edilmemiştir.${q.completedAt ? ` Tarih: ${new Date(q.completedAt).toLocaleDateString("tr-TR")}.` : ""}`,
+        MARGIN, doc.y, { width: CONTENT_W });
+      doc.y += 6;
+      const label: Record<string, string> = { evet: "Evet", kismen: "Kısmen", hayir: "Hayır" };
+      for (const a of q.answers) {
+        checkPageBreak(doc, 24);
+        const ry = doc.y;
+        doc.fillColor(DARK).fontSize(8).font(FONT_REGULAR).text(a.text, MARGIN + 4, ry, { width: CONTENT_W - 70 });
+        const endY = doc.y;
+        doc.fillColor(a.answer === "evet" ? [22, 163, 74] : a.answer === "kismen" ? [217, 119, 6] : [220, 38, 38]).fontSize(8).font(FONT_BOLD)
+          .text(label[a.answer] ?? a.answer, MARGIN + CONTENT_W - 60, ry, { width: 56, align: "right", lineBreak: false });
+        doc.y = endY + 4;
+      }
+      if (q.contradictions.length > 0) {
+        doc.y += 4;
+        checkPageBreak(doc, 40);
+        doc.fillColor([220, 38, 38]).fontSize(8.5).font(FONT_BOLD).text("Beyan ile tarama bulgusu çelişiyor", MARGIN, doc.y);
+        doc.y += 3;
+        for (const c of q.contradictions) {
+          checkPageBreak(doc, 36);
+          doc.fillColor(DARK).fontSize(8).font(FONT_REGULAR).text(`• ${c.text} — Beyan: ${c.beyan}. ${c.bulgu}`, MARGIN + 4, doc.y, { width: CONTENT_W - 8 });
+          doc.y += 3;
+        }
+      }
+      doc.y += 6;
     }
 
     // ─── Reputation & Güvenilirlik Analizi ────────────────────────────────────

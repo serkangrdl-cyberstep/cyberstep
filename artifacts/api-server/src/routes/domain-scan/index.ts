@@ -2400,6 +2400,23 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       pdfSpfStr.includes("?all") ? "neutral" : "none";
     const pdfDmarcMatch = (scan.dmarcRecord ?? "").match(/p=(\w+)/i);
     const pdfDmarcPol = pdfDmarcMatch ? pdfDmarcMatch[1]!.toLowerCase() : null;
+    // Portföy tedarikçisi için tedarikçi beyanı (anket) özeti: yalnızca bu müşterinin kendi tedarikçisi.
+    let pdfQuestionnaire: Awaited<ReturnType<typeof import("../../services/tprmQuestionnaire").loadVendorQuestionnaire>> = null;
+    if (pdfCustomerId && !isFreeReport) {
+      try {
+        const [cust] = await db.select({ email: customersTable.email }).from(customersTable).where(eq(customersTable.id, pdfCustomerId)).limit(1);
+        const dom = scan.domain.trim().toLowerCase().replace(/^www\./, "");
+        const [vend] = cust?.email ? await db.select().from(tprmVendorTable).where(and(
+          eq(tprmVendorTable.customerEmail, cust.email.trim().toLowerCase()),
+          or(eq(tprmVendorTable.supplierDomain, dom), eq(tprmVendorTable.supplierDomain, `www.${dom}`)),
+        )).limit(1) : [];
+        if (vend) {
+          const { loadVendorQuestionnaire } = await import("../../services/tprmQuestionnaire");
+          const q = await loadVendorQuestionnaire(vend);
+          pdfQuestionnaire = q && q.status === "completed" ? q : null;
+        }
+      } catch { pdfQuestionnaire = null; }
+    }
     const pdfV2 = await scoreScanV2(scan).catch(() => null);
     const pdfBenchMedian = (await import("../../services/sectorBenchmark").then(m => m.peekBenchmarkSnapshot()).catch(() => null))?.all.median ?? null;
     const pdfScoreBreakdown = calcScore(pdfSpfStrength, pdfDmarcPol, scan.dkimPass ?? false, scan.mxPass ?? false, scan.sslDaysUntilExpiry ?? null);
@@ -2519,6 +2536,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       originIp: scan.originIp ?? undefined,
       originIpSource: scan.originIpSource ?? undefined,
       attackScenarios: isFreeReport ? null : attackScenariosData,
+      questionnaire: pdfQuestionnaire,
       fallbackActions: isFreeReport || !pdfV2 || pdfV2.insufficientData ? null : actionsFromFindings(pdfV2.findings),
       scoreBreakdown: pdfScoreBreakdown,
       asnNumber: scan.asnNumber,

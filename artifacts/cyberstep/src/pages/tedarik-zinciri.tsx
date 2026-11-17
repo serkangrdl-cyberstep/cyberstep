@@ -114,116 +114,18 @@ function TierCards() {
 
 // ── Tedarikçi Anket Gönderici ─────────────────────────────────────────────────
 
-function QuestionnaireButton({
-  companyName, companySector, supplier, scanScore, scanData,
-}: {
+function QuestionnaireButton(_props: {
   companyName: string; companySector: string; supplier: TedarikciRapor;
   scanScore: number | undefined; scanData: ScanResult | undefined;
 }) {
-  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [qLink, setQLink] = useState<QuestionnaireLink | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  async function generate() {
-    setState("loading");
-    try {
-      const res = await fetch("/api/tprm/questionnaire", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyName,
-          companySector,
-          supplierDomain: supplier.domain,
-          scanScore,
-          scanData,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const data: QuestionnaireLink = await res.json();
-      setQLink(data);
-      setState("done");
-    } catch {
-      setState("error");
-    }
-  }
-
-  const fullUrl = qLink ? `${window.location.origin}${qLink.link}` : "";
-
-  function copyLink() {
-    if (!fullUrl) return;
-    navigator.clipboard.writeText(fullUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
-  }
-
-  function mailtoLink() {
-    if (!fullUrl) return;
-    const subject = encodeURIComponent("CyberStep TPRM — Siber Güvenlik Anketi");
-    const body = encodeURIComponent(
-      `Merhaba,\n\n` +
-      `${companyName} adına tedarikçi siber güvenlik anketini doldurmanızı talep ediyoruz.\n\n` +
-      `Anket yaklaşık 3 dakika sürmektedir:\n${fullUrl}\n\n` +
-      `Teşekkürler.\n${companyName}`
-    );
-    window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
-  }
-
-  if (state === "idle" || state === "error") {
-    return (
-      <div className="flex flex-col gap-1">
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs border-violet-500/30 text-violet-400 hover:bg-violet-500/10 gap-1.5"
-          onClick={generate}
-        >
-          <Send className="h-3.5 w-3.5" />
-          Tedarikçiye Anket Gönder
-        </Button>
-        {state === "error" && (
-          <p className="text-xs text-red-400">Link oluşturulamadı, tekrar deneyin</p>
-        )}
-      </div>
-    );
-  }
-
-  if (state === "loading") {
-    return (
-      <Button variant="outline" size="sm" disabled className="text-xs gap-1.5">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Link oluşturuluyor...
-      </Button>
-    );
-  }
-
+  // Anket bağlantıları yalnızca müşteri hesabına bağlı, tek kullanımlık olarak Tedarikçi Portföyü'nden gönderilir.
   return (
-    <div className="rounded-lg bg-violet-500/5 border border-violet-500/20 p-3 space-y-2">
-      <p className="text-xs font-medium text-violet-400">Anket linki oluşturuldu</p>
-      <div className="flex items-center gap-2">
-        <code className="text-xs bg-background rounded px-2 py-1 flex-1 truncate border">
-          {fullUrl}
-        </code>
-        <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={copyLink}>
-          {copied ? <CheckCheck className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-        </Button>
-      </div>
-      <div className="flex gap-2">
-        <Button size="sm" variant="outline" className="text-xs gap-1.5 flex-1" onClick={mailtoLink}>
-          <Mail className="h-3.5 w-3.5" />
-          E-posta ile gönder
-        </Button>
-        <a href={fullUrl} target="_blank" rel="noopener noreferrer">
-          <Button size="sm" variant="outline" className="text-xs gap-1.5">
-            <Globe className="h-3.5 w-3.5" />
-            Önizle
-          </Button>
-        </a>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Geçerlilik: {new Date(qLink!.expiresAt).toLocaleDateString("tr-TR")} tarihine kadar
-      </p>
-    </div>
+    <Link href="/hesabim/tedarikci-portfoyu">
+      <Button variant="outline" size="sm" className="text-xs border-violet-500/30 text-violet-400 hover:bg-violet-500/10 gap-1.5">
+        <Send className="h-3.5 w-3.5" />
+        Anketi Tedarikçi Portföyü'nden Gönder
+      </Button>
+    </Link>
   );
 }
 

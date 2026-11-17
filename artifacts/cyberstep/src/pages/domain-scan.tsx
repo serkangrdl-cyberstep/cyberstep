@@ -2247,8 +2247,8 @@ export default function DomainScanPage() {
                   </p>
                   <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
                     {lang === "en"
-                      ? "Attack scenarios and risk ratings are being calculated — this may take a few minutes. The report will be emailed once analysis is complete."
-                      : "Saldırı senaryoları ve risk derecelendirmesi hesaplanıyor — bu birkaç dakika sürebilir. Rapor analiz bittikten sonra e-postanıza gönderilecek."}
+                      ? "Attack scenarios and risk ratings are being calculated — this may take a few minutes. Results will appear on this page once analysis is complete."
+                      : "Saldırı senaryoları ve risk derecelendirmesi hesaplanıyor — bu birkaç dakika sürebilir. Sonuçlar analiz bittiğinde bu sayfada görünür."}
                   </p>
                 </div>
                 <div className="shrink-0 hidden sm:flex flex-col items-end gap-1">
@@ -2560,7 +2560,7 @@ export default function DomainScanPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">Rapor hazırlanıyor...</p>
-                  <p className="text-xs text-muted-foreground">Tehdit analizi tamamlandıktan sonra <span className="font-medium">{result.email ?? email}</span> adresine gönderilecek.</p>
+                  <p className="text-xs text-muted-foreground">Tehdit analizi tamamlandığında sonuçlar bu sayfada görünür. Taramanıza müşteri panelindeki taramalarınız bölümünden de ulaşabilirsiniz.</p>
                 </div>
               </CardContent>
             </Card>
@@ -2641,7 +2641,7 @@ export default function DomainScanPage() {
                     <div className="flex items-center gap-2 mb-3">
                       <Server className="h-4 w-4 text-violet-500" />
                       <p className="text-sm font-semibold">Web Sunucu Güvenlik Başlıkları</p>
-                      <span className={`text-xs ml-auto font-medium ${result.httpHeadersScore >= 80 ? "text-green-600" : result.httpHeadersScore >= 60 ? "text-amber-600" : "text-red-600"}`}>{result.httpHeadersScore}/100</span>
+                      <span className={`text-xs ml-auto font-medium ${result.httpHeadersScore >= 4 ? "text-green-600" : result.httpHeadersScore >= 2 ? "text-amber-600" : "text-red-600"}`}>{result.httpHeadersScore}/5</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {(Object.entries({

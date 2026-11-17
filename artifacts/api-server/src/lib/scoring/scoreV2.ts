@@ -124,6 +124,8 @@ export interface ScoreV2Input {
   threatFoxIocCount?: number | null;
   /** DNS'te hedefi alınabilir (dangling) CNAME sayısı — subdomain takeover riski. */
   danglingCnames?: string[] | null;
+  /** Qualys SSL Labs en kötü uç nokta notu (A+…F, T, M). Yalnızca önbellekte/tamamlanmış değerlendirme varsa dolu. */
+  sslLabsGrade?: string | null;
 
   // Sızıntı
   hibpBreachCount?: number | null;
@@ -331,7 +333,14 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   // ── 6. TLS ve web ────────────────────────────────────────────────────────
   // SSL 7 · HTTP güvenlik başlıkları 3 (başlıklar yalnızca tam taramada ölçülür).
   const days = input.sslDaysUntilExpiry;
-  const sslPoints = days == null || days <= 0 ? 0 : days <= 13 ? 3 : days <= 29 ? 5 : 7;
+  const baseSslPoints = days == null || days <= 0 ? 0 : days <= 13 ? 3 : days <= 29 ? 5 : 7;
+  // SSL Labs notu protokol/şifre zayıflığını ölçer: C −2, D/E −4, F/T/M (güvenilmez/zayıf) −7.
+  const tlsGrade = (input.sslLabsGrade ?? "").toUpperCase();
+  const tlsPenalty = tlsGrade === "C" ? 2 : tlsGrade === "D" || tlsGrade === "E" ? 4 : ["F", "T", "M"].includes(tlsGrade) ? 7 : 0;
+  const sslPoints = Math.max(0, baseSslPoints - tlsPenalty);
+  if (tlsPenalty > 0 && baseSslPoints > 0) {
+    add("web", tlsPenalty >= 7 ? "high" : "medium", `TLS yapılandırması zayıf (SSL Labs notu ${tlsGrade})`, Math.min(tlsPenalty, baseSslPoints));
+  }
   if (days == null && sslUnchecked) { /* ölçülemedi — bulgu üretme */ }
   else if (days == null) add("web", "high", "Geçerli SSL/TLS sertifikasına ulaşılamadı", 7);
   else if (days <= 0) add("web", "high", "SSL sertifikasının süresi dolmuş", 7);

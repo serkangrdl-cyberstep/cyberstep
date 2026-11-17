@@ -51,9 +51,13 @@ const ARCHIVED_INTEGRATIONS = new Set<string>([
 const TPRM_ROLE: Record<string, { label: string; cls: string }> = {
   ...Object.fromEntries(["cisa-kev", "urlhaus", "threatfox", "feodo-tracker", "crt-sh", "usom", "virustotal", "google-sb", "abuseipdb", "shodan", "nvd-cve", "hibp", "spf-dmarc", "dnsbl"]
     .map(id => [id, { label: "TPRM skorunda", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
-  ...Object.fromEntries(["otx", "ssllabs", "mozilla-obs", "censys", "epss"]
+  ...Object.fromEntries(["ssllabs"]
+    .map(id => [id, { label: "TPRM skorunda (TLS notu)", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
+  ...Object.fromEntries(["otx", "epss"]
+    .map(id => [id, { label: "TPRM raporunda (bilgi, skora girmez)", cls: "bg-sky-500/15 text-sky-400 border-sky-500/30" }])),
+  ...Object.fromEntries(["mozilla-obs", "censys"]
     .map(id => [id, { label: "TPRM taramasına bağlı değil", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" }])),
-  ...Object.fromEntries(["securitytrails", "binaryedge", "greynoise", "whoisxml", "vulncheck"]
+  ...Object.fromEntries(["vulncheck"]
     .map(id => [id, { label: "TPRM için planlı", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" }])),
 };
 
@@ -154,16 +158,6 @@ const INTEGRATIONS: IntegrationDef[] = [
     how: "OTX Indicators API sorgulanır. Pulse sayısı, TR hedefli saldırı sayısı ve domain itibar puanı tarama raporuna eklenir.",
     setup: "1. otx.alienvault.com'a ücretsiz kayıt olun  2. Profil → API Key  3. Anahtarı aşağıya yapıştırın.",
     docs: "https://otx.alienvault.com/api/",
-  },
-  {
-    id: "greynoise", name: "GreyNoise", category: "İtibar & Kötücül Yazılım", type: "security", icon: "📡",
-    cost: "freemium", costLabel: "Freemium", costNote: "Community: Ücretsiz 1.000/gün | Teams: $99/ay",
-    envKey: "GREYNOISE_API_KEY", always: false,
-    desc: "İnternet genelinde port tarama yapan botları gerçek hedefli saldırganlardan ayıran IP niyeti analiz platformu",
-    why: "'Bu IP bizi hedef alıyor mu yoksa sadece genel internet taraması mı yapıyor?' sorusunu yanıtlar. Yanlış alarmları dramatik azaltır.",
-    how: "Shodan ile tespit edilen IP'lerin niyeti sınıflandırılır (noise/benign/malicious). Raporda saldırı niyeti gösterilir.",
-    setup: "1. greynoise.io'da ücretsiz Community hesabı açın  2. Account → API Keys  3. Anahtarı aşağıya yapıştırın.",
-    docs: "https://docs.greynoise.io/",
   },
   // ─── Güvenlik Vendor Feed'leri ─────────────────────────────────────────────
   {
@@ -280,16 +274,6 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://developer.shodan.io/api",
   },
   {
-    id: "securitytrails", name: "SecurityTrails", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
-    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 50/ay | API: $50/ay'dan başlar",
-    envKey: "SECURITYTRAILS_API_KEY", always: false,
-    desc: "DNS geçmişi, tarihsel A/MX kayıtları ve kapsamlı subdomain keşfi — altyapı değişikliklerini izler",
-    why: "Geçmiş DNS kayıtları, gizli subdomain'ler ve ilişkili IP'ler saldırı yüzeyini ortaya çıkarır. crt.sh'in bulamadığı pasif DNS verisini sağlar.",
-    how: "Domain için DNS geçmişi ve subdomain listesi çekilir, 30 günlük cache'e alınır ve tarama raporundaki altyapı haritasına eklenir.",
-    setup: "1. securitytrails.com'da hesap açın  2. Account → API Key  3. SECURITYTRAILS_API_KEY olarak ekleyin.",
-    docs: "https://docs.securitytrails.com/",
-  },
-  {
     id: "censys", name: "Censys", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
     cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 250 sorgu/ay | Pro ücretli",
     envKey: "CENSYS_API_TOKEN", always: false,
@@ -300,16 +284,6 @@ const INTEGRATIONS: IntegrationDef[] = [
     docs: "https://docs.censys.com/reference/get-started",
   },
   {
-    id: "binaryedge", name: "BinaryEdge", category: "Altyapı & Açık Yönetimi", type: "security", icon: "🛰️",
-    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 250 istek/ay | Ücretli planlar",
-    envKey: "BINARYEDGE_API_KEY", always: false,
-    desc: "İnternet tarama ve maruz kalan servis veritabanı — açık portlar, risk skorları ve veri sızıntısı tespiti",
-    why: "Maruz kalan servisleri ve potansiyel veri sızıntılarını farklı bir tarama ağıyla doğrular; Shodan/Censys ile kapsama artırır.",
-    how: "Domain ve IP'ler BinaryEdge API'siyle sorgulanır; risk skoru ve açık servis bulguları tarama raporuna eklenir.",
-    setup: "1. app.binaryedge.io'da hesap açın  2. Account → API Access  3. BINARYEDGE_API_KEY olarak ekleyin.",
-    docs: "https://docs.binaryedge.io/",
-  },
-  {
     id: "cloudflare-radar", name: "Cloudflare Radar", category: "Altyapı & Açık Yönetimi", type: "security", icon: "📶",
     cost: "free", costLabel: "Ücretsiz", costNote: "API token gerektirir",
     envKey: "CLOUDFLARE_API_TOKEN", always: false,
@@ -318,16 +292,6 @@ const INTEGRATIONS: IntegrationDef[] = [
     how: "Cloudflare Radar API'siyle Türkiye'ye ait saldırı zaman serileri çekilir ve CTI panosunda bölgesel tehdit göstergesi olarak gösterilir.",
     setup: "1. dash.cloudflare.com'da API token oluşturun  2. CLOUDFLARE_API_TOKEN olarak ekleyin.",
     docs: "https://developers.cloudflare.com/radar/",
-  },
-  {
-    id: "whoisxml", name: "WhoisXML API", category: "Altyapı & Açık Yönetimi", type: "security", icon: "📋",
-    cost: "freemium", costLabel: "Freemium", costNote: "Ücretsiz: 1.000/ay | Basic: $29/ay",
-    envKey: "WHOISXML_API_KEY", always: false,
-    desc: "Domain kayıt geçmişi, sahiplik değişiklikleri ve DNS geçmişi — Domain Hijacking tespiti",
-    why: "Domain el değiştirmişse veya DNS'i manipüle edilmişse müşteri habersiz olabilir. Domain Hijacking KOBİ'ler için giderek artan tehdit.",
-    how: "WHOIS geçmişi sorgulanır. Sahiplik değişikliği veya şüpheli DNS manipülasyonu tespit edilirse rapora uyarı eklenir.",
-    setup: "1. whoisxmlapi.com'da ücretsiz hesap açın  2. My Products → API Key  3. Anahtarı aşağıya yapıştırın.",
-    docs: "https://whois.whoisxmlapi.com/documentation/making-queries",
   },
   // ─── Protokol & Sertifika ──────────────────────────────────────────────────
   {

@@ -91,6 +91,7 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
     hibpBreachCount: scan.hibpBreachCount,
     feodoC2Ips: (scan.tprmExtra as { feodoC2Ips?: string[] } | null)?.feodoC2Ips ?? null,
     threatFoxIocCount: (scan.tprmExtra as { threatFoxIocCount?: number } | null)?.threatFoxIocCount ?? null,
+    sslLabsGrade: (scan.tprmExtra as { sslLabsGrade?: string | null } | null)?.sslLabsGrade ?? null,
     danglingCnames: (scan.tprmExtra as { danglingCnames?: string[] } | null)?.danglingCnames ?? null,
   };
 }

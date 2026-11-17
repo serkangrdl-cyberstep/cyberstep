@@ -998,8 +998,12 @@ function BistDrillRow({ co }: { co: _BistCveCo }) {
  * Arka uç uç noktaları durur; geri açmak için true yapın.
  */
 const LEGACY_OUTREACH = false;
+// Eski satış/outreach sisteminden kalan sekmeler: silinmez, "Arşiv" düğmesiyle açılır.
+// Toplam domain taraması ve domain listesi (Sonuçlar, Geçmiş, istatistikler) sektör/TR raporları için korunur.
+const ARCHIVED_TABS = new Set(["puanlama-rehberi", "zenginlestirme", "bist-analizi", "isp-gruplari"]);
 
 export default function AdminLeadDiscovery() {
+  const [showArchive, setShowArchive] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -1912,14 +1916,17 @@ export default function AdminLeadDiscovery() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="isp-gruplari">ISP Grupları</TabsTrigger>
+            {(showArchive || !ARCHIVED_TABS.has("isp-gruplari")) && <TabsTrigger value="isp-gruplari">ISP Grupları</TabsTrigger>}
             <TabsTrigger value="results">Sonuclar</TabsTrigger>
             <TabsTrigger value="history">Gecmis</TabsTrigger>
-            <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>
+            {(showArchive || !ARCHIVED_TABS.has("puanlama-rehberi")) && <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>}
             <TabsTrigger value="cve-raporu">CVE Raporu</TabsTrigger>
             <TabsTrigger value="port-riski">Port Riski</TabsTrigger>
-            <TabsTrigger value="zenginlestirme">Zenginleştirme</TabsTrigger>
-            <TabsTrigger value="bist-analizi">BIST Analizi</TabsTrigger>
+            {(showArchive || !ARCHIVED_TABS.has("zenginlestirme")) && <TabsTrigger value="zenginlestirme">Zenginleştirme</TabsTrigger>}
+            {(showArchive || !ARCHIVED_TABS.has("bist-analizi")) && <TabsTrigger value="bist-analizi">BIST Analizi</TabsTrigger>}
+            <button type="button" onClick={() => setShowArchive((v) => !v)} className="ml-2 px-3 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">
+              {showArchive ? "Arşivi gizle" : "Arşiv (4)"}
+            </button>
           </TabsList>
         </div>
 

@@ -302,14 +302,18 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
       ],
     } as typeof sc;
   });
-  result.risk_ozet = (result.risk_ozet ?? "").replace(/uğrayacak/g, "uğrayabilir").replace(/görünecektir/g, "görünebilir");
+  result.risk_ozet = (result.risk_ozet ?? "").replace(/uğrayacak/g, "uğrayabilir").replace(/görünecek(tir)?/g, "görünebilir");
   // Üçüncü taraf SaaS (Analytics/Tag Manager/Fonts) için "versiyon güncelle/denetle" aksiyonu anlamsız; at
   result.once_kapat = (result.once_kapat ?? []).filter((it) => !/analytics|tag manager|google fonts/i.test(`${it.aksiyon ?? ""}`));
   result.once_kapat = (result.once_kapat ?? []).map((it) =>
     sslValid && /ssl|sertifika/i.test(it.aksiyon ?? "")
       ? { ...it, neden: `Sertifika yenilenmezse ${days} gün sonra tarayıcılar güvenlik uyarısı gösterir ve site erişilemez hale gelir.` }
       : it
-  ).map((it) =>
+  ).map((it) => {
+    // X-XSS-Protection modern tarayıcılarda kaldırıldı/önerilmiyor; öneri listesinden çıkar.
+    const strip = (t?: string) => (t ?? "").replace(/,?\s*X-XSS-\s*Protection/gi, "");
+    return { ...it, aksiyon: strip(it.aksiyon), neden: strip(it.neden) };
+  }).map((it) =>
     MITM_RE.test(`${it.aksiyon} ${it.neden}`)
       ? { ...it, neden: "Süresi dolan sertifika tarayıcı uyarısına ve hizmet kesintisine yol açar." }
       : it

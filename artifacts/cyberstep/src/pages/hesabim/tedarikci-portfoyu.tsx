@@ -46,6 +46,7 @@ interface ScoreV2Category { key: string; label: string; maxPoints: number; point
 interface ScoreV2Finding { category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }
 interface StoredScanData {
   scoreVersion?: string;
+  scanId?: number;
   scanErrorAt?: string;
   score?: {
     score: number;
@@ -534,6 +535,17 @@ export default function TedarikciPortfoyu() {
 
                     {/* Aksiyonlar */}
                     <div className="flex items-center gap-1 shrink-0">
+                      {v.lastScanData?.scanId && !v.lastScanData?.score?.insufficientData && (
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7"
+                          title="Tedarikçi raporu (PDF) — yalnızca bu tedarikçiye iletebileceğiniz rapor"
+                          asChild
+                        >
+                          <a href={`/api/tprm/vendors/${v.id}/report.pdf`} target="_blank" rel="noopener noreferrer">
+                            <FileText className="h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      )}
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7"
                         title="Yeniden tara"

@@ -58,6 +58,17 @@ export async function loadKevLookup(cveIds: string[]): Promise<KevLookup> {
   return map;
 }
 
+/** Tarama sırasında VulnCheck KEV'de bulunan CVE'leri (CISA KEV'de olmayanları) KEV haritasına ekler. */
+export function mergeExtraKev(kev: KevLookup, extraIds: string[] | null | undefined): KevLookup {
+  for (const id of extraIds ?? []) if (!kev.has(id)) kev.set(id, { ransomware: false, source: "vulncheck" });
+  return kev;
+}
+
+export function vulncheckKevOf(scan: { tprmExtra?: unknown }): string[] {
+  const v = (scan.tprmExtra as { vulncheckKev?: unknown } | null)?.vulncheckKev;
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
 export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
   return {
     referralSource: scan.referralSource,
@@ -99,7 +110,7 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
 /** Tek bir tarama satırı için Skor v2. */
 export async function scoreScanV2(scan: DomainScanRow): Promise<ScoreV2Result> {
   const input = scanToScoreInput(scan);
-  const kev = await loadKevLookup(cveIdsOf(input));
+  const kev = mergeExtraKev(await loadKevLookup(cveIdsOf(input)), vulncheckKevOf(scan));
   return computeScoreV2(input, kev);
 }
 
@@ -125,6 +136,9 @@ export async function scoreDomainsV2(domains: string[]): Promise<Map<string, { s
 
   const inputs = rows.map(scanToScoreInput);
   const kev = await loadKevLookup([...new Set(inputs.flatMap(cveIdsOf))]);
-  rows.forEach((scan, i) => out.set(scan.domain, { scan, score: computeScoreV2(inputs[i]!, kev) }));
+  rows.forEach((scan, i) => {
+    const k: KevLookup = new Map(kev);
+    out.set(scan.domain, { scan, score: computeScoreV2(inputs[i]!, mergeExtraKev(k, vulncheckKevOf(scan))) });
+  });
   return out;
 }

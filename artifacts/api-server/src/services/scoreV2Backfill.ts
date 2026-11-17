@@ -8,7 +8,7 @@ import { db, domainScansTable } from "@workspace/db";
 import { desc, isNull, ne, or, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { computeScoreV2, cveIdsOf, SCORE_V2_VERSION } from "../lib/scoring/scoreV2";
-import { loadKevLookup, scanToScoreInput } from "../lib/scoring/scoreV2Loader";
+import { loadKevLookup, scanToScoreInput, mergeExtraKev, vulncheckKevOf } from "../lib/scoring/scoreV2Loader";
 
 export const BACKFILL_BATCH_SIZE = 1000;
 
@@ -25,7 +25,7 @@ export async function runScoreV2BackfillBatch(limit = BACKFILL_BATCH_SIZE): Prom
   const kev = await loadKevLookup([...new Set(inputs.flatMap(cveIdsOf))]);
 
   const values = rows.map((r, i) => {
-    const result = computeScoreV2(inputs[i]!, kev);
+    const result = computeScoreV2(inputs[i]!, mergeExtraKev(new Map(kev), vulncheckKevOf(r)));
     // Veri yetersizse skor yazılmaz (null) — benchmark'a girmez; sürüm yine işaretlenir.
     const score = result.insufficientData ? null : result.score;
     return sql`(${r.id}::int, ${score}::int)`;

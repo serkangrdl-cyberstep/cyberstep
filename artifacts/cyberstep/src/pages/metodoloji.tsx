@@ -9,7 +9,7 @@ import { useLanguage } from "@/contexts/language-context";
 
 // Skor v2 — kaynak: artifacts/api-server/src/lib/scoring/scoreV2.ts ve docs/skor-v2-metodoloji.md
 const DOMAIN_CHECKS = [
-  { id: "Zafiyetler",  max: 30, desc: "Tespit edilen yazılım sürümlerine ait CVE'ler. CISA KEV −20, CVSS ≥9 −10, CVSS 7–8.9 −4, CVSS 4–6.9 −1. WAF ile hafifletilenlerde düzeltilmiş CVSS." },
+  { id: "Zafiyetler",  max: 30, desc: "Tespit edilen yazılım sürümlerine ait CVE'ler. CISA KEV veya VulnCheck KEV −20, CVSS ≥9 −10, CVSS 7–8.9 −4, CVSS 4–6.9 −1. WAF ile hafifletilenlerde düzeltilmiş CVSS." },
   { id: "Ağ",          max: 20, desc: "İnternete açık portlar ve sahipsiz (dangling) CNAME alt alan adları (−5). Kritik servis (RDP, SMB, veritabanı, Docker…) −10, yüksek riskli −5, orta −1. CDN arkasında beklenen portlar ceza almaz." },
   { id: "İtibar",      max: 15, desc: "Spam kara listeleri −8; USOM, URLhaus, Google Safe Browsing, Feodo botnet C2 −15; ThreatFox IOC, VirusTotal −10; AbuseIPDB ≥50 −8 (≥25 −4)." },
   { id: "E-posta",     max: 15, desc: "SPF (−all 5, ~all 3.5, ?all 2), DMARC (reject 6, quarantine 5, none 2), DKIM 3, MX 1." },
@@ -18,7 +18,7 @@ const DOMAIN_CHECKS = [
 ];
 
 const SCORE_CAPS = [
-  { cond: "CISA KEV listesindeki (aktif sömürülen) zafiyet", max: 49 },
+  { cond: "CISA KEV veya VulnCheck KEV listesindeki (aktif sömürülen) zafiyet", max: 49 },
   { cond: "Fidye yazılımında kullanılan KEV zafiyeti", max: 39 },
   { cond: "USOM / URLhaus / Google Safe Browsing / Feodo botnet C2 kaydı", max: 39 },
   { cond: "ThreatFox zararlı IOC kaydı", max: 49 },
@@ -33,12 +33,13 @@ const RISK_SIGNALS = [
   { signal: "USOM kara liste", impact: "Kritik", src: "BTK / USOM Türkiye ulusal listesi" },
   { signal: "URLhaus tespiti", impact: "Yüksek", src: "Abuse.ch tehdit istihbaratı" },
   { signal: "Safe Browsing uyarısı", impact: "Yüksek", src: "Google Safe Browsing API" },
-  { signal: "CVE eşleşmesi", impact: "Değişken", src: "NVD + CISA KEV listesi" },
+  { signal: "CVE eşleşmesi", impact: "Değişken", src: "NVD + CISA KEV + VulnCheck KEV (ücretsiz Community; atıf: vulncheck.com)" },
   { signal: "Açık port / servis", impact: "Orta", src: "Shodan Internet Intelligence" },
   { signal: "Botnet C2 / zararlı IOC", impact: "Kritik", src: "Feodo Tracker, ThreatFox (abuse.ch)" },
   { signal: "Sahipsiz alt alan adı", impact: "Yüksek", src: "Certificate Transparency + DNS CNAME doğrulaması" },
   { signal: "Shadow IT tespiti", impact: "Orta", src: "DNS + HTTP başlık analizi" },
-  { signal: "HTTP başlık skoru", impact: "Orta", src: "Mozilla Observatory metodolojisi" },
+  { signal: "HTTP başlık skoru", impact: "Orta", src: "HTTP güvenlik başlıkları (Mozilla Observatory metodolojisi)" },
+  { signal: "Bilgi amaçlı (skora girmez)", impact: "Bilgi", src: "EPSS, AlienVault OTX, Hudson Rock infostealer kayıtları, Mozilla Observatory notu" },
 ];
 
 const GRADES = [

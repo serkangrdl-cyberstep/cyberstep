@@ -41,15 +41,17 @@ const ARCHIVED_INTEGRATIONS = new Set<string>([
   "fortigate", "panos", "checkpoint-fw", "cisco-asa", "cloudflare-radar",
   // Eski ürünler: satış asistanı, takvim, AI analiz modülleri
   "isr-imap", "calendly", "eu-aiact", "ai-red-team", "deepfake-analizi", "sahte-dokuman",
+  // Lead keşfi (satış/CRM tarafı; TPRM taramasında kullanılmaz)
+  "certstream", "netcraft", "bgptools", "ripe-asn", "ripe-dns", "ripe-stat", "hackertarget", "mersis", "kap",
   // Bildirim/ITSM kanalları (TPRM bildirimleri e-postayla)
   "webhook", "telegram", "netgsm", "teams", "opsgenie", "servicenow", "ms365",
 ]);
 
 /** TPRM taramasındaki rolü: skor = Risk Skoru v2'ye girer; genel = yalnızca genel domain taramasında; plan = ücretli plan sonrası eklenecek. */
 const TPRM_ROLE: Record<string, { label: string; cls: string }> = {
-  ...Object.fromEntries(["cisa-kev", "urlhaus", "usom", "virustotal", "google-sb", "abuseipdb", "shodan", "nvd-cve", "hibp", "spf-dmarc", "dnsbl"]
+  ...Object.fromEntries(["cisa-kev", "urlhaus", "threatfox", "feodo-tracker", "crt-sh", "usom", "virustotal", "google-sb", "abuseipdb", "shodan", "nvd-cve", "hibp", "spf-dmarc", "dnsbl"]
     .map(id => [id, { label: "TPRM skorunda", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
-  ...Object.fromEntries(["otx", "threatfox", "feodo-tracker", "ssllabs", "mozilla-obs", "crt-sh", "censys", "epss"]
+  ...Object.fromEntries(["otx", "ssllabs", "mozilla-obs", "censys", "epss"]
     .map(id => [id, { label: "TPRM taramasına bağlı değil", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" }])),
   ...Object.fromEntries(["securitytrails", "binaryedge", "greynoise", "whoisxml", "vulncheck"]
     .map(id => [id, { label: "TPRM için planlı", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" }])),
@@ -351,7 +353,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     cost: "free", costLabel: "Ücretsiz", always: true,
     desc: "ABD Ulusal Güvenlik Açığı Veritabanı — 200.000+ CVE kaydı, CVSS kritiklik puanları",
     why: "Shadow IT ile tespit edilen yazılımların (WordPress eklenti versiyonu, jQuery sürümü vb.) bilinen açıklarını tek tek tarar.",
-    how: "Tespit edilen servisler için NVD'de CVE araması yapılır. Yüksek CVSS puanlı açıklar rapora öncelikli olarak eklenir.",
+    how: "Sürümü kesin tespit edilen servisler (site parmak izi + açık port banner'ı) için NVD'de CVE aranır; yalnızca sürüm aralığı doğrulananlar eklenir. NVD'ye ulaşılamazsa \"ölçülemedi\" sayılır.",
     setup: "Kurulum gerekmez. nvd.nist.gov API'si ücretsizdir.",
     docs: "https://nvd.nist.gov/developers/vulnerabilities",
   },
@@ -442,9 +444,9 @@ const INTEGRATIONS: IntegrationDef[] = [
   {
     id: "hibp", name: "Have I Been Pwned", category: "E-posta & Kimlik", type: "security", icon: "💀",
     cost: "free", costLabel: "Ücretsiz", always: true,
-    desc: "Domain'e ait e-posta adreslerinin 750+ veri sızıntısında yer alıp almadığını kontrol eder",
-    why: "Çalışan kimlik bilgilerinin dark web'de bulunması hesap ele geçirme riskini dramatik artırır.",
-    how: "Domain HIBP API'siyle sorgulanır. Kaç sızıntıda kaç hesap bulunduğu ve hangi sızıntılar olduğu raporda gösterilir.",
+    desc: "Alan adına ait hizmetin (ör. eski bir üyelik sitesi) bilinen veri ihlallerinde yer alıp almadığını kontrol eder",
+    why: "Geçmiş ihlaller kurumun kimlik bilgisi hijyeni hakkında ipucu verir. Çalışan e-postalarının sızdığı anlamına gelmez.",
+    how: "Alan adı HIBP breaches API'siyle sorgulanır; ihlal sayısı \"Veri ihlali geçmişi\" kategorisini puanlar.",
     setup: "Kurulum gerekmez.",
     docs: "https://haveibeenpwned.com/API/v3",
   },

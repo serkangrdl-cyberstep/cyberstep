@@ -8,6 +8,8 @@ export const customersTable = pgTable("customers", {
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   companyName: text("company_name"),
+  // TPRM bildirim kişileri (virgülle ayrılmış e-postalar); boşsa hesap e-postası kullanılır
+  tprmNotifyEmails: text("tprm_notify_emails"),
   totpSecret: text("totp_secret"),
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   subscriptionPlan: text("subscription_plan"),

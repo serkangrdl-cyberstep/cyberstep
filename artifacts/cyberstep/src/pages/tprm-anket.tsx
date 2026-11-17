@@ -31,6 +31,10 @@ interface QuestionnaireData {
   questions: Question[];
   alreadyCompleted: boolean;
   existingResult: { completedAt: string } | null;
+  kind?: "initial" | "reassess";
+  report?: { score: number; grade: string; risk: string; scannedAt: string | null; actions: Array<{ oncelik: number; aksiyon: string; neden: string }> } | null;
+  previousAnswers?: Array<{ questionId: number; answer: AnswerValue }>;
+  contradictions?: Array<{ questionId: number; text: string; beyan: string; bulgu: string }>;
 }
 
 interface SubmitResult {
@@ -60,7 +64,11 @@ export default function TprmAnket() {
       .then(r => r.json())
       .then(d => {
         if (d.error) throw new Error(d.error);
-        setData(d as QuestionnaireData);
+        const qd = d as QuestionnaireData;
+        setData(qd);
+        if (qd.previousAnswers?.length) {
+          setAnswers(Object.fromEntries(qd.previousAnswers.map(a => [a.questionId, a.answer])));
+        }
       })
       .catch(e => setLoadError((e as Error).message))
       .finally(() => setLoading(false));
@@ -161,7 +169,9 @@ export default function TprmAnket() {
             <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
             <h2 className="font-bold text-xl mb-2">Anket Gönderildi</h2>
             <p className="text-muted-foreground text-sm mb-6">
-              Yanıtlarınız {data.companyName} ekibine iletildi. Teşekkürler.
+              {data.kind === "reassess"
+                ? "Talebiniz alındı. Yeni tarama başlatıldı; sonuç tamamlandığında " + data.companyName + " ilgilisine bildirilecek. Teşekkürler."
+                : `Yanıtlarınız ${data.companyName} ekibine iletildi. Teşekkürler.`}
             </p>
 
           </CardContent>
@@ -203,6 +213,40 @@ export default function TprmAnket() {
             </p>
           </CardContent>
         </Card>
+
+        {data.kind === "reassess" && data.report && (
+          <Card className="mb-6 border-amber-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Değerlendirme Raporunuz</CardTitle>
+              <CardDescription>
+                Skor: <strong>{data.report.score}/100</strong> ({data.report.grade}) · {data.report.risk} risk
+                {data.report.scannedAt ? ` · Tarama: ${new Date(data.report.scannedAt).toLocaleDateString("tr-TR")}` : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {data.report.actions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold mb-1.5">Öncelikli aksiyonlar</p>
+                  <ol className="space-y-1.5 text-sm list-decimal pl-5">
+                    {data.report.actions.map(a => (
+                      <li key={a.oncelik}><span className="font-medium">{a.aksiyon}</span><span className="text-muted-foreground"> — {a.neden}</span></li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {!!data.contradictions?.length && (
+                <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-xs space-y-1">
+                  <p className="font-semibold text-red-400">Beyanınız ile tarama bulgusu çelişiyor</p>
+                  {data.contradictions.map(c => <p key={c.questionId}>• {c.text} — Beyan: {c.beyan}. {c.bulgu}</p>)}
+                </div>
+              )}
+              <a href={`/api/tprm/questionnaire/${token}/report.pdf`} className="inline-block text-sm text-violet-400 underline">Raporu PDF olarak indir</a>
+              <p className="text-xs text-muted-foreground">
+                Aksiyonları kendi sisteminizde tamamladıktan sonra anketi güncelleyip gönderin; yeni bir tarama otomatik başlatılır ve sonuç {data.companyName} ilgilisine bildirilir.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <form onSubmit={submit}>
           {/* İletişim bilgileri */}
@@ -292,7 +336,7 @@ export default function TprmAnket() {
           >
             {submitting
               ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gönderiliyor...</>
-              : <><CheckCircle2 className="h-4 w-4 mr-2" /> Anketi Gönder</>}
+              : <><CheckCircle2 className="h-4 w-4 mr-2" /> {data.kind === "reassess" ? "Düzeltmeleri tamamladım — yeniden değerlendirme talep et" : "Anketi Gönder"}</>}
           </Button>
 
           <p className="text-xs text-muted-foreground text-center mt-3">

@@ -158,6 +158,62 @@ router.post("/admin-panel/tprm-demo-seed/password", requireAdmin, async (_req: R
   res.json({ updated: r.length });
 });
 
+/** POST /api/admin-panel/tprm-demo-seed/reassess { count } — düzeltme/yeniden değerlendirme döngüsünü gerçek akışla dener. */
+router.post("/admin-panel/tprm-demo-seed/reassess", requireAdmin, async (req: Request, res: Response) => {
+  const count = Math.min(Math.max(Number((req.body as { count?: number })?.count ?? 2), 1), 5);
+  const [cust] = await db.select().from(customersTable).where(eq(customersTable.email, DEMO_EMAIL)).limit(1);
+  if (!cust) { res.status(404).json({ error: "Demo müşteri yok" }); return; }
+  const secret = process.env["SESSION_SECRET"]!;
+  const base = `http://127.0.0.1:${process.env["PORT"] ?? "3000"}`;
+  const sid = randomBytes(18).toString("hex");
+  const expire = new Date(Date.now() + 30 * 60 * 1000);
+  await pool.query("INSERT INTO sessions (sid, sess, expire) VALUES ($1, $2, $3)", [sid, JSON.stringify({ cookie: { originalMaxAge: 1800000, expires: expire.toISOString(), httpOnly: true, path: "/" }, customerId: cust.id }), expire]);
+  const cookie = `cstep.sid=${encodeURIComponent(sign(sid, secret))}`;
+  const call = (path: string, init: RequestInit = {}) => fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Cookie: cookie, ...(init.headers ?? {}) } });
+  try {
+    const vs = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, DEMO_EMAIL)).limit(count);
+    const out: Array<Record<string, unknown>> = [];
+    for (const v of vs) {
+      const r: Record<string, unknown> = { vendorId: v.id, domain: v.supplierDomain, scoreBefore: v.lastScanScore };
+      try {
+        const sl = await call(`/api/tprm/vendors/${v.id}/supplier-link`, { method: "POST" });
+        const { token } = (await sl.json()) as { token?: string };
+        r["link"] = sl.status; if (!token) { out.push(r); continue; }
+        const pub = await fetch(`${base}/api/tprm/questionnaire/${token}`);
+        const pd = (await pub.json()) as { kind?: string; report?: { score?: number; actions?: unknown[] } | null; previousAnswers?: unknown[] };
+        r["supplierView"] = { status: pub.status, kind: pd.kind, reportScore: pd.report?.score ?? null, actions: pd.report?.actions?.length ?? 0, prefilled: pd.previousAnswers?.length ?? 0 };
+        const pdf = await fetch(`${base}/api/tprm/questionnaire/${token}/report.pdf`);
+        const buf = Buffer.from(await pdf.arrayBuffer());
+        r["supplierPdf"] = { status: pdf.status, valid: buf.subarray(0, 4).toString() === "%PDF", bytes: buf.length };
+        const sub = await fetch(`${base}/api/tprm/questionnaire/${token}/submit`, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ supplierContactName: "Test Tedarikçi", supplierContactEmail: `anket-test-${v.id}@example.com`, answers: randomAnswers() }) });
+        r["submit"] = sub.status;
+        const again = await fetch(`${base}/api/tprm/questionnaire/${token}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        r["secondSubmit"] = again.status;
+        const mail = await call(`/api/tprm/vendors/${v.id}/send-to-supplier`, { method: "POST", body: JSON.stringify({ email: "x@example.com" }) });
+        r["sendToSupplier"] = mail.status;
+      } catch (e) { r["error"] = (e as Error).message; }
+      out.push(r);
+    }
+    // Tarama tamamlanana kadar bekle (en fazla ~4 dk)
+    for (let i = 0; i < 24; i++) {
+      const rows = await db.select().from(tprmVendorTable).where(inArray(tprmVendorTable.id, out.map((o) => o["vendorId"] as number)));
+      if (rows.every((x) => x.remediationStatus !== "requested")) break;
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+    const rows = await db.select().from(tprmVendorTable).where(inArray(tprmVendorTable.id, out.map((o) => o["vendorId"] as number)));
+    for (const o of out) {
+      const x = rows.find((y) => y.id === o["vendorId"]);
+      o["after"] = { remediationStatus: x?.remediationStatus, scoreNow: x?.lastScanScore, scoreBeforeRemediation: x?.scoreBeforeRemediation, contactEmail: x?.supplierContactEmail };
+      const ev = await call(`/api/tprm/vendors/${o["vendorId"]}/events`);
+      o["events"] = ((await ev.json()) as { events: Array<{ kind: string }> }).events.map((e) => e.kind);
+    }
+    res.json({ results: out });
+  } finally {
+    await pool.query("DELETE FROM sessions WHERE sid = $1", [sid]).catch(() => {});
+  }
+});
+
 /** DELETE /api/admin-panel/tprm-demo-seed — yalnızca Sasa demo müşterisinin tedarikçilerini siler. */
 router.delete("/admin-panel/tprm-demo-seed", requireAdmin, async (_req: Request, res: Response) => {
   const vs = await db.select({ id: tprmVendorTable.id }).from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, DEMO_EMAIL));

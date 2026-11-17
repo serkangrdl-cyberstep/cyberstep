@@ -523,6 +523,17 @@ async function ensureTenantsTable() {
 
 async function ensureIsrTables() {
   // Add tenant_id columns to existing ISR tables if missing
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_questionnaire_links ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'initial'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_questionnaire_links ADD COLUMN IF NOT EXISTS vendor_id INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS supplier_contact_email TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_status TEXT NOT NULL DEFAULT 'none'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_requested_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_done_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS score_before_remediation INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS customers ADD COLUMN IF NOT EXISTS tprm_notify_emails TEXT`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS tprm_vendor_events (
+    id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL, kind TEXT NOT NULL, detail JSONB, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_vendor_events_vendor_idx ON tprm_vendor_events (vendor_id)`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS criticality TEXT NOT NULL DEFAULT 'standart'`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_vendors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_distributors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);

@@ -342,7 +342,7 @@ function Router() {
       <Route path="/yenile" component={YenilePage} />
       <Route path="/pentest-lite" component={PentestLite} />
       <Route path="/bas-lite" component={BasLite} />
-      <Route path="/hesabim/yonetim-raporu" component={YonetimRaporu} />
+      <Route path="/hesabim/yonetim-raporu" component={CustomerReports} />
       <Route path="/nps/:token" component={NpsPage} />
       <Route path="/status" component={StatusPage} />
 

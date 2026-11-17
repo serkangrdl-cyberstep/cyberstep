@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { TprmNav } from "@/components/tprm-nav";
 import { isArchived } from "@/lib/archived-routes";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
@@ -71,129 +72,13 @@ const GRADE_COLORS: Record<string, { text: string; bg: string; border: string }>
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
-function CustomerNav({
-  kurulumPending,
-  cartItemCount,
-  onLogout,
-  logoutPending,
-}: {
+function CustomerNav(_props: {
   kurulumPending: number;
   cartItemCount: number;
   onLogout: () => void;
   logoutPending: boolean;
 }) {
-  return (
-    <>
-      {/* Desktop nav */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-3">
-        <div className="container mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-5">
-            <Link href="/" className="flex items-center gap-2 shrink-0">
-              <Shield className="h-5 w-5 text-emerald-500" />
-              <span className="font-bold text-white">CyberStep.io</span>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-1">
-              <NavLink href="/hesabim" icon={<LayoutDashboard className="h-3.5 w-3.5" />} label="Dashboard" active />
-              <NavLink href="/hesabim/guvenlik-durumu" icon={<MonitorCheck className="h-3.5 w-3.5" />} label="Güvenlik" />
-              <NavLink href="/hesabim/bulgularim" icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Bulgularım" />
-              <NavLink href="/raporlarim" icon={<FileText className="h-3.5 w-3.5" />} label="Raporlarım" />
-
-              {/* Servisler dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 px-3 py-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">
-                    Servisler <ChevronDown className="h-3 w-3 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-slate-900 border-slate-700 text-white min-w-[180px]">
-                  <DropdownItem href="/hesabim/soc" label="SOC Paneli" />
-                  <DropdownItem href="/hesabim/noc" label="NOC Paneli" />
-                  <DropdownItem href="/hesabim/dns-izleme" label="DNS İzleme" />
-                  <DropdownItem href="/hesabim/tedarikci-portfoyu" label="Tedarikçi Riski" />
-                  <DropdownItem href="/hesabim/cloud-guvenlik" label="Cloud Güvenlik" />
-                  <DropdownItem href="/hesabim/ciso-asistan" label="CISO Asistan" />
-                  <DropdownMenuSeparator className="bg-slate-700" />
-                  <DropdownItem href="/pentest-lite" label="Saldırı Yüzeyi" />
-                  <DropdownItem href="/ai-guvenlik" label="AI Güvenlik" />
-                  <DropdownItem href="/hesabim/entegrasyonlarim" label="Entegrasyonlar" />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Cart */}
-            {!isArchived("/hesabim/sepet") && (
-            <Link href="/hesabim/sepet">
-              <button className="relative p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-                <ShoppingCart className="h-4 w-4" />
-                {cartItemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-sky-500 text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                    {cartItemCount}
-                  </span>
-                )}
-              </button>
-            </Link>
-            )}
-
-            {/* Hesap dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">
-                  <User className="h-3.5 w-3.5" />
-                  Hesabım <ChevronDown className="h-3 w-3 opacity-60" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-slate-900 border-slate-700 text-white min-w-[180px]">
-                <DropdownItem href="/hesabim/servislerim" label="Servislerim" />
-                <DropdownItem href="/hesabim/faturalar" label="Faturalar" />
-                <DropdownItem
-                  href="/hesabim/kurulum"
-                  label="Kurulum Merkezi"
-                  badge={kurulumPending > 0 ? String(kurulumPending) : undefined}
-                />
-                <DropdownItem href="/hesabim/yonetim-raporu" label="YK Raporu" />
-                <DropdownItem href="/hesabim/davet" label="Arkadaş Davet Et" />
-                <DropdownItem href="/hesabim/enterprise" label="Enterprise" />
-                <DropdownMenuSeparator className="bg-slate-700" />
-                <DropdownMenuItem
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer gap-2"
-                  onClick={onLogout}
-                  disabled={logoutPending}
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Çıkış Yap
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile nav strip */}
-      <div className="md:hidden border-b border-slate-800 bg-slate-900/60 overflow-x-auto">
-        <div className="flex items-center gap-0.5 px-3 py-2 min-w-max">
-          {[
-            { href: "/hesabim", label: "Dashboard" },
-            { href: "/hesabim/guvenlik-durumu", label: "Güvenlik" },
-            { href: "/hesabim/bulgularim", label: "Bulgular" },
-            { href: "/raporlarim", label: "Raporlar" },
-            { href: "/hesabim/servislerim", label: "Servisler" },
-            { href: "/hesabim/kurulum", label: "Kurulum" },
-            { href: "/hesabim/tedarikci-portfoyu", label: "Tedarikçi" },
-            { href: "/hesabim/davet", label: "Davet" },
-          ].filter(({ href }) => !isArchived(href)).map(({ href, label }) => (
-            <Link key={href} href={href}>
-              <span className="block px-3 py-1.5 rounded-md text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors whitespace-nowrap">
-                {label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </>
-  );
+  return <TprmNav />;
 }
 
 function NavLink({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active?: boolean }) {
@@ -634,6 +519,66 @@ function VendorRiskWidget() {
         </Link>
       </CardContent>
     </Card>
+  );
+}
+
+interface DashVendor {
+  id: number; supplierDomain: string; supplierName: string | null; lastScanScore: number | null; riskLevel: string | null;
+  questionnaireStatus: string; remediationStatus?: string;
+}
+
+function TprmDashboardTab() {
+  const { data, isLoading } = useQuery<DashVendor[]>({
+    queryKey: ["tprm-vendors-dashboard"],
+    queryFn: () => fetch("/api/tprm/vendors", { credentials: "include" }).then(r => r.json()),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const vendors = Array.isArray(data) ? data : [];
+  const count = (lvl: string) => vendors.filter(v => v.riskLevel === lvl).length;
+  const unscored = vendors.filter(v => v.lastScanScore === null).length;
+  const surveyDone = vendors.filter(v => v.questionnaireStatus === "completed").length;
+  const surveyPending = vendors.filter(v => v.questionnaireStatus === "pending").length;
+  const noSurvey = vendors.filter(v => v.questionnaireStatus === "none").length;
+  const check = vendors.filter(v => v.remediationStatus === "rescanned");
+  const waiting = vendors.filter(v => v.remediationStatus === "requested");
+  const attention = vendors.filter(v => v.riskLevel === "Yüksek" || v.riskLevel === "Kritik" || v.riskLevel === "Orta");
+  const Stat = ({ label, value, cls }: { label: string; value: number; cls: string }) => (
+    <Card className="bg-slate-900 border-slate-700"><CardContent className="p-4"><p className="text-xs text-slate-400">{label}</p><p className={`text-3xl font-bold ${cls}`}>{value}</p></CardContent></Card>
+  );
+  if (isLoading) return <div className="text-slate-500 py-12 text-center">Yükleniyor...</div>;
+  if (vendors.length === 0) {
+    return (
+      <Card className="bg-slate-900 border-slate-700"><CardContent className="p-10 text-center space-y-3">
+        <p className="text-slate-300">Henüz tedarikçi eklemediniz.</p>
+        <Link href="/hesabim/tedarikci-portfoyu"><Button className="bg-emerald-600 hover:bg-emerald-700 text-white">Tedarikçi Ekle</Button></Link>
+      </CardContent></Card>
+    );
+  }
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Toplam tedarikçi" value={vendors.length} cls="text-white" />
+        <Stat label="Yüksek / kritik risk" value={count("Yüksek") + count("Kritik")} cls="text-red-400" />
+        <Stat label="Orta risk" value={count("Orta")} cls="text-amber-400" />
+        <Stat label="Düşük risk" value={count("Düşük")} cls="text-emerald-400" />
+      </div>
+      {(check.length > 0 || waiting.length > 0) && (
+        <Card className="bg-slate-900 border-amber-500/30"><CardContent className="p-4 space-y-1.5 text-sm">
+          {check.length > 0 && <p className="text-emerald-400">Düzenlemeleri tamamlanıp yeniden taranan tedarikçiler (kontrol bekliyor): {check.map(v => v.supplierName || v.supplierDomain).join(", ")}</p>}
+          {waiting.length > 0 && <p className="text-amber-400">Düzeltme bildirdi, yeni tarama sürüyor: {waiting.map(v => v.supplierName || v.supplierDomain).join(", ")}</p>}
+        </CardContent></Card>
+      )}
+      <Card className="bg-slate-900 border-slate-700"><CardContent className="p-4 space-y-1 text-sm text-slate-300">
+        <p>Anket: {surveyDone} tamamlandı · {surveyPending} bekliyor · {noSurvey} gönderilmedi{unscored ? ` · ${unscored} tedarikçinin taraması sürüyor/başarısız` : ""}</p>
+        {attention.length > 0 && <p>İlgilenilmesi gerekenler: {attention.slice(0, 6).map(v => `${v.supplierName || v.supplierDomain} (${v.lastScanScore ?? "—"})`).join(", ")}{attention.length > 6 ? " ve diğerleri" : ""}</p>}
+      </CardContent></Card>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/hesabim/tedarikci-portfoyu"><Button variant="outline" className="border-slate-600 text-slate-200">Tedarikçileri Yönet</Button></Link>
+        <Link href="/raporlarim"><Button variant="outline" className="border-slate-600 text-slate-200">Raporlar</Button></Link>
+        <a href="/api/tprm/vendors/report.pdf"><Button className="bg-emerald-600 hover:bg-emerald-700 text-white">Yönetim Raporunu İndir (PDF)</Button></a>
+      </div>
+    </div>
   );
 }
 
@@ -1223,7 +1168,7 @@ export default function CustomerAccount() {
         {/* Tab selector */}
         <div className="flex gap-1 mb-6 border-b border-slate-800 pb-0">
           {[
-            { id: "dashboard" as const, label: "Dashboard", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
+            { id: "dashboard" as const, label: "Tedarikçi Özeti", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
             { id: "settings" as const, label: "Hesap Ayarları", icon: <Settings className="h-3.5 w-3.5" /> },
           ].map(tab => (
             <button
@@ -1240,7 +1185,7 @@ export default function CustomerAccount() {
           ))}
         </div>
 
-        {activeTab === "dashboard" && <DashboardTab customer={customer} />}
+        {activeTab === "dashboard" && <TprmDashboardTab />}
         {activeTab === "settings" && <AccountSettingsTab customer={customer} />}
       </div>
     </div>

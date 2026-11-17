@@ -217,6 +217,41 @@ router.post("/admin-panel/tprm-demo-seed/reassess", requireAdmin, async (req: Re
 });
 
 /** DELETE /api/admin-panel/tprm-demo-seed — yalnızca Sasa demo müşterisinin tedarikçilerini siler. */
+router.post("/admin-panel/tprm-demo-seed/add-vendors", requireAdmin, async (req: Request, res: Response) => {
+  const domains = ((req.body as { domains?: string[] })?.domains ?? []).map((d) => String(d).toLowerCase().trim()).filter(Boolean).slice(0, 5);
+  const [cust] = await db.select().from(customersTable).where(eq(customersTable.email, DEMO_EMAIL)).limit(1);
+  if (!cust) { res.status(404).json({ error: "Demo müşteri yok" }); return; }
+  const secret = process.env["SESSION_SECRET"]!;
+  const base = `http://127.0.0.1:${process.env["PORT"] ?? "3000"}`;
+  const sid = randomBytes(18).toString("hex");
+  const expire = new Date(Date.now() + 30 * 60 * 1000);
+  await pool.query("INSERT INTO sessions (sid, sess, expire) VALUES ($1, $2, $3)", [sid, JSON.stringify({ cookie: { originalMaxAge: 1800000, expires: expire.toISOString(), httpOnly: true, path: "/" }, customerId: cust.id }), expire]);
+  const cookie = `cstep.sid=${encodeURIComponent(sign(sid, secret))}`;
+  try {
+    const out: Array<Record<string, unknown>> = [];
+    for (const d of domains) {
+      const r: Record<string, unknown> = { domain: d };
+      const add = await fetch(`${base}/api/tprm/vendors`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ supplierDomain: d, criticality: "high" }) });
+      const v = (await add.json()) as { id?: number; error?: string };
+      r["add"] = add.status; r["vendorId"] = v.id ?? null; r["error"] = v.error;
+      out.push(r);
+    }
+    // Taramaların bitmesini bekle (en fazla ~4 dk)
+    for (let i = 0; i < 24; i++) {
+      const rows = await db.select().from(tprmVendorTable).where(inArray(tprmVendorTable.id, out.map((o) => o["vendorId"] as number).filter(Boolean)));
+      if (rows.length > 0 && rows.every((x) => x.lastScanAt)) break;
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+    for (const o of out) {
+      const [sc] = await db.select({ score: domainScansTable.overallScore, cve: domainScansTable.cveSummary, x: domainScansTable.tprmExtra, u: domainScansTable.uncheckedSources, at: domainScansTable.createdAt }).from(domainScansTable).where(eq(domainScansTable.domain, String(o["domain"]))).orderBy(desc(domainScansTable.createdAt)).limit(1);
+      o["scan"] = sc ? { at: sc.at, score: sc.score, unchecked: sc.u, cves: sc.cve, extra: sc.x } : null;
+    }
+    res.json({ results: out });
+  } finally {
+    await pool.query("DELETE FROM sessions WHERE sid = $1", [sid]).catch(() => {});
+  }
+});
+
 router.delete("/admin-panel/tprm-demo-seed", requireAdmin, async (_req: Request, res: Response) => {
   const vs = await db.select({ id: tprmVendorTable.id }).from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, DEMO_EMAIL));
   if (vs.length) await db.delete(tprmVendorTable).where(and(eq(tprmVendorTable.customerEmail, DEMO_EMAIL), inArray(tprmVendorTable.id, vs.map((v) => v.id))));

@@ -328,6 +328,31 @@ export default function TprmAnket() {
             </div>
           )}
 
+          <Card className="mt-6 border-border/60">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-2">{lang === "en" ? "Privacy Notice (KVKK Art. 10)" : "KVKK Aydınlatma Metni"}</h3>
+              {lang === "en" ? (
+                <div className="text-xs text-muted-foreground leading-relaxed space-y-1.5">
+                  <p><strong>Controller:</strong> {data.companyName}, which sent you this survey. CyberStep (Kuzey Digital Ventures) provides the platform and processes the data on the controller's behalf.</p>
+                  <p><strong>Data:</strong> your name, e-mail address, your survey answers and publicly observable technical information about your domain (DNS, e-mail security, TLS, exposed services, reputation lists).</p>
+                  <p><strong>Purpose and legal basis:</strong> supplier cyber-risk assessment — the controller's legitimate interest (KVKK Art. 5/2-f) and performance of the business relationship.</p>
+                  <p><strong>Recipients:</strong> only the company that sent the survey. Data is not sold or shared for advertising.</p>
+                  <p><strong>Retention:</strong> for the duration of the business relationship, then deleted or anonymised.</p>
+                  <p><strong>Your rights (KVKK Art. 11):</strong> to learn whether your data is processed, request information, correction, deletion, object, and claim damages. Apply to {data.companyName} or to info@cyberstep.io.</p>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground leading-relaxed space-y-1.5">
+                  <p><strong>Veri sorumlusu:</strong> Bu anketi size gönderen <strong>{data.companyName}</strong>. CyberStep (Kuzey Digital Ventures) platformu sağlar ve veri sorumlusu adına veri işleyen olarak hareket eder.</p>
+                  <p><strong>İşlenen veriler:</strong> ad-soyad, e-posta adresi, anket yanıtlarınız ve alan adınıza ilişkin kamuya açık teknik bilgiler (DNS, e-posta güvenliği, TLS, internete açık servisler, itibar listeleri).</p>
+                  <p><strong>Amaç ve hukuki sebep:</strong> tedarikçi siber risk değerlendirmesi; veri sorumlusunun meşru menfaati (KVKK m.5/2-f) ve ticari ilişkinin yürütülmesi.</p>
+                  <p><strong>Aktarım:</strong> veriler yalnızca anketi gönderen şirkete aktarılır; satılmaz, reklam amacıyla paylaşılmaz.</p>
+                  <p><strong>Saklama süresi:</strong> ticari ilişki süresince; sonrasında silinir veya anonim hale getirilir.</p>
+                  <p><strong>Haklarınız (KVKK m.11):</strong> verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme, düzeltme, silme, itiraz etme ve zararın giderilmesini talep etme. Başvuru: {data.companyName} veya info@cyberstep.io.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Button
             type="submit"
             size="lg"

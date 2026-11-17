@@ -69,6 +69,8 @@ export const domainScansTable = pgTable("domain_scans", {
   safeBrowsingFlagged: boolean("safe_browsing_flagged"),
   safeBrowsingThreats: jsonb("safe_browsing_threats").$type<string[]>().notNull().default([]),
   otxData: jsonb("otx_data").$type<{ pulseCount: number; reputation: number; maliciousCount: number }>(),
+  /** TPRM derin tarama bulguları (botnet C2, ThreatFox IOC, sahipsiz CNAME). Yalnızca tam modda dolar. */
+  tprmExtra: jsonb("tprm_extra").$type<{ feodoC2Ips: string[]; threatFoxIocCount: number; threatFoxMalware?: string | null; danglingCnames: string[]; subdomainsChecked: number; resolvedIpCount: number; nvdQueried: number } | null>(),
   uncheckedSources: jsonb("unchecked_sources").$type<string[]>().notNull().default([]),
   sslLabsGrade: text("ssl_labs_grade"),
   badgeToken: text("badge_token"),

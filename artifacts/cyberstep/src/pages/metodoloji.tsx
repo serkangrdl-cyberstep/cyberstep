@@ -10,23 +10,24 @@ import { useLanguage } from "@/contexts/language-context";
 // Skor v2 — kaynak: artifacts/api-server/src/lib/scoring/scoreV2.ts ve docs/skor-v2-metodoloji.md
 const DOMAIN_CHECKS = [
   { id: "Zafiyetler",  max: 30, desc: "Tespit edilen yazılım sürümlerine ait CVE'ler. CISA KEV −20, CVSS ≥9 −10, CVSS 7–8.9 −4, CVSS 4–6.9 −1. WAF ile hafifletilenlerde düzeltilmiş CVSS." },
-  { id: "Ağ",          max: 20, desc: "İnternete açık portlar. Kritik servis (RDP, SMB, veritabanı, Docker…) −10, yüksek riskli −5, orta −1. CDN arkasında beklenen portlar ceza almaz." },
-  { id: "İtibar",      max: 15, desc: "Spam kara listeleri −8; USOM, URLhaus, Google Safe Browsing −15; VirusTotal −10; AbuseIPDB ≥50 −8 (≥25 −4)." },
+  { id: "Ağ",          max: 20, desc: "İnternete açık portlar ve sahipsiz (dangling) CNAME alt alan adları (−5). Kritik servis (RDP, SMB, veritabanı, Docker…) −10, yüksek riskli −5, orta −1. CDN arkasında beklenen portlar ceza almaz." },
+  { id: "İtibar",      max: 15, desc: "Spam kara listeleri −8; USOM, URLhaus, Google Safe Browsing, Feodo botnet C2 −15; ThreatFox IOC, VirusTotal −10; AbuseIPDB ≥50 −8 (≥25 −4)." },
   { id: "E-posta",     max: 15, desc: "SPF (−all 5, ~all 3.5, ?all 2), DMARC (reject 6, quarantine 5, none 2), DKIM 3, MX 1." },
-  { id: "Sızıntı",     max: 10, desc: "Kurum e-postalarının yer aldığı bilinen sızıntılar (HIBP): 0 → 10, 1 → 6, 2–3 → 3, 4+ → 0." },
+  { id: "Veri ihlali geçmişi", max: 10, desc: "Alan adına ait hizmetin yer aldığı bilinen veri ihlalleri (HIBP; çalışan e-postalarının sızıntısı değildir): 0 → 10, 1 → 6, 2–3 → 3, 4+ → 0." },
   { id: "TLS ve web",  max: 10, desc: "SSL geçerliliği (≥30 gün 7, 14–29 gün 5, ≤13 gün 3, geçersiz 0) ve HTTP güvenlik başlıkları (3)." },
 ];
 
 const SCORE_CAPS = [
   { cond: "CISA KEV listesindeki (aktif sömürülen) zafiyet", max: 49 },
   { cond: "Fidye yazılımında kullanılan KEV zafiyeti", max: 39 },
-  { cond: "USOM / URLhaus / Google Safe Browsing kaydı", max: 39 },
+  { cond: "USOM / URLhaus / Google Safe Browsing / Feodo botnet C2 kaydı", max: 39 },
+  { cond: "ThreatFox zararlı IOC kaydı", max: 49 },
   { cond: "İnternete açık kritik servis (RDP, SMB vb.)", max: 59 },
 ];
 
 const RISK_SIGNALS = [
   { signal: "Kara liste tespiti", impact: "Kritik", src: "Spamhaus, Barracuda, URIBL, SORBS vb." },
-  { signal: "HIBP veri ihlali", impact: "Yüksek", src: "Have I Been Pwned API" },
+  { signal: "HIBP veri ihlali geçmişi (alan adı hizmeti)", impact: "Yüksek", src: "Have I Been Pwned API" },
   { signal: "VirusTotal kötücül", impact: "Kritik", src: "70+ AV motoru konsensüsü" },
   { signal: "AbuseIPDB skoru", impact: "Yüksek", src: "IP kötüye kullanım veritabanı" },
   { signal: "USOM kara liste", impact: "Kritik", src: "BTK / USOM Türkiye ulusal listesi" },
@@ -34,6 +35,8 @@ const RISK_SIGNALS = [
   { signal: "Safe Browsing uyarısı", impact: "Yüksek", src: "Google Safe Browsing API" },
   { signal: "CVE eşleşmesi", impact: "Değişken", src: "NVD + CISA KEV listesi" },
   { signal: "Açık port / servis", impact: "Orta", src: "Shodan Internet Intelligence" },
+  { signal: "Botnet C2 / zararlı IOC", impact: "Kritik", src: "Feodo Tracker, ThreatFox (abuse.ch)" },
+  { signal: "Sahipsiz alt alan adı", impact: "Yüksek", src: "Certificate Transparency + DNS CNAME doğrulaması" },
   { signal: "Shadow IT tespiti", impact: "Orta", src: "DNS + HTTP başlık analizi" },
   { signal: "HTTP başlık skoru", impact: "Orta", src: "Mozilla Observatory metodolojisi" },
 ];
@@ -310,7 +313,7 @@ export default function Metodoloji() {
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs">
             <span className="font-bold text-primary block mb-1">CyberStep'te CVSS Nasıl Kullanılır?</span>
             <p className="text-muted-foreground">
-              Shodan'dan gelen açık port/servis verileri ve domain'in yazılım stack'i NVD'deki CVE listesiyle çapraz kontrol edilir.
+              Yalnızca sürümü kesin tespit edilen yazılımlar (site parmak izi ve açık port banner'ı) NVD'deki CVE kayıtlarıyla, sürüm aralığı doğrulanarak eşleştirilir; sürüm bilinmiyorsa CVE atfedilmez. Banner kaynaklı eşleşmeler dağıtım yamaları nedeniyle doğrulanmamış olabilir. NVD'ye ulaşılamazsa zafiyet kategorisi "ölçülemedi" sayılır, temiz kabul edilmez.
               CVSS 7.0+ eşleşmeleri raporda kırmızı bayrak olarak işaretlenir ve Saldırı Senaryosu analizine dahil edilir.
               CISA KEV (Known Exploited Vulnerabilities) listesinde yer alan CVE'ler ayrıca vurgulanır.
             </p>

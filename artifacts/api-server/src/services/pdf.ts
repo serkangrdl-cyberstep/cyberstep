@@ -638,7 +638,7 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
         );
       doc.fillColor([50, 70, 90] as [number,number,number]).fontSize(8).font(FONT_REGULAR)
         .text(
-          "Tam güvenilir: E-posta güvenliği (SPF/DMARC/DKIM), SSL sertifikası, veri sızıntısı, kara liste.",
+          "Tam güvenilir: E-posta güvenliği (SPF/DMARC/DKIM), SSL sertifikası, veri ihlali geçmişi, kara liste.",
           MARGIN + 12, wbY + 22, { width: CONTENT_W - 18, lineBreak: false }
         );
       doc.fillColor([80, 60, 10] as [number,number,number]).fontSize(8).font(FONT_REGULAR)

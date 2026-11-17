@@ -54,6 +54,8 @@ function buildUncheckedSources(c: {
   hibp?: { unchecked?: boolean } | null; blacklist?: { unchecked?: boolean } | null; urlhaus?: { unchecked?: boolean } | null;
   usom?: { unchecked?: boolean } | null; ssl?: { unchecked?: boolean } | null; shadowIt?: { unchecked?: boolean } | null;
   spf?: { unchecked?: boolean }; dmarc?: { unchecked?: boolean }; dkim?: { unchecked?: boolean }; mx?: { unchecked?: boolean };
+  /** Shodan sorgusu yapılamadıysa/başarısız olduysa true (ağ maruziyeti ölçülemedi). */
+  shodanFailed?: boolean;
 }): string[] {
   return [
     ...(c.hibp?.unchecked ? ["hibp"] : []),
@@ -62,6 +64,7 @@ function buildUncheckedSources(c: {
     ...(c.usom?.unchecked ? ["usom"] : []),
     ...(c.ssl?.unchecked ? ["ssl"] : []),
     ...(c.shadowIt?.unchecked ? ["shadowit"] : []),
+    ...(c.shodanFailed ? ["shodan"] : []),
     ...((c.spf?.unchecked || c.dmarc?.unchecked || c.dkim?.unchecked || c.mx?.unchecked) ? ["email"] : []),
   ];
 }
@@ -86,18 +89,28 @@ async function resolveTxtChecked(name: string): Promise<{ records: string[][]; u
 }
 
 async function checkSPF(domain: string): Promise<{ pass: boolean; record: string | null; strength: "hardfail" | "softfail" | "neutral" | "none"; unchecked?: boolean }> {
-  const { records, unchecked } = await resolveTxtChecked(domain);
-  for (const r of records) {
-    const joined = r.join("");
-    if (joined.startsWith("v=spf1")) {
-      // "-all" = hardfail (pass); "~all" = softfail (warn, not pass); "?all" / "+all" / missing = fail
-      if (joined.includes("-all")) return { pass: true, record: joined, strength: "hardfail" };
-      if (joined.includes("~all")) return { pass: false, record: joined, strength: "softfail" };
-      if (joined.includes("?all")) return { pass: false, record: joined, strength: "neutral" };
-      return { pass: false, record: joined, strength: "none" };
-    }
+  // redirect=hedef: politika hedef alan adındaki SPF kaydından gelir; en fazla 3 yönlendirme izlenir.
+  let name = domain;
+  let combined: string | null = null;
+  let unchecked = false;
+  let last: string | null = null;
+  for (let depth = 0; depth < 4; depth++) {
+    const res = await resolveTxtChecked(name);
+    if (res.unchecked) unchecked = true;
+    const rec = res.records.map((r) => r.join("")).find((r) => r.startsWith("v=spf1")) ?? null;
+    if (!rec) break;
+    last = rec;
+    combined = combined ? `${combined} → ${rec}` : rec;
+    const target = /(?:^|\s)redirect=([^\s]+)/i.exec(rec)?.[1];
+    if (target && !/(?:^|\s)[-~?+]?all(?:\s|$)/i.test(rec)) { name = target.toLowerCase(); continue; }
+    break;
   }
-  return { pass: false, record: null, strength: "none", unchecked };
+  if (!last || !combined) return { pass: false, record: null, strength: "none", unchecked };
+  // "-all" = hardfail (pass); "~all" = softfail (warn, not pass); "?all" / "+all" / missing = fail
+  if (last.includes("-all")) return { pass: true, record: combined, strength: "hardfail", unchecked };
+  if (last.includes("~all")) return { pass: false, record: combined, strength: "softfail", unchecked };
+  if (last.includes("?all")) return { pass: false, record: combined, strength: "neutral", unchecked };
+  return { pass: false, record: combined, strength: "none", unchecked };
 }
 
 async function checkDMARC(domain: string): Promise<{ pass: boolean; record: string | null; policy: string | null; unchecked?: boolean }> {
@@ -887,7 +900,7 @@ export async function checkShodan(domain: string): Promise<{
   });
   try {
     const ips = await dns.resolve4(domain);
-    if (!ips || ips.length === 0) return empty();
+    if (!ips || ips.length === 0) return null;
     const ip = ips[0]!;
     return new Promise((resolve) => {
       const req = https.request(
@@ -897,7 +910,9 @@ export async function checkShodan(domain: string): Promise<{
           res.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 500 * 1024) { res.destroy(); resolve(null); return; } data += chunk.toString(); });
           res.on("end", () => {
             try {
-              if (res.statusCode !== 200) { resolve(empty()); return; }
+              // 404 = Shodan bu IP için servis kaydı tutmuyor (gözlenen açık servis yok); diğer kodlar (401/403/429/5xx) = ölçülemedi.
+              if (res.statusCode === 404) { resolve(empty()); return; }
+              if (res.statusCode !== 200) { resolve(null); return; }
               type ShodanHost = {
                 data?: Array<{
                   port: number;
@@ -937,15 +952,15 @@ export async function checkShodan(domain: string): Promise<{
               });
               const portRiskSummary = buildPortRiskSummary(openPorts);
               resolve({ openPorts, vulnCount: Object.keys(json.vulns ?? {}).length, country: json.country_code ?? null, isp, cdn, portRiskSummary });
-            } catch { resolve(empty()); }
+            } catch { resolve(null); }
           });
         }
       );
-      req.on("error", () => resolve(empty()));
-      req.on("timeout", () => { req.destroy(); resolve(empty()); });
+      req.on("error", () => resolve(null));
+      req.on("timeout", () => { req.destroy(); resolve(null); });
       req.end();
     });
-  } catch { return empty(); }
+  } catch { return null; }
 }
 
 // ─── VirusTotal domain reputation check ──────────────────────────────────────
@@ -1673,7 +1688,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         abuseIpdbScore: abuseIpdb?.score ?? null, abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0, abuseIpdbCountry: abuseIpdb?.countryCode ?? null, abuseIpdbIsp: abuseIpdb?.isp ?? null,
         safeBrowsingFlagged: safeBrowsing ? safeBrowsing.flagged : null, safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: null,
-        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx }),
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null }),
         badgeToken: randomUUID(),
         referralSource: full ? "tprm_scan" : "discovery_pipeline",
         kepConfigured: false, kepRelays: [], kepSecure: false,
@@ -1922,7 +1937,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
         safeBrowsingThreats: safeBrowsing?.threats ?? [],
         otxData: otxData ?? null,
-        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx }),
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null }),
         sslLabsGrade: sslLabs.grade,
         badgeToken: randomUUID(),
         letterGrade: calculateLetterGrade(overallScore),

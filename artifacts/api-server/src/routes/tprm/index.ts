@@ -521,6 +521,26 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
   }
 });
 
+// ─── GET /api/tprm/vendors/:id/report.pdf ─────────────────────────────────────
+// Tedarikçi bazlı rapor: müşteri yalnızca kendi tedarikçisinin raporunu indirip ilgili tedarikçiye iletir.
+router.get("/tprm/vendors/:id/report.pdf", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  if (!id) { res.status(400).json({ error: "Geçersiz id" }); return; }
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const scanId = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION
+      ? (vendor.lastScanData as unknown as StoredScanData).scanId
+      : null;
+    if (!scanId) { res.status(409).json({ error: "Bu tedarikçi için henüz tamamlanmış bir tarama yok" }); return; }
+    // Oturum çerezi aynı kaynakta taşınır; PDF, portföy tedarikçisi için tam erişimle üretilir.
+    res.redirect(302, `/api/domain-scan/${scanId}/pdf`);
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor report error");
+    res.status(500).json({ error: "Rapor oluşturulamadı" });
+  }
+});
+
 // ─── GET /api/tprm/plan ───────────────────────────────────────────────────────
 router.get("/tprm/plan", requireCustomer, async (req: Request, res: Response) => {
   const email = await getSessionCustomerEmail(req);
@@ -860,32 +880,8 @@ export async function runVendorRescanCron(): Promise<void> {
         alertsByCustomer.set(vendor.customerEmail, list);
       }
 
-      // Yüksek riskli ve henüz cross-sell e-postası gönderilmemişse tedarikçiye gönder
-      if ((riskLevel === "Yüksek" || riskLevel === "Kritik") && !vendor.crosssellSentAt && vendor.questionnaireStatus === "completed") {
-        // Anket yanıtından tedarikçi e-posta adresini bul
-        const link = vendor.questionnaireToken
-          ? (await db.select().from(tprmQuestionnaireLinkTable)
-              .where(eq(tprmQuestionnaireLinkTable.token, vendor.questionnaireToken)))[0]
-          : null;
-        if (link) {
-          const response = (await db.select().from(tprmQuestionnaireResponseTable)
-            .where(eq(tprmQuestionnaireResponseTable.linkId, link.id)))[0];
-          if (response?.supplierContactEmail) {
-            await sendMail({
-              to: response.supplierContactEmail,
-              subject: "Siber Güvenlik Skorunuzu Güçlendirin",
-              html: `<p>Merhaba ${response.supplierContactName},</p>
-<p>Son güvenlik değerlendirmenizde <strong>${vendor.supplierDomain}</strong> için <strong>Yüksek Risk</strong> skoru tespit edildi (${score}/100).</p>
-<p>CyberStep platformu ile güvenlik açıklarınızı kapatabilir, tedarikçi değerlendirmelerinde daha yüksek skor elde edebilirsiniz.</p>
-<p><a href="https://${(process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim()}">CyberStep'i ücretsiz deneyin</a></p>`,
-            });
-            await db.update(tprmVendorTable)
-              .set({ crosssellSentAt: new Date() })
-              .where(eq(tprmVendorTable.id, vendor.id));
-            logger.info({ domain: vendor.supplierDomain }, "TPRM crosssell email sent");
-          }
-        }
-      }
+      // Not: Tedarikçiye CyberStep'ten doğrudan e-posta GÖNDERİLMEZ. Tedarikçi bilgilendirmesi
+      // yalnızca ana müşteri üzerinden yapılır (müşteri, tedarikçi bazlı PDF raporu kendisi iletir).
     } catch (err) {
       logger.error({ err, domain: vendor.supplierDomain }, "TPRM nightly vendor scan error");
     }

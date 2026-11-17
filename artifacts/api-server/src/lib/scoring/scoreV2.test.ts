@@ -148,3 +148,7 @@ test("DNSBL ve USOM birlikte ölçülemediyse itibar ölçülmedi; biri ölçül
   assert.equal(computeScoreV2({ ...clean, uncheckedSources: ["dnsbl", "usom"] }).categories.find((c) => c.key === "reputation")!.measured, false);
   assert.equal(computeScoreV2({ ...clean, uncheckedSources: ["dnsbl"] }).categories.find((c) => c.key === "reputation")!.measured, true);
 });
+
+test("SPF redirect= takip edilmiş birleşik kayıtta hedefin -all politikası geçerli sayılır", () => {
+  assert.equal(parseSpfPolicy("v=spf1 redirect=_spf.example.com → v=spf1 include:_a.example.com -all"), "hardfail");
+});

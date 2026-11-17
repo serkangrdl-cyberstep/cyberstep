@@ -37,6 +37,12 @@ export interface ReportVendor {
   insufficientData: boolean;
   coverage: number | null;
   findings: ReportFinding[];
+  /** Tedarikçi beyanı (anket) — doğrulanmamıştır, skora dahil değildir. */
+  selfScore?: number | null;
+  contradictions?: number;
+  remediation?: { status: string; before: number | null; requestedAt: Date | null; doneAt: Date | null } | null;
+  /** Son olaylar (en yeni önce). */
+  events?: Array<{ kind: string; at: Date; detail: Record<string, unknown> | null }>;
 }
 
 export interface PortfolioReportInput {
@@ -54,7 +60,7 @@ function fmtDate(d: Date | null): string {
 
 export async function generatePortfolioReport(input: PortfolioReportInput): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true, info: {
-    Title: "Tedarikçi Siber Risk Portföy Raporu",
+    Title: "Tedarikçi Siber Risk Yönetim Raporu",
     Author: "CyberStep.io",
     Subject: input.companyName,
   } });
@@ -85,7 +91,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   // ── Kapak şeridi ──────────────────────────────────────────────────────────
   doc.rect(0, 0, doc.page.width, 150).fill(NAVY);
   doc.font("b").fontSize(10).fillColor(CYAN).text("CYBERSTEP.IO", 48, 40);
-  doc.font("b").fontSize(22).fillColor("#FFFFFF").text("Tedarikçi Siber Risk Portföy Raporu", 48, 60, { width: W });
+  doc.font("b").fontSize(22).fillColor("#FFFFFF").text("Tedarikçi Siber Risk Yönetim Raporu", 48, 60, { width: W });
   doc.font("r").fontSize(10).fillColor("#CBD5E1")
     .text(`${input.companyName}  ·  ${fmtDate(input.generatedAt)}  ·  ${input.vendors.length} tedarikçi`, 48, 112, { width: W });
   doc.y = 175;
@@ -120,8 +126,8 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   // ── Tedarikçi tablosu ────────────────────────────────────────────────────
   h2("2. Tedarikçi Listesi");
   const cols = [
-    { k: "Tedarikçi", w: 150 }, { k: "Skor", w: 40 }, { k: "Not", w: 30 }, { k: "Risk", w: 52 },
-    { k: "Sektör", w: 100 }, { k: "Son tarama", w: 62 }, { k: "Anket", w: W - 434 },
+    { k: "Tedarikçi", w: 128 }, { k: "Skor", w: 66 }, { k: "Not", w: 28 }, { k: "Risk", w: 48 },
+    { k: "Sektör", w: 92 }, { k: "Son tarama", w: 58 }, { k: "Anket (beyan)", w: W - 420 },
   ];
   const header = () => {
     const y = doc.y;
@@ -145,7 +151,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
       v.insufficientData ? "Veri yok" : v.risk ?? "Bekliyor",
       v.sector ? (v.sectorPercentile !== null ? `${v.sector} (%${v.sectorPercentile})` : v.sector) : "—",
       fmtDate(v.lastScanAt),
-      v.questionnaireStatus === "completed" ? `Tamamlandı${v.combinedScore !== null ? ` (${v.combinedScore})` : ""}` : v.questionnaireStatus === "pending" ? "Bekliyor" : "—",
+      v.questionnaireStatus === "completed" ? `Tamamlandı${v.selfScore != null ? ` (${v.selfScore})` : ""}` : v.questionnaireStatus === "pending" ? "Bekliyor" : "—",
     ];
     let x = 48;
     let rowH = 14;
@@ -163,11 +169,36 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   }
   doc.x = 48;
 
+  // ── Anket ve düzeltme durumu ────────────────────────────────────────────
+  h2("3. Tedarikçi Beyanı (Anket) ve Düzeltme Durumu");
+  para("Beyan puanı tedarikçinin kendi beyanıdır; doğrulanmamıştır ve Risk Skoruna dahil edilmez. Taramayla doğrulanabilen sorularda çelişkiler ayrıca işaretlenir.", { lineGap: 1 });
+  doc.moveDown(0.4);
+  const withSurvey = sorted.filter(v => v.selfScore != null || (v.remediation && v.remediation.status !== "none"));
+  if (withSurvey.length === 0) {
+    para("Henüz tamamlanmış tedarikçi anketi yok.");
+  } else {
+    for (const v of withSurvey) {
+      if (doc.y > doc.page.height - 90) doc.addPage();
+      const rem = v.remediation;
+      const remTxt = !rem || rem.status === "none" ? "" :
+        rem.status === "requested" ? "  ·  Düzeltme bildirildi, yeni tarama sürüyor" :
+        `  ·  Düzeltme sonrası yeni tarama: ${rem.before ?? "—"} → ${v.score ?? "—"}`;
+      doc.font("b").fontSize(9.5).fillColor(NAVY).text(`${v.name ?? v.domain}`, { continued: true })
+        .font("r").fillColor(TEXT).text(`  ·  Beyan puanı: ${v.selfScore ?? "—"}/100${v.contradictions ? `  ·  ${v.contradictions} çelişki` : ""}${remTxt}`);
+      for (const e of (v.events ?? []).slice(0, 4)) {
+        const label: Record<string, string> = { questionnaire_completed: "Anket tamamlandı", report_sent: "Rapor tedarikçiye gönderildi",
+          reassess_requested: "Düzeltme bildirildi, yeniden değerlendirme istendi", rescan_done: "Yeni tarama tamamlandı", rescan_failed: "Yeni tarama başarısız" };
+        doc.font("r").fontSize(8).fillColor(MUTED).text(`   ${fmtDate(e.at)} — ${label[e.kind] ?? e.kind}`);
+      }
+      doc.moveDown(0.4);
+    }
+  }
+
   // ── Kritik ve yüksek bulgular ─────────────────────────────────────────────
   const withFindings = sorted.filter(v =>
     !v.insufficientData && v.score !== null &&
     v.findings.some(f => f.severity === "critical" || f.severity === "high"));
-  h2("3. Kritik ve Yüksek Bulgular");
+  h2("4. Kritik ve Yüksek Bulgular");
   if (withFindings.length === 0) {
     para("Skorlanan tedarikçilerde kritik veya yüksek seviyede bulgu tespit edilmedi.");
   } else {
@@ -184,7 +215,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   }
 
   // ── Mevzuat bağlamı ──────────────────────────────────────────────────────
-  h2("4. Mevzuat Bağlamı");
+  h2("5. Mevzuat Bağlamı");
   para("KVKK (6698) md. 12: Veri sorumlusu, kişisel verilerin kendi adına başka bir gerçek veya tüzel kişi tarafından işlenmesi halinde, gerekli teknik ve idari tedbirlerin alınması hususunda bu kişilerle birlikte müştereken sorumludur. Bu rapor, veri işleyen konumundaki tedarikçilerin dışarıdan gözlemlenebilen güvenlik durumunun izlendiğine ilişkin destekleyici kanıt olarak kullanılabilir.");
   doc.moveDown(0.4);
   para("7545 sayılı Siber Güvenlik Kanunu: Kanun kapsamındaki kuruluşlara önleyici ve sürekli siber güvenlik yükümlülükleri ile zafiyet ve olay bildirimi yükümlülüğü getirmektedir. Tedarikçilerden kaynaklanan risklerin düzenli olarak ölçülmesi bu yükümlülüklerin yerine getirilmesini destekler.");
@@ -194,7 +225,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   para("Bu rapor hukuki görüş değildir ve mevzuata uyumun tek başına kanıtı sayılmaz; kurumunuzun uyum değerlendirmesi kapsamında diğer kontrollerle birlikte değerlendirilmelidir.", { oblique: true } as PDFKit.Mixins.TextOptions);
 
   // ── Metodoloji ───────────────────────────────────────────────────────────
-  h2("5. Metodoloji Özeti");
+  h2("6. Metodoloji Özeti");
   para("CyberStep Risk Skoru v2, yalnızca herkese açık ve dışarıdan gözlemlenebilen sinyallerden hesaplanır; tedarikçinin sistemlerine erişilmez ve saldırı testi yapılmaz. Kategoriler ve azami puanlar: bilinen zafiyetler (CVE, CISA KEV) 30, ağ maruziyeti 20, itibar 15, e-posta güvenliği 15, veri sızıntısı 10, TLS ve web 10. Aktif sömürülen zafiyet (skor en fazla 49), fidye yazılımında kullanılan zafiyet veya USOM/URLhaus kaydı (en fazla 39) ve internete açık kritik servis (en fazla 59) skoru üstten sınırlar. Ölçülemeyen kategoriler temiz sayılmaz; skor ölçülen kategoriler üzerinden hesaplanır. Not eşikleri: A ≥85, B ≥70, C ≥55, D ≥40, F <40. Ayrıntılı metodoloji: cyberstep.io/metodoloji");
 
   // ── Sayfa altlıkları ─────────────────────────────────────────────────────
@@ -205,7 +236,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     const bottom = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;
     doc.font("r").fontSize(7.5).fillColor(MUTED).text(
-      `CyberStep.io · Tedarikçi Siber Risk Portföy Raporu · ${input.companyName} · ${fmtDate(input.generatedAt)} · Sayfa ${i - range.start + 1}/${range.count}`,
+      `CyberStep.io · Tedarikçi Siber Risk Yönetim Raporu · ${input.companyName} · ${fmtDate(input.generatedAt)} · Sayfa ${i - range.start + 1}/${range.count}`,
       48, doc.page.height - 32, { width: W, align: "center", lineBreak: false },
     );
     doc.page.margins.bottom = bottom;

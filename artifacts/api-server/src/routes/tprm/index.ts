@@ -7,6 +7,10 @@ import { tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable, tprmVendorT
 import { eq, and, lte, isNull, or, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { isEmailConfigured, appBaseUrl, recordEvent, parseEmails, customerContacts, notifyRescanDone, fetchVendorPdf } from "../../services/tprmRemediation";
+import { tprmVendorEventTable } from "@workspace/db";
+import { actionsFromFindings } from "../../services/findingActions";
+import { getVendorById } from "../../services/tprmRemediation";
 import { customersTable } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { domainScansTable } from "@workspace/db";
@@ -49,6 +53,8 @@ async function markScanFailed(vendor: { id: number; lastScanData: unknown }): Pr
   await db.update(tprmVendorTable)
     .set({ lastScanData: { ...prev, scanErrorAt: new Date().toISOString() } })
     .where(eq(tprmVendorTable.id, vendor.id));
+  const [cur] = await db.select({ st: tprmVendorTable.remediationStatus }).from(tprmVendorTable).where(eq(tprmVendorTable.id, vendor.id));
+  if (cur?.st === "requested") await recordEvent(vendor.id, "rescan_failed");
 }
 
 /** Domain için yeni bir tarama çalıştırır ve Skor v2 hesaplar. */
@@ -104,6 +110,15 @@ async function applySupplierScore(
     lastScanData: data as unknown as Record<string, unknown>,
     riskLevel: insufficient ? null : result.score.risk,
   }).where(eq(tprmVendorTable.id, vendor.id));
+
+  // Düzeltme sonrası yeniden değerlendirme: talepten SONRA tamamlanan tarama müşteriye bildirilir.
+  const [cur] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendor.id));
+  if (cur && cur.remediationStatus === "requested" && cur.remediationRequestedAt && result.scannedAt >= cur.remediationRequestedAt && !insufficient) {
+    const after = result.score.score;
+    await db.update(tprmVendorTable).set({ remediationStatus: "rescanned", remediationDoneAt: new Date() }).where(eq(tprmVendorTable.id, cur.id));
+    const emailed = await notifyRescanDone(cur, cur.scoreBeforeRemediation, after);
+    await recordEvent(cur.id, "rescan_done", { before: cur.scoreBeforeRemediation, after, emailed });
+  }
 }
 
 // ─── POST /api/tprm/questionnaire ─────────────────────────────────────────────
@@ -146,8 +161,10 @@ router.get("/tprm/questionnaire/:token", async (req: Request, res: Response) => 
       expiresAt: link.expiresAt,
       questions: TPRM_QUESTIONS,
       alreadyCompleted: !!existing,
-      // Tedarikçiye skor/risk/tarama bilgisi gösterilmez; yalnızca tamamlandığı bilgisi.
+      // İlk ankette tedarikçiye skor/risk/tarama bilgisi gösterilmez; yalnızca tamamlandığı bilgisi.
       existingResult: existing ? { completedAt: existing.completedAt } : null,
+      kind: link.kind,
+      ...(link.kind === "reassess" ? await supplierReassessView(link) : {}),
     });
   } catch (err) {
     logger.error({ err }, "TPRM questionnaire get error");
@@ -204,6 +221,18 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       return;
     }
 
+    // Yeniden değerlendirme talebi: 24 saatte bir.
+    let reassessVendor: Awaited<ReturnType<typeof getVendorById>> | null = null;
+    if (link.kind === "reassess" && link.vendorId) {
+      reassessVendor = await getVendorById(link.vendorId);
+      if (!reassessVendor) { res.status(404).json({ error: "Tedarikçi kaydı bulunamadı" }); return; }
+      if (reassessVendor.remediationStatus === "requested" && reassessVendor.remediationRequestedAt
+          && Date.now() - reassessVendor.remediationRequestedAt.getTime() < 24 * 60 * 60 * 1000) {
+        res.status(429).json({ error: "Yeniden değerlendirme talebiniz zaten alındı; yeni tarama sürüyor." });
+        return;
+      }
+    }
+
     // Beyan puanı (Evet=10 / Kısmen=5 / Hayır=0). Taramayla BİRLEŞTİRİLMEZ; doğrulanmamış beyan olarak saklanır.
     const scoredAnswers = answers.map(a => ({
       questionId: a.questionId,
@@ -221,10 +250,28 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       combinedScore: null,
     }).returning();
 
-    // Vendor yalnızca "tamamlandı" olarak işaretlenir; risk skoru/seviyesi taramadan gelir ve anketle değişmez.
-    await db.update(tprmVendorTable)
-      .set({ questionnaireStatus: "completed" })
-      .where(eq(tprmVendorTable.questionnaireToken, token));
+    if (reassessVendor) {
+      // Güncel anket artık bu bağlantıdır; yeni tarama otomatik başlatılır.
+      const prevLoaded = await loadVendorQuestionnaire(reassessVendor).catch(() => null);
+      await db.update(tprmVendorTable).set({
+        questionnaireToken: token,
+        questionnaireStatus: "completed",
+        supplierContactEmail: supplierContactEmail.trim().toLowerCase(),
+        remediationStatus: "requested",
+        remediationRequestedAt: new Date(),
+        remediationDoneAt: null,
+        scoreBeforeRemediation: reassessVendor.lastScanScore,
+      }).where(eq(tprmVendorTable.id, reassessVendor.id));
+      await recordEvent(reassessVendor.id, "reassess_requested", { selfBefore: prevLoaded?.selfScore ?? null, selfAfter: selfScore, contact: supplierContactName });
+      queueVendorScan(reassessVendor.id, reassessVendor.supplierDomain);
+    } else {
+      // İlk anket: vendor yalnızca "tamamlandı" olarak işaretlenir; risk skoru/seviyesi taramadan gelir ve anketle değişmez.
+      await db.update(tprmVendorTable)
+        .set({ questionnaireStatus: "completed", supplierContactEmail: supplierContactEmail.trim().toLowerCase() })
+        .where(eq(tprmVendorTable.questionnaireToken, token));
+      const [v0] = await db.select({ id: tprmVendorTable.id }).from(tprmVendorTable).where(eq(tprmVendorTable.questionnaireToken, token));
+      if (v0) await recordEvent(v0.id, "questionnaire_completed", { selfScore });
+    }
 
     // Tedarikçiye skor, risk seviyesi veya yapay zeka yorumu dönmez.
     res.json({ ok: true, responseId: response!.id });
@@ -365,6 +412,10 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
     const withCtx = await withSectorContext(rows);
 
     const { generatePortfolioReport } = await import("../../services/tprmReportPdf");
+    const vendorIds = withCtx.map(v => v.id);
+    const evRows = vendorIds.length ? await db.select().from(tprmVendorEventTable).where(inArray(tprmVendorEventTable.vendorId, vendorIds)).orderBy(sql`created_at DESC`) : [];
+    const qMap = new Map<number, Awaited<ReturnType<typeof loadVendorQuestionnaire>>>();
+    for (const v of withCtx) qMap.set(v.id, v.questionnaireStatus === "completed" ? await loadVendorQuestionnaire(v).catch(() => null) : null);
     const buf = await generatePortfolioReport({
       companyName: customer?.companyName || customer?.fullName || email,
       generatedAt: new Date(),
@@ -386,6 +437,10 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
           insufficientData: !!stored?.insufficientData,
           coverage: stored?.coverage ?? null,
           findings: (stored?.findings ?? []).map(f => ({ severity: f.severity, title: f.title })),
+          selfScore: qMap.get(v.id)?.selfScore ?? null,
+          contradictions: qMap.get(v.id)?.contradictions.length ?? 0,
+          remediation: { status: v.remediationStatus, before: v.scoreBeforeRemediation, requestedAt: v.remediationRequestedAt, doneAt: v.remediationDoneAt },
+          events: evRows.filter(e => e.vendorId === v.id).map(e => ({ kind: e.kind, at: e.createdAt, detail: e.detail as Record<string, unknown> | null })),
         };
       }),
     });
@@ -730,6 +785,149 @@ router.post("/tprm/vendors/:id/send-questionnaire", requireCustomer, async (req:
     logger.error({ err }, "TPRM send questionnaire error");
     res.status(500).json({ error: "Anket linki oluşturulamadı" });
   }
+});
+
+// ─── Düzeltme / yeniden değerlendirme döngüsü ───────────────────────────────
+
+/** Tedarikçiye gösterilen düzeltme görünümü (yeniden değerlendirme bağlantısı). */
+async function supplierReassessView(link: { vendorId: number | null }) {
+  const vendor = link.vendorId ? await getVendorById(link.vendorId) : null;
+  if (!vendor) return { report: null, previousAnswers: [] };
+  const stored = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION
+    ? (vendor.lastScanData as unknown as StoredScanData).score : null;
+  const prev = await loadVendorQuestionnaire(vendor).catch(() => null);
+  return {
+    report: stored && !stored.insufficientData ? {
+      score: stored.score, grade: stored.grade, risk: stored.risk, scannedAt: vendor.lastScanAt,
+      actions: actionsFromFindings(stored.findings, 8),
+    } : null,
+    previousAnswers: (prev?.answers ?? []).map(a => ({ questionId: a.questionId, answer: a.answer })),
+    contradictions: prev?.contradictions ?? [],
+    remediationStatus: vendor.remediationStatus,
+  };
+}
+
+async function createReassessLink(vendor: { id: number; supplierDomain: string; supplierName: string | null }, customer: { companyName: string | null; fullName: string }) {
+  // Aynı tedarikçi için önceki bekleyen yeniden değerlendirme bağlantıları geçersiz kılınır.
+  await db.update(tprmQuestionnaireLinkTable).set({ expiresAt: new Date() })
+    .where(and(eq(tprmQuestionnaireLinkTable.vendorId, vendor.id), eq(tprmQuestionnaireLinkTable.kind, "reassess")));
+  const token = randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await db.insert(tprmQuestionnaireLinkTable).values({
+    companyName: customer.companyName || customer.fullName, companySector: "—",
+    supplierDomain: vendor.supplierDomain, supplierName: vendor.supplierName ?? null,
+    token, expiresAt, kind: "reassess", vendorId: vendor.id,
+  });
+  const base = appBaseUrl();
+  return { token, link: base ? `${base}/tprm/anket/${token}` : `/tprm/anket/${token}`, expiresAt };
+}
+
+async function loadCustomer(req: Request) {
+  const id = getCustomerId(req);
+  if (!id) return null;
+  const [c] = await db.select().from(customersTable).where(eq(customersTable.id, id)).limit(1);
+  return c ?? null;
+}
+
+// GET/PUT /api/tprm/settings — bildirim kişileri
+router.get("/tprm/settings", requireCustomer, async (req: Request, res: Response) => {
+  const c = await loadCustomer(req);
+  if (!c) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+  res.json({ notifyEmails: parseEmails(c.tprmNotifyEmails), accountEmail: c.email, emailConfigured: isEmailConfigured() });
+});
+
+router.put("/tprm/settings", requireCustomer, async (req: Request, res: Response) => {
+  const c = await loadCustomer(req);
+  if (!c) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+  const raw = (req.body as { notifyEmails?: unknown })?.notifyEmails;
+  const list = parseEmails(Array.isArray(raw) ? raw.join(",") : typeof raw === "string" ? raw : "");
+  if (list.length > 10) { res.status(400).json({ error: "En fazla 10 kişi tanımlanabilir" }); return; }
+  await db.update(customersTable).set({ tprmNotifyEmails: list.join(",") || null }).where(eq(customersTable.id, c.id));
+  res.json({ notifyEmails: list });
+});
+
+// POST /api/tprm/vendors/:id/supplier-link — tedarikçiye iletilecek yeniden değerlendirme bağlantısı
+router.post("/tprm/vendors/:id/supplier-link", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  const vendor = id ? await getOwnedVendor(req, id) : null;
+  const c = await loadCustomer(req);
+  if (!vendor || !c) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  const l = await createReassessLink(vendor, c);
+  res.json({ token: l.token, link: l.link, expiresAt: l.expiresAt.toISOString() });
+});
+
+// POST /api/tprm/vendors/:id/send-to-supplier — rapor + anket sonucu + yeniden değerlendirme bağlantısı e-postayla (SMTP aktifse)
+router.post("/tprm/vendors/:id/send-to-supplier", requireCustomer, async (req: Request, res: Response) => {
+  if (!isEmailConfigured()) {
+    res.status(503).json({ error: "E-posta servisi henüz aktif değil", code: "EMAIL_NOT_CONFIGURED" });
+    return;
+  }
+  const id = parseInt(req.params["id"] as string);
+  const vendor = id ? await getOwnedVendor(req, id) : null;
+  const c = await loadCustomer(req);
+  if (!vendor || !c) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  const to = parseEmails((req.body as { email?: string })?.email ?? vendor.supplierContactEmail ?? "")[0];
+  if (!to) { res.status(400).json({ error: "Geçerli bir tedarikçi e-posta adresi girin", code: "NO_RECIPIENT" }); return; }
+  try {
+    const l = await createReassessLink(vendor, c);
+    const pdf = await fetchVendorPdf(vendor.id, c.id);
+    const q = await loadVendorQuestionnaire(vendor).catch(() => null);
+    const company = escapeHtml(c.companyName || c.fullName);
+    const { sendMail } = await import("../../services/email");
+    await sendMail({
+      to,
+      subject: `${c.companyName || c.fullName}: tedarikçi siber güvenlik değerlendirme raporunuz`,
+      html: `<p>Merhaba,</p>
+<p><strong>${company}</strong>, tedarikçi siber risk değerlendirmesi kapsamında <strong>${escapeHtml(vendor.supplierDomain)}</strong> için hazırlanan raporu ekte iletti.${q?.selfScore != null ? ` Anket beyan puanınız: ${q.selfScore}/100.` : ""}</p>
+<p>Rapordaki öncelikli aksiyonları kendi sisteminizde tamamladıktan sonra anketinizi güncelleyip yeniden değerlendirme talep edebilirsiniz; yeni bir tarama otomatik başlatılır:</p>
+<p><a href="${l.link}">Düzeltmeleri tamamladım — yeniden değerlendirme talep et</a></p>
+<p style="color:#666;font-size:12px">Bağlantı ${l.expiresAt.toLocaleDateString("tr-TR")} tarihine kadar geçerlidir.</p>`,
+      attachments: pdf ? [{ filename: `CyberStep_Rapor_${vendor.supplierDomain}.pdf`, content: pdf, contentType: "application/pdf" }] : [],
+    });
+    await db.update(tprmVendorTable).set({ supplierContactEmail: to }).where(eq(tprmVendorTable.id, vendor.id));
+    await recordEvent(vendor.id, "report_sent", { to, pdfAttached: !!pdf });
+    res.json({ ok: true, to, pdfAttached: !!pdf });
+  } catch (err) {
+    logger.error({ err }, "TPRM send-to-supplier error");
+    res.status(500).json({ error: "E-posta gönderilemedi" });
+  }
+});
+
+// GET /api/tprm/questionnaire/:token/report.pdf — yalnızca yeniden değerlendirme bağlantısı sahibi tedarikçi kendi raporunu indirir
+router.get("/tprm/questionnaire/:token/report.pdf", async (req: Request, res: Response) => {
+  try {
+    const [link] = await db.select().from(tprmQuestionnaireLinkTable).where(eq(tprmQuestionnaireLinkTable.token, req.params["token"] as string));
+    if (!link || link.kind !== "reassess" || !link.vendorId || new Date() > link.expiresAt) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const vendor = await getVendorById(link.vendorId);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const [owner] = await db.select({ id: customersTable.id }).from(customersTable).where(eq(customersTable.email, vendor.customerEmail)).limit(1);
+    const pdf = owner ? await fetchVendorPdf(vendor.id, owner.id) : null;
+    if (!pdf) { res.status(409).json({ error: "Rapor şu an üretilemedi" }); return; }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Rapor_${vendor.supplierDomain}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    logger.error({ err }, "TPRM supplier report error");
+    res.status(500).json({ error: "Rapor oluşturulamadı" });
+  }
+});
+
+// GET /api/tprm/vendors/:id/events — zaman çizelgesi
+router.get("/tprm/vendors/:id/events", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  const vendor = id ? await getOwnedVendor(req, id) : null;
+  if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  const rows = await db.select().from(tprmVendorEventTable).where(eq(tprmVendorEventTable.vendorId, id)).orderBy(sql`created_at DESC`).limit(50);
+  res.json({ events: rows });
+});
+
+// POST /api/tprm/vendors/:id/remediation-ack — müşteri yeni tarama sonucunu gördü
+router.post("/tprm/vendors/:id/remediation-ack", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  const vendor = id ? await getOwnedVendor(req, id) : null;
+  if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  if (vendor.remediationStatus === "rescanned") await db.update(tprmVendorTable).set({ remediationStatus: "none" }).where(eq(tprmVendorTable.id, id));
+  res.json({ ok: true });
 });
 
 // ─── Cron yardımcısı: gece tedarikçi yeniden tarama + uyarı ──────────────────

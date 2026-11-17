@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
+import { TprmNav } from "@/components/tprm-nav";
 
 interface Vendor {
   id: number;
@@ -40,6 +41,11 @@ interface Vendor {
   alertSentAt: string | null;
   monitoringActive: boolean;
   addedAt: string;
+  supplierContactEmail?: string | null;
+  remediationStatus?: "none" | "requested" | "rescanned";
+  remediationRequestedAt?: string | null;
+  remediationDoneAt?: string | null;
+  scoreBeforeRemediation?: number | null;
 }
 
 interface ScoreV2Category { key: string; label: string; maxPoints: number; points: number; measured: boolean }
@@ -185,6 +191,140 @@ interface QuestionnaireView {
   selfScore: number | null;
   answers: Array<{ questionId: number; text: string; answer: "evet" | "kismen" | "hayir" }>;
   contradictions: Array<{ questionId: number; text: string; beyan: string; bulgu: string }>;
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  questionnaire_completed: "Tedarikçi anketi doldurdu",
+  report_sent: "Rapor tedarikçiye e-postayla gönderildi",
+  reassess_requested: "Tedarikçi düzeltmeleri bildirdi, yeniden değerlendirme istedi",
+  rescan_done: "Yeni tarama tamamlandı",
+  rescan_failed: "Yeni tarama başarısız oldu",
+};
+
+function VendorSupplierActions({ vendor }: { vendor: Vendor }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showLog, setShowLog] = useState(false);
+  const { data: settings } = useQuery<{ emailConfigured: boolean }>({
+    queryKey: ["tprm-settings"],
+    queryFn: () => fetch("/api/tprm/settings", { credentials: "include" }).then(r => r.json()),
+  });
+  const events = useQuery<{ events: Array<{ id: number; kind: string; detail: Record<string, unknown> | null; createdAt: string }> }>({
+    queryKey: ["tprm-vendor-events", vendor.id],
+    queryFn: () => fetch(`/api/tprm/vendors/${vendor.id}/events`, { credentials: "include" }).then(r => r.json()),
+    enabled: showLog,
+  });
+
+  async function copyLink() {
+    const r = await fetch(`/api/tprm/vendors/${vendor.id}/supplier-link`, { method: "POST", credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { toast({ title: "Hata", description: d.error, variant: "destructive" }); return; }
+    const url = d.link.startsWith("http") ? d.link : window.location.origin + d.link;
+    await navigator.clipboard.writeText(url).catch(() => {});
+    toast({ title: "Tedarikçi bağlantısı kopyalandı", description: "Tedarikçi raporunu görür, düzeltmeleri bildirip yeniden değerlendirme isteyebilir." });
+  }
+
+  const sendMail = useMutation({
+    mutationFn: async () => {
+      const email = vendor.supplierContactEmail || window.prompt("Tedarikçi e-posta adresi:") || "";
+      if (!email) throw new Error("E-posta adresi gerekli");
+      const r = await fetch(`/api/tprm/vendors/${vendor.id}/send-to-supplier`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Gönderilemedi");
+      return d;
+    },
+    onSuccess: () => { toast({ title: "Rapor tedarikçiye gönderildi" }); qc.invalidateQueries({ queryKey: ["tprm-vendor-events", vendor.id] }); },
+    onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  const ack = useMutation({
+    mutationFn: () => fetch(`/api/tprm/vendors/${vendor.id}/remediation-ack`, { method: "POST", credentials: "include" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tprm-vendors"] }),
+  });
+
+  if (vendor.lastScanScore === null && vendor.questionnaireStatus === "none") return null;
+  const emailOn = !!settings?.emailConfigured;
+
+  return (
+    <div className="space-y-2">
+      {vendor.remediationStatus === "requested" && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-400">
+          Tedarikçi düzeltmeleri tamamladığını bildirdi; yeni tarama sürüyor. Sonuçlanınca bilgilendirileceksiniz.
+        </div>
+      )}
+      {vendor.remediationStatus === "rescanned" && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-400 flex items-center justify-between gap-2">
+          <span>
+            Düzenlemeler tamamlandı, yeni tarama yapıldı
+            {vendor.scoreBeforeRemediation != null && vendor.lastScanScore != null ? ` (skor ${vendor.scoreBeforeRemediation} → ${vendor.lastScanScore})` : ""}. Lütfen kontrol edin.
+          </span>
+          <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => ack.mutate()}>Kontrol ettim</Button>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={!emailOn || sendMail.isPending}
+          title={emailOn ? undefined : "E-posta servisi aktif olunca kullanılabilir"} onClick={() => sendMail.mutate()}>
+          <Download className="h-3 w-3 rotate-180" /> Tedarikçiye Gönder (E-posta)
+        </Button>
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={copyLink}>
+          <Copy className="h-3 w-3" /> Tedarikçi Bağlantısını Kopyala
+        </Button>
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowLog(x => !x)}>
+          {showLog ? "Geçmişi gizle" : "Geçmiş"}
+        </Button>
+      </div>
+      {!emailOn && <p className="text-[11px] text-muted-foreground">E-posta servisi aktif değil; bağlantıyı kopyalayıp tedarikçiye kendiniz iletebilirsiniz.</p>}
+      {showLog && (
+        <ul className="text-xs text-muted-foreground space-y-1">
+          {(events.data?.events ?? []).length === 0 && <li>Henüz kayıt yok.</li>}
+          {(events.data?.events ?? []).map(e => (
+            <li key={e.id}>{new Date(e.createdAt).toLocaleString("tr-TR")} — {EVENT_LABEL[e.kind] ?? e.kind}
+              {e.kind === "rescan_done" && e.detail ? ` (${String(e.detail["before"] ?? "—")} → ${String(e.detail["after"] ?? "—")})` : ""}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function NotifySettingsButton() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const { data } = useQuery<{ notifyEmails: string[]; accountEmail: string; emailConfigured: boolean }>({
+    queryKey: ["tprm-settings"],
+    queryFn: () => fetch("/api/tprm/settings", { credentials: "include" }).then(r => r.json()),
+  });
+  const save = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/tprm/settings", { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notifyEmails: text }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Kaydedilemedi");
+    },
+    onSuccess: () => { toast({ title: "Bildirim kişileri kaydedildi" }); qc.invalidateQueries({ queryKey: ["tprm-settings"] }); setOpen(false); },
+    onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
+  });
+  return (
+    <>
+      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setText((data?.notifyEmails ?? []).join(", ")); setOpen(true); }}>
+        Bildirim Kişileri
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Bildirim kişileri</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bir tedarikçi düzeltmeleri tamamlayıp yeni tarama yapıldığında bu adreslere bilgi gider. Boşsa hesap e-postanız ({data?.accountEmail}) kullanılır. Virgülle ayırın.
+          </p>
+          <Input value={text} onChange={e => setText(e.target.value)} placeholder="ad@sirket.com, ciso@sirket.com" />
+          {!data?.emailConfigured && <p className="text-xs text-muted-foreground">E-posta servisi aktif olunca bildirimler e-postayla gönderilir; o zamana kadar panelde görünür.</p>}
+          <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>Kaydet</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 function VendorQuestionnairePanel({ vendorId }: { vendorId: number }) {
@@ -443,6 +583,8 @@ export default function TedarikciPortfoyu() {
   if (!customer) return null;
 
   return (
+    <>
+    <TprmNav />
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
 
       {/* Başlık */}
@@ -462,10 +604,13 @@ export default function TedarikciPortfoyu() {
         </div>
         <div className="flex items-center gap-2">
           {vendors.length > 0 && (
+            <NotifySettingsButton />
+          )}
+          {vendors.length > 0 && (
             <Button asChild size="sm" variant="outline" className="gap-1.5">
               <a href="/api/tprm/vendors/report.pdf">
                 <FileText className="h-4 w-4" />
-                PDF Rapor
+                Yönetim Raporu (PDF)
               </a>
             </Button>
           )}
@@ -652,7 +797,7 @@ export default function TedarikciPortfoyu() {
                             <Button
                               variant="outline" size="sm" className="h-7 text-xs gap-1"
                               onClick={() => {
-                                const link = `/tprm/anket/${v.questionnaireToken}`;
+                                const link = `${window.location.origin}/tprm/anket/${v.questionnaireToken}`;
                                 copyToClipboard(link, v.questionnaireToken!);
                               }}
                             >
@@ -673,6 +818,7 @@ export default function TedarikciPortfoyu() {
 
                       {/* Tedarikçi beyanı (anket) — tarama skoruyla birleştirilmez */}
                       {v.questionnaireStatus === "completed" && <VendorQuestionnairePanel vendorId={v.id} />}
+                      <VendorSupplierActions vendor={v} />
 
                       {/* Uyarı bildirimleri */}
                       {v.alertSentAt && (
@@ -876,5 +1022,6 @@ export default function TedarikciPortfoyu() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

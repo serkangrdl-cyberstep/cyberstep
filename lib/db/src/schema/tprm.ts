@@ -14,6 +14,9 @@ export const tprmQuestionnaireLinkTable = pgTable("tprm_questionnaire_links", {
   scanData: jsonb("scan_data"),            // raw scan result
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // initial: ilk anket · reassess: düzeltme sonrası yeniden değerlendirme talebi
+  kind: text("kind").notNull().default("initial"),
+  vendorId: integer("vendor_id"),
 });
 
 // Tedarikçinin doldurduğu anket yanıtları
@@ -53,6 +56,21 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   // Tarama aktif mi
   monitoringActive: boolean("monitoring_active").notNull().default(true),
   addedAt: timestamp("added_at").notNull().defaultNow(),
+  // Tedarikçi iletişim e-postası (anketten) ve düzeltme/yeniden değerlendirme döngüsü
+  supplierContactEmail: text("supplier_contact_email"),
+  remediationStatus: text("remediation_status").notNull().default("none"), // none | requested | rescanned
+  remediationRequestedAt: timestamp("remediation_requested_at"),
+  remediationDoneAt: timestamp("remediation_done_at"),
+  scoreBeforeRemediation: integer("score_before_remediation"),
+});
+
+// Tedarikçi olay geçmişi (yönetim raporu ve zaman çizelgesi için)
+export const tprmVendorEventTable = pgTable("tprm_vendor_events", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull(),
+  kind: text("kind").notNull(), // questionnaire_completed | report_sent | reassess_requested | rescan_done
+  detail: jsonb("detail"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertTprmLinkSchema = createInsertSchema(tprmQuestionnaireLinkTable).omit({ id: true, createdAt: true });

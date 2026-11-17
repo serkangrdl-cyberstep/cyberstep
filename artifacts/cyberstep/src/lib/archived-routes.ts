@@ -43,6 +43,9 @@ export const ARCHIVED_PORTAL: readonly string[] = [
   "/hesabim/soc", "/hesabim/noc", "/hesabim/noc-kurulum", "/hesabim/cloud-guvenlik",
   "/hesabim/ioc-log", "/hesabim/ioc-sorgu", "/hesabim/whitelist", "/hesabim/ic-tarama",
   "/hesabim/ciso-asistan", "/hesabim/technology-discovery", "/hesabim/servislerim", "/hesabim/sepet",
+  // Eski ürün sayfaları (TPRM odağı, portal sadeleştirme)
+  "/hesabim/bulgularim", "/hesabim/guvenlik-durumu", "/hesabim/entegrasyonlarim", "/hesabim/dns-izleme",
+  "/hesabim/fortinet-entegrasyonu", "/hesabim/enterprise", "/hesabim/kurulum", "/hesabim/davet",
 ];
 
 /**

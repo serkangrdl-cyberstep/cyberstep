@@ -1268,7 +1268,15 @@ interface OtxData {
   maliciousCount: number;
 }
 
+// OTX yavaş ve zaman zaman bağlantıyı kesiyor: zaman aşımı/bağlantı hatasında bir kez daha denenir.
 async function checkOTX(domain: string): Promise<OtxData | null> {
+  const first = await checkOTXOnce(domain);
+  if (first !== null || !process.env["OTX_API_KEY"]) return first;
+  await new Promise((r) => setTimeout(r, 1500));
+  return checkOTXOnce(domain);
+}
+
+async function checkOTXOnce(domain: string): Promise<OtxData | null> {
   const apiKey = process.env["OTX_API_KEY"];
   if (!apiKey) { logger.info("OTX: OTX_API_KEY tanımlı değil, atlanıyor"); return null; }
   return new Promise((resolve) => {
@@ -1277,7 +1285,7 @@ async function checkOTX(domain: string): Promise<OtxData | null> {
         hostname: "otx.alienvault.com",
         path: `/api/v1/indicators/domain/${encodeURIComponent(domain)}/general`,
         method: "GET",
-        timeout: 10000,
+        timeout: 20000,
         headers: { "X-OTX-API-KEY": apiKey, "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0" },
       },
       (res) => {

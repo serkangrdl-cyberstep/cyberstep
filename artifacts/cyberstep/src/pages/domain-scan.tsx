@@ -100,6 +100,7 @@ interface ScanResult {
     xContentTypeOptions: boolean;
     csp: boolean;
     referrerPolicy: boolean;
+    xPoweredBy?: string | null;
   } | null;
   urlhausListed: boolean;
   urlhausThreat: string | null;
@@ -2656,6 +2657,9 @@ export default function DomainScanPage() {
                         </span>
                       ))}
                     </div>
+                    {result.httpHeadersDetails.xPoweredBy && (
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-2">Sunucu yazılım bilgisini açığa vuruyor: X-Powered-By: {result.httpHeadersDetails.xPoweredBy} (düşük risk)</p>
+                    )}
                   </div>
                 )}
 

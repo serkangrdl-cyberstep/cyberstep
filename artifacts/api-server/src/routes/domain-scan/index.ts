@@ -2380,7 +2380,7 @@ router.get("/domain-scan/:id/pdf", async (req, res) => {
       blacklistResults: (scan.blacklistResults as Array<{ list: string; listed: boolean; code?: string }> | null) ?? [],
       shadowItServices: (scan.shadowItServices as Array<{ name: string; category: string; risk: string }>) ?? [],
       httpHeadersScore: scan.httpHeadersScore,
-      httpHeadersDetails: scan.httpHeadersDetails as { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; checkFailed?: boolean } | null,
+      httpHeadersDetails: scan.httpHeadersDetails as { hsts: boolean; xFrameOptions: boolean; xContentTypeOptions: boolean; csp: boolean; referrerPolicy: boolean; xPoweredBy?: string | null; checkFailed?: boolean } | null,
       urlhausListed: scan.urlhausListed, urlhausThreat: scan.urlhausThreat,
       usomListed: scan.usomListed,
       ctSubdomainCount: scan.ctSubdomainCount,

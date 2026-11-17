@@ -150,6 +150,7 @@ router.get("/v1/score/:domain/full", requireApiKey, domainRateLimit, async (req:
       },
       httpHeaders: {
         score: scan.httpHeadersScore,
+        maxScore: 5,
         details: scan.httpHeadersDetails,
       },
       subdomains: {

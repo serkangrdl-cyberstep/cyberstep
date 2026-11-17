@@ -53,12 +53,12 @@ const TPRM_ROLE: Record<string, { label: string; cls: string }> = {
     .map(id => [id, { label: "TPRM skorunda", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
   ...Object.fromEntries(["ssllabs"]
     .map(id => [id, { label: "TPRM skorunda (TLS notu)", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
-  ...Object.fromEntries(["otx", "epss"]
+  ...Object.fromEntries(["otx", "epss", "hudsonrock", "mozilla-obs"]
     .map(id => [id, { label: "TPRM raporunda (bilgi, skora girmez)", cls: "bg-sky-500/15 text-sky-400 border-sky-500/30" }])),
-  ...Object.fromEntries(["mozilla-obs", "censys"]
-    .map(id => [id, { label: "TPRM taramasına bağlı değil", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" }])),
   ...Object.fromEntries(["vulncheck"]
-    .map(id => [id, { label: "TPRM için planlı", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" }])),
+    .map(id => [id, { label: "TPRM skorunda (KEV, anahtar varsa)", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" }])),
+  ...Object.fromEntries(["censys"]
+    .map(id => [id, { label: "TPRM taramasına bağlı değil (roadmap, ücretli plan)", cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" }])),
 };
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -78,9 +78,18 @@ const INTEGRATIONS: IntegrationDef[] = [
     envKey: "VULNCHECK_API_KEY", always: false,
     desc: "NVD ve CISA KEV'den daha güncel CVE + POC kodu varlığı + exploit olgunluk analizi — tehdit aktörü attribution dahil",
     why: "Bir CVE'nin gerçekten istismar edilip edilmediğini ve kimin kullandığını gösterir. KEV'de olmayan ama aktif POC'ü olan açıkları tespit eder.",
-    how: "CVE istihbarat döngüsüne eklenir. VulnCheck KEV feed'i CISA KEV ile birleştirilir, IOC Analiz Merkezi hash/domain sorgularında zenginleştirme sağlar.",
+    how: "TPRM taramasında bulunan CVE'ler VulnCheck KEV'e sorulur; listede olan CVE, CISA KEV gibi skor tavanı (49) uygular. Ürün içinde kullanım için VulnCheck'e belirgin atıf gerekir (rapor ve metodolojide yapıldı). Anahtar yoksa bu kontrol çalışmaz ve 'kontrol edilemedi' sayılmaz.",
     setup: "1. vulncheck.com → Sign Up (Community ücretsiz)  2. Hesap ayarları → API Token oluşturun  3. Token'ı aşağıya yapıştırın.",
     docs: "https://docs.vulncheck.com/",
+  },
+  {
+    id: "hudsonrock", name: "Hudson Rock (Cavalier)", category: "Tehdit İstihbaratı", type: "security", icon: "🕵️",
+    cost: "free", costLabel: "Ücretsiz", always: true,
+    desc: "Infostealer zararlılarıyla çalınmış kurumsal kimlik bilgisi sayıları (çalışan ve kullanıcı hesabı)",
+    why: "Tedarikçinin çalışanlarının parolalarının zararlı yazılımla çalınıp çalınmadığına dair dışarıdan görünür bir sinyal verir.",
+    how: "TPRM derin taramasında domain sorgulanır; sayılar raporda bilgi olarak gösterilir, skora girmez. Ticari kullanım koşulları satıştan önce kontrol edilecek.",
+    setup: "Kurulum gerekmez. Anahtarsız herkese açık OSINT uç noktası kullanılır.",
+    docs: "https://docs.hudsonrock.com/",
   },
   {
     id: "urlhaus", name: "URLhaus (Abuse.ch)", category: "Tehdit İstihbaratı", type: "security", icon: "🔗",

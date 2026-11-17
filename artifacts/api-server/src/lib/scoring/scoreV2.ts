@@ -132,7 +132,7 @@ export interface ScoreV2Input {
 }
 
 /** CVE ID → KEV bilgisi. Listede olmayan CVE'ler KEV değildir. */
-export type KevLookup = Map<string, { ransomware: boolean }>;
+export type KevLookup = Map<string, { ransomware: boolean; source?: "vulncheck" }>;
 
 // Keşif hattının (performDomainScan) hiç sorgulamadığı ve varsayılan değerle yazdığı alanlar.
 const LIGHTWEIGHT_SOURCES = new Set(["discovery_pipeline"]);
@@ -228,10 +228,10 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
     const kevInfo = kev.get(c.cveId);
     if (kevInfo) {
       vulnDeduction += add("vulnerabilities", "critical",
-        `${c.cveId} aktif olarak sömürülüyor (CISA KEV)${kevInfo.ransomware ? " — fidye yazılımında kullanılıyor" : ""}`, 20);
+        `${c.cveId} aktif olarak sömürülüyor (${kevInfo.source === "vulncheck" ? "VulnCheck KEV" : "CISA KEV"})${kevInfo.ransomware ? " — fidye yazılımında kullanılıyor" : ""}`, 20);
       caps.push(kevInfo.ransomware
         ? { max: 39, reason: "Fidye yazılımında kullanılan KEV zafiyeti" }
-        : { max: 49, reason: "CISA KEV listesinde zafiyet" });
+        : { max: 49, reason: kevInfo.source === "vulncheck" ? "VulnCheck KEV listesinde zafiyet" : "CISA KEV listesinde zafiyet" });
     } else if (cvss >= 9) {
       vulnDeduction += add("vulnerabilities", "critical", `${c.cveId} kritik zafiyet (CVSS ${cvss})`, 10);
     } else if (cvss >= 7) {

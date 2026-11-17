@@ -1613,6 +1613,7 @@ export function generateDomainScanPassport(data: PassportData): Promise<Buffer> 
 export interface PdfTprmExtra {
   feodoC2Ips: string[]; threatFoxIocCount: number; danglingCnames: string[]; subdomainsChecked: number;
   sslLabsGrade?: string | null; sslLabsPending?: boolean; otx?: { pulseCount: number; trTargetedPulses: number } | null;
+  vulncheckKev?: string[] | null; hudsonRock?: { employees: number; users: number; stealers: number } | null; mozillaObservatory?: { grade: string; score: number | null } | null;
 }
 
 export interface InsuranceReportData {

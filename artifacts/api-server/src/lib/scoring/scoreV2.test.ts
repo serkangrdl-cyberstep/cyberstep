@@ -54,6 +54,16 @@ test("KEV zafiyeti skoru 49 ile sınırlar", () => {
   assert.equal(r.findings[0]!.severity, "critical");
 });
 
+test("VulnCheck KEV kaynağı bulguda ve tavanda görünür", () => {
+  const r = computeScoreV2(
+    { ...clean, cveSummary: [{ cveId: "CVE-2025-0001", cvssScore: 8.0 }] },
+    new Map([["CVE-2025-0001", { ransomware: false, source: "vulncheck" as const }]]),
+  );
+  assert.ok(r.score <= 49);
+  assert.match(r.findings[0]!.title, /VulnCheck KEV/);
+  assert.ok(r.caps.some((c) => String(c).includes("VulnCheck KEV")));
+});
+
 test("fidye yazılımı KEV'i skoru 39 ile sınırlar", () => {
   const r = computeScoreV2(
     { ...clean, cveSummary: [{ cveId: "CVE-2023-27997", cvssScore: 9.8 }] },

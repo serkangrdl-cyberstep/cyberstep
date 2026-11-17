@@ -56,7 +56,7 @@ function buildUncheckedSources(c: {
   spf?: { unchecked?: boolean }; dmarc?: { unchecked?: boolean }; dkim?: { unchecked?: boolean }; mx?: { unchecked?: boolean };
   /** Shodan sorgusu yapılamadıysa/başarısız olduysa true (ağ maruziyeti ölçülemedi). */
   shodanFailed?: boolean;
-  nvdFailed?: boolean; sslLabsUnchecked?: boolean; otxUnchecked?: boolean; feodoUnchecked?: boolean; threatFoxUnchecked?: boolean; ctFailed?: boolean;
+  nvdFailed?: boolean; sslLabsUnchecked?: boolean; otxUnchecked?: boolean; feodoUnchecked?: boolean; threatFoxUnchecked?: boolean; ctFailed?: boolean; vulncheckFailed?: boolean; hudsonUnchecked?: boolean; mozillaUnchecked?: boolean;
 }): string[] {
   return [
     ...(c.hibp?.unchecked ? ["hibp"] : []),
@@ -72,6 +72,9 @@ function buildUncheckedSources(c: {
     ...(c.feodoUnchecked ? ["feodo"] : []),
     ...(c.threatFoxUnchecked ? ["threatfox"] : []),
     ...(c.ctFailed ? ["ct"] : []),
+    ...(c.vulncheckFailed ? ["vulncheck"] : []),
+    ...(c.hudsonUnchecked ? ["hudsonrock"] : []),
+    ...(c.mozillaUnchecked ? ["mozilla"] : []),
     ...((c.spf?.unchecked || c.dmarc?.unchecked || c.dkim?.unchecked || c.mx?.unchecked) ? ["email"] : []),
   ];
 }
@@ -1687,18 +1690,22 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
     // Derin tarama (yalnızca TPRM tam modu): tüm A kayıtları için botnet C2, ThreatFox IOC, sahipsiz alt alan adları.
     const deep = full ? await (async () => {
       const dnsP = await import("dns/promises");
-      const [ips, tf, ct, ssll, otx, epss] = await Promise.all([
+      const { checkVulnCheckKev, checkHudsonRock, checkObservatoryV2 } = await import("../../services/tprmIntel");
+      const [ips, tf, ct, ssll, otx, epss, vcKev, hudson, mozObs] = await Promise.all([
         dnsP.resolve4(domain).catch(() => [] as string[]),
         checkThreatFox(domain).catch(() => ({ iocCount: 0, threatType: null, malwareName: null, unchecked: true } as ThreatFoxResult)),
         checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0, failed: true as boolean | undefined })),
         checkSSLLabsTprm(domain).catch(() => ({ grade: null as string | null, pending: false })),
         checkOTX(domain).catch(() => null),
         cveSummary.length > 0 ? enrichWithEpss(cveSummary).catch(() => [] as NvdCveEntryWithEpss[]) : Promise.resolve([] as NvdCveEntryWithEpss[]),
+        checkVulnCheckKev(cveSummary.map((c) => c.cveId), process.env["VULNCHECK_API_KEY"], fetch as never).catch(() => ({ kev: [] as string[], failed: true })),
+        checkHudsonRock(domain, fetch as never).catch(() => null),
+        checkObservatoryV2(domain, fetch as never).catch(() => null),
       ]);
       const feodo = await checkFeodoIps(ips).catch(() => ({ c2Ips: [] as string[], unchecked: true }));
       const { findDanglingCnames } = await import("../../services/tprmDeepScan");
       const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
-      return { ips, tf, ct, feodo, dangling, ssll, otx, epss };
+      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs };
     })() : null;
     const tprmExtra = deep ? {
       feodoC2Ips: deep.feodo.c2Ips,
@@ -1712,6 +1719,9 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       sslLabsPending: deep.ssll.pending,
       epss: Object.fromEntries(deep.epss.map((e) => [e.cveId, { score: e.epssScore, percentile: e.epssPercentile }])),
       otx: deep.otx ? { pulseCount: deep.otx.pulseCount, trTargetedPulses: deep.otx.maliciousCount } : null,
+      vulncheckKev: deep.vcKev ? deep.vcKev.kev : null,
+      hudsonRock: deep.hudson,
+      mozillaObservatory: deep.mozObs,
     } : null;
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
@@ -1817,7 +1827,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         abuseIpdbScore: abuseIpdb?.score ?? null, abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0, abuseIpdbCountry: abuseIpdb?.countryCode ?? null, abuseIpdbIsp: abuseIpdb?.isp ?? null,
         safeBrowsingFlagged: safeBrowsing ? safeBrowsing.flagged : null, safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: null,
-        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null, nvdFailed: nvdRes.failed, sslLabsUnchecked: deep ? deep.ssll.grade === null : undefined, otxUnchecked: deep ? deep.otx === null : undefined, feodoUnchecked: deep?.feodo.unchecked, threatFoxUnchecked: deep?.tf.unchecked, ctFailed: deep?.ct.failed }),
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx, shodanFailed: shodan === null, nvdFailed: nvdRes.failed, sslLabsUnchecked: deep ? deep.ssll.grade === null : undefined, otxUnchecked: deep ? deep.otx === null : undefined, feodoUnchecked: deep?.feodo.unchecked, threatFoxUnchecked: deep?.tf.unchecked, ctFailed: deep?.ct.failed, vulncheckFailed: deep?.vcKev?.failed, hudsonUnchecked: deep ? deep.hudson === null : undefined, mozillaUnchecked: deep ? deep.mozObs === null : undefined }),
         tprmExtra,
         badgeToken: randomUUID(),
         referralSource: full ? "tprm_scan" : "discovery_pipeline",

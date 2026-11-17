@@ -1864,7 +1864,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
               <AlertOctagon className="h-4 w-4 text-red-500" />
               Öncelikli Aksiyonlar
             </CardTitle>
-            <CardDescription className="text-xs">Tüm senaryolara göre en kritik 3 kapatma noktası</CardDescription>
+            <CardDescription className="text-xs">Senaryolara göre öncelikli kapatma noktaları</CardDescription>
           </CardHeader>
           <CardContent className="pt-0 space-y-2">
             {result.once_kapat.map((item) => (
@@ -2484,7 +2484,7 @@ export default function DomainScanPage() {
             criticalCount={result.criticalCveCount ?? 0}
             highCount={result.highCveCount ?? 0}
             mediumCount={(result.cveSummary ?? []).filter((c: { cvssScore?: number }) => (c.cvssScore ?? 0) >= 4 && (c.cvssScore ?? 0) < 7).length}
-            sectorAvg={54}
+            sectorAvg={benchmark?.available ? benchmark.median : undefined}
             scanDate={result.createdAt}
             variant="full"
             badgeToken={result.badgeToken}

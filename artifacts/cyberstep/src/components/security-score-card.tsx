@@ -125,7 +125,7 @@ function SectorBar({ score, sectorAvg }: { score: number; sectorAvg: number }) {
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Sektör Ort. {sectorAvg}</span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Türkiye medyanı {sectorAvg}</span>
         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Sizin Skorunuz {score}</span>
       </div>
       <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.07)", position: "relative", overflow: "visible" }}>
@@ -165,7 +165,7 @@ export function SecurityScoreCard({
   criticalCount,
   highCount,
   mediumCount,
-  sectorAvg = 54,
+  sectorAvg,
   scanDate,
   variant = "full",
   badgeToken,
@@ -307,8 +307,8 @@ export function SecurityScoreCard({
           marginBottom: 16,
         }}
       >
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 6 }}>Sektör Karşılaştırması (Genel Ortalama)</div>
-        <SectorBar score={score} sectorAvg={sectorAvg} />
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 6 }}>Türkiye Karşılaştırması</div>
+        {sectorAvg != null ? <SectorBar score={score} sectorAvg={sectorAvg} /> : <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Karşılaştırma verisi hazırlanıyor</div>}
       </div>
 
       {/* Footer */}

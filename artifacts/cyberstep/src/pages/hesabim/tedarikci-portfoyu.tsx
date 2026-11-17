@@ -46,6 +46,7 @@ interface ScoreV2Category { key: string; label: string; maxPoints: number; point
 interface ScoreV2Finding { category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }
 interface StoredScanData {
   scoreVersion?: string;
+  scanErrorAt?: string;
   score?: {
     score: number;
     grade: string;
@@ -519,6 +520,9 @@ export default function TedarikciPortfoyu() {
                       <div className="mt-2 flex items-center gap-3 flex-wrap">
                         <ScoreBar score={v.lastScanScore} grade={v.lastScanData?.score?.grade} insufficient={!!v.lastScanData?.score?.insufficientData} />
                         <TrendIcon current={v.lastScanScore} prev={v.prevScanScore} />
+                        {v.lastScanData?.scanErrorAt && (!v.lastScanAt || new Date(v.lastScanData.scanErrorAt) > new Date(v.lastScanAt)) && (
+                          <span className="text-[10px] text-amber-500">Son tarama denemesi başarısız oldu — yeniden tarayın</span>
+                        )}
                         {v.lastScanAt && (
                           <span className="text-[10px] text-muted-foreground">
                             Son tarama: {new Date(v.lastScanAt).toLocaleDateString("tr-TR")}

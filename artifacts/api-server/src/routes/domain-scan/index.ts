@@ -49,47 +49,74 @@ const DKIM_SELECTORS = [
   "sendgrid", "mailchimp", "mimecast", "pm", "s1", "s2",
 ];
 
+/** Ölçülemeyen kaynakların listesi (domain_scans.unchecked_sources). Ölçülemeyen kaynak "temiz" sayılmaz. */
+function buildUncheckedSources(c: {
+  hibp?: { unchecked?: boolean } | null; blacklist?: { unchecked?: boolean } | null; urlhaus?: { unchecked?: boolean } | null;
+  usom?: { unchecked?: boolean } | null; ssl?: { unchecked?: boolean } | null; shadowIt?: { unchecked?: boolean } | null;
+  spf?: { unchecked?: boolean }; dmarc?: { unchecked?: boolean }; dkim?: { unchecked?: boolean }; mx?: { unchecked?: boolean };
+}): string[] {
+  return [
+    ...(c.hibp?.unchecked ? ["hibp"] : []),
+    ...(c.blacklist?.unchecked ? ["dnsbl"] : []),
+    ...(c.urlhaus?.unchecked ? ["urlhaus"] : []),
+    ...(c.usom?.unchecked ? ["usom"] : []),
+    ...(c.ssl?.unchecked ? ["ssl"] : []),
+    ...(c.shadowIt?.unchecked ? ["shadowit"] : []),
+    ...((c.spf?.unchecked || c.dmarc?.unchecked || c.dkim?.unchecked || c.mx?.unchecked) ? ["email"] : []),
+  ];
+}
+
 // ─── DNS helpers ─────────────────────────────────────────────────────────────
 
-async function checkSPF(domain: string): Promise<{ pass: boolean; record: string | null; strength: "hardfail" | "softfail" | "neutral" | "none" }> {
-  try {
-    const records = await dns.resolveTxt(domain);
-    for (const r of records) {
-      const joined = r.join("");
-      if (joined.startsWith("v=spf1")) {
-        // "-all" = hardfail (pass); "~all" = softfail (warn, not pass); "?all" / "+all" / missing = fail
-        if (joined.includes("-all")) return { pass: true, record: joined, strength: "hardfail" };
-        if (joined.includes("~all")) return { pass: false, record: joined, strength: "softfail" };
-        if (joined.includes("?all")) return { pass: false, record: joined, strength: "neutral" };
-        return { pass: false, record: joined, strength: "none" };
-      }
+// DNS: ENODATA/ENOTFOUND = kayıt kesin olarak yok. Zaman aşımı/SERVFAIL gibi geçici hatalar
+// "kayıt yok" sayılmaz: bir kez tekrar denenir, yine olmazsa kontrol "ölçülemedi" (unchecked) olur.
+const DNS_ABSENT = new Set(["ENODATA", "ENOTFOUND", "NODATA", "NOTFOUND"]);
+
+async function resolveTxtChecked(name: string): Promise<{ records: string[][]; unchecked: boolean }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return { records: await dns.resolveTxt(name), unchecked: false };
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code ?? "";
+      if (DNS_ABSENT.has(code)) return { records: [], unchecked: false };
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 600));
     }
-    return { pass: false, record: null, strength: "none" };
-  } catch {
-    return { pass: false, record: null, strength: "none" };
   }
+  return { records: [], unchecked: true };
 }
 
-async function checkDMARC(domain: string): Promise<{ pass: boolean; record: string | null; policy: string | null }> {
-  try {
-    const records = await dns.resolveTxt(`_dmarc.${domain}`);
-    for (const r of records) {
-      const joined = r.join("");
-      if (joined.startsWith("v=DMARC1")) {
-        const policy = joined.match(/p=([^;]+)/)?.[1]?.toLowerCase() ?? null;
-        // p=reject or p=quarantine = enforced (pass); p=none = monitor-only (not pass)
-        const pass = policy === "reject" || policy === "quarantine";
-        return { pass, record: joined, policy };
-      }
+async function checkSPF(domain: string): Promise<{ pass: boolean; record: string | null; strength: "hardfail" | "softfail" | "neutral" | "none"; unchecked?: boolean }> {
+  const { records, unchecked } = await resolveTxtChecked(domain);
+  for (const r of records) {
+    const joined = r.join("");
+    if (joined.startsWith("v=spf1")) {
+      // "-all" = hardfail (pass); "~all" = softfail (warn, not pass); "?all" / "+all" / missing = fail
+      if (joined.includes("-all")) return { pass: true, record: joined, strength: "hardfail" };
+      if (joined.includes("~all")) return { pass: false, record: joined, strength: "softfail" };
+      if (joined.includes("?all")) return { pass: false, record: joined, strength: "neutral" };
+      return { pass: false, record: joined, strength: "none" };
     }
-    return { pass: false, record: null, policy: null };
-  } catch {
-    return { pass: false, record: null, policy: null };
   }
+  return { pass: false, record: null, strength: "none", unchecked };
 }
 
-async function checkDKIM(domain: string): Promise<{ pass: boolean; selectors: string[] }> {
+async function checkDMARC(domain: string): Promise<{ pass: boolean; record: string | null; policy: string | null; unchecked?: boolean }> {
+  const { records, unchecked } = await resolveTxtChecked(`_dmarc.${domain}`);
+  for (const r of records) {
+    const joined = r.join("");
+    if (joined.startsWith("v=DMARC1")) {
+      const policy = joined.match(/p=([^;]+)/)?.[1]?.toLowerCase() ?? null;
+      // p=reject or p=quarantine = enforced (pass); p=none = monitor-only (not pass)
+      const pass = policy === "reject" || policy === "quarantine";
+      return { pass, record: joined, policy };
+    }
+  }
+  return { pass: false, record: null, policy: null, unchecked };
+}
+
+async function checkDKIM(domain: string): Promise<{ pass: boolean; selectors: string[]; unchecked?: boolean }> {
   const found: string[] = [];
+  let transient = 0;
   await Promise.all(
     DKIM_SELECTORS.map(async (selector) => {
       try {
@@ -100,24 +127,29 @@ async function checkDKIM(domain: string): Promise<{ pass: boolean; selectors: st
             break;
           }
         }
-      } catch {
-        // selector not found — expected
+      } catch (e) {
+        if (!DNS_ABSENT.has((e as NodeJS.ErrnoException).code ?? "")) transient++;
       }
     })
   );
-  return { pass: found.length > 0, selectors: found };
+  // Tüm seçici sorguları geçici hatayla bittiyse "yok" değil "ölçülemedi".
+  return { pass: found.length > 0, selectors: found, unchecked: found.length === 0 && transient === DKIM_SELECTORS.length };
 }
 
-async function checkMX(domain: string): Promise<{ pass: boolean; records: Array<{ exchange: string; priority: number }> }> {
-  try {
-    const records = await dns.resolveMx(domain);
-    return {
-      pass: records.length > 0,
-      records: records.map((r) => ({ exchange: r.exchange, priority: r.priority })),
-    };
-  } catch {
-    return { pass: false, records: [] };
+async function checkMX(domain: string): Promise<{ pass: boolean; records: Array<{ exchange: string; priority: number }>; unchecked?: boolean }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const records = await dns.resolveMx(domain);
+      return {
+        pass: records.length > 0,
+        records: records.map((r) => ({ exchange: r.exchange, priority: r.priority })),
+      };
+    } catch (e) {
+      if (DNS_ABSENT.has((e as NodeJS.ErrnoException).code ?? "")) return { pass: false, records: [] };
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 600));
+    }
   }
+  return { pass: false, records: [], unchecked: true };
 }
 
 async function checkSSLOnce(domain: string): Promise<{
@@ -416,10 +448,10 @@ async function fetchHomepage(domain: string): Promise<string> {
 // Güvenlik altyapısı kategorileri — bilinçli kurulmuş araçlardır, "gölge BT" değildir
 const SHADOW_IT_EXCLUDED_CATEGORIES = new Set(["Güvenlik / CDN", "Güvenlik"]);
 
-async function checkShadowIT(domain: string): Promise<{ services: ShadowItService[] }> {
+async function checkShadowIT(domain: string): Promise<{ services: ShadowItService[]; unchecked?: boolean }> {
   try {
     const html = await fetchHomepage(domain);
-    if (!html) return { services: [] };
+    if (!html) return { services: [], unchecked: true };
     const detected: ShadowItService[] = [];
     for (const svc of SHADOW_IT_CATALOG) {
       if (svc.pattern.test(html)) {
@@ -435,7 +467,7 @@ async function checkShadowIT(domain: string): Promise<{ services: ShadowItServic
     }
     return { services: detected };
   } catch {
-    return { services: [] };
+    return { services: [], unchecked: true };
   }
 }
 
@@ -679,6 +711,18 @@ const NVD_SERVICE_KEYWORDS: Record<string, string> = {
   "jQuery": "jQuery library",
 };
 
+// NVD CPE (vendor:product) eşlemesi — CVE'ler yalnızca sürüm doğrulanabilirse atfedilir.
+const NVD_CPE: Record<string, string> = {
+  WordPress: "wordpress:wordpress",
+  Joomla: "joomla:joomla\\!",
+  Drupal: "drupal:drupal",
+  Magento: "adobe:magento",
+  WooCommerce: "automattic:woocommerce",
+  PrestaShop: "prestashop:prestashop",
+  OpenCart: "opencart:opencart",
+  jQuery: "jquery:jquery",
+};
+
 interface NvdCveEntry { service: string; cveId: string; description: string; cvssScore: number; }
 
 // ─── Firmware / Network Device Extraction ─────────────────────────────────────
@@ -739,12 +783,17 @@ async function checkNvdCve(services: Array<{ name: string; risk: string; version
   if (targets.length === 0) return [];
   const results: NvdCveEntry[] = [];
   // Bug 6: CVE yaş filtresi — versiyon bilinmiyorsa son 3 yılın CVE'lerini al
-  const cutoffYear = new Date().getFullYear() - 3;
   for (const service of targets) {
     const keyword = NVD_SERVICE_KEYWORDS[service.name]!;
     const hasKnownVersion = service.version && service.version !== "unknown";
+    // Sürüm tespit edilemediyse CVE atfedilmez: anahtar kelime eşleşmesi tedarikçinin gerçekten
+    // etkilendiğini göstermez (ör. eklentiye ait kritik bir CVE). Yanlış zafiyet iddiası üretmemek için atlanır.
+    const cpe = NVD_CPE[service.name];
+    if (!hasKnownVersion || !cpe) continue;
+    void keyword;
     await new Promise<void>((resolve) => {
-      const path = `/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(keyword)}&resultsPerPage=5&cvssV3Severity=CRITICAL`;
+      const vms = `cpe:2.3:a:${cpe}:${service.version}:*:*:*:*:*:*:*`;
+      const path = `/rest/json/cves/2.0?virtualMatchString=${encodeURIComponent(vms)}&resultsPerPage=20&cvssV3Severity=CRITICAL`;
       const req = https.request(
         { hostname: "services.nvd.nist.gov", path, method: "GET", timeout: 8000, headers: { "Accept": "application/json", "User-Agent": "CyberStep.io Security Scanner/1.0", ...(process.env["NVD_API_KEY"] ? { apiKey: process.env["NVD_API_KEY"] } : {}) } },
         (res) => {
@@ -752,24 +801,23 @@ async function checkNvdCve(services: Array<{ name: string; risk: string; version
           let size = 0;
           res.on("data", (chunk: Buffer) => {
             size += chunk.length;
-            if (size > 300 * 1024) { res.destroy(); resolve(); return; }
+            if (size > 1500 * 1024) { res.destroy(); resolve(); return; }
             data += chunk.toString();
           });
           res.on("end", () => {
             try {
-              type NvdResp = { vulnerabilities?: Array<{ cve: { id: string; descriptions: Array<{ lang: string; value: string }>; metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }> } } }> };
+              type NvdResp = { vulnerabilities?: Array<{ cve: { id: string; descriptions: Array<{ lang: string; value: string }>; metrics?: { cvssMetricV31?: Array<{ cvssData: { baseScore: number } }>; cvssMetricV30?: Array<{ cvssData: { baseScore: number } }> }; configurations?: NvdConfiguration[] } }> };
               const json = JSON.parse(data) as NvdResp;
               let added = 0;
               for (const vuln of (json.vulnerabilities ?? [])) {
                 if (added >= 2) break;
                 const cveId = vuln.cve.id;
-                // Versiyon bilinmiyorsa 3 yıldan eski CVE'leri filtrele
-                if (!hasKnownVersion) {
-                  const cveYear = parseInt(cveId.split("-")[1] ?? "0");
-                  if (!isNaN(cveYear) && cveYear < cutoffYear) continue;
-                }
+                // Sürüm aralığı doğrulaması: yapılandırma verisi varsa ve sürüm etkilenmiyorsa atla.
+                if (cveAffectsVersion(vuln.cve.configurations, cpe, String(service.version)) === false) continue;
                 const desc = vuln.cve.descriptions.find(d => d.lang === "en")?.value ?? "";
-                const score = vuln.cve.metrics?.cvssMetricV31?.[0]?.cvssData.baseScore ?? 9.0;
+                // CVSS skoru yoksa varsayılan uydurulmaz; kayıt atlanır.
+                const score = vuln.cve.metrics?.cvssMetricV31?.[0]?.cvssData.baseScore ?? vuln.cve.metrics?.cvssMetricV30?.[0]?.cvssData.baseScore;
+                if (typeof score !== "number") continue;
                 results.push({ service: service.name, cveId, description: desc.substring(0, 250), cvssScore: score });
                 added++;
               }
@@ -788,6 +836,7 @@ async function checkNvdCve(services: Array<{ name: string; risk: string; version
 }
 
 // ─── Shodan internet exposure check ──────────────────────────────────────────
+import { cveAffectsVersion, type NvdConfiguration } from "../../services/nvdVersionMatch";
 import { detectCdn, classifyPort, buildPortRiskSummary, type ClassifiedPort, type CdnInfo, type PortRiskSummary } from "../../services/portRiskClassifier";
 interface ShodanPort extends ClassifiedPort {}
 
@@ -1465,7 +1514,12 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
 }
 
 // ─── performDomainScan: Direct call (used by discovery pipeline) ─────────────
-export async function performDomainScan(domain: string): Promise<{
+/**
+ * opts.full=true: skora girdi olan tüm kaynaklar (HIBP, HTTP başlıkları, URLhaus, Safe Browsing,
+ * VirusTotal, AbuseIPDB) de sorgulanır; TPRM tedarikçi taraması bunu kullanır. Varsayılan (hafif)
+ * mod keşif hattı içindir ve bu kaynakları sorgulamaz (skor v2 bunları "ölçülmedi" sayar).
+ */
+export async function performDomainScan(domain: string, opts: { full?: boolean } = {}): Promise<{
   id: number;
   overallScore: number;
   findings: Array<{ severity: string; title: string }>;
@@ -1502,6 +1556,19 @@ export async function performDomainScan(domain: string): Promise<{
     const cveSummary: NvdCveEntry[] = shadowIt.services.length > 0
       ? await checkNvdCve(shadowIt.services).catch(() => [])
       : [];
+
+    // Tam mod: skora girdi olan zenginleştirme kaynakları (hataları tek tek yakalanır, "ölçülemedi" olur).
+    const full = opts.full === true;
+    const hibp = full ? await checkHIBP(domain).catch(() => ({ breachCount: 0, breaches: [] as { name: string; breachDate: string; pwnCount: number; dataClasses: string[] }[], unchecked: true as boolean | undefined })) : null;
+    const [httpHeaders, urlhaus, virusTotal, abuseIpdb, safeBrowsing] = full
+      ? await Promise.all([
+          checkHTTPHeaders(domain).catch(() => ({ score: 0, hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false, xPoweredBy: null as string | null, checkFailed: true })),
+          checkURLhaus(domain).catch(() => ({ listed: false, threat: null as string | null, unchecked: true as boolean | undefined })),
+          checkVirusTotal(domain).catch(() => null),
+          checkAbuseIPDB(domain).catch(() => null),
+          checkGoogleSafeBrowsing(domain).catch(() => null),
+        ])
+      : [null, null, null, null, null] as const;
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir
     const wafFields = await (async () => {
@@ -1583,11 +1650,14 @@ export async function performDomainScan(domain: string): Promise<{
         mxPass: mx.pass, mxRecords: mx.records,
         sslPass: ssl.pass, sslExpiry: ssl.expiryDate, sslIssuer: ssl.issuer, sslDaysUntilExpiry: ssl.daysUntilExpiry,
         overallScore: scoreResult.total,
-        hibpBreachCount: 0, hibpBreaches: [],
+        hibpBreachCount: hibp?.breachCount ?? 0, hibpBreaches: hibp?.breaches ?? [],
         blacklisted: blacklist.blacklisted, blacklistCount: blacklist.blacklistCount, blacklistResults: blacklist.results,
         shadowItServices: shadowIt.services,
-        httpHeadersScore: 0, httpHeadersDetails: { hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false },
-        urlhausListed: false, urlhausThreat: null,
+        httpHeadersScore: httpHeaders?.score ?? 0,
+        httpHeadersDetails: httpHeaders
+          ? { hsts: httpHeaders.hsts, xFrameOptions: httpHeaders.xFrameOptions, xContentTypeOptions: httpHeaders.xContentTypeOptions, csp: httpHeaders.csp, referrerPolicy: httpHeaders.referrerPolicy, xPoweredBy: httpHeaders.xPoweredBy ?? null, checkFailed: httpHeaders.checkFailed }
+          : { hsts: false, xFrameOptions: false, xContentTypeOptions: false, csp: false, referrerPolicy: false },
+        urlhausListed: urlhaus?.listed ?? false, urlhausThreat: urlhaus?.threat ?? null,
         usomListed: usom.listed,
         ctSubdomains: [], ctSubdomainCount: 0,
         cveSummary,
@@ -1599,12 +1669,13 @@ export async function performDomainScan(domain: string): Promise<{
         openPortsCount: shodan?.openPorts?.length ?? 0,
         criticalCveCount: cveSummary.filter((c) => (c.cvssScore ?? 0) >= 9).length,
         highCveCount: cveSummary.filter((c) => (c.cvssScore ?? 0) >= 7 && (c.cvssScore ?? 0) < 9).length,
-        virusTotalReputation: null, virusTotalMalicious: 0, virusTotalSuspicious: 0,
-        abuseIpdbScore: null, abuseIpdbTotalReports: 0, abuseIpdbCountry: null, abuseIpdbIsp: null,
-        safeBrowsingFlagged: null, safeBrowsingThreats: [],
+        virusTotalReputation: virusTotal?.reputation ?? null, virusTotalMalicious: virusTotal?.malicious ?? 0, virusTotalSuspicious: virusTotal?.suspicious ?? 0,
+        abuseIpdbScore: abuseIpdb?.score ?? null, abuseIpdbTotalReports: abuseIpdb?.totalReports ?? 0, abuseIpdbCountry: abuseIpdb?.countryCode ?? null, abuseIpdbIsp: abuseIpdb?.isp ?? null,
+        safeBrowsingFlagged: safeBrowsing ? safeBrowsing.flagged : null, safeBrowsingThreats: safeBrowsing?.threats ?? [],
         sslLabsGrade: null,
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx }),
         badgeToken: randomUUID(),
-        referralSource: "discovery_pipeline",
+        referralSource: full ? "tprm_scan" : "discovery_pipeline",
         kepConfigured: false, kepRelays: [], kepSecure: false,
         ...wafFields,
         originIp: null, originIpSource: null,
@@ -1851,13 +1922,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
         safeBrowsingFlagged: safeBrowsing !== null ? safeBrowsing.flagged : null,
         safeBrowsingThreats: safeBrowsing?.threats ?? [],
         otxData: otxData ?? null,
-        uncheckedSources: [
-          ...(hibp.unchecked ? ["hibp"] : []),
-          ...(blacklist.unchecked ? ["dnsbl"] : []),
-          ...(urlhaus.unchecked ? ["urlhaus"] : []),
-          ...(usom.unchecked ? ["usom"] : []),
-          ...(ssl.unchecked ? ["ssl"] : []),
-        ],
+        uncheckedSources: buildUncheckedSources({ hibp, blacklist, urlhaus, usom, ssl, shadowIt, spf, dmarc, dkim, mx }),
         sslLabsGrade: sslLabs.grade,
         badgeToken: randomUUID(),
         letterGrade: calculateLetterGrade(overallScore),

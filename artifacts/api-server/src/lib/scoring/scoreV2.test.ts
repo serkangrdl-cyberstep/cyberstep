@@ -124,3 +124,27 @@ test("çözümlenemeyen domain: veri yetersiz işaretlenir", () => {
   assert.equal(r.insufficientData, true);
   assert.equal(computeScoreV2(clean).insufficientData, false);
 });
+
+test("ölçülemeyen e-posta (DNS hatası): 'SPF/DMARC yok' bulgusu üretilmez, kategori skora girmez", () => {
+  const r = computeScoreV2({ ...clean, spfRecord: null, dmarcRecord: null, dmarcPass: false, dkimPass: false, uncheckedSources: ["email"] });
+  assert.equal(r.categories.find((c) => c.key === "email")!.measured, false);
+  assert.equal(r.findings.filter((f) => f.category === "email").length, 0);
+  assert.equal(r.score, 100);
+});
+
+test("HIBP ölçülemediyse veri sızıntısı kategorisi 'temiz' sayılmaz", () => {
+  const r = computeScoreV2({ ...clean, uncheckedSources: ["hibp"] });
+  const b = r.categories.find((c) => c.key === "breaches")!;
+  assert.equal(b.measured, false);
+  assert.ok(r.coverage < 100);
+});
+
+test("ana sayfa alınamadıysa (shadowit) zafiyet kategorisi ölçülmedi sayılır", () => {
+  const r = computeScoreV2({ ...clean, uncheckedSources: ["shadowit"] });
+  assert.equal(r.categories.find((c) => c.key === "vulnerabilities")!.measured, false);
+});
+
+test("DNSBL ve USOM birlikte ölçülemediyse itibar ölçülmedi; biri ölçülmüşse ölçülmüş kalır", () => {
+  assert.equal(computeScoreV2({ ...clean, uncheckedSources: ["dnsbl", "usom"] }).categories.find((c) => c.key === "reputation")!.measured, false);
+  assert.equal(computeScoreV2({ ...clean, uncheckedSources: ["dnsbl"] }).categories.find((c) => c.key === "reputation")!.measured, true);
+});

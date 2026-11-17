@@ -745,6 +745,13 @@ export async function generateDomainScanPDF(data: DomainScanData): Promise<Buffe
           .text(`Port kesintisi: -${bd.portDeduction} puan`, MARGIN, doc.y);
         doc.y += 14;
       }
+      const unmeasuredCats = data.scoreCategories?.filter((c) => !c.measured) ?? [];
+      if (unmeasuredCats.length > 0) {
+        checkPageBreak(doc, 28);
+        doc.fillColor([107, 114, 128]).fontSize(8).font(FONT_REGULAR)
+          .text(`Not: ${unmeasuredCats.map((c) => c.label).join(", ")} bu taramada ölçülemedi ve skora dahil edilmedi; skor yalnızca ölçülen kategorilerden hesaplandı.`, MARGIN, doc.y + 2, { width: CONTENT_W });
+        doc.y += 24;
+      }
       doc.y += 4;
     }
 

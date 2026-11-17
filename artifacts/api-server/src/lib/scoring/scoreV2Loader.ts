@@ -25,6 +25,15 @@ export function isScanFresh(scan: { createdAt: Date | null } | null | undefined,
   return Date.now() - new Date(scan.createdAt).getTime() < days * 24 * 60 * 60 * 1000;
 }
 
+/**
+ * TPRM raporu için kullanılabilir tarama: yeterince yeni VE tam tarama olmalı.
+ * Keşif hattının hafif taraması (HIBP, başlıklar, URLhaus, Safe Browsing, VT, AbuseIPDB yok)
+ * geçici skor olarak gösterilebilir, ancak tedarikçi raporunun dayanağı sayılmaz.
+ */
+export function isScanCompleteAndFresh(scan: { createdAt: Date | null; referralSource?: string | null } | null | undefined): boolean {
+  return isScanFresh(scan) && scan?.referralSource !== "discovery_pipeline";
+}
+
 export async function getLatestScan(domain: string): Promise<DomainScanRow | null> {
   const d = normalizeDomain(domain);
   const [scan] = await db.select().from(domainScansTable)
@@ -67,6 +76,7 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
       : Math.min(100, scan.httpHeadersScore * 20),
     xPoweredBy: (scan.httpHeadersDetails as { xPoweredBy?: string | null } | null)?.xPoweredBy ?? null,
     sslUnchecked: ((scan.uncheckedSources as string[] | null) ?? []).includes("ssl"),
+    uncheckedSources: (scan.uncheckedSources as string[] | null) ?? [],
     cveSummary: scan.cveSummary,
     shodanOpenPorts: scan.shodanOpenPorts,
     shodanIsp: scan.shodanIsp,

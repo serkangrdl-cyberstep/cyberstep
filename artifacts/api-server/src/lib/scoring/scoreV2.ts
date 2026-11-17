@@ -99,6 +99,8 @@ export interface ScoreV2Input {
   xPoweredBy?: string | null;
   /** SSL bağlantısı ölçülemedi (zaman aşımı/ağ hatası): "sertifika yok" sayılmaz, web kategorisi skora dahil edilmez. */
   sslUnchecked?: boolean;
+  /** Ölçülemeyen kaynaklar (hibp, dnsbl, urlhaus, usom, ssl, shadowit, email). Ölçülemeyen kaynak "temiz" sayılmaz; ilgili kategori skora dahil edilmez. */
+  uncheckedSources?: string[] | null;
 
   // Zafiyet
   cveSummary?: Array<{ cveId: string; cvssScore: number; adjustedCvssScore?: number; wafMitigated?: boolean }> | null;
@@ -182,6 +184,12 @@ function clamp(n: number, lo: number, hi: number): number {
 
 export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()): ScoreV2Result {
   const lightweight = LIGHTWEIGHT_SOURCES.has(input.referralSource ?? "");
+  const unchecked = new Set(input.uncheckedSources ?? []);
+  const sslUnchecked = !!input.sslUnchecked || unchecked.has("ssl");
+  const emailUnchecked = unchecked.has("email");
+  const vulnUnchecked = unchecked.has("shadowit");
+  // Hem DNSBL hem USOM ölçülemediyse itibar kategorisinde dayanak kalmaz.
+  const reputationUnchecked = unchecked.has("dnsbl") && unchecked.has("usom");
   const findings: ScoreV2Finding[] = [];
   const caps: Array<{ max: number; reason: string }> = [];
 
@@ -284,7 +292,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   const emailPoints = clamp(spfPoints + dmarcPoints + dkimPoints + mxPoints, 0, MAX.email);
 
   // ── 5. Veri sızıntısı ────────────────────────────────────────────────────
-  const breachesMeasured = !lightweight && input.hibpBreachCount != null;
+  const breachesMeasured = !lightweight && input.hibpBreachCount != null && !unchecked.has("hibp");
   const breaches = input.hibpBreachCount ?? 0;
   const breachPoints = breaches === 0 ? 10 : breaches === 1 ? 6 : breaches <= 3 ? 3 : 0;
   if (breachesMeasured && breaches > 0) {
@@ -295,7 +303,7 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
   // SSL 7 · HTTP güvenlik başlıkları 3 (başlıklar yalnızca tam taramada ölçülür).
   const days = input.sslDaysUntilExpiry;
   const sslPoints = days == null || days <= 0 ? 0 : days <= 13 ? 3 : days <= 29 ? 5 : 7;
-  if (days == null && input.sslUnchecked) { /* ölçülemedi — bulgu üretme */ }
+  if (days == null && sslUnchecked) { /* ölçülemedi — bulgu üretme */ }
   else if (days == null) add("web", "high", "Geçerli SSL/TLS sertifikasına ulaşılamadı", 7);
   else if (days <= 0) add("web", "high", "SSL sertifikasının süresi dolmuş", 7);
   else if (days <= 29) add("web", "medium", `SSL sertifikası ${days} gün içinde sona eriyor`, 7 - sslPoints);
@@ -310,12 +318,12 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
 
   // ── Toplam ───────────────────────────────────────────────────────────────
   const categories: ScoreV2Category[] = [
-    { key: "vulnerabilities", label: LABELS.vulnerabilities, maxPoints: MAX.vulnerabilities, points: vulnPoints, measured: true },
+    { key: "vulnerabilities", label: LABELS.vulnerabilities, maxPoints: MAX.vulnerabilities, points: vulnPoints, measured: !vulnUnchecked },
     { key: "network", label: LABELS.network, maxPoints: MAX.network, points: netPoints, measured: networkMeasured },
-    { key: "reputation", label: LABELS.reputation, maxPoints: MAX.reputation, points: repPoints, measured: true },
-    { key: "email", label: LABELS.email, maxPoints: MAX.email, points: emailPoints, measured: true },
+    { key: "reputation", label: LABELS.reputation, maxPoints: MAX.reputation, points: repPoints, measured: !reputationUnchecked },
+    { key: "email", label: LABELS.email, maxPoints: MAX.email, points: emailPoints, measured: !emailUnchecked },
     { key: "breaches", label: LABELS.breaches, maxPoints: MAX.breaches, points: breachPoints, measured: breachesMeasured },
-    { key: "web", label: LABELS.web, maxPoints: webMax, points: webPoints, measured: !input.sslUnchecked },
+    { key: "web", label: LABELS.web, maxPoints: webMax, points: webPoints, measured: !sslUnchecked },
   ];
 
   const measured = categories.filter((c) => c.measured);
@@ -355,6 +363,8 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
     categories: categories.map((c) => ({ ...c, points: c.measured ? Math.round(c.points * 10) / 10 : 0 })),
     findings: findings
       .filter((f) => f.deduction > 0)
+      // Ölçülemeyen kategorinin bulguları üretilmez (ör. DNS zaman aşımı "SPF yok" demek değildir).
+      .filter((f) => !((f.category === "email" && emailUnchecked) || (f.category === "reputation" && reputationUnchecked) || (f.category === "vulnerabilities" && vulnUnchecked)))
       .sort((a, b) => b.deduction - a.deduction)
       .map((f) => ({ ...f, deduction: Math.round(f.deduction * 10) / 10 })),
     caps: appliedCaps,

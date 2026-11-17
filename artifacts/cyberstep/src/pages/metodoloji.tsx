@@ -173,7 +173,7 @@ export default function Metodoloji() {
           </div>
 
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-8 text-xs text-muted-foreground space-y-1.5">
-            <p><strong className="text-foreground">Ölçülmeyen veri temiz sayılmaz.</strong> Bir kategori ölçülemediyse (ör. port verisi yok) skor yalnızca ölçülen kategorilerin azami puanı üzerinden 100'e ölçeklenir ve kapsama oranı ayrıca raporlanır.</p>
+            <p><strong className="text-foreground">Ölçülmeyen veri temiz sayılmaz.</strong> Bir kategori ölçülemediyse (ör. port verisi yok) skor yalnızca ölçülen kategorilerin azami puanı üzerinden 100'e ölçeklenir ve kapsama oranı ayrıca raporlanır. DNS zaman aşımı gibi geçici hatalar "kayıt yok" anlamına gelmez; ilgili kontrol yeniden denenir, yine ölçülemezse skora dahil edilmez. CVE yalnızca bileşenin sürümü tespit edilip NVD sürüm aralığıyla eşleştiğinde atfedilir; sürümü doğrulanamayan bileşenler için zafiyet iddia edilmez.</p>
             <p><strong className="text-foreground">Veri yetersiz.</strong> Alan adı çözümlenemiyorsa skor üretilmez.</p>
             <p><strong className="text-foreground">Sektör kıyaslaması.</strong> Her domainin en son taramasının skoru, sektörüne göre gruplanır; en az 30 domaini olan sektörler yayınlanır. Ekranda görülen "taranan Türk domain" sayısı, en az bir taraması tamamlanmış ve skoru hesaplanmış benzersiz domainleri ifade eder; keşfedilmiş ama henüz taranmamış adaylar bu sayıya dahil değildir.</p>
           </div>

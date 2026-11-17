@@ -1826,12 +1826,14 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
                   </p>
                   <p className="text-xs text-foreground/80 leading-relaxed">{scenario.etki}</p>
                 </div>
-                <div className="rounded-lg border border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-950/20 p-3">
-                  <p className="text-xs font-semibold text-purple-700 dark:text-purple-400 mb-1 flex items-center gap-1">
-                    <Shield className="h-3.5 w-3.5" /> KVKK Riski
-                  </p>
-                  <p className="text-xs text-foreground/80 leading-relaxed">{scenario.kvkk_etkisi}</p>
-                </div>
+                {scenario.kvkk_etkisi?.trim() && (
+                  <div className="rounded-lg border border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-950/20 p-3">
+                    <p className="text-xs font-semibold text-purple-700 dark:text-purple-400 mb-1 flex items-center gap-1">
+                      <Shield className="h-3.5 w-3.5" /> KVKK Riski
+                    </p>
+                    <p className="text-xs text-foreground/80 leading-relaxed">{scenario.kvkk_etkisi}</p>
+                  </div>
+                )}
               </div>
 
               {/* Immediate actions */}
@@ -1859,7 +1861,7 @@ function AttackScenarioPanel({ scanId }: { scanId: number }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertOctagon className="h-4 w-4 text-red-500" />
-              Onceliklı Aksiyonlar
+              Öncelikli Aksiyonlar
             </CardTitle>
             <CardDescription className="text-xs">Tüm senaryolara göre en kritik 3 kapatma noktası</CardDescription>
           </CardHeader>
@@ -2559,8 +2561,8 @@ export default function DomainScanPage() {
                   <Mail className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Rapor <span className="text-primary">{result.email ?? email}</span> adresine gönderildi</p>
-                  <p className="text-xs text-muted-foreground">30 gün içinde alan adı değişikliklerini ve güvenlik uyarılarını e-posta ile alacaksınız.</p>
+                  <p className="text-sm font-semibold">Rapor <span className="text-primary">{result.email ?? email}</span> hesabına kaydedildi</p>
+                  <p className="text-xs text-muted-foreground">Bu taramaya müşteri panelindeki taramalarınız bölümünden ulaşabilirsiniz.</p>
                 </div>
               </CardContent>
             </Card>
@@ -3010,7 +3012,7 @@ export default function DomainScanPage() {
                 <div className="px-5 py-4">
                   <p className="text-sm text-muted-foreground">
                     <strong>{result?.domain}</strong> için A, MX, NS, TXT ve CNAME kayıtlarını her 5 dakikada izleyin.
-                    Yetkisiz değişikliklerde anında SOC vakası açılır ve e-posta uyarısı gönderilir.
+                    Yetkisiz değişikliklerde SOC vakası açılır.
                   </p>
                   {addDnsMutation.isError && (
                     <p className="text-xs text-red-500 mt-2">{(addDnsMutation.error as Error).message}</p>

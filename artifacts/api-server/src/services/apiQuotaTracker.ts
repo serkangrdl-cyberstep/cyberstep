@@ -12,8 +12,9 @@ interface QuotaEntry {
 
 const quotaMap = new Map<string, QuotaEntry>();
 
+// Shodan: ücretli plan alınınca SHODAN_DAILY_LIMIT ile yükseltilir.
 const DAILY_LIMITS: Record<string, number> = {
-  shodan: 100,
+  shodan: Number(process.env["SHODAN_DAILY_LIMIT"]) > 0 ? Number(process.env["SHODAN_DAILY_LIMIT"]) : 100,
   virustotal: 500,
   abuseipdb: 1000,
 };
@@ -26,9 +27,14 @@ function todayStr(): string {
  * Verilen servis için kota kontrolü yapar ve kullanıma sayar.
  * @returns true = istek gönderilebilir, false = kota doldu (isteği atla)
  */
-export function checkAndConsumeQuota(service: string): boolean {
-  const limit = DAILY_LIMITS[service];
-  if (limit === undefined) return true;
+// Öncelikli çağrılar (TPRM müşteri taramaları) tüm kotayı kullanabilir; öncelikli olmayanlar
+// (lead keşif cron'ları) kotanın son %40'ına dokunamaz. Müşteri taraması keşif yüzünden "ölçülemedi" kalmasın.
+const NON_PRIORITY_SHARE = 0.6;
+
+export function checkAndConsumeQuota(service: string, opts: { priority?: boolean } = {}): boolean {
+  const total = DAILY_LIMITS[service];
+  if (total === undefined) return true;
+  const limit = opts.priority ? total : Math.floor(total * NON_PRIORITY_SHARE);
 
   const today = todayStr();
   const entry = quotaMap.get(service);

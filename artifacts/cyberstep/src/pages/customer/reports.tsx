@@ -447,7 +447,7 @@ export default function CustomerReports() {
                           {scan.usomListed && <span className="text-red-400">USOM listesinde</span>}
                           {highRiskShadow > 0 && <span className="text-orange-400">{highRiskShadow} yüksek riskli servis</span>}
                           {scan.ctSubdomainCount > 0 && <span className="text-slate-400">{scan.ctSubdomainCount} alt alan</span>}
-                          {scan.httpHeadersScore > 0 && <span className="text-slate-400">Baslik skoru: {scan.httpHeadersScore}/100</span>}
+                          {scan.httpHeadersScore > 0 && <span className="text-slate-400">Baslik skoru: {scan.httpHeadersScore}/5</span>}
                           {(scan as any).kepConfigured && <span className="text-blue-400">KEP yapılandırılmış</span>}
                           {(scan as any).kepConfigured === false && <span className="text-slate-500">KEP yok</span>}
                         </p>

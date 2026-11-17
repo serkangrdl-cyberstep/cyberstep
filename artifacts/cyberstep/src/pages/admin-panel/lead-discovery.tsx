@@ -5810,8 +5810,8 @@ export default function AdminLeadDiscovery() {
                               {pass ? "✓" : "✗"} {label}
                             </span>
                           ))}
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${candidateDomainScan.httpHeadersScore >= 70 ? "bg-green-50 text-green-700 border-green-200" : candidateDomainScan.httpHeadersScore >= 40 ? "bg-yellow-50 text-yellow-700 border-yellow-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-                            Skor: {candidateDomainScan.httpHeadersScore}/100
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${candidateDomainScan.httpHeadersScore >= 4 ? "bg-green-50 text-green-700 border-green-200" : candidateDomainScan.httpHeadersScore >= 2 ? "bg-yellow-50 text-yellow-700 border-yellow-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+                            Skor: {candidateDomainScan.httpHeadersScore}/5
                           </span>
                         </div>
                       </div>

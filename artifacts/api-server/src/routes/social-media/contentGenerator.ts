@@ -90,7 +90,7 @@ async function getWeeklyScanStats(): Promise<ScanStats> {
           UNION ALL
           SELECT 'Veri ihlali tespit edildi (HIBP)',  SUM(CASE WHEN hibp_breach_count > 0        THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
           UNION ALL
-          SELECT 'HTTP güvenlik başlıkları eksik',    SUM(CASE WHEN http_headers_score < 50      THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
+          SELECT 'HTTP güvenlik başlıkları eksik',    SUM(CASE WHEN http_headers_score < 3      THEN 1 ELSE 0 END)        FROM domain_scans WHERE created_at >= NOW() - INTERVAL '7 days'
         ) t
         WHERE cnt > 0
         ORDER BY cnt DESC

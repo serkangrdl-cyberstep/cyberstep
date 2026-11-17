@@ -505,8 +505,8 @@ function DetailModal({ scanId, onClose }: { scanId: number; onClose: () => void 
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                   HTTP Güvenlik Başlıkları
                   {!scan.httpHeadersDetails.checkFailed && (
-                    <span className={`ml-2 text-xs font-bold ${scan.httpHeadersScore >= 70 ? "text-emerald-400" : scan.httpHeadersScore >= 40 ? "text-amber-400" : "text-red-400"}`}>
-                      {scan.httpHeadersScore}/100
+                    <span className={`ml-2 text-xs font-bold ${scan.httpHeadersScore >= 4 ? "text-emerald-400" : scan.httpHeadersScore >= 2 ? "text-amber-400" : "text-red-400"}`}>
+                      {scan.httpHeadersScore}/5
                     </span>
                   )}
                 </h3>

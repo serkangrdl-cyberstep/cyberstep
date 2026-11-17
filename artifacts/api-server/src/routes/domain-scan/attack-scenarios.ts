@@ -246,21 +246,28 @@ const MITRE_NAMES: Record<string, string> = {
 /** MITRE kodu-ad eşleşmesini resmî listeye göre düzeltir; bilinmeyen kodları atar (uydurma ad riskine karşı). */
 function normalizeMitre(result: AttackScenariosResult): void {
   for (const sc of result.senaryolar ?? []) {
+    const phishingContext = /phishing|kimlik avı|oltalama|e-posta|spoof/i.test(JSON.stringify(sc));
     sc.mitre_teknikler = (sc.mitre_teknikler ?? [])
       .filter((t) => MITRE_NAMES[t.kod] !== undefined)
+      .filter((t) => phishingContext || !["T1598", "T1566"].includes(t.kod))
       .map((t) => ({ kod: t.kod, isim: MITRE_NAMES[t.kod]! }));
   }
 }
 
 function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | null): void {
-  if (daysLeft === null || daysLeft <= 0) return;
-  const urgent = daysLeft <= 7;
+  const sslValid = daysLeft !== null && daysLeft > 0;
+  const days = daysLeft ?? 0;
+  const urgent = days <= 7;
   const level = urgent ? "Yüksek" : "Orta";
   result.senaryolar = (result.senaryolar ?? []).map((sc) => {
     const text = JSON.stringify(sc);
-    if (/http.*başlık|başlık.*eksik/i.test(sc.baslik ?? "") && /analytics|tag manager/i.test(text)) {
+    if (/http.*başlık|başlık.*eksik|zayıf.*başlık/i.test(sc.baslik ?? "")) {
       return {
         ...sc,
+        olasilik: "Orta",
+        acillik: "Orta",
+        etki: "Savunma katmanı eksiktir; başka bir zafiyetle birleştiğinde istemci tarafı saldırıların etkisi artar.",
+        kvkk_etkisi: "",
         giris_noktasi: "Eksik HTTP güvenlik başlıkları (HSTS, CSP, X-Frame-Options vb.), tarayıcı tabanlı saldırılara karşı bir savunma katmanını devre dışı bırakır.",
         saldiri_zinciri: [
           "1. Keşif: Tarama sonucunda HTTP güvenlik başlıklarının eksik olduğu görülür.",
@@ -271,14 +278,14 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
         mitre_teknikler: [],
       } as typeof sc;
     }
-    if (!SSL_TITLE_RE.test(sc.baslik ?? "")) return sc;
+    if (!sslValid || !SSL_TITLE_RE.test(sc.baslik ?? "")) return sc;
     if (MITM_RE.test(text)) logger.warn({ baslik: sc.baslik, daysLeft }, "SSL senaryosunda geçersiz MITM kurgusu — deterministik senaryoyla değiştirildi");
     return {
       ...sc,
       baslik: "SSL Sertifikasının Süresi Dolması — Hizmet Kesintisi ve Güven Kaybı",
       olasilik: level,
       acillik: urgent ? "Acil" : "Orta",
-      giris_noktasi: `Sertifikanın ${daysLeft} gün içinde sona ermesi ve yenileme sürecinin aksaması.`,
+      giris_noktasi: `Sertifikanın ${days} gün içinde sona ermesi ve yenileme sürecinin aksaması.`,
       saldiri_zinciri: [
         "1. Keşif: Sertifika bitiş tarihi herkese açık olarak görülebilir.",
         "2. Tetikleyici: Yenileme yapılmazsa sertifika süresi dolar.",
@@ -295,7 +302,12 @@ function sanitizeSslScenarios(result: AttackScenariosResult, daysLeft: number | 
       ],
     } as typeof sc;
   });
+  result.risk_ozet = (result.risk_ozet ?? "").replace(/uğrayacak/g, "uğrayabilir");
   result.once_kapat = (result.once_kapat ?? []).map((it) =>
+    sslValid && /ssl|sertifika/i.test(it.aksiyon ?? "")
+      ? { ...it, neden: `Sertifika yenilenmezse ${days} gün sonra tarayıcılar güvenlik uyarısı gösterir ve site erişilemez hale gelir.` }
+      : it
+  ).map((it) =>
     MITM_RE.test(`${it.aksiyon} ${it.neden}`)
       ? { ...it, neden: "Süresi dolan sertifika tarayıcı uyarısına ve hizmet kesintisine yol açar." }
       : it

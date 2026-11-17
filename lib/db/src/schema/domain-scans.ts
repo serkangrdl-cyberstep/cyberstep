@@ -69,6 +69,7 @@ export const domainScansTable = pgTable("domain_scans", {
   safeBrowsingFlagged: boolean("safe_browsing_flagged"),
   safeBrowsingThreats: jsonb("safe_browsing_threats").$type<string[]>().notNull().default([]),
   otxData: jsonb("otx_data").$type<{ pulseCount: number; reputation: number; maliciousCount: number }>(),
+  uncheckedSources: jsonb("unchecked_sources").$type<string[]>().notNull().default([]),
   sslLabsGrade: text("ssl_labs_grade"),
   badgeToken: text("badge_token"),
   referralSource: text("referral_source"),

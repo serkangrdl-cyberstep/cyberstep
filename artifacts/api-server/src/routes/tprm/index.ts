@@ -19,6 +19,7 @@ import { isScanCompleteAndFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2,
 import { buildVendorCves, buildVendorPorts, labelUnchecked } from "../../services/vendorFindings";
 import { loadVendorQuestionnaire } from "../../services/tprmQuestionnaire";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
+import { needsFollowUp, FOLLOW_UP_DELAY_MS } from "../../services/followUpScan";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
 import { canonicalSector } from "../../lib/scoring/sectors";
 import { peekBenchmarkSnapshot, percentileInSector } from "../../services/sectorBenchmark";
@@ -570,6 +571,29 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+
+/** Taramada geçici olarak ölçülemeyen kaynak kaldıysa 5 dk sonra tek seferlik takip taraması planlar. */
+const followUpPending = new Set<number>();
+async function maybeScheduleFollowUp(vendorId: number, domain: string, scanId: number, isFollowUp: boolean): Promise<void> {
+  try {
+    if (followUpPending.has(vendorId)) return;
+    const [scan] = await db.select({ u: domainScansTable.uncheckedSources }).from(domainScansTable).where(eq(domainScansTable.id, scanId));
+    if (!needsFollowUp((scan?.u as string[] | null) ?? [], isFollowUp)) return;
+    followUpPending.add(vendorId);
+    const t = setTimeout(() => {
+      followUpPending.delete(vendorId);
+      enqueueScan(`vendor:${vendorId}:followup`, async () => {
+        const result = await getSupplierScore(domain, { force: true });
+        const [cur] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendorId));
+        if (result && cur) await applySupplierScore(cur, result);
+      });
+    }, FOLLOW_UP_DELAY_MS);
+    t.unref?.();
+  } catch (err) {
+    logger.warn({ err, vendorId }, "TPRM takip taraması planlanamadı");
+  }
+}
+
 // ─── Arka plan taraması (kuyruklu) ───────────────────────────────────────────
 
 function queueVendorScan(vendorId: number, domain: string): void {
@@ -579,6 +603,7 @@ function queueVendorScan(vendorId: number, domain: string): void {
     if (!current) return;
     if (!result) { await markScanFailed(current); return; }
     await applySupplierScore(current, result);
+    await maybeScheduleFollowUp(vendorId, domain, result.scanId, false);
   });
 }
 
@@ -718,7 +743,7 @@ router.post("/tprm/vendors/:id/rescan", requireCustomer, async (req: Request, re
 
     enqueueScan(`vendor:${vendor.id}`, async () => {
       const result = await getSupplierScore(vendor.supplierDomain, { force: true });
-      if (result) await applySupplierScore(vendor, result);
+      if (result) { await applySupplierScore(vendor, result); await maybeScheduleFollowUp(vendor.id, vendor.supplierDomain, result.scanId, false); }
       else await markScanFailed(vendor);
     });
   } catch (err) {

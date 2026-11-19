@@ -18,7 +18,7 @@ interface Findings {
   clientLibCves: ClientLibCve[];
   clientLibsDetected: { library: string; version: string }[];
   clientLibsChecked: boolean;
-  other: { sslLabsGrade: string | null; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; mozillaObservatory: { grade?: string; score?: number } | null };
+  other: { sslLabsGrade: string | null; sslLabsPending?: boolean; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; mozillaObservatory: { grade?: string; score?: number } | null };
   unchecked: string[];
 }
 
@@ -51,11 +51,19 @@ export function VendorFindingsDialog({ vendorId, vendorName, onClose }: { vendor
             <p className="text-xs text-muted-foreground">
               {data.domain}{data.scannedAt ? ` · Tarama: ${new Date(data.scannedAt).toLocaleString("tr-TR")}` : ""} · Ölçüm kapsamı %{data.score.coverage}
             </p>
-            {data.unchecked.length > 0 && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                Bu taramada ölçülemeyen kaynaklar: {data.unchecked.join(", ")}. Ölçülemeyen kaynak “temiz” sayılmaz.
+            {data.other.sslLabsPending && (
+              <div className="rounded-md border border-sky-300 bg-sky-50 p-2 text-xs text-sky-800">
+                SSL Labs analizi sürüyor; sonuç bir sonraki taramada eklenecek.
               </div>
             )}
+            {(() => {
+              const list = data.other.sslLabsPending ? data.unchecked.filter((u) => !/ssl\s*labs/i.test(u)) : data.unchecked;
+              return list.length > 0 ? (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                  Bu taramada ölçülemeyen kaynaklar: {list.join(", ")}. Ölçülemeyen kaynak “temiz” sayılmaz. Kısa süre sonra otomatik yeniden denenir.
+                </div>
+              ) : null;
+            })()}
             <Tabs defaultValue="cve">
               <TabsList>
                 <TabsTrigger value="cve">CVE ({data.cves.length})</TabsTrigger>

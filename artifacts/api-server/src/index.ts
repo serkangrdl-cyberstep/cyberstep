@@ -534,6 +534,15 @@ async function ensureIsrTables() {
   await db.execute(sql`CREATE TABLE IF NOT EXISTS tprm_vendor_events (
     id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL, kind TEXT NOT NULL, detail JSONB, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_vendor_events_vendor_idx ON tprm_vendor_events (vendor_id)`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS support_access_grants (
+    id SERIAL PRIMARY KEY, customer_id INTEGER NOT NULL, scope TEXT NOT NULL DEFAULT 'tprm_vendors',
+    requested_by_admin_id INTEGER, requested_by_label TEXT, reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', requested_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    decided_at TIMESTAMP, expires_at TIMESTAMP)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS support_access_grants_customer_idx ON support_access_grants (customer_id)`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS support_access_log (
+    id SERIAL PRIMARY KEY, grant_id INTEGER NOT NULL, actor TEXT NOT NULL, actor_label TEXT, action TEXT NOT NULL, at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS support_access_log_grant_idx ON support_access_log (grant_id)`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS criticality TEXT NOT NULL DEFAULT 'standart'`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_vendors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_distributors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);

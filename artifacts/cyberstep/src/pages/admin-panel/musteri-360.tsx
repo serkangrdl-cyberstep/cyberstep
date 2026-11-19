@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { AdminTprmSupport } from "@/components/admin-tprm-support";
 import { Save, Plus, X, Send, Pause, Play, CheckCircle2, FileText, CheckSquare, Tag, MessageSquare, Activity, ShoppingBag, Ban, Settings2, ChevronDown, ChevronUp, Package } from "lucide-react";
 
 interface ServiceSubscription {
@@ -222,6 +223,7 @@ export default function Musteri360() {
           <TabsTrigger value="invoices" className="data-[state=active]:bg-slate-700">Faturalar</TabsTrigger>
           <TabsTrigger value="nps" className="data-[state=active]:bg-slate-700">NPS</TabsTrigger>
           <TabsTrigger value="notes" className="data-[state=active]:bg-slate-700">Notlar</TabsTrigger>
+          <TabsTrigger value="tprm" className="data-[state=active]:bg-slate-700">Tedarikçi Riski</TabsTrigger>
           <TabsTrigger value="servisler" className="data-[state=active]:bg-slate-700">
             <ShoppingBag className="h-3 w-3 mr-1" />
             Aktif Servisler
@@ -232,6 +234,7 @@ export default function Musteri360() {
         </TabsList>
 
         {/* Info */}
+        <TabsContent value="tprm"><AdminTprmSupport customerId={id} /></TabsContent>
         <TabsContent value="info">
           <Card className="bg-slate-900 border-slate-800">
             <CardContent className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4">

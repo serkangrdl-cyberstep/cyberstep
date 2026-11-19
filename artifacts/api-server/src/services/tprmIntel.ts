@@ -24,6 +24,21 @@ async function getJson(fetcher: FetchLike, url: string, headers: Record<string, 
   }
 }
 
+/** Geçici hata: ağ/zaman aşımı (null), 429 veya 5xx. 4xx (429 hariç) kalıcı sayılır, yeniden denenmez. */
+export function isTransient(res: { status: number } | null): boolean {
+  return res === null || res.status === 429 || res.status >= 500;
+}
+
+export interface RetryOpts { retryDelayMs?: number }
+
+/** İstek geçici hatayla dönerse bir kez daha dener (kaynakların aralıklı hataları "ölçülemedi" sayılmasın). */
+async function getJsonRetry(fetcher: FetchLike, url: string, headers: Record<string, string> = {}, method = "GET", timeoutMs = 15_000, opts: RetryOpts = {}) {
+  const first = await getJson(fetcher, url, headers, method, timeoutMs);
+  if (!isTransient(first)) return first;
+  await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 1500));
+  return getJson(fetcher, url, headers, method, timeoutMs);
+}
+
 // ── VulnCheck KEV ────────────────────────────────────────────────────────────
 
 /** Yanıt: { data: [{ cve: ["CVE-..."], ... }] }. CVE kayıtlıysa true. */
@@ -39,13 +54,13 @@ export interface VulnCheckKevResult { kev: string[]; failed: boolean }
  * Verilen CVE'lerden VulnCheck KEV'de olanları döner. Token yoksa null (kaynak yapılandırılmamış —
  * "kontrol edilemedi" sayılmaz, çünkü hiç denenmedi). Herhangi bir sorgu hata verirse failed=true.
  */
-export async function checkVulnCheckKev(cveIds: string[], token: string | undefined, fetcher: FetchLike): Promise<VulnCheckKevResult | null> {
+export async function checkVulnCheckKev(cveIds: string[], token: string | undefined, fetcher: FetchLike, opts: RetryOpts = {}): Promise<VulnCheckKevResult | null> {
   if (!token) return null;
   const ids = [...new Set(cveIds)].slice(0, 15);
   const kev: string[] = [];
   let failed = false;
   for (const id of ids) {
-    const res = await getJson(fetcher, `https://api.vulncheck.com/v3/index/vulncheck-kev?cve=${encodeURIComponent(id)}`, { Authorization: `Bearer ${token}` });
+    const res = await getJsonRetry(fetcher, `https://api.vulncheck.com/v3/index/vulncheck-kev?cve=${encodeURIComponent(id)}`, { Authorization: `Bearer ${token}` }, "GET", 15_000, opts);
     if (!res || res.status >= 400) { failed = true; continue; }
     if (parseVulnCheckKevHit(res.body, id)) kev.push(id);
   }
@@ -67,8 +82,8 @@ export function parseHudsonRock(body: unknown): HudsonRockResult | null {
 }
 
 /** Başarısız/beklenmedik yanıt → null ("kontrol edilemedi"). */
-export async function checkHudsonRock(domain: string, fetcher: FetchLike): Promise<HudsonRockResult | null> {
-  const res = await getJson(fetcher, `https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-domain?domain=${encodeURIComponent(domain)}`);
+export async function checkHudsonRock(domain: string, fetcher: FetchLike, opts: RetryOpts = {}): Promise<HudsonRockResult | null> {
+  const res = await getJsonRetry(fetcher, `https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-domain?domain=${encodeURIComponent(domain)}`, {}, "GET", 15_000, opts);
   if (!res || res.status !== 200) return null;
   return parseHudsonRock(res.body);
 }
@@ -83,8 +98,8 @@ export function parseObservatoryV2(body: unknown): MozillaObsV2 | null {
   return { grade: b.grade, score: typeof b.score === "number" ? b.score : null };
 }
 
-export async function checkObservatoryV2(domain: string, fetcher: FetchLike): Promise<MozillaObsV2 | null> {
-  const res = await getJson(fetcher, `https://observatory-api.mdn.mozilla.net/api/v2/scan?host=${encodeURIComponent(domain)}`, {}, "POST", 25_000);
+export async function checkObservatoryV2(domain: string, fetcher: FetchLike, opts: RetryOpts = {}): Promise<MozillaObsV2 | null> {
+  const res = await getJsonRetry(fetcher, `https://observatory-api.mdn.mozilla.net/api/v2/scan?host=${encodeURIComponent(domain)}`, {}, "POST", 25_000, opts);
   if (!res || res.status !== 200) return null;
   return parseObservatoryV2(res.body);
 }

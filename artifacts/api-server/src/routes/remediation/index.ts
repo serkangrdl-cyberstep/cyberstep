@@ -21,7 +21,7 @@ function generateTicketNumber(): string {
 }
 
 // GET /api/portal/tickets — Müşterinin ticket listesi
-router.get("/api/portal/tickets", requireCustomer, async (req, res) => {
+router.get("/portal/tickets", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   try {
@@ -37,7 +37,7 @@ router.get("/api/portal/tickets", requireCustomer, async (req, res) => {
 });
 
 // GET /api/portal/tickets/:id — Tekil ticket + yorumlar
-router.get("/api/portal/tickets/:id", requireCustomer, async (req, res) => {
+router.get("/portal/tickets/:id", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const id = Number(req.params["id"]);
@@ -61,7 +61,7 @@ router.get("/api/portal/tickets/:id", requireCustomer, async (req, res) => {
 });
 
 // POST /api/portal/findings/:findingId/remediate — Bulgudan ticket aç
-router.post("/api/portal/findings/:findingId/remediate", requireCustomer, async (req, res) => {
+router.post("/portal/findings/:findingId/remediate", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const findingId = Number(req.params["findingId"]);
@@ -125,7 +125,7 @@ router.post("/api/portal/findings/:findingId/remediate", requireCustomer, async 
 });
 
 // POST /api/portal/tickets/:id/fixed — "Düzelttim" bildir
-router.post("/api/portal/tickets/:id/fixed", requireCustomer, async (req, res) => {
+router.post("/portal/tickets/:id/fixed", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const id = Number(req.params["id"]);
@@ -165,7 +165,7 @@ router.post("/api/portal/tickets/:id/fixed", requireCustomer, async (req, res) =
 });
 
 // POST /api/portal/tickets/:id/comment — Yorum ekle
-router.post("/api/portal/tickets/:id/comment", requireCustomer, async (req, res) => {
+router.post("/portal/tickets/:id/comment", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const id = Number(req.params["id"]);
@@ -194,7 +194,7 @@ router.post("/api/portal/tickets/:id/comment", requireCustomer, async (req, res)
 });
 
 // POST /api/portal/tickets/:id/accept-risk — Risk kabul et
-router.post("/api/portal/tickets/:id/accept-risk", requireCustomer, async (req, res) => {
+router.post("/portal/tickets/:id/accept-risk", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const id = Number(req.params["id"]);
@@ -222,7 +222,7 @@ router.post("/api/portal/tickets/:id/accept-risk", requireCustomer, async (req, 
 });
 
 // GET /api/portal/attack-paths — Saldırı yolları
-router.get("/api/portal/attack-paths", requireCustomer, async (req, res) => {
+router.get("/portal/attack-paths", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   try {
@@ -238,7 +238,7 @@ router.get("/api/portal/attack-paths", requireCustomer, async (req, res) => {
 });
 
 // GET /api/portal/risk-priority — Birleşik risk listesi
-router.get("/api/portal/risk-priority", requireCustomer, async (req, res) => {
+router.get("/portal/risk-priority", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   try {

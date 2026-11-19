@@ -11,12 +11,12 @@ const router = Router();
 
 // ─── TAGS ─────────────────────────────────────────────────────────────────────
 
-router.get("/api/crm/tags", requireAdmin, async (_req, res: Response) => {
+router.get("/crm/tags", requireAdmin, async (_req, res: Response) => {
   const rows = await db.execute(sql`SELECT ct.*, COUNT(cta.customer_id)::int AS usage_count FROM customer_tags ct LEFT JOIN customer_tag_assignments cta ON cta.tag_id=ct.id GROUP BY ct.id ORDER BY ct.name`);
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.post("/api/crm/tags", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/tags", requireAdmin, async (req: Request, res: Response) => {
   const { name, color, description } = req.body as Record<string, string>;
   if (!name) return void res.status(400).json({ error: "Ad gerekli" });
   try {
@@ -25,34 +25,34 @@ router.post("/api/crm/tags", requireAdmin, async (req: Request, res: Response) =
   } catch { res.status(400).json({ error: "Bu etiket zaten mevcut" }); }
 });
 
-router.put("/api/crm/tags/:id", requireAdmin, async (req: Request, res: Response) => {
+router.put("/crm/tags/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { name, color, description } = req.body as Record<string, string>;
   await db.execute(sql`UPDATE customer_tags SET name=COALESCE(${name ?? null},name), color=COALESCE(${color ?? null},color), description=COALESCE(${description ?? null},description) WHERE id=${id}`);
   res.json({ ok: true });
 });
 
-router.delete("/api/crm/tags/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/crm/tags/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.execute(sql`DELETE FROM customer_tag_assignments WHERE tag_id = ${id}`);
   await db.execute(sql`DELETE FROM customer_tags WHERE id = ${id}`);
   res.json({ ok: true });
 });
 
-router.get("/api/crm/customers/:id/tags", requireAdmin, async (req: Request, res: Response) => {
+router.get("/crm/customers/:id/tags", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const rows = await db.execute(sql`SELECT ct.* FROM customer_tags ct JOIN customer_tag_assignments cta ON cta.tag_id=ct.id WHERE cta.customer_id=${id} ORDER BY ct.name`);
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.post("/api/crm/customers/:id/tags", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/customers/:id/tags", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { tagId, assignedBy } = req.body as { tagId: number; assignedBy?: string };
   await db.execute(sql`INSERT INTO customer_tag_assignments (customer_id,tag_id,assigned_by) VALUES (${id},${tagId},${assignedBy ?? "admin"}) ON CONFLICT DO NOTHING`);
   res.json({ ok: true });
 });
 
-router.delete("/api/crm/customers/:id/tags/:tagId", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/crm/customers/:id/tags/:tagId", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const tagId = parseInt(String(req.params["tagId"] ?? "0"));
   await db.execute(sql`DELETE FROM customer_tag_assignments WHERE customer_id=${id} AND tag_id=${tagId}`);
@@ -61,7 +61,7 @@ router.delete("/api/crm/customers/:id/tags/:tagId", requireAdmin, async (req: Re
 
 // ─── CUSTOMER 360 ─────────────────────────────────────────────────────────────
 
-router.get("/api/crm/customers", requireAdmin, async (req: Request, res: Response) => {
+router.get("/crm/customers", requireAdmin, async (req: Request, res: Response) => {
   const { search, tag, plan, cust_status, limit = "100", offset = "0" } = req.query as Record<string, string>;
   let where = "1=1";
   if (search) where += ` AND (c.full_name ILIKE '%${search.replace(/'/g,"")}%' OR c.company_name ILIKE '%${search.replace(/'/g,"")}%' OR c.email ILIKE '%${search.replace(/'/g,"")}%')`;
@@ -77,7 +77,7 @@ router.get("/api/crm/customers", requireAdmin, async (req: Request, res: Respons
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.get("/api/crm/customers/:id", requireAdmin, async (req: Request, res: Response) => {
+router.get("/crm/customers/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [cRows, tagRows, taskRows, invRows, npsRows, healthRows] = await Promise.all([
     db.execute(sql`SELECT * FROM customers WHERE id = ${id}`),
@@ -99,7 +99,7 @@ router.get("/api/crm/customers/:id", requireAdmin, async (req: Request, res: Res
   });
 });
 
-router.patch("/api/crm/customers/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/crm/customers/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const body = req.body as Record<string, unknown>;
   const allowed = ["billing_name","billing_tax_id","billing_tax_office","billing_address","billing_email","billing_phone","payment_terms","assigned_to","sector","employee_count","phone","website","city","plan","cust_status","full_name","company_name","notes"];
@@ -112,13 +112,13 @@ router.patch("/api/crm/customers/:id", requireAdmin, async (req: Request, res: R
 });
 
 // Customer notes
-router.get("/api/crm/customers/:id/notes", requireAdmin, async (req: Request, res: Response) => {
+router.get("/crm/customers/:id/notes", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const rows = await db.execute(sql`SELECT * FROM crm_tasks WHERE customer_id=${id} AND task_type='note' ORDER BY created_at DESC`);
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.post("/api/crm/customers/:id/notes", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/customers/:id/notes", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { description, createdBy } = req.body as Record<string, string>;
   const r = await db.execute(sql`INSERT INTO crm_tasks (customer_id,title,description,task_type,status,created_by) VALUES (${id},'Not',${description},'note','completed',${createdBy ?? "admin"}) RETURNING *`);
@@ -127,7 +127,7 @@ router.post("/api/crm/customers/:id/notes", requireAdmin, async (req: Request, r
 
 // ─── TASKS ────────────────────────────────────────────────────────────────────
 
-router.get("/api/crm/tasks/today", requireAdmin, async (_req, res: Response) => {
+router.get("/crm/tasks/today", requireAdmin, async (_req, res: Response) => {
   const today = new Date().toISOString().split("T")[0];
   const rows = await db.execute(sql`
     SELECT t.*, c.full_name AS customer_full_name, c.company_name AS customer_company
@@ -139,7 +139,7 @@ router.get("/api/crm/tasks/today", requireAdmin, async (_req, res: Response) => 
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.get("/api/crm/tasks", requireAdmin, async (req: Request, res: Response) => {
+router.get("/crm/tasks", requireAdmin, async (req: Request, res: Response) => {
   const { status, customerId, assignedTo, taskType, priority } = req.query as Record<string, string>;
   const conds: string[] = ["t.task_type != 'note'"];
   if (status) conds.push(`t.status='${status.replace(/'/g,"")}'`);
@@ -155,7 +155,7 @@ router.get("/api/crm/tasks", requireAdmin, async (req: Request, res: Response) =
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.post("/api/crm/tasks", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/tasks", requireAdmin, async (req: Request, res: Response) => {
   const { customerId, title, description, taskType, priority, dueDate, dueTime, assignedTo, createdBy } = req.body as Record<string, string>;
   if (!title) return void res.status(400).json({ error: "Başlık gerekli" });
   const r = await db.execute(sql`
@@ -166,7 +166,7 @@ router.post("/api/crm/tasks", requireAdmin, async (req: Request, res: Response) 
   res.status(201).json((r as { rows: unknown[] }).rows[0]);
 });
 
-router.put("/api/crm/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
+router.put("/crm/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { title, description, taskType, priority, dueDate, assignedTo, status, completionNote, completedBy } = req.body as Record<string, string>;
   await db.execute(sql`
@@ -182,7 +182,7 @@ router.put("/api/crm/tasks/:id", requireAdmin, async (req: Request, res: Respons
   res.json({ ok: true });
 });
 
-router.delete("/api/crm/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/crm/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.execute(sql`DELETE FROM crm_tasks WHERE id=${id}`);
   res.json({ ok: true });
@@ -190,7 +190,7 @@ router.delete("/api/crm/tasks/:id", requireAdmin, async (req: Request, res: Resp
 
 // ─── NPS ──────────────────────────────────────────────────────────────────────
 
-router.get("/api/crm/nps/stats", requireAdmin, async (_req, res: Response) => {
+router.get("/crm/nps/stats", requireAdmin, async (_req, res: Response) => {
   const rows = await db.execute(sql`
     SELECT COUNT(*)::int AS total_sent, COUNT(score)::int AS total_responded,
       ROUND(AVG(score)::numeric,1) AS avg_score,
@@ -203,7 +203,7 @@ router.get("/api/crm/nps/stats", requireAdmin, async (_req, res: Response) => {
   res.json((rows as { rows: unknown[] }).rows[0] ?? {});
 });
 
-router.get("/api/crm/nps", requireAdmin, async (_req, res: Response) => {
+router.get("/crm/nps", requireAdmin, async (_req, res: Response) => {
   const rows = await db.execute(sql`
     SELECT n.*, c.full_name, c.company_name, c.email FROM nps_surveys n
     LEFT JOIN customers c ON c.id=n.customer_id ORDER BY n.created_at DESC LIMIT 200
@@ -211,7 +211,7 @@ router.get("/api/crm/nps", requireAdmin, async (_req, res: Response) => {
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.post("/api/crm/nps/send", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/nps/send", requireAdmin, async (req: Request, res: Response) => {
   const { customerId } = req.body as { customerId: number };
   const cr = await db.execute(sql`SELECT * FROM customers WHERE id=${customerId} LIMIT 1`);
   const c = (cr as { rows: Record<string, unknown>[] }).rows[0];
@@ -224,7 +224,7 @@ router.post("/api/crm/nps/send", requireAdmin, async (req: Request, res: Respons
 });
 
 // Public NPS respond
-router.get("/api/nps/:token", async (req: Request, res: Response) => {
+router.get("/nps/:token", async (req: Request, res: Response) => {
   const token = String(req.params["token"] ?? "");
   const rows = await db.execute(sql`SELECT n.*, c.full_name, c.company_name FROM nps_surveys n JOIN customers c ON c.id=n.customer_id WHERE n.survey_token=${token} LIMIT 1`);
   const s = (rows as { rows: Record<string, unknown>[] }).rows[0];
@@ -234,7 +234,7 @@ router.get("/api/nps/:token", async (req: Request, res: Response) => {
   res.json({ id: s["id"], customerName: s["full_name"], companyName: s["company_name"] });
 });
 
-router.post("/api/nps/:token/respond", async (req: Request, res: Response) => {
+router.post("/nps/:token/respond", async (req: Request, res: Response) => {
   const token = String(req.params["token"] ?? "");
   const { score, feedbackText } = req.body as { score: number; feedbackText?: string };
   if (score === undefined || score < 0 || score > 10) return void res.status(400).json({ error: "Geçersiz skor (0-10)" });
@@ -246,7 +246,7 @@ router.post("/api/nps/:token/respond", async (req: Request, res: Response) => {
 
 // ─── REVENUE / MRR ───────────────────────────────────────────────────────────
 
-router.get("/api/crm/revenue/stats", requireAdmin, async (_req, res: Response) => {
+router.get("/crm/revenue/stats", requireAdmin, async (_req, res: Response) => {
   const [mrrRow, monthly, custRow] = await Promise.all([
     db.execute(sql`
       SELECT
@@ -316,7 +316,7 @@ router.post("/crm/accounting/test", requireAdmin, async (req: Request, res: Resp
 
 // ─── SUBSCRIPTION LIFECYCLE ───────────────────────────────────────────────────
 
-router.post("/api/crm/customers/:id/pause", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/customers/:id/pause", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { pauseUntil } = req.body as { pauseUntil?: string };
   const until = pauseUntil ? new Date(pauseUntil) : new Date(Date.now() + 30 * 86400000);
@@ -325,13 +325,13 @@ router.post("/api/crm/customers/:id/pause", requireAdmin, async (req: Request, r
   res.json({ ok: true, pausedUntil: until });
 });
 
-router.post("/api/crm/customers/:id/resume", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/customers/:id/resume", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.execute(sql`UPDATE customers SET cust_status='active', paused_until=NULL WHERE id=${id}`);
   res.json({ ok: true });
 });
 
-router.post("/api/crm/customers/:id/cancel", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/customers/:id/cancel", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { reason } = req.body as { reason?: string };
   await db.execute(sql`UPDATE customers SET cust_status='cancelled' WHERE id=${id}`);
@@ -339,7 +339,7 @@ router.post("/api/crm/customers/:id/cancel", requireAdmin, async (req: Request, 
   res.json({ ok: true });
 });
 
-router.post("/api/crm/customers/:id/upgrade", requireAdmin, async (req: Request, res: Response) => {
+router.post("/crm/customers/:id/upgrade", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { newPlan } = req.body as { newPlan: string };
   if (!newPlan) return void res.status(400).json({ error: "Yeni plan gerekli" });
@@ -353,7 +353,7 @@ router.post("/api/crm/customers/:id/upgrade", requireAdmin, async (req: Request,
 
 // ─── PORTAL SUPPORT ───────────────────────────────────────────────────────────
 
-router.post("/api/portal/support", async (req: Request, res: Response) => {
+router.post("/portal/support", async (req: Request, res: Response) => {
   const cid = (req as Request & { session?: { customerId?: number } }).session?.["customerId"];
   if (!cid) return void res.status(401).json({ error: "Giriş yapmanız gerekiyor" });
   const { subject, message, priority } = req.body as Record<string, string>;
@@ -369,7 +369,7 @@ router.post("/api/portal/support", async (req: Request, res: Response) => {
   res.status(201).json({ ok: true, task: (r as { rows: unknown[] }).rows[0] });
 });
 
-router.get("/api/portal/support", async (req: Request, res: Response) => {
+router.get("/portal/support", async (req: Request, res: Response) => {
   const cid = (req as Request & { session?: { customerId?: number } }).session?.["customerId"];
   if (!cid) return void res.status(401).json({ error: "Giriş yapmanız gerekiyor" });
   const rows = await db.execute(sql`SELECT * FROM crm_tasks WHERE customer_id=${cid} AND task_type='support' ORDER BY created_at DESC`);

@@ -7,7 +7,7 @@ import { requireAdmin } from "./middleware";
 const router = Router();
 
 // GET /api/admin/cloud-cspm — Admin cloud özeti
-router.get("/api/admin/cloud-cspm", requireAdmin, async (req, res) => {
+router.get("/admin/cloud-cspm", requireAdmin, async (req, res) => {
   try {
     const connections = await db.select({
       id: cloudConnectionsTable.id,
@@ -62,7 +62,7 @@ router.get("/api/admin/cloud-cspm", requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/cloud-cspm/scan/:connectionId — Manuel tarama tetikle
-router.post("/api/admin/cloud-cspm/scan/:connectionId", requireAdmin, async (req, res) => {
+router.post("/admin/cloud-cspm/scan/:connectionId", requireAdmin, async (req, res) => {
   const connId = Number(req.params["connectionId"]);
   try {
     const [conn] = await db.select()

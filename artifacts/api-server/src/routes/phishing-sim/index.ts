@@ -41,7 +41,7 @@ function requireSimOwner(req: Request, res: Response, next: import("express").Ne
 
 // ─── Start simulation ─────────────────────────────────────────────────────────
 
-router.post("/api/phishing-sim/start", async (req: Request, res: Response): Promise<void> => {
+router.post("/phishing-sim/start", async (req: Request, res: Response): Promise<void> => {
   const { companyName, domain, contactEmail, sector, employeeCount, consentAccepted } = req.body as {
     companyName: string; domain: string; contactEmail?: string;
     sector?: string; employeeCount?: string; consentAccepted: boolean;
@@ -107,7 +107,7 @@ router.post("/api/phishing-sim/start", async (req: Request, res: Response): Prom
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
-router.get("/api/phishing-sim/:id/status", requireSimOwner, async (req: Request, res: Response): Promise<void> => {
+router.get("/phishing-sim/:id/status", requireSimOwner, async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const [sim] = await db.select({ id: phishingSimulationsTable.id, status: phishingSimulationsTable.status, createdAt: phishingSimulationsTable.createdAt, completedAt: phishingSimulationsTable.completedAt })
     .from(phishingSimulationsTable).where(eq(phishingSimulationsTable.id, id));
@@ -118,7 +118,7 @@ router.get("/api/phishing-sim/:id/status", requireSimOwner, async (req: Request,
 
 // ─── Report ───────────────────────────────────────────────────────────────────
 
-router.get("/api/phishing-sim/:id/report", requireSimOwner, async (req: Request, res: Response): Promise<void> => {
+router.get("/phishing-sim/:id/report", requireSimOwner, async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const [sim] = await db.select().from(phishingSimulationsTable).where(eq(phishingSimulationsTable.id, id));
   if (!sim) { res.status(404).json({ error: "Bulunamadı" }); return; }
@@ -133,7 +133,7 @@ router.get("/api/phishing-sim/:id/report", requireSimOwner, async (req: Request,
 
 // ─── Admin ─────────────────────────────────────────────────────────────────────
 
-router.get("/api/admin/phishing-sim/list", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+router.get("/admin/phishing-sim/list", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   const sims = await db.select({
     id: phishingSimulationsTable.id,
     companyName: phishingSimulationsTable.companyName,

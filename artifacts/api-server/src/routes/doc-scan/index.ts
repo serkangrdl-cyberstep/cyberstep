@@ -29,7 +29,7 @@ function checkDocScanLimit(req: Request): boolean {
 
 // ─── POST /api/document-scan/scan ─────────────────────────────────────────────
 
-router.post("/api/document-scan/scan", async (req: Request, res: Response): Promise<void> => {
+router.post("/document-scan/scan", async (req: Request, res: Response): Promise<void> => {
   if (!checkDocScanLimit(req)) {
     res.status(429).json({ error: "Saatlik tarama limitine ulaştınız. Lütfen daha sonra tekrar deneyin." });
     return;
@@ -175,7 +175,7 @@ Bu belgenin güvenilirliği hakkında patron diline 2-3 cümle yaz. Sadece metin
 
 // ─── GET /api/document-scan/:id ───────────────────────────────────────────────
 
-router.get("/api/document-scan/:id", async (req: Request, res: Response): Promise<void> => {
+router.get("/document-scan/:id", async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const rows = await db.select().from(documentScansTable)
     .where(eq(documentScansTable.id, id)).limit(1);

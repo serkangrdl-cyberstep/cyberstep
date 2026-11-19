@@ -7,7 +7,7 @@ import { requireAdmin } from "./middleware";
 const router = Router();
 
 // GET /api/admin/code-secrets — Admin secrets özeti
-router.get("/api/admin/code-secrets", requireAdmin, async (req, res) => {
+router.get("/admin/code-secrets", requireAdmin, async (req, res) => {
   try {
     const findings = await db.select({
       id: codeSecretsFindingsTable.id,
@@ -48,7 +48,7 @@ router.get("/api/admin/code-secrets", requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/code-secrets/scan/:customerId — Manuel GitHub scan tetikle
-router.post("/api/admin/code-secrets/scan/:customerId", requireAdmin, async (req, res) => {
+router.post("/admin/code-secrets/scan/:customerId", requireAdmin, async (req, res) => {
   const customerId = Number(req.params["customerId"]);
   try {
     const [customer] = await db.select({ githubOrg: customersTable.githubOrg, id: customersTable.id })

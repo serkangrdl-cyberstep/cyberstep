@@ -15,7 +15,7 @@ function custId(req: Request): number | undefined {
 }
 
 // ── Stats (MUST be before /:id) ───────────────────────────────────────────────
-router.get("/api/invoices/stats", requireAdmin, async (_req, res: Response) => {
+router.get("/invoices/stats", requireAdmin, async (_req, res: Response) => {
   const ms = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const rows = await db.execute(sql`
     SELECT
@@ -30,7 +30,7 @@ router.get("/api/invoices/stats", requireAdmin, async (_req, res: Response) => {
   res.json((rows as { rows: unknown[] }).rows[0] ?? {});
 });
 
-router.get("/api/invoices/overdue", requireAdmin, async (_req, res: Response) => {
+router.get("/invoices/overdue", requireAdmin, async (_req, res: Response) => {
   const today = new Date().toISOString().split("T")[0];
   const rows = await db.execute(sql`
     SELECT * FROM enterprise_invoices
@@ -41,7 +41,7 @@ router.get("/api/invoices/overdue", requireAdmin, async (_req, res: Response) =>
 });
 
 // ── List ──────────────────────────────────────────────────────────────────────
-router.get("/api/invoices", requireAdmin, async (req: Request, res: Response) => {
+router.get("/invoices", requireAdmin, async (req: Request, res: Response) => {
   const { status, customerId, search, limit = "100", offset = "0" } = req.query as Record<string, string>;
   let where = "1=1";
   if (status) where += ` AND status = '${status.replace(/'/g, "''")}'`;
@@ -54,7 +54,7 @@ router.get("/api/invoices", requireAdmin, async (req: Request, res: Response) =>
 });
 
 // ── Pay link (public, before /:id) ────────────────────────────────────────────
-router.get("/api/invoices/pay/:token", async (req: Request, res: Response) => {
+router.get("/invoices/pay/:token", async (req: Request, res: Response) => {
   const token = String(req.params["token"] ?? "");
   const rows = await db.execute(sql`SELECT id, full_invoice_number, invoice_number, total_tl, customer_name, status, due_date FROM enterprise_invoices WHERE payment_token = ${token}`);
   const inv = (rows as { rows: Record<string, unknown>[] }).rows[0];
@@ -63,7 +63,7 @@ router.get("/api/invoices/pay/:token", async (req: Request, res: Response) => {
 });
 
 // ── Single ────────────────────────────────────────────────────────────────────
-router.get("/api/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
+router.get("/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const rows = await db.execute(sql`SELECT * FROM enterprise_invoices WHERE id = ${id}`);
   const row = (rows as { rows: unknown[] }).rows[0];
@@ -72,7 +72,7 @@ router.get("/api/invoices/:id", requireAdmin, async (req: Request, res: Response
 });
 
 // ── Create ────────────────────────────────────────────────────────────────────
-router.post("/api/invoices", requireAdmin, async (req: Request, res: Response) => {
+router.post("/invoices", requireAdmin, async (req: Request, res: Response) => {
   try {
     const inv = await createInvoice(req.body as Parameters<typeof createInvoice>[0]);
     const settings = await db.execute(sql`SELECT auto_sync_on_create FROM accounting_settings WHERE id = 1`);
@@ -86,7 +86,7 @@ router.post("/api/invoices", requireAdmin, async (req: Request, res: Response) =
 });
 
 // ── Update ────────────────────────────────────────────────────────────────────
-router.put("/api/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
+router.put("/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { notes, dueDate, status, customerName, customerTaxId, customerTaxOffice, customerAddress, billingEmail } = req.body as Record<string, string>;
   await db.execute(sql`
@@ -105,7 +105,7 @@ router.put("/api/invoices/:id", requireAdmin, async (req: Request, res: Response
 });
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
-router.get("/api/invoices/:id/pdf", requireAdmin, async (req: Request, res: Response) => {
+router.get("/invoices/:id/pdf", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const rows = await db.execute(sql`SELECT * FROM enterprise_invoices WHERE id = ${id}`);
   const inv = (rows as { rows: Record<string, unknown>[] }).rows[0];
@@ -123,7 +123,7 @@ router.get("/api/invoices/:id/pdf", requireAdmin, async (req: Request, res: Resp
 });
 
 // ── Send ──────────────────────────────────────────────────────────────────────
-router.post("/api/invoices/:id/send", requireAdmin, async (req: Request, res: Response) => {
+router.post("/invoices/:id/send", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const rows = await db.execute(sql`SELECT * FROM enterprise_invoices WHERE id = ${id}`);
   const inv = (rows as { rows: Record<string, unknown>[] }).rows[0];
@@ -143,7 +143,7 @@ router.post("/api/invoices/:id/send", requireAdmin, async (req: Request, res: Re
 });
 
 // ── Mark paid ─────────────────────────────────────────────────────────────────
-router.post("/api/invoices/:id/mark-paid", requireAdmin, async (req: Request, res: Response) => {
+router.post("/invoices/:id/mark-paid", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const rows = await db.execute(sql`SELECT total_tl FROM enterprise_invoices WHERE id = ${id}`);
   const inv = (rows as { rows: Record<string, unknown>[] }).rows[0];
@@ -155,7 +155,7 @@ router.post("/api/invoices/:id/mark-paid", requireAdmin, async (req: Request, re
 });
 
 // ── Cancel ────────────────────────────────────────────────────────────────────
-router.post("/api/invoices/:id/cancel", requireAdmin, async (req: Request, res: Response) => {
+router.post("/invoices/:id/cancel", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.execute(sql`UPDATE enterprise_invoices SET status='cancelled' WHERE id=${id}`);
   const s = (await db.execute(sql`SELECT auto_sync_on_cancel FROM accounting_settings WHERE id=1`) as { rows: Record<string, unknown>[] }).rows[0];
@@ -164,7 +164,7 @@ router.post("/api/invoices/:id/cancel", requireAdmin, async (req: Request, res: 
 });
 
 // ── Send reminder ─────────────────────────────────────────────────────────────
-router.post("/api/invoices/:id/send-reminder", requireAdmin, async (req: Request, res: Response) => {
+router.post("/invoices/:id/send-reminder", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { reminderNumber = 1 } = req.body as { reminderNumber?: number };
   const rows = await db.execute(sql`SELECT * FROM enterprise_invoices WHERE id = ${id}`);
@@ -182,7 +182,7 @@ router.post("/api/invoices/:id/send-reminder", requireAdmin, async (req: Request
 });
 
 // ── Regenerate payment token ──────────────────────────────────────────────────
-router.post("/api/invoices/:id/regenerate-token", requireAdmin, async (req: Request, res: Response) => {
+router.post("/invoices/:id/regenerate-token", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const token = crypto.randomBytes(32).toString("hex");
   await db.execute(sql`UPDATE enterprise_invoices SET payment_token=${token} WHERE id=${id}`);
@@ -190,14 +190,14 @@ router.post("/api/invoices/:id/regenerate-token", requireAdmin, async (req: Requ
 });
 
 // ── Customer portal: invoices ─────────────────────────────────────────────────
-router.get("/api/portal/invoices", async (req: Request, res: Response) => {
+router.get("/portal/invoices", async (req: Request, res: Response) => {
   const cid = custId(req);
   if (!cid) return void res.status(401).json({ error: "Giriş yapmanız gerekiyor" });
   const rows = await db.execute(sql`SELECT id,full_invoice_number,invoice_number,total_tl,status,due_date,paid_at,created_at FROM enterprise_invoices WHERE customer_id = ${cid} ORDER BY created_at DESC`);
   res.json((rows as { rows: unknown[] }).rows);
 });
 
-router.get("/api/portal/invoices/:id/pdf", async (req: Request, res: Response) => {
+router.get("/portal/invoices/:id/pdf", async (req: Request, res: Response) => {
   const cid = custId(req);
   if (!cid) return void res.status(401).json({ error: "Giriş yapmanız gerekiyor" });
   const id = parseInt(String(req.params["id"] ?? "0"));

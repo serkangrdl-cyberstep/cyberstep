@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 interface Cve { cveId: string; service: string; description: string; cvss: number; wafMitigated: boolean; kev: boolean; kevRansomware: boolean; kevSource: "cisa" | "vulncheck" | null; epss: number | null; epssPercentile: number | null }
+interface ClientLibCve { library: string; version: string; cveId: string; title: string; cvss: number; kev: boolean; range: string; source: string }
 interface Port { port: number; protocol: string; service: string; product: string; version: string; risk: "high" | "medium" | "low"; note: string }
 interface Finding { category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }
 interface Findings {
@@ -14,6 +15,9 @@ interface Findings {
   findings: Finding[];
   cves: Cve[];
   ports: Port[];
+  clientLibCves: ClientLibCve[];
+  clientLibsDetected: { library: string; version: string }[];
+  clientLibsChecked: boolean;
   other: { sslLabsGrade: string | null; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; mozillaObservatory: { grade?: string; score?: number } | null };
   unchecked: string[];
 }
@@ -60,7 +64,19 @@ export function VendorFindingsDialog({ vendorId, vendorName, onClose }: { vendor
               </TabsList>
 
               <TabsContent value="cve" className="space-y-2">
-                {data.cves.length === 0 && <p className="text-muted-foreground py-3">Doğrulanmış sürüm eşleşmesi olan CVE bulunmadı.</p>}
+                {data.clientLibCves.map((c) => (
+                  <div key={`lib-${c.cveId}-${c.library}`} className="rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono font-semibold">{c.cveId}</span>
+                      <Badge variant="outline">CVSS {c.cvss.toFixed(1)}</Badge>
+                      {c.kev && <Badge className="bg-red-600 text-white">Aktif istismar (KEV)</Badge>}
+                      <Badge variant="outline">Sürüm doğrulandı</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">Kanıt: sayfada {c.library === "jquery" ? "jQuery" : c.library} {c.version} ({c.source}); etkilenen aralık {c.range}</p>
+                    <p className="mt-1">{c.title}</p>
+                  </div>
+                ))}
+                {data.cves.length === 0 && data.clientLibCves.length === 0 && <p className="text-muted-foreground py-3">Doğrulanmış sürüm eşleşmesi olan CVE bulunmadı.</p>}
                 {data.cves.map((c) => (
                   <div key={`${c.cveId}-${c.service}`} className="rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-2">

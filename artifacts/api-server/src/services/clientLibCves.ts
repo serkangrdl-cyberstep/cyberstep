@@ -27,6 +27,20 @@ export const CLIENT_LIB_ADVISORIES: readonly ClientLibAdvisory[] = [
   { library: "jquery", cveId: "CVE-2020-11023", title: "jQuery çapraz site betik çalıştırma (XSS) — <option> öğeleri içeren HTML", cvss: 6.9, startIncluding: "1.0.3", endExcluding: "3.5.0", kev: true },
 ];
 
+/**
+ * NVD kaydında sürüm aralığı olmayan (yalnızca ürün adı olan) CVE'ler için elle doğrulanmış aralığı uygular.
+ * Eşleşen kayıt yoksa ürünü aynen döndürür.
+ */
+export function withCuratedRange<P extends { product?: string; versionStartIncluding?: string; versionEndExcluding?: string }>(
+  cveId: string, product: P, advisories: readonly ClientLibAdvisory[] = CLIENT_LIB_ADVISORIES,
+): P & { curated?: boolean } {
+  if (product.versionStartIncluding || product.versionEndExcluding) return product;
+  const lib = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
+  const a = advisories.find((x) => x.cveId === cveId && x.library === lib);
+  if (!a) return product;
+  return { ...product, versionStartIncluding: a.startIncluding, versionEndExcluding: a.endExcluding, curated: true };
+}
+
 export interface ClientLibFinding {
   library: string;
   version: string;

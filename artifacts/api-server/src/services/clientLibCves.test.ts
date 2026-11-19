@@ -32,3 +32,14 @@ test("ana sayfa çekimi: yönlendirmede her sıçrama public olmalı, dahili adr
   assert.equal(await fetchHomepageHtml("a.com", mk({ "https://a.com/": { status: 302, loc: "https://internal.local/" } }), pub), null);
   assert.equal(await fetchHomepageHtml("a.com", mk({ "https://a.com/": { status: 500 } }), pub), null);
 });
+
+test("aralıksız NVD kaydına elle doğrulanmış aralık uygulanır", async () => {
+  const { withCuratedRange } = await import("./clientLibCves");
+  const p = withCuratedRange("CVE-2020-11023", { product: "JQuery" } as { product: string; versionEndExcluding?: string });
+  assert.equal(p.versionEndExcluding, "3.5.0");
+  assert.equal(p.curated, true);
+  const other = { product: "JQuery" };
+  assert.equal(withCuratedRange("CVE-2099-1", other), other);
+  const ranged = { product: "jquery", versionEndExcluding: "9.9" };
+  assert.equal(withCuratedRange("CVE-2020-11023", ranged), ranged);
+});

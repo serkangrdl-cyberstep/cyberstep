@@ -205,3 +205,12 @@ test("SSL Labs notu F ise web puanı düşer ve bulgu üretir; A ise etkilemez",
   assert.ok(bad.findings.some((f) => /SSL Labs notu F/.test(f.title)));
   assert.ok(!good.findings.some((f) => /SSL Labs/.test(f.title)));
 });
+
+test("istemci kitaplığı KEV bulgusu: puan keser ama skor tavanı koymaz", () => {
+  const base = computeScoreV2(clean);
+  const r = computeScoreV2({ ...clean, clientLibCves: [{ cveId: "CVE-2020-11023", cvss: 6.9, kev: true, library: "jquery", version: "3.3.1" }] });
+  assert.equal(r.caps.length, 0);
+  assert.equal(base.score - r.score, 8);
+  assert.ok(r.findings.some((f) => f.title.includes("jQuery 3.3.1")));
+  assert.ok(r.score > 49);
+});

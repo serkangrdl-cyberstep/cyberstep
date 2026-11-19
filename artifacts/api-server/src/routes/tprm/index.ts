@@ -936,7 +936,7 @@ router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, r
     const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, scanId)).limit(1);
     // Taramanın alan adı tedarikçiyle eşleşmeli (başka alan adının verisi sızmasın)
     if (!scan || normalizeDomain(scan.domain) !== normalizeDomain(vendor.supplierDomain)) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
-    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[] } | null;
+    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[]; clientLibs?: { detected: { library: string; version: string }[]; findings: unknown[] } | null } | null;
     const cveIds = (scan.cveSummary ?? []).map((c) => c.cveId);
     const kev = mergeExtraKev(await loadKevLookup(cveIds), vulncheckKevOf(scan));
     const scoreV2 = await scoreScanV2(scan);
@@ -947,6 +947,9 @@ router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, r
       findings: scoreV2.findings,
       cves: buildVendorCves(scan.cveSummary, kev, extra?.epss),
       ports: buildVendorPorts(scan.shodanOpenPorts),
+      clientLibCves: extra?.clientLibs?.findings ?? [],
+      clientLibsDetected: extra?.clientLibs?.detected ?? [],
+      clientLibsChecked: extra?.clientLibs != null,
       other: {
         sslLabsGrade: extra?.sslLabsGrade ?? null,
         danglingCnames: extra?.danglingCnames ?? [],

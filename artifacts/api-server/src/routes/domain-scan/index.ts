@@ -1699,6 +1699,14 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
     const deep = full ? await (async () => {
       const dnsP = await import("dns/promises");
       const { checkVulnCheckKev, checkHudsonRock, checkObservatoryV2 } = await import("../../services/tprmIntel");
+      const { fetchHomepageHtml, detectJsLibraries, matchClientLibCves } = await import("../../services/clientLibCves");
+      const clientLibsP = fetchHomepageHtml(domain, fetch as never, isPublicDomain)
+        .then((html) => {
+          if (html === null) return null;
+          const libs = detectJsLibraries(html);
+          return { detected: libs, findings: matchClientLibCves(libs) };
+        })
+        .catch(() => null);
       const [ips, tf, ct, ssll, otx, epss, vcKev, hudson, mozObs] = await Promise.all([
         dnsP.resolve4(domain).catch(() => [] as string[]),
         checkThreatFox(domain).catch(() => ({ iocCount: 0, threatType: null, malwareName: null, unchecked: true } as ThreatFoxResult)),
@@ -1710,10 +1718,11 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         checkHudsonRock(domain, fetch as never).catch(() => null),
         checkObservatoryV2(domain, fetch as never).catch(() => null),
       ]);
+      const clientLibs = await clientLibsP;
       const feodo = await checkFeodoIps(ips).catch(() => ({ c2Ips: [] as string[], unchecked: true }));
       const { findDanglingCnames } = await import("../../services/tprmDeepScan");
       const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
-      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs };
+      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs, clientLibs };
     })() : null;
     const tprmExtra = deep ? {
       feodoC2Ips: deep.feodo.c2Ips,
@@ -1730,6 +1739,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       vulncheckKev: deep.vcKev ? deep.vcKev.kev : null,
       hudsonRock: deep.hudson,
       mozillaObservatory: deep.mozObs,
+      clientLibs: deep.clientLibs,
     } : null;
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir

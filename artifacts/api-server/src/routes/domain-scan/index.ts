@@ -1621,28 +1621,38 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
  * TPRM: SSL Labs notu. Önce 7 günlük önbellek; yoksa yeni değerlendirme başlatılır (sonucu sonraki taramada okunur).
  * Not hazır değilse "ölçülemedi" (skoru etkilemez), temiz/iyi sayılmaz.
  */
-async function checkSSLLabsTprm(domain: string): Promise<{ grade: string | null; pending: boolean }> {
-  const get = (path: string) => new Promise<{ status?: string; endpoints?: Array<{ grade?: string }> } | null>((resolve) => {
-    const r = https.request({ hostname: "api.ssllabs.com", path, method: "GET", timeout: 12000, headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", "Accept": "application/json" } }, (res) => {
+async function checkSSLLabsTprm(domain: string): Promise<{ grade: string | null; pending: boolean; error?: string }> {
+  type Body = { status?: string; endpoints?: Array<{ grade?: string }> };
+  // status: HTTP kodu; 0 = ağ/zaman aşımı/bozuk yanıt (neden error içinde)
+  const get = (path: string) => new Promise<{ status: number; body: Body | null; error?: string }>((resolve) => {
+    const r = https.request({ hostname: "api.ssllabs.com", path, method: "GET", timeout: 20000, headers: { "User-Agent": "CyberStep.io Security Scanner/1.0", "Accept": "application/json" } }, (res) => {
       let data = "";
       res.on("data", (c) => (data += c));
-      res.on("end", () => { try { resolve(res.statusCode === 200 ? JSON.parse(data) : null); } catch { resolve(null); } });
+      res.on("end", () => {
+        const code = res.statusCode ?? 0;
+        if (code !== 200) { logger.warn({ domain, code }, "SSL Labs: HTTP 200 dışı yanıt"); resolve({ status: code, body: null, error: `http_${code}` }); return; }
+        try { resolve({ status: code, body: JSON.parse(data) as Body }); } catch { resolve({ status: 0, body: null, error: "bad_json" }); }
+      });
     });
-    r.on("error", () => resolve(null));
-    r.on("timeout", () => { r.destroy(); resolve(null); });
+    r.on("error", (e) => { logger.warn({ domain, err: String(e) }, "SSL Labs: bağlantı hatası"); resolve({ status: 0, body: null, error: "network" }); });
+    r.on("timeout", () => { r.destroy(); logger.warn({ domain }, "SSL Labs: zaman aşımı"); resolve({ status: 0, body: null, error: "timeout" }); });
     r.end();
   });
   const h = encodeURIComponent(domain);
-  const cached = await get(`/api/v3/analyze?host=${h}&publish=off&fromCache=on&maxAge=168&all=done`);
-  if (cached?.status === "READY" && cached.endpoints?.length) {
+  // all=done kaldırıldı: not endpoints[].grade içinde zaten gelir; tam ayrıntı yanıtı ~250 KB'a çıkıyordu.
+  const cached = await get(`/api/v3/analyze?host=${h}&publish=off&fromCache=on&maxAge=168`);
+  const b = cached.body;
+  if (b?.status === "READY" && b.endpoints?.length) {
     const order = ["A+", "A", "A-", "B", "C", "D", "E", "F", "T", "M"];
-    const grades = cached.endpoints.map((e) => e.grade).filter(Boolean) as string[];
+    const grades = b.endpoints.map((e) => e.grade).filter(Boolean) as string[];
     const worst = [...order].reverse().find((g) => grades.includes(g)) ?? grades[0] ?? null;
     return { grade: worst, pending: false };
   }
-  if (cached?.status === "IN_PROGRESS" || cached?.status === "DNS") return { grade: null, pending: true };
-  const started = await get(`/api/v3/analyze?host=${h}&publish=off&startNew=on&all=done`);
-  return { grade: null, pending: started !== null };
+  if (b?.status === "IN_PROGRESS" || b?.status === "DNS") return { grade: null, pending: true };
+  if (b?.status === "ERROR") return { grade: null, pending: false, error: "ssllabs_error" };
+  if (!b) return { grade: null, pending: false, error: cached.error };
+  const started = await get(`/api/v3/analyze?host=${h}&publish=off&startNew=on`);
+  return { grade: null, pending: started.body !== null, ...(started.body === null ? { error: started.error } : {}) };
 }
 
 // ─── performDomainScan: Direct call (used by discovery pipeline) ─────────────
@@ -1721,7 +1731,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         dnsP.resolve4(domain).catch(() => [] as string[]),
         checkThreatFox(domain).catch(() => ({ iocCount: 0, threatType: null, malwareName: null, unchecked: true } as ThreatFoxResult)),
         checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0, failed: true as boolean | undefined })),
-        checkSSLLabsTprm(domain).catch(() => ({ grade: null as string | null, pending: false })),
+        checkSSLLabsTprm(domain).catch(() => ({ grade: null as string | null, pending: false, error: "exception" as string | undefined })),
         checkOTX(domain).catch(() => null),
         cveSummary.length > 0 ? enrichWithEpss(cveSummary).catch(() => [] as NvdCveEntryWithEpss[]) : Promise.resolve([] as NvdCveEntryWithEpss[]),
         checkVulnCheckKev(cveSummary.map((c) => c.cveId), process.env["VULNCHECK_API_KEY"], fetch as never).catch(() => ({ kev: [] as string[], failed: true })),
@@ -1744,6 +1754,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       nvdQueried: nvdRes.queried,
       sslLabsGrade: deep.ssll.grade,
       sslLabsPending: deep.ssll.pending,
+      sslLabsError: deep.ssll.error ?? null,
       epss: Object.fromEntries(deep.epss.map((e) => [e.cveId, { score: e.epssScore, percentile: e.epssPercentile }])),
       otx: deep.otx ? { pulseCount: deep.otx.pulseCount, trTargetedPulses: deep.otx.maliciousCount } : null,
       vulncheckKev: deep.vcKev ? deep.vcKev.kev : null,

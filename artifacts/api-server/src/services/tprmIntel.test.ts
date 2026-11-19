@@ -28,3 +28,48 @@ test("Observatory v2 parse", () => {
   assert.deepEqual(parseObservatoryV2({ grade: "B+", score: 80 }), { grade: "B+", score: 80 });
   assert.equal(parseObservatoryV2({ error: "x" }), null);
 });
+
+// ── Yeniden deneme: geçici hata (ağ/429/5xx) bir kez daha denenir, kalıcı hata denenmez ──
+import { isTransient, checkVulnCheckKev as _kev, checkHudsonRock as _hr, checkObservatoryV2 as _obs, type FetchLike as _Fetch } from "./tprmIntel";
+
+const scripted = (steps: Array<{ status: number; body?: unknown } | "throw">): { fetcher: _Fetch; calls: () => number } => {
+  let i = 0;
+  const fetcher: _Fetch = async () => {
+    const step = steps[Math.min(i++, steps.length - 1)]!;
+    if (step === "throw") throw new Error("network");
+    return { ok: step.status < 400, status: step.status, json: async () => step.body ?? null };
+  };
+  return { fetcher, calls: () => i };
+};
+const fast = { retryDelayMs: 0 };
+
+test("isTransient: ağ hatası, 429 ve 5xx geçici; diğer 4xx kalıcı", () => {
+  assert.equal(isTransient(null), true);
+  assert.equal(isTransient({ status: 429 }), true);
+  assert.equal(isTransient({ status: 503 }), true);
+  assert.equal(isTransient({ status: 404 }), false);
+  assert.equal(isTransient({ status: 200 }), false);
+});
+
+test("Mozilla Observatory: ilk deneme 503 ise tekrar dener ve not alır", async () => {
+  const s = scripted([{ status: 503 }, { status: 200, body: { grade: "B+", score: 70 } }]);
+  assert.deepEqual(await _obs("a.com", s.fetcher, fast), { grade: "B+", score: 70 });
+  assert.equal(s.calls(), 2);
+});
+
+test("Hudson Rock: ağ hatasından sonra başarılı; kalıcı 404'te yeniden denemez", async () => {
+  const ok = scripted(["throw", { status: 200, body: { employees: 1, users: 2, totalStealers: 3 } }]);
+  assert.deepEqual(await _hr("a.com", ok.fetcher, fast), { employees: 1, users: 2, stealers: 3 });
+  assert.equal(ok.calls(), 2);
+  const perm = scripted([{ status: 404 }]);
+  assert.equal(await _hr("a.com", perm.fetcher, fast), null);
+  assert.equal(perm.calls(), 1);
+});
+
+test("VulnCheck KEV: her CVE için tek yeniden deneme; iki denemede de hata → failed", async () => {
+  const flaky = scripted([{ status: 502 }, { status: 200, body: { data: [{ cve: ["CVE-2020-1"] }] } }]);
+  assert.deepEqual(await _kev(["CVE-2020-1"], "tok", flaky.fetcher, fast), { kev: ["CVE-2020-1"], failed: false });
+  const down = scripted([{ status: 500 }]);
+  assert.deepEqual(await _kev(["CVE-2020-1"], "tok", down.fetcher, fast), { kev: [], failed: true });
+  assert.equal(down.calls(), 2);
+});

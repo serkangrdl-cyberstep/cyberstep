@@ -1,5 +1,6 @@
 import { db, cveTrackerTable, cveDomainMatchesTable, customerTechStackTable, domainScansTable } from "@workspace/db";
 import { evaluateVersionEvidence, isVersionVulnerable } from "./versionEvidence";
+import { withCuratedRange } from "../clientLibCves";
 import { eq, ilike, and, sql, isNotNull } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import type { CVEEntry } from "./cveFeedReader";
@@ -191,7 +192,8 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
   // Önemli: customer_tech_stack.vendor = servis adı ("Google Analytics / Tag Manager"),
   // CVE.vendor = firma adı ("Google"). Bunları ilike ile çapraz eşleştirmek yanlış.
   // Çözüm: sadece CVE.product ile tech stack vendor (servis adı) eşleştirilir.
-  for (const product of cve.affectedProducts) {
+  for (const rawProduct of cve.affectedProducts) {
+    const product = withCuratedRange(cve.cveId, rawProduct);
     const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
     if (pLower.length < 4) continue; // Çok kısa ürün adları çok geniş eşleşir
 
@@ -228,9 +230,12 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
       if (product.versionEndExcluding && row.version) {
         if (!isVersionVulnerable(row.version, product.versionStartIncluding, product.versionEndExcluding)) continue;
       }
+      // Elle doğrulanmış aralık varsa kanıt düzeyi sürüme göre belirlenir (aralık dışı elenir, içi "doğrulandı").
+      const curatedEv = product.curated ? evaluateVersionEvidence(row.version, product, row.confidence ?? 50, null) : null;
+      if (curatedEv?.skip) continue;
 
       const existing = matchMap.get(row.domain);
-      const conf = row.confidence ?? 50;
+      const conf = curatedEv ? curatedEv.confidence : (row.confidence ?? 50);
       if (!existing || conf > existing.confidence) {
         matchMap.set(row.domain, {
           domain: row.domain,
@@ -239,7 +244,7 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
           matchedProduct: `${row.vendor ?? ""} ${row.product ?? ""}`.trim(),
           matchedVersion: row.version ?? null,
           confidence: conf,
-          matchNote: null,
+          matchNote: curatedEv?.note ?? null,
         });
       }
     }
@@ -258,7 +263,8 @@ export async function analyzeTurkeyImpact(cve: CVEEntry): Promise<TurkeyImpactRe
       const services = (scan.shadowItServices ?? []) as Array<{ name: string; category: string; version?: string }>;
       if (services.length === 0) continue;
 
-      for (const product of cve.affectedProducts) {
+      for (const rawProduct of cve.affectedProducts) {
+        const product = withCuratedRange(cve.cveId, rawProduct);
         const pLower = (product.product ?? "").toLowerCase().replace(/_/g, " ").trim();
         if (pLower.length < 4) continue;
 

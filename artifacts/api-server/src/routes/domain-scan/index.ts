@@ -1,5 +1,5 @@
 import { isInternalHostname, isPublicDomain } from "../../lib/hostGuard";
-import { reconcileSsl } from "../../services/sslReconcile";
+import { reconcileSsl, BROKEN_TLS_NOTE } from "../../services/sslReconcile";
 import { Router } from "express";
 import { scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
 import { SCORE_V2_VERSION, type ScoreV2Result } from "../../lib/scoring/scoreV2";
@@ -1684,7 +1684,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       checkUsomList(domain),
       checkShodan(domain, { priority: opts.full === true }).catch(() => null),
     ]);
-    const ssl = reconcileSsl(sslRaw, shodan?.openPorts);
+    let ssl = reconcileSsl(sslRaw, shodan?.openPorts);
 
     const scoreResult = calcScore(
       spf.strength,
@@ -1744,6 +1744,8 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
       return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs, clientLibs };
     })() : null;
+    // SSL Labs bu alan adı için not verdiyse TLS çalışıyor demektir: kendi ölçümümüzün geçici başarısızlığını "bozuk TLS" bulgusu sayma.
+    if (deep?.ssll.grade && ssl !== sslRaw && ssl.note === BROKEN_TLS_NOTE) ssl = sslRaw;
     const tprmExtra = deep ? {
       feodoC2Ips: deep.feodo.c2Ips,
       threatFoxIocCount: deep.tf.iocCount,

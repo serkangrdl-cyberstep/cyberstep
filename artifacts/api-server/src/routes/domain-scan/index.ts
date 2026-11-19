@@ -1,4 +1,5 @@
 import { isInternalHostname, isPublicDomain } from "../../lib/hostGuard";
+import { reconcileSsl } from "../../services/sslReconcile";
 import { Router } from "express";
 import { scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
 import { SCORE_V2_VERSION, type ScoreV2Result } from "../../lib/scoring/scoreV2";
@@ -182,6 +183,7 @@ async function checkSSLOnce(domain: string): Promise<{
   daysUntilExpiry: number | null;
   note: string | null;
   unchecked?: boolean;
+  errorCode?: string;
 }> {
   const CERT_PROBLEM_NOTE =
     "SSL sertifikası geçersiz, süresi dolmuş veya alan adıyla uyumsuz; HTTPS doğrulaması başarısız.";
@@ -226,12 +228,12 @@ async function checkSSLOnce(domain: string): Promise<{
         resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: CERT_PROBLEM_NOTE });
       } else {
         logger.warn({ domain, code }, "SSL: bağlantı hatası — ölçülemedi");
-        resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true });
+        resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true, errorCode: code || "UNKNOWN" });
       }
     });
     req.on("timeout", () => {
       req.destroy();
-      resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true });
+      resolve({ pass: false, expiryDate: null, issuer: null, daysUntilExpiry: null, note: UNMEASURED_NOTE, unchecked: true, errorCode: "ETIMEDOUT" });
     });
     req.end();
   });
@@ -245,6 +247,7 @@ async function checkSSL(domain: string): Promise<{
   daysUntilExpiry: number | null;
   note: string | null;
   unchecked?: boolean;
+  errorCode?: string;
 }> {
   let last = await checkSSLOnce(domain);
   for (let attempt = 2; attempt <= 3 && last.unchecked; attempt++) {
@@ -405,7 +408,13 @@ const SHADOW_IT_CATALOG: Array<{
   { name: "Popupsmart", category: "Pazarlama / Yerel", pattern: /popupsmart\.com/i, risk: "Düşük", desc: "Popupsmart Türk popup ve lead toplama aracı. Ziyaretçi verileri toplanır — KVKK kapsamında açık rıza ve bildirim zorunlu." },
 ];
 
+/** Ana sayfa: önce HTTPS, boş dönerse (HTTPS yok/bozuk) HTTP ile bir kez daha dener. */
 async function fetchHomepage(domain: string): Promise<string> {
+  const https = await fetchHomepageOnce(domain, "https");
+  return https || fetchHomepageOnce(domain, "http");
+}
+
+async function fetchHomepageOnce(domain: string, scheme: "https" | "http"): Promise<string> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (value: string) => {
@@ -464,7 +473,7 @@ async function fetchHomepage(domain: string): Promise<string> {
         finish("");
       }
     };
-    makeRequest(`https://${domain}`);
+    makeRequest(`${scheme}://${domain}`);
   });
 }
 
@@ -1654,7 +1663,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
     return null;
   }
   try {
-    const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
+    const [spf, dmarc, dkim, mx, sslRaw, blacklist, shadowIt, usom, shodan] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -1665,6 +1674,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       checkUsomList(domain),
       checkShodan(domain, { priority: opts.full === true }).catch(() => null),
     ]);
+    const ssl = reconcileSsl(sslRaw, shodan?.openPorts);
 
     const scoreResult = calcScore(
       spf.strength,
@@ -1947,7 +1957,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
   try {
     // Faz 1: Puanlama kontrolleri — pipeline (performDomainScan) ile özdeş 9 kontrol.
     // Skor bu gruptan hesaplanır; daha az paralel bağlantı = SSL/Shodan güvenilir çalışır.
-    const [spf, dmarc, dkim, mx, ssl, blacklist, shadowIt, usom, shodan] = await Promise.all([
+    const [spf, dmarc, dkim, mx, sslRaw, blacklist, shadowIt, usom, shodan] = await Promise.all([
       checkSPF(domain),
       checkDMARC(domain),
       checkDKIM(domain),
@@ -1958,6 +1968,7 @@ router.post("/domain-scan", anonScanLimiter, async (req, res) => {
       checkUsomList(domain),
       checkShodan(domain).catch(() => null),
     ]);
+    const ssl = reconcileSsl(sslRaw, shodan?.openPorts);
 
     const scoreResult = calcScore(
       spf.strength,

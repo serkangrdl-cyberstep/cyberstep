@@ -1920,8 +1920,8 @@ export default function AdminLeadDiscovery() {
             <TabsTrigger value="results">Sonuclar</TabsTrigger>
             <TabsTrigger value="history">Gecmis</TabsTrigger>
             {(showArchive || !ARCHIVED_TABS.has("puanlama-rehberi")) && <TabsTrigger value="puanlama-rehberi">Puanlama Rehberi</TabsTrigger>}
-            <TabsTrigger value="cve-raporu">CVE Raporu</TabsTrigger>
-            <TabsTrigger value="port-riski">Port Riski</TabsTrigger>
+            <TabsTrigger value="cve-raporu">Endeks · CVE</TabsTrigger>
+            <TabsTrigger value="port-riski">Endeks · Port</TabsTrigger>
             {(showArchive || !ARCHIVED_TABS.has("zenginlestirme")) && <TabsTrigger value="zenginlestirme">Zenginleştirme</TabsTrigger>}
             {(showArchive || !ARCHIVED_TABS.has("bist-analizi")) && <TabsTrigger value="bist-analizi">BIST Analizi</TabsTrigger>}
             <button type="button" onClick={() => setShowArchive((v) => !v)} className="ml-2 px-3 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">

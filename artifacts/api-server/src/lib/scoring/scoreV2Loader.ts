@@ -69,6 +69,12 @@ export function vulncheckKevOf(scan: { tprmExtra?: unknown }): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 }
 
+export function clientLibCvesOf(scan: { tprmExtra?: unknown }): NonNullable<ScoreV2Input["clientLibCves"]> {
+  const f = (scan.tprmExtra as { clientLibs?: { findings?: unknown } | null } | null)?.clientLibs?.findings;
+  if (!Array.isArray(f)) return [];
+  return f.filter((x): x is { cveId: string; cvss: number; kev: boolean; library?: string; version?: string } => !!x && typeof (x as { cveId?: unknown }).cveId === "string");
+}
+
 export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
   return {
     referralSource: scan.referralSource,
@@ -89,6 +95,7 @@ export function scanToScoreInput(scan: DomainScanRow): ScoreV2Input {
     sslUnchecked: ((scan.uncheckedSources as string[] | null) ?? []).includes("ssl"),
     uncheckedSources: (scan.uncheckedSources as string[] | null) ?? [],
     cveSummary: scan.cveSummary,
+    clientLibCves: clientLibCvesOf(scan),
     shodanOpenPorts: scan.shodanOpenPorts,
     shodanIsp: scan.shodanIsp,
     blacklisted: scan.blacklisted,

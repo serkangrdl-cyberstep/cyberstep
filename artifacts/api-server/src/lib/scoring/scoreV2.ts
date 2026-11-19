@@ -105,6 +105,9 @@ export interface ScoreV2Input {
   // Zafiyet
   cveSummary?: Array<{ cveId: string; cvssScore: number; adjustedCvssScore?: number; wafMitigated?: boolean }> | null;
 
+  /** Sayfadaki istemci kitaplığı (jQuery vb.) için sürüm aralığı doğrulanmış CVE'ler. KEV olsa da tavan uygulanmaz; sabit puan kesintisi. */
+  clientLibCves?: Array<{ cveId: string; cvss: number; kev: boolean; library?: string; version?: string }> | null;
+
   // Ağ
   shodanOpenPorts?: Array<{ port: number; protocol: string; service: string; product: string; version: string }> | null;
   shodanIsp?: string | null;
@@ -202,6 +205,9 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+/** KEV'deki istemci kitaplığı zafiyeti için puan kesintisi (sunucu KEV'i 20 + tavan; bu daha hafif, tavansız). */
+export const CLIENT_LIB_KEV_DEDUCTION = 8;
+
 export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()): ScoreV2Result {
   const lightweight = LIGHTWEIGHT_SOURCES.has(input.referralSource ?? "");
   const unchecked = new Set(input.uncheckedSources ?? []);
@@ -239,6 +245,16 @@ export function computeScoreV2(input: ScoreV2Input, kev: KevLookup = new Map()):
     } else if (cvss >= 4) {
       vulnDeduction += add("vulnerabilities", "medium", `${c.cveId} orta zafiyet (CVSS ${cvss})`, 1);
     }
+  }
+  // İstemci kitaplığı bulguları: sunucu zafiyeti değil (tarayıcıda çalışır); KEV olsa bile skor tavanı yok, puan kesintisi var.
+  for (const c of input.clientLibCves ?? []) {
+    if (!c?.cveId || seenCves.has(c.cveId)) continue;
+    seenCves.add(c.cveId);
+    const what = c.library && c.version ? ` (${c.library === "jquery" ? "jQuery" : c.library} ${c.version})` : "";
+    if (c.kev) vulnDeduction += add("vulnerabilities", "high", `${c.cveId} istemci kitaplığında aktif sömürülen zafiyet${what}`, CLIENT_LIB_KEV_DEDUCTION);
+    else if (c.cvss >= 9) vulnDeduction += add("vulnerabilities", "high", `${c.cveId} istemci kitaplığında kritik zafiyet${what}`, 6);
+    else if (c.cvss >= 7) vulnDeduction += add("vulnerabilities", "medium", `${c.cveId} istemci kitaplığında yüksek zafiyet${what}`, 3);
+    else if (c.cvss >= 4) vulnDeduction += add("vulnerabilities", "low", `${c.cveId} istemci kitaplığında orta zafiyet${what}`, 1);
   }
   const vulnPoints = clamp(MAX.vulnerabilities - vulnDeduction, 0, MAX.vulnerabilities);
 

@@ -304,16 +304,21 @@ const TPRM_FREE_LIMIT = Number(process.env["TPRM_FREE_VENDOR_LIMIT"] ?? 5);
 // Eski ücretli paketlerdeki (starter/pro/enterprise) aktif müşteriler kesintiye uğramasın
 const LEGACY_PAID_LIMIT = TPRM_PLAN_LIMITS["tprm_baslangic"]!;
 
+/** Plan ve abonelik durumundan tedarikçi limiti (Infinity = sınırsız). */
+export function resolveVendorLimit(plan: string | null | undefined, status: string | null | undefined): { limit: number; plan: string | null } {
+  const active = status === "active" || status === "trial";
+  const p = plan ?? null;
+  if (active && p && TPRM_PLAN_LIMITS[p] !== undefined) return { limit: TPRM_PLAN_LIMITS[p]!, plan: p };
+  if (active && p && p !== "free") return { limit: LEGACY_PAID_LIMIT, plan: p };
+  return { limit: TPRM_FREE_LIMIT, plan: null };
+}
+
 async function getVendorLimit(req: Request): Promise<{ limit: number; plan: string | null }> {
   const customerId = getCustomerId(req);
   if (!customerId) return { limit: 0, plan: null };
   const [c] = await db.select({ plan: customersTable.subscriptionPlan, status: customersTable.subscriptionStatus })
     .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
-  const active = c?.status === "active" || c?.status === "trial";
-  const plan = c?.plan ?? null;
-  if (active && plan && TPRM_PLAN_LIMITS[plan] !== undefined) return { limit: TPRM_PLAN_LIMITS[plan]!, plan };
-  if (active && plan && plan !== "free") return { limit: LEGACY_PAID_LIMIT, plan };
-  return { limit: TPRM_FREE_LIMIT, plan: null };
+  return resolveVendorLimit(c?.plan, c?.status);
 }
 
 async function countVendors(email: string): Promise<number> {

@@ -20,12 +20,12 @@ const router = Router();
 
 // ─── Prospects ────────────────────────────────────────────────────────────────
 
-router.get("/api/enterprise/prospects", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/prospects", requireAdmin, async (req: Request, res: Response) => {
   const rows = await db.select().from(enterpriseProspectsTable).orderBy(desc(enterpriseProspectsTable.lastActivityAt));
   res.json(rows);
 });
 
-router.get("/api/enterprise/prospects/stats", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/prospects/stats", requireAdmin, async (req: Request, res: Response) => {
   const statuses = ["new", "scanned", "teaser_sent", "interested", "won", "lost"];
   const counts = await Promise.all(
     statuses.map(s =>
@@ -38,7 +38,7 @@ router.get("/api/enterprise/prospects/stats", requireAdmin, async (req: Request,
   res.json(result);
 });
 
-router.get("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(enterpriseProspectsTable).where(eq(enterpriseProspectsTable.id, id));
   if (!row) return void res.status(404).json({ error: "Bulunamadı" });
@@ -48,7 +48,7 @@ router.get("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, r
   res.json({ ...row, teasers });
 });
 
-router.post("/api/enterprise/prospects", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/prospects", requireAdmin, async (req: Request, res: Response) => {
   const { companyName, domain, sector, employeeCount, city, contactName, contactTitle, contactEmail, contactPhone, linkedinUrl, source, assignedTo, notes } = req.body as Record<string, string>;
   if (!companyName || !domain) return void res.status(400).json({ error: "companyName ve domain zorunlu" });
   const [row] = await db.insert(enterpriseProspectsTable).values({
@@ -60,7 +60,7 @@ router.post("/api/enterprise/prospects", requireAdmin, async (req: Request, res:
   res.json({ ok: true, id: row?.id });
 });
 
-router.patch("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"];
@@ -70,7 +70,7 @@ router.patch("/api/enterprise/prospects/:id", requireAdmin, async (req: Request,
   res.json({ ok: true });
 });
 
-router.delete("/api/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/enterprise/prospects/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.delete(enterpriseProspectsTable).where(eq(enterpriseProspectsTable.id, id));
   res.json({ ok: true });
@@ -78,7 +78,7 @@ router.delete("/api/enterprise/prospects/:id", requireAdmin, async (req: Request
 
 // ─── Teaser Report Generation ─────────────────────────────────────────────────
 
-router.post("/api/enterprise/prospects/:id/scan", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/prospects/:id/scan", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [prospect] = await db.select().from(enterpriseProspectsTable).where(eq(enterpriseProspectsTable.id, id));
   if (!prospect) return void res.status(404).json({ error: "Aday bulunamadı" });
@@ -140,14 +140,14 @@ router.post("/api/enterprise/prospects/:id/scan", requireAdmin, async (req: Requ
 
 // ─── Teaser Reports ──────────────────────────────────────────────────────────
 
-router.get("/api/enterprise/teaser/:id", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/teaser/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(teaserReportsTable).where(eq(teaserReportsTable.id, id));
   if (!row) return void res.status(404).json({ error: "Teaser bulunamadı" });
   res.json(row);
 });
 
-router.post("/api/enterprise/teaser/:id/approve", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/teaser/:id/approve", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { approvedBy } = req.body as { approvedBy: string };
   await db.update(teaserReportsTable).set({
@@ -158,7 +158,7 @@ router.post("/api/enterprise/teaser/:id/approve", requireAdmin, async (req: Requ
   res.json({ ok: true });
 });
 
-router.post("/api/enterprise/teaser/:id/send", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/teaser/:id/send", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [report] = await db.select({
     report: teaserReportsTable,
@@ -518,7 +518,7 @@ router.post("/preview/:token/meeting-request", async (req: Request, res: Respons
 
 // ─── Checkout Preview ─────────────────────────────────────────────────────────
 
-router.get("/api/public/teaser/:token/checkout-preview", async (req: Request, res: Response) => {
+router.get("/public/teaser/:token/checkout-preview", async (req: Request, res: Response) => {
   const { token } = req.params;
   const [row] = await db.select({
     report: teaserReportsTable,
@@ -547,7 +547,7 @@ router.get("/api/public/teaser/:token/checkout-preview", async (req: Request, re
 
 // ─── ISR Meeting Requests (admin) ─────────────────────────────────────────────
 
-router.get("/api/enterprise/isr/meeting-requests", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/isr/meeting-requests", requireAdmin, async (req: Request, res: Response) => {
   const { status } = req.query as Record<string, string>;
   const rows = await db.select({
     request: meetingRequestsTable,
@@ -569,7 +569,7 @@ router.get("/api/enterprise/isr/meeting-requests", requireAdmin, async (req: Req
   res.json(rows);
 });
 
-router.patch("/api/enterprise/isr/meeting-requests/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/enterprise/isr/meeting-requests/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { status } = req.body as { status: string };
   const now = new Date();
@@ -583,12 +583,12 @@ router.patch("/api/enterprise/isr/meeting-requests/:id", requireAdmin, async (re
 
 // ─── Contracts ────────────────────────────────────────────────────────────────
 
-router.get("/api/enterprise/contracts", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/contracts", requireAdmin, async (req: Request, res: Response) => {
   const rows = await db.select().from(enterpriseContractsTable).orderBy(desc(enterpriseContractsTable.createdAt));
   res.json(rows);
 });
 
-router.get("/api/enterprise/contracts/:id", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/contracts/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [contract] = await db.select().from(enterpriseContractsTable).where(eq(enterpriseContractsTable.id, id));
   if (!contract) return void res.status(404).json({ error: "Sözleşme bulunamadı" });
@@ -607,7 +607,7 @@ function generateContractNumber(): string {
   return `CS-${year}-${seq}`;
 }
 
-router.post("/api/enterprise/contracts", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/contracts", requireAdmin, async (req: Request, res: Response) => {
   const body = req.body as {
     prospectId?: number;
     companyName: string;
@@ -669,7 +669,7 @@ router.post("/api/enterprise/contracts", requireAdmin, async (req: Request, res:
   res.json({ ok: true, id: contract?.id, contractNumber });
 });
 
-router.patch("/api/enterprise/contracts/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/enterprise/contracts/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"]; delete updates["services"]; delete updates["invoices"];
@@ -679,7 +679,7 @@ router.patch("/api/enterprise/contracts/:id", requireAdmin, async (req: Request,
   res.json({ ok: true });
 });
 
-router.post("/api/enterprise/contracts/:id/activate", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/contracts/:id/activate", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { activatedBy, serviceIds } = req.body as { activatedBy: string; serviceIds?: number[] };
 
@@ -709,7 +709,7 @@ router.post("/api/enterprise/contracts/:id/activate", requireAdmin, async (req: 
 
 // ─── Invoices ────────────────────────────────────────────────────────────────
 
-router.get("/api/enterprise/invoices", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/invoices", requireAdmin, async (req: Request, res: Response) => {
   const rows = await db.select().from(enterpriseInvoicesTable).orderBy(desc(enterpriseInvoicesTable.createdAt));
   res.json(rows);
 });
@@ -722,7 +722,7 @@ function generateInvoiceNumber(): string {
   return `INV-${year}${month}-${seq}`;
 }
 
-router.post("/api/enterprise/invoices", requireAdmin, async (req: Request, res: Response) => {
+router.post("/enterprise/invoices", requireAdmin, async (req: Request, res: Response) => {
   const body = req.body as {
     contractId: number;
     customerId?: number;
@@ -745,7 +745,7 @@ router.post("/api/enterprise/invoices", requireAdmin, async (req: Request, res: 
   res.json({ ok: true, id: invoice?.id, invoiceNumber });
 });
 
-router.patch("/api/enterprise/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/enterprise/invoices/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"];
@@ -755,7 +755,7 @@ router.patch("/api/enterprise/invoices/:id", requireAdmin, async (req: Request, 
 
 // ─── Customer-facing: my prospect ─────────────────────────────────────────────
 
-router.get("/api/enterprise/my-prospect", async (req: Request, res: Response) => {
+router.get("/enterprise/my-prospect", async (req: Request, res: Response) => {
   const session = (req as unknown as { session?: { customerId?: number; customer?: { email?: string } } }).session;
   if (!session?.customerId) return void res.status(401).json({ error: "Yetkisiz" });
 
@@ -801,7 +801,7 @@ router.get("/api/enterprise/my-prospect", async (req: Request, res: Response) =>
 
 // ─── ISR Sabah Dashboard ──────────────────────────────────────────────────────
 
-router.get("/api/enterprise/isr/dashboard", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/isr/dashboard", requireAdmin, async (req: Request, res: Response) => {
   const qualifiedStatuses = ["scanned", "scanning", "teaser_sent", "interested"];
   const prospects = await db
     .select()
@@ -844,7 +844,7 @@ router.get("/api/enterprise/isr/dashboard", requireAdmin, async (req: Request, r
 
 // ─── Prospect Replies ─────────────────────────────────────────────────────────
 
-router.get("/api/enterprise/isr/replies", requireAdmin, async (req: Request, res: Response) => {
+router.get("/enterprise/isr/replies", requireAdmin, async (req: Request, res: Response) => {
   const { handled } = req.query as Record<string, string>;
   const rows = await db
     .select({
@@ -864,7 +864,7 @@ router.get("/api/enterprise/isr/replies", requireAdmin, async (req: Request, res
   res.json(rows);
 });
 
-router.patch("/api/enterprise/isr/replies/:id/handle", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/enterprise/isr/replies/:id/handle", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { handledBy, handlerNotes } = req.body as { handledBy?: string; handlerNotes?: string };
   await db.update(prospectRepliesTable).set({
@@ -877,7 +877,7 @@ router.patch("/api/enterprise/isr/replies/:id/handle", requireAdmin, async (req:
 });
 
 // ─── Prospect contact-only update ─────────────────────────────────────────────
-router.patch("/api/enterprise/prospects/:id/contact", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/enterprise/prospects/:id/contact", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { contactName, contactTitle, contactEmail, contactPhone, linkedinUrl } = req.body as Record<string, string>;
   await db.update(enterpriseProspectsTable)
@@ -888,7 +888,7 @@ router.patch("/api/enterprise/prospects/:id/contact", requireAdmin, async (req: 
 
 // ─── Customer portal ──────────────────────────────────────────────────────────
 
-router.post("/api/enterprise/my-prospect/contact", async (req: Request, res: Response) => {
+router.post("/enterprise/my-prospect/contact", async (req: Request, res: Response) => {
   const session = (req as unknown as { session?: { customerId?: number; customer?: { email?: string } } }).session;
   if (!session?.customerId) return void res.status(401).json({ error: "Yetkisiz" });
 

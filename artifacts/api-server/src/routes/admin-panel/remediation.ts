@@ -7,7 +7,7 @@ import { requireAdmin } from "./middleware";
 const router = Router();
 
 // GET /api/admin/remediation — Tüm ticketlar
-router.get("/api/admin/remediation", requireAdmin, async (req, res) => {
+router.get("/admin/remediation", requireAdmin, async (req, res) => {
   try {
     const { status, page = "1" } = req.query as Record<string, string>;
     const limit = 50;
@@ -77,7 +77,7 @@ router.get("/api/admin/remediation", requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin/remediation/:id — Tekil ticket
-router.get("/api/admin/remediation/:id", requireAdmin, async (req, res) => {
+router.get("/admin/remediation/:id", requireAdmin, async (req, res) => {
   const id = Number(req.params["id"]);
   try {
     const [ticket] = await db.select()
@@ -98,7 +98,7 @@ router.get("/api/admin/remediation/:id", requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/remediation/:id/comment — Analist yorum ekle (internal olabilir)
-router.post("/api/admin/remediation/:id/comment", requireAdmin, async (req, res) => {
+router.post("/admin/remediation/:id/comment", requireAdmin, async (req, res) => {
   const id = Number(req.params["id"]);
   const { comment, isInternal = false } = req.body as { comment: string; isInternal?: boolean };
   try {
@@ -116,7 +116,7 @@ router.post("/api/admin/remediation/:id/comment", requireAdmin, async (req, res)
 });
 
 // PATCH /api/admin/remediation/:id/status — Durum güncelle
-router.patch("/api/admin/remediation/:id/status", requireAdmin, async (req, res) => {
+router.patch("/admin/remediation/:id/status", requireAdmin, async (req, res) => {
   const id = Number(req.params["id"]);
   const { status } = req.body as { status: string };
   try {

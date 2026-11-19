@@ -33,7 +33,7 @@ function requireOwner(req: Request, res: Response, next: import("express").NextF
 
 // ─── POST /api/red-team/start ─────────────────────────────────────────────────
 
-router.post("/api/red-team/start", async (req: Request, res: Response): Promise<void> => {
+router.post("/red-team/start", async (req: Request, res: Response): Promise<void> => {
   const { companyName, domain, contactEmail, sector, consentAccepted } = req.body as {
     companyName: string; domain: string; contactEmail?: string;
     sector?: string; consentAccepted: boolean;
@@ -132,7 +132,7 @@ Sadece JSON döndür.`;
 
 // ─── GET /api/red-team/:id/report ─────────────────────────────────────────────
 
-router.get("/api/red-team/:id/report", requireOwner, async (req: Request, res: Response): Promise<void> => {
+router.get("/red-team/:id/report", requireOwner, async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const rows = await db.select().from(redTeamReportsTable)
     .where(eq(redTeamReportsTable.id, id)).limit(1);

@@ -18,7 +18,7 @@ const router = Router();
 
 // ─── Lead Scan Queue ──────────────────────────────────────────────────────────
 
-router.get("/api/lead-gen/queue", requireAdmin, async (req: Request, res: Response) => {
+router.get("/lead-gen/queue", requireAdmin, async (req: Request, res: Response) => {
   const { status, minScore } = req.query as Record<string, string>;
   let query = db.select().from(leadScanQueueTable).$dynamic();
   if (status) {
@@ -33,7 +33,7 @@ router.get("/api/lead-gen/queue", requireAdmin, async (req: Request, res: Respon
   res.json(rows);
 });
 
-router.get("/api/lead-gen/queue/stats", requireAdmin, async (req: Request, res: Response) => {
+router.get("/lead-gen/queue/stats", requireAdmin, async (req: Request, res: Response) => {
   const statuses = ["pending", "scanning", "scored", "contacted", "converted", "skipped"];
   const counts = await Promise.all(
     statuses.map(s =>
@@ -46,7 +46,7 @@ router.get("/api/lead-gen/queue/stats", requireAdmin, async (req: Request, res: 
   res.json(result);
 });
 
-router.post("/api/lead-gen/queue", requireAdmin, async (req: Request, res: Response) => {
+router.post("/lead-gen/queue", requireAdmin, async (req: Request, res: Response) => {
   const { domain, companyName, source } = req.body as Record<string, string>;
   if (!domain) return void res.status(400).json({ error: "domain zorunlu" });
   const [row] = await db.insert(leadScanQueueTable).values({
@@ -55,7 +55,7 @@ router.post("/api/lead-gen/queue", requireAdmin, async (req: Request, res: Respo
   res.json({ ok: true, id: row?.id });
 });
 
-router.post("/api/lead-gen/queue/:id/score", requireAdmin, async (req: Request, res: Response) => {
+router.post("/lead-gen/queue/:id/score", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(leadScanQueueTable).where(eq(leadScanQueueTable.id, id));
   if (!row) return void res.status(404).json({ error: "Bulunamadı" });
@@ -98,7 +98,7 @@ router.post("/api/lead-gen/queue/:id/score", requireAdmin, async (req: Request, 
   });
 });
 
-router.post("/api/lead-gen/queue/:id/enrich", requireAdmin, async (req: Request, res: Response) => {
+router.post("/lead-gen/queue/:id/enrich", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const [row] = await db.select().from(leadScanQueueTable).where(eq(leadScanQueueTable.id, id));
   if (!row) return void res.status(404).json({ error: "Bulunamadı" });
@@ -129,14 +129,14 @@ router.post("/api/lead-gen/queue/:id/enrich", requireAdmin, async (req: Request,
   });
 });
 
-router.patch("/api/lead-gen/queue/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/lead-gen/queue/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const { scanStatus } = req.body as { scanStatus: string };
   await db.update(leadScanQueueTable).set({ scanStatus }).where(eq(leadScanQueueTable.id, id));
   res.json({ ok: true });
 });
 
-router.delete("/api/lead-gen/queue/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/lead-gen/queue/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.delete(leadScanQueueTable).where(eq(leadScanQueueTable.id, id));
   res.json({ ok: true });
@@ -144,12 +144,12 @@ router.delete("/api/lead-gen/queue/:id", requireAdmin, async (req: Request, res:
 
 // ─── Campaigns ────────────────────────────────────────────────────────────────
 
-router.get("/api/lead-gen/campaigns", requireAdmin, async (req: Request, res: Response) => {
+router.get("/lead-gen/campaigns", requireAdmin, async (req: Request, res: Response) => {
   const rows = await db.select().from(leadCampaignsTable).orderBy(desc(leadCampaignsTable.createdAt));
   res.json(rows);
 });
 
-router.post("/api/lead-gen/campaigns", requireAdmin, async (req: Request, res: Response) => {
+router.post("/lead-gen/campaigns", requireAdmin, async (req: Request, res: Response) => {
   const { name, targetSectors, targetEmployeeMin, targetEmployeeMax, targetCities, sources, createdBy } = req.body as {
     name: string;
     targetSectors?: string[];
@@ -167,7 +167,7 @@ router.post("/api/lead-gen/campaigns", requireAdmin, async (req: Request, res: R
   res.json({ ok: true, id: row?.id });
 });
 
-router.patch("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, res: Response) => {
+router.patch("/lead-gen/campaigns/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   const updates = req.body as Record<string, unknown>;
   delete updates["id"]; delete updates["createdAt"];
@@ -175,7 +175,7 @@ router.patch("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, r
   res.json({ ok: true });
 });
 
-router.delete("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/lead-gen/campaigns/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(String(req.params["id"] ?? "0"));
   await db.update(leadCampaignsTable).set({ status: "archived" }).where(eq(leadCampaignsTable.id, id));
   res.json({ ok: true });
@@ -183,12 +183,12 @@ router.delete("/api/lead-gen/campaigns/:id", requireAdmin, async (req: Request, 
 
 // ─── Sales Team ────────────────────────────────────────────────────────────────
 
-router.get("/api/lead-gen/sales-team", requireAdmin, async (req: Request, res: Response) => {
+router.get("/lead-gen/sales-team", requireAdmin, async (req: Request, res: Response) => {
   const rows = await db.select().from(salesTeamTable).where(eq(salesTeamTable.isActive, true)).orderBy(salesTeamTable.name);
   res.json(rows);
 });
 
-router.post("/api/lead-gen/sales-team", requireAdmin, async (req: Request, res: Response) => {
+router.post("/lead-gen/sales-team", requireAdmin, async (req: Request, res: Response) => {
   const { name, email, title, phone, monthlyTargetTl } = req.body as {
     name: string; email: string; title?: string; phone?: string; monthlyTargetTl?: string;
   };

@@ -65,7 +65,7 @@ seedEuAiActQuestions().catch(e => logger.error({ err: e }, "EU AI Act seed error
 
 // ─── GET /api/eu-aiact/questions ──────────────────────────────────────────────
 
-router.get("/api/eu-aiact/questions", async (req: Request, res: Response): Promise<void> => {
+router.get("/eu-aiact/questions", async (req: Request, res: Response): Promise<void> => {
   const questions = await db.select().from(questionsTable)
     .where(and(eq(questionsTable.type, "eu_aiact"), eq(questionsTable.isActive, true)))
     .orderBy(questionsTable.sortOrder);
@@ -74,7 +74,7 @@ router.get("/api/eu-aiact/questions", async (req: Request, res: Response): Promi
 
 // ─── POST /api/eu-aiact/start ─────────────────────────────────────────────────
 
-router.post("/api/eu-aiact/start", async (req: Request, res: Response): Promise<void> => {
+router.post("/eu-aiact/start", async (req: Request, res: Response): Promise<void> => {
   const { companyName, contactEmail, sector, employeeCount } = req.body as {
     companyName: string; contactEmail?: string; sector?: string; employeeCount?: string;
   };
@@ -124,7 +124,7 @@ function categorize(answers: AnswerItem[], percentage: number) {
   return { category: "minimal_risk", label: "Minimum Risk", color: "#00E096" };
 }
 
-router.post("/api/eu-aiact/:id/complete", requireOwner, async (req: Request, res: Response): Promise<void> => {
+router.post("/eu-aiact/:id/complete", requireOwner, async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const { answers } = req.body as { answers: AnswerItem[] };
   if (!answers?.length) { res.status(400).json({ error: "Cevaplar zorunlu" }); return; }
@@ -214,7 +214,7 @@ Sadece JSON döndür.`;
 
 // ─── GET /api/eu-aiact/:id/report ────────────────────────────────────────────
 
-router.get("/api/eu-aiact/:id/report", requireOwner, async (req: Request, res: Response): Promise<void> => {
+router.get("/eu-aiact/:id/report", requireOwner, async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const rows = await db.select().from(euAiactAssessmentsTable)
     .where(eq(euAiactAssessmentsTable.id, id)).limit(1);

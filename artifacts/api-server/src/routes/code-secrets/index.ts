@@ -7,7 +7,7 @@ import { requireCustomer, getCustomerId } from "../../middleware/auth";
 const router = Router();
 
 // GET /api/portal/code-secrets — Müşterinin code secret bulgularını getir
-router.get("/api/portal/code-secrets", requireCustomer, async (req, res) => {
+router.get("/portal/code-secrets", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   try {
@@ -23,7 +23,7 @@ router.get("/api/portal/code-secrets", requireCustomer, async (req, res) => {
 });
 
 // POST /api/portal/code-secrets/:id/revoked — Revoke edildi olarak işaretle
-router.post("/api/portal/code-secrets/:id/revoked", requireCustomer, async (req, res) => {
+router.post("/portal/code-secrets/:id/revoked", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const id = Number(req.params["id"]);
@@ -46,7 +46,7 @@ router.post("/api/portal/code-secrets/:id/revoked", requireCustomer, async (req,
 });
 
 // POST /api/portal/github-org — GitHub org kaydet
-router.post("/api/portal/github-org", requireCustomer, async (req, res) => {
+router.post("/portal/github-org", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const { githubOrg } = req.body as { githubOrg: string };

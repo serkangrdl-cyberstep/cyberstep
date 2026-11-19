@@ -10,7 +10,7 @@ import { AWSCSPMScanner, parseAwsCredentials } from "../../services/awsCSPM";
 const router = Router();
 
 // GET /api/portal/cloud/connections
-router.get("/api/portal/cloud/connections", requireCustomer, async (req, res) => {
+router.get("/portal/cloud/connections", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   try {
@@ -35,7 +35,7 @@ router.get("/api/portal/cloud/connections", requireCustomer, async (req, res) =>
 });
 
 // POST /api/portal/cloud/connect — AWS bağlantısı kaydet
-router.post("/api/portal/cloud/connect", requireCustomer, async (req, res) => {
+router.post("/portal/cloud/connect", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const { provider, accessKeyId, secretAccessKey, accountName, regions } = req.body as {
@@ -96,7 +96,7 @@ router.post("/api/portal/cloud/connect", requireCustomer, async (req, res) => {
 });
 
 // DELETE /api/portal/cloud/connections/:id
-router.delete("/api/portal/cloud/connections/:id", requireCustomer, async (req, res) => {
+router.delete("/portal/cloud/connections/:id", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const id = Number(req.params["id"]);
@@ -112,7 +112,7 @@ router.delete("/api/portal/cloud/connections/:id", requireCustomer, async (req, 
 });
 
 // GET /api/portal/cloud/findings
-router.get("/api/portal/cloud/findings", requireCustomer, async (req, res) => {
+router.get("/portal/cloud/findings", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   try {
@@ -128,7 +128,7 @@ router.get("/api/portal/cloud/findings", requireCustomer, async (req, res) => {
 });
 
 // POST /api/portal/cloud/scan/:connectionId — Manuel tarama başlat
-router.post("/api/portal/cloud/scan/:connectionId", requireCustomer, async (req, res) => {
+router.post("/portal/cloud/scan/:connectionId", requireCustomer, async (req, res) => {
   const customerId = getCustomerId(req);
   if (!customerId) { res.status(401).json({ error: "Oturum gerekli" }); return; }
   const connId = Number(req.params["connectionId"]);

@@ -16,13 +16,13 @@ const router = Router();
 
 // ─── Subscription ─────────────────────────────────────────────────────────────
 
-router.get("/api/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const [sub] = await db.select().from(aiMonitoringSubscriptionsTable).where(eq(aiMonitoringSubscriptionsTable.customerId, cid));
   res.json(sub ?? null);
 });
 
-router.post("/api/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.post("/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const existing = await db.select().from(aiMonitoringSubscriptionsTable).where(eq(aiMonitoringSubscriptionsTable.customerId, cid));
   if (existing.length > 0) { res.status(409).json({ error: "Abonelik zaten mevcut" }); return; }
@@ -38,7 +38,7 @@ router.post("/api/ai-monitoring/subscription", requireCustomer, async (req: Requ
   res.status(201).json(sub);
 });
 
-router.put("/api/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.put("/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const { toolIds, notifyEmail, alertOnCritical, alertOnImportant, alertOnMinor, status } = req.body as Record<string, unknown>;
   const update: Record<string, unknown> = {};
@@ -52,7 +52,7 @@ router.put("/api/ai-monitoring/subscription", requireCustomer, async (req: Reque
   res.json(sub);
 });
 
-router.delete("/api/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.delete("/ai-monitoring/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   await db.update(aiMonitoringSubscriptionsTable).set({ status: "cancelled" }).where(eq(aiMonitoringSubscriptionsTable.customerId, cid));
   res.json({ message: "Abonelik iptal edildi" });
@@ -60,7 +60,7 @@ router.delete("/api/ai-monitoring/subscription", requireCustomer, async (req: Re
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-router.get("/api/ai-monitoring/dashboard", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-monitoring/dashboard", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const [sub] = await db.select().from(aiMonitoringSubscriptionsTable).where(eq(aiMonitoringSubscriptionsTable.customerId, cid));
   if (!sub) { res.json({ subscription: null, tools: [], recentAlerts: [] }); return; }
@@ -91,7 +91,7 @@ router.get("/api/ai-monitoring/dashboard", requireCustomer, async (req: Request,
   });
 });
 
-router.get("/api/ai-monitoring/tools", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-monitoring/tools", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const [sub] = await db.select().from(aiMonitoringSubscriptionsTable).where(eq(aiMonitoringSubscriptionsTable.customerId, cid));
   if (!sub) { res.json([]); return; }
@@ -101,7 +101,7 @@ router.get("/api/ai-monitoring/tools", requireCustomer, async (req: Request, res
   res.json(tools);
 });
 
-router.get("/api/ai-monitoring/alerts", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-monitoring/alerts", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const alerts = await db.select().from(aiMonitoringAlertsTable)
     .where(eq(aiMonitoringAlertsTable.customerId, cid))
@@ -110,7 +110,7 @@ router.get("/api/ai-monitoring/alerts", requireCustomer, async (req: Request, re
   res.json(alerts);
 });
 
-router.get("/api/ai-monitoring/tools/:id/history", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-monitoring/tools/:id/history", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const toolId = Number(req.params["id"]);
   const cid = getCustomerId(req)!;
   const [sub] = await db.select().from(aiMonitoringSubscriptionsTable).where(eq(aiMonitoringSubscriptionsTable.customerId, cid));
@@ -125,7 +125,7 @@ router.get("/api/ai-monitoring/tools/:id/history", requireCustomer, async (req: 
 
 // ─── Admin ─────────────────────────────────────────────────────────────────────
 
-router.get("/api/admin/ai-monitoring/stats", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+router.get("/admin/ai-monitoring/stats", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   const subs = await db.select().from(aiMonitoringSubscriptionsTable);
   const snaps = await db.select().from(aiToolPolicySnapshotsTable);
   const alerts = await db.select().from(aiMonitoringAlertsTable);
@@ -138,7 +138,7 @@ router.get("/api/admin/ai-monitoring/stats", requireAdmin, async (_req: Request,
   });
 });
 
-router.post("/api/admin/ai-monitoring/check-all", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+router.post("/admin/ai-monitoring/check-all", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   res.json({ message: "Araç kontrolü başlatıldı" });
   checkAllToolsForChanges().catch(err => logger.error({ err }, "Admin check-all failed"));
 });

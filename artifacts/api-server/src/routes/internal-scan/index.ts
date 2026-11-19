@@ -105,7 +105,7 @@ async function triggerAiReportGeneration(customerId: number, scanId: number): Pr
 
 // ─── POST /api/internal-scan/upload — API key auth ────────────────────────────
 
-router.post("/api/internal-scan/upload", async (req: Request, res: Response) => {
+router.post("/internal-scan/upload", async (req: Request, res: Response) => {
   const authHeader = req.headers["authorization"] ?? "";
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
@@ -166,7 +166,7 @@ router.post("/api/internal-scan/upload", async (req: Request, res: Response) => 
 
 // ─── GET /api/internal-scan/latest — session auth ────────────────────────────
 
-router.get("/api/internal-scan/latest", requireCustomer, async (req: Request, res: Response) => {
+router.get("/internal-scan/latest", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const scan = await db.query.internalScansTable.findFirst({
     where: eq(internalScansTable.customerId, customerId),
@@ -177,7 +177,7 @@ router.get("/api/internal-scan/latest", requireCustomer, async (req: Request, re
 
 // ─── GET /api/internal-scan/history — session auth ───────────────────────────
 
-router.get("/api/internal-scan/history", requireCustomer, async (req: Request, res: Response) => {
+router.get("/internal-scan/history", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const scans = await db
     .select({
@@ -197,7 +197,7 @@ router.get("/api/internal-scan/history", requireCustomer, async (req: Request, r
 
 // ─── GET /api/internal-scan/download-script — session auth ───────────────────
 
-router.get("/api/internal-scan/download-script", requireCustomer, async (req: Request, res: Response) => {
+router.get("/internal-scan/download-script", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const os = req.query["os"] === "linux" ? "linux" : "windows";
   const apiKey = await getOrCreateApiKey(customerId);
@@ -218,7 +218,7 @@ router.get("/api/internal-scan/download-script", requireCustomer, async (req: Re
 
 // ─── GET /api/internal-scan/api-key — return or create api key ───────────────
 
-router.get("/api/internal-scan/api-key", requireCustomer, async (req: Request, res: Response) => {
+router.get("/internal-scan/api-key", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const apiKey = await getOrCreateApiKey(customerId);
   res.json({ apiKey });
@@ -226,7 +226,7 @@ router.get("/api/internal-scan/api-key", requireCustomer, async (req: Request, r
 
 // ─── GET /api/internal-scan/survey — mevcut anketi getir ─────────────────────
 
-router.get("/api/internal-scan/survey", requireCustomer, async (req: Request, res: Response) => {
+router.get("/internal-scan/survey", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const survey = await db.query.internalScanSurveysTable.findFirst({
     where: eq(internalScanSurveysTable.customerId, customerId),
@@ -236,7 +236,7 @@ router.get("/api/internal-scan/survey", requireCustomer, async (req: Request, re
 
 // ─── POST /api/internal-scan/survey — anketi kaydet/güncelle ─────────────────
 
-router.post("/api/internal-scan/survey", requireCustomer, async (req: Request, res: Response) => {
+router.post("/internal-scan/survey", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const body = req.body as Record<string, unknown>;
 
@@ -276,7 +276,7 @@ router.post("/api/internal-scan/survey", requireCustomer, async (req: Request, r
 
 // ─── GET /api/internal-scan/latest-report — en son AI raporu ─────────────────
 
-router.get("/api/internal-scan/latest-report", requireCustomer, async (req: Request, res: Response) => {
+router.get("/internal-scan/latest-report", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
   const report = await db.query.aiSecurityReportsTable.findFirst({
     where: eq(aiSecurityReportsTable.customerId, customerId),
@@ -287,7 +287,7 @@ router.get("/api/internal-scan/latest-report", requireCustomer, async (req: Requ
 
 // ─── POST /api/internal-scan/generate-report — AI rapor tetikle ──────────────
 
-router.post("/api/internal-scan/generate-report", requireCustomer, async (req: Request, res: Response) => {
+router.post("/internal-scan/generate-report", requireCustomer, async (req: Request, res: Response) => {
   const customerId = getCustomerId(req)!;
 
   // Son taramayı al

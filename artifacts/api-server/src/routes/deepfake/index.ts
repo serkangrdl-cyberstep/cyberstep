@@ -49,7 +49,7 @@ function riskScore(level: RiskLevel): number {
 
 // ─── POST /api/deepfake/start ─────────────────────────────────────────────────
 
-router.post("/api/deepfake/start", async (req: Request, res: Response): Promise<void> => {
+router.post("/deepfake/start", async (req: Request, res: Response): Promise<void> => {
   const { companyName, domain, contactEmail, sector, consentAccepted } = req.body as {
     companyName: string; domain: string; contactEmail?: string;
     sector?: string; consentAccepted: boolean;
@@ -179,7 +179,7 @@ Sadece JSON döndür.`;
 
 // ─── GET /api/deepfake/:id/report ─────────────────────────────────────────────
 
-router.get("/api/deepfake/:id/report", requireOwner, async (req: Request, res: Response): Promise<void> => {
+router.get("/deepfake/:id/report", requireOwner, async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params["id"]);
   const rows = await db.select().from(deepfakeAssessmentsTable)
     .where(eq(deepfakeAssessmentsTable.id, id)).limit(1);

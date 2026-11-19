@@ -17,13 +17,13 @@ const router = Router();
 
 // ─── Subscription ─────────────────────────────────────────────────────────────
 
-router.get("/api/ai-policy/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-policy/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const [sub] = await db.select().from(aiPolicySubscriptionsTable).where(eq(aiPolicySubscriptionsTable.customerId, cid));
   res.json(sub ?? null);
 });
 
-router.post("/api/ai-policy/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.post("/ai-policy/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const existing = await db.select().from(aiPolicySubscriptionsTable).where(eq(aiPolicySubscriptionsTable.customerId, cid));
   if (existing.length > 0) {
@@ -52,7 +52,7 @@ router.post("/api/ai-policy/subscription", requireCustomer, async (req: Request,
   res.status(201).json(sub);
 });
 
-router.put("/api/ai-policy/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.put("/ai-policy/subscription", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const { autoGenerate, requireApproval, approvalEmail, notifyOnUpdate } = req.body as Record<string, unknown>;
   const [sub] = await db.update(aiPolicySubscriptionsTable)
@@ -64,7 +64,7 @@ router.put("/api/ai-policy/subscription", requireCustomer, async (req: Request, 
 
 // ─── Policy Documents ─────────────────────────────────────────────────────────
 
-router.get("/api/ai-policy/current", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-policy/current", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const [doc] = await db.select().from(aiPolicyDocumentsTable)
     .where(eq(aiPolicyDocumentsTable.customerId, cid))
@@ -73,7 +73,7 @@ router.get("/api/ai-policy/current", requireCustomer, async (req: Request, res: 
   res.json(doc ?? null);
 });
 
-router.get("/api/ai-policy/versions", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-policy/versions", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const docs = await db.select({
     id: aiPolicyDocumentsTable.id,
@@ -95,7 +95,7 @@ router.get("/api/ai-policy/versions", requireCustomer, async (req: Request, res:
   res.json(docs);
 });
 
-router.get("/api/ai-policy/:id", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-policy/:id", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const docId = Number(req.params["id"]);
   const [doc] = await db.select().from(aiPolicyDocumentsTable)
@@ -104,7 +104,7 @@ router.get("/api/ai-policy/:id", requireCustomer, async (req: Request, res: Resp
   res.json(doc);
 });
 
-router.post("/api/ai-policy/:id/approve", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.post("/ai-policy/:id/approve", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const docId = Number(req.params["id"]);
   const { approvedByEmail } = req.body as { approvedByEmail?: string };
@@ -125,7 +125,7 @@ router.post("/api/ai-policy/:id/approve", requireCustomer, async (req: Request, 
   res.json(doc);
 });
 
-router.post("/api/ai-policy/generate", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.post("/ai-policy/generate", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const [sub] = await db.select().from(aiPolicySubscriptionsTable).where(eq(aiPolicySubscriptionsTable.customerId, cid));
   if (!sub) { res.status(403).json({ error: "Aktif abonelik gerekli" }); return; }
@@ -142,7 +142,7 @@ router.post("/api/ai-policy/generate", requireCustomer, async (req: Request, res
 
 // ─── DOCX Download ────────────────────────────────────────────────────────────
 
-router.get("/api/ai-policy/:id/docx", requireCustomer, async (req: Request, res: Response): Promise<void> => {
+router.get("/ai-policy/:id/docx", requireCustomer, async (req: Request, res: Response): Promise<void> => {
   const cid = getCustomerId(req)!;
   const docId = Number(req.params["id"]);
   const [doc] = await db.select().from(aiPolicyDocumentsTable).where(eq(aiPolicyDocumentsTable.id, docId));
@@ -157,7 +157,7 @@ router.get("/api/ai-policy/:id/docx", requireCustomer, async (req: Request, res:
 
 // ─── Admin ─────────────────────────────────────────────────────────────────────
 
-router.get("/api/admin/ai-policy/stats", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+router.get("/admin/ai-policy/stats", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   const subs = await db.select().from(aiPolicySubscriptionsTable);
   const docs = await db.select().from(aiPolicyDocumentsTable);
   res.json({
@@ -169,7 +169,7 @@ router.get("/api/admin/ai-policy/stats", requireAdmin, async (_req: Request, res
   });
 });
 
-router.post("/api/admin/ai-policy/trigger-all", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+router.post("/admin/ai-policy/trigger-all", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   res.json({ message: "Çeyreklik güncelleme tetiklendi" });
   const { runQuarterlyPolicyUpdate } = await import("../../services/policy-generator");
   runQuarterlyPolicyUpdate().catch(err => logger.error({ err }, "Quarterly trigger failed"));

@@ -43,3 +43,16 @@ test("aralıksız NVD kaydına elle doğrulanmış aralık uygulanır", async ()
   const ranged = { product: "jquery", versionEndExcluding: "9.9" };
   assert.equal(withCuratedRange("CVE-2020-11023", ranged), ranged);
 });
+
+test("mevcut eşleşme satırı: yamalı sürüm silinir, aralıktaki doğrulanır", async () => {
+  const { revalidateMatchRow } = await import("./clientLibCves");
+  const { evaluateVersionEvidence } = await import("./cve/versionEvidence");
+  const run = (v: string | null) => revalidateMatchRow("CVE-2020-11023", "JQuery", v, 55, "Kategori uyumlu · Sürüm tespit edildi (x); CVE aralık verisi yok, doğrulanamadı", evaluateVersionEvidence);
+  assert.equal(run("3.6.0").action, "delete");
+  const ok = run("3.3.1");
+  assert.equal(ok.action, "update");
+  assert.equal(ok.confidence, 55);
+  assert.equal(ok.note, "Kategori uyumlu · Sürüm aralığı doğrulandı (3.3.1)");
+  assert.equal(run(null).action, "update");
+  assert.equal(revalidateMatchRow("CVE-2099-1", "JQuery", "3.6.0", 55, null, evaluateVersionEvidence).action, "none");
+});

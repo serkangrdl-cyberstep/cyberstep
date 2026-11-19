@@ -134,3 +134,22 @@ export async function fetchHomepageHtml(domain: string, fetcher: HtmlFetchLike, 
   }
   return null;
 }
+
+/** Var olan bir cve_domain_matches satırının, elle doğrulanmış aralıkla yeniden değerlendirilmesi (saf). */
+export function revalidateMatchRow(
+  cveId: string,
+  productName: string,
+  version: string | null | undefined,
+  confidence: number | null | undefined,
+  note: string | null | undefined,
+  evaluate: (v: string | null | undefined, p: { versionStartIncluding?: string; versionEndExcluding?: string }, c: number, n: string | null) => { skip: boolean; confidence: number; note: string },
+  advisories: readonly ClientLibAdvisory[] = CLIENT_LIB_ADVISORIES,
+): { action: "delete" | "update" | "none"; confidence?: number; note?: string } {
+  const p = withCuratedRange(cveId, { product: productName } as { product: string; versionStartIncluding?: string; versionEndExcluding?: string }, advisories);
+  if (!p.curated) return { action: "none" };
+  // Eski kanıt ibaresini at, kategori notunu koru
+  const base = (note ?? "").split(" · ").filter((x) => x && !/Sürüm (tespit|aralığı)|aralık verisi yok/.test(x)).join(" · ") || null;
+  const ev = evaluate(version, p, confidence ?? 50, base);
+  if (ev.skip) return { action: "delete" };
+  return { action: "update", confidence: ev.confidence, note: ev.note };
+}

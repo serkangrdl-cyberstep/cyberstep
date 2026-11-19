@@ -15,7 +15,8 @@ import { customersTable } from "@workspace/db";
 import { requireCustomer, getCustomerId } from "../../middleware/auth";
 import { domainScansTable } from "@workspace/db";
 import { SCORE_V2_VERSION, scoreV2Risk, type ScoreV2Result } from "../../lib/scoring/scoreV2";
-import { isScanCompleteAndFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2 } from "../../lib/scoring/scoreV2Loader";
+import { isScanCompleteAndFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2, loadKevLookup, mergeExtraKev, vulncheckKevOf } from "../../lib/scoring/scoreV2Loader";
+import { buildVendorCves, buildVendorPorts, labelUnchecked } from "../../services/vendorFindings";
 import { loadVendorQuestionnaire } from "../../services/tprmQuestionnaire";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
@@ -919,6 +920,45 @@ router.get("/tprm/vendors/:id/events", requireCustomer, async (req: Request, res
   if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
   const rows = await db.select().from(tprmVendorEventTable).where(eq(tprmVendorEventTable.vendorId, id)).orderBy(sql`created_at DESC`).limit(50);
   res.json({ events: rows });
+});
+
+// GET /api/tprm/vendors/:id/findings — tedarikçinin son taramasındaki bulgular (CVE, açık portlar, ölçülemeyenler).
+// Yalnızca oturumdaki müşterinin kendi tedarikçisi için döner (getOwnedVendor kiracı kapsamı).
+router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  const vendor = id ? await getOwnedVendor(req, id) : null;
+  if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  try {
+    const scanId = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION
+      ? (vendor.lastScanData as unknown as StoredScanData).scanId
+      : null;
+    if (!scanId) { res.status(409).json({ error: "Bu tedarikçi için henüz tamamlanmış bir tarama yok" }); return; }
+    const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, scanId)).limit(1);
+    // Taramanın alan adı tedarikçiyle eşleşmeli (başka alan adının verisi sızmasın)
+    if (!scan || normalizeDomain(scan.domain) !== normalizeDomain(vendor.supplierDomain)) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
+    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[] } | null;
+    const cveIds = (scan.cveSummary ?? []).map((c) => c.cveId);
+    const kev = mergeExtraKev(await loadKevLookup(cveIds), vulncheckKevOf(scan));
+    const scoreV2 = await scoreScanV2(scan);
+    res.json({
+      domain: vendor.supplierDomain,
+      scannedAt: scan.createdAt,
+      score: { value: scoreV2.score, grade: scoreV2.grade, risk: scoreV2.risk, coverage: scoreV2.coverage, caps: scoreV2.caps, insufficientData: scoreV2.insufficientData },
+      findings: scoreV2.findings,
+      cves: buildVendorCves(scan.cveSummary, kev, extra?.epss),
+      ports: buildVendorPorts(scan.shodanOpenPorts),
+      other: {
+        sslLabsGrade: extra?.sslLabsGrade ?? null,
+        danglingCnames: extra?.danglingCnames ?? [],
+        hudsonRock: extra?.hudsonRock ?? null,
+        mozillaObservatory: extra?.mozillaObservatory ?? null,
+      },
+      unchecked: labelUnchecked(scan.uncheckedSources),
+    });
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor findings error");
+    res.status(500).json({ error: "Bulgular yüklenemedi" });
+  }
 });
 
 // POST /api/tprm/vendors/:id/remediation-ack — müşteri yeni tarama sonucunu gördü

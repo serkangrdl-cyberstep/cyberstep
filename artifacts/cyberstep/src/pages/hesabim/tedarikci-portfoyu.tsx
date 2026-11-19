@@ -6,6 +6,7 @@ import {
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, ExternalLink,
   Upload, Download, FileText,
 } from "lucide-react";
+import { VendorFindingsDialog } from "@/components/vendor-findings-dialog";
 import { parseVendorCsv, VENDOR_CSV_TEMPLATE, type VendorCsvRow } from "@/lib/vendor-csv";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -400,6 +401,7 @@ export default function TedarikciPortfoyu() {
   const qc = useQueryClient();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [findingsFor, setFindingsFor] = useState<{ id: number; name: string } | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState<VendorCsvRow[]>([]);
   const [bulkFileName, setBulkFileName] = useState<string | null>(null);
@@ -585,6 +587,7 @@ export default function TedarikciPortfoyu() {
   return (
     <>
     <TprmNav />
+    <VendorFindingsDialog vendorId={findingsFor?.id ?? null} vendorName={findingsFor?.name ?? ""} onClose={() => setFindingsFor(null)} />
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
 
       {/* Başlık */}
@@ -732,6 +735,15 @@ export default function TedarikciPortfoyu() {
 
                     {/* Aksiyonlar */}
                     <div className="flex items-center gap-1 shrink-0">
+                      {v.lastScanData?.scanId && !v.lastScanData?.score?.insufficientData && (
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7"
+                          title="Bulgular (CVE, açık portlar)"
+                          onClick={() => setFindingsFor({ id: v.id, name: v.supplierName || v.supplierDomain })}
+                        >
+                          <Shield className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {v.lastScanData?.scanId && !v.lastScanData?.score?.insufficientData && (
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7"

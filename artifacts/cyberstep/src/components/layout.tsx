@@ -8,10 +8,11 @@ import { useCustomer } from "@/hooks/use-customer";
 import { useLanguage } from "@/contexts/language-context";
 import { TRANSLATIONS as T, t } from "@/lib/translations";
 
-// Sade üst menü (TPRM yapısı): Haberler / Neden CyberStep / İletişim footer'a ve Hakkımızda'ya taşındı
+// Sade üst menü (TPRM yapısı): Siber Güvenlik Haberleri üst menüde ve footer'da; Neden CyberStep / İletişim footer'a ve Hakkımızda'ya taşındı
 const NAV_LINKS = (lang: "tr" | "en") => [
   { href: "/fiyatlar", label: lang === "en" ? "Pricing" : "Fiyatlar" },
   { href: "/blog", label: t(T.nav.blog, lang) },
+  { href: "/haberler", label: lang === "en" ? "Security News" : "Siber Güvenlik Haberleri" },
   { href: "/hakkimizda", label: t(T.nav.about, lang) },
 ];
 

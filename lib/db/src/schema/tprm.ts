@@ -49,6 +49,8 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   riskLevel: text("risk_level"),              // Düşük | Orta | Yüksek
   // Tedarikçinin iş süreçleri için önemi: kritik | onemli | standart
   criticality: text("criticality").notNull().default("standart"),
+  // Ön sınıflandırma: veri/siber/operasyon/uyum/yapay zekâ/dördüncü taraf (bool)
+  riskDomains: jsonb("risk_domains"),
   // Cross-sell
   crosssellSentAt: timestamp("crosssell_sent_at"),
   // Uyarı

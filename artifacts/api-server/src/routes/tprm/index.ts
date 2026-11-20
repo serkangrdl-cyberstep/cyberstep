@@ -21,6 +21,7 @@ import { loadVendorQuestionnaire } from "../../services/tprmQuestionnaire";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { needsFollowUp, FOLLOW_UP_DELAY_MS } from "../../services/followUpScan";
 import { portfolioConcentration, type FourthParty } from "../../services/fourthParty";
+import { parseRiskDomains, effectiveCriticality } from "../../services/vendorIntake";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
 import { canonicalSector } from "../../lib/scoring/sectors";
 import { peekBenchmarkSnapshot, percentileInSector } from "../../services/sectorBenchmark";
@@ -570,7 +571,11 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
       customerEmail: email,
       supplierDomain: domain,
       supplierName: typeof supplierName === "string" && supplierName.trim() ? supplierName.trim() : null,
-      criticality: parseCriticality((req.body as { criticality?: unknown }).criticality),
+      riskDomains: parseRiskDomains((req.body as { riskDomains?: unknown }).riskDomains),
+      criticality: effectiveCriticality(
+        parseCriticality((req.body as { criticality?: unknown }).criticality),
+        parseRiskDomains((req.body as { riskDomains?: unknown }).riskDomains),
+      ),
     }).returning();
     let vendor = inserted!;
 
@@ -718,6 +723,23 @@ router.post("/tprm/vendors/bulk", requireCustomer, async (req: Request, res: Res
 });
 
 // ─── DELETE /api/tprm/vendors/:id ─────────────────────────────────────────────
+
+// PATCH /api/tprm/vendors/:id/risk-domains — ön sınıflandırmayı güncelle (kritiklik gerekirse yükseltilir)
+router.patch("/tprm/vendors/:id/risk-domains", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  const domains = parseRiskDomains((req.body as { riskDomains?: unknown })?.riskDomains);
+  if (!id || !domains) { res.status(400).json({ error: "Geçersiz istek" }); return; }
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const criticality = effectiveCriticality(parseCriticality(vendor.criticality), domains);
+    await db.update(tprmVendorTable).set({ riskDomains: domains, criticality }).where(eq(tprmVendorTable.id, id));
+    res.json({ ok: true, riskDomains: domains, criticality });
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor risk-domains error");
+    res.status(500).json({ error: "Güncellenemedi" });
+  }
+});
 
 // PATCH /api/tprm/vendors/:id/criticality — tedarikçi kritikliğini değiştir
 router.patch("/tprm/vendors/:id/criticality", requireCustomer, async (req: Request, res: Response) => {

@@ -34,6 +34,7 @@ const router = Router();
 import { TPRM_QUESTIONS, selfScoreOf, questionsFor } from "../../services/tprmQuestions";
 import { validateEvidence, MAX_EVIDENCE_FILES } from "../../services/tprmEvidence";
 import { validateConsentInput, hasValidConsent, CONSENT_SCOPES, type ConsentScope } from "../../services/tprmConsent";
+import { suggestActions, validateActionItems, ACTION_STATUSES, DECISIONS } from "../../services/tprmActions";
 import { sanitizeSubprocessors } from "../../services/subprocessors";
 import { diffFourthParties } from "../../services/fourthParty";
 export { TPRM_QUESTIONS };
@@ -1298,6 +1299,144 @@ router.get("/tprm/vendors/:id/consents/:cid/download", requireCustomer, async (r
   } catch (err) {
     logger.error({ err }, "TPRM consent download error");
     res.status(500).json({ error: "İndirilemedi" });
+  }
+});
+
+// ─── Tedarikçi aksiyon planı ─────────────────────────────────────────────────
+// Müşteri: öneriyi düzenleyip onaylar, tedarikçiye paylaşım bağlantısı verir, kapanışı doğrular, karar kaydeder.
+// Tedarikçi: bağlantıdan maddeleri görür, "tamamladım" der. E-posta bildirimi yok (servis hazır olunca eklenecek).
+
+router.get("/tprm/vendors/:id/actions", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const actions = rowsOf(await db.execute(sql`SELECT id, source_key, title, detail, due_date, status, supplier_note, supplier_done_at, closed_at, created_at
+      FROM tprm_actions WHERE vendor_id = ${vendor.id} ORDER BY id`));
+    const meta = rowsOf(await db.execute(sql`SELECT action_token, decision, decision_note, decision_at FROM tprm_vendors WHERE id = ${vendor.id}`))[0] ?? {};
+
+    const scanId = vendor.lastScanData && typeof vendor.lastScanData === "object" && "scanId" in vendor.lastScanData
+      ? Number((vendor.lastScanData as { scanId: unknown }).scanId) : null;
+    const [scan] = scanId ? await db.select().from(domainScansTable).where(eq(domainScansTable.id, scanId)) : [];
+    const q = await loadVendorQuestionnaire(vendor).catch(() => null);
+    const openKeys = new Set(actions.filter((a) => a["status"] === "open" || a["status"] === "supplier_done").map((a) => String(a["source_key"])));
+    const suggestions = suggestActions({
+      spfRecord: scan?.spfRecord ?? null, dmarcRecord: scan?.dmarcRecord ?? null,
+      cveSummary: (scan?.cveSummary as Array<{ cveId?: string; cvssScore?: number }> | null) ?? null,
+      hudsonEmployees: (scan?.tprmExtra as { hudsonRock?: { employees?: number } | null } | null)?.hudsonRock?.employees ?? null,
+      answers: q?.status === "completed" ? q.answers.map((a) => ({ questionId: a.questionId, answer: a.answer })) : null,
+      interpretation: q?.interpretation ?? null,
+      contradictions: q?.contradictions ?? null,
+    }).filter((s) => !openKeys.has(s.sourceKey) && (scan || s.sourceKey.startsWith("rf-") || s.sourceKey.startsWith("cx-") || s.sourceKey === "iso"));
+    res.json({
+      actions, suggestions,
+      supplierUrl: meta["action_token"] ? `${appBaseUrl() ? `https://${appBaseUrl()}` : ""}/tprm/aksiyon/${meta["action_token"]}` : null,
+      decision: meta["decision"] ?? null, decisionNote: meta["decision_note"] ?? null, decisionAt: meta["decision_at"] ?? null,
+    });
+  } catch (err) {
+    logger.error({ err }, "TPRM actions list error");
+    res.status(500).json({ error: "Aksiyonlar yüklenemedi" });
+  }
+});
+
+router.post("/tprm/vendors/:id/actions", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const items = validateActionItems((req.body as { items?: unknown }).items);
+    if (!items.length) { res.status(400).json({ error: "Geçerli aksiyon yok" }); return; }
+    let created = 0;
+    for (const it of items) {
+      const dup = it.sourceKey !== "manual" && rowsOf(await db.execute(sql`SELECT 1 FROM tprm_actions WHERE vendor_id = ${vendor.id} AND source_key = ${it.sourceKey} AND status IN ('open','supplier_done')`)).length > 0;
+      if (dup) continue;
+      await db.execute(sql`INSERT INTO tprm_actions (vendor_id, source_key, title, detail, due_date) VALUES (${vendor.id}, ${it.sourceKey}, ${it.title}, ${it.detail}, ${it.dueDate})`);
+      created++;
+    }
+    await recordEvent(vendor.id, "actions_created", { count: created });
+    res.json({ created });
+  } catch (err) {
+    logger.error({ err }, "TPRM actions create error");
+    res.status(500).json({ error: "Aksiyonlar kaydedilemedi" });
+  }
+});
+
+router.patch("/tprm/vendors/:id/actions/:aid", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const status = (req.body as { status?: string }).status;
+    if (!status || !(ACTION_STATUSES as readonly string[]).includes(status)) { res.status(400).json({ error: "Geçersiz durum" }); return; }
+    const closed = status === "verified" || status === "waived";
+    const upd = rowsOf(await db.execute(sql`UPDATE tprm_actions SET status = ${status}, closed_at = ${closed ? new Date() : null}
+      WHERE id = ${parseInt(req.params["aid"] as string)} AND vendor_id = ${vendor.id} RETURNING id`));
+    if (!upd.length) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "TPRM action update error");
+    res.status(500).json({ error: "Güncellenemedi" });
+  }
+});
+
+router.post("/tprm/vendors/:id/actions-share", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const cur = rowsOf(await db.execute(sql`SELECT action_token FROM tprm_vendors WHERE id = ${vendor.id}`))[0]?.["action_token"] as string | null;
+    const token = cur ?? randomBytes(24).toString("hex");
+    if (!cur) await db.execute(sql`UPDATE tprm_vendors SET action_token = ${token} WHERE id = ${vendor.id}`);
+    res.json({ url: `${appBaseUrl() ? `https://${appBaseUrl()}` : ""}/tprm/aksiyon/${token}` });
+  } catch (err) {
+    logger.error({ err }, "TPRM actions share error");
+    res.status(500).json({ error: "Bağlantı oluşturulamadı" });
+  }
+});
+
+router.put("/tprm/vendors/:id/decision", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const { decision, note } = req.body as { decision?: string; note?: string };
+    if (!decision || !(DECISIONS as readonly string[]).includes(decision)) { res.status(400).json({ error: "Geçersiz karar" }); return; }
+    const n = typeof note === "string" && note.trim() ? note.trim().slice(0, 500) : null;
+    await db.execute(sql`UPDATE tprm_vendors SET decision = ${decision}, decision_note = ${n}, decision_at = NOW() WHERE id = ${vendor.id}`);
+    await recordEvent(vendor.id, "decision_recorded", { decision });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "TPRM decision error");
+    res.status(500).json({ error: "Karar kaydedilemedi" });
+  }
+});
+
+// Tedarikçi tarafı (herkese açık, belirteçle)
+async function vendorByActionToken(token: string) {
+  const row = rowsOf(await db.execute(sql`SELECT id, supplier_domain, supplier_name, customer_email FROM tprm_vendors WHERE action_token = ${token}`))[0];
+  return row ?? null;
+}
+
+router.get("/tprm/actions/:token", async (req: Request, res: Response) => {
+  try {
+    const v = await vendorByActionToken(req.params["token"] as string);
+    if (!v) { res.status(404).json({ error: "Geçersiz bağlantı" }); return; }
+    const actions = rowsOf(await db.execute(sql`SELECT id, title, detail, due_date, status, supplier_note FROM tprm_actions WHERE vendor_id = ${v["id"] as number} AND status <> 'waived' ORDER BY id`));
+    res.json({ supplierDomain: v["supplier_domain"], supplierName: v["supplier_name"], actions });
+  } catch (err) {
+    logger.error({ err }, "TPRM supplier actions get error");
+    res.status(500).json({ error: "Yüklenemedi" });
+  }
+});
+
+router.post("/tprm/actions/:token/:aid/done", async (req: Request, res: Response) => {
+  try {
+    const v = await vendorByActionToken(req.params["token"] as string);
+    if (!v) { res.status(404).json({ error: "Geçersiz bağlantı" }); return; }
+    const note = typeof (req.body as { note?: unknown }).note === "string" ? (req.body as { note: string }).note.trim().slice(0, 500) : null;
+    const upd = rowsOf(await db.execute(sql`UPDATE tprm_actions SET status = 'supplier_done', supplier_note = ${note}, supplier_done_at = NOW()
+      WHERE id = ${parseInt(req.params["aid"] as string)} AND vendor_id = ${v["id"] as number} AND status = 'open' RETURNING id`));
+    if (!upd.length) { res.status(404).json({ error: "Madde bulunamadı veya zaten bildirildi" }); return; }
+    await recordEvent(v["id"] as number, "action_supplier_done", { actionId: upd[0]?.["id"] });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "TPRM supplier action done error");
+    res.status(500).json({ error: "Kaydedilemedi" });
   }
 });
 

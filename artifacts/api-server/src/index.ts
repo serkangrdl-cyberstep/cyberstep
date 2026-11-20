@@ -555,6 +555,15 @@ async function ensureIsrTables() {
     signer_name TEXT NOT NULL, signer_title TEXT, note TEXT, valid_from TIMESTAMP NOT NULL, valid_until TIMESTAMP NOT NULL,
     doc_name TEXT NOT NULL, doc_mime TEXT NOT NULL, doc_data BYTEA NOT NULL, revoked_at TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_consents_vendor_idx ON tprm_consents (vendor_id)`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS tprm_actions (
+    id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL, source_key TEXT NOT NULL DEFAULT 'manual', title TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '',
+    due_date TIMESTAMP NOT NULL, status TEXT NOT NULL DEFAULT 'open', supplier_note TEXT, supplier_done_at TIMESTAMP, closed_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_actions_vendor_idx ON tprm_actions (vendor_id)`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS action_token TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS decision TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS decision_note TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS decision_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_vendors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_distributors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_deals ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);

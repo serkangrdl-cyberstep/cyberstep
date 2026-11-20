@@ -29,6 +29,7 @@ import MaDueDiligence from "./pages/ma-due-diligence";
 import TedarikciOnboarding from "./pages/tedarikci-onboarding";
 import ComplianceCalendar from "./pages/compliance-calendar";
 import TprmAnket from "./pages/tprm-anket";
+import TprmAksiyon from "./pages/tprm-aksiyon";
 import KvkkDpa from "./pages/kvkk-dpa";
 import SiberPanik from "./pages/siber-panik";
 import KvkkVerbis from "./pages/kvkk-verbis";
@@ -537,6 +538,7 @@ function Router() {
             <Route path="/tedarikci-onboarding" component={TedarikciOnboarding} />
             <Route path="/compliance-calendar" component={ComplianceCalendar} />
             <Route path="/tprm/anket/:token" component={TprmAnket} />
+            <Route path="/tprm/aksiyon/:token" component={TprmAksiyon} />
             <Route path="/preview/:token" component={PreviewPage} />
             <Route path="/ai-guvenlik-degerlendirmesi" component={AiAssessmentLanding} />
             <Route path="/araclar/ssl-kontrol" component={SslKontrol} />

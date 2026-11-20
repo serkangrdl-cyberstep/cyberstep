@@ -69,6 +69,17 @@ export default function BlogYonetimi() {
   });
   const draftRunning = draftStatus?.state === "running";
 
+  const { data: tprmModeData } = useQuery<{ mode: "draft" | "publish" }>({
+    queryKey: ["digest-tprm-mode"],
+    queryFn: () => adminFetch("/api/admin-panel/blog-autopilot/tprm-mode"),
+  });
+  const tprmModeMut = useMutation({
+    mutationFn: (mode: "draft" | "publish") =>
+      adminFetch("/api/admin-panel/blog-autopilot/tprm-mode", { method: "POST", body: JSON.stringify({ mode }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["digest-tprm-mode"] }),
+    onError: () => setMsg("Mod degistirilemedi."),
+  });
+
   const draftMut = useMutation({
     mutationFn: () => adminFetch("/api/admin-panel/blog-autopilot/generate-draft", { method: "POST" }) as Promise<{ started: boolean }>,
     onSuccess: (r) => {
@@ -178,6 +189,17 @@ export default function BlogYonetimi() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+        <span>Otomatik TPRM yazilari (Pzt/Per 09:00):</span>
+        {(["draft", "publish"] as const).map(m => (
+          <button key={m} onClick={() => tprmModeMut.mutate(m)} disabled={tprmModeMut.isPending}
+            className={`px-3 py-1 rounded-full border transition-colors ${
+              tprmModeData?.mode === m ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border hover:bg-muted/70"}`}>
+            {m === "draft" ? "Taslak (onayimla yayinla)" : "Dogrudan yayinla"}
+          </button>
+        ))}
       </div>
 
       {draftStatus && draftStatus.state !== "idle" && (

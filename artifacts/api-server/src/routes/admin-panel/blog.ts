@@ -7,7 +7,7 @@ import { eq, desc, asc, and, ne } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
-import { getBlogAutopilotStatus, generateAndPublishBlogPost, startDraftGeneration, getDraftStatus, BLOG_PLAN } from "../../services/blog-autopilot";
+import { getBlogAutopilotStatus, generateAndPublishBlogPost, startDraftGeneration, getDraftStatus, getTprmMode, setTprmMode, BLOG_PLAN } from "../../services/blog-autopilot";
 import { generateBlogCoverDataUrl, isTprmTitle } from "../../services/blogCover";
 import crypto from "crypto";
 
@@ -51,6 +51,18 @@ type BlogBodyFull = {
 router.get("/admin-panel/blog-autopilot/status", requireAdmin, async (_req, res) => {
   const status = await getBlogAutopilotStatus();
   res.json(status);
+});
+
+router.get("/admin-panel/blog-autopilot/tprm-mode", requireAdmin, async (_req, res) => {
+  res.json({ mode: await getTprmMode() });
+});
+
+router.post("/admin-panel/blog-autopilot/tprm-mode", requireAdmin, async (req: Request, res: Response) => {
+  const mode = (req.body as { mode?: string }).mode;
+  if (mode !== "draft" && mode !== "publish") { res.status(400).json({ error: "mode draft veya publish olmalı" }); return; }
+  await setTprmMode(mode);
+  logger.info({ mode }, "Blog autopilot: TPRM yazı modu değişti");
+  res.json({ mode });
 });
 
 router.post("/admin-panel/blog-autopilot/run-now", requireAdmin, async (_req, res) => {

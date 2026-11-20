@@ -14,6 +14,7 @@ import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
+import { TPRM_PLAN, TPRM_VERIFIED_FACTS } from "../data/blogTprmPlan";
 
 const BLOG_MODEL = getModel("blog");
 
@@ -223,11 +224,27 @@ async function setAutopilotIndex(index: number): Promise<void> {
     .onConflictDoUpdate({ target: siteSettingsTable.key, set: { value: String(index), updatedAt: new Date() } });
 }
 
-// ─── Kategori kodu çıkar ──────────────────────────────────────────────────────
-const VALID_CODES = new Set<string>(["FA", "RE", "SE", "DU", "CO"]);
+// ─── TPRM planı indeksi (ayrı sayaç; liste bitince normal akışa dönülür) ─────────
+async function getTprmIndex(): Promise<number> {
+  const [row] = await db.select().from(siteSettingsTable)
+    .where(eq(siteSettingsTable.key, "blog_autopilot_tprm_index"));
+  return row ? Math.max(0, parseInt(row.value, 10) || 0) : 0;
+}
 
-function getCategoryCode(category: string): "FA" | "RE" | "SE" | "DU" | "CO" {
-  if (VALID_CODES.has(category)) return category as "FA" | "RE" | "SE" | "DU" | "CO";
+async function setTprmIndex(index: number): Promise<void> {
+  await db.insert(siteSettingsTable)
+    .values({ key: "blog_autopilot_tprm_index", value: String(index), updatedAt: new Date() })
+    .onConflictDoUpdate({ target: siteSettingsTable.key, set: { value: String(index), updatedAt: new Date() } });
+}
+
+// ─── Kategori kodu çıkar ──────────────────────────────────────────────────────
+const VALID_CODES = new Set<string>(["FA", "RE", "SE", "DU", "CO", "TP"]);
+
+type CategoryCode = "FA" | "RE" | "SE" | "DU" | "CO" | "TP";
+
+function getCategoryCode(category: string): CategoryCode {
+  if (category === "TPRM") return "TP";
+  if (VALID_CODES.has(category)) return category as CategoryCode;
   if (category.startsWith("Sektör:")) return "SE";
   if (category === "KVKK & Uyumluluk") return "DU";
   const faCategories = [
@@ -239,7 +256,7 @@ function getCategoryCode(category: string): "FA" | "RE" | "SE" | "DU" | "CO" {
 }
 
 // ─── Kategori bazlı prompt varyantları ────────────────────────────────────────
-const CATEGORY_VARIANTS: Record<"FA" | "RE" | "SE" | "DU" | "CO", string> = {
+const CATEGORY_VARIANTS: Record<CategoryCode, string> = {
   FA: `KATEGORİ MODU — FARKINDALIK (FA):
 - Bu yazı geniş kitleye ulaşmayı hedefliyor. Paylaşılabilir olmalı.
 - İlk paragrafta şaşırtıcı istatistik veya gerçek senaryo kullan. "Bu benim başıma da gelebilir" hissi yarat.
@@ -268,6 +285,20 @@ const CATEGORY_VARIANTS: Record<"FA" | "RE" | "SE" | "DU" | "CO", string> = {
 - Aciliyet hissi yarat ama paniğe sevk etme.
 - Başlık formatı: Rakam veya acil soru formatı.
 - Son bölüm: spesifik aksiyon adımı + CyberStep assessment CTA.`,
+
+  TP: `KATEGORİ MODU — TEDARİKÇİ RİSK YÖNETİMİ (TP):
+- Hedef okuyucu: risk, uyum, satın alma, hukuk ve BT güvenlik yöneticileri; orta ve büyük ölçekli şirketler. Dil sade kalsın ama kurumsal olsun; "işletme sahibi" tonunu bu kitleye uyarla.
+- Yazı bir karar veya süreç adımı öğretmeli: okuyucu tedarikçi portföyünde ne yapacağını bilmeli.
+- Kullanacağın vaka ve rakamlar YALNIZCA aşağıdaki doğrulanmış listeden gelebilir. Listede olmayan vaka, rakam, şirket adı, ceza tutarı veya alıntı üretme. İstatistik gerekiyorsa listedeki olguyu kullan ya da rakamsız anlat. Listedeki "doğrulanmadı" ve "kesinleşmemiş" ifadelerini yazıda koru.
+DOĞRULANMIŞ OLGULAR:
+${TPRM_VERIFIED_FACTS}
+- CyberStep'ten söz edeceksen yalnızca şunları söyle: tedarikçilerin internetten görünen güvenlik duruşunu (açık servisler, bilinen güvenlik açıkları, e-posta güvenliği, sertifika durumu, sızmış kimlik bilgisi kayıtları) puanlar; tedarikçi anketini tarama sonuçlarıyla karşılaştırır; bulgular için aksiyon planı oluşturur ve yeniden taramayla doğrular; portföydeki yoğunlaşmayı gösterir.
+- Her TP yazısında şu sınırı açıkça belirt: dışarıdan tarama tedarikçinin içindeki yetki yönetimini, süreçlerini ve verinin nerede tutulduğunu göstermez; bu yüzden anket, sözleşme ve kanıt talebiyle birlikte kullanılmalıdır.
+- Yasak ifadeler: "garanti", "ihlali önler", "tam koruma", "BDDK/KVKK uyumlu hale getirir", "tüm riskleri görür", rakip karşılaştırması, belirli bir şirketi suçlama, tedarikçiyi onaysız aktif taramayı öneren her ifade.
+- Tedarikçiye karşı aktif veya derin tarama (port taraması, zafiyet sömürme, içeriden tarama) tavsiye etme; yalnızca dışarıdan görünen veriden ve yazılı talepten söz et.
+- CTA: ücretsiz araç yerine pilot daveti. Format: "Tedarikçi portföyünüz için pilot görüşmesi → cyberstep.io/iletisim" ve "TPRM özeti → cyberstep.io/tedarik-zinciri". Ücretsiz veya fiyat vaadi verme.
+- LinkedIn hashtag'leri: #SiberGüvenlik #TPRM #KVKK #TedarikZinciri + 1 konuya özel. Instagram hashtag listesinde #kobi kullanma.
+- Başlık formatı: soru veya net bir iddia; rakam gerekmez.`,
 
   CO: `KATEGORİ MODU — CONVERSION (CO):
 - Bu yazının amacı okuyucuyu CyberStep'e yönlendirmek.
@@ -321,6 +352,8 @@ TON VE DİL:
 - Emoji kullanma.
 
 RAKAMLAR VE İSTATİSTİKLER:
+- Bugünün tarihi: ${new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Istanbul" })}. Başlıkta geçen yıl bugünden eskiyse yazıyı güncel yıla göre yaz.
+- Gerçek vaka, şirket adı, rakam veya alıntıyı yalnızca kamuya açık ve emin olduğun durumlarda kullan. Emin değilsen vakayı anlatma; genel bir örüntü olarak, şirket adı vermeden yaz. "Türkiye'den gerçek vaka" talebi olsa bile uydurma.
 - Yalnızca emin olduğun istatistikleri kullan. Belirsizsen "araştırmalara göre", "küresel verilere göre" gibi çerçevele.
 - [DOĞRULA: ...] gibi placeholder veya editör notu ASLA ekleme — çıktı doğrudan yayına gidiyor.
 - TL bazında maliyet örnekleri ver. Dolar değil, TL önce.
@@ -484,8 +517,12 @@ KRİTİK JSON KURALLARI:
 // Önce blog_content_calendar tablosundan sıradaki planlanmış yazıyı alır.
 // Tablo boşaldıysa BLOG_PLAN dizisine (hardcoded 104 yazı) döner.
 export async function generateAndPublishBlogPost(): Promise<void> {
+  // 0. TPRM planı bitene kadar öncelikli
+  const tprmIndex = await getTprmIndex();
+  const tprmTopic = tprmIndex < TPRM_PLAN.length ? TPRM_PLAN[tprmIndex] : null;
+
   // 1. Paneldeki içerik takviminden sıradaki "planned" girdiyi al
-  const [calendarEntry] = await db
+  const [calendarEntry] = tprmTopic ? [undefined] : await db
     .select()
     .from(blogContentCalendarTable)
     .where(eq(blogContentCalendarTable.status, "planned"))
@@ -495,7 +532,10 @@ export async function generateAndPublishBlogPost(): Promise<void> {
   let topic: typeof BLOG_PLAN[number];
   let calendarId: number | null = null;
 
-  if (calendarEntry) {
+  if (tprmTopic) {
+    topic = tprmTopic;
+    logger.info({ tprmIndex, title: topic.title }, "Blog autopilot: TPRM planından yazı üretiliyor");
+  } else if (calendarEntry) {
     // Panel takviminden oluştur
     calendarId = calendarEntry.id;
     const angleparts: string[] = [];
@@ -550,7 +590,9 @@ export async function generateAndPublishBlogPost(): Promise<void> {
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: yazı yayınlandı");
 
   // Takvim satırını "published" olarak işaretle
-  if (calendarId !== null) {
+  if (tprmTopic) {
+    await setTprmIndex(tprmIndex + 1);
+  } else if (calendarId !== null) {
     await db
       .update(blogContentCalendarTable)
       .set({ status: "published", publishedAt: new Date(), slug: post.slug })

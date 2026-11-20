@@ -27,3 +27,6 @@ Kural: şartı okunmamış kaynak satışa konu özellikte "hazır" sayılmaz.
 - [ ] Destek erişimi talebi için bildirim e-postası (e-posta servisi hazır olunca)
 - [ ] E-posta servisi ve Iyzico (en son)
 - [ ] Kullanım koşulları/KVKK metninde tedarikçi taramasının dayanağı ve dış kaynak atıfları
+- [ ] **Yazılı onay çerçevesi (hukuk):** Müşterinin tedarikçisinden aldığı yazılı onayla aktif zafiyet taraması / derin kontrol yapılması için avukat görüşü (TCK 243-244 yetkisiz erişim riski, onay metni şablonu, kapsam/IP aralığı/süre, tedarikçinin üçüncü taraf barındırıcısı için ayrı izin gerekip gerekmediği). Onay kaydı ve kapısı (`vendorHasConsent`) hazır; **aktif tarama modülü henüz yok** — hukuk onayı çıkmadan yazılmamalı.
+- [ ] Kanıt belgeleri ve onay belgeleri veritabanında saklanıyor (3 MB sınır): saklama süresi, KVKK aydınlatma ve silme politikası belirlenmeli; virüs taraması yok (yalnızca PDF/PNG/JPG içerik doğrulaması).
+- [ ] Alt sağlayıcı beyanı ve kanıt belgeleri doğrulanmamış beyandır; müşteri sözleşmelerinde bu ifade korunmalı.

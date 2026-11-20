@@ -14,6 +14,7 @@ Disallow: /assessment/
 Disallow: /full-assessment/
 Disallow: /w/
 Disallow: /api/
+Allow: /api/public/sitemap.xml
 Disallow: /digest/
 
 # Agresif bot'lar icin gecikme (saniye cinsinden)

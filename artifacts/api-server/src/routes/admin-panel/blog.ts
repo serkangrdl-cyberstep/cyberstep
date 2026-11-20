@@ -3,7 +3,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { blogPostsTable, newsletterSubscribersTable, socialMediaLinksTable, blogContentCalendarTable } from "@workspace/db";
-import { eq, desc, asc, and } from "drizzle-orm";
+import { eq, desc, asc, and, ne } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
@@ -30,6 +30,7 @@ function toSlug(title: string): string {
 }
 
 type BlogBodyFull = {
+  slug?: string;
   title?: string; excerpt?: string; content?: string;
   titleEn?: string; excerptEn?: string; contentEn?: string;
   socialTextTr?: string; socialTextEn?: string;
@@ -165,6 +166,14 @@ router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
   const body = req.body as BlogBodyFull;
   const u: Record<string, unknown> = { updatedAt: new Date() };
 
+  if (body.slug !== undefined) {
+    const newSlug = toSlug(body.slug).replace(/^-+|-+$/g, "");
+    if (!newSlug) { res.status(400).json({ error: "Geçerli bir adres (slug) girin" }); return; }
+    const [taken] = await db.select({ id: blogPostsTable.id }).from(blogPostsTable)
+      .where(and(eq(blogPostsTable.slug, newSlug), ne(blogPostsTable.id, id)));
+    if (taken) { res.status(409).json({ error: "Bu adres başka bir yazıda kullanılıyor" }); return; }
+    u.slug = newSlug;
+  }
   if (body.title !== undefined) u.title = body.title;
   if (body.excerpt !== undefined) u.excerpt = body.excerpt;
   if (body.content !== undefined) u.content = prepareBlogContent(body.content);

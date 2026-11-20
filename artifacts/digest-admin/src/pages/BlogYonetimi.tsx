@@ -38,7 +38,7 @@ function statusBadge(status: string) {
 export default function BlogYonetimi() {
   const qc = useQueryClient();
   const [editPost, setEditPost] = useState<BlogPost | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", excerpt: "", content: "" });
+  const [editForm, setEditForm] = useState({ title: "", slug: "", excerpt: "", content: "" });
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [msg, setMsg] = useState("");
   const [generatingIds, setGeneratingIds] = useState<Set<number>>(new Set());
@@ -93,19 +93,19 @@ export default function BlogYonetimi() {
   });
 
   const saveMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { title: string; excerpt: string; content?: string } }) =>
+    mutationFn: ({ id, data }: { id: number; data: { title: string; slug: string; excerpt: string; content?: string } }) =>
       adminFetch(`/api/admin-panel/blog/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
       setEditPost(null);
       setMsg("Degisiklikler kaydedildi.");
     },
-    onError: () => setMsg("Kayit basarisiz."),
+    onError: (e) => setMsg(e instanceof Error && e.message ? `Kayit basarisiz: ${e.message}` : "Kayit basarisiz."),
   });
 
   const openEdit = async (post: BlogPost) => {
     setEditPost(post);
-    setEditForm({ title: post.title, excerpt: post.excerpt, content: "" });
+    setEditForm({ title: post.title, slug: post.slug, excerpt: post.excerpt, content: "" });
     try {
       const full = await adminFetch(`/api/admin-panel/blog/${post.id}`) as { content: string };
       setEditForm(f => ({ ...f, content: full.content ?? "" }));
@@ -326,6 +326,17 @@ export default function BlogYonetimi() {
                   value={editForm.title}
                   onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
                 />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Adres (slug): /blog/{editForm.slug}</label>
+                <input
+                  className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={editForm.slug}
+                  onChange={e => setEditForm(f => ({ ...f, slug: e.target.value }))}
+                />
+                {editPost.status === "published" && editForm.slug !== editPost.slug && (
+                  <p className="text-[11px] text-amber-600 mt-1">Yayindaki yazinin adresi degisirse eski link calismaz.</p>
+                )}
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Ozet</label>

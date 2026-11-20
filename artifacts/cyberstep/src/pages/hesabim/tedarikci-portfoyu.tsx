@@ -21,6 +21,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useRequireCustomer } from "@/hooks/use-customer";
 import { TprmNav } from "@/components/tprm-nav";
 
+const INTAKE: Array<{ key: string; label: string; question: string }> = [
+  { key: "data", label: "Veri", question: "Müşteri, çalışan veya gizli iş verinize erişiyor mu?" },
+  { key: "cyber", label: "Siber", question: "Sisteminize bağlanıyor mu (API, bulut, kimlik, ağ)?" },
+  { key: "operational", label: "Operasyon", question: "Kritik bir iş sürecini destekliyor mu?" },
+  { key: "compliance", label: "Uyum", question: "Mevzuat uyumunuzu (KVKK, BDDK vb.) etkiliyor mu?" },
+  { key: "ai", label: "Yapay zekâ", question: "Hizmetinde yapay zekâ kullanıyor mu?" },
+  { key: "fourthParty", label: "Dördüncü taraf", question: "Verinizi alt hizmet sağlayıcılarla paylaşıyor olabilir mi?" },
+];
+const DOMAIN_LABEL: Record<string, string> = Object.fromEntries(INTAKE.map(q => [q.key, q.label]));
+
 interface Vendor {
   id: number;
   customerEmail: string;
@@ -34,6 +44,7 @@ interface Vendor {
   combinedScore: number | null;
   riskLevel: string | null;
   criticality?: "kritik" | "onemli" | "standart";
+  riskDomains?: Record<string, boolean> | null;
   lastScanData: StoredScanData | null;
   sector: string | null;
   sectorMedian: number | null;
@@ -411,6 +422,7 @@ export default function TedarikciPortfoyu() {
   const [newDomain, setNewDomain] = useState("");
   const [newName, setNewName] = useState("");
   const [newCriticality, setNewCriticality] = useState<"kritik" | "onemli" | "standart">("standart");
+  const [newDomains, setNewDomains] = useState<Record<string, boolean>>({});
 
   const [questionnaireOpen, setQuestionnaireOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
@@ -447,7 +459,7 @@ export default function TedarikciPortfoyu() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ supplierDomain: domain, supplierName: newName.trim() || null, criticality: newCriticality }),
+        body: JSON.stringify({ supplierDomain: domain, supplierName: newName.trim() || null, criticality: newCriticality, riskDomains: newDomains }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
       return res.json() as Promise<Vendor & { instantScore?: boolean; scanPending?: boolean }>;
@@ -458,6 +470,7 @@ export default function TedarikciPortfoyu() {
       setNewDomain("");
       setNewName("");
       setNewCriticality("standart");
+      setNewDomains({});
       toast({
         title: "Tedarikçi eklendi",
         description: data?.instantScore
@@ -712,6 +725,9 @@ export default function TedarikciPortfoyu() {
                             {v.riskLevel} Risk
                           </Badge>
                         )}
+                        {v.riskDomains && Object.entries(v.riskDomains).filter(([, on]) => on).map(([k]) => (
+                          <Badge key={k} variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">{DOMAIN_LABEL[k] ?? k}</Badge>
+                        ))}
                         <select
                           aria-label="Tedarikçi kritikliği"
                           title="Bu tedarikçinin bir siber olayı sizin operasyonunuzu ne kadar etkiler?"
@@ -968,6 +984,18 @@ export default function TedarikciPortfoyu() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Bu tedarikçi hangi alanlarda risk taşıyor?</Label>
+              <div className="space-y-1">
+                {INTAKE.map(q => (
+                  <label key={q.key} className="flex items-start gap-2 text-xs cursor-pointer">
+                    <input type="checkbox" className="mt-0.5" checked={!!newDomains[q.key]} onChange={e => setNewDomains(d => ({ ...d, [q.key]: e.target.checked }))} />
+                    <span><strong>{q.label}:</strong> {q.question}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Kritiklik, seçtiğiniz alanlara göre gerekirse yükseltilir.</p>
             </div>
             <div className="space-y-1.5">
               <Label>Kritiklik</Label>

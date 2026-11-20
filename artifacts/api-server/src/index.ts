@@ -544,6 +544,7 @@ async function ensureIsrTables() {
     id SERIAL PRIMARY KEY, grant_id INTEGER NOT NULL, actor TEXT NOT NULL, actor_label TEXT, action TEXT NOT NULL, at TIMESTAMP NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS support_access_log_grant_idx ON support_access_log (grant_id)`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS criticality TEXT NOT NULL DEFAULT 'standart'`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS risk_domains JSONB`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_vendors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_distributors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_deals ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);

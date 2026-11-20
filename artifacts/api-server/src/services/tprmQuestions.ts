@@ -28,6 +28,14 @@ export const TPRM_QUESTIONS = [
   { id: 10, category: "Kurumsal yönetim", text: "Çalışanlarınıza yönelik sosyal mühendislik / phishing simülasyonu yapıyor musunuz?", weight: 1 },
   { id: 3, category: "Kurumsal yönetim", text: "E-posta güvenliği için SPF, DKIM ve DMARC kaydı uyguluyor musunuz?", weight: 1 },
   { id: 22, category: "Kurumsal yönetim", text: "Geçerli bir bilgi güvenliği belgeniz var mı (ISO 27001, SOC 2 vb.) ve kapsamı bu hizmeti içeriyor mu?", weight: 1 },
+  // Yapay zekâ
+  { id: 24, category: "Yapay zekâ kullanımı", text: "Hizmetinizde müşteri verisiyle çalışan yapay zekâ/otomatik karar sistemleri kullanıyor musunuz ve bunların envanterini tutuyor musunuz?", weight: 1 },
+  { id: 25, category: "Yapay zekâ kullanımı", text: "Müşteri verisi, müşterinin yazılı izni olmadan yapay zekâ modellerini eğitmek veya iyileştirmek için kullanılmıyor mu?", weight: 1 },
+  { id: 26, category: "Yapay zekâ kullanımı", text: "Yapay zekâ çıktıları ve otomatik kararlar için insan gözetimi ve yanlış sonuçlara karşı kontrol süreci tanımlı mı?", weight: 1 },
+  // Operasyonel süreklilik
+  { id: 27, category: "Operasyonel süreklilik", text: "Hizmet sürekliliği için iş sürekliliği (BCP) ve felaket kurtarma (DR) planınız yazılı ve yılda en az bir kez test ediliyor mu?", weight: 1 },
+  { id: 28, category: "Operasyonel süreklilik", text: "Sözleşmede hizmet düzeyi (SLA) ve kabul edilebilir kesinti/geri dönüş süreleri (RTO/RPO) tanımlı mı?", weight: 1 },
+  { id: 29, category: "Operasyonel süreklilik", text: "Kritik bir bileşeniniz (bulut, yazılım, alt hizmet sağlayıcı) devre dışı kalırsa alternatif bir yöntem veya sağlayıcıya geçebiliyor musunuz?", weight: 1 },
   { id: 23, category: "Kurumsal yönetim", text: "Kişisel veriler için KVKK kapsamında veri sorumlusu/işleyen yükümlülüklerinizi yazılı olarak yönetiyor musunuz (VERBİS, aydınlatma, ihlal prosedürü)?", weight: 1 },
 ];
 

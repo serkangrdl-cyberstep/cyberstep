@@ -20,13 +20,13 @@ export const TPRM_PLAN: BlogTopic[] = [
 
 // TPRM yazılarında kullanılabilecek doğrulanmış olgular (kaynaklarıyla). Model bunların dışında vaka,
 // rakam veya alıntı üretmemelidir.
-export const TPRM_VERIFIED_FACTS = `- Verizon 2026 DBIR: ihlallerde üçüncü tarafın yer aldığı pay %48; bir önceki yıla göre %60 artış (küresel veridir, Türkiye'ye özel oran yoktur).
-- Salesloft Drift (Ağustos 2025): Drift entegrasyonuna ait çalınmış OAuth anahtarlarıyla müşterilerin Salesforce verilerine erişildi; Cloudflare, Palo Alto Networks, Proofpoint gibi şirketler etkilendiklerini açıkladı. Salesforce'un kendi açığı sömürülmedi.
+export const TPRM_VERIFIED_FACTS = `- Verizon 2026 DBIR (Kasım 2024 – Ekim 2025 arası olayları kapsar): ihlallerde üçüncü tarafın yer aldığı pay %48; bir önceki yıla göre %60 artış (küresel veridir, Türkiye'ye özel oran yoktur). "2026 yılında yaşanan ihlaller" DEME; "Verizon'un 2026 raporuna göre" de.
+- Salesloft Drift (Ağustos 2025): Drift entegrasyonuna ait çalınmış OAuth anahtarlarıyla müşterilerin Salesforce verilerine erişildi; Cloudflare, Palo Alto Networks, Proofpoint gibi şirketler etkilendiklerini açıkladı. Salesforce'un kendi açığı sömürülmedi; bu bir yazılım açığı değil, çalınmış erişim anahtarı vakasıdır ("açığından sızdı" DEME).
 - Change Healthcare (Şubat 2024): tek bir sağlayıcının kesintisi ABD'de sağlık hizmetlerini ülke çapında aksattı.
 - MOVEit (2023): tek bir yazılımdaki açık binlerce kuruluşu etkiledi.
 - Visa, Mastercard, JPMorgan (19 Kasım 2026): üç şirket de kendi ağlarının ihlal edilmediğini, verinin üçüncü taraf hizmet sağlayıcılardan sızdığını açıkladı; sağlayıcılar adıyla açıklanmadı. Grubun iddia ettiği veri miktarları doğrulanmış değildir.
 - Expedia (Kasım 2026): şirket, üçüncü taraf bir veri platformu sağlayıcısının ele geçirildiğini doğruladı; grubun iddia ettiği kayıt sayısı doğrulanmadı.
 - VodafoneNet (Ocak 2026): KVKK bildirimine göre çalınan veri, bir bölgesel hizmet sağlayıcının (veri işleyen) sisteminden elde edilmiş olabilir; etkilenen kişi sayısı en fazla 321.504 olarak bildirildi. Kaynağın veri işleyen olması kesinleşmiş değildir.
 - Arçelik (Nisan 2026): saldırganlar, üçüncü taraf bir hizmet sağlayıcının alt yüklenicisi üzerinden iç hizmet yönetim platformuna ulaştı; ana sistemlerin etkilenmediği belirtildi.
-- Hepsiburada (KVKK Kurul kararı 2026/2438, 4 Kasım 2026): sohbet altyapısı sağlayan bir hizmet firması üzerinden 2022 tarihli destek kayıtlarından 9.882 kişi etkilendi; firmanın adı açıklanmadı.
-- KVKK madde 12: veri sorumlusu, veri işleyenin aldığı tedbirlerden de sorumludur.`;
+- Hepsiburada (KVKK Kurul kararı 2026/2438, 4 Kasım 2026): sohbet altyapısı sağlayan bir hizmet firması üzerinden 2022 tarihli destek kayıtlarından 9.882 kişi etkilendi; firmanın adı açıklanmadı. KVKK Kurulu yalnızca ihlal bildirimini internet sitesinde yayımlamaya karar verdi; Kurulun şirkete karşı işlem başlattığı, dava açıldığı veya ceza verildiği bilgisi YOKTUR, bunları yazma ("dava", "işlem başlattı", "ceza" DEME).
+- KVKK madde 12: veri sorumlusu, veri işleyenin aldığı tedbirlerden de sorumludur. Bu madde TPRM programını açıkça zorunlu kılmaz; "TPRM zorunlu uyum süreci" DEME, "veri sorumlusunun sorumluluğu tedarikçi seçimini ve denetimini önemli kılar" gibi yaz.`;

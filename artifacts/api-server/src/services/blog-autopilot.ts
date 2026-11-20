@@ -295,6 +295,7 @@ DOĞRULANMIŞ OLGULAR:
 ${TPRM_VERIFIED_FACTS}
 - CyberStep'ten söz edeceksen yalnızca şunları söyle: tedarikçilerin internetten görünen güvenlik duruşunu (açık servisler, bilinen güvenlik açıkları, e-posta güvenliği, sertifika durumu, sızmış kimlik bilgisi kayıtları) puanlar; tedarikçi anketini tarama sonuçlarıyla karşılaştırır; bulgular için aksiyon planı oluşturur ve yeniden taramayla doğrular; portföydeki yoğunlaşmayı gösterir.
 - Her TP yazısında şu sınırı açıkça belirt: dışarıdan tarama tedarikçinin içindeki yetki yönetimini, süreçlerini ve verinin nerede tutulduğunu göstermez; bu yüzden anket, sözleşme ve kanıt talebiyle birlikte kullanılmalıdır.
+- Olgu listesinde yazmayan hukuki sonuç, işlem, dava, ceza veya yaptırım uydurma; bir vakadan "sektör fark etmeksizin herkes" gibi genelleme çıkarma.
 - Yasak ifadeler: "garanti", "ihlali önler", "tam koruma", "BDDK/KVKK uyumlu hale getirir", "tüm riskleri görür", rakip karşılaştırması, belirli bir şirketi suçlama, tedarikçiyi onaysız aktif taramayı öneren her ifade.
 - Tedarikçiye karşı aktif veya derin tarama (port taraması, zafiyet sömürme, içeriden tarama) tavsiye etme; yalnızca dışarıdan görünen veriden ve yazılı talepten söz et.
 - CTA: ücretsiz araç yerine pilot daveti. Format: "Tedarikçi portföyünüz için pilot görüşmesi → cyberstep.io/iletisim" ve "TPRM özeti → cyberstep.io/tedarik-zinciri". Ücretsiz veya fiyat vaadi verme.

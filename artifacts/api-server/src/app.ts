@@ -213,9 +213,20 @@ function stripHtmlTags(value: unknown): unknown {
   return value;
 }
 
+// Yönetici blog editörünün HTML içeriği (content/contentEn) etiketleri taşır; bu iki alan burada
+// silinmez, rotada izin listesiyle (sanitizeBlogHtml) temizlenir. Diğer tüm alanlar yine soyulur.
+const blogHtmlPath = /^\/api\/admin-panel\/blog(\/\d+)?$/;
 app.use((req: Request, _res: Response, next: NextFunction) => {
   if (req.body && typeof req.body === "object" && !skipJsonParsing(req.path)) {
-    req.body = stripHtmlTags(req.body) as Record<string, unknown>;
+    const keepHtml = (req.method === "PUT" || req.method === "POST") && blogHtmlPath.test(req.path);
+    const raw = req.body as Record<string, unknown>;
+    const kept: Record<string, unknown> = {};
+    if (keepHtml) {
+      for (const k of ["content", "contentEn"]) {
+        if (typeof raw[k] === "string") kept[k] = raw[k];
+      }
+    }
+    req.body = { ...(stripHtmlTags(req.body) as Record<string, unknown>), ...kept };
   }
   next();
 });

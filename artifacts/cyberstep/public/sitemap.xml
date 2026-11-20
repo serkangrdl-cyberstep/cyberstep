@@ -66,69 +66,6 @@
   </url>
 
   <url>
-    <loc>https://cyberstep.io/pentest-lite</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/pentest-lite"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/pentest-lite"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://cyberstep.io/ai-guvenlik-degerlendirmesi</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/ai-guvenlik-degerlendirmesi"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/ai-guvenlik-degerlendirmesi"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://cyberstep.io/sektor/saglik</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/sektor/saglik"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/sektor/saglik"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://cyberstep.io/sektor/finans</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/sektor/finans"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/sektor/finans"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://cyberstep.io/sektor/perakende</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/sektor/perakende"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/sektor/perakende"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://cyberstep.io/sektor/bilisim</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/sektor/bilisim"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/sektor/bilisim"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://cyberstep.io/sektor/imalat</loc>
-    <lastmod>2026-06-01</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/sektor/imalat"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cyberstep.io/sektor/imalat"/>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
     <loc>https://cyberstep.io/hakkimizda</loc>
     <lastmod>2026-06-01</lastmod>
     <xhtml:link rel="alternate" hreflang="tr" href="https://cyberstep.io/hakkimizda"/>

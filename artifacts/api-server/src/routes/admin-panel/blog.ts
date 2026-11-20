@@ -1,3 +1,4 @@
+import { normalizeBlogHtml } from "../../services/blogHtml";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
@@ -128,7 +129,7 @@ router.post("/admin-panel/blog", requireAdmin, async (req: Request, res: Respons
   const slug = `${baseSlug}-${suffix}`;
 
   const [row] = await db.insert(blogPostsTable).values({
-    title, slug, excerpt, content,
+    title, slug, excerpt, content: normalizeBlogHtml(content),
     titleEn: body.titleEn || null,
     excerptEn: body.excerptEn || null,
     contentEn: body.contentEn || null,
@@ -166,10 +167,10 @@ router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
 
   if (body.title !== undefined) u.title = body.title;
   if (body.excerpt !== undefined) u.excerpt = body.excerpt;
-  if (body.content !== undefined) u.content = body.content;
+  if (body.content !== undefined) u.content = normalizeBlogHtml(body.content);
   if (body.titleEn !== undefined) u.titleEn = body.titleEn || null;
   if (body.excerptEn !== undefined) u.excerptEn = body.excerptEn || null;
-  if (body.contentEn !== undefined) u.contentEn = body.contentEn || null;
+  if (body.contentEn !== undefined) u.contentEn = body.contentEn ? normalizeBlogHtml(body.contentEn) : null;
   if (body.socialTextTr !== undefined) u.socialTextTr = body.socialTextTr || null;
   if (body.socialTextEn !== undefined) u.socialTextEn = body.socialTextEn || null;
   if (body.linkedinPostTr !== undefined) u.linkedinPostTr = body.linkedinPostTr || null;

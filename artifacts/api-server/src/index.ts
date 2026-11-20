@@ -1532,6 +1532,15 @@ async function maybeSeedPaidTestCustomer() {
   }
 }
 
+async function seedThirdPartyCasePost() {
+  const { THIRD_PARTY_CASE_POST: p } = await import("./data/blogThirdPartyCase");
+  const [{ cnt }] = await db.select({ cnt: count() }).from(blogPostsTable).where(eq(blogPostsTable.slug, p.slug));
+  if (Number(cnt) > 0) return;
+  // Taslak olarak eklenir; yayın (ve bülten gönderimi) yönetim panelinden yapılır.
+  await db.insert(blogPostsTable).values({ ...p, authorName: "CyberStep.io", status: "draft" });
+  logger.info({ slug: p.slug }, "Blog seed: third-party case draft inserted");
+}
+
 async function seedBlogPosts() {
   const [{ cnt }] = await db.select({ cnt: count() })
     .from(blogPostsTable)
@@ -1897,6 +1906,7 @@ async function startup() {
   await updatePricingPlanFeatures();
   await ensurePartnerEcosystemTables();
   await seedBlogPosts();
+  await seedThirdPartyCasePost().catch((err) => logger.warn({ err }, "Third-party case post seed failed"));
   await ensureVerificationColumns();
   await ensureBadgeAdvantagesTable();
   await ensureDomainScanLimitColumn();

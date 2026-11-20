@@ -134,6 +134,7 @@ function NewsCard({ item }: { item: NewsItem }) {
 export default function Haberler() {
   usePageMeta({
     title: "Siber Güvenlik Haberleri | CyberStep.io",
+    canonicalPath: "/haberler",
     description: "Güncel siber güvenlik haberleri. Türkiye ve dünya genelindeki tehditler, zafiyet duyuruları ve sektörel gelişmeler.",
   });
 

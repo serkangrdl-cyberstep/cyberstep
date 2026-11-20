@@ -9,6 +9,10 @@ export interface CrosscheckScan {
   dmarcRecord?: string | null;
   cveSummary?: Array<{ cveId?: string; cvssScore?: number }> | null;
   uncheckedSources?: string[] | null;
+  /** Hudson Rock: çalışan hesabı sızıntı kaydı sayısı (null = ölçülemedi) */
+  hudsonEmployees?: number | null;
+  /** Beyan edilen alt hizmet sağlayıcı sayısı (null = bu anket sürümünde toplanmadı) */
+  subprocessorCount?: number | null;
 }
 export interface Contradiction { questionId: number; beyan: string; bulgu: string }
 
@@ -31,6 +35,16 @@ export function crosscheckAnswers(answers: CrosscheckAnswer[], scan: CrosscheckS
     if (problems.length > 0) {
       out.push({ questionId: 3, beyan: `${ANSWER_LABEL.evet}`, bulgu: `Tarama: ${problems.join("; ")}.` });
     }
+  }
+
+  // Soru 14: çalınmış kimlik bilgilerini izliyorum → dış kayıtta çalışan sızıntısı var mı?
+  if (byId.get(14) === "evet" && (scan.hudsonEmployees ?? 0) > 0) {
+    out.push({ questionId: 14, beyan: ANSWER_LABEL.evet!, bulgu: `Tarama: ${scan.hudsonEmployees} çalışan hesabı için infostealer sızıntı kaydı bulundu.` });
+  }
+
+  // Soru 11: alt hizmet sağlayıcı listem var → ankette liste paylaşılmış mı?
+  if (byId.get(11) === "evet" && scan.subprocessorCount === 0) {
+    out.push({ questionId: 11, beyan: ANSWER_LABEL.evet!, bulgu: "Anket: Liste tutulduğu beyan edildi ancak alt hizmet sağlayıcı bilgisi paylaşılmadı." });
   }
 
   // Soru 4: zamanında güncelleme → doğrulanmış yüksek/kritik CVE var mı?

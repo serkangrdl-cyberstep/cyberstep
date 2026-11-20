@@ -1,3 +1,5 @@
+import type { RiskDomains } from "./vendorIntake";
+
 /** TPRM tedarikçi anketi soruları: Evet=10 / Kısmen=5 / Hayır=0, en fazla 100 (beyan puanı; doğrulanmamıştır). */
 export const TPRM_QUESTIONS = [
   // Erişim ve kimlik
@@ -38,6 +40,17 @@ export const TPRM_QUESTIONS = [
   { id: 29, category: "Operasyonel süreklilik", text: "Kritik bir bileşeniniz (bulut, yazılım, alt hizmet sağlayıcı) devre dışı kalırsa alternatif bir yöntem veya sağlayıcıya geçebiliyor musunuz?", weight: 1 },
   { id: 23, category: "Kurumsal yönetim", text: "Kişisel veriler için KVKK kapsamında veri sorumlusu/işleyen yükümlülüklerinizi yazılı olarak yönetiyor musunuz (VERBİS, aydınlatma, ihlal prosedürü)?", weight: 1 },
 ];
+
+/** Risk alanına göre soru seti: temel kategoriler herkese; alt sağlayıcı/yapay zekâ/süreklilik yalnızca ilgili alan işaretliyse. Alan bilgisi yoksa tümü. */
+export function questionsFor(d: RiskDomains | null): typeof TPRM_QUESTIONS {
+  if (!d) return TPRM_QUESTIONS;
+  return TPRM_QUESTIONS.filter((q) => {
+    if (q.category === "Alt hizmet sağlayıcılar") return d.fourthParty || d.data;
+    if (q.category === "Yapay zekâ kullanımı") return d.ai;
+    if (q.category === "Operasyonel süreklilik") return d.operational;
+    return true;
+  });
+}
 
 const ANSWER_POINTS = { evet: 10, kismen: 5, hayir: 0 } as const;
 

@@ -31,7 +31,9 @@ const router = Router();
 // ─── TPRM Anket Soruları ──────────────────────────────────────────────────────
 // Evet=10/Kısmen=5/Hayır=0, soru sayısından bağımsız 0–100 ölçeğine normalize edilir
 
-import { TPRM_QUESTIONS, selfScoreOf } from "../../services/tprmQuestions";
+import { TPRM_QUESTIONS, selfScoreOf, questionsFor } from "../../services/tprmQuestions";
+import { sanitizeSubprocessors } from "../../services/subprocessors";
+import { diffFourthParties } from "../../services/fourthParty";
 export { TPRM_QUESTIONS };
 
 // ─── Yardımcı: tedarikçi skoru (Skor v2) ─────────────────────────────────────
@@ -115,6 +117,19 @@ async function applySupplierScore(
     riskLevel: insufficient ? null : result.score.risk,
   }).where(eq(tprmVendorTable.id, vendor.id));
 
+  // Dördüncü taraf değişimi: önceki taramayla karşılaştır, değiştiyse olay kaydı düş.
+  try {
+    const prevScanId = storedScoreVersion(vendor.lastScanData) === SCORE_V2_VERSION ? (vendor.lastScanData as unknown as StoredScanData).scanId : null;
+    if (prevScanId && prevScanId !== result.scanId) {
+      const rows = await db.select({ id: domainScansTable.id, extra: domainScansTable.tprmExtra }).from(domainScansTable).where(inArray(domainScansTable.id, [prevScanId, result.scanId]));
+      const fp = (id: number) => ((rows.find((r) => r.id === id)?.extra as { fourthParties?: FourthParty[] } | null)?.fourthParties) ?? null;
+      const diff = diffFourthParties(fp(prevScanId), fp(result.scanId));
+      if (diff) await recordEvent(vendor.id, "fourth_party_changed", diff);
+    }
+  } catch (err) {
+    logger.warn({ err, vendorId: vendor.id }, "Dördüncü taraf değişim karşılaştırması başarısız");
+  }
+
   // Düzeltme sonrası yeniden değerlendirme: talepten SONRA tamamlanan tarama müşteriye bildirilir.
   const [cur] = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, vendor.id));
   if (cur && cur.remediationStatus === "requested" && cur.remediationRequestedAt && result.scannedAt >= cur.remediationRequestedAt && !insufficient) {
@@ -163,7 +178,7 @@ router.get("/tprm/questionnaire/:token", async (req: Request, res: Response) => 
       supplierDomain: link.supplierDomain,
       supplierName: link.supplierName,
       expiresAt: link.expiresAt,
-      questions: TPRM_QUESTIONS,
+      questions: questionsFor(await riskDomainsForToken(token, link.vendorId)),
       alreadyCompleted: !!existing,
       // İlk ankette tedarikçiye skor/risk/tarama bilgisi gösterilmez; yalnızca tamamlandığı bilgisi.
       existingResult: existing ? { completedAt: existing.completedAt } : null,
@@ -195,14 +210,6 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
     res.status(400).json({ error: "Geçerli bir e-posta adresi girin" });
     return;
   }
-  const validIds = new Set(TPRM_QUESTIONS.map(q => q.id));
-  const answeredIds = new Set(answers.map(a => a.questionId));
-  if (answers.length !== validIds.size || answeredIds.size !== validIds.size || ![...answeredIds].every(id => validIds.has(id))
-      || !answers.every(a => a.answer === "evet" || a.answer === "kismen" || a.answer === "hayir")) {
-    res.status(400).json({ error: "Tüm soruları yanıtlayın" });
-    return;
-  }
-
   try {
     const [link] = await db.select().from(tprmQuestionnaireLinkTable)
       .where(eq(tprmQuestionnaireLinkTable.token, token));
@@ -225,6 +232,15 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       return;
     }
 
+    // Soru seti tedarikçinin risk alanlarına göre belirlenir; gönderilen cevaplar bu kümeyle birebir eşleşmeli.
+    const validIds = new Set(questionsFor(await riskDomainsForToken(token, link.vendorId)).map(q => q.id));
+    const answeredIds = new Set(answers.map(a => a.questionId));
+    if (answers.length !== validIds.size || answeredIds.size !== validIds.size || ![...answeredIds].every(id => validIds.has(id))
+        || !answers.every(a => a.answer === "evet" || a.answer === "kismen" || a.answer === "hayir")) {
+      res.status(400).json({ error: "Tüm soruları yanıtlayın" });
+      return;
+    }
+
     // Yeniden değerlendirme talebi: 24 saatte bir.
     let reassessVendor: Awaited<ReturnType<typeof getVendorById>> | null = null;
     if (link.kind === "reassess" && link.vendorId) {
@@ -243,7 +259,7 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       answer: a.answer,
       score: a.answer === "evet" ? 10 : a.answer === "kismen" ? 5 : 0,
     }));
-    const selfScore = selfScoreOf(answers);
+    const selfScore = selfScoreOf(answers, answers.length);
 
     const [response] = await db.insert(tprmQuestionnaireResponseTable).values({
       linkId: link.id,
@@ -252,6 +268,7 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       answers: scoredAnswers as unknown as Record<string, unknown>[],
       selfScore,
       combinedScore: null,
+      subprocessors: sanitizeSubprocessors((req.body as { subprocessors?: unknown }).subprocessors) as unknown as Record<string, unknown>[],
     }).returning();
 
     if (reassessVendor) {
@@ -390,6 +407,14 @@ async function withSectorContext(rows: VendorRow[]) {
 
 // ─── GET /api/tprm/vendors ────────────────────────────────────────────────────
 // Müşterinin tedarikçi listesi
+
+/** Anket bağlantısına ait tedarikçinin risk alanları (soru setini belirler). Bulunamazsa null = tüm sorular. */
+async function riskDomainsForToken(token: string, linkVendorId: number | null): Promise<ReturnType<typeof parseRiskDomains>> {
+  const rows = linkVendorId
+    ? await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.id, linkVendorId)).limit(1)
+    : await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.questionnaireToken, token)).limit(1);
+  return parseRiskDomains(rows[0]?.riskDomains ?? null);
+}
 
 // ─── GET /api/tprm/fourth-parties ─────────────────────────────────────────────
 // Portföy genelinde dördüncü taraf yoğunlaşması (dışarıdan görünen e-posta/DNS/bulut/web hizmetleri).

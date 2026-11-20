@@ -205,6 +205,7 @@ interface QuestionnaireView {
   selfScore: number | null;
   answers: Array<{ questionId: number; text: string; answer: "evet" | "kismen" | "hayir" }>;
   contradictions: Array<{ questionId: number; text: string; beyan: string; bulgu: string }>;
+  subprocessors?: Array<{ name: string; domain: string | null; dataTypes: string | null; country: string | null }>;
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -213,6 +214,7 @@ const EVENT_LABEL: Record<string, string> = {
   reassess_requested: "Tedarikçi düzeltmeleri bildirdi, yeniden değerlendirme istedi",
   rescan_done: "Yeni tarama tamamlandı",
   rescan_failed: "Yeni tarama başarısız oldu",
+  fourth_party_changed: "Dördüncü taraf sağlayıcıları değişti",
 };
 
 function VendorSupplierActions({ vendor }: { vendor: Vendor }) {
@@ -368,6 +370,14 @@ function VendorQuestionnairePanel({ vendorId }: { vendorId: number }) {
           <p className="text-xs font-semibold text-red-400">Beyan ile tarama bulgusu çelişiyor</p>
           {q.contradictions.map(c => (
             <p key={c.questionId} className="text-xs text-muted-foreground">• {c.text} — Beyan: {c.beyan}. {c.bulgu}</p>
+          ))}
+        </div>
+      )}
+      {(q.subprocessors?.length ?? 0) > 0 && (
+        <div className="rounded-md bg-background/50 p-2 space-y-1">
+          <p className="text-xs font-semibold">Beyan edilen alt hizmet sağlayıcılar</p>
+          {q.subprocessors!.map((x, i) => (
+            <p key={i} className="text-xs text-muted-foreground">• {x.name}{x.domain ? ` (${x.domain})` : ""}{x.dataTypes ? ` — ${x.dataTypes}` : ""}{x.country ? ` · ${x.country}` : ""}</p>
           ))}
         </div>
       )}

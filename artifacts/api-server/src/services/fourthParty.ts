@@ -105,3 +105,12 @@ export function portfolioConcentration(vendors: VendorFourthParties[]): Concentr
     .map((c) => { const share = total ? c.vendorCount / total : 0; return { ...c, share, high: c.vendorCount >= 3 && share >= 0.25 }; })
     .sort((a, b) => b.vendorCount - a.vendorCount || a.provider.localeCompare(b.provider));
 }
+
+/** İki tarama arasındaki sağlayıcı değişimi. Önceki yoksa (null) karşılaştırma yapılmaz. */
+export function diffFourthParties(prev: FourthParty[] | null | undefined, next: FourthParty[] | null | undefined): { added: string[]; removed: string[] } | null {
+  if (!prev || !next) return null;
+  const key = (p: FourthParty) => `${p.provider} (${p.category})`;
+  const a = new Set(prev.map(key)); const b = new Set(next.map(key));
+  const added = [...b].filter((k) => !a.has(k)); const removed = [...a].filter((k) => !b.has(k));
+  return added.length || removed.length ? { added, removed } : null;
+}

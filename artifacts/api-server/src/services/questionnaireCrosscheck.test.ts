@@ -18,3 +18,16 @@ test("güncelleme beyanı ve yüksek CVE çelişir; 'kısmen' çelişki sayılma
   assert.equal(crosscheckAnswers([{ questionId: 4, answer: "evet" }], scan).length, 1);
   assert.equal(crosscheckAnswers([{ questionId: 4, answer: "kismen" }], scan).length, 0);
 });
+
+test("soru 14: infostealer kaydı varken izliyorum beyanı çelişir", () => {
+  const r = crosscheckAnswers([{ questionId: 14, answer: "evet" }], { hudsonEmployees: 3 });
+  assert.equal(r.length, 1);
+  assert.equal(r[0]!.questionId, 14);
+  assert.equal(crosscheckAnswers([{ questionId: 14, answer: "evet" }], { hudsonEmployees: 0 }).length, 0);
+  assert.equal(crosscheckAnswers([{ questionId: 14, answer: "evet" }], { hudsonEmployees: null }).length, 0);
+});
+test("soru 11: liste beyanı var ama alt sağlayıcı paylaşılmadı", () => {
+  assert.equal(crosscheckAnswers([{ questionId: 11, answer: "evet" }], { subprocessorCount: 0 }).length, 1);
+  assert.equal(crosscheckAnswers([{ questionId: 11, answer: "evet" }], { subprocessorCount: 2 }).length, 0);
+  assert.equal(crosscheckAnswers([{ questionId: 11, answer: "evet" }], { subprocessorCount: null }).length, 0);
+});

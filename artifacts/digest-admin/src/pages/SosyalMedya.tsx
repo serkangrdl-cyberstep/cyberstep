@@ -195,7 +195,7 @@ export default function SosyalMedya() {
       qc.invalidateQueries({ queryKey: ["digest-social-posts"] });
       setGenMsg("Haftalik icerik uretimi baslatildi. Birkaç dakika icinde gozukecek.");
     },
-    onError: () => setGenMsg("Hata olustu."),
+    onError: (e) => setGenMsg(`Hata: ${e instanceof Error ? e.message.replace(/^\{"error":"|"\}$/g, "") : "olustu"}`),
   });
 
   const generateSpontaneous = async () => {

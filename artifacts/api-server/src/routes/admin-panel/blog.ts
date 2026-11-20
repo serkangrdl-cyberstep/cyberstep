@@ -244,6 +244,24 @@ router.post("/admin-panel/blog/:id/publish", requireAdmin, async (req: Request, 
   res.json({ success: true, post });
 });
 
+router.post("/admin-panel/blog/:id/generate-cover", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const [post] = await db.select().from(blogPostsTable).where(eq(blogPostsTable.id, id));
+  if (!post) { res.status(404).json({ error: "Bulunamadı" }); return; }
+  const cover = await generateBlogCoverDataUrl({
+    title: post.title, excerpt: post.excerpt, tprm: isTprmTitle(post.title),
+  });
+  await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl, updatedAt: new Date() }).where(eq(blogPostsTable.id, id));
+  const quota = /429|quota/i.test(cover.backgroundError ?? "");
+  res.json({
+    success: true,
+    backgroundOk: cover.backgroundOk,
+    reason: cover.backgroundOk ? null
+      : quota ? "Gemini kotası aşıldı (Google AI Studio projesinde faturalandırma gerekli)"
+      : (cover.backgroundError ?? "bilinmeyen hata"),
+  });
+});
+
 router.post("/admin-panel/blog/:id/unpublish", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const [row] = await db.update(blogPostsTable)

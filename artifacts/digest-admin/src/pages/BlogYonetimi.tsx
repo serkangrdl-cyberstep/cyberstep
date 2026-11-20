@@ -110,30 +110,32 @@ export default function BlogYonetimi() {
   async function handleGenerateCover(post: BlogPost) {
     setGeneratingIds(prev => new Set(prev).add(post.id));
     try {
-      const prompt = `Professional cybersecurity blog cover image for article titled "${post.title}". ${post.excerpt ? post.excerpt.slice(0, 120) : ""} Dark blue and teal color scheme, abstract digital security theme, no text, 16:9 aspect ratio.`;
-      const res = await fetch("/api/gemini/generate-image", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) {
-        let detail = "";
-        try { detail = (await res.json() as { detail?: string }).detail ?? ""; } catch { /* yok say */ }
-        throw new Error(detail || `HTTP ${res.status}`);
-      }
-      const { b64_json, mimeType } = await res.json() as { b64_json: string; mimeType: string };
-      const dataUrl = `data:${mimeType};base64,${b64_json}`;
-      await adminFetch(`/api/admin-panel/blog/${post.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ coverImageBase64: dataUrl }),
-      });
+      const r = await adminFetch(`/api/admin-panel/blog/${post.id}/generate-cover`, { method: "POST" }) as
+        { backgroundOk: boolean; reason: string | null };
       qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
-      setMsg("Gorsel uretildi ve kaydedildi.");
+      setMsg(r.backgroundOk
+        ? "Kapak gorseli uretildi ve kaydedildi."
+        : `Baslikli kapak kaydedildi, ancak yapay zeka arka plani uretilemedi: ${r.reason}`);
     } catch (e) {
       setMsg(`Gorsel uretme basarisiz: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setGeneratingIds(prev => { const s = new Set(prev); s.delete(post.id); return s; });
+    }
+  }
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => adminFetch(`/api/admin-panel/blog/${id}`, { method: "DELETE" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["digest-blog-posts"] }); setMsg("Yazi silindi."); },
+    onError: () => setMsg("Silme basarisiz."),
+  });
+
+  const [preview, setPreview] = useState<{ title: string; content: string } | null>(null);
+  async function openPreview(post: BlogPost) {
+    try {
+      const full = await adminFetch(`/api/admin-panel/blog/${post.id}`) as { title: string; content: string };
+      setPreview({ title: full.title, content: full.content });
+    } catch {
+      setMsg("Onizleme acilamadi.");
     }
   }
 
@@ -251,10 +253,23 @@ export default function BlogYonetimi() {
                       Yayindan Kaldir
                     </button>
                   )}
-                  <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer"
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
-                    Goruntule
-                  </a>
+                  {post.status === "draft" ? (
+                    <button onClick={() => openPreview(post)}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
+                      Onizle
+                    </button>
+                  ) : (
+                    <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer"
+                      className="text-xs px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground transition-colors">
+                      Goruntule
+                    </a>
+                  )}
+                  <button
+                    onClick={() => { if (window.confirm(`"${post.title}" kalici olarak silinsin mi? Bu islem geri alinamaz.`)) deleteMut.mutate(post.id); }}
+                    disabled={deleteMut.isPending}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50">
+                    Sil
+                  </button>
                   <a href={`/panel/blog`} target="_blank" rel="noopener noreferrer"
                     className="text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors">
                     Tam Editor
@@ -274,6 +289,19 @@ export default function BlogYonetimi() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {preview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto p-6 space-y-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-semibold text-foreground">{preview.title}</h3>
+              <button onClick={() => setPreview(null)}
+                className="text-muted-foreground hover:text-foreground text-xs border border-border rounded px-2 py-1">Kapat</button>
+            </div>
+            <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: preview.content }} />
+          </div>
         </div>
       )}
 

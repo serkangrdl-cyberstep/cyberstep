@@ -25,11 +25,26 @@ router.get("/admin/social/calendar", requireAdmin, async (req, res) => {
 });
 
 router.post("/admin/social/generate-week", requireAdmin, async (req, res) => {
-  const { weekStart } = req.body as { weekStart?: string };
-  if (!weekStart) { res.status(400).json({ error: "weekStart zorunlu" }); return; }
+  const { weekStart } = (req.body ?? {}) as { weekStart?: string };
 
-  const d = new Date(weekStart);
+  // weekStart verilmezse: bugün dahil, en yakın Pazartesi
+  let d: Date;
+  if (weekStart) {
+    d = new Date(weekStart);
+  } else {
+    d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const add = (8 - d.getDay()) % 7; // Pazartesi=1 → 0, Pazar=0 → 1
+    d.setDate(d.getDate() + add);
+  }
   if (isNaN(d.getTime())) { res.status(400).json({ error: "Geçersiz tarih" }); return; }
+
+  const weekKey = d.toISOString().split("T")[0];
+  const [existing] = await db.select().from(contentCalendarTable).where(eq(contentCalendarTable.weekStart, weekKey)).limit(1);
+  if (existing) {
+    res.status(409).json({ error: `${weekKey} haftası için içerik takvimi zaten var` });
+    return;
+  }
 
   const [calendar] = await db.insert(contentCalendarTable).values({
     weekStart: d.toISOString().split("T")[0],

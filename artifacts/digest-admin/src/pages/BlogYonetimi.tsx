@@ -54,6 +54,15 @@ export default function BlogYonetimi() {
     onError: () => setMsg("Hata olustu."),
   });
 
+  const draftMut = useMutation({
+    mutationFn: () => adminFetch("/api/admin-panel/blog-autopilot/generate-draft", { method: "POST" }),
+    onSuccess: () => {
+      setMsg("Taslak üretimi başlatıldı. Yaklaşık 1-2 dakika içinde listede Taslak olarak görünür.");
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["digest-blog-posts"] }), 90000);
+    },
+    onError: () => setMsg("Taslak üretimi başlatılamadı."),
+  });
+
   const unpublishMut = useMutation({
     mutationFn: (id: number) => adminFetch(`/api/admin-panel/blog/${id}/unpublish`, { method: "POST" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["digest-blog-posts"] }); setMsg("Yayindan kaldirildi."); },
@@ -116,6 +125,13 @@ export default function BlogYonetimi() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => draftMut.mutate()}
+            disabled={draftMut.isPending}
+            className="text-xs px-3 py-1.5 rounded-full border bg-primary text-primary-foreground border-primary hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-1.5">
+            {draftMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+            Taslak üret
+          </button>
           {(["all", "published", "draft"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${

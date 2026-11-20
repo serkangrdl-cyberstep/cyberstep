@@ -294,11 +294,13 @@ const CATEGORY_VARIANTS: Record<CategoryCode, string> = {
 - CyberStep sektörel kıyaslama sayfasına (/sektorel-kiyaslama) yönlendirme ekle.`,
 
   DU: `KATEGORİ MODU — DÜZENLEYİCİ/UYUM (DU):
-- Ceza, mevzuat, zorunluluk odaklı yaz. Somut TL ceza miktarları ver (emin olduklarını; belirsizse "KVKK kapsamında yüksek idari para cezaları uygulanabilir" gibi çerçevele).
+- Ceza, mevzuat odaklı yaz. TL ceza miktarı verirken YALNIZCA şu 2026 sınırlarını kullan (yeniden değerleme oranı %25,49): aydınlatma (md.10) 85.437–1.709.200 TL; veri güvenliği (md.12) 256.357–17.092.242 TL; Kurul kararlarına uymama (md.15) 427.263–17.092.242 TL; VERBİS (md.16) 341.809–17.092.242 TL. Başka tutar, firma cezası, "geçen yıl bir firma ... TL ceza aldı" gibi örnek UYDURMA; "her yıl güncellenir" notunu ekle.
+- "72 saat" Kanun değil, Kurul'un 2019/10 sayılı kararının "en kısa sürede" yorumudur; öyle yaz.
+- VERBİS istisnası: ana faaliyeti özel nitelikli veri olmayanlar için 50 çalışan ve 100 milyon TL altı; özel nitelikli veri ana faaliyet olanlar için 10 çalışan ve 10 milyon TL altı (Kurul 2025/1572).
 - "Bu uyumu sağlamazsanız ne olur?" bölümü zorunlu.
 - Aciliyet hissi yarat ama paniğe sevk etme.
 - Başlık formatı: Rakam veya acil soru formatı.
-- Son bölüm: spesifik aksiyon adımı + CyberStep assessment CTA.`,
+- Son bölüm: spesifik aksiyon adımı + CyberStep alan adı taraması CTA (cyberstep.io/domain-tarama).`,
 
   TP: `KATEGORİ MODU — TEDARİKÇİ RİSK YÖNETİMİ (TP):
 - Hedef okuyucu: risk, uyum, satın alma, hukuk ve BT güvenlik yöneticileri; orta ve büyük ölçekli şirketler. Dil sade kalsın ama kurumsal olsun; "işletme sahibi" tonunu bu kitleye uyarla.
@@ -430,7 +432,8 @@ YAPI ZORUNLULUKLARI:
 - Paragraflar max 4 satır.
 - Listeler: 3-5 madde ul/li ile.
 - CyberStep entegrasyonu: EN AZ 2, EN FAZLA 4 referans — doğal, reklam hissi vermemeli.
-  Format: "CyberStep'in ücretsiz [araç adı] ile bunu 30 saniyede kontrol edebilirsiniz → cyberstep.io/[yol]"
+  Yalnızca şu yayındaki sayfalara bağlantı ver: cyberstep.io/domain-tarama (alan adı taraması), cyberstep.io/tedarik-zinciri (tedarikçi risk skorlaması), cyberstep.io/iletisim. Başka adres, "assessment", "ceza simülatörü", "ön değerlendirme anketi" veya "ücretsiz danışmanlık" uydurma.
+  Format: "CyberStep'in [araç adı] ile bunu kontrol edebilirsiniz → cyberstep.io/[yol]" (süre vaadi verme)
 - Son bölüm başlığı: <h2>Sonuç: Bugün Yapabileceğiniz 1 Şey</h2>
 - Toplam: 900-1200 kelime. Format: Tam HTML (h2/h3/ul/li/strong/p).
 

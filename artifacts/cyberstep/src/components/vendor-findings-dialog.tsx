@@ -51,6 +51,11 @@ export function VendorFindingsDialog({ vendorId, vendorName, onClose }: { vendor
             <p className="text-xs text-muted-foreground">
               {data.domain}{data.scannedAt ? ` · Tarama: ${new Date(data.scannedAt).toLocaleString("tr-TR")}` : ""} · Ölçüm kapsamı %{data.score.coverage}
             </p>
+            {data.other.hudsonRock && ((data.other.hudsonRock.employees ?? 0) > 0 || (data.other.hudsonRock.users ?? 0) > 0) && (
+              <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-800">
+                <strong>Çalınmış kimlik bilgisi (infostealer):</strong> {data.other.hudsonRock.employees ?? 0} çalışan, {data.other.hudsonRock.users ?? 0} kullanıcı hesabı kaydı bulundu. Fidye ve veri sızıntısı saldırılarında en sık kullanılan ilk erişim yollarından biridir; tedarikçiden parola/MFA sıfırlaması isteyin.
+              </div>
+            )}
             {data.other.sslLabsPending && (
               <div className="rounded-md border border-sky-300 bg-sky-50 p-2 text-xs text-sky-800">
                 SSL Labs analizi sürüyor; sonuç bir sonraki taramada eklenecek.

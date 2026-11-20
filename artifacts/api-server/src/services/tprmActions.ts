@@ -58,3 +58,35 @@ export function validateActionItems(raw: unknown, now = new Date()): Array<{ sou
 }
 
 export const isOverdue = (status: string, due: Date, now = new Date()) => (status === "open") && due.getTime() < now.getTime();
+
+/** Taramayla kendiliğinden doğrulanabilen kaynak anahtarları (anket kaynaklı maddeler elle doğrulanır). */
+export const AUTO_VERIFY_KEYS = ["spf", "dmarc", "cve", "infostealer"] as const;
+
+export interface AutoVerifyScan {
+  /** Tarama güvenilir mi (alan adı çözüldü, veri yeterli) */
+  reliable: boolean;
+  spfRecord: string | null;
+  dmarcRecord: string | null;
+  /** null = CVE ölçülemedi */
+  cveSummary: Array<{ cveId?: string; cvssScore?: number }> | null;
+  /** null = Hudson Rock ölçülemedi */
+  hudsonEmployees: number | null;
+}
+
+/**
+ * Yeni taramada artık önerilmeyen (= sorunu giderilmiş) açık/tedarikçi-tamamladı maddelerinin id'leri.
+ * Ölçülemeyen kaynak "düzeldi" sayılmaz.
+ */
+export function autoVerifiableIds(actions: Array<{ id: number; sourceKey: string; status: string }>, scan: AutoVerifyScan): number[] {
+  if (!scan.reliable) return [];
+  const still = new Set(suggestActions({
+    spfRecord: scan.spfRecord, dmarcRecord: scan.dmarcRecord,
+    cveSummary: scan.cveSummary, hudsonEmployees: scan.hudsonEmployees,
+  }).map((s) => s.sourceKey));
+  const measured = (k: string) => k === "cve" ? scan.cveSummary !== null : k === "infostealer" ? scan.hudsonEmployees !== null : true;
+  return actions
+    .filter((a) => (a.status === "open" || a.status === "supplier_done")
+      && (AUTO_VERIFY_KEYS as readonly string[]).includes(a.sourceKey)
+      && measured(a.sourceKey) && !still.has(a.sourceKey))
+    .map((a) => a.id);
+}

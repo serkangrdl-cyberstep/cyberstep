@@ -560,6 +560,7 @@ async function ensureIsrTables() {
     due_date TIMESTAMP NOT NULL, status TEXT NOT NULL DEFAULT 'open', supplier_note TEXT, supplier_done_at TIMESTAMP, closed_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_actions_vendor_idx ON tprm_actions (vendor_id)`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_actions ADD COLUMN IF NOT EXISTS closed_note TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS action_token TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS decision TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS decision_note TEXT`);

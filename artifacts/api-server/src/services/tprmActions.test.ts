@@ -26,3 +26,18 @@ test("isOverdue", () => {
   assert.equal(isOverdue("open", new Date("2026-01-01"), new Date("2026-02-01")), true);
   assert.equal(isOverdue("verified", new Date("2026-01-01"), new Date("2026-02-01")), false);
 });
+
+import { autoVerifiableIds } from "./tprmActions";
+test("autoVerifiableIds: giderilen madde doğrulanır, ölçülemeyen ve anket maddesi dokunulmaz", () => {
+  const acts = [
+    { id: 1, sourceKey: "spf", status: "supplier_done" },
+    { id: 2, sourceKey: "dmarc", status: "open" },
+    { id: 3, sourceKey: "cve", status: "open" },
+    { id: 4, sourceKey: "infostealer", status: "open" },
+    { id: 5, sourceKey: "rf-2", status: "open" },
+    { id: 6, sourceKey: "spf", status: "verified" },
+  ];
+  const ok = { reliable: true, spfRecord: "v=spf1 -all", dmarcRecord: null, cveSummary: [], hudsonEmployees: null };
+  assert.deepEqual(autoVerifiableIds(acts, ok), [1, 3]);
+  assert.deepEqual(autoVerifiableIds(acts, { ...ok, reliable: false }), []);
+});

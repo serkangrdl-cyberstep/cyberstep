@@ -188,7 +188,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
       for (const e of (v.events ?? []).slice(0, 4)) {
         const label: Record<string, string> = { questionnaire_completed: "Anket tamamlandı", report_sent: "Rapor tedarikçiye gönderildi",
           reassess_requested: "Düzeltme bildirildi, yeniden değerlendirme istendi", rescan_done: "Yeni tarama tamamlandı", rescan_failed: "Yeni tarama başarısız",
-          fourth_party_changed: "Dördüncü taraf sağlayıcıları değişti", actions_created: "Aksiyon planı oluşturuldu", action_supplier_done: "Tedarikçi bir aksiyonu tamamladı",
+          fourth_party_changed: "Dördüncü taraf sağlayıcıları değişti", actions_created: "Aksiyon planı oluşturuldu", actions_auto_verified: "Aksiyonlar yeniden taramayla doğrulandı", action_supplier_done: "Tedarikçi bir aksiyonu tamamladı",
           decision_recorded: "Tedarikçi kararı kaydedildi", consent_recorded: "Yazılı onay kaydedildi", consent_revoked: "Yazılı onay iptal edildi" };
         doc.font("r").fontSize(8).fillColor(MUTED).text(`   ${fmtDate(e.at)} — ${label[e.kind] ?? e.kind}`);
       }

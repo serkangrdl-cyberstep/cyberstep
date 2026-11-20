@@ -32,6 +32,8 @@ const router = Router();
 // Evet=10/Kısmen=5/Hayır=0, soru sayısından bağımsız 0–100 ölçeğine normalize edilir
 
 import { TPRM_QUESTIONS, selfScoreOf, questionsFor } from "../../services/tprmQuestions";
+import { validateEvidence, MAX_EVIDENCE_FILES } from "../../services/tprmEvidence";
+import { validateConsentInput, hasValidConsent, CONSENT_SCOPES, type ConsentScope } from "../../services/tprmConsent";
 import { sanitizeSubprocessors } from "../../services/subprocessors";
 import { diffFourthParties } from "../../services/fourthParty";
 export { TPRM_QUESTIONS };
@@ -1169,5 +1171,134 @@ export async function runVendorRescanCron(): Promise<void> {
 
   logger.info("TPRM vendor nightly rescan complete");
 }
+
+// ─── Kanıt belgeleri (tedarikçi yükler, müşteri görür) ───────────────────────
+type Rows = { rows?: Record<string, unknown>[] };
+const rowsOf = (r: unknown) => (r as Rows).rows ?? [];
+
+router.post("/tprm/questionnaire/:token/evidence", async (req: Request, res: Response) => {
+  try {
+    const token = req.params["token"] as string;
+    const [link] = await db.select().from(tprmQuestionnaireLinkTable).where(eq(tprmQuestionnaireLinkTable.token, token));
+    if (!link || new Date() > link.expiresAt) { res.status(404).json({ error: "Geçersiz veya süresi dolmuş bağlantı" }); return; }
+    const v = validateEvidence(req.body);
+    if (!v.ok) { res.status(400).json({ error: v.error }); return; }
+    const cnt = rowsOf(await db.execute(sql`SELECT COUNT(*)::int AS n FROM tprm_evidence WHERE link_id = ${link.id}`))[0]?.["n"] as number;
+    if (cnt >= MAX_EVIDENCE_FILES) { res.status(400).json({ error: `En fazla ${MAX_EVIDENCE_FILES} belge yüklenebilir` }); return; }
+    const ins = rowsOf(await db.execute(sql`INSERT INTO tprm_evidence (link_id, kind, file_name, mime, size, data)
+      VALUES (${link.id}, ${v.kind}, ${v.fileName}, ${v.mime}, ${v.data.length}, ${v.data}) RETURNING id`));
+    res.json({ id: ins[0]?.["id"], fileName: v.fileName, kind: v.kind, size: v.data.length });
+  } catch (err) {
+    logger.error({ err }, "TPRM evidence upload error");
+    res.status(500).json({ error: "Belge yüklenemedi" });
+  }
+});
+
+router.get("/tprm/vendors/:id/evidence", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    if (!vendor.questionnaireToken) { res.json({ evidence: [] }); return; }
+    const rows = rowsOf(await db.execute(sql`SELECT e.id, e.kind, e.file_name, e.mime, e.size, e.created_at
+      FROM tprm_evidence e JOIN tprm_questionnaire_links l ON l.id = e.link_id WHERE l.token = ${vendor.questionnaireToken} ORDER BY e.id`));
+    res.json({ evidence: rows });
+  } catch (err) {
+    logger.error({ err }, "TPRM evidence list error");
+    res.status(500).json({ error: "Belgeler yüklenemedi" });
+  }
+});
+
+router.get("/tprm/vendors/:id/evidence/:eid/download", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor?.questionnaireToken) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const row = rowsOf(await db.execute(sql`SELECT e.file_name, e.mime, e.data FROM tprm_evidence e
+      JOIN tprm_questionnaire_links l ON l.id = e.link_id WHERE e.id = ${parseInt(req.params["eid"] as string)} AND l.token = ${vendor.questionnaireToken}`))[0];
+    if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    res.setHeader("Content-Type", String(row["mime"]));
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(String(row["file_name"]))}`);
+    res.send(row["data"] as Buffer);
+  } catch (err) {
+    logger.error({ err }, "TPRM evidence download error");
+    res.status(500).json({ error: "İndirilemedi" });
+  }
+});
+
+// ─── Yazılı onay kaydı (derin değerlendirme kapısı) ──────────────────────────
+// Müşteri, KENDİ tedarikçisinden aldığı yazılı onayı (belge) kapsam ve süreyle kaydeder.
+// Aktif/derin testler yalnızca geçerli onay varken çalıştırılmalıdır: bkz. vendorHasConsent().
+export async function vendorHasConsent(vendorId: number, scope: ConsentScope): Promise<boolean> {
+  const rows = rowsOf(await db.execute(sql`SELECT scopes, valid_from, valid_until, revoked_at FROM tprm_consents WHERE vendor_id = ${vendorId}`));
+  return hasValidConsent(rows.map((r) => ({
+    scopes: (r["scopes"] as string[]) ?? [], validFrom: new Date(r["valid_from"] as string),
+    validUntil: new Date(r["valid_until"] as string), revokedAt: r["revoked_at"] ? new Date(r["revoked_at"] as string) : null,
+  })), scope);
+}
+
+router.get("/tprm/vendors/:id/consents", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const rows = rowsOf(await db.execute(sql`SELECT id, scopes, signer_name, signer_title, note, valid_from, valid_until, doc_name, revoked_at, created_at
+      FROM tprm_consents WHERE vendor_id = ${vendor.id} ORDER BY id DESC`));
+    res.json({ consents: rows, scopeLabels: CONSENT_SCOPES });
+  } catch (err) {
+    logger.error({ err }, "TPRM consent list error");
+    res.status(500).json({ error: "Onaylar yüklenemedi" });
+  }
+});
+
+router.post("/tprm/vendors/:id/consents", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const c = validateConsentInput(req.body);
+    if (!c.ok) { res.status(400).json({ error: c.error }); return; }
+    const doc = validateEvidence({ ...(req.body as object), kind: "diger" });
+    if (!doc.ok) { res.status(400).json({ error: `Onay belgesi: ${doc.error}` }); return; }
+    const email = await getSessionCustomerEmail(req);
+    const ins = rowsOf(await db.execute(sql`INSERT INTO tprm_consents
+      (vendor_id, customer_email, scopes, signer_name, signer_title, note, valid_from, valid_until, doc_name, doc_mime, doc_data)
+      VALUES (${vendor.id}, ${email}, ${JSON.stringify(c.value.scopes)}::jsonb, ${c.value.signerName}, ${c.value.signerTitle}, ${c.value.note},
+      ${c.value.validFrom}, ${c.value.validUntil}, ${doc.fileName}, ${doc.mime}, ${doc.data}) RETURNING id`));
+    await recordEvent(vendor.id, "consent_recorded", { scopes: c.value.scopes, validUntil: c.value.validUntil.toISOString(), signer: c.value.signerName });
+    res.json({ id: ins[0]?.["id"] });
+  } catch (err) {
+    logger.error({ err }, "TPRM consent create error");
+    res.status(500).json({ error: "Onay kaydedilemedi" });
+  }
+});
+
+router.post("/tprm/vendors/:id/consents/:cid/revoke", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const upd = rowsOf(await db.execute(sql`UPDATE tprm_consents SET revoked_at = NOW()
+      WHERE id = ${parseInt(req.params["cid"] as string)} AND vendor_id = ${vendor.id} AND revoked_at IS NULL RETURNING id`));
+    if (!upd.length) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    await recordEvent(vendor.id, "consent_revoked", { consentId: upd[0]?.["id"] });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "TPRM consent revoke error");
+    res.status(500).json({ error: "İptal edilemedi" });
+  }
+});
+
+router.get("/tprm/vendors/:id/consents/:cid/download", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
+    if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    const row = rowsOf(await db.execute(sql`SELECT doc_name, doc_mime, doc_data FROM tprm_consents WHERE id = ${parseInt(req.params["cid"] as string)} AND vendor_id = ${vendor.id}`))[0];
+    if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
+    res.setHeader("Content-Type", String(row["doc_mime"]));
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(String(row["doc_name"]))}`);
+    res.send(row["doc_data"] as Buffer);
+  } catch (err) {
+    logger.error({ err }, "TPRM consent download error");
+    res.status(500).json({ error: "İndirilemedi" });
+  }
+});
 
 export default router;

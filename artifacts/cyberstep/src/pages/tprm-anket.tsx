@@ -55,6 +55,9 @@ export default function TprmAnket() {
   const [contactEmail, setContactEmail] = useState("");
   const [answers, setAnswers] = useState<Record<number, AnswerValue>>({});
   const [subs, setSubs] = useState<Array<{ name: string; domain: string; dataTypes: string; country: string }>>([]);
+  const [evFiles, setEvFiles] = useState<Array<{ name: string; kind: string }>>([]);
+  const [evKind, setEvKind] = useState("iso27001");
+  const [evError, setEvError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -108,6 +111,25 @@ export default function TprmAnket() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function uploadEvidence(file: File) {
+    setEvError(null);
+    try {
+      const dataBase64: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+        r.onerror = () => reject(new Error("Dosya okunamadı"));
+        r.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/tprm/questionnaire/${token}/evidence`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, kind: evKind, dataBase64 }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Yüklenemedi");
+      setEvFiles(f => [...f, { name: file.name, kind: evKind }]);
+    } catch (e) { setEvError((e as Error).message); }
   }
 
   const answeredCount = Object.keys(answers).length;
@@ -352,6 +374,21 @@ export default function TprmAnket() {
               </CardContent>
             </Card>
           )}
+
+          <Card className="mt-6">
+            <CardContent className="p-4 space-y-2">
+              <p className="text-sm font-medium">Kanıt belgesi (isteğe bağlı)</p>
+              <p className="text-xs text-muted-foreground">ISO 27001 sertifikası, sızma testi özeti gibi belgeleri ekleyebilirsiniz (PDF/PNG/JPG, en fazla 5 dosya, her biri 3 MB). Müşteriniz görür; doğrulanmamış beyan olarak saklanır.</p>
+              <div className="flex gap-2 items-center">
+                <select className="rounded-md border bg-background px-2 py-1.5 text-sm" value={evKind} onChange={e => setEvKind(e.target.value)}>
+                  <option value="iso27001">ISO 27001</option><option value="pentest">Sızma testi</option><option value="soc2">SOC 2</option><option value="diger">Diğer</option>
+                </select>
+                <input type="file" accept="application/pdf,image/png,image/jpeg" className="text-xs min-w-0" onChange={e => { const f = e.target.files?.[0]; if (f) uploadEvidence(f); e.target.value = ""; }} />
+              </div>
+              {evFiles.map((f, i) => <p key={i} className="text-xs text-emerald-400">✓ {f.name}</p>)}
+              {evError && <p className="text-xs text-red-400">{evError}</p>}
+            </CardContent>
+          </Card>
 
           {submitError && (
             <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-red-400 text-sm flex items-start gap-2">

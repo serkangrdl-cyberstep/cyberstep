@@ -546,6 +546,15 @@ async function ensureIsrTables() {
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS criticality TEXT NOT NULL DEFAULT 'standart'`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS risk_domains JSONB`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_questionnaire_responses ADD COLUMN IF NOT EXISTS subprocessors JSONB`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS tprm_evidence (
+    id SERIAL PRIMARY KEY, link_id INTEGER NOT NULL, kind TEXT NOT NULL, file_name TEXT NOT NULL, mime TEXT NOT NULL,
+    size INTEGER NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_evidence_link_idx ON tprm_evidence (link_id)`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS tprm_consents (
+    id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL, customer_email TEXT NOT NULL, scopes JSONB NOT NULL,
+    signer_name TEXT NOT NULL, signer_title TEXT, note TEXT, valid_from TIMESTAMP NOT NULL, valid_until TIMESTAMP NOT NULL,
+    doc_name TEXT NOT NULL, doc_mime TEXT NOT NULL, doc_data BYTEA NOT NULL, revoked_at TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS tprm_consents_vendor_idx ON tprm_consents (vendor_id)`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_vendors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_distributors ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);
   await db.execute(sql`ALTER TABLE IF EXISTS isr_deals ADD COLUMN IF NOT EXISTS tenant_id INTEGER NOT NULL DEFAULT 1`);

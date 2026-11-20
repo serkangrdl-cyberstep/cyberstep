@@ -585,6 +585,16 @@ importers:
         version: 4.6.7
 
   artifacts/digest-admin:
+    dependencies:
+      '@tiptap/pm':
+        specifier: ^3.34.0
+        version: 3.34.0
+      '@tiptap/react':
+        specifier: ^3.34.0
+        version: 3.34.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.34.0(@tiptap/pm@3.34.0))(@tiptap/pm@3.34.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tiptap/starter-kit':
+        specifier: ^3.34.0
+        version: 3.34.0
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0

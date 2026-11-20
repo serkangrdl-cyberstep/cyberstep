@@ -1720,11 +1720,12 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       const dnsP = await import("dns/promises");
       const { checkVulnCheckKev, checkHudsonRock, checkObservatoryV2 } = await import("../../services/tprmIntel");
       const { fetchHomepageHtml, detectJsLibraries, matchClientLibCves } = await import("../../services/clientLibCves");
+      const { extractWebHosts, detectFourthParties } = await import("../../services/fourthParty");
       const clientLibsP = fetchHomepageHtml(domain, fetch as never, isPublicDomain)
         .then((html) => {
           if (html === null) return null;
           const libs = detectJsLibraries(html);
-          return { detected: libs, findings: matchClientLibCves(libs) };
+          return { detected: libs, findings: matchClientLibCves(libs), webHosts: extractWebHosts(html, domain) };
         })
         .catch(() => null);
       const [ips, tf, ct, ssll, otx, epss, vcKev, hudson, mozObs] = await Promise.all([
@@ -1738,11 +1739,20 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         checkHudsonRock(domain, fetch as never).catch(() => null),
         checkObservatoryV2(domain, fetch as never).catch(() => null),
       ]);
-      const clientLibs = await clientLibsP;
+      const clientLibsRaw = await clientLibsP;
+      const clientLibs = clientLibsRaw ? { detected: clientLibsRaw.detected, findings: clientLibsRaw.findings } : null;
+      const nsHosts = await dnsP.resolveNs(domain).catch(() => [] as string[]);
+      const fourthParties = detectFourthParties({
+        domain,
+        mxHosts: mx.records.map((r) => r.exchange),
+        spfRecord: spf.record,
+        nsHosts,
+        webHosts: clientLibsRaw?.webHosts ?? [],
+      });
       const feodo = await checkFeodoIps(ips).catch(() => ({ c2Ips: [] as string[], unchecked: true }));
       const { findDanglingCnames } = await import("../../services/tprmDeepScan");
       const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
-      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs, clientLibs };
+      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs, clientLibs, fourthParties };
     })() : null;
     // SSL Labs bu alan adı için not verdiyse TLS çalışıyor demektir: kendi ölçümümüzün geçici başarısızlığını "bozuk TLS" bulgusu sayma.
     if (deep?.ssll.grade && ssl !== sslRaw && ssl.note === BROKEN_TLS_NOTE) ssl = sslRaw;
@@ -1763,6 +1773,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       hudsonRock: deep.hudson,
       mozillaObservatory: deep.mozObs,
       clientLibs: deep.clientLibs,
+      fourthParties: deep.fourthParties,
     } : null;
 
     // WAF detection: INSERT'ten önce çalıştırılır; böylece INSERT retry'a sokulabilir

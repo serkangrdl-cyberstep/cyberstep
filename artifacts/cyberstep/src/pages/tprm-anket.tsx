@@ -20,7 +20,7 @@ const ANSWER_OPTIONS = [
 
 type AnswerValue = "evet" | "kismen" | "hayir";
 
-interface Question { id: number; text: string; weight: number }
+interface Question { id: number; text: string; weight: number; category?: string }
 
 interface QuestionnaireData {
   companyName: string;
@@ -293,7 +293,11 @@ export default function TprmAnket() {
             {data.questions.map((q, i) => {
               const selected = answers[q.id];
               return (
-                <Card key={q.id}>
+                <div key={q.id}>
+                {q.category && q.category !== data.questions[i - 1]?.category && (
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mt-4 mb-2">{q.category}</h2>
+                )}
+                <Card>
                   <CardHeader className="pb-2">
                     <CardDescription className="text-xs text-muted-foreground">Soru {i + 1}</CardDescription>
                     <CardTitle className="text-sm font-medium leading-relaxed">{q.text}</CardTitle>
@@ -317,6 +321,7 @@ export default function TprmAnket() {
                     </div>
                   </CardContent>
                 </Card>
+                </div>
               );
             })}
           </div>

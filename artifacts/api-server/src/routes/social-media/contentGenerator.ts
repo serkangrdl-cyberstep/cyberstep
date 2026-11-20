@@ -188,7 +188,7 @@ Bu hafta ${stats.totalScans} Türk şirketi tarandı. Ortalama skor: ${stats.avg
 }
 
 function buildVisualSVG(platform: string, caption: string): string {
-  const firstLine = caption.split("\n")[0].replace(/[^\w\s.,!?%-]/g, "").trim().slice(0, 55);
+  const firstLine = caption.split("\n")[0].replace(/[^\p{L}\p{N}\s.,!?%-]/gu, "").trim().slice(0, 55);
   const w = platform === "x" ? 1200 : 1080;
   const h = platform === "linkedin" ? 628 : 1080;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">

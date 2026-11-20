@@ -14,7 +14,8 @@ import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
-import { TPRM_PLAN, TPRM_VERIFIED_FACTS } from "../data/blogTprmPlan";
+import { TPRM_PLAN, TPRM_VERIFIED_FACTS, TPRM_WRITING_RULES } from "../data/blogTprmPlan";
+import { buildFactCheckPrompt, parseFactCheckOutput } from "./blogFactCheck";
 import { generateBlogCoverDataUrl } from "./blogCover";
 
 const BLOG_MODEL = getModel("blog");
@@ -226,6 +227,18 @@ async function setAutopilotIndex(index: number): Promise<void> {
 }
 
 // ─── TPRM planı indeksi (ayrı sayaç; liste bitince normal akışa dönülür) ─────────
+/** TPRM yazıları: "draft" (varsayılan; onay bekler) veya "publish" (doğrudan yayın). */
+export async function getTprmMode(): Promise<"draft" | "publish"> {
+  const [row] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, "blog_autopilot_tprm_mode"));
+  return row?.value === "publish" ? "publish" : "draft";
+}
+
+export async function setTprmMode(mode: "draft" | "publish"): Promise<void> {
+  await db.insert(siteSettingsTable)
+    .values({ key: "blog_autopilot_tprm_mode", value: mode, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: siteSettingsTable.key, set: { value: mode, updatedAt: new Date() } });
+}
+
 async function getTprmIndex(): Promise<number> {
   const [row] = await db.select().from(siteSettingsTable)
     .where(eq(siteSettingsTable.key, "blog_autopilot_tprm_index"));
@@ -293,6 +306,8 @@ const CATEGORY_VARIANTS: Record<CategoryCode, string> = {
 - Kullanacağın vaka ve rakamlar YALNIZCA aşağıdaki doğrulanmış listeden gelebilir. Listede olmayan vaka, rakam, şirket adı, ceza tutarı veya alıntı üretme. İstatistik gerekiyorsa listedeki olguyu kullan ya da rakamsız anlat. Listedeki "doğrulanmadı" ve "kesinleşmemiş" ifadelerini yazıda koru.
 DOĞRULANMIŞ OLGULAR:
 ${TPRM_VERIFIED_FACTS}
+KESİN YAZIM KURALLARI:
+${TPRM_WRITING_RULES}
 - CyberStep'ten söz edeceksen yalnızca şunları söyle: tedarikçilerin internetten görünen güvenlik duruşunu (açık servisler, bilinen güvenlik açıkları, e-posta güvenliği, sertifika durumu, sızmış kimlik bilgisi kayıtları) puanlar; tedarikçi anketini tarama sonuçlarıyla karşılaştırır; bulgular için aksiyon planı oluşturur ve yeniden taramayla doğrular; portföydeki yoğunlaşmayı gösterir.
 - Her TP yazısında şu sınırı açıkça belirt: dışarıdan tarama tedarikçinin içindeki yetki yönetimini, süreçlerini ve verinin nerede tutulduğunu göstermez; bu yüzden anket, sözleşme ve kanıt talebiyle birlikte kullanılmalıdır.
 - Olgu listesinde yazmayan hukuki sonuç, işlem, dava, ceza veya yaptırım uydurma; bir vakadan "sektör fark etmeksizin herkes" gibi genelleme çıkarma.
@@ -323,12 +338,46 @@ interface GeneratedContent {
 }
 
 export async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
+  let generated: GeneratedContent;
   try {
-    return await generateBlogPostContentOnce(topic);
+    generated = await generateBlogPostContentOnce(topic);
   } catch (err) {
     // Model bazen bozuk JSON döndürür; bir kez daha dene
     logger.warn(`Blog autopilot: üretim ilk denemede başarısız, yeniden deneniyor: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
-    return await generateBlogPostContentOnce(topic);
+    generated = await generateBlogPostContentOnce(topic);
+  }
+  if (getCategoryCode(topic.category) === "TP") {
+    generated = { ...generated, content: await factCheckTprmContent(generated.content, topic.title) };
+  }
+  return generated;
+}
+
+/** TPRM yazısını doğrulanmış olgu listesi ve kesin kurallarla karşılaştırıp hatalı cümleleri düzeltir. Başarısız olursa özgün içerik kalır. */
+async function factCheckTprmContent(content: string, title: string): Promise<string> {
+  try {
+    const message = await anthropic.messages.create({
+      model: BLOG_MODEL,
+      max_tokens: 16000,
+      messages: [{ role: "user", content: buildFactCheckPrompt(content, TPRM_VERIFIED_FACTS, TPRM_WRITING_RULES) }],
+    });
+    logAiCost({
+      service: "blog_autopilot",
+      model: BLOG_MODEL,
+      inputTokens: message.usage.input_tokens,
+      outputTokens: message.usage.output_tokens,
+      metadata: { title, step: "fact-check" },
+    }).catch(() => {});
+    const block = message.content[0];
+    const parsed = parseFactCheckOutput(block?.type === "text" ? block.text : "", content);
+    if (!parsed) {
+      logger.warn({ title }, "Blog autopilot: olgu kontrolü çıktısı kullanılamadı, özgün içerik korunuyor");
+      return content;
+    }
+    logger.info({ title, changes: parsed.changes }, "Blog autopilot: olgu kontrolü tamamlandı");
+    return parsed.content;
+  } catch (err) {
+    logger.warn(`Blog autopilot: olgu kontrolü başarısız, özgün içerik korunuyor: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+    return content;
   }
 }
 
@@ -533,6 +582,13 @@ export async function generateAndPublishBlogPost(): Promise<void> {
   // 0. TPRM planı bitene kadar öncelikli
   const tprmIndex = await getTprmIndex();
   const tprmTopic = tprmIndex < TPRM_PLAN.length ? TPRM_PLAN[tprmIndex] : null;
+
+  // TPRM yazıları varsayılan olarak taslak üretilir; yönetici panelden onaylar
+  if (tprmTopic && (await getTprmMode()) === "draft") {
+    logger.info({ tprmIndex, title: tprmTopic.title }, "Blog autopilot: TPRM yazısı taslak olarak üretiliyor (onay bekler)");
+    await generateAndSaveDraft();
+    return;
+  }
 
   // 1. Paneldeki içerik takviminden sıradaki "planned" girdiyi al
   const [calendarEntry] = tprmTopic ? [undefined] : await db
@@ -775,5 +831,6 @@ export async function getBlogAutopilotStatus() {
       title: nextTopic.title,
     },
     lastPublished: lastPost ?? null,
+    tprmMode: await getTprmMode(),
   };
 }

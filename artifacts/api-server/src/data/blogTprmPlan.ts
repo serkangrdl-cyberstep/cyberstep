@@ -30,3 +30,12 @@ export const TPRM_VERIFIED_FACTS = `- Verizon 2026 DBIR (Kasım 2024 – Ekim 20
 - Arçelik (Nisan 2026): saldırganlar, üçüncü taraf bir hizmet sağlayıcının alt yüklenicisi üzerinden iç hizmet yönetim platformuna ulaştı; ana sistemlerin etkilenmediği belirtildi.
 - Hepsiburada (KVKK Kurul kararı 2026/2438, 4 Kasım 2026): sohbet altyapısı sağlayan bir hizmet firması üzerinden 2022 tarihli destek kayıtlarından 9.882 kişi etkilendi; firmanın adı açıklanmadı. KVKK Kurulu yalnızca ihlal bildirimini internet sitesinde yayımlamaya karar verdi; Kurulun şirkete karşı işlem başlattığı, dava açıldığı veya ceza verildiği bilgisi YOKTUR, bunları yazma ("dava", "işlem başlattı", "ceza" DEME).
 - KVKK madde 12/2: kişisel veriler veri sorumlusu adına başka bir kişi tarafından işleniyorsa veri sorumlusu, güvenlik tedbirlerinin alınması konusunda bu kişilerle müştereken sorumludur (sorumluluk tedarikçiye devredilmez; tedarikçi ihlale neden olsa da veri sorumlusu KVKK sürecinin muhatabı olabilir). Bu madde TPRM programını açıkça zorunlu kılmaz; "TPRM zorunlu uyum süreci" DEME, "veri sorumlusunun sorumluluğu tedarikçi seçimini ve denetimini önemli kılar" gibi yaz.`;
+
+// TPRM yazılarında hem üretim prompt'una hem ikinci kontrole verilen kesin kurallar.
+export const TPRM_WRITING_RULES = `- Dışarıdan taramayı anlatırken "tedarikçiye haber vermeden", "izinsiz", "fark ettirmeden" gibi ifadeler KULLANMA; yalnızca "kamuya açık kaynaklardan okunabilen sinyaller" de.
+- Verizon oranını her zaman dönemiyle ve "küresel" olduğunu belirterek ver (Kasım 2024 – Ekim 2025). "%60 artmış oran" yerine "yaklaşık %60 artarak %48'e ulaştı" yaz.
+- MOVEit "tek sağlayıcıya bağımlılık" örneği DEĞİLDİR; yalnızca "tek bir yazılımdaki açığın binlerce kuruluşu etkilemesi" olarak kullan. Tek sağlayıcı bağımlılığı için yalnızca Change Healthcare kullanılabilir.
+- Drift olayını yazılım açığı olarak anlatma; çalınmış OAuth anahtarı olarak anlat.
+- KVKK madde 12'yi "müşterek sorumluluk" olarak anlat; "tedarikçinin tedbirlerinden sorumlusunuz" ya da TPRM'in zorunlu olduğu ifadesini kullanma.
+- Hepsiburada kararını yalnızca ihlal bildiriminin yayımlanması olarak anlat; işlem, ceza, dava, soruşturma ima etme.
+- Tüm listeleri <ul><li> veya <ol><li> etiketleriyle yaz; paragrafları <p>, başlıkları <h2>/<h3> ile yaz.`;

@@ -27,9 +27,9 @@ import { peekBenchmarkSnapshot, percentileInSector } from "../../services/sector
 const router = Router();
 
 // ─── TPRM Anket Soruları ──────────────────────────────────────────────────────
-// 10 soru, Evet=10/Kısmen=5/Hayır=0 → max 100
+// Evet=10/Kısmen=5/Hayır=0, soru sayısından bağımsız 0–100 ölçeğine normalize edilir
 
-import { TPRM_QUESTIONS } from "../../services/tprmQuestions";
+import { TPRM_QUESTIONS, selfScoreOf } from "../../services/tprmQuestions";
 export { TPRM_QUESTIONS };
 
 // ─── Yardımcı: tedarikçi skoru (Skor v2) ─────────────────────────────────────
@@ -241,7 +241,7 @@ router.post("/tprm/questionnaire/:token/submit", async (req: Request, res: Respo
       answer: a.answer,
       score: a.answer === "evet" ? 10 : a.answer === "kismen" ? 5 : 0,
     }));
-    const selfScore = scoredAnswers.reduce((sum, a) => sum + a.score, 0);
+    const selfScore = selfScoreOf(answers);
 
     const [response] = await db.insert(tprmQuestionnaireResponseTable).values({
       linkId: link.id,

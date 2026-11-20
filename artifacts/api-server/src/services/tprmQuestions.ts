@@ -10,4 +10,13 @@ export const TPRM_QUESTIONS = [
   { id: 8, text: "Müşteri ve iş ortağı verilerini şifreli saklıyor musunuz?", weight: 1 },
   { id: 9, text: "Son 12 ayda bir güvenlik açığı taraması veya sızma testi yaptırdınız mı?", weight: 1 },
   { id: 10, text: "Çalışanlarınıza yönelik sosyal mühendislik / phishing simülasyonu yapıyor musunuz?", weight: 1 },
+  { id: 11, text: "Müşteri verisini paylaştığınız alt hizmet sağlayıcıların (pazarlama, bulut, çağrı merkezi vb.) listesini tutuyor ve güvenliklerini değerlendiriyor musunuz?", weight: 1 },
 ];
+
+const ANSWER_POINTS = { evet: 10, kismen: 5, hayir: 0 } as const;
+
+/** Beyan puanı 0–100: soru sayısı değişse de ölçek sabit kalır (10 soruda eski hesapla aynıdır). */
+export function selfScoreOf(answers: Array<{ answer: keyof typeof ANSWER_POINTS }>, questionCount = TPRM_QUESTIONS.length): number {
+  const sum = answers.reduce((s, a) => s + ANSWER_POINTS[a.answer], 0);
+  return Math.round((sum * 100) / (questionCount * 10));
+}

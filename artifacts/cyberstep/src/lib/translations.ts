@@ -167,8 +167,8 @@ export const TRANSLATIONS = {
     pageLabel: { tr: "Blog", en: "Blog" },
     pageTitle: { tr: "Siber Güvenlik Rehberi", en: "Cybersecurity Guide" },
     pageSub: {
-      tr: "KOBİ'ler için siber güvenlik ipuçları, güncel tehditler ve koruma stratejileri.",
-      en: "Cybersecurity tips, current threats, and protection strategies for SMEs.",
+      tr: "Tedarikçi ve üçüncü taraf siber riski, güncel tehditler ve şirketler için koruma stratejileri.",
+      en: "Third-party and supply-chain cyber risk, current threats, and protection strategies for companies.",
     },
     noPostsTitle: { tr: "Henüz yazı yok", en: "No posts yet" },
     noPostsSub: { tr: "Yakında yeni içerikler yayınlanacak.", en: "New content will be published soon." },

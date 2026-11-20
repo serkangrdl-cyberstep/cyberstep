@@ -214,6 +214,24 @@ router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
   if (body.coverImageBase64 !== undefined) u.coverImageBase64 = body.coverImageBase64;
   if (body.authorName !== undefined) u.authorName = body.authorName;
 
+  // Kapak: yazı kaydedilirken eski (resimli) kapak varsa ya da başlık değiştiyse başlıklı SVG kapak üretilir.
+  if (body.coverImageBase64 === undefined) {
+    const [cur] = await db.select({ title: blogPostsTable.title, excerpt: blogPostsTable.excerpt, cover: blogPostsTable.coverImageBase64 })
+      .from(blogPostsTable).where(eq(blogPostsTable.id, id));
+    if (cur) {
+      const newTitle = typeof u.title === "string" ? u.title : cur.title;
+      const isSvgCover = !!cur.cover && cur.cover.startsWith("data:image/svg+xml");
+      if (!isSvgCover || newTitle !== cur.title) {
+        try {
+          const cover = await generateBlogCoverDataUrl({ title: newTitle, excerpt: cur.excerpt, tprm: isTprmTitle(newTitle) });
+          u.coverImageBase64 = cover.dataUrl;
+        } catch (err) {
+          logger.warn({ err, postId: id }, "Kaydetmede kapak üretilemedi");
+        }
+      }
+    }
+  }
+
   const [row] = await db.update(blogPostsTable).set(u).where(eq(blogPostsTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
   res.json(row);

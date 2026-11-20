@@ -7,18 +7,8 @@ import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
 import { getBlogAutopilotStatus, generateAndPublishBlogPost, generateAndSaveDraft, BLOG_PLAN } from "../../services/blog-autopilot";
-import { generateImage } from "@workspace/integrations-gemini-ai/image";
+import { generateBlogCoverDataUrl, isTprmTitle } from "../../services/blogCover";
 import crypto from "crypto";
-
-function buildCoverImagePrompt(title: string, excerpt: string | null): string {
-  return [
-    "Professional cybersecurity blog article cover image.",
-    "Modern, dark blue and teal color scheme, abstract digital security visualization.",
-    `Theme: "${title}".`,
-    excerpt ? `Context: ${excerpt.slice(0, 120)}.` : "",
-    "No text, no letters, no words. Clean, high-quality, cinematic lighting. 16:9 landscape format.",
-  ].filter(Boolean).join(" ");
-}
 
 const router = Router();
 
@@ -237,9 +227,9 @@ router.post("/admin-panel/blog/:id/publish", requireAdmin, async (req: Request, 
   if (!post.coverImageBase64) {
     void (async () => {
       try {
-        const prompt = buildCoverImagePrompt(post.title, post.excerpt);
-        const { b64_json, mimeType } = await generateImage(prompt);
-        const dataUrl = `data:${mimeType};base64,${b64_json}`;
+        const dataUrl = await generateBlogCoverDataUrl({
+          title: post.title, excerpt: post.excerpt, tprm: isTprmTitle(post.title),
+        });
         await db.update(blogPostsTable)
           .set({ coverImageBase64: dataUrl })
           .where(eq(blogPostsTable.id, id));

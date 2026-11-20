@@ -15,6 +15,7 @@ import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
 import { TPRM_PLAN, TPRM_VERIFIED_FACTS } from "../data/blogTprmPlan";
+import { generateBlogCoverDataUrl } from "./blogCover";
 
 const BLOG_MODEL = getModel("blog");
 
@@ -298,7 +299,8 @@ ${TPRM_VERIFIED_FACTS}
 - Tedarikçiye karşı aktif veya derin tarama (port taraması, zafiyet sömürme, içeriden tarama) tavsiye etme; yalnızca dışarıdan görünen veriden ve yazılı talepten söz et.
 - CTA: ücretsiz araç yerine pilot daveti. Format: "Tedarikçi portföyünüz için pilot görüşmesi → cyberstep.io/iletisim" ve "TPRM özeti → cyberstep.io/tedarik-zinciri". Ücretsiz veya fiyat vaadi verme.
 - LinkedIn hashtag'leri: #SiberGüvenlik #TPRM #KVKK #TedarikZinciri + 1 konuya özel. Instagram hashtag listesinde #kobi kullanma.
-- Başlık formatı: soru veya net bir iddia; rakam gerekmez.`,
+- Başlık formatı: soru veya net bir iddia; rakam gerekmez.
+- GÖRSEL PROMPTLARI (4 adet): koyu lacivert (#0A1628) zemin, turkuaz (#2EC4B6) vurgu, birbirine bağlı düğümlerden oluşan tedarik zinciri ağı; bir düğüm kehribar (#F2A93B) ile risk sinyali olarak vurgulanır. Görselin içinde harf, rakam, logo veya metin OLMASIN; başlık metni sonradan ayrıca eklenir. Sol yarı sade ve koyu kalsın. Kilit, kalkan, hacker silueti gibi klişe imgeler kullanma.`,
 
   CO: `KATEGORİ MODU — CONVERSION (CO):
 - Bu yazının amacı okuyucuyu CyberStep'e yönlendirmek.
@@ -588,6 +590,19 @@ export async function generateAndPublishBlogPost(): Promise<void> {
   }).returning();
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: yazı yayınlandı");
+
+  // Başlık yazılı kapak görselini üret (arka plan başarısız olsa da yazılı kapak kaydedilir)
+  try {
+    const cover = await generateBlogCoverDataUrl({
+      title: post.title,
+      excerpt: post.excerpt,
+      tprm: getCategoryCode(topic.category) === "TP",
+    });
+    await db.update(blogPostsTable).set({ coverImageBase64: cover }).where(eq(blogPostsTable.id, post.id));
+    logger.info({ postId: post.id }, "Blog autopilot: kapak görseli kaydedildi");
+  } catch (err) {
+    logger.warn({ err: String(err), postId: post.id }, "Blog autopilot: kapak görseli kaydedilemedi");
+  }
 
   // Takvim satırını "published" olarak işaretle
   if (tprmTopic) {

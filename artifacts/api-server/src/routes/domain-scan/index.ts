@@ -720,6 +720,12 @@ async function checkCertTransparency(domain: string): Promise<{ subdomains: stri
       if (!isRetryable || attempt === maxAttempts) {
         const detail = axios.isAxiosError(err) ? `HTTP ${status ?? "ağ hatası"}: ${err.message}` : String(err);
         logger.warn({ domain, attempt, detail }, "crt.sh erişilemiyor — subdomain keşfi atlanıyor");
+        // Yedek: ücretli Cert Spotter anahtarı varsa onunla dene.
+        const csKey = process.env["CERTSPOTTER_API_KEY"];
+        if (csKey && isSourceLicensed("certspotter")) {
+          const alt = await fetchCertspotterSubdomains(domain, csKey);
+          if (alt) return alt;
+        }
         return { subdomains: [], count: 0, failed: true };
       }
 
@@ -1037,6 +1043,7 @@ export async function checkShodan(domain: string, opts: { priority?: boolean } =
 // ─── VirusTotal domain reputation check ──────────────────────────────────────
 import { isSourceLicensed } from "../../services/dataSourceLicenses";
 import { checkRansomLook } from "../../services/ransomLook";
+import { fetchCertspotterSubdomains } from "../../services/certspotter";
 async function checkVirusTotal(domain: string): Promise<{
   malicious: number;
   suspicious: number;

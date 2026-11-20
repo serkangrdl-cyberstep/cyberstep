@@ -5,7 +5,7 @@
  * Lisans/izin alınan kaynak için ilgili ortam değişkeni 1 yapılır. Sistem durumu: docs/satis-oncesi-kontrol-listesi.md
  */
 export const LICENSED_SOURCE_IDS = [
-  "virustotal", "safebrowsing", "censys", "otx", "ssllabs", "hudsonrock", "threatfox", "urlhaus", "mozilla", "ransomlook",
+  "virustotal", "safebrowsing", "censys", "otx", "ssllabs", "hudsonrock", "threatfox", "urlhaus", "mozilla", "ransomlook", "certspotter",
 ] as const;
 export type LicensedSourceId = (typeof LICENSED_SOURCE_IDS)[number];
 

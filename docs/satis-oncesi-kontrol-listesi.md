@@ -32,7 +32,7 @@ Kural: "İ" ve "A" kaynaklar çözülene kadar satışa konu özellikte "hazır"
 - Kaynak adları: VIRUSTOTAL, SAFEBROWSING, CENSYS, OTX, SSLLABS, HUDSONROCK, THREATFOX, URLHAUS, MOZILLA, RANSOMLOOK.
 - Satıştan önce: ENFORCE=1 yap; lisansını/iznini aldığın kaynakları 1 yap. Safe Browsing yerine ücretli Web Risk için `WEB_RISK_API_KEY` ver (anahtar varsa o kullanılır).
 - RansomLook bilgi amaçlı (skora girmez), tam alan adı eşleşmesiyle `tprmExtra.ransomLook` içine yazılır; atıf raporda otomatik.
-- Önerilen ek kaynaklar (araştırılmadı, eklenmedi): Certspotter (crt.sh yedeği), CISA KEV (kamu verisi, ticari serbest).
+- Certspotter (ücretli, `CERTSPOTTER_API_KEY`) crt.sh yedeği olarak eklendi; CISA KEV zaten kullanılıyor. Ayrıntı: "Veri Kaynakları Lisans Rehberi" dökümanı.
 
 ## 2. Temizlik
 - [ ] Demo uçlarını kaldır: `routes/admin-panel/tprm-demo.ts`

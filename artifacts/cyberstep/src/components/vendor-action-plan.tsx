@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
-interface Action { id: number; title: string; detail: string; due_date: string; status: string; supplier_note: string | null }
+interface Action { id: number; title: string; detail: string; due_date: string; status: string; supplier_note: string | null; closed_note?: string | null }
 interface Suggestion { sourceKey: string; title: string; detail: string; dueDays: number }
 interface Plan { actions: Action[]; suggestions: Suggestion[]; supplierUrl: string | null; decision: string | null; decisionNote: string | null }
 
@@ -58,6 +58,7 @@ export function VendorActionPlan({ vendorId }: { vendorId: number }) {
               <div key={a.id} className="text-xs border-t border-border/40 pt-1.5">
                 <p><span className="font-medium">{a.title}</span> · <span className={overdue ? "text-red-400" : a.status === "verified" ? "text-emerald-400" : "text-muted-foreground"}>{overdue ? "Süresi geçti" : STATUS[a.status] ?? a.status}</span> · {new Date(a.due_date).toLocaleDateString("tr-TR")}</p>
                 {a.supplier_note && <p className="text-muted-foreground">Tedarikçi notu: {a.supplier_note}</p>}
+                {a.closed_note && <p className="text-emerald-400">{a.closed_note}</p>}
                 <div className="flex gap-3 mt-0.5">
                   {a.status === "supplier_done" && <button className="text-emerald-400" onClick={async () => { await post(`actions/${a.id}`, "PATCH", { status: "verified" }); refresh(); }}>Doğruladım</button>}
                   {a.status === "supplier_done" && <button className="text-amber-400" onClick={async () => { await post(`actions/${a.id}`, "PATCH", { status: "open" }); refresh(); }}>Yeniden aç</button>}

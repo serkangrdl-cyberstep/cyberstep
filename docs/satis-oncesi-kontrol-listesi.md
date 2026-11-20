@@ -2,21 +2,30 @@
 
 Durum: `[ ]` yapılmadı · `[~]` kısmen · `[x]` tamam. "Doğrulanmadı" = şartlar henüz okunmadı; varsayım yapılmamalı.
 
-## 1. Veri kaynakları: yazılı izin, ticari lisans veya ücretli API gerekenler
+## 1. Veri kaynakları: lisans durumu (araştırma: 20 Kas 2026, resmi şartlar/SSS sayfaları)
 
-| Kaynak | Durum | Ne gerekiyor |
-|---|---|---|
-| ransomware.live | Ticari kullanım **yasak**, yazılı onay şart (şartlar 14 Ağu 2026). Ücretli/danışmanlık hizmetinde kullanım ve türetilmiş içgörü satışı da ticari sayılıyor | Kodda kullanılmıyor. Kullanılacaksa önce yazılı onay. Alternatif: RansomLook (CC BY 4.0, atıfla ticari kullanıma açık) — API uç noktaları ve limitler `/doc/` sayfasından doğrulanmalı |
-| VirusTotal Public API | Ticari kullanım yasak | Ticari lisans al veya itibar skorundan çıkar |
-| Google Safe Browsing | Ticari kullanım için uygun değil | Web Risk API'ye geç (ücretli) |
-| Hudson Rock | Ticari şartlar doğrulanmadı | Şartları oku; gerekirse ticari plan |
-| Censys | Fiyat/şartlar doğrulanmadı | Fiyat ve ticari kullanım izni |
-| HIBP | Alan adı sahipliği doğrulaması sorunu | Müşterinin tedarikçisi için domain doğrulaması yapılamaz; alternatif veya ticari plan |
-| abuse.ch (ThreatFox, URLhaus, Feodo) | Ticari/kâr amaçlı kullanım ücretli abonelik gerektirebilir (ThreatFox SSS'si) | Şartları oku; gerekirse ticari API |
-| SSL Labs | v3 canlıda çalışıyor, ancak v4 için kayıt gerekiyor; ticari şartlar doğrulanmadı | v3 kaldırılma riski ve ticari kullanım şartları kontrolü |
-| Mozilla Observatory, crt.sh, OTX, VulnCheck KEV, NVD, EPSS | Şartlar doğrulanmadı | Her biri için ticari kullanım/atıf şartı kontrolü |
+Sınıflar: **K** = kullanılabilir (atıf varsa uygula) · **İ** = yazılı izin/ticari plan gerekir · **A** = alternatif lazım. Şartlar değişebilir; satıştan önce bir kez daha kontrol et. Hukuki görüş değildir.
 
-Kural: şartı okunmamış kaynak satışa konu özellikte "hazır" sayılmaz.
+| Kaynak | Sınıf | Bulgu | Yapılacak |
+|---|---|---|---|
+| NVD API | K | Kamu malı; ticari ürüne açık. "Bu ürün NVD API kullanır, NVD onaylı değildir" notu isteniyor | Rapor/arayüz altbilgisine bu notu ekle |
+| FIRST EPSS | K | Ücretsiz, ticari ürüne açık (kullanım sözleşmesi, FIRST'e atıf) | Altbilgiye atıf ekle |
+| VulnCheck KEV / NVD++ (Community) | K | Ücretsiz, ticari ürüne açık; **belirgin atıf zorunlu** | Rapor ve arayüzde "VulnCheck KEV" atfı |
+| abuse.ch Feodo, SSLBL | K | CC0, ticari serbest | — |
+| abuse.ch ThreatFox, URLhaus, MalwareBazaar | İ | Ticari/kâr amaçlı kullanım için Spamhaus üzerinden ücretli abonelik gerekebilir; veriyle yapay zekâ modeli eğitmek/iyileştirmek yasak | Kodda ThreatFox `Auth-Key` ile çağrılıyor. Ticari abonelik al ya da bu iki kaynağı skordan çıkar; Feodo kalsın |
+| RansomLook | K (atıfla) | İçerik CC BY 4.0, ticari serbest; kaynak kod AGPL. `/search?query=` uç noktası var, limit belgelenmemiş, anahtar yalnız export'ta | Kodda yok. Eşleşme alan adıyla değil başlıkla olur (yanlış pozitif riski); sürüm 2 konusu |
+| ransomware.live | İ | Ticari kullanım yasak, yazılı onay şart | Kullanma |
+| VirusTotal Public API | İ | Ticari kullanım yasak | Ticari lisans al ya da skordan çıkar (kodda `checkVirusTotal`) |
+| Google Safe Browsing | A | Ticari ürün için uygun değil | Web Risk API (ücretli) ya da çıkar (kodda `checkGoogleSafeBrowsing`) |
+| Censys | İ | Free/Researcher/anonim kullanıcıya iç iş dahil **her ticari kullanım yasak** | Starter/Search planı ya da kaldır |
+| Have I Been Pwned | A | Alan adı araması yalnız sahipliği doğrulanmış alan için; Pro plan MSP/bulk doğrulama sunsa da tedarikçinin alanını biz doğrulayamayız | Tedarikçi bazlı HIBP'yi kullanma; ihlal verisi için Hudson Rock'a dayan |
+| Hudson Rock | İ | Ücretsiz API'nin ticari kullanım şartı bulunamadı (yalnız genel site şartları) | Yazılı teyit iste ya da ticari plan |
+| AlienVault OTX | İ | EULA: son kullanıcıya yalnız ticari olmayan kullanım için ücretsiz | LevelBlue'dan izin/ticari lisans ya da çıkar |
+| Qualys SSL Labs | İ | Ticari kullanım için Qualys'in açık izni gerekir; v3 kapanma riski | Yazılı izin iste; alternatif: kendi TLS testimiz |
+| Mozilla (MDN) Observatory | İ | Şartlara göre yalnız **sahibinin izin verdiği** siteler taranmalı; ticari kullanım açık değil | Tedarikçi onayıyla taranmıyorsa kullanma; kendi başlık denetimimizle değiştir |
+| crt.sh | Doğrulanmadı | Sertifika şeffaflık logları kamusal; crt.sh'nin ticari şartı okunmadı | Şartı oku; yedek: Certspotter |
+
+Kural: "İ" ve "A" kaynaklar çözülene kadar satışa konu özellikte "hazır" sayılmaz; skor/rapordan çıkarılabilir ya da lisans alınır. Karar bekleyen: hangi kaynak ücretli plana geçilecek, hangisi çıkarılacak.
 
 ## 2. Temizlik
 - [ ] Demo uçlarını kaldır: `routes/admin-panel/tprm-demo.ts`

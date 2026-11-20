@@ -222,7 +222,7 @@ const EVENT_LABEL: Record<string, string> = {
   rescan_done: "Yeni tarama tamamlandı",
   rescan_failed: "Yeni tarama başarısız oldu",
   fourth_party_changed: "Dördüncü taraf sağlayıcıları değişti",
-  actions_created: "Aksiyon planı oluşturuldu",
+  actions_created: "Aksiyon planı oluşturuldu", actions_auto_verified: "Aksiyonlar yeniden taramayla doğrulandı",
   action_supplier_done: "Tedarikçi bir aksiyonu tamamladı",
   decision_recorded: "Tedarikçi kararı kaydedildi",
   consent_recorded: "Tedarikçi yazılı onayı kaydedildi",

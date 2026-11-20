@@ -34,7 +34,7 @@ const router = Router();
 import { TPRM_QUESTIONS, selfScoreOf, questionsFor } from "../../services/tprmQuestions";
 import { validateEvidence, MAX_EVIDENCE_FILES } from "../../services/tprmEvidence";
 import { validateConsentInput, hasValidConsent, CONSENT_SCOPES, type ConsentScope } from "../../services/tprmConsent";
-import { suggestActions, validateActionItems, ACTION_STATUSES, DECISIONS } from "../../services/tprmActions";
+import { suggestActions, autoVerifiableIds, validateActionItems, ACTION_STATUSES, DECISIONS } from "../../services/tprmActions";
 import { sanitizeSubprocessors } from "../../services/subprocessors";
 import { diffFourthParties } from "../../services/fourthParty";
 export { TPRM_QUESTIONS };
@@ -131,6 +131,31 @@ async function applySupplierScore(
     }
   } catch (err) {
     logger.warn({ err, vendorId: vendor.id }, "Dördüncü taraf değişim karşılaştırması başarısız");
+  }
+
+  // Aksiyon planı: yeni taramada sorunu görünmeyen maddeleri taramayla doğrula.
+  try {
+    if (!insufficient) {
+      const acts = rowsOf(await db.execute(sql`SELECT id, source_key, status FROM tprm_actions WHERE vendor_id = ${vendor.id} AND status IN ('open','supplier_done')`));
+      if (acts.length) {
+        const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, result.scanId));
+        const hr = (scan?.tprmExtra as { hudsonRock?: { employees?: number } | null } | null)?.hudsonRock;
+        const ids = scan ? autoVerifiableIds(
+          acts.map((a) => ({ id: Number(a["id"]), sourceKey: String(a["source_key"]), status: String(a["status"]) })),
+          {
+            reliable: true, spfRecord: scan.spfRecord ?? null, dmarcRecord: scan.dmarcRecord ?? null,
+            cveSummary: (scan.cveSummary as Array<{ cveId?: string; cvssScore?: number }> | null) ?? null,
+            hudsonEmployees: hr ? (hr.employees ?? 0) : null,
+          },
+        ) : [];
+        for (const id of ids) {
+          await db.execute(sql`UPDATE tprm_actions SET status = 'verified', closed_at = NOW(), closed_note = 'Yeniden taramayla doğrulandı' WHERE id = ${id} AND vendor_id = ${vendor.id}`);
+        }
+        if (ids.length) await recordEvent(vendor.id, "actions_auto_verified", { count: ids.length });
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, vendorId: vendor.id }, "Aksiyon otomatik doğrulama başarısız");
   }
 
   // Düzeltme sonrası yeniden değerlendirme: talepten SONRA tamamlanan tarama müşteriye bildirilir.
@@ -1310,7 +1335,7 @@ router.get("/tprm/vendors/:id/actions", requireCustomer, async (req: Request, re
   try {
     const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
     if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
-    const actions = rowsOf(await db.execute(sql`SELECT id, source_key, title, detail, due_date, status, supplier_note, supplier_done_at, closed_at, created_at
+    const actions = rowsOf(await db.execute(sql`SELECT id, source_key, title, detail, due_date, status, supplier_note, supplier_done_at, closed_at, closed_note, created_at
       FROM tprm_actions WHERE vendor_id = ${vendor.id} ORDER BY id`));
     const meta = rowsOf(await db.execute(sql`SELECT action_token, decision, decision_note, decision_at FROM tprm_vendors WHERE id = ${vendor.id}`))[0] ?? {};
 

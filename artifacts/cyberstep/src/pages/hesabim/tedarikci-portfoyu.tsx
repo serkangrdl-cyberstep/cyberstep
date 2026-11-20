@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SupportAccessBanner } from "@/components/support-access-banner";
+import { VendorActionPlan } from "@/components/vendor-action-plan";
 import { VendorConsentPanel } from "@/components/vendor-consent-panel";
 import { FourthPartyCard } from "@/components/fourth-party-card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -221,6 +222,9 @@ const EVENT_LABEL: Record<string, string> = {
   rescan_done: "Yeni tarama tamamlandı",
   rescan_failed: "Yeni tarama başarısız oldu",
   fourth_party_changed: "Dördüncü taraf sağlayıcıları değişti",
+  actions_created: "Aksiyon planı oluşturuldu",
+  action_supplier_done: "Tedarikçi bir aksiyonu tamamladı",
+  decision_recorded: "Tedarikçi kararı kaydedildi",
   consent_recorded: "Tedarikçi yazılı onayı kaydedildi",
   consent_revoked: "Tedarikçi yazılı onayı iptal edildi",
 };
@@ -891,6 +895,7 @@ export default function TedarikciPortfoyu() {
 
                       {/* Tedarikçi beyanı (anket) — tarama skoruyla birleştirilmez */}
                       {v.questionnaireStatus === "completed" && <VendorQuestionnairePanel vendorId={v.id} />}
+                      <VendorActionPlan vendorId={v.id} />
                       <VendorConsentPanel vendorId={v.id} />
                       <VendorSupplierActions vendor={v} />
 

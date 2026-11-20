@@ -176,8 +176,9 @@ router.post("/gemini/generate-image", requireAdmin, async (req, res) => {
     const { b64_json, mimeType } = await generateImage(parsed.data.prompt);
     res.json({ b64_json, mimeType });
   } catch (err) {
-    logger.error({ err }, "Image generation error");
-    res.status(500).json({ error: "Image generation failed" });
+    const detail = String(err instanceof Error ? err.message : err).slice(0, 600);
+    logger.error(`Image generation error: ${detail}`);
+    res.status(500).json({ error: "Image generation failed", detail });
   }
 });
 

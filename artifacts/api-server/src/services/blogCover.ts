@@ -10,18 +10,18 @@ export { isTprmTitle } from "./blogCoverSvg";
  */
 export async function generateBlogCoverDataUrl(opts: {
   title: string; excerpt: string | null; tprm: boolean;
-}): Promise<string> {
+}): Promise<{ dataUrl: string; backgroundOk: boolean }> {
   let backgroundDataUrl: string | undefined;
   try {
     const { b64_json, mimeType } = await generateImage(buildCoverBackgroundPrompt(opts.title, opts.excerpt, opts.tprm));
     backgroundDataUrl = `data:${mimeType};base64,${b64_json}`;
   } catch (err) {
-    logger.warn({ err: String(err) }, "Kapak arka planı üretilemedi, düz arka planla devam ediliyor");
+    logger.warn(`Kapak arka planı üretilemedi, düz arka planla devam ediliyor: ${String(err instanceof Error ? err.message : err).slice(0, 500)}`);
   }
   const svg = buildCoverSvg({
     title: opts.title,
     label: opts.tprm ? "Tedarikçi risk yönetimi" : undefined,
     backgroundDataUrl,
   });
-  return `data:image/svg+xml;base64,${Buffer.from(svg, "utf-8").toString("base64")}`;
+  return { dataUrl: `data:image/svg+xml;base64,${Buffer.from(svg, "utf-8").toString("base64")}`, backgroundOk: !!backgroundDataUrl };
 }

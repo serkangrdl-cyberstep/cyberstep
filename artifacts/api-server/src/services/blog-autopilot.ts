@@ -322,6 +322,16 @@ interface GeneratedContent {
 }
 
 export async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
+  try {
+    return await generateBlogPostContentOnce(topic);
+  } catch (err) {
+    // Model bazen bozuk JSON döndürür; bir kez daha dene
+    logger.warn(`Blog autopilot: üretim ilk denemede başarısız, yeniden deneniyor: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+    return await generateBlogPostContentOnce(topic);
+  }
+}
+
+async function generateBlogPostContentOnce(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
   const categoryCode = getCategoryCode(topic.category);
   const categoryVariant = CATEGORY_VARIANTS[categoryCode];
   const focusKeyword = topic.keywords.split(",")[0].trim();
@@ -598,8 +608,8 @@ export async function generateAndPublishBlogPost(): Promise<void> {
       excerpt: post.excerpt,
       tprm: getCategoryCode(topic.category) === "TP",
     });
-    await db.update(blogPostsTable).set({ coverImageBase64: cover }).where(eq(blogPostsTable.id, post.id));
-    logger.info({ postId: post.id }, "Blog autopilot: kapak görseli kaydedildi");
+    await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl }).where(eq(blogPostsTable.id, post.id));
+    logger.info({ postId: post.id, backgroundOk: cover.backgroundOk }, "Blog autopilot: kapak görseli kaydedildi");
   } catch (err) {
     logger.warn({ err: String(err), postId: post.id }, "Blog autopilot: kapak görseli kaydedilemedi");
   }
@@ -635,7 +645,40 @@ export async function generateAndPublishBlogPost(): Promise<void> {
 }
 
 // ─── Taslak üret (yayınlamadan kaydet) ───────────────────────────────────────
-export async function generateAndSaveDraft(): Promise<{ postId: number; slug: string; title: string }> {
+export interface DraftStatus {
+  state: "idle" | "running" | "ok" | "error";
+  startedAt: string | null;
+  finishedAt: string | null;
+  title: string | null;
+  postId: number | null;
+  coverOk: boolean | null;
+  error: string | null;
+}
+
+let draftStatus: DraftStatus = { state: "idle", startedAt: null, finishedAt: null, title: null, postId: null, coverOk: null, error: null };
+
+export function getDraftStatus(): DraftStatus {
+  return draftStatus;
+}
+
+/** Aynı anda tek taslak üretimi: tekrar tıklamalar TPRM sırasını boşa harcamasın. */
+export async function startDraftGeneration(): Promise<{ started: boolean }> {
+  if (draftStatus.state === "running") return { started: false };
+  draftStatus = { state: "running", startedAt: new Date().toISOString(), finishedAt: null, title: null, postId: null, coverOk: null, error: null };
+  void (async () => {
+    try {
+      const r = await generateAndSaveDraft();
+      draftStatus = { ...draftStatus, state: "ok", finishedAt: new Date().toISOString(), title: r.title, postId: r.postId, coverOk: r.coverOk };
+    } catch (err) {
+      const msg = String(err instanceof Error ? err.message : err).slice(0, 400);
+      logger.error(`Blog autopilot: taslak üretimi başarısız: ${msg}`);
+      draftStatus = { ...draftStatus, state: "error", finishedAt: new Date().toISOString(), error: msg };
+    }
+  })();
+  return { started: true };
+}
+
+export async function generateAndSaveDraft(): Promise<{ postId: number; slug: string; title: string; coverOk: boolean }> {
   // TPRM planı bitene kadar taslaklar da önce oradan üretilir
   const tprmIndex = await getTprmIndex();
   const tprmTopic = tprmIndex < TPRM_PLAN.length ? TPRM_PLAN[tprmIndex] : null;
@@ -671,15 +714,17 @@ export async function generateAndSaveDraft(): Promise<{ postId: number; slug: st
   if (tprmTopic) await setTprmIndex(tprmIndex + 1);
   else await setAutopilotIndex(currentIndex + 1);
 
+  let coverOk = false;
   try {
     const cover = await generateBlogCoverDataUrl({
       title: post.title, excerpt: post.excerpt, tprm: getCategoryCode(topic.category) === "TP",
     });
-    await db.update(blogPostsTable).set({ coverImageBase64: cover }).where(eq(blogPostsTable.id, post.id));
+    await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl }).where(eq(blogPostsTable.id, post.id));
+    coverOk = cover.backgroundOk;
   } catch (err) {
-    logger.warn({ err: String(err), postId: post.id }, "Blog autopilot: taslak kapağı kaydedilemedi");
+    logger.warn(`Blog autopilot: taslak kapağı kaydedilemedi: ${String(err).slice(0, 300)}`);
   }
-  return { postId: post.id, slug: post.slug, title: post.title };
+  return { postId: post.id, slug: post.slug, title: post.title, coverOk };
 }
 
 // ─── Admin durum bilgisi ──────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import { eq, desc, asc, and } from "drizzle-orm";
 import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
-import { getBlogAutopilotStatus, generateAndPublishBlogPost, generateAndSaveDraft, BLOG_PLAN } from "../../services/blog-autopilot";
+import { getBlogAutopilotStatus, generateAndPublishBlogPost, startDraftGeneration, getDraftStatus, BLOG_PLAN } from "../../services/blog-autopilot";
 import { generateBlogCoverDataUrl, isTprmTitle } from "../../services/blogCover";
 import crypto from "crypto";
 
@@ -64,15 +64,16 @@ router.post("/admin-panel/blog-autopilot/run-now", requireAdmin, async (_req, re
 });
 
 router.post("/admin-panel/blog-autopilot/generate-draft", requireAdmin, async (_req, res) => {
-  res.json({ success: true, message: "Taslak üretimi arka planda başlatıldı" });
-  void (async () => {
-    try {
-      const result = await generateAndSaveDraft();
-      logger.info({ postId: result.postId, title: result.title }, "Blog autopilot: taslak üretildi");
-    } catch (err) {
-      logger.error({ err }, "Blog autopilot: taslak üretimi başarısız");
-    }
-  })();
+  const { started } = await startDraftGeneration();
+  res.json({
+    success: true,
+    started,
+    message: started ? "Taslak üretimi başlatıldı" : "Zaten bir taslak üretiliyor",
+  });
+});
+
+router.get("/admin-panel/blog-autopilot/draft-status", requireAdmin, (_req, res) => {
+  res.json(getDraftStatus());
 });
 
 router.get("/admin-panel/blog-autopilot/plan", requireAdmin, (_req, res) => {
@@ -231,7 +232,7 @@ router.post("/admin-panel/blog/:id/publish", requireAdmin, async (req: Request, 
           title: post.title, excerpt: post.excerpt, tprm: isTprmTitle(post.title),
         });
         await db.update(blogPostsTable)
-          .set({ coverImageBase64: dataUrl })
+          .set({ coverImageBase64: dataUrl.dataUrl })
           .where(eq(blogPostsTable.id, id));
         logger.info({ postId: id }, "Auto-generated cover image on publish");
       } catch (err) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -54,14 +54,36 @@ export default function BlogYonetimi() {
     onError: () => setMsg("Hata olustu."),
   });
 
+  interface DraftStatus {
+    state: "idle" | "running" | "ok" | "error";
+    startedAt: string | null; finishedAt: string | null;
+    title: string | null; postId: number | null;
+    coverOk: boolean | null; error: string | null;
+  }
+
+  const { data: draftStatus } = useQuery<DraftStatus>({
+    queryKey: ["digest-draft-status"],
+    queryFn: () => adminFetch("/api/admin-panel/blog-autopilot/draft-status"),
+    refetchInterval: (q) => (q.state.data?.state === "running" ? 4000 : false),
+  });
+  const draftRunning = draftStatus?.state === "running";
+
   const draftMut = useMutation({
-    mutationFn: () => adminFetch("/api/admin-panel/blog-autopilot/generate-draft", { method: "POST" }),
-    onSuccess: () => {
-      setMsg("Taslak üretimi başlatıldı. Yaklaşık 1-2 dakika içinde listede Taslak olarak görünür.");
-      setTimeout(() => qc.invalidateQueries({ queryKey: ["digest-blog-posts"] }), 90000);
+    mutationFn: () => adminFetch("/api/admin-panel/blog-autopilot/generate-draft", { method: "POST" }) as Promise<{ started: boolean }>,
+    onSuccess: (r) => {
+      setMsg(r.started ? "" : "Zaten bir taslak üretiliyor, bitmesini bekleyin.");
+      qc.invalidateQueries({ queryKey: ["digest-draft-status"] });
     },
     onError: () => setMsg("Taslak üretimi başlatılamadı."),
   });
+
+  const prevDraftState = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (prevDraftState.current === "running" && draftStatus?.state !== "running") {
+      qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
+    }
+    prevDraftState.current = draftStatus?.state;
+  }, [draftStatus?.state, qc]);
 
   const unpublishMut = useMutation({
     mutationFn: (id: number) => adminFetch(`/api/admin-panel/blog/${id}/unpublish`, { method: "POST" }),
@@ -95,7 +117,11 @@ export default function BlogYonetimi() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        let detail = "";
+        try { detail = (await res.json() as { detail?: string }).detail ?? ""; } catch { /* yok say */ }
+        throw new Error(detail || `HTTP ${res.status}`);
+      }
       const { b64_json, mimeType } = await res.json() as { b64_json: string; mimeType: string };
       const dataUrl = `data:${mimeType};base64,${b64_json}`;
       await adminFetch(`/api/admin-panel/blog/${post.id}`, {
@@ -104,8 +130,8 @@ export default function BlogYonetimi() {
       });
       qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
       setMsg("Gorsel uretildi ve kaydedildi.");
-    } catch {
-      setMsg("Gorsel uretme basarisiz.");
+    } catch (e) {
+      setMsg(`Gorsel uretme basarisiz: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setGeneratingIds(prev => { const s = new Set(prev); s.delete(post.id); return s; });
     }
@@ -127,10 +153,10 @@ export default function BlogYonetimi() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => draftMut.mutate()}
-            disabled={draftMut.isPending}
+            disabled={draftMut.isPending || draftRunning}
             className="text-xs px-3 py-1.5 rounded-full border bg-primary text-primary-foreground border-primary hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-1.5">
-            {draftMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-            Taslak üret
+            {draftMut.isPending || draftRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+            {draftRunning ? "Üretiliyor…" : "Taslak üret"}
           </button>
           {(["all", "published", "draft"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
@@ -149,6 +175,23 @@ export default function BlogYonetimi() {
           ))}
         </div>
       </div>
+
+      {draftStatus && draftStatus.state !== "idle" && (
+        <div className={`p-3 rounded-lg border text-sm ${
+          draftStatus.state === "error"
+            ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+            : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+        }`}>
+          {draftStatus.state === "running" && "Taslak üretiliyor, genellikle 2-3 dakika sürer. Sayfayı kapatabilirsiniz."}
+          {draftStatus.state === "ok" && (
+            <>
+              Taslak hazır: <b>{draftStatus.title}</b>.{" "}
+              {draftStatus.coverOk === false && "Kapak görseli yalnızca yazıyla üretildi (yapay zeka arka planı üretilemedi)."}
+            </>
+          )}
+          {draftStatus.state === "error" && <>Taslak üretimi başarısız: {draftStatus.error}</>}
+        </div>
+      )}
 
       {msg && (
         <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-sm">

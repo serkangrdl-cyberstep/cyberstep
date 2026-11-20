@@ -1035,13 +1035,15 @@ export async function checkShodan(domain: string, opts: { priority?: boolean } =
 }
 
 // ─── VirusTotal domain reputation check ──────────────────────────────────────
+import { isSourceLicensed } from "../../services/dataSourceLicenses";
+import { checkRansomLook } from "../../services/ransomLook";
 async function checkVirusTotal(domain: string): Promise<{
   malicious: number;
   suspicious: number;
   reputation: number;
 } | null> {
   const apiKey = process.env["VIRUSTOTAL_API_KEY"];
-  if (!apiKey) return null;
+  if (!apiKey || !isSourceLicensed("virustotal")) return null;
   if (!checkAndConsumeQuota("virustotal")) {
     logger.info({ domain }, "VirusTotal günlük kota aşıldı — tarama atlanıyor");
     return null;
@@ -1182,6 +1184,7 @@ async function checkHTTPHeaders(domain: string): Promise<{
 
 // ─── URLhaus malware DB check (abuse.ch) — no API key required ───────────────
 async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: string | null; unchecked?: boolean }> {
+  if (!isSourceLicensed("urlhaus")) return { listed: false, threat: null, unchecked: true };
   // abuse.ch, 30 Haziran 2025'ten beri tüm API'lerde Auth-Key ister (ücretsiz: auth.abuse.ch).
   const authKey = process.env["ABUSECH_AUTH_KEY"];
   if (!authKey) {
@@ -1224,9 +1227,23 @@ async function checkURLhaus(domain: string): Promise<{ listed: boolean; threat: 
 }
 
 // ─── Google Safe Browsing API ────────────────────────────────────────────────
+async function checkWebRisk(domain: string, key: string): Promise<{ flagged: boolean; threats: string[] } | null> {
+  try {
+    const q = ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"].map((t) => `threatTypes=${t}`).join("&");
+    const r = await fetch(`https://webrisk.googleapis.com/v1/uris:search?${q}&uri=${encodeURIComponent(`https://${domain}/`)}&key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(8000) });
+    if (r.status !== 200) { logger.warn({ status: r.status }, "Web Risk: istek başarısız, sonuç atlanıyor"); return null; }
+    const j = (await r.json()) as { threat?: { threatTypes?: string[] } };
+    const threats = j.threat?.threatTypes ?? [];
+    return { flagged: threats.length > 0, threats };
+  } catch { return null; }
+}
+
 async function checkGoogleSafeBrowsing(domain: string): Promise<{ flagged: boolean; threats: string[] } | null> {
+  // Ücretli Web Risk anahtarı varsa o kullanılır (ticari kullanıma uygun); yoksa lisans kapısından geçen Safe Browsing.
+  const webRiskKey = process.env["WEB_RISK_API_KEY"];
+  if (webRiskKey) return checkWebRisk(domain, webRiskKey);
   const apiKey = process.env["GOOGLE_SAFE_BROWSING_API_KEY"];
-  if (!apiKey) return null;
+  if (!apiKey || !isSourceLicensed("safebrowsing")) return null;
   return new Promise((resolve) => {
     const body = JSON.stringify({
       client: { clientId: "cyberstep", clientVersion: "1.0" },
@@ -1279,6 +1296,7 @@ interface OtxData {
 
 // OTX yavaş ve zaman zaman bağlantıyı kesiyor: zaman aşımı/bağlantı hatasında bir kez daha denenir.
 async function checkOTX(domain: string): Promise<OtxData | null> {
+  if (!isSourceLicensed("otx")) return null;
   const first = await checkOTXOnce(domain);
   if (first !== null || !process.env["OTX_API_KEY"]) return first;
   await new Promise((r) => setTimeout(r, 1500));
@@ -1466,6 +1484,7 @@ interface ThreatFoxResult { iocCount: number; threatType: string | null; malware
 async function checkThreatFox(domain: string): Promise<ThreatFoxResult> {
   const defaultResult: ThreatFoxResult = { iocCount: 0, threatType: null, malwareName: null };
   const failedResult: ThreatFoxResult = { ...defaultResult, unchecked: true };
+  if (!isSourceLicensed("threatfox")) return failedResult;
   // abuse.ch API anahtarı olmadan yanıt vermez — anahtar yoksa "temiz" denmez, ölçülemedi sayılır.
   if (!process.env["ABUSECH_AUTH_KEY"]) return failedResult;
   return new Promise((resolve) => {
@@ -1583,6 +1602,7 @@ export async function enrichWithEpss(cves: NvdCveEntry[]): Promise<NvdCveEntryWi
 
 // ─── SSLLabs grade (fromCache — fast, non-blocking) ──────────────────────────
 async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
+  if (!isSourceLicensed("ssllabs")) return { grade: null };
   return new Promise((resolve) => {
     const path = `/api/v3/analyze?host=${encodeURIComponent(domain)}&publish=off&fromCache=on&maxAge=24&all=done`;
     const r = https.request(
@@ -1622,6 +1642,7 @@ async function checkSSLLabs(domain: string): Promise<{ grade: string | null }> {
  * Not hazır değilse "ölçülemedi" (skoru etkilemez), temiz/iyi sayılmaz.
  */
 async function checkSSLLabsTprm(domain: string): Promise<{ grade: string | null; pending: boolean; error?: string }> {
+  if (!isSourceLicensed("ssllabs")) return { grade: null, pending: false, error: "license" };
   type Body = { status?: string; endpoints?: Array<{ grade?: string }> };
   // status: HTTP kodu; 0 = ağ/zaman aşımı/bozuk yanıt (neden error içinde)
   const get = (path: string) => new Promise<{ status: number; body: Body | null; error?: string }>((resolve) => {
@@ -1728,7 +1749,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
           return { detected: libs, findings: matchClientLibCves(libs), webHosts: extractWebHosts(html, domain) };
         })
         .catch(() => null);
-      const [ips, tf, ct, ssll, otx, epss, vcKev, hudson, mozObs] = await Promise.all([
+      const [ips, tf, ct, ssll, otx, epss, vcKev, hudson, mozObs, ransom] = await Promise.all([
         dnsP.resolve4(domain).catch(() => [] as string[]),
         checkThreatFox(domain).catch(() => ({ iocCount: 0, threatType: null, malwareName: null, unchecked: true } as ThreatFoxResult)),
         checkCertTransparency(domain).catch(() => ({ subdomains: [] as string[], count: 0, failed: true as boolean | undefined })),
@@ -1738,6 +1759,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
         checkVulnCheckKev(cveSummary.map((c) => c.cveId), process.env["VULNCHECK_API_KEY"], fetch as never).catch(() => ({ kev: [] as string[], failed: true })),
         checkHudsonRock(domain, fetch as never).catch(() => null),
         checkObservatoryV2(domain, fetch as never).catch(() => null),
+        isSourceLicensed("ransomlook") ? checkRansomLook(domain, fetch as never).catch(() => null) : Promise.resolve(null),
       ]);
       const clientLibsRaw = await clientLibsP;
       const clientLibs = clientLibsRaw ? { detected: clientLibsRaw.detected, findings: clientLibsRaw.findings } : null;
@@ -1752,7 +1774,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       const feodo = await checkFeodoIps(ips).catch(() => ({ c2Ips: [] as string[], unchecked: true }));
       const { findDanglingCnames } = await import("../../services/tprmDeepScan");
       const dangling = ct.subdomains.length > 0 ? await findDanglingCnames(ct.subdomains) : { dangling: [] as string[], checked: 0, failed: 0 };
-      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs, clientLibs, fourthParties };
+      return { ips, tf, ct, feodo, dangling, ssll, otx, epss, vcKev, hudson, mozObs, ransom, clientLibs, fourthParties };
     })() : null;
     // SSL Labs bu alan adı için not verdiyse TLS çalışıyor demektir: kendi ölçümümüzün geçici başarısızlığını "bozuk TLS" bulgusu sayma.
     if (deep?.ssll.grade && ssl !== sslRaw && ssl.note === BROKEN_TLS_NOTE) ssl = sslRaw;
@@ -1772,6 +1794,7 @@ export async function performDomainScan(domain: string, opts: { full?: boolean }
       vulncheckKev: deep.vcKev ? deep.vcKev.kev : null,
       hudsonRock: deep.hudson,
       mozillaObservatory: deep.mozObs,
+      ransomLook: deep.ransom,
       clientLibs: deep.clientLibs,
       fourthParties: deep.fourthParties,
     } : null;

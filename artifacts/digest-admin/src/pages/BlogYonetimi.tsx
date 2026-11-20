@@ -1,3 +1,4 @@
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -311,7 +312,7 @@ export default function BlogYonetimi() {
 
       {editPost && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-lg p-6 space-y-4 shadow-xl">
+          <div className="bg-card border border-border rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-foreground">Hizli Duzenleme</h3>
               <button onClick={() => setEditPost(null)}
@@ -337,15 +338,10 @@ export default function BlogYonetimi() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Icerik (HTML) {editPost.status === "published" && "- kaydedince yayindaki yazi yayindan kalkmadan guncellenir"}
+                  Icerik {editPost.status === "published" && "- kaydedince yayindaki yazi yayindan kalkmadan guncellenir"}
                 </label>
-                <textarea
-                  className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  rows={12}
-                  value={editForm.content}
-                  onChange={e => setEditForm(f => ({ ...f, content: e.target.value }))}
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">Duz metin yapistirirsaniz satirlar otomatik paragraf/ara baslik olur.</p>
+                <RichTextEditor value={editForm.content} onChange={html => setEditForm(f => ({ ...f, content: html }))} />
+                <p className="text-[11px] text-muted-foreground mt-1">Duz metin yapistirirsaniz satirlar otomatik paragraf olur; baslik icin H2 dugmesini kullanin.</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 SEO ve sosyal medya alanlarini duzenlemek icin{" "}

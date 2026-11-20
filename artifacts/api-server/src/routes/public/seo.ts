@@ -9,14 +9,28 @@ const router = Router();
 const BASE_URL = process.env["SITE_BASE_URL"] ?? "https://cyberstep.io";
 
 router.get("/robots.txt", (_req, res) => {
+  // Not: /robots.txt ve /sitemap.xml bu API'den sunulur (artifact.toml); public/ altındaki dosyalar kullanılmaz.
+  // Yapay zeka botları (GPTBot, ClaudeBot, CCBot vb.) bilerek engellenmiyor.
   res.type("text/plain").send(
     `User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /panel
+Disallow: /digest/
+Disallow: /giris
+Disallow: /kayit
+Disallow: /hesap
+Disallow: /musteri/
+Disallow: /totp-setup
+Disallow: /payment/
+Disallow: /assessment/
+Disallow: /full-assessment/
+Disallow: /w/
 Disallow: /api/
+Allow: /api/public/sitemap.xml
 
-Sitemap: ${BASE_URL}/sitemap.xml`
+Sitemap: ${BASE_URL}/sitemap.xml
+`
   );
 });
 
@@ -55,6 +69,7 @@ router.get("/sitemap.xml", async (_req, res) => {
       { url: "/hakkimizda",                priority: "0.6", changefreq: "monthly" },
       { url: "/iletisim",                  priority: "0.5", changefreq: "yearly"  },
       { url: "/blog",                      priority: "0.8", changefreq: "daily"   },
+      { url: "/haberler",                  priority: "0.7", changefreq: "daily"   },
       { url: "/bulten/arsiv",              priority: "0.5", changefreq: "weekly"  },
     ];
 

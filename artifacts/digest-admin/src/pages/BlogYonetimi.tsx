@@ -37,7 +37,7 @@ function statusBadge(status: string) {
 export default function BlogYonetimi() {
   const qc = useQueryClient();
   const [editPost, setEditPost] = useState<BlogPost | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", excerpt: "" });
+  const [editForm, setEditForm] = useState({ title: "", excerpt: "", content: "" });
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [msg, setMsg] = useState("");
   const [generatingIds, setGeneratingIds] = useState<Set<number>>(new Set());
@@ -92,7 +92,7 @@ export default function BlogYonetimi() {
   });
 
   const saveMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { title: string; excerpt: string } }) =>
+    mutationFn: ({ id, data }: { id: number; data: { title: string; excerpt: string; content?: string } }) =>
       adminFetch(`/api/admin-panel/blog/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
@@ -102,9 +102,13 @@ export default function BlogYonetimi() {
     onError: () => setMsg("Kayit basarisiz."),
   });
 
-  const openEdit = (post: BlogPost) => {
+  const openEdit = async (post: BlogPost) => {
     setEditPost(post);
-    setEditForm({ title: post.title, excerpt: post.excerpt });
+    setEditForm({ title: post.title, excerpt: post.excerpt, content: "" });
+    try {
+      const full = await adminFetch(`/api/admin-panel/blog/${post.id}`) as { content: string };
+      setEditForm(f => ({ ...f, content: full.content ?? "" }));
+    } catch { setMsg("Icerik yuklenemedi."); }
   };
 
   async function handleGenerateCover(post: BlogPost) {
@@ -331,8 +335,20 @@ export default function BlogYonetimi() {
                   onChange={e => setEditForm(f => ({ ...f, excerpt: e.target.value }))}
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Icerik (HTML) {editPost.status === "published" && "- kaydedince yayindaki yazi yayindan kalkmadan guncellenir"}
+                </label>
+                <textarea
+                  className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  rows={12}
+                  value={editForm.content}
+                  onChange={e => setEditForm(f => ({ ...f, content: e.target.value }))}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Duz metin yapistirirsaniz satirlar otomatik paragraf/ara baslik olur.</p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Icerik, SEO ve sosyal medya alanlarini duzenlemek icin{" "}
+                SEO ve sosyal medya alanlarini duzenlemek icin{" "}
                 <a href="/panel/blog" target="_blank" className="underline text-primary">tam blog editorunu</a>{" "}
                 kullanin.
               </p>
@@ -344,7 +360,7 @@ export default function BlogYonetimi() {
               </button>
               <button
                 onClick={() => saveMut.mutate({ id: editPost.id, data: editForm })}
-                disabled={saveMut.isPending}
+                disabled={saveMut.isPending || !editForm.content}
                 className="text-xs px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
                 {saveMut.isPending ? "Kaydediliyor..." : "Kaydet"}
               </button>

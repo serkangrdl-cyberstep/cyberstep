@@ -20,6 +20,7 @@ import { buildVendorCves, buildVendorPorts, labelUnchecked } from "../../service
 import { loadVendorQuestionnaire } from "../../services/tprmQuestionnaire";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { needsFollowUp, FOLLOW_UP_DELAY_MS } from "../../services/followUpScan";
+import { portfolioConcentration, type FourthParty } from "../../services/fourthParty";
 import { describeReason, detectVendorAlert, shouldSendAlert, type AlertReason } from "../../lib/scoring/vendorAlerts";
 import { canonicalSector } from "../../lib/scoring/sectors";
 import { peekBenchmarkSnapshot, percentileInSector } from "../../services/sectorBenchmark";
@@ -388,6 +389,30 @@ async function withSectorContext(rows: VendorRow[]) {
 
 // ─── GET /api/tprm/vendors ────────────────────────────────────────────────────
 // Müşterinin tedarikçi listesi
+
+// ─── GET /api/tprm/fourth-parties ─────────────────────────────────────────────
+// Portföy genelinde dördüncü taraf yoğunlaşması (dışarıdan görünen e-posta/DNS/bulut/web hizmetleri).
+router.get("/tprm/fourth-parties", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+    const vendors = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, email));
+    const scanIds = vendors
+      .map((v) => (storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION ? (v.lastScanData as unknown as StoredScanData).scanId : null))
+      .filter((x): x is number => typeof x === "number");
+    const scans = scanIds.length ? await db.select({ id: domainScansTable.id, extra: domainScansTable.tprmExtra }).from(domainScansTable).where(inArray(domainScansTable.id, scanIds)) : [];
+    const byScan = new Map(scans.map((s) => [s.id, ((s.extra as { fourthParties?: FourthParty[] } | null)?.fourthParties) ?? null]));
+    const withData = vendors.flatMap((v) => {
+      const sid = storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION ? (v.lastScanData as unknown as StoredScanData).scanId : null;
+      const parties = sid ? byScan.get(sid) : null;
+      return parties ? [{ vendorId: v.id, vendorName: v.supplierName || v.supplierDomain, parties }] : [];
+    });
+    res.json({ totalVendors: vendors.length, analyzedVendors: withData.length, concentration: portfolioConcentration(withData) });
+  } catch (err) {
+    logger.error({ err }, "TPRM fourth-parties error");
+    res.status(500).json({ error: "Dördüncü taraf özeti alınamadı" });
+  }
+});
 
 router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response) => {
   try {
@@ -966,7 +991,7 @@ router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, r
     const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, scanId)).limit(1);
     // Taramanın alan adı tedarikçiyle eşleşmeli (başka alan adının verisi sızmasın)
     if (!scan || normalizeDomain(scan.domain) !== normalizeDomain(vendor.supplierDomain)) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
-    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[]; sslLabsError?: string | null; sslLabsPending?: boolean; clientLibs?: { detected: { library: string; version: string }[]; findings: unknown[] } | null } | null;
+    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[]; sslLabsError?: string | null; sslLabsPending?: boolean; clientLibs?: { detected: { library: string; version: string }[]; findings: unknown[] } | null; fourthParties?: FourthParty[] } | null;
     const cveIds = (scan.cveSummary ?? []).map((c) => c.cveId);
     const kev = mergeExtraKev(await loadKevLookup(cveIds), vulncheckKevOf(scan));
     const scoreV2 = await scoreScanV2(scan);
@@ -984,6 +1009,7 @@ router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, r
         sslLabsGrade: extra?.sslLabsGrade ?? null,
         sslLabsError: extra?.sslLabsError ?? null,
         sslLabsPending: extra?.sslLabsPending ?? false,
+        fourthParties: extra?.fourthParties ?? null,
         danglingCnames: extra?.danglingCnames ?? [],
         hudsonRock: extra?.hudsonRock ?? null,
         mozillaObservatory: extra?.mozillaObservatory ?? null,

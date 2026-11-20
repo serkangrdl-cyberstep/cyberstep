@@ -1,16 +1,34 @@
 /** TPRM tedarikçi anketi soruları: Evet=10 / Kısmen=5 / Hayır=0, en fazla 100 (beyan puanı; doğrulanmamıştır). */
 export const TPRM_QUESTIONS = [
-  { id: 1, text: "Çalışanlarınız yılda en az bir kez siber güvenlik eğitimi alıyor mu?", weight: 1 },
-  { id: 2, text: "Tüm kritik sistem hesaplarında çok faktörlü doğrulama (MFA) aktif mi?", weight: 1 },
-  { id: 3, text: "E-posta güvenliği için SPF, DKIM ve DMARC kaydı uyguluyor musunuz?", weight: 1 },
-  { id: 4, text: "Yazılım ve işletim sistemleri otomatik veya zamanında güncelleniyor mu?", weight: 1 },
-  { id: 5, text: "Kritik verilerinizin düzenli yedeği alınıyor ve geri yükleme test ediliyor mu?", weight: 1 },
-  { id: 6, text: "Bir siber güvenlik olay müdahale planınız (CSIRP) var mı?", weight: 1 },
-  { id: 7, text: "Sisteminize erişen üçüncü tarafların erişimleri izleniyor ve yönetiliyor mu?", weight: 1 },
-  { id: 8, text: "Müşteri ve iş ortağı verilerini şifreli saklıyor musunuz?", weight: 1 },
-  { id: 9, text: "Son 12 ayda bir güvenlik açığı taraması veya sızma testi yaptırdınız mı?", weight: 1 },
-  { id: 10, text: "Çalışanlarınıza yönelik sosyal mühendislik / phishing simülasyonu yapıyor musunuz?", weight: 1 },
-  { id: 11, text: "Müşteri verisini paylaştığınız alt hizmet sağlayıcıların (pazarlama, bulut, çağrı merkezi vb.) listesini tutuyor ve güvenliklerini değerlendiriyor musunuz?", weight: 1 },
+  // Erişim ve kimlik
+  { id: 2, category: "Erişim ve kimlik", text: "Tüm kritik sistem hesaplarında çok faktörlü doğrulama (MFA) aktif mi?", weight: 1 },
+  { id: 12, category: "Erişim ve kimlik", text: "Uzaktan erişim (VPN, uzak masaüstü, yönetim panelleri) yalnızca MFA ile mi yapılıyor?", weight: 1 },
+  { id: 13, category: "Erişim ve kimlik", text: "Çalışan işten ayrıldığında veya görev değiştirdiğinde erişimleri aynı gün kapatılıyor/gözden geçiriliyor mu?", weight: 1 },
+  { id: 14, category: "Erişim ve kimlik", text: "Çalışan kimlik bilgilerinin sızıp sızmadığı (infostealer, veri sızıntısı) izleniyor ve etkilenen hesapların parolası sıfırlanıyor mu?", weight: 1 },
+  // Güvenlik operasyonu
+  { id: 4, category: "Güvenlik operasyonu", text: "Yazılım ve işletim sistemleri otomatik veya zamanında güncelleniyor mu?", weight: 1 },
+  { id: 9, category: "Güvenlik operasyonu", text: "Son 12 ayda bir güvenlik açığı taraması veya sızma testi yaptırdınız mı?", weight: 1 },
+  { id: 15, category: "Güvenlik operasyonu", text: "Kritik sistemlerde günlük kayıtları (log) tutuluyor ve olağan dışı hareketler izleniyor mu (SIEM/EDR/SOC)?", weight: 1 },
+  // Veri koruma
+  { id: 8, category: "Veri koruma", text: "Müşteri ve iş ortağı verilerini şifreli saklıyor musunuz?", weight: 1 },
+  { id: 16, category: "Veri koruma", text: "Müşteri verisine erişim yalnızca işi gereği olan kişilerle sınırlı ve kayıt altında mı?", weight: 1 },
+  { id: 17, category: "Veri koruma", text: "Müşteri verisinin tutulduğu ülke/bölge ve yurt dışına aktarım durumu sözleşmede veya yazılı olarak açıkça belirtilmiş mi?", weight: 1 },
+  { id: 5, category: "Veri koruma", text: "Kritik verilerinizin düzenli yedeği alınıyor ve geri yükleme test ediliyor mu?", weight: 1 },
+  { id: 18, category: "Veri koruma", text: "Yedekleriniz ana ağdan ayrı (çevrimdışı veya değiştirilemez) saklanıyor mu?", weight: 1 },
+  // Olay yönetimi
+  { id: 6, category: "Olay yönetimi", text: "Bir siber güvenlik olay müdahale planınız (CSIRP) var mı?", weight: 1 },
+  { id: 19, category: "Olay yönetimi", text: "Müşteri verisini etkileyen bir olayda müşteriyi önceden belirlenmiş kısa bir sürede (ör. 24–72 saat) bilgilendirmeyi taahhüt ediyor musunuz?", weight: 1 },
+  // Alt hizmet sağlayıcılar (dördüncü taraf)
+  { id: 7, category: "Alt hizmet sağlayıcılar", text: "Sisteminize erişen üçüncü tarafların erişimleri izleniyor ve yönetiliyor mu?", weight: 1 },
+  { id: 11, category: "Alt hizmet sağlayıcılar", text: "Müşteri verisini paylaştığınız alt hizmet sağlayıcıların (pazarlama, bulut, çağrı merkezi vb.) listesini tutuyor ve güvenliklerini değerlendiriyor musunuz?", weight: 1 },
+  { id: 20, category: "Alt hizmet sağlayıcılar", text: "Alt hizmet sağlayıcılarınızla yaptığınız sözleşmelerde, bizim verimiz için aynı güvenlik ve ihlal bildirimi şartları yer alıyor mu?", weight: 1 },
+  { id: 21, category: "Alt hizmet sağlayıcılar", text: "Bu alt hizmet sağlayıcılardan biri ihlal yaşarsa müşterilerinize bildirim yapacağınız bir süreç tanımlı mı?", weight: 1 },
+  // Kurumsal yönetim ve farkındalık
+  { id: 1, category: "Kurumsal yönetim", text: "Çalışanlarınız yılda en az bir kez siber güvenlik eğitimi alıyor mu?", weight: 1 },
+  { id: 10, category: "Kurumsal yönetim", text: "Çalışanlarınıza yönelik sosyal mühendislik / phishing simülasyonu yapıyor musunuz?", weight: 1 },
+  { id: 3, category: "Kurumsal yönetim", text: "E-posta güvenliği için SPF, DKIM ve DMARC kaydı uyguluyor musunuz?", weight: 1 },
+  { id: 22, category: "Kurumsal yönetim", text: "Geçerli bir bilgi güvenliği belgeniz var mı (ISO 27001, SOC 2 vb.) ve kapsamı bu hizmeti içeriyor mu?", weight: 1 },
+  { id: 23, category: "Kurumsal yönetim", text: "Kişisel veriler için KVKK kapsamında veri sorumlusu/işleyen yükümlülüklerinizi yazılı olarak yönetiyor musunuz (VERBİS, aydınlatma, ihlal prosedürü)?", weight: 1 },
 ];
 
 const ANSWER_POINTS = { evet: 10, kismen: 5, hayir: 0 } as const;

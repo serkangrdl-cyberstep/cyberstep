@@ -18,7 +18,7 @@ interface Findings {
   clientLibCves: ClientLibCve[];
   clientLibsDetected: { library: string; version: string }[];
   clientLibsChecked: boolean;
-  other: { sslLabsGrade: string | null; sslLabsPending?: boolean; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; mozillaObservatory: { grade?: string; score?: number } | null };
+  other: { fourthParties?: { provider: string; category: string; via: string[] }[] | null; sslLabsGrade: string | null; sslLabsPending?: boolean; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; mozillaObservatory: { grade?: string; score?: number } | null };
   unchecked: string[];
 }
 
@@ -54,6 +54,12 @@ export function VendorFindingsDialog({ vendorId, vendorName, onClose }: { vendor
             {data.other.hudsonRock && ((data.other.hudsonRock.employees ?? 0) > 0 || (data.other.hudsonRock.users ?? 0) > 0) && (
               <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-800">
                 <strong>Çalınmış kimlik bilgisi (infostealer):</strong> {data.other.hudsonRock.employees ?? 0} çalışan, {data.other.hudsonRock.users ?? 0} kullanıcı hesabı kaydı bulundu. Fidye ve veri sızıntısı saldırılarında en sık kullanılan ilk erişim yollarından biridir; tedarikçiden parola/MFA sıfırlaması isteyin.
+              </div>
+            )}
+            {data.other.fourthParties && data.other.fourthParties.length > 0 && (
+              <div className="rounded-md border p-2 text-xs">
+                <strong>Kullandığı hizmet sağlayıcılar (dışarıdan görünen):</strong>{" "}
+                {data.other.fourthParties.map((p) => `${p.provider} (${p.category})`).join(", ")}. Liste tam değildir.
               </div>
             )}
             {data.other.sslLabsPending && (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SupportAccessBanner } from "@/components/support-access-banner";
+import { FourthPartyCard } from "@/components/fourth-party-card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Building2, Plus, Trash2, RefreshCw, Globe, Shield, AlertTriangle,
@@ -591,6 +592,7 @@ export default function TedarikciPortfoyu() {
     <VendorFindingsDialog vendorId={findingsFor?.id ?? null} vendorName={findingsFor?.name ?? ""} onClose={() => setFindingsFor(null)} />
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <SupportAccessBanner />
+      <FourthPartyCard />
 
       {/* Başlık */}
       <div className="flex items-center justify-between">

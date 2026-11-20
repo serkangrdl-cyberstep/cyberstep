@@ -1,5 +1,6 @@
 import { db, domainScansTable, tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { interpret, type Interpretation } from "./tprmInterpretation";
 import type { Subprocessor } from "./subprocessors";
 import { crosscheckAnswers, type Contradiction } from "./questionnaireCrosscheck";
 import { TPRM_QUESTIONS } from "./tprmQuestions";
@@ -16,10 +17,11 @@ export interface VendorQuestionnaireSummary {
   /** Taramayla doğrulanabilen sorularda beyan–bulgu çelişkileri. */
   contradictions: Array<Contradiction & { text: string }>;
   subprocessors: Subprocessor[];
+  interpretation: Interpretation | null;
 }
 
 /** Tedarikçinin anket durumunu ve yanıtlarını okur; taramayla çelişen beyanları işaretler. */
-export async function loadVendorQuestionnaire(vendor: { questionnaireToken: string | null; lastScanData: unknown }): Promise<VendorQuestionnaireSummary | null> {
+export async function loadVendorQuestionnaire(vendor: { questionnaireToken: string | null; lastScanData: unknown; lastScanScore?: number | null }): Promise<VendorQuestionnaireSummary | null> {
   if (!vendor.questionnaireToken) return null;
   const [link] = await db.select().from(tprmQuestionnaireLinkTable).where(eq(tprmQuestionnaireLinkTable.token, vendor.questionnaireToken));
   if (!link) return null;
@@ -28,7 +30,7 @@ export async function loadVendorQuestionnaire(vendor: { questionnaireToken: stri
     return {
       status: new Date() > link.expiresAt ? "expired" : "pending",
       expiresAt: link.expiresAt.toISOString(), completedAt: null, contactName: null, contactEmail: null,
-      selfScore: null, answers: [], contradictions: [], subprocessors: [],
+      selfScore: null, answers: [], contradictions: [], subprocessors: [], interpretation: null,
     };
   }
   const raw = (resp.answers as Array<{ questionId: number; answer: "evet" | "kismen" | "hayir" }>) ?? [];
@@ -56,5 +58,6 @@ export async function loadVendorQuestionnaire(vendor: { questionnaireToken: stri
     answers: raw.map((a) => ({ questionId: a.questionId, text: textOf.get(a.questionId) ?? "", answer: a.answer })),
     contradictions,
     subprocessors: subprocessors ?? [],
+    interpretation: interpret(raw, resp.selfScore, { scanScore: vendor.lastScanScore ?? null, contradictionCount: contradictions.length }),
   };
 }

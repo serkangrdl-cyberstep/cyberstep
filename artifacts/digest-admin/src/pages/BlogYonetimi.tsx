@@ -115,12 +115,9 @@ export default function BlogYonetimi() {
   async function handleGenerateCover(post: BlogPost) {
     setGeneratingIds(prev => new Set(prev).add(post.id));
     try {
-      const r = await adminFetch(`/api/admin-panel/blog/${post.id}/generate-cover`, { method: "POST" }) as
-        { backgroundOk: boolean; reason: string | null };
+      await adminFetch(`/api/admin-panel/blog/${post.id}/generate-cover`, { method: "POST" });
       qc.invalidateQueries({ queryKey: ["digest-blog-posts"] });
-      setMsg(r.backgroundOk
-        ? "Kapak gorseli uretildi ve kaydedildi."
-        : `Baslikli kapak kaydedildi, ancak yapay zeka arka plani uretilemedi: ${r.reason}`);
+      setMsg("Baslikli kapak gorseli olusturuldu ve kaydedildi.");
     } catch (e) {
       setMsg(`Gorsel uretme basarisiz: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -193,7 +190,7 @@ export default function BlogYonetimi() {
           {draftStatus.state === "ok" && (
             <>
               Taslak hazır: <b>{draftStatus.title}</b>.{" "}
-              {draftStatus.coverOk === false && "Kapak görseli yalnızca yazıyla üretildi (yapay zeka arka planı üretilemedi)."}
+              
             </>
           )}
           {draftStatus.state === "error" && <>Taslak üretimi başarısız: {draftStatus.error}</>}

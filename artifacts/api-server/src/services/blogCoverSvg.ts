@@ -57,20 +57,6 @@ ${label}
 </svg>`;
 }
 
-export function buildCoverBackgroundPrompt(title: string, excerpt: string | null, tprm: boolean): string {
-  const motif = tprm
-    ? "Abstract network of interconnected nodes representing suppliers and a supply chain, one node subtly highlighted in amber as a risk signal."
-    : "Abstract digital security visualization.";
-  return [
-    "Professional cybersecurity blog cover background, 16:9 landscape.",
-    "Dark navy (#0A1628) base with teal accents, clean and minimal, cinematic lighting.",
-    motif,
-    `Theme: "${title}".`,
-    excerpt ? `Context: ${excerpt.slice(0, 120)}.` : "",
-    "Absolutely no text, no letters, no numbers, no logos in the image. Leave the left half calmer and darker for overlaid text.",
-  ].filter(Boolean).join(" ");
-}
-
 export function isTprmTitle(title: string): boolean {
   return /tedarik|tprm|üçüncü taraf/i.test(title);
 }

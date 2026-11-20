@@ -602,7 +602,7 @@ export async function generateAndPublishBlogPost(): Promise<void> {
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: yazı yayınlandı");
 
-  // Başlık yazılı kapak görselini üret (arka plan başarısız olsa da yazılı kapak kaydedilir)
+  // Başlık yazılı kapak görselini üret (yapay zeka görseli kullanılmaz)
   try {
     const cover = await generateBlogCoverDataUrl({
       title: post.title,
@@ -610,7 +610,7 @@ export async function generateAndPublishBlogPost(): Promise<void> {
       tprm: getCategoryCode(topic.category) === "TP",
     });
     await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl }).where(eq(blogPostsTable.id, post.id));
-    logger.info({ postId: post.id, backgroundOk: cover.backgroundOk }, "Blog autopilot: kapak görseli kaydedildi");
+    logger.info({ postId: post.id }, "Blog autopilot: kapak görseli kaydedildi");
   } catch (err) {
     logger.warn({ err: String(err), postId: post.id }, "Blog autopilot: kapak görseli kaydedilemedi");
   }
@@ -721,7 +721,7 @@ export async function generateAndSaveDraft(): Promise<{ postId: number; slug: st
       title: post.title, excerpt: post.excerpt, tprm: getCategoryCode(topic.category) === "TP",
     });
     await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl }).where(eq(blogPostsTable.id, post.id));
-    coverOk = cover.backgroundOk;
+    coverOk = true;
   } catch (err) {
     logger.warn(`Blog autopilot: taslak kapağı kaydedilemedi: ${String(err).slice(0, 300)}`);
   }

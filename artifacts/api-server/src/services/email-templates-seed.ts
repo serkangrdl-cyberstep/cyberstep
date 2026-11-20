@@ -103,7 +103,7 @@ const DEFAULT_TEMPLATES = [
       <strong>{{companyName}}</strong>'ın risk profilini öğrenmek için 5 dakikanızı ayırın.
     </p>
     <div style="text-align:center;margin:24px 0">
-      <a href="{{baseUrl}}/assessment/start" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:600;display:inline-block">
+      <a href="{{baseUrl}}/domain-tarama" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:600;display:inline-block">
         Ücretsiz Değerlendirme Başlat
       </a>
     </div>

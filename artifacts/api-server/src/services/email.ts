@@ -460,7 +460,7 @@ export async function sendReminderEmail(params: {
         </p>
       </div>
 
-      <a href="${base}/assessment/start" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">
+      <a href="${base}/domain-tarama" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:16px">
         Yeni Değerlendirme Başlat (Ücretsiz)
       </a>
       <a href="${params.assessmentUrl}" style="display:block;border:1px solid #e2e8f0;color:#475569;text-align:center;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px">
@@ -1064,7 +1064,7 @@ export async function sendScanLeadDripEmail(params: {
   const unsubUrl = `${base}/api/scan-leads/unsubscribe/${unsubToken}`;
   const scanUrl = `${base}/domain-tarama?domain=${encodeURIComponent(domain)}`;
   const roiUrl = `${base}/roi-hesaplayici`;
-  const assessUrl = `${base}/assessment/start`;
+  const assessUrl = `${base}/domain-tarama`;
 
   const scoreColor = overallScore >= 80 ? "#16a34a" : overallScore >= 60 ? "#d97706" : "#dc2626";
   const scoreLabel = overallScore >= 80 ? "İyi" : overallScore >= 60 ? "Orta" : "Zayıf";

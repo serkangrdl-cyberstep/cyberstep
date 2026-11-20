@@ -636,12 +636,15 @@ export async function generateAndPublishBlogPost(): Promise<void> {
 
 // ─── Taslak üret (yayınlamadan kaydet) ───────────────────────────────────────
 export async function generateAndSaveDraft(): Promise<{ postId: number; slug: string; title: string }> {
+  // TPRM planı bitene kadar taslaklar da önce oradan üretilir
+  const tprmIndex = await getTprmIndex();
+  const tprmTopic = tprmIndex < TPRM_PLAN.length ? TPRM_PLAN[tprmIndex] : null;
   const index = await getAutopilotIndex();
   const total = BLOG_PLAN.length;
   const currentIndex = index >= total ? 0 : index;
-  const topic = BLOG_PLAN[currentIndex];
+  const topic = tprmTopic ?? BLOG_PLAN[currentIndex];
 
-  logger.info({ index: currentIndex, title: topic.title }, "Blog autopilot: taslak üretiliyor");
+  logger.info({ index: tprmTopic ? tprmIndex : currentIndex, tprm: !!tprmTopic, title: topic.title }, "Blog autopilot: taslak üretiliyor");
 
   const generated = await generateBlogPostContent(topic);
 
@@ -665,7 +668,17 @@ export async function generateAndSaveDraft(): Promise<{ postId: number; slug: st
   }).returning();
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: taslak kaydedildi");
-  await setAutopilotIndex(currentIndex + 1);
+  if (tprmTopic) await setTprmIndex(tprmIndex + 1);
+  else await setAutopilotIndex(currentIndex + 1);
+
+  try {
+    const cover = await generateBlogCoverDataUrl({
+      title: post.title, excerpt: post.excerpt, tprm: getCategoryCode(topic.category) === "TP",
+    });
+    await db.update(blogPostsTable).set({ coverImageBase64: cover }).where(eq(blogPostsTable.id, post.id));
+  } catch (err) {
+    logger.warn({ err: String(err), postId: post.id }, "Blog autopilot: taslak kapağı kaydedilemedi");
+  }
   return { postId: post.id, slug: post.slug, title: post.title };
 }
 

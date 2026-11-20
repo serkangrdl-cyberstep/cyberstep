@@ -207,6 +207,11 @@ interface QuestionnaireView {
   answers: Array<{ questionId: number; text: string; answer: "evet" | "kismen" | "hayir" }>;
   contradictions: Array<{ questionId: number; text: string; beyan: string; bulgu: string }>;
   subprocessors?: Array<{ name: string; domain: string | null; dataTypes: string | null; country: string | null }>;
+  interpretation?: {
+    band: "guclu" | "orta" | "zayif"; bandLabel: string; guidance: string;
+    categories: Array<{ category: string; score: number; band: "guclu" | "orta" | "zayif" }>;
+    redFlags: Array<{ questionId: number; text: string }>;
+  } | null;
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -368,6 +373,29 @@ function VendorQuestionnairePanel({ vendorId }: { vendorId: number }) {
           {q.completedAt ? new Date(q.completedAt).toLocaleDateString("tr-TR") : ""}
         </p>
       </div>
+      {q.interpretation && (
+        <div className="rounded-md bg-background/50 p-2 space-y-1.5">
+          <p className="text-xs font-semibold">
+            Değerlendirme: <span className={q.interpretation.band === "guclu" ? "text-emerald-400" : q.interpretation.band === "orta" ? "text-amber-400" : "text-red-400"}>{q.interpretation.bandLabel}</span>
+            <span className="font-normal text-muted-foreground"> (80+ güçlü · 60–79 orta · 60 altı zayıf)</span>
+          </p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+            {q.interpretation.categories.map(c => (
+              <p key={c.category} className="text-[11px] text-muted-foreground flex justify-between">
+                <span>{c.category}</span>
+                <span className={c.band === "guclu" ? "text-emerald-400" : c.band === "orta" ? "text-amber-400" : "text-red-400"}>{c.score}</span>
+              </p>
+            ))}
+          </div>
+          {q.interpretation.redFlags.length > 0 && (
+            <div className="rounded border border-red-500/30 bg-red-500/10 p-1.5">
+              <p className="text-xs font-semibold text-red-400">Kırmızı bayrak (kritik soruya "Hayır")</p>
+              {q.interpretation.redFlags.map(f => <p key={f.questionId} className="text-[11px] text-muted-foreground">• {f.text}</p>)}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">{q.interpretation.guidance}</p>
+        </div>
+      )}
       {q.contradictions.length > 0 && (
         <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 space-y-1">
           <p className="text-xs font-semibold text-red-400">Beyan ile tarama bulgusu çelişiyor</p>

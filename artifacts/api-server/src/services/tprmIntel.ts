@@ -5,6 +5,8 @@
  *   - Mozilla MDN Observatory v2 (anahtarsız; yalnızca bilgi, skora girmez — başlıklar zaten puanlanıyor)
  */
 
+import { isSourceLicensed } from "./dataSourceLicenses";
+
 export type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 const UA = "CyberStep.io Security Scanner/1.0";
@@ -83,6 +85,7 @@ export function parseHudsonRock(body: unknown): HudsonRockResult | null {
 
 /** Başarısız/beklenmedik yanıt → null ("kontrol edilemedi"). */
 export async function checkHudsonRock(domain: string, fetcher: FetchLike, opts: RetryOpts = {}): Promise<HudsonRockResult | null> {
+  if (!isSourceLicensed("hudsonrock")) return null;
   const res = await getJsonRetry(fetcher, `https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-domain?domain=${encodeURIComponent(domain)}`, {}, "GET", 15_000, opts);
   if (!res || res.status !== 200) return null;
   return parseHudsonRock(res.body);
@@ -99,6 +102,7 @@ export function parseObservatoryV2(body: unknown): MozillaObsV2 | null {
 }
 
 export async function checkObservatoryV2(domain: string, fetcher: FetchLike, opts: RetryOpts = {}): Promise<MozillaObsV2 | null> {
+  if (!isSourceLicensed("mozilla")) return null;
   const res = await getJsonRetry(fetcher, `https://observatory-api.mdn.mozilla.net/api/v2/scan?host=${encodeURIComponent(domain)}`, {}, "POST", 25_000, opts);
   if (!res || res.status !== 200) return null;
   return parseObservatoryV2(res.body);

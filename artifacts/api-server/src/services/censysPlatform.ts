@@ -17,8 +17,9 @@ export function getCensysToken(): string | null {
   return process.env["CENSYS_API_TOKEN"] || process.env["CENSYS_API_KEY"] || null;
 }
 
+import { isSourceLicensed } from "./dataSourceLicenses";
 export function isCensysConfigured(): boolean {
-  return getCensysToken() !== null;
+  return getCensysToken() !== null && isSourceLicensed("censys");
 }
 
 export class CensysApiError extends Error {

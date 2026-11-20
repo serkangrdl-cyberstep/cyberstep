@@ -27,6 +27,13 @@ Sınıflar: **K** = kullanılabilir (atıf varsa uygula) · **İ** = yazılı iz
 
 Kural: "İ" ve "A" kaynaklar çözülene kadar satışa konu özellikte "hazır" sayılmaz; skor/rapordan çıkarılabilir ya da lisans alınır. Karar bekleyen: hangi kaynak ücretli plana geçilecek, hangisi çıkarılacak.
 
+### Lisans anahtarı (altyapı hazır)
+- `DATASOURCE_LICENSE_ENFORCE=1` → yalnızca `DATASOURCE_LICENSE_<KAYNAK>=1` olan kaynaklar çağrılır, diğerleri "ölçülemedi" sayılır. Varsayılan kapalı (hepsi çalışır).
+- Kaynak adları: VIRUSTOTAL, SAFEBROWSING, CENSYS, OTX, SSLLABS, HUDSONROCK, THREATFOX, URLHAUS, MOZILLA, RANSOMLOOK.
+- Satıştan önce: ENFORCE=1 yap; lisansını/iznini aldığın kaynakları 1 yap. Safe Browsing yerine ücretli Web Risk için `WEB_RISK_API_KEY` ver (anahtar varsa o kullanılır).
+- RansomLook bilgi amaçlı (skora girmez), tam alan adı eşleşmesiyle `tprmExtra.ransomLook` içine yazılır; atıf raporda otomatik.
+- Önerilen ek kaynaklar (araştırılmadı, eklenmedi): Certspotter (crt.sh yedeği), CISA KEV (kamu verisi, ticari serbest).
+
 ## 2. Temizlik
 - [ ] Demo uçlarını kaldır: `routes/admin-panel/tprm-demo.ts`
 - [ ] sasa-demo hesabını ve test tedarikçilerini (11–24) sil

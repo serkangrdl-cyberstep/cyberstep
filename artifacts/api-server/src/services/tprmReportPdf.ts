@@ -5,6 +5,7 @@
  *
  * Saf üretici: veriyi parametre olarak alır, Buffer döner (veritabanı erişimi yok).
  */
+import { SOURCE_ATTRIBUTIONS } from "./dataSourceLicenses";
 import PDFDocument from "pdfkit";
 import path from "path";
 
@@ -229,6 +230,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   // ── Metodoloji ───────────────────────────────────────────────────────────
   h2("6. Metodoloji Özeti");
   para("CyberStep Risk Skoru v2, yalnızca herkese açık ve dışarıdan gözlemlenebilen sinyallerden hesaplanır; tedarikçinin sistemlerine erişilmez ve saldırı testi yapılmaz. Kategoriler ve azami puanlar: bilinen zafiyetler (CVE, CISA KEV, VulnCheck KEV) 30, ağ maruziyeti 20, itibar 15, e-posta güvenliği 15, veri ihlali geçmişi 10 (alan adına ait hizmetin bilinen ihlalleri; çalışan e-postası sızıntısı değildir), TLS ve web 10. Aktif sömürülen zafiyet (skor en fazla 49), ThreatFox IOC (en fazla 49), fidye yazılımında kullanılan zafiyet, botnet C2, USOM veya URLhaus kaydı (en fazla 39) ve internete açık kritik servis (en fazla 59) skoru üstten sınırlar. Risk etiketi skordan türetilir; ancak kritik bulgu varken en az Yüksek, yüksek bulgu varken en az Orta gösterilir. CVE eşleşmeleri yalnızca sürümü kesin tespit edilen yazılımlar için sürüm aralığı doğrulanarak yapılır; açık port banner'ından gelen eşleşmeler dağıtım yamaları nedeniyle doğrulanmamış olabilir. Tarama, alan adının ana IP'si ve sertifika kayıtlarından bulunan alt alan adlarıyla sınırlıdır; tüm varlıkların kapsandığı iddia edilmez. Ölçülemeyen kategoriler temiz sayılmaz; skor ölçülen kategoriler üzerinden hesaplanır. Not eşikleri: A ≥85, B ≥70, C ≥55, D ≥40, F <40. Bilgi amaçlı gösterilen ve skora girmeyen kaynaklar: EPSS, AlienVault OTX, Hudson Rock, Mozilla Observatory. Known Exploited Vulnerabilities verisinin bir kısmı VulnCheck KEV (vulncheck.com) kaynağından alınmıştır. Ayrıntılı metodoloji: cyberstep.io/metodoloji");
+  para(SOURCE_ATTRIBUTIONS.join(" "));
 
   // ── Sayfa altlıkları ─────────────────────────────────────────────────────
   const range = doc.bufferedPageRange();

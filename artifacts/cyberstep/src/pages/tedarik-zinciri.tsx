@@ -227,8 +227,9 @@ function TprmReport({ result, companyName, sector }: { result: TedResult; compan
 export default function TedarikZinciri() {
   const { lang } = useLanguage();
   usePageMeta({
-    title: "TPRM Modülü — Tedarik Zinciri Risk Yönetimi | CyberStep.io",
-    description: "Tedarikçilerinizin siber güvenlik durumunu tarayın, anket gönderin ve TPRM raporu alın.",
+    title: "Tedarikçi Risk Yönetimi (TPRM): Tedarikçi Risk Skoru | CyberStep.io",
+    description: "Tedarikçilerinizin dışarıdan görünen siber güvenlik duruşunu kamuya açık kaynaklardan puanlayın, anket gönderin, bulguları takip edin ve TPRM raporu alın.",
+    canonicalPath: "/tedarik-zinciri",
     noIndex: false,
   });
 

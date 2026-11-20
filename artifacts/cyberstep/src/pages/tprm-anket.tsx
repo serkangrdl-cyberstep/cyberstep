@@ -54,6 +54,7 @@ export default function TprmAnket() {
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [answers, setAnswers] = useState<Record<number, AnswerValue>>({});
+  const [subs, setSubs] = useState<Array<{ name: string; domain: string; dataTypes: string; country: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export default function TprmAnket() {
           supplierContactName: contactName,
           supplierContactEmail: contactEmail,
           answers: data.questions.map(q => ({ questionId: q.id, answer: answers[q.id] })),
+          subprocessors: subs.filter(x => x.name.trim()),
         }),
       });
       const result = await res.json();
@@ -325,6 +327,31 @@ export default function TprmAnket() {
               );
             })}
           </div>
+
+          {data.questions.some(q => q.category === "Alt hizmet sağlayıcılar") && (
+            <Card className="mt-6">
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Alt hizmet sağlayıcılarınız (isteğe bağlı)</p>
+                  <p className="text-xs text-muted-foreground">Müşterinizin verisini işleyen veya barındıran alt sağlayıcıları ekleyin. Beyanınız doğrulanmamış olarak saklanır.</p>
+                </div>
+                {subs.map((x, i) => (
+                  <div key={i} className="grid grid-cols-2 gap-2">
+                    <input className="rounded-md border bg-background px-2 py-1.5 text-sm" placeholder="Ad (ör. Microsoft Azure)" maxLength={120} value={x.name} onChange={e => setSubs(subs.map((y, j) => j === i ? { ...y, name: e.target.value } : y))} />
+                    <input className="rounded-md border bg-background px-2 py-1.5 text-sm" placeholder="Alan adı (azure.com)" value={x.domain} onChange={e => setSubs(subs.map((y, j) => j === i ? { ...y, domain: e.target.value } : y))} />
+                    <input className="rounded-md border bg-background px-2 py-1.5 text-sm" placeholder="İşlenen veri (ör. e-posta)" maxLength={200} value={x.dataTypes} onChange={e => setSubs(subs.map((y, j) => j === i ? { ...y, dataTypes: e.target.value } : y))} />
+                    <div className="flex gap-2">
+                      <input className="flex-1 min-w-0 rounded-md border bg-background px-2 py-1.5 text-sm" placeholder="Ülke" maxLength={60} value={x.country} onChange={e => setSubs(subs.map((y, j) => j === i ? { ...y, country: e.target.value } : y))} />
+                      <button type="button" className="text-xs text-red-400" onClick={() => setSubs(subs.filter((_, j) => j !== i))}>Sil</button>
+                    </div>
+                  </div>
+                ))}
+                {subs.length < 20 && (
+                  <button type="button" className="text-xs text-primary" onClick={() => setSubs([...subs, { name: "", domain: "", dataTypes: "", country: "" }])}>+ Alt sağlayıcı ekle</button>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {submitError && (
             <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-red-400 text-sm flex items-start gap-2">

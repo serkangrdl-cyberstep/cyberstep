@@ -1,5 +1,6 @@
 import { db, domainScansTable, tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import type { Subprocessor } from "./subprocessors";
 import { crosscheckAnswers, type Contradiction } from "./questionnaireCrosscheck";
 import { TPRM_QUESTIONS } from "./tprmQuestions";
 
@@ -14,6 +15,7 @@ export interface VendorQuestionnaireSummary {
   answers: Array<{ questionId: number; text: string; answer: "evet" | "kismen" | "hayir" }>;
   /** Taramayla doğrulanabilen sorularda beyan–bulgu çelişkileri. */
   contradictions: Array<Contradiction & { text: string }>;
+  subprocessors: Subprocessor[];
 }
 
 /** Tedarikçinin anket durumunu ve yanıtlarını okur; taramayla çelişen beyanları işaretler. */
@@ -26,10 +28,11 @@ export async function loadVendorQuestionnaire(vendor: { questionnaireToken: stri
     return {
       status: new Date() > link.expiresAt ? "expired" : "pending",
       expiresAt: link.expiresAt.toISOString(), completedAt: null, contactName: null, contactEmail: null,
-      selfScore: null, answers: [], contradictions: [],
+      selfScore: null, answers: [], contradictions: [], subprocessors: [],
     };
   }
   const raw = (resp.answers as Array<{ questionId: number; answer: "evet" | "kismen" | "hayir" }>) ?? [];
+  const subprocessors = Array.isArray(resp.subprocessors) ? (resp.subprocessors as Subprocessor[]) : null;
   const textOf = new Map<number, string>(TPRM_QUESTIONS.map((q) => [q.id, q.text]));
   const scanId = vendor.lastScanData && typeof vendor.lastScanData === "object" && "scanId" in vendor.lastScanData
     ? Number((vendor.lastScanData as { scanId: unknown }).scanId) : null;
@@ -39,6 +42,8 @@ export async function loadVendorQuestionnaire(vendor: { questionnaireToken: stri
         spfRecord: scan.spfRecord, dmarcRecord: scan.dmarcRecord,
         cveSummary: scan.cveSummary as Array<{ cveId?: string; cvssScore?: number }> | null,
         uncheckedSources: scan.uncheckedSources as string[] | null,
+        hudsonEmployees: (scan.tprmExtra as { hudsonRock?: { employees?: number } | null } | null)?.hudsonRock?.employees ?? null,
+        subprocessorCount: subprocessors ? subprocessors.length : null,
       }).map((c) => ({ ...c, text: textOf.get(c.questionId) ?? "" }))
     : [];
   return {
@@ -50,5 +55,6 @@ export async function loadVendorQuestionnaire(vendor: { questionnaireToken: stri
     selfScore: resp.selfScore,
     answers: raw.map((a) => ({ questionId: a.questionId, text: textOf.get(a.questionId) ?? "", answer: a.answer })),
     contradictions,
+    subprocessors: subprocessors ?? [],
   };
 }

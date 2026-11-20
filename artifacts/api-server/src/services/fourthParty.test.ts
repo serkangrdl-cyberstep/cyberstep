@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { providerOf, extractWebHosts, extractSpfIncludes, detectFourthParties, portfolioConcentration } from "./fourthParty";
+import { diffFourthParties, providerOf, extractWebHosts, extractSpfIncludes, detectFourthParties, portfolioConcentration } from "./fourthParty";
 
 test("providerOf: sonek ve en uzun eşleşme", () => {
   assert.equal(providerOf("aspmx.l.google.com")?.provider, "Google");
@@ -30,4 +30,12 @@ test("portfolioConcentration: >=3 tedarikçi ve >=%25 ise yüksek", () => {
   assert.equal(c[0]!.high, true);
   const c2 = portfolioConcentration([...v, ...[5, 6, 7, 8, 9, 10, 11, 12, 13].map((i) => ({ vendorId: i, vendorName: `V${i}`, parties: [] }))]);
   assert.equal(c2[0]!.high, false);
+});
+
+test("diffFourthParties", () => {
+  const g = { provider: "Google", category: "e-posta" as const, via: ["mx" as const] };
+  const c = { provider: "Cloudflare", category: "bulut/CDN" as const, via: ["ns" as const] };
+  assert.equal(diffFourthParties(null, [g]), null);
+  assert.equal(diffFourthParties([g], [g]), null);
+  assert.deepEqual(diffFourthParties([g], [c]), { added: ["Cloudflare (bulut/CDN)"], removed: ["Google (e-posta)"] });
 });

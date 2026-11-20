@@ -27,6 +27,8 @@ export const tprmQuestionnaireResponseTable = pgTable("tprm_questionnaire_respon
   supplierContactEmail: text("supplier_contact_email").notNull(),
   answers: jsonb("answers").notNull(),     // [{questionId, answer, score}]
   selfScore: integer("self_score").notNull(),
+  // Tedarikçinin beyan ettiği alt hizmet sağlayıcılar (doğrulanmamış)
+  subprocessors: jsonb("subprocessors"),
   combinedScore: integer("combined_score"), // weighted avg of scan + self
   completedAt: timestamp("completed_at").notNull().defaultNow(),
 });

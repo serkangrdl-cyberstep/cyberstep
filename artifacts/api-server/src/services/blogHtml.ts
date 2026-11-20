@@ -1,3 +1,5 @@
+import sanitizeHtml from "sanitize-html";
+
 /**
  * Blog içeriğini kaydederken biçimi güvenceye alır.
  * Düz metin (blok etiketi olmayan) yapıştırılmışsa satırları paragraflara çevirir;
@@ -32,4 +34,30 @@ export function normalizeBlogHtml(input: string): string {
     const body = hasTags ? l : escapeHtml(l);
     return isHeading ? `<h2>${body}</h2>` : `<p>${body}</p>`;
   }).join("\n");
+}
+
+const ALLOWED_TAGS = [
+  "article", "section", "div", "span", "p", "br", "hr", "h1", "h2", "h3", "h4", "h5", "h6",
+  "ul", "ol", "li", "strong", "b", "em", "i", "u", "s", "code", "pre", "blockquote",
+  "a", "img", "table", "thead", "tbody", "tr", "th", "td", "figure", "figcaption",
+];
+
+/** Yönetici editöründen gelen blog HTML'ini izin listesiyle temizler (script, on*, javascript: gider; p/h2/ul kalır). */
+export function sanitizeBlogHtml(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: {
+      a: ["href", "target", "rel"],
+      img: ["src", "alt", "title"],
+      "*": ["style", "class"],
+    },
+    allowedStyles: { "*": { "text-align": [/^(left|right|center|justify)$/] } },
+    allowedSchemes: ["http", "https", "mailto"],
+    allowedSchemesByTag: { img: ["http", "https", "data"] },
+    transformTags: { a: (tag, attribs) => ({ tagName: tag, attribs: attribs.target ? { ...attribs, rel: "noopener noreferrer" } : attribs }) },
+  });
+}
+
+export function prepareBlogContent(input: string): string {
+  return normalizeBlogHtml(sanitizeBlogHtml(input ?? ""));
 }

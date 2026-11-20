@@ -14,7 +14,7 @@ import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
-import { TPRM_PLAN, TPRM_VERIFIED_FACTS, TPRM_WRITING_RULES } from "../data/blogTprmPlan";
+import { TPRM_PLAN, TPRM_WRITING_RULES, selectFactsForTopic } from "../data/blogTprmPlan";
 import { buildFactCheckPrompt, parseFactCheckOutput } from "./blogFactCheck";
 import { generateBlogCoverDataUrl } from "./blogCover";
 
@@ -303,10 +303,10 @@ const CATEGORY_VARIANTS: Record<CategoryCode, string> = {
   TP: `KATEGORİ MODU — TEDARİKÇİ RİSK YÖNETİMİ (TP):
 - Hedef okuyucu: risk, uyum, satın alma, hukuk ve BT güvenlik yöneticileri; orta ve büyük ölçekli şirketler. Dil sade kalsın ama kurumsal olsun; "işletme sahibi" tonunu bu kitleye uyarla.
 - Yazı bir karar veya süreç adımı öğretmeli: okuyucu tedarikçi portföyünde ne yapacağını bilmeli.
-- Kullanacağın vaka ve rakamlar YALNIZCA aşağıdaki doğrulanmış listeden gelebilir. Listede olmayan vaka, rakam, şirket adı, ceza tutarı veya alıntı üretme. İstatistik gerekiyorsa listedeki olguyu kullan ya da rakamsız anlat. Listedeki "doğrulanmadı" ve "kesinleşmemiş" ifadelerini yazıda koru.
-DOĞRULANMIŞ OLGULAR:
-${TPRM_VERIFIED_FACTS}
-KESİN YAZIM KURALLARI:
+- Bu yazıda adlandırılmış vaka veya rakam olarak YALNIZCA aşağıdaki olgular kullanılabilir. Listede olmayan hiçbir vakayı, rakamı, şirket olayını, ceza tutarını veya alıntıyı anma; başka yazılar için ayrılmış tanınmış vakaları (ör. daha önce sık anılanları) tekrar kullanma. Vaka kullanmak zorunda değilsin; liste boşsa veya konu gerektirmiyorsa kavramsal anlat. Gerekirse "varsayımsal bir örnek" diye açıkça belirterek gerçek firma adı vermeden senaryo kurabilirsin. Listedeki "doğrulanmadı" ve "kesinleşmemiş" ifadelerini koru.
+BU YAZIYA ATANAN OLGULAR:
+{{TPRM_FACTS}}
+KESİN YAZIM KURALLARI (yalnızca ilgili olgu bu yazıya atanmışsa geçerlidir):
 ${TPRM_WRITING_RULES}
 - CyberStep'ten söz edeceksen yalnızca şunları söyle: tedarikçilerin internetten görünen güvenlik duruşunu (açık servisler, bilinen güvenlik açıkları, e-posta güvenliği, sertifika durumu, sızmış kimlik bilgisi kayıtları) puanlar; tedarikçi anketini tarama sonuçlarıyla karşılaştırır; bulgular için aksiyon planı oluşturur ve yeniden taramayla doğrular; portföydeki yoğunlaşmayı gösterir.
 - Her TP yazısında şu sınırı açıkça belirt: dışarıdan tarama tedarikçinin içindeki yetki yönetimini, süreçlerini ve verinin nerede tutulduğunu göstermez; bu yüzden anket, sözleşme ve kanıt talebiyle birlikte kullanılmalıdır.
@@ -347,18 +347,18 @@ export async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): 
     generated = await generateBlogPostContentOnce(topic);
   }
   if (getCategoryCode(topic.category) === "TP") {
-    generated = { ...generated, content: await factCheckTprmContent(generated.content, topic.title) };
+    generated = { ...generated, content: await factCheckTprmContent(generated.content, topic.title, selectFactsForTopic(topic, TPRM_PLAN.findIndex(t => t.title === topic.title))) };
   }
   return generated;
 }
 
 /** TPRM yazısını doğrulanmış olgu listesi ve kesin kurallarla karşılaştırıp hatalı cümleleri düzeltir. Başarısız olursa özgün içerik kalır. */
-async function factCheckTprmContent(content: string, title: string): Promise<string> {
+async function factCheckTprmContent(content: string, title: string, facts: string): Promise<string> {
   try {
     const message = await anthropic.messages.create({
       model: BLOG_MODEL,
       max_tokens: 16000,
-      messages: [{ role: "user", content: buildFactCheckPrompt(content, TPRM_VERIFIED_FACTS, TPRM_WRITING_RULES) }],
+      messages: [{ role: "user", content: buildFactCheckPrompt(content, facts || "(bu yazıya atanmış vaka yok)", TPRM_WRITING_RULES) }],
     });
     logAiCost({
       service: "blog_autopilot",
@@ -383,7 +383,10 @@ async function factCheckTprmContent(content: string, title: string): Promise<str
 
 async function generateBlogPostContentOnce(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
   const categoryCode = getCategoryCode(topic.category);
-  const categoryVariant = CATEGORY_VARIANTS[categoryCode];
+  const tprmFacts = categoryCode === "TP"
+    ? selectFactsForTopic(topic, TPRM_PLAN.findIndex(t => t.title === topic.title))
+    : "";
+  const categoryVariant = CATEGORY_VARIANTS[categoryCode].replace("{{TPRM_FACTS}}", tprmFacts || "(bu yazıya atanmış vaka yok; kavramsal anlat)");
   const focusKeyword = topic.keywords.split(",")[0].trim();
 
   const prompt = `Sen CyberStep.io adlı Türk siber güvenlik platformunun içerik direktörüsün.

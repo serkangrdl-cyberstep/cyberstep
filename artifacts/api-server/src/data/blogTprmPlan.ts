@@ -1,35 +1,76 @@
 // ─── TPRM yazı planı ───────────────────────────────────────────────────────────
 // Bu liste bitene kadar otomatik yayında önceliklidir (takvim ve BLOG_PLAN'dan önce).
 // Bitince normal akışa dönülür; kendi indeksi ayrı tutulur ve baştan başlamaz.
-export interface BlogTopic { category: string; title: string; keywords: string; angle: string }
+export interface BlogTopic { category: string; title: string; keywords: string; angle: string; facts?: string[] }
 
 export const TPRM_PLAN: BlogTopic[] = [
-  { category: "TPRM", title: "Tedarikçi Risk Yönetimi (TPRM) Nedir? Türkiye'de Nereden Başlanır?", keywords: "tedarikçi risk yönetimi TPRM, üçüncü taraf risk yönetimi Türkiye", angle: "TPRM'in ne olduğunu, kimin neden ihtiyaç duyduğunu ve ilk üç adımı sade anlatan giriş rehberi" },
-  { category: "TPRM", title: "Tedarikçi Güvenlik Anketi Neden Tek Başına Yetmez?", keywords: "tedarikçi güvenlik anketi, tedarikçi değerlendirme dışarıdan doğrulama", angle: "Anket beyan eder, doğrulamaz: anketi dışarıdan görünen verilerle karşılaştırmanın mantığı ve sınırları" },
-  { category: "TPRM", title: "Kritik Tedarikçiyi Nasıl Belirlersiniz? Tedarikçi Sınıflandırma Rehberi", keywords: "kritik tedarikçi belirleme, tedarikçi sınıflandırma veri erişimi", angle: "Veri erişimi, sisteme bağlantı ve iş sürekliliği ölçütleriyle üç katmanlı basit sınıflandırma" },
-  { category: "TPRM", title: "Dördüncü Taraf Riski: Tedarikçinizin Tedarikçisi Kim?", keywords: "dördüncü taraf riski, alt yüklenici siber güvenlik", angle: "Tedarikçinin alt hizmet sağlayıcıları ve sözleşmede yansıtılması gereken şartlar; dışarıdan görünenin sınırı" },
-  { category: "TPRM", title: "KVKK'da Veri İşleyen Tedarikçi: Sorumluluk Kimde?", keywords: "KVKK veri işleyen sorumluluk, KVKK madde 12 tedarikçi", angle: "Veri sorumlusunun veri işleyenin tedbirlerinden sorumluluğu; denetim ve sözleşme adımları" },
-  { category: "TPRM", title: "Tedarikçi Sözleşmesinde Olması Gereken Siber Güvenlik Maddeleri", keywords: "tedarikçi sözleşmesi siber güvenlik maddeleri, ihlal bildirim süresi", angle: "İhlal bildirimi süresi, denetim hakkı, alt yüklenici, veri iadesi ve silme: kontrol listesi" },
-  { category: "TPRM", title: "Tedarikçi Güvenlik Skoru Nasıl Okunur? Dışarıdan Ölçümün Sınırları", keywords: "tedarikçi güvenlik skoru, dış yüzey tarama sınırları", angle: "Skor neyi ölçer, neyi ölçemez; iç erişim yönetimi ve süreçler neden dışarıdan görünmez" },
-  { category: "TPRM", title: "Tedarikçi Çalışanlarının Sızmış Hesapları: Görünmeyen Giriş Kapısı", keywords: "infostealer sızmış kimlik bilgisi tedarikçi, çalınmış hesap tedarik zinciri", angle: "Çalınmış kimlik bilgilerinin tedarikçi üzerinden erişime dönüşmesi ve MFA, hesap yönetimi önlemleri" },
-  { category: "TPRM", title: "Tedarikçinizde İhlal Oldu: İlk 72 Saatte Müşteri Tarafı Ne Yapmalı?", keywords: "tedarikçi ihlali müdahale, üçüncü taraf veri ihlali plan", angle: "Tedarikçiden gelen ihlal bildirimine karşı müşteri şirketin adım adım planı ve KVKK bildirim ilişkisi" },
-  { category: "TPRM", title: "Tedarikçi Portföyünde Yoğunlaşma Riski: Hepsi Aynı Sağlayıcıya Bağlıysa", keywords: "yoğunlaşma riski tedarikçi, ortak bulut sağlayıcı bağımlılığı", angle: "Birden çok tedarikçinin aynı altyapıya bağlı olmasının tek olayı çoğaltması ve nasıl görülür" },
-  { category: "TPRM", title: "Tedarikçiyle Bulguyu Kapatmak: Aksiyon Planı ve Yeniden Tarama", keywords: "tedarikçi aksiyon planı, bulgu kapatma yeniden tarama", angle: "Bulguyu tedarikçiye iletmek, sorumlu ve süre belirlemek, düzeltmeyi yeniden ölçümle doğrulamak" },
-  { category: "TPRM", title: "Üçüncü Taraf Kaynaklı İhlallerden Dersler: Drift, MOVEit, Change Healthcare", keywords: "üçüncü taraf ihlali örnekleri, tedarik zinciri saldırısı dersler", angle: "Doğrulanmış kamuya açık vakalardan çıkan ortak örüntüler ve alınacak önlemler" },
+  { category: "TPRM", title: "Tedarikçi Risk Yönetimi (TPRM) Nedir? Türkiye'de Nereden Başlanır?", keywords: "tedarikçi risk yönetimi TPRM, üçüncü taraf risk yönetimi Türkiye", angle: "TPRM'in ne olduğunu, kimin neden ihtiyaç duyduğunu ve ilk üç adımı sade anlatan giriş rehberi", facts: ["arcelik", "target"] },
+  { category: "TPRM", title: "Tedarikçi Güvenlik Anketi Neden Tek Başına Yetmez?", keywords: "tedarikçi güvenlik anketi, tedarikçi değerlendirme dışarıdan doğrulama", angle: "Anket beyan eder, doğrulamaz: anketi dışarıdan görünen verilerle karşılaştırmanın mantığı ve sınırları", facts: ["drift", "arcelik"] },
+  { category: "TPRM", title: "Kritik Tedarikçiyi Nasıl Belirlersiniz? Tedarikçi Sınıflandırma Rehberi", keywords: "kritik tedarikçi belirleme, tedarikçi sınıflandırma veri erişimi", angle: "Veri erişimi, sisteme bağlantı ve iş sürekliliği ölçütleriyle üç katmanlı basit sınıflandırma", facts: ["change-healthcare", "target"] },
+  { category: "TPRM", title: "Dördüncü Taraf Riski: Tedarikçinizin Tedarikçisi Kim?", keywords: "dördüncü taraf riski, alt yüklenici siber güvenlik", angle: "Tedarikçinin alt hizmet sağlayıcıları ve sözleşmede yansıtılması gereken şartlar; dışarıdan görünenin sınırı", facts: ["arcelik", "kaseya"] },
+  { category: "TPRM", title: "KVKK'da Veri İşleyen Tedarikçi: Sorumluluk Kimde?", keywords: "KVKK veri işleyen sorumluluk, KVKK madde 12 tedarikçi", angle: "Veri sorumlusunun veri işleyenin tedbirlerinden sorumluluğu; denetim ve sözleşme adımları", facts: ["hepsiburada", "vodafonenet", "kvkk12"] },
+  { category: "TPRM", title: "Tedarikçi Sözleşmesinde Olması Gereken Siber Güvenlik Maddeleri", keywords: "tedarikçi sözleşmesi siber güvenlik maddeleri, ihlal bildirim süresi", angle: "İhlal bildirimi süresi, denetim hakkı, alt yüklenici, veri iadesi ve silme: kontrol listesi", facts: ["okta", "visa-mc-jpm", "kvkk12"] },
+  { category: "TPRM", title: "Tedarikçi Güvenlik Skoru Nasıl Okunur? Dışarıdan Ölçümün Sınırları", keywords: "tedarikçi güvenlik skoru, dış yüzey tarama sınırları", angle: "Skor neyi ölçer, neyi ölçemez; iç erişim yönetimi ve süreçler neden dışarıdan görünmez", facts: ["solarwinds", "okta"] },
+  { category: "TPRM", title: "Tedarikçi Çalışanlarının Sızmış Hesapları: Görünmeyen Giriş Kapısı", keywords: "infostealer sızmış kimlik bilgisi tedarikçi, çalınmış hesap tedarik zinciri", angle: "Çalınmış kimlik bilgilerinin tedarikçi üzerinden erişime dönüşmesi ve MFA, hesap yönetimi önlemleri", facts: ["target", "expedia"] },
+  { category: "TPRM", title: "Tedarikçinizde İhlal Oldu: İlk 72 Saatte Müşteri Tarafı Ne Yapmalı?", keywords: "tedarikçi ihlali müdahale, üçüncü taraf veri ihlali plan", angle: "Tedarikçiden gelen ihlal bildirimine karşı müşteri şirketin adım adım planı ve KVKK bildirim ilişkisi", facts: ["okta", "kaseya"] },
+  { category: "TPRM", title: "Tedarikçi Portföyünde Yoğunlaşma Riski: Hepsi Aynı Sağlayıcıya Bağlıysa", keywords: "yoğunlaşma riski tedarikçi, ortak bulut sağlayıcı bağımlılığı", angle: "Birden çok tedarikçinin aynı altyapıya bağlı olmasının tek olayı çoğaltması ve nasıl görülür", facts: ["crowdstrike", "change-healthcare"] },
+  { category: "TPRM", title: "Tedarikçiyle Bulguyu Kapatmak: Aksiyon Planı ve Yeniden Tarama", keywords: "tedarikçi aksiyon planı, bulgu kapatma yeniden tarama", angle: "Bulguyu tedarikçiye iletmek, sorumlu ve süre belirlemek, düzeltmeyi yeniden ölçümle doğrulamak", facts: [] },
+  { category: "TPRM", title: "Üçüncü Taraf Kaynaklı İhlallerden Dersler: Drift, MOVEit, Change Healthcare", keywords: "üçüncü taraf ihlali örnekleri, tedarik zinciri saldırısı dersler", angle: "Doğrulanmış kamuya açık vakalardan çıkan ortak örüntüler ve alınacak önlemler", facts: ["drift", "moveit", "change-healthcare"] },
 ];
 
 // TPRM yazılarında kullanılabilecek doğrulanmış olgular (kaynaklarıyla). Model bunların dışında vaka,
 // rakam veya alıntı üretmemelidir.
-export const TPRM_VERIFIED_FACTS = `- Verizon 2026 DBIR (Kasım 2024 – Ekim 2025 arası olayları kapsar): ihlallerde üçüncü tarafın yer aldığı pay %48; bir önceki yıla göre %60 artış (küresel veridir, Türkiye'ye özel oran yoktur). "2026 yılında yaşanan ihlaller" DEME; "Verizon'un 2026 raporuna göre" de.
-- Salesloft Drift (Ağustos 2025): Drift entegrasyonuna ait çalınmış OAuth anahtarlarıyla müşterilerin Salesforce verilerine erişildi; Cloudflare, Palo Alto Networks, Proofpoint gibi şirketler etkilendiklerini açıkladı. Salesforce'un kendi açığı sömürülmedi; bu bir yazılım açığı değil, çalınmış erişim anahtarı vakasıdır ("açığından sızdı" DEME).
-- Change Healthcare (Şubat 2024): tek bir sağlayıcının kesintisi ABD'de sağlık hizmetlerini ülke çapında aksattı.
-- MOVEit (2023): tek bir yazılımdaki açık binlerce kuruluşu etkiledi.
-- Visa, Mastercard, JPMorgan (19 Kasım 2026): üç şirket de kendi ağlarının ihlal edilmediğini, verinin üçüncü taraf hizmet sağlayıcılardan sızdığını açıkladı; sağlayıcılar adıyla açıklanmadı. Grubun iddia ettiği veri miktarları doğrulanmış değildir.
-- Expedia (Kasım 2026): şirket, üçüncü taraf bir veri platformu sağlayıcısının ele geçirildiğini doğruladı; grubun iddia ettiği kayıt sayısı doğrulanmadı.
-- VodafoneNet (Ocak 2026): KVKK bildirimine göre çalınan veri, bir bölgesel hizmet sağlayıcının (veri işleyen) sisteminden elde edilmiş olabilir; etkilenen kişi sayısı en fazla 321.504 olarak bildirildi. Kaynağın veri işleyen olması kesinleşmiş değildir.
-- Arçelik (Nisan 2026): saldırganlar, üçüncü taraf bir hizmet sağlayıcının alt yüklenicisi üzerinden iç hizmet yönetim platformuna ulaştı; ana sistemlerin etkilenmediği belirtildi.
-- Hepsiburada (KVKK Kurul kararı 2026/2438, 4 Kasım 2026): sohbet altyapısı sağlayan bir hizmet firması üzerinden 2022 tarihli destek kayıtlarından 9.882 kişi etkilendi; firmanın adı açıklanmadı. KVKK Kurulu yalnızca ihlal bildirimini internet sitesinde yayımlamaya karar verdi; Kurulun şirkete karşı işlem başlattığı, dava açıldığı veya ceza verildiği bilgisi YOKTUR, bunları yazma ("dava", "işlem başlattı", "ceza" DEME).
-- KVKK madde 12/2: kişisel veriler veri sorumlusu adına başka bir kişi tarafından işleniyorsa veri sorumlusu, güvenlik tedbirlerinin alınması konusunda bu kişilerle müştereken sorumludur (sorumluluk tedarikçiye devredilmez; tedarikçi ihlale neden olsa da veri sorumlusu KVKK sürecinin muhatabı olabilir). Bu madde TPRM programını açıkça zorunlu kılmaz; "TPRM zorunlu uyum süreci" DEME, "veri sorumlusunun sorumluluğu tedarikçi seçimini ve denetimini önemli kılar" gibi yaz.`;
+export interface TprmFact { id: string; kind: "case" | "stat" | "law"; text: string }
+
+// Doğrulanmış olgular (kaynaklarıyla). Model bunların dışında vaka, rakam veya alıntı üretmemelidir.
+export const TPRM_FACT_ITEMS: TprmFact[] = [
+  { id: "verizon", kind: "stat", text: "Verizon 2026 DBIR (Kasım 2024 – Ekim 2025 arası olayları kapsar): ihlallerde üçüncü tarafın yer aldığı pay %48; bir önceki yıla göre %60 artış (küresel veridir, Türkiye'ye özel oran yoktur). \"2026 yılında yaşanan ihlaller\" DEME; \"Verizon'un 2026 raporuna göre\" de." },
+  { id: "drift", kind: "case", text: "Salesloft Drift (Ağustos 2025): Drift entegrasyonuna ait çalınmış OAuth anahtarlarıyla müşterilerin Salesforce verilerine erişildi; Cloudflare, Palo Alto Networks, Proofpoint gibi şirketler etkilendiklerini açıkladı. Salesforce'un kendi açığı sömürülmedi; bu bir yazılım açığı değil, çalınmış erişim anahtarı vakasıdır (\"açığından sızdı\" DEME)." },
+  { id: "change-healthcare", kind: "case", text: "Change Healthcare (Şubat 2024): tek bir sağlayıcının kesintisi ABD'de sağlık hizmetlerini ülke çapında aksattı." },
+  { id: "moveit", kind: "case", text: "MOVEit (2023): tek bir yazılımdaki açık binlerce kuruluşu etkiledi." },
+  { id: "visa-mc-jpm", kind: "case", text: "Visa, Mastercard, JPMorgan (19 Kasım 2026): üç şirket de kendi ağlarının ihlal edilmediğini, verinin üçüncü taraf hizmet sağlayıcılardan sızdığını açıkladı; sağlayıcılar adıyla açıklanmadı. Grubun iddia ettiği veri miktarları doğrulanmış değildir." },
+  { id: "expedia", kind: "case", text: "Expedia (Kasım 2026): şirket, üçüncü taraf bir veri platformu sağlayıcısının ele geçirildiğini doğruladı; grubun iddia ettiği kayıt sayısı doğrulanmadı." },
+  { id: "vodafonenet", kind: "case", text: "VodafoneNet (Ocak 2026): KVKK bildirimine göre çalınan veri, bir bölgesel hizmet sağlayıcının (veri işleyen) sisteminden elde edilmiş olabilir; etkilenen kişi sayısı en fazla 321.504 olarak bildirildi. Kaynağın veri işleyen olması kesinleşmiş değildir." },
+  { id: "arcelik", kind: "case", text: "Arçelik (Nisan 2026): saldırganlar, üçüncü taraf bir hizmet sağlayıcının alt yüklenicisi üzerinden iç hizmet yönetim platformuna ulaştı; ana sistemlerin etkilenmediği belirtildi." },
+  { id: "hepsiburada", kind: "case", text: "Hepsiburada (KVKK Kurul kararı 2026/2438, 4 Kasım 2026): sohbet altyapısı sağlayan bir hizmet firması üzerinden 2022 tarihli destek kayıtlarından 9.882 kişi etkilendi; firmanın adı açıklanmadı. KVKK Kurulu yalnızca ihlal bildirimini internet sitesinde yayımlamaya karar verdi; Kurulun şirkete karşı işlem başlattığı, dava açıldığı veya ceza verildiği bilgisi YOKTUR, bunları yazma (\"dava\", \"işlem başlattı\", \"ceza\" DEME)." },
+  { id: "kvkk12", kind: "law", text: "KVKK madde 12/2: kişisel veriler veri sorumlusu adına başka bir kişi tarafından işleniyorsa veri sorumlusu, güvenlik tedbirlerinin alınması konusunda bu kişilerle müştereken sorumludur (sorumluluk tedarikçiye devredilmez; tedarikçi ihlale neden olsa da veri sorumlusu KVKK sürecinin muhatabı olabilir). Bu madde TPRM programını açıkça zorunlu kılmaz; \"TPRM zorunlu uyum süreci\" DEME, \"veri sorumlusunun sorumluluğu tedarikçi seçimini ve denetimini önemli kılar\" gibi yaz." },
+  { id: "target", kind: "case", text: "Target (Kasım–Aralık 2013): saldırganlar, bir hizmet tedarikçisinden (klima/soğutma firması Fazio Mechanical) çalınan ağ kimlik bilgileriyle Target ağına girdi; Target yaklaşık 40 milyon ödeme kartı kaydının çalındığını, ayrıca yaklaşık 70 milyon müşteriye ait kişisel kaydın etkilendiğini açıkladı." },
+  { id: "crowdstrike", kind: "case", text: "CrowdStrike (19 Temmuz 2024): bir güvenlik yazılımı sağlayıcısının hatalı güncellemesi, Microsoft'un tahminine göre yaklaşık 8,5 milyon Windows cihazını çökertti; saldırı değil, tek bir sağlayıcıya bağımlılığın sonucuydu ve havayolu, hastane, banka gibi birçok sektörde kesinti yarattı." },
+  { id: "solarwinds", kind: "case", text: "SolarWinds Orion (2020): Orion yazılımının Mart–Haziran 2020 arası sürümlerine zararlı kod yerleştirildi; şirketin SEC bildirimine göre yaklaşık 18.000'e kadar müşteri bu sürümleri kullanmış olabilirdi." },
+  { id: "okta", kind: "case", text: "Okta (Eylül–Ekim 2023): çalınmış bir kimlik bilgisiyle Okta'nın müşteri destek sistemine girildi; 134 müşteriye ait dosyalara (Okta müşterilerinin %1'inden azı) erişildi ve bazı dosyalardaki oturum belirteçleri kullanıldı. BeyondTrust şüpheli etkinliği 2 Ekim'de bildirdi; Okta müşterilere ihlali 19–20 Ekim'de duyurdu." },
+  { id: "kaseya", kind: "case", text: "Kaseya VSA (Temmuz 2021): yönetilen hizmet sağlayıcıların (MSP) kullandığı yazılımdaki açık sömürüldü; Kaseya'ya göre yaklaşık 60 müşteri (çoğu MSP) ve 1.500'den az alt müşteri işletme etkilendi. Zincirin iki katman altındaki şirketler, hiç ilişkileri olmadığı bir yazılımdan etkilendi." },
+];
+
+/** Tüm olgular tek metin (testler ve geriye dönük kullanım için). */
+export const TPRM_VERIFIED_FACTS = TPRM_FACT_ITEMS.map(f => `- ${f.text}`).join("\n");
+
+const CASE_IDS = TPRM_FACT_ITEMS.filter(f => f.kind === "case").map(f => f.id);
+
+/**
+ * Bir yazı için kullanılabilecek olgu alt kümesi. Yazıya özel vakalar konunun `facts` alanından gelir;
+ * alan yoksa plandaki sıraya göre döndürülür. Böylece her yazı aynı örneklere yaslanmaz.
+ */
+export function selectFactsForTopic(topic: BlogTopic, planIndex: number): string {
+  let ids: string[];
+  if (topic.facts) {
+    ids = [...topic.facts];
+  } else {
+    const start = Math.abs(planIndex >= 0 ? planIndex * 2 : hash(topic.title)) % CASE_IDS.length;
+    ids = [CASE_IDS[start], CASE_IDS[(start + 1) % CASE_IDS.length]];
+  }
+  if (/kvkk|sözleşme|veri işleyen|sorumluluk/i.test(`${topic.title} ${topic.keywords}`) && !ids.includes("kvkk12")) ids.push("kvkk12");
+  return ids
+    .map(id => TPRM_FACT_ITEMS.find(f => f.id === id))
+    .filter((f): f is TprmFact => !!f)
+    .map(f => `- ${f.text}`)
+    .join("\n");
+}
+
+function hash(s: string): number {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h;
+}
 
 // TPRM yazılarında hem üretim prompt'una hem ikinci kontrole verilen kesin kurallar.
 export const TPRM_WRITING_RULES = `- Dışarıdan taramayı anlatırken "tedarikçiye haber vermeden", "izinsiz", "fark ettirmeden" gibi ifadeler KULLANMA; yalnızca "kamuya açık kaynaklardan okunabilen sinyaller" de.

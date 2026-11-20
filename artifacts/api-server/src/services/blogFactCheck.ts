@@ -6,13 +6,14 @@ const SEP_CONTENT = "===ICERIK===";
 export function buildFactCheckPrompt(content: string, facts: string, rules: string): string {
   return `Sen titiz bir editör ve olgu denetçisisin. Aşağıdaki Türkçe blog yazısını (HTML) DOĞRULANMIŞ OLGULAR ve KESİN KURALLAR ile karşılaştır.
 
-DOĞRULANMIŞ OLGULAR:
+BU YAZIYA ATANAN DOĞRULANMIŞ OLGULAR (yazıda yalnızca bunlar adlandırılmış vaka/rakam olarak geçebilir):
 ${facts}
 
 KESİN KURALLAR:
 ${rules}
 
 GÖREV:
+- Listede olmayan adlandırılmış bir vaka, şirket olayı veya rakam varsa o cümleyi çıkar ya da kavramsal hâle getir.
 - Olgularla çelişen, olgularda bulunmayan (uydurma vaka, rakam, ceza, alıntı), kesin kuralları ihlal eden veya abartılı/genelleyici cümleleri bul.
 - Yalnızca bu cümleleri en az değişiklikle düzelt (olgu listesine uydur, gerekirse cümleyi çıkar). Diğer her şeyi, HTML yapısı dahil, AYNEN koru. Yazıyı yeniden yazma, kısaltma, süsleme.
 - Sorun yoksa içeriği değiştirmeden döndür.

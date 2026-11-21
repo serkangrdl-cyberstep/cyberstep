@@ -284,7 +284,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-4">
             {[
               { n: "1", t: tx("Belirleyin", "Identify"), d: tx("Hangi tedarikçilerin aksaması işinizi durdurur? Önce bu kritik listeyi çıkarın.", "Which suppliers would stop your business if they failed? Start by listing them.") },
-              { n: "2", t: tx("Ölçün", "Measure"), d: tx("Her tedarikçinin dışarıdan görünen güvenlik durumunu 0–100 skorla ve A–F notla görün, sektör medyanıyla karşılaştırın.", "See each supplier's outside-in security posture as a 0–100 score and A–F grade, compared with the sector median.") },
+              { n: "2", t: tx("Ölçün", "Measure"), d: tx("Kendi alan adlarınızı ve her tedarikçinin dışarıdan görünen güvenlik durumunu 0–100 skorla ve A–F notla görün, sektör medyanıyla karşılaştırın.", "See your own domains and each supplier's outside-in security posture as a 0–100 score and A–F grade, compared with the sector median.") },
               { n: "3", t: tx("İzleyin", "Monitor"), d: tx("Yıllık anketin yanında sürekli tarama. Skor düştüğünde veya yeni bir kritik açık çıktığında haberdar olun.", "Continuous scanning alongside the annual questionnaire. Get told when a score drops or a critical exposure appears.") },
             ].map((c) => (
               <div key={c.n} className="rounded-xl border p-5 bg-card">

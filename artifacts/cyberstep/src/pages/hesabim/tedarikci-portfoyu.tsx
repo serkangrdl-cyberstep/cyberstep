@@ -57,6 +57,7 @@ interface Vendor {
   alertSentAt: string | null;
   monitoringActive: boolean;
   addedAt: string;
+  isOwn?: boolean;
   supplierContactEmail?: string | null;
   remediationStatus?: "none" | "requested" | "rescanned";
   remediationRequestedAt?: string | null;
@@ -479,7 +480,7 @@ export default function TedarikciPortfoyu() {
 
   const email = customer?.email ?? "";
 
-  const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
+  const { data: allRows = [], isLoading } = useQuery<Vendor[]>({
     queryKey: ["tprm-vendors", email],
     queryFn: async () => {
       const r = await fetch("/api/tprm/vendors", { credentials: "include" });
@@ -489,6 +490,9 @@ export default function TedarikciPortfoyu() {
     enabled: !!email,
     refetchInterval: 15000,
   });
+
+  const vendors = allRows.filter(v => !v.isOwn);
+  const ownDomains = allRows.filter(v => v.isOwn);
 
   const { data: planInfo } = useQuery<{ plan: string | null; limit: number | null; used: number }>({
     queryKey: ["tprm-plan", email, vendors.length],
@@ -522,6 +526,27 @@ export default function TedarikciPortfoyu() {
           ? (data.scanPending ? "Mevcut veriden skor gösterildi; güncel tarama arka planda sürüyor." : "Skor CyberStep veritabanından anında hesaplandı.")
           : "Arka planda tarama başlatıldı.",
       });
+    },
+    onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  const [ownInput, setOwnInput] = useState("");
+  const addOwnMutation = useMutation({
+    mutationFn: async () => {
+      const domain = ownInput.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+      const res = await fetch("/api/tprm/vendors", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supplierDomain: domain, isOwn: true }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tprm-vendors", email] });
+      setOwnInput("");
+      toast({ title: "Alan adı eklendi", description: "Tarama başlatıldı; skor kısa sürede görünür." });
     },
     onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
   });
@@ -689,6 +714,68 @@ export default function TedarikciPortfoyu() {
           </Button>
         </div>
       </div>
+
+      {/* Kendi alan adlarınız */}
+      <Card className={ownDomains.length === 0 ? "border-primary/40 bg-primary/5" : ""}>
+        <CardContent className="p-4 space-y-3">
+          <div>
+            <p className="font-semibold text-foreground flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              {ownDomains.length === 0 ? "Önce kendi alan adlarınızı ekleyin" : "Kendi alan adlarınız"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Tedarikçilerinizi değerlendirdiğiniz ölçütle kendi alan adlarınızı da görün. Tedarikçi limitinize sayılmaz ve tedarikçi raporlarına girmez.
+            </p>
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => { e.preventDefault(); if (ownInput.trim()) addOwnMutation.mutate(); }}
+          >
+            <Input
+              value={ownInput}
+              onChange={(e) => setOwnInput(e.target.value)}
+              placeholder="sirketiniz.com.tr"
+              className="max-w-xs"
+            />
+            <Button type="submit" size="sm" disabled={addOwnMutation.isPending || !ownInput.trim()} className="gap-1.5">
+              {addOwnMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Ekle
+            </Button>
+          </form>
+          {ownDomains.length > 0 && (
+            <div className="divide-y rounded-md border">
+              {ownDomains.map(o => {
+                const rc = riskColors(o.riskLevel);
+                const busy = rescanMutation.isPending && rescanMutation.variables === o.id;
+                return (
+                  <div key={o.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">
+                    <span className="font-medium">{o.supplierDomain}</span>
+                    {o.lastScanScore !== null ? (
+                      <>
+                        <span className="font-semibold">{o.lastScanScore}/100</span>
+                        {o.riskLevel && <Badge variant="outline" className={rc.badge}>{o.riskLevel}</Badge>}
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />Taranıyor</span>
+                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="gap-1" onClick={() => setFindingsFor({ id: o.id, name: o.supplierDomain })}>
+                        <Shield className="h-3.5 w-3.5" /> Bulgular
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => rescanMutation.mutate(o.id)} aria-label="Yeniden tara">
+                        <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { if (confirm(`${o.supplierDomain} kaldırılsın mı?`)) deleteMutation.mutate(o.id); }} aria-label="Kaldır">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* İstatistik kartları */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

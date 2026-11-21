@@ -107,8 +107,8 @@ export default function Pricing() {
           <h1 className="text-4xl font-bold text-white">{en ? "Plans & pricing" : "Paketler ve fiyatlar"}</h1>
           <p className="text-white/75">
             {en
-              ? "Annual subscriptions priced by the number of monitored suppliers: those whose cyber incident would affect your operations, such as API and data providers, production sub-suppliers, cloud services and data processors. Prices exclude VAT."
-              : "İzlenen tedarikçi sayısına göre yıllık abonelik. Tedarikçi, siber olay yaşarsa operasyonunuzu etkileyecek firmadır: API ve veri sağlayıcıları, yan sanayi, bulut hizmetleri, veri işleyenler. Fiyatlara KDV dahil değildir."}
+              ? "Annual subscriptions priced by the number of monitored suppliers: those whose cyber incident would affect your operations, such as API and data providers, production sub-suppliers, cloud services and data processors. Prices exclude VAT. Your own domains (up to 20) are monitored in addition and do not count toward the supplier total."
+              : "İzlenen tedarikçi sayısına göre yıllık abonelik. Tedarikçi, siber olay yaşarsa operasyonunuzu etkileyecek firmadır: API ve veri sağlayıcıları, yan sanayi, bulut hizmetleri, veri işleyenler. Kendi alan adlarınız (en fazla 20) ayrıca izlenir ve tedarikçi sayınıza dahil edilmez. Fiyatlara KDV dahil değildir."}
           </p>
         </div>
       </section>

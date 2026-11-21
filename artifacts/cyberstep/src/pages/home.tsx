@@ -390,6 +390,12 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            {tx("Raporlara göz atın (kurgusal örnek veri): ", "Browse the reports (fictional sample data): ")}
+            <a href="/ornek-rapor-tedarikci.pdf" target="_blank" rel="noopener" className="text-primary hover:underline">{tx("Tedarikçi portföy raporu", "Supplier portfolio report")}</a>
+            {" · "}
+            <a href="/ornek-rapor-alan-adlari.pdf" target="_blank" rel="noopener" className="text-primary hover:underline">{tx("Kendi alan adları raporu", "Own domains report")}</a>
+          </p>
         </div>
       </section>
 

@@ -72,8 +72,8 @@ export default function Home() {
   usePageMeta({
     title: tx("Tedarikçi Siber Risk Skorlaması | CyberStep.io", "Supplier Cyber Risk Ratings for Türkiye | CyberStep.io"),
     description: tx(
-      "Tedarikçilerinizin siber güvenlik riskini dışarıdan, onlara soru sormadan ölçün. Türk alan adlarından oluşan geniş veritabanı, anında risk skoru, sektör kıyaslaması, sürekli izleme ve KVKK uyumlu raporlar.",
-      "Measure your suppliers' cyber risk from the outside, without questionnaires. Instant risk scores from a large database of Turkish domains, sector benchmarks, continuous monitoring and KVKK-ready reports.",
+      "Tedarikçilerinizin siber güvenlik riskini dışarıdan, tedarikçiye yük bindirmeden ölçün. Anında risk skoru, sektör kıyaslaması, sürekli izleme, tedarikçi anketi ve KVKK uyumlu raporlar.",
+      "Measure your suppliers' cyber risk from the outside, without burdening them. Instant risk scores, sector benchmarks, continuous monitoring, supplier questionnaires and KVKK-ready reports.",
     ),
     keywords: tx(
       "tedarikçi risk yönetimi, TPRM, tedarik zinciri siber güvenlik, siber risk skoru, KVKK veri işleyen, 7545 siber güvenlik kanunu, BDDK dış hizmet",
@@ -285,7 +285,7 @@ export default function Home() {
             {[
               { n: "1", t: tx("Belirleyin", "Identify"), d: tx("Hangi tedarikçilerin aksaması işinizi durdurur? Önce bu kritik listeyi çıkarın.", "Which suppliers would stop your business if they failed? Start by listing them.") },
               { n: "2", t: tx("Ölçün", "Measure"), d: tx("Her tedarikçinin dışarıdan görünen güvenlik durumunu 0–100 skorla ve A–F notla görün, sektör medyanıyla karşılaştırın.", "See each supplier's outside-in security posture as a 0–100 score and A–F grade, compared with the sector median.") },
-              { n: "3", t: tx("İzleyin", "Monitor"), d: tx("Yıllık anket yerine sürekli tarama. Skor düştüğünde veya yeni bir kritik açık çıktığında haberdar olun.", "Continuous scanning instead of an annual questionnaire. Get told when a score drops or a critical exposure appears.") },
+              { n: "3", t: tx("İzleyin", "Monitor"), d: tx("Yıllık anketin yanında sürekli tarama. Skor düştüğünde veya yeni bir kritik açık çıktığında haberdar olun.", "Continuous scanning alongside the annual questionnaire. Get told when a score drops or a critical exposure appears.") },
             ].map((c) => (
               <div key={c.n} className="rounded-xl border p-5 bg-card">
                 <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center mb-3">{c.n}</div>
@@ -305,8 +305,8 @@ export default function Home() {
             <div>
               <h2 className="text-3xl font-bold">{tx("Tedarikçi riski artık sizin riskiniz", "Your suppliers' risk is your risk")}</h2>
               <p className="text-muted-foreground mt-2 max-w-2xl">
-                {tx("Saldırganlar çoğu zaman hedefe en zayıf tedarikçiden ulaşır. Yasal yükümlülükler de bu riskin yönetilmesini bekliyor. Anketler yavaş, beyana dayalı ve hızla eskiyen bir resim veriyor.",
-                    "Attackers often reach their target through the weakest supplier, and regulation now expects this risk to be managed. Questionnaires are slow, self-reported and out of date almost immediately.")}
+                {tx("Saldırganlar çoğu zaman hedefe en zayıf tedarikçiden ulaşır. Yasal yükümlülükler de bu riskin yönetilmesini bekliyor. Tek başına anketler yavaş, beyana dayalı ve hızla eskiyen bir resim veriyor; dış tarama bunu güncel veriyle tamamlıyor.",
+                    "Attackers often reach their target through the weakest supplier, and regulation now expects this risk to be managed. On their own, questionnaires are slow, self-reported and quickly out of date; external scanning keeps the picture current.")}
               </p>
             </div>
           </div>

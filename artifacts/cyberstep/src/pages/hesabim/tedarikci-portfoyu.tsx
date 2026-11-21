@@ -743,6 +743,14 @@ export default function TedarikciPortfoyu() {
             </Button>
           </form>
           {ownDomains.length > 0 && (
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <a href="/api/tprm/vendors/report.pdf?scope=own">
+                <FileText className="h-4 w-4" />
+                Alan Adı Raporu (PDF)
+              </a>
+            </Button>
+          )}
+          {ownDomains.length > 0 && (
             <div className="divide-y rounded-md border">
               {ownDomains.map(o => {
                 const rc = riskColors(o.riskLevel);

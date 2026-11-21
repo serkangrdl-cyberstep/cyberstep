@@ -493,9 +493,11 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
     const [customer] = await db.select({ companyName: customersTable.companyName, fullName: customersTable.fullName })
       .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
 
+    const own = req.query["scope"] === "own";
     const rows = await db.select().from(tprmVendorTable)
-      .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, false)))
+      .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, own)))
       .orderBy(tprmVendorTable.addedAt);
+    if (own && rows.length === 0) { res.status(404).json({ error: "Henüz kendi alan adı eklenmedi" }); return; }
     const withCtx = await withSectorContext(rows);
 
     const { generatePortfolioReport } = await import("../../services/tprmReportPdf");
@@ -506,6 +508,7 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
     const buf = await generatePortfolioReport({
       companyName: customer?.companyName || customer?.fullName || email,
       generatedAt: new Date(),
+      own,
       vendors: withCtx.map(v => {
         const stored = storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION
           ? (v.lastScanData as unknown as StoredScanData).score
@@ -534,7 +537,7 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
 
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_Tedarikci_Portfoy_${date}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${own ? "CyberStep_Kendi_Alan_Adlarim" : "CyberStep_Tedarikci_Portfoy"}_${date}.pdf"`);
     res.setHeader("Content-Length", buf.length);
     res.send(buf);
   } catch (err) {

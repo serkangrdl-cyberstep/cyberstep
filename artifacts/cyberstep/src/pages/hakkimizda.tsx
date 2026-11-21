@@ -4,7 +4,6 @@
  * (/neden-cyberstep artık buraya yönlenir; isim hikayesi ve ekip bu sayfada).
  */
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import { Footprints, Eye, Scale, Gauge, MapPin, ShieldCheck, ArrowRight, Users, Radar, FileSearch } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useLanguage } from "@/contexts/language-context";
@@ -24,17 +23,8 @@ export default function Hakkimizda() {
     lang,
   });
 
-  const { data: bench } = useQuery<{ available: boolean; sampleSize?: number }>({
-    queryKey: ["home-benchmark"],
-    queryFn: () => fetch("/api/domain-scan/benchmark?score=50").then((r) => r.json()),
-    staleTime: 600_000,
-  });
-  const domainCount = bench?.available && bench.sampleSize
-    ? bench.sampleSize.toLocaleString(en ? "en-US" : "tr-TR")
-    : null;
-
   const stats = [
-    { value: domainCount ?? tx("Yüz binlerce", "Hundreds of thousands"), label: tx("sürekli taranan Türk alan adı", "Turkish domains continuously scanned") },
+    { value: tx("Yüz binlerce", "Hundreds of thousands"), label: tx("sürekli taranan Türk alan adı", "Turkish domains continuously scanned") },
     { value: "6", label: tx("ağırlıklı risk kategorisi", "weighted risk categories") },
     { value: tx("Her gün", "Daily"), label: tx("yeni alan adı keşfi", "new domain discovery") },
     { value: "0", label: tx("tedarikçiden istenen kurulum veya onay", "installs or approvals needed from suppliers") },

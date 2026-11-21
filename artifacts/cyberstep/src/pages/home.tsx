@@ -4,7 +4,6 @@
  */
 import { useState } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import {
   ShieldCheck, Upload, Gauge, BellRing, FileText, Building2, Landmark, ShieldAlert, Handshake,
   ChevronRight, Loader2, Search, Bug, Network, Globe2, Mail, Database, Lock, BadgeCheck, ChevronDown, ChevronUp,
@@ -69,16 +68,6 @@ export default function Home() {
   const [result, setResult] = useState<DomainScoreResponse | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  // Veritabanındaki domain sayısı (benchmark örneklemi) — yoksa genel ifade kullanılır
-  const { data: bench } = useQuery<{ available: boolean; sampleSize?: number; median?: number }>({
-    queryKey: ["home-benchmark"],
-    queryFn: () => fetch("/api/domain-scan/benchmark?score=50").then((r) => r.json()),
-    staleTime: 600_000,
-  });
-  const domainCount = bench?.available && bench.sampleSize
-    ? bench.sampleSize.toLocaleString(en ? "en-US" : "tr-TR")
-    : null;
 
   usePageMeta({
     title: tx("Tedarikçi Siber Risk Skorlaması | CyberStep.io", "Supplier Cyber Risk Ratings for Türkiye | CyberStep.io"),
@@ -186,11 +175,8 @@ export default function Home() {
               {tx("Tedarikçilerinizin siber riskini, onlara sormadan görün.", "See your suppliers' cyber risk without asking them.")}
             </h1>
             <p className="text-lg md:text-xl text-white/80">
-              {domainCount
-                ? tx(`CyberStep ${domainCount} Türk alan adını sürekli tarar. Tedarikçi listenizi yükleyin, her birinin skorunu, kritik açıklarını ve sektöründeki yerini dakikalar içinde görün.`,
-                     `CyberStep continuously scans ${domainCount} Turkish domains. Upload your supplier list and see each one's score, critical issues and sector ranking in minutes.`)
-                : tx("CyberStep Türk alan adlarını sürekli tarar. Tedarikçi listenizi yükleyin, her birinin skorunu, kritik açıklarını ve sektöründeki yerini dakikalar içinde görün.",
-                     "CyberStep continuously scans Turkish domains. Upload your supplier list and see each one's score, critical issues and sector ranking in minutes.")}
+              {tx("CyberStep yüz binlerce Türk alan adını sürekli tarar. Tedarikçi listenizi yükleyin, her birinin skorunu, kritik açıklarını ve sektöründeki yerini dakikalar içinde görün.",
+                 "CyberStep continuously scans hundreds of thousands of Turkish domains. Upload your supplier list and see each one's score, critical issues and sector ranking in minutes.")}
             </p>
 
             <form onSubmit={checkSupplier} className="max-w-xl mx-auto flex flex-col sm:flex-row gap-2 pt-2">

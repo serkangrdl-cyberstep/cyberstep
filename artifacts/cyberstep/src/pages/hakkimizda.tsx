@@ -76,8 +76,8 @@ export default function Hakkimizda() {
           </h1>
           <p className="text-lg text-white/80">
             {tx(
-              "Bir şirketin güvenliği, en zayıf tedarikçisi kadar güçlüdür. CyberStep, şirketlerin yüzlerce tedarikçisinin siber riskini tek tek anket göndermeden, dışarıdan ve sürekli olarak ölçmesini sağlar.",
-              "A company is only as secure as its weakest supplier. CyberStep lets companies measure the cyber risk of hundreds of suppliers continuously, from the outside, without sending questionnaires one by one.",
+              "Bir şirketin güvenliği, en zayıf tedarikçisi kadar güçlüdür. CyberStep, şirketlerin yüzlerce tedarikçisinin siber riskini dışarıdan ve sürekli olarak ölçmesini sağlar; anket ve belge talebiyle de tamamlar.",
+              "A company is only as secure as its weakest supplier. CyberStep lets companies measure the cyber risk of hundreds of suppliers continuously from the outside, and complements it with questionnaires and document requests.",
             )}
           </p>
         </div>

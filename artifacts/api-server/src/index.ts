@@ -526,6 +526,7 @@ async function ensureIsrTables() {
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_questionnaire_links ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'initial'`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_questionnaire_links ADD COLUMN IF NOT EXISTS vendor_id INTEGER`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS supplier_contact_email TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS is_own BOOLEAN NOT NULL DEFAULT FALSE`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_status TEXT NOT NULL DEFAULT 'none'`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_requested_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_done_at TIMESTAMP`);

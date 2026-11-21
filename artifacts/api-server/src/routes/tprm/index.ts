@@ -371,7 +371,7 @@ async function getVendorLimit(req: Request): Promise<{ limit: number; plan: stri
 
 async function countVendors(email: string): Promise<number> {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(tprmVendorTable)
-    .where(eq(tprmVendorTable.customerEmail, email));
+    .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, false)));
   return row?.n ?? 0;
 }
 
@@ -450,7 +450,8 @@ router.get("/tprm/fourth-parties", requireCustomer, async (req: Request, res: Re
   try {
     const email = await getSessionCustomerEmail(req);
     if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
-    const vendors = await db.select().from(tprmVendorTable).where(eq(tprmVendorTable.customerEmail, email));
+    const vendors = await db.select().from(tprmVendorTable)
+      .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, false)));
     const scanIds = vendors
       .map((v) => (storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION ? (v.lastScanData as unknown as StoredScanData).scanId : null))
       .filter((x): x is number => typeof x === "number");
@@ -493,7 +494,7 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
       .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
 
     const rows = await db.select().from(tprmVendorTable)
-      .where(eq(tprmVendorTable.customerEmail, email))
+      .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, false)))
       .orderBy(tprmVendorTable.addedAt);
     const withCtx = await withSectorContext(rows);
 
@@ -573,11 +574,15 @@ router.get("/tprm/plan", requireCustomer, async (req: Request, res: Response) =>
 // ─── POST /api/tprm/vendors ───────────────────────────────────────────────────
 // Tedarikçi ekle + ilk taramayı background'da başlat
 
+/** Müşteri başına eklenebilecek kendi alan adı sayısı (kötüye kullanımı sınırlar). */
+const OWN_DOMAIN_MAX = 20;
+
 router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response) => {
   const { supplierDomain, supplierName } = req.body as {
     supplierDomain?: string;
     supplierName?: string;
   };
+  const isOwn = (req.body as { isOwn?: unknown }).isOwn === true;
 
   if (!supplierDomain || typeof supplierDomain !== "string") {
     res.status(400).json({ error: "supplierDomain zorunlu" });
@@ -604,13 +609,30 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
     const [existing] = await db.select().from(tprmVendorTable)
       .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.supplierDomain, domain)));
     if (existing) {
+      if (existing.isOwn !== isOwn) {
+        res.status(409).json({
+          error: existing.isOwn
+            ? "Bu alan adı kendi alan adlarınız arasında kayıtlı."
+            : "Bu alan adı tedarikçi olarak kayıtlı. Önce tedarikçilerden kaldırın.",
+        });
+        return;
+      }
       res.json(existing);
       return;
     }
 
+    if (isOwn) {
+      const [own] = await db.select({ n: sql<number>`count(*)::int` }).from(tprmVendorTable)
+        .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, true)));
+      if ((own?.n ?? 0) >= OWN_DOMAIN_MAX) {
+        res.status(400).json({ error: `En fazla ${OWN_DOMAIN_MAX} kendi alan adı eklenebilir.`, code: "OWN_DOMAIN_LIMIT" });
+        return;
+      }
+    }
+
     const { limit } = await getVendorLimit(req);
     const current = await countVendors(email);
-    if (current >= limit) {
+    if (!isOwn && current >= limit) {
       res.status(402).json({
         error: `Paketinizin tedarikçi limiti doldu (${limit}). Daha fazla tedarikçi için paketinizi yükseltin.`,
         code: "VENDOR_LIMIT",
@@ -624,8 +646,9 @@ router.post("/tprm/vendors", requireCustomer, async (req: Request, res: Response
       customerEmail: email,
       supplierDomain: domain,
       supplierName: typeof supplierName === "string" && supplierName.trim() ? supplierName.trim() : null,
-      riskDomains: parseRiskDomains((req.body as { riskDomains?: unknown }).riskDomains),
-      criticality: effectiveCriticality(
+      isOwn,
+      riskDomains: isOwn ? null : parseRiskDomains((req.body as { riskDomains?: unknown }).riskDomains),
+      criticality: isOwn ? "standart" : effectiveCriticality(
         parseCriticality((req.body as { criticality?: unknown }).criticality),
         parseRiskDomains((req.body as { riskDomains?: unknown }).riskDomains),
       ),
@@ -1129,7 +1152,7 @@ export async function runVendorRescanCron(): Promise<void> {
   const { sendMail } = await import("../../services/email");
 
   // Müşteri başına tek özet e-posta için uyarılar burada toplanır.
-  const alertsByCustomer = new Map<string, Array<{ vendorId: number; domain: string; score: number; risk: string; reasons: AlertReason[] }>>();
+  const alertsByCustomer = new Map<string, Array<{ vendorId: number; domain: string; score: number; risk: string; reasons: AlertReason[]; own: boolean }>>();
 
   for (const vendor of vendors) {
     try {
@@ -1152,7 +1175,7 @@ export async function runVendorRescanCron(): Promise<void> {
         : detectVendorAlert(prevResult?.insufficientData ? null : prevResult ?? null, result.score);
       if (shouldSendAlert(decision, vendor.alertSentAt)) {
         const list = alertsByCustomer.get(vendor.customerEmail) ?? [];
-        list.push({ vendorId: vendor.id, domain: vendor.supplierDomain, score, risk: riskLevel, reasons: decision.reasons });
+        list.push({ vendorId: vendor.id, domain: vendor.supplierDomain, score, risk: riskLevel, reasons: decision.reasons, own: vendor.isOwn });
         alertsByCustomer.set(vendor.customerEmail, list);
       }
 
@@ -1169,17 +1192,17 @@ export async function runVendorRescanCron(): Promise<void> {
     try {
       const rowsHtml = items.map(it => `
   <tr>
-    <td style="padding:6px 10px;border-bottom:1px solid #eee"><strong>${escapeHtml(it.domain)}</strong></td>
+    <td style="padding:6px 10px;border-bottom:1px solid #eee"><strong>${escapeHtml(it.domain)}</strong>${it.own ? " (kendi alan adınız)" : ""}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #eee">${it.score}/100 · ${escapeHtml(it.risk)}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #eee">${it.reasons.map(r => escapeHtml(describeReason(r))).join("<br>")}</td>
   </tr>`).join("");
       await sendMail({
         to: customerEmail,
         subject: items.length === 1
-          ? `Tedarikçi uyarısı: ${items[0]!.domain}`
-          : `Tedarikçi uyarısı: ${items.length} tedarikçide önemli değişiklik`,
+          ? `${items[0]!.own ? "Alan adı uyarısı" : "Tedarikçi uyarısı"}: ${items[0]!.domain}`
+          : `Uyarı: ${items.length} alan adında önemli değişiklik`,
         html: `<p>Merhaba,</p>
-<p>Son taramada tedarikçi portföyünüzde dikkat gerektiren değişiklikler tespit edildi.</p>
+<p>Son taramada tedarikçi portföyünüzde ve alan adlarınızda dikkat gerektiren değişiklikler tespit edildi.</p>
 <table style="border-collapse:collapse;font-size:14px">
   <tr><th align="left" style="padding:6px 10px">Tedarikçi</th><th align="left" style="padding:6px 10px">Skor</th><th align="left" style="padding:6px 10px">Değişiklik</th></tr>
   ${rowsHtml}

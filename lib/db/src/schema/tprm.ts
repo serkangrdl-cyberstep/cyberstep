@@ -66,6 +66,8 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   remediationRequestedAt: timestamp("remediation_requested_at"),
   remediationDoneAt: timestamp("remediation_done_at"),
   scoreBeforeRemediation: integer("score_before_remediation"),
+  // Müşterinin kendi alan adı (tedarikçi limitine sayılmaz, tedarikçi raporlarına girmez)
+  isOwn: boolean("is_own").notNull().default(false),
 });
 
 // Tedarikçi olay geçmişi (yönetim raporu ve zaman çizelgesi için)

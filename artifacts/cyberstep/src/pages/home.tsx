@@ -103,10 +103,10 @@ export default function Home() {
   }
 
   const steps = [
-    { icon: Upload, title: tx("Listenizi yükleyin", "Upload your list"), text: tx("Tedarikçi alan adlarını tek tek ekleyin veya Excel/CSV ile yüzlercesini tek seferde yükleyin.", "Add supplier domains one by one or upload hundreds at once via Excel/CSV.") },
+    { icon: Upload, title: tx("Listenizi yükleyin", "Upload your list"), text: tx("Önce kendi alan adlarınızı, sonra tedarikçilerinizi ekleyin; yüzlercesini Excel/CSV ile tek seferde yükleyebilirsiniz.", "Add your own domains first, then your suppliers; upload hundreds at once via Excel/CSV.") },
     { icon: Gauge, title: tx("Anında skor", "Instant score"), text: tx("Veritabanımızda taranmış tedarikçiler saniyeler içinde skorlanır; diğerleri otomatik taranır.", "Suppliers already in our database are scored in seconds; the rest are scanned automatically.") },
     { icon: BellRing, title: tx("Sürekli izleme", "Continuous monitoring"), text: tx("Yeni kritik açık, risk artışı veya skor düşüşünde tek bir özet e-posta ile haberdar olun.", "Get one summary e-mail when a new critical issue, risk escalation or score drop appears.") },
-    { icon: FileText, title: tx("Anket ve rapor", "Questionnaire & report"), text: tx("Tedarikçiye öz-değerlendirme anketi gönderin; portföy raporunu denetim ve yönetim kurulu için indirin.", "Send a self-assessment questionnaire; download the portfolio report for audits and the board.") },
+    { icon: FileText, title: tx("Anket ve rapor", "Questionnaire & report"), text: tx("Tedarikçiye öz-değerlendirme anketi gönderin; tedarikçi portföyü ve kendi alan adlarınız için ayrı PDF raporları indirin.", "Send a self-assessment questionnaire; download separate PDF reports for your supplier portfolio and your own domains report for audits and the board.") },
   ];
 
   const categories = [
@@ -134,6 +134,10 @@ export default function Home() {
     {
       q: tx("Hangi tedarikçileri portföye eklemeliyim?", "Which suppliers should I add to my portfolio?"),
       a: tx("Bir siber olay yaşadıklarında sizi etkileyecek olanları: API ile veri aldığınız veya verdiğiniz firmalar, üretiminiz için parça ya da hizmet aldığınız yan sanayi, iş sürecinizi taşıyan bulut ve yazılım hizmetleri, verilerinizi işleyen veya sistemlerinize erişimi olan firmalar. Birkaç kez alım yaptığınız, olası bir siber olayın operasyonunuzu etkilemeyeceği firmaları eklemeyin.", "Those who would affect you if they suffered a cyber incident: firms you exchange data with through APIs, sub-suppliers providing parts or services for your production, cloud and software services running your business process, and firms that process your data or have access to your systems. Leave out firms you have bought from a few times whose incident would not affect your operations."),
+    },
+    {
+      q: tx("Kendi alan adlarımı da taratabilir miyim?", "Can I scan my own domains too?"),
+      a: tx("Evet. Kendi alan adlarınızı tedarikçilerinizle aynı Risk Skoru v2 ile ölçebilir, sürekli izleyebilir ve ayrı bir PDF raporu alabilirsiniz. Kendi alan adları tedarikçi sayınıza dahil edilmez; müşteri başına en fazla 20 alan adı eklenebilir.", "Yes. You can measure your own domains with the same Risk Score v2 as your suppliers, monitor them continuously and download a separate PDF report. Your own domains do not count toward your supplier total; up to 20 domains can be added per customer."),
     },
     {
       q: tx("Tedarikçilerin bir şey kurması veya onay vermesi gerekiyor mu?", "Do suppliers need to install anything or give consent?"),

@@ -301,6 +301,12 @@ export default function TedarikZinciri() {
             Üretim, tekstil ve e-ticaret şirketleri Avrupa alıcılarından TPRM raporu isteniyor.
             CyberStep bu raporun Türkçe kaynağı olabilir.
           </p>
+          <p className="text-sm text-white/80 mb-3">
+            Örnek raporlar (kurgusal veri):{" "}
+            <a href="/ornek-rapor-tedarikci.pdf" target="_blank" rel="noopener" className="underline">Tedarikçi portföyü</a>
+            {" · "}
+            <a href="/ornek-rapor-alan-adlari.pdf" target="_blank" rel="noopener" className="underline">Kendi alan adları</a>
+          </p>
           <p className="text-xs text-muted-foreground">
             2024-2025 Q1: üretim sektöründe tehdit aktörü faaliyetleri <strong>%71 arttı</strong> —
             saldırıların büyük bölümü tedarikçi ağı üzerinden gerçekleşti. (BitSight)

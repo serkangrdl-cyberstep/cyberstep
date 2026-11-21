@@ -50,6 +50,8 @@ export interface PortfolioReportInput {
   companyName: string;
   generatedAt: Date;
   vendors: ReportVendor[];
+  /** true: müşterinin kendi alan adları raporu (anket ve mevzuat bölümleri çıkarılır). */
+  own?: boolean;
 }
 
 const SEV_TR: Record<ReportFinding["severity"], string> = { critical: "Kritik", high: "Yüksek", medium: "Orta", low: "Düşük" };
@@ -60,8 +62,10 @@ function fmtDate(d: Date | null): string {
 }
 
 export async function generatePortfolioReport(input: PortfolioReportInput): Promise<Buffer> {
+  const own = !!input.own;
+  const reportTitle = own ? "Kendi Alan Adlarım Siber Risk Raporu" : "Tedarikçi Siber Risk Yönetim Raporu";
   const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true, info: {
-    Title: "Tedarikçi Siber Risk Yönetim Raporu",
+    Title: reportTitle,
     Author: "CyberStep.io",
     Subject: input.companyName,
   } });
@@ -92,9 +96,9 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   // ── Kapak şeridi ──────────────────────────────────────────────────────────
   doc.rect(0, 0, doc.page.width, 150).fill(NAVY);
   doc.font("b").fontSize(10).fillColor(CYAN).text("CYBERSTEP.IO", 48, 40);
-  doc.font("b").fontSize(22).fillColor("#FFFFFF").text("Tedarikçi Siber Risk Yönetim Raporu", 48, 60, { width: W });
+  doc.font("b").fontSize(22).fillColor("#FFFFFF").text(reportTitle, 48, 60, { width: W });
   doc.font("r").fontSize(10).fillColor("#CBD5E1")
-    .text(`${input.companyName}  ·  ${fmtDate(input.generatedAt)}  ·  ${input.vendors.length} tedarikçi`, 48, 112, { width: W });
+    .text(`${input.companyName}  ·  ${fmtDate(input.generatedAt)}  ·  ${input.vendors.length} ${own ? "alan adı" : "tedarikçi"}`, 48, 112, { width: W });
   doc.y = 175;
   doc.x = 48;
 
@@ -111,25 +115,26 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   doc.y = boxY + 72;
   doc.x = 48;
   para(
-    `Portföydeki ${input.vendors.length} tedarikçinin ${scored.length} tanesi skorlandı` +
+    (own ? `${input.vendors.length} alan adınızın ${scored.length} tanesi skorlandı` : `Portföydeki ${input.vendors.length} tedarikçinin ${scored.length} tanesi skorlandı`) +
     (avg !== null ? `; ortalama Risk Skoru ${avg}/100.` : ".") +
-    (pending ? ` ${pending} tedarikçinin taraması sürüyor.` : "") +
+    (pending ? ` ${pending} ${own ? "alan adının" : "tedarikçinin"} taraması sürüyor.` : "") +
     (insufficient ? ` ${insufficient} alan adına ulaşılamadı (veri yetersiz).` : ""),
   );
   const highRisk = scored.filter(v => v.risk === "Kritik" || v.risk === "Yüksek").sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
   if (highRisk.length > 0) {
     doc.moveDown(0.4);
-    para(`Öncelikli aksiyon gerektiren tedarikçiler (${highRisk.length}): ` +
+    para(`Öncelikli aksiyon gerektiren ${own ? "alan adları" : "tedarikçiler"} (${highRisk.length}): ` +
       highRisk.slice(0, 8).map(v => `${v.name ?? v.domain} (${v.score})`).join(", ") +
       (highRisk.length > 8 ? " ve diğerleri." : "."));
   }
 
   // ── Tedarikçi tablosu ────────────────────────────────────────────────────
-  h2("2. Tedarikçi Listesi");
-  const cols = [
-    { k: "Tedarikçi", w: 128 }, { k: "Skor", w: 66 }, { k: "Not", w: 28 }, { k: "Risk", w: 48 },
+  h2(own ? "2. Alan Adı Listesi" : "2. Tedarikçi Listesi");
+  const allCols = [
+    { k: own ? "Alan adı" : "Tedarikçi", w: own ? 128 + (W - 420) : 128 }, { k: "Skor", w: 66 }, { k: "Not", w: 28 }, { k: "Risk", w: 48 },
     { k: "Sektör", w: 92 }, { k: "Son tarama", w: 58 }, { k: "Anket (beyan)", w: W - 420 },
   ];
+  const cols = own ? allCols.slice(0, 6) : allCols;
   const header = () => {
     const y = doc.y;
     doc.rect(48, y - 2, W, 16).fill("#F3F4F6");
@@ -156,7 +161,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     ];
     let x = 48;
     let rowH = 14;
-    cells.forEach((t, i) => {
+    cells.slice(0, cols.length).forEach((t, i) => {
       const c = cols[i]!;
       const isRisk = i === 3 && v.risk && RISK_COLOR[v.risk];
       doc.font(i === 0 ? "b" : "r").fontSize(8).fillColor(isRisk ? RISK_COLOR[v.risk!]! : TEXT);
@@ -170,6 +175,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   }
   doc.x = 48;
 
+  if (!own) {
   // ── Anket ve düzeltme durumu ────────────────────────────────────────────
   h2("3. Tedarikçi Beyanı (Anket) ve Düzeltme Durumu");
   para("Beyan puanı tedarikçinin kendi beyanıdır; doğrulanmamıştır ve Risk Skoruna dahil edilmez. Taramayla doğrulanabilen sorularda çelişkiler ayrıca işaretlenir.", { lineGap: 1 });
@@ -197,13 +203,15 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     }
   }
 
+  }
+
   // ── Kritik ve yüksek bulgular ─────────────────────────────────────────────
   const withFindings = sorted.filter(v =>
     !v.insufficientData && v.score !== null &&
     v.findings.some(f => f.severity === "critical" || f.severity === "high"));
-  h2("4. Kritik ve Yüksek Bulgular");
+  h2(own ? "3. Kritik ve Yüksek Bulgular" : "4. Kritik ve Yüksek Bulgular");
   if (withFindings.length === 0) {
-    para("Skorlanan tedarikçilerde kritik veya yüksek seviyede bulgu tespit edilmedi.");
+    para(own ? "Skorlanan alan adlarınızda kritik veya yüksek seviyede bulgu tespit edilmedi." : "Skorlanan tedarikçilerde kritik veya yüksek seviyede bulgu tespit edilmedi.");
   } else {
     for (const v of withFindings) {
       if (doc.y > doc.page.height - 90) doc.addPage();
@@ -217,6 +225,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     }
   }
 
+  if (!own) {
   // ── Mevzuat bağlamı ──────────────────────────────────────────────────────
   h2("5. Mevzuat Bağlamı");
   para("KVKK (6698) md. 12: Veri sorumlusu, kişisel verilerin kendi adına başka bir gerçek veya tüzel kişi tarafından işlenmesi halinde, gerekli teknik ve idari tedbirlerin alınması hususunda bu kişilerle birlikte müştereken sorumludur. Bu rapor, veri işleyen konumundaki tedarikçilerin dışarıdan gözlemlenebilen güvenlik durumunun izlendiğine ilişkin destekleyici kanıt olarak kullanılabilir.");
@@ -227,8 +236,10 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   doc.moveDown(0.4);
   para("Bu rapor hukuki görüş değildir ve mevzuata uyumun tek başına kanıtı sayılmaz; kurumunuzun uyum değerlendirmesi kapsamında diğer kontrollerle birlikte değerlendirilmelidir.", { oblique: true } as PDFKit.Mixins.TextOptions);
 
+  }
+
   // ── Metodoloji ───────────────────────────────────────────────────────────
-  h2("6. Metodoloji Özeti");
+  h2(own ? "4. Metodoloji Özeti" : "6. Metodoloji Özeti");
   para("CyberStep Risk Skoru v2, yalnızca herkese açık ve dışarıdan gözlemlenebilen sinyallerden hesaplanır; tedarikçinin sistemlerine erişilmez ve saldırı testi yapılmaz. Kategoriler ve azami puanlar: bilinen zafiyetler (CVE, CISA KEV, VulnCheck KEV) 30, ağ maruziyeti 20, itibar 15, e-posta güvenliği 15, veri ihlali geçmişi 10 (alan adına ait hizmetin bilinen ihlalleri; çalışan e-postası sızıntısı değildir), TLS ve web 10. Aktif sömürülen zafiyet (skor en fazla 49), ThreatFox IOC (en fazla 49), fidye yazılımında kullanılan zafiyet, botnet C2, USOM veya URLhaus kaydı (en fazla 39) ve internete açık kritik servis (en fazla 59) skoru üstten sınırlar. Risk etiketi skordan türetilir; ancak kritik bulgu varken en az Yüksek, yüksek bulgu varken en az Orta gösterilir. CVE eşleşmeleri yalnızca sürümü kesin tespit edilen yazılımlar için sürüm aralığı doğrulanarak yapılır; açık port banner'ından gelen eşleşmeler dağıtım yamaları nedeniyle doğrulanmamış olabilir. Tarama, alan adının ana IP'si ve sertifika kayıtlarından bulunan alt alan adlarıyla sınırlıdır; tüm varlıkların kapsandığı iddia edilmez. Ölçülemeyen kategoriler temiz sayılmaz; skor ölçülen kategoriler üzerinden hesaplanır. Not eşikleri: A ≥85, B ≥70, C ≥55, D ≥40, F <40. Bilgi amaçlı gösterilen ve skora girmeyen kaynaklar: EPSS, AlienVault OTX, Hudson Rock, Mozilla Observatory. Known Exploited Vulnerabilities verisinin bir kısmı VulnCheck KEV (vulncheck.com) kaynağından alınmıştır. Ayrıntılı metodoloji: cyberstep.io/metodoloji");
   para(SOURCE_ATTRIBUTIONS.join(" "));
 
@@ -240,7 +251,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     const bottom = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;
     doc.font("r").fontSize(7.5).fillColor(MUTED).text(
-      `CyberStep.io · Tedarikçi Siber Risk Yönetim Raporu · ${input.companyName} · ${fmtDate(input.generatedAt)} · Sayfa ${i - range.start + 1}/${range.count}`,
+      `CyberStep.io · ${reportTitle} · ${input.companyName} · ${fmtDate(input.generatedAt)} · Sayfa ${i - range.start + 1}/${range.count}`,
       48, doc.page.height - 32, { width: W, align: "center", lineBreak: false },
     );
     doc.page.margins.bottom = bottom;

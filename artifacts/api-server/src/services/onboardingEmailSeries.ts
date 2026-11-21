@@ -62,11 +62,11 @@ export async function sendWelcomeEmail(customerId: number): Promise<void> {
   const body = `Sayın ${customer.fullName},<br><br>
 CyberStep hesabınız hazır! Aşağıdaki adımları tamamlayarak siber güvenlik izlemenizi başlatın:<br><br>
 <ol>
-<li><a href="${BASE_URL}/portal">Portale giriş yapın</a></li>
-<li>İlk domain'inizi ekleyin</li>
+<li><a href="${BASE_URL}/hesabim/tedarikci-portfoyu">Portföyünüzü açın</a></li>
+<li>Önce kendi alan adlarınızı, sonra tedarikçilerinizi ekleyin</li>
 <li>Otomatik tarama başlasın</li>
 </ol>
-<p><a href="${BASE_URL}/portal" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portale Git</a></p>`;
+<p><a href="${BASE_URL}/hesabim/tedarikci-portfoyu" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portföye Git</a></p>`;
 
   await sendMail({
     to: customer.email,
@@ -201,22 +201,14 @@ export async function runDay1EmailCron(): Promise<number> {
   let sent = 0;
 
   for (const { customer, onboarding } of targets) {
-    const completedCount = [
-      onboarding.stepPayment,
-      onboarding.stepFirstScan,
-      onboarding.stepMiniAssessment,
-      onboarding.stepServiceActivated,
-    ].filter(Boolean).length;
-
     const serviceSlug = (customer.id !== null ? slugMap.get(customer.id) : undefined) ?? "";
     const svcContent = getServiceSpecificOnboardingContent(serviceSlug);
 
     const prompt = `Müşteri ${customer.companyName ?? customer.fullName} için 1. gün onboarding emaili yaz.
-${!onboarding.stepFirstScan ? "Domain eklemedilerse nasıl ekleyeceklerini anlat." : "İlk taramaları tamamlandı, tebrik et."}
-Tamamlanan adım: ${completedCount}/6. Türkçe, kısa, max 4 cümle.`;
+Portföy sayfasından önce kendi alan adlarını, sonra tedarikçilerini ekleyerek başlayabileceklerini anlat. Kendi alan adları tedarikçi limitine sayılmaz. Rakam, ceza tutarı veya fiyat verme. Türkçe, kısa, max 4 cümle.`;
 
     const content = await ai(prompt).catch(() =>
-      `Portale girerek ilk domain'inizi ekleyin ve otomatik taramayı başlatın. Sadece birkaç dakika sürer.`,
+      `Portföy sayfasından önce kendi alan adlarınızı, sonra tedarikçilerinizi ekleyin; tarama otomatik başlar.`,
     );
 
     const extraBlock = svcContent.d1_extra
@@ -235,7 +227,7 @@ Tamamlanan adım: ${completedCount}/6. Türkçe, kısa, max 4 cümle.`;
 <p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>
 ${extraBlock}
 ${expectBlock}
-<p style="margin-top:20px"><a href="${BASE_URL}/portal" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portale Git</a></p>
+<p style="margin-top:20px"><a href="${BASE_URL}/hesabim/tedarikci-portfoyu" style="background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Portföye Git</a></p>
 <hr><p style="font-size:12px;color:#888">CyberStep.io</p>
 </body></html>`,
     }).catch(err => logger.warn({ err, customerId: customer.id }, "D+1 email failed"));

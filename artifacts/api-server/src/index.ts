@@ -2816,7 +2816,7 @@ startup()
         await sendOnboardingD3Email({
           email: c.email, fullName: c.full_name,
           companyName: c.company_name ?? undefined,
-          assessmentUrl: `${base}/assessment/start`,
+          assessmentUrl: `${base}/hesabim/tedarikci-portfoyu`,
         }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+3 email failed"));
         await db.execute(sql`UPDATE customers SET onboarding_d3_sent_at = NOW() WHERE id = ${c.id}`);
         logger.info({ customerId: c.id }, "Onboarding D+3 email sent");
@@ -2836,8 +2836,8 @@ startup()
         await sendOnboardingD7Email({
           email: c.email, fullName: c.full_name,
           companyName: c.company_name ?? undefined,
-          fullAssessmentUrl: `${base}/assessment/full/start`,
-          assessmentUrl: `${base}/assessment/start`,
+          fullAssessmentUrl: `${base}/hesabim/tedarikci-portfoyu`,
+          assessmentUrl: `${base}/hesabim/tedarikci-portfoyu`,
         }).catch(err => logger.warn({ err, email: c.email }, "Onboarding D+7 email failed"));
         await db.execute(sql`UPDATE customers SET onboarding_d7_sent_at = NOW() WHERE id = ${c.id}`);
         logger.info({ customerId: c.id }, "Onboarding D+7 email sent");

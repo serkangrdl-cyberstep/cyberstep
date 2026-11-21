@@ -1046,8 +1046,8 @@ export async function sendPasswordResetEmail(params: {
 // ─── Scan Lead Drip E-postaları ────────────────────────────────────────────────
 // Adım 0: Anlık — özet rapor e-postası
 // Adım 1: Gün 2 — eylem rehberi
-// Adım 2: Gün 4 — ROI karşılaştırması
-// Adım 3: Gün 7 — son çağrı + değerlendirme indirimi
+// Adım 2: Gün 4 — tedarikçi riski tanıtımı
+// Adım 3: Gün 7 — yeniden tarama + portföy daveti
 
 export async function sendScanLeadDripEmail(params: {
   email: string;
@@ -1063,116 +1063,87 @@ export async function sendScanLeadDripEmail(params: {
   const { email, domain, overallScore, step, unsubToken } = params;
   const unsubUrl = `${base}/api/scan-leads/unsubscribe/${unsubToken}`;
   const scanUrl = `${base}/domain-tarama?domain=${encodeURIComponent(domain)}`;
-  const roiUrl = `${base}/roi-hesaplayici`;
-  const assessUrl = `${base}/domain-tarama`;
+  const supplierUrl = `${base}/tedarik-zinciri`;
+  const startUrl = `${base}/hesabim/tedarikci-portfoyu`;
 
   const scoreColor = overallScore >= 80 ? "#16a34a" : overallScore >= 60 ? "#d97706" : "#dc2626";
   const scoreLabel = overallScore >= 80 ? "İyi" : overallScore >= 60 ? "Orta" : "Zayıf";
+
+  const shell = (inner: string, last = false) => `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
+    <div style="padding:32px">
+${inner}
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">${last ? "Bu son hatırlatmamızdır. Bundan sonra e-posta göndermeyeceğiz. " : ""}Bu e-postaları almak istemiyorsanız <a href="${unsubUrl}" style="color:#64748b">buraya tıklayın</a>.</p>
+    </div>
+  </div>
+</body></html>`;
+  const h2 = (t: string) => `      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">${t}</h2>`;
+  const p = (t: string) => `      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">${t}</p>`;
+  const primary = (href: string, label: string) => `      <a href="${href}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:12px">${label}</a>`;
+  const secondary = (href: string, label: string) => `      <a href="${href}" style="display:block;border:1px solid #e2e8f0;color:#475569;text-align:center;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px">${label}</a>`;
 
   const STEPS: Array<{ subject: string; html: string }> = [
     {
       // Adım 0 — Anlık
       subject: overallScore < 60
-        ? `Dikkat: ${domain} taramasında kritik açıklar tespit edildi (Skor: ${overallScore}/100)`
+        ? `Dikkat: ${domain} taramasında önemli bulgular var (Skor: ${overallScore}/100)`
         : `${domain} alan adı güvenlik taramanız tamamlandı — Skor: ${overallScore}/100`,
-      html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
-    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Alan Adı Güvenlik Taramanız Hazır</h2>
-      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6"><strong>${domain}</strong> için tamamladığınız tarama sonuçlarınız aşağıdadır.</p>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
+      html: shell([
+        h2("Alan Adı Güvenlik Taramanız Hazır"),
+        p(`<strong>${domain}</strong> için tamamladığınız tarama sonucu aşağıdadır.`),
+        `      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
         <div style="font-size:52px;font-weight:900;color:${scoreColor}">${overallScore}</div>
         <div style="font-size:13px;color:#64748b;margin-bottom:8px">/ 100 Güvenlik Skoru</div>
         <span style="background:${scoreColor}20;color:${scoreColor};font-size:13px;font-weight:700;padding:5px 16px;border-radius:20px">${scoreLabel}</span>
-      </div>
-      ${overallScore < 70 ? `
-      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:20px">
-        <p style="margin:0;font-size:13px;color:#991b1b;line-height:1.5"><strong>Dikkat:</strong> ${domain} için kritik güvenlik açıkları tespit edildi. SPF, DMARC ve DKIM kayıtlarınızın eksik ya da hatalı olması, e-postalarınızın spam kutusuna düşmesine veya phishing saldırısında kullanılmasına yol açabilir.</p>
-      </div>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
-        <div><div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px">KVKK min. idari ceza</div><div style="font-size:22px;font-weight:900;color:#dc2626">94.000 TL</div></div>
-        <div style="font-size:18px;color:#94a3b8">vs.</div>
-        <div style="text-align:right"><div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:.5px">Tam Değerlendirme</div><div style="font-size:22px;font-weight:900;color:#10b981">5.990 TL</div></div>
-      </div>` : `
-      <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px">
-        <p style="margin:0;font-size:13px;color:#166534;line-height:1.5">Alan adı güvenliğiniz iyi durumda. Kapsamlı bir değerlendirme ile diğer risk alanlarını da kontrol etmenizi öneririz.</p>
-      </div>`}
-      <a href="${assessUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:12px">Ücretsiz Güvenlik Değerlendirmesi Başlat</a>
-      <a href="${scanUrl}" style="display:block;border:1px solid #e2e8f0;color:#475569;text-align:center;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px">Tarama Sonuçlarını Tekrar Gör</a>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">Bu e-postayı almak istemiyorsanız <a href="${unsubUrl}" style="color:#64748b">buraya tıklayın</a>.</p>
-    </div>
-  </div>
-</body></html>`,
+      </div>`,
+        p(overallScore < 70
+          ? "Bulguların ayrıntısı tarama sonucu sayfasında. E-posta kimlik doğrulama kayıtlarının (SPF, DMARC, DKIM) eksik veya hatalı olması, adınıza sahte e-posta gönderilmesini kolaylaştırır."
+          : "Dışarıdan görünen duruşunuz iyi seviyede. Skor, herkese açık verilerden hesaplanır; iç süreçlerinizi göstermez."),
+        primary(scanUrl, "Tarama Sonuçlarını Gör"),
+        secondary(supplierUrl, "Tedarikçilerinizi de aynı ölçekte görün"),
+      ].join("\n")),
     },
     {
       // Adım 1 — Gün 2
-      subject: `${domain} için 3 acil güvenlik adımı`,
-      html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
-    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">2 Gün Önce Taranan: ${domain}</h2>
-      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">Taramanızda skor <strong style="color:${scoreColor}">${overallScore}/100</strong> çıktı. Bu güne kadar düzeltme yapmadıysanız, işte öncelikli 3 adım:</p>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-        <tr><td style="padding:12px;border-bottom:1px solid #f1f5f9;vertical-align:top"><span style="font-size:18px;font-weight:800;color:#10b981;margin-right:10px">1.</span><strong>SPF Kaydı Ekleyin</strong><br><span style="font-size:12px;color:#64748b">DNS yöneticinizde <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">v=spf1 include:_spf.google.com ~all</code> şeklinde TXT kaydı oluşturun.</span></td></tr>
-        <tr><td style="padding:12px;border-bottom:1px solid #f1f5f9;vertical-align:top"><span style="font-size:18px;font-weight:800;color:#10b981;margin-right:10px">2.</span><strong>DMARC Politikası Tanımlayın</strong><br><span style="font-size:12px;color:#64748b"><code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">_dmarc.${domain}</code> için <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">v=DMARC1; p=quarantine; rua=mailto:dmarc@${domain}</code> ekleyin.</span></td></tr>
-        <tr><td style="padding:12px;vertical-align:top"><span style="font-size:18px;font-weight:800;color:#10b981;margin-right:10px">3.</span><strong>SSL Sertifikanızı Kontrol Edin</strong><br><span style="font-size:12px;color:#64748b">Let's Encrypt ile ücretsiz, otomatik yenilenen bir SSL sertifikası edinebilirsiniz. Süresi dolmuş SSL, Google sıralamalarını olumsuz etkiler.</span></td></tr>
-      </table>
-      <a href="${assessUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:24px">Tüm Riskleri Görmek İçin Değerlendirme Yap</a>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">Bu e-postayı almak istemiyorsanız <a href="${unsubUrl}" style="color:#64748b">buraya tıklayın</a>.</p>
-    </div>
-  </div>
-</body></html>`,
+      subject: `${domain} için ilk adımlar`,
+      html: shell([
+        h2(`2 Gün Önce Taranan: ${domain}`),
+        p(`Taramanızda skor <strong>${overallScore}/100</strong> çıktı. Genellikle ilk bakılacak üç nokta:`),
+        `      <ol style="margin:0 0 20px;padding-left:20px;color:#334155;font-size:14px;line-height:1.7">
+        <li><strong>SPF kaydı:</strong> E-posta sağlayıcınızın önerdiği SPF TXT kaydını alan adınıza ekleyin.</li>
+        <li><strong>DMARC politikası:</strong> <code>_dmarc.${domain}</code> için önce <code>p=none</code> ile raporları izleyin, sonra <code>quarantine</code> ve <code>reject</code> aşamalarına geçin.</li>
+        <li><strong>SSL sertifikası:</strong> Sertifikanızın süresini ve otomatik yenilemeyi kontrol edin.</li>
+      </ol>`,
+        primary(scanUrl, "Düzelttikten Sonra Yeniden Tarayın"),
+        secondary(supplierUrl, "Tedarikçilerinizin skorunu görün"),
+      ].join("\n")),
     },
     {
       // Adım 2 — Gün 4
-      subject: `Şirketinizin siber risk maliyeti ne kadar? (${domain} taraması sonrası)`,
-      html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
-    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Siber Saldırı Sizi Kaça Mal Olur?</h2>
-      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">IBM 2024 raporuna göre Türkiye'deki işletmeler için bir siber saldırının ortalama maliyeti <strong>350,000 TL – 1,200,000 TL</strong> arasında değişiyor. KVKK cezaları buna dahil değil.</p>
-      <div style="background:#fef2f2;border-radius:8px;padding:20px;margin-bottom:20px;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Orta ölçekli işletme tahmini</div>
-        <div style="font-size:36px;font-weight:900;color:#dc2626">850.000 TL</div>
-        <div style="font-size:12px;color:#9f1239;margin-top:2px">+ olası KVKK cezası 100.000 – 750.000 TL</div>
-      </div>
-      <div style="background:#f0fdf4;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">CyberStep ile yıllık koruma</div>
-        <div style="font-size:36px;font-weight:900;color:#16a34a">5.880 TL</div>
-        <div style="font-size:12px;color:#166534;margin-top:2px">Başlangıç planı (490 TL/ay × 12)</div>
-      </div>
-      <a href="${roiUrl}" style="display:block;background:#f59e0b;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:12px">Şirketinize Özel ROI Hesapla</a>
-      <a href="${assessUrl}" style="display:block;border:1px solid #e2e8f0;color:#475569;text-align:center;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px">Ücretsiz Değerlendirme Başlat</a>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">Bu e-postayı almak istemiyorsanız <a href="${unsubUrl}" style="color:#64748b">buraya tıklayın</a>.</p>
-    </div>
-  </div>
-</body></html>`,
+      subject: `Tedarikçileriniz ${domain} kadar güvende mi?`,
+      html: shell([
+        h2("Kendi Skorunuzu Gördünüz, Peki Tedarikçileriniz?"),
+        p("Saldırganlar çoğu zaman hedefe en zayıf tedarikçiden ulaşır. CyberStep, tedarikçilerinizin dışarıdan görünen siber güvenlik durumunu da 0–100 skorla ölçer, sektör medyanıyla karşılaştırır ve değişiklikleri sürekli izler."),
+        `      <ul style="margin:0 0 20px;padding-left:20px;color:#334155;font-size:14px;line-height:1.7">
+        <li>Kendi alan adlarınızı ve tedarikçilerinizi aynı portföyde izleyin</li>
+        <li>Ücretsiz planda 5 tedarikçi dahil</li>
+        <li>Tedarikçiye öz-değerlendirme anketi gönderin, raporu indirin</li>
+      </ul>`,
+        primary(startUrl, "Ücretsiz Başlayın"),
+        secondary(supplierUrl, "Nasıl çalışır?"),
+      ].join("\n")),
     },
     {
       // Adım 3 — Gün 7
       subject: `Son hatırlatma: ${domain} taramasından 7 gün geçti`,
-      html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
-    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">7 Gün Önce Taranan: ${domain}</h2>
-      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6">Alan adı güvenlik taramanızın üzerinden bir hafta geçti. Güvenlik açıklarınız hâlâ devam ediyorsa her gün ek risk taşıyorsunuz demektir.</p>
-      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
-        <p style="margin:0;font-size:14px;color:#1e40af;font-weight:600;line-height:1.5">Ücretsiz Mini Değerlendirme ile 5 güvenlik alanında 20 kritik soruyu yanıtlayın — AI destekli kişisel risk raporu 3 dakikada hazır.</p>
-      </div>
-      <a href="${assessUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:16px 24px;border-radius:8px;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:24px">Şimdi Ücretsiz Değerlendirme Yap</a>
-      <p style="margin:0 0 24px;font-size:13px;color:#64748b;text-align:center">Bu son hatırlatmamızdır. Bundan sonra e-posta göndermeyeceğiz.</p>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">Almak istemiyorsanız <a href="${unsubUrl}" style="color:#64748b">buraya tıklayın</a>.</p>
-    </div>
-  </div>
-</body></html>`,
+      html: shell([
+        h2(`7 Gün Önce Taranan: ${domain}`),
+        p("Alan adı taramanızın üzerinden bir hafta geçti. Düzeltme yaptıysanız yeniden tarayıp skorunuzun nasıl değiştiğini görebilirsiniz. İsterseniz tedarikçilerinizi de portföyünüze ekleyip aynı ölçütle izleyebilirsiniz."),
+        primary(scanUrl, "Yeniden Tarayın"),
+        secondary(startUrl, "Tedarikçi Portföyünü Başlatın"),
+      ].join("\n"), true),
     },
   ];
 
@@ -1194,11 +1165,12 @@ export async function sendScanLeadDripEmail(params: {
   }
 }
 
-// ─── Onboarding D+3: Assessment hatırlatma ───────────────────────────────────
+// ─── Onboarding D+3: Portföy hatırlatma ──────────────────────────────────────
 export async function sendOnboardingD3Email(params: {
   email: string;
   fullName: string;
   companyName?: string;
+  /** Portföy sayfası bağlantısı (/hesabim/tedarikci-portfoyu). */
   assessmentUrl: string;
 }): Promise<void> {
   const transport = getTransport();
@@ -1211,52 +1183,16 @@ export async function sendOnboardingD3Email(params: {
   await transport.sendMail({
     from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
     to: params.email,
-    subject: "Siber güvenlik değerlendirmeniz sizi bekliyor",
-    html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-    <div style="background:#0f172a;padding:24px 32px">
-      <span style="font-size:22px;font-weight:700;color:#10b981">CyberStep.io</span>
-    </div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Merhaba ${greeting},</h2>
-      <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6">
-        CyberStep.io'ya katıldığınız için teşekkürler. Üç gün önce hesabınızı oluşturdunuz — şimdi şirketinizin siber güvenlik risklerini öğrenme zamanı.
-      </p>
-      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
-        <p style="margin:0;font-size:14px;color:#1e40af;font-weight:600">Ücretsiz Mini Değerlendirme</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#1e40af;line-height:1.5">
-          20 soru, 5 güvenlik alanı, yapay zeka destekli kişisel risk raporu — sadece 10 dakika.
-        </p>
-      </div>
-      <div style="margin-bottom:24px">
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <div style="flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
-            <p style="margin:0;font-size:22px;font-weight:800;color:#0f172a">20</p>
-            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Kritik Soru</p>
-          </div>
-          <div style="flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
-            <p style="margin:0;font-size:22px;font-weight:800;color:#10b981">Ucretsiz</p>
-            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Tamamen Ücretsiz</p>
-          </div>
-          <div style="flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
-            <p style="margin:0;font-size:22px;font-weight:800;color:#0f172a">10dk</p>
-            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Tamamlama Süresi</p>
-          </div>
-        </div>
-      </div>
-      <a href="${params.assessmentUrl}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:16px 24px;border-radius:8px;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:20px">
-        Degerlendirmeyi Baslat
-      </a>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — işletmeler için siber güvenlik platformu</p>
-    </div>
-  </div>
-</body></html>`,
+    subject: "Alan adlarınızı ve tedarikçilerinizi ekleyin",
+    html: onboardingMailHtml(greeting, [
+      "CyberStep'te önce <strong>kendi alan adlarınızı</strong>, ardından <strong>tedarikçilerinizi</strong> ekleyerek başlayabilirsiniz. Her biri için 0–100 Risk Skoru hesaplanır, bulgular listelenir ve değişiklikler sürekli izlenir.",
+      "Kendi alan adlarınız tedarikçi sayınıza dahil edilmez. Tedarikçileri tek tek ekleyebilir ya da Excel/CSV ile toplu yükleyebilirsiniz.",
+    ], params.assessmentUrl, "Portföyü Aç"),
   });
   logger.info({ email: params.email }, "Onboarding D+3 email sent");
 }
 
-// ─── Onboarding D+7: Tam Assessment teklifi ──────────────────────────────────
+// ─── Onboarding D+7: Anket ve rapor ──────────────────────────────────────────
 export async function sendOnboardingD7Email(params: {
   email: string;
   fullName: string;
@@ -1274,39 +1210,28 @@ export async function sendOnboardingD7Email(params: {
   await transport.sendMail({
     from: `"CyberStep.io" <${process.env["SMTP_USER"]}>`,
     to: params.email,
-    subject: "Şirketinizin siber risk skoru nedir? — 7 günlük hedefiniz",
-    html: `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-    <div style="background:#0f172a;padding:24px 32px">
-      <span style="font-size:22px;font-weight:700;color:#10b981">CyberStep.io</span>
-    </div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Merhaba ${greeting},</h2>
-      <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.6">
-        Bir haftadır CyberStep.io'dasınız. işletmeler için siber güvenlik artık bir lüks değil — zorunluluk.
-      </p>
-      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:16px 20px;margin-bottom:24px">
-        <p style="margin:0;font-size:14px;color:#854d0e;font-weight:700">Türkiye'deki işletmelerin %67'si siber saldırı sonrası 6 ay içinde kapanıyor.</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#92400e">Şirketinizin nerede durduğunu bilmek, ilk adım.</p>
-      </div>
-      <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6">
-        <strong>55 soruluk Tam Değerlendirme</strong> ile 10 güvenlik alanında kapsamlı analiz yapın; PDF rapor, sektörel kıyaslama ve uzman danışmanlık görüşmesi alın.
-      </p>
-      <div style="display:flex;gap:12px;margin-bottom:20px;flex-direction:column">
-        <a href="${params.fullAssessmentUrl}" style="display:block;background:#0f172a;color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">
-          Tam Degerlendirme — 5.990 TL
-        </a>
-        <a href="${params.assessmentUrl}" style="display:block;background:#fff;color:#0f172a;text-align:center;padding:14px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #e2e8f0">
-          Ucretsiz Mini Degerlendirme (20 soru)
-        </a>
-      </div>
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — işletmeler için siber güvenlik platformu</p>
-    </div>
-  </div>
-</body></html>`,
+    subject: "Bir haftadır CyberStep'tesiniz — sıradaki adım",
+    html: onboardingMailHtml(greeting, [
+      "Dış tarama tedarikçinin iç süreçlerini göstermez. Bu yüzden kritik tedarikçilerinize öz-değerlendirme anketi göndermenizi ve yanıtları skorla birlikte değerlendirmenizi öneririz.",
+      "Portföy sayfasından tedarikçi portföyü ve kendi alan adlarınız için ayrı PDF raporları indirebilirsiniz.",
+    ], params.assessmentUrl, "Portföye Git"),
   });
   logger.info({ email: params.email }, "Onboarding D+7 email sent");
+}
+
+function onboardingMailHtml(greeting: string, paragraphs: string[], href: string, cta: string): string {
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <div style="background:#0f172a;padding:24px 32px"><span style="font-size:22px;font-weight:700;color:#fff">CyberStep.io</span></div>
+    <div style="padding:32px">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#0f172a">Merhaba ${greeting},</h2>
+${paragraphs.map(t => `      <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.7">${t}</p>`).join("\n")}
+      <a href="${href}" style="display:block;background:#10b981;color:#fff;text-align:center;padding:16px 24px;border-radius:8px;font-size:16px;font-weight:700;text-decoration:none;margin:24px 0 20px">${cta}</a>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">CyberStep.io — tedarikçi siber risk skorlaması</p>
+    </div>
+  </div>
+</body></html>`;
 }
 
 // ─── ServiceNow Yeniden Bağlanma Özeti ───────────────────────────────────────

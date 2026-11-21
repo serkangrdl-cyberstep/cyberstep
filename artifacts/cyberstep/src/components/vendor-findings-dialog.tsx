@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 interface Cve { cveId: string; service: string; description: string; cvss: number; wafMitigated: boolean; kev: boolean; kevRansomware: boolean; kevSource: "cisa" | "vulncheck" | null; epss: number | null; epssPercentile: number | null }
 interface ClientLibCve { library: string; version: string; cveId: string; title: string; cvss: number; kev: boolean; range: string; source: string }
 interface Port { port: number; protocol: string; service: string; product: string; version: string; risk: "high" | "medium" | "low"; note: string }
+interface RansomHit { group: string; title: string; discovered: string | null }
 interface Finding { category: string; severity: "critical" | "high" | "medium" | "low"; title: string; deduction: number }
 interface Findings {
   domain: string;
@@ -18,7 +19,7 @@ interface Findings {
   clientLibCves: ClientLibCve[];
   clientLibsDetected: { library: string; version: string }[];
   clientLibsChecked: boolean;
-  other: { fourthParties?: { provider: string; category: string; via: string[] }[] | null; sslLabsGrade: string | null; sslLabsPending?: boolean; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; mozillaObservatory: { grade?: string; score?: number } | null };
+  other: { fourthParties?: { provider: string; category: string; via: string[] }[] | null; sslLabsGrade: string | null; sslLabsPending?: boolean; danglingCnames: string[]; hudsonRock: { users?: number; employees?: number } | null; ransomLook?: { domainHits: RansomHit[] | null; nameHits: RansomHit[] | null }; mozillaObservatory: { grade?: string; score?: number } | null };
   unchecked: string[];
 }
 
@@ -54,6 +55,17 @@ export function VendorFindingsDialog({ vendorId, vendorName, onClose }: { vendor
             {data.other.hudsonRock && ((data.other.hudsonRock.employees ?? 0) > 0 || (data.other.hudsonRock.users ?? 0) > 0) && (
               <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-800">
                 <strong>Çalınmış kimlik bilgisi (infostealer):</strong> {data.other.hudsonRock.employees ?? 0} çalışan, {data.other.hudsonRock.users ?? 0} kullanıcı hesabı kaydı bulundu. Fidye ve veri sızıntısı saldırılarında en sık kullanılan ilk erişim yollarından biridir; tedarikçiden parola/MFA sıfırlaması isteyin.
+              </div>
+            )}
+            {data.other.ransomLook && ((data.other.ransomLook.domainHits?.length ?? 0) > 0 || (data.other.ransomLook.nameHits?.length ?? 0) > 0) && (
+              <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-800 space-y-1">
+                <p><strong>Fidye yazılımı sızıntı sitesinde duyuru:</strong> Aşağıdaki kayıtlar saldırgan grupların iddiasıdır; doğrulanmamıştır, eski olabilir ve Risk Skoruna dahil değildir. Tedarikçiden bilgi isteyin.</p>
+                {(data.other.ransomLook.domainHits ?? []).map((h, i) => (
+                  <p key={`d${i}`}>• {h.group || "Grup bilinmiyor"} · {h.title}{h.discovered ? ` · ${h.discovered.slice(0, 10)}` : ""} <span className="text-red-600">(alan adı eşleşmesi)</span></p>
+                ))}
+                {(data.other.ransomLook.nameHits ?? []).map((h, i) => (
+                  <p key={`n${i}`}>• {h.group || "Grup bilinmiyor"} · {h.title}{h.discovered ? ` · ${h.discovered.slice(0, 10)}` : ""} <span className="text-amber-700">(olası eşleşme: şirket adı benzerliği, doğrulayın)</span></p>
+                ))}
               </div>
             )}
             {data.other.fourthParties && data.other.fourthParties.length > 0 && (

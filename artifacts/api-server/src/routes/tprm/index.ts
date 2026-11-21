@@ -17,6 +17,8 @@ import { domainScansTable } from "@workspace/db";
 import { SCORE_V2_VERSION, scoreV2Risk, type ScoreV2Result } from "../../lib/scoring/scoreV2";
 import { isScanCompleteAndFresh, normalizeDomain, scoreDomainV2, scoreDomainsV2, scoreScanV2, loadKevLookup, mergeExtraKev, vulncheckKevOf } from "../../lib/scoring/scoreV2Loader";
 import { buildVendorCves, buildVendorPorts, labelUnchecked } from "../../services/vendorFindings";
+import { checkRansomLookByName, type RansomLookHit } from "../../services/ransomLook";
+import { isSourceLicensed } from "../../services/dataSourceLicenses";
 import { loadVendorQuestionnaire } from "../../services/tprmQuestionnaire";
 import { enqueueScan, scanQueueStats } from "../../services/tprmScanQueue";
 import { needsFollowUp, FOLLOW_UP_DELAY_MS } from "../../services/followUpScan";
@@ -499,6 +501,11 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
       .orderBy(tprmVendorTable.addedAt);
     if (own && rows.length === 0) { res.status(404).json({ error: "Henüz kendi alan adı eklenmedi" }); return; }
     const withCtx = await withSectorContext(rows);
+    // Fidye sızıntı sitesi duyuruları (taramada kaydedilen alan adı eşleşmeleri)
+    const scanIdOf = (v: VendorRow) => storedScoreVersion(v.lastScanData) === SCORE_V2_VERSION ? (v.lastScanData as unknown as StoredScanData).scanId : null;
+    const ransomScanIds = withCtx.map(scanIdOf).filter((x): x is number => typeof x === "number");
+    const ransomRows = ransomScanIds.length ? await db.select({ id: domainScansTable.id, extra: domainScansTable.tprmExtra }).from(domainScansTable).where(inArray(domainScansTable.id, ransomScanIds)) : [];
+    const ransomByScan = new Map(ransomRows.map((r) => [r.id, ((r.extra as { ransomLook?: RansomLookHit[] | null } | null)?.ransomLook) ?? []]));
 
     const { generatePortfolioReport } = await import("../../services/tprmReportPdf");
     const vendorIds = withCtx.map(v => v.id);
@@ -530,6 +537,7 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
           selfScore: qMap.get(v.id)?.selfScore ?? null,
           contradictions: qMap.get(v.id)?.contradictions.length ?? 0,
           remediation: { status: v.remediationStatus, before: v.scoreBeforeRemediation, requestedAt: v.remediationRequestedAt, doneAt: v.remediationDoneAt },
+          ransomHits: ransomByScan.get(scanIdOf(v) ?? -1) ?? [],
           events: evRows.filter(e => e.vendorId === v.id).map(e => ({ kind: e.kind, at: e.createdAt, detail: e.detail as Record<string, unknown> | null })),
         };
       }),
@@ -1092,10 +1100,18 @@ router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, r
     const [scan] = await db.select().from(domainScansTable).where(eq(domainScansTable.id, scanId)).limit(1);
     // Taramanın alan adı tedarikçiyle eşleşmeli (başka alan adının verisi sızmasın)
     if (!scan || normalizeDomain(scan.domain) !== normalizeDomain(vendor.supplierDomain)) { res.status(404).json({ error: "Tarama bulunamadı" }); return; }
-    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[]; sslLabsError?: string | null; sslLabsPending?: boolean; clientLibs?: { detected: { library: string; version: string }[]; findings: unknown[] } | null; fourthParties?: FourthParty[] } | null;
+    const extra = (scan.tprmExtra ?? null) as { epss?: Record<string, { score: number | null; percentile: number | null }>; hudsonRock?: unknown; ransomLook?: RansomLookHit[] | null; mozillaObservatory?: unknown; sslLabsGrade?: string | null; danglingCnames?: string[]; sslLabsError?: string | null; sslLabsPending?: boolean; clientLibs?: { detected: { library: string; version: string }[]; findings: unknown[] } | null; fourthParties?: FourthParty[] } | null;
     const cveIds = (scan.cveSummary ?? []).map((c) => c.cveId);
     const kev = mergeExtraKev(await loadKevLookup(cveIds), vulncheckKevOf(scan));
     const scoreV2 = await scoreScanV2(scan);
+    // Fidye sızıntı sitesi duyuruları: alan adı eşleşmesi (taramadan) + şirket adı ile olası eşleşme (canlı, önbellekli).
+    // Bilgi amaçlıdır, skora girmez; duyurular saldırgan iddiasıdır ve doğrulanmamıştır.
+    const domainHits = extra?.ransomLook ?? null;
+    let nameHits: RansomLookHit[] | null = null;
+    if (vendor.supplierName && isSourceLicensed("ransomlook")) {
+      const found = await checkRansomLookByName(vendor.supplierName, fetch as never).catch(() => null);
+      nameHits = found ? found.filter((h) => !(domainHits ?? []).some((d) => d.group === h.group && d.title === h.title)) : null;
+    }
     res.json({
       domain: vendor.supplierDomain,
       scannedAt: scan.createdAt,
@@ -1113,6 +1129,7 @@ router.get("/tprm/vendors/:id/findings", requireCustomer, async (req: Request, r
         fourthParties: extra?.fourthParties ?? null,
         danglingCnames: extra?.danglingCnames ?? [],
         hudsonRock: extra?.hudsonRock ?? null,
+        ransomLook: { domainHits, nameHits },
         mozillaObservatory: extra?.mozillaObservatory ?? null,
       },
       unchecked: labelUnchecked(scan.uncheckedSources),

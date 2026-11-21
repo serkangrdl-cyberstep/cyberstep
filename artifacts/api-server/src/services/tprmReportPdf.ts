@@ -44,6 +44,8 @@ export interface ReportVendor {
   remediation?: { status: string; before: number | null; requestedAt: Date | null; doneAt: Date | null } | null;
   /** Son olaylar (en yeni önce). */
   events?: Array<{ kind: string; at: Date; detail: Record<string, unknown> | null }>;
+  /** Fidye sızıntı sitesi duyuruları (alan adı eşleşmesi); doğrulanmamış iddia, skora girmez. */
+  ransomHits?: Array<{ group: string; title: string; discovered: string | null }>;
 }
 
 export interface PortfolioReportInput {
@@ -226,6 +228,22 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
   }
 
   if (!own) {
+  const withRansom = sorted.filter(v => (v.ransomHits?.length ?? 0) > 0);
+  if (withRansom.length > 0) {
+    doc.moveDown(0.3);
+    doc.font("b").fontSize(9.5).fillColor(NAVY).text("Fidye yazılımı sızıntı sitesi duyuruları (bilgi amaçlı)");
+    para("Aşağıdaki alan adları, herkese açık fidye yazılımı sızıntı sitesi derlemelerinde (RansomLook) geçmektedir. Bunlar saldırgan grupların iddiasıdır; doğrulanmamıştır, eski olabilir ve Risk Skoruna dahil edilmemiştir. Tedarikçiden bilgi isteyiniz.", { lineGap: 1 });
+    doc.moveDown(0.3);
+    for (const v of withRansom) {
+      if (doc.y > doc.page.height - 90) doc.addPage();
+      doc.font("b").fontSize(9).fillColor(NAVY).text(`${v.name ?? v.domain}`);
+      for (const h of v.ransomHits!.slice(0, 3)) {
+        doc.font("r").fontSize(8).fillColor(MUTED).text(`   ${h.group || "Grup bilinmiyor"} · ${h.title}${h.discovered ? ` · ${h.discovered.slice(0, 10)}` : ""}`);
+      }
+      doc.moveDown(0.3);
+    }
+  }
+
   // ── Mevzuat bağlamı ──────────────────────────────────────────────────────
   h2("5. Mevzuat Bağlamı");
   para("KVKK (6698) md. 12: Veri sorumlusu, kişisel verilerin kendi adına başka bir gerçek veya tüzel kişi tarafından işlenmesi halinde, gerekli teknik ve idari tedbirlerin alınması hususunda bu kişilerle birlikte müştereken sorumludur. Bu rapor, veri işleyen konumundaki tedarikçilerin dışarıdan gözlemlenebilen güvenlik durumunun izlendiğine ilişkin destekleyici kanıt olarak kullanılabilir.");

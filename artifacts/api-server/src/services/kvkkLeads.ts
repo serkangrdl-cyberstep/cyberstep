@@ -4,6 +4,7 @@ import { db, kvkkBreachNoticesTable, type SalesScript } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { logAiCost } from "./aiCostTracker";
+import { kvkkGet } from "./kvkkFetch";
 import { parseNoticeList, parseNoticeDetail, parseTrDate, classifyNotice } from "./kvkkNoticeParse";
 
 const MODEL = getModel("blog");
@@ -11,10 +12,8 @@ const BASE = "https://www.kvkk.gov.tr";
 const UA = "CyberStepBot/1.0 (+https://cyberstep.io; kamuya acik KVKK duyuru takibi)";
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function get(url: string): Promise<string> {
-  const res = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "tr" }, signal: AbortSignal.timeout(20_000) });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
-  return res.text();
+function get(url: string): Promise<string> {
+  return kvkkGet(url, { "User-Agent": UA, "Accept-Language": "tr" });
 }
 
 export function buildScriptPrompt(p: { company: string; publishedAt: string | null; summary: string; signals: string[] }): string {

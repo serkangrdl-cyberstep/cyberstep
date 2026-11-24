@@ -527,6 +527,9 @@ async function ensureIsrTables() {
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_questionnaire_links ADD COLUMN IF NOT EXISTS vendor_id INTEGER`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS supplier_contact_email TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS is_own BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS verification_note TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS verify_reminded_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_status TEXT NOT NULL DEFAULT 'none'`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_requested_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_done_at TIMESTAMP`);
@@ -3707,6 +3710,13 @@ startup()
       return 0;
     }), { timezone: "Europe/Istanbul" });
     logger.info("TPRM vendor rescan cron kayıtlandı (gece 02:00 Istanbul)");
+
+    // ─── TPRM yıllık doğrulama hatırlatması: Pazartesi 09:05 ──────────────────
+    cron.schedule("5 9 * * 1", wrapCron("tprm_verify_reminder", "5 9 * * 1", async () => {
+      const { runVerificationReminders } = await import("./services/tprmVerification");
+      return runVerificationReminders();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("TPRM yıllık doğrulama hatırlatma cron kayıtlandı (Pazartesi 09:05 Istanbul)");
 
     // ─── Skor v2 Backfill: Her 10 dakikada en fazla 5.000 tarama ─────────────
     cron.schedule("*/10 * * * *", wrapCron("score_v2_backfill", "*/10 * * * *", async () => {

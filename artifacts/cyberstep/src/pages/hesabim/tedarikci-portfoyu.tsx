@@ -8,8 +8,7 @@ import {
   Building2, Plus, Trash2, RefreshCw, Globe, Shield, AlertTriangle,
   CheckCircle2, Clock, Loader2, ClipboardList, Copy, CheckCheck,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, ExternalLink,
-  Upload, Download, FileText,
-} from "lucide-react";
+  Upload, Download, FileText, BadgeCheck } from "lucide-react";
 import { VendorFindingsDialog } from "@/components/vendor-findings-dialog";
 import { parseVendorCsv, VENDOR_CSV_TEMPLATE, type VendorCsvRow } from "@/lib/vendor-csv";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +62,8 @@ interface Vendor {
   remediationRequestedAt?: string | null;
   remediationDoneAt?: string | null;
   scoreBeforeRemediation?: number | null;
+  verification?: { status: "verified" | "expiring" | "expired" | "never"; dueAt: string | null };
+  lastVerifiedAt?: string | null;
 }
 
 interface ScoreV2Category { key: string; label: string; maxPoints: number; points: number; measured: boolean }
@@ -228,6 +229,7 @@ const EVENT_LABEL: Record<string, string> = {
   decision_recorded: "Tedarikçi kararı kaydedildi",
   consent_recorded: "Tedarikçi yazılı onayı kaydedildi",
   consent_revoked: "Tedarikçi yazılı onayı iptal edildi",
+  annual_verified: "Yıllık doğrulama işaretlendi",
 };
 
 function VendorSupplierActions({ vendor }: { vendor: Vendor }) {
@@ -607,6 +609,18 @@ export default function TedarikciPortfoyu() {
     onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/tprm/vendors/${id}/verify`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tprm-vendors", email] });
+      toast({ title: "Doğrulama kaydedildi", description: "Bu tedarikçi 12 ay boyunca doğrulanmış görünür." });
+    },
+    onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => fetch(`/api/tprm/vendors/${id}`, { method: "DELETE", credentials: "include" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tprm-vendors", email] }),
@@ -684,6 +698,12 @@ export default function TedarikciPortfoyu() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Tedarikçilerinizin siber güvenlik skorlarını sürekli izleyin
           </p>
+          {(() => {
+            const crit = vendors.filter(v => v.criticality === "kritik" || v.criticality === "onemli");
+            if (crit.length === 0) return null;
+            const ok = crit.filter(v => v.verification?.status === "verified" || v.verification?.status === "expiring").length;
+            return <p className="text-xs text-muted-foreground mt-1">Kritik ve önemli tedarikçilerde yıllık doğrulama: {ok} / {crit.length} geçerli</p>;
+          })()}
           {planInfo && planInfo.limit != null && (
             <p className={`text-xs mt-1 ${atLimit ? "text-amber-400" : "text-muted-foreground"}`}>
               {planInfo.used} / {planInfo.limit} tedarikçi kullanılıyor
@@ -877,6 +897,17 @@ export default function TedarikciPortfoyu() {
                         >
                           {Object.entries(CRITICALITY_LABEL).map(([k, l]) => <option key={k} value={k} className="bg-background text-foreground">{l}</option>)}
                         </select>
+                        {(() => {
+                          const vs = v.verification?.status;
+                          if (!vs || (vs === "never" && (v.criticality ?? "standart") === "standart")) return null;
+                          const map = {
+                            verified: { t: `Doğrulandı${v.lastVerifiedAt ? ` · ${new Date(v.lastVerifiedAt).toLocaleDateString("tr-TR")}` : ""}`, c: "text-emerald-500 border-emerald-500/40" },
+                            expiring: { t: "Doğrulama süresi yaklaşıyor", c: "text-amber-500 border-amber-500/40" },
+                            expired: { t: "Doğrulama süresi doldu", c: "text-red-500 border-red-500/40" },
+                            never: { t: "Yıllık doğrulama bekliyor", c: "text-amber-500 border-amber-500/40" },
+                          }[vs];
+                          return <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${map.c}`} title="Kritik ve önemli tedarikçiler için yılda en az bir kez doğrulama önerilir">{map.t}</Badge>;
+                        })()}
                       </div>
                       <div className="mt-2 flex items-center gap-3 flex-wrap">
                         <ScoreBar score={v.lastScanScore} grade={v.lastScanData?.score?.grade} insufficient={!!v.lastScanData?.score?.insufficientData} />
@@ -922,6 +953,14 @@ export default function TedarikciPortfoyu() {
                         disabled={isRescanning}
                       >
                         <RefreshCw className={`h-3.5 w-3.5 ${isRescanning ? "animate-spin" : ""}`} />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7"
+                        title="Yıllık doğrulamayı işaretle (skoru, anket yanıtını ve kanıtları kontrol ettiyseniz)"
+                        onClick={() => verifyMutation.mutate(v.id)}
+                        disabled={verifyMutation.isPending && verifyMutation.variables === v.id}
+                      >
+                        <BadgeCheck className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7"

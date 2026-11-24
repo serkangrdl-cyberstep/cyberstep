@@ -7,6 +7,7 @@ import { tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable, tprmVendorT
 import { eq, and, lte, isNull, or, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { verificationOf } from "../../services/tprmVerificationStatus";
 import { isEmailConfigured, appBaseUrl, recordEvent, parseEmails, customerContacts, notifyRescanDone, fetchVendorPdf } from "../../services/tprmRemediation";
 import { tprmVendorEventTable } from "@workspace/db";
 import { actionsFromFindings } from "../../services/findingActions";
@@ -478,7 +479,7 @@ router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response)
     const rows = await db.select().from(tprmVendorTable)
       .where(eq(tprmVendorTable.customerEmail, email))
       .orderBy(tprmVendorTable.addedAt);
-    res.json(await withSectorContext(rows));
+    res.json((await withSectorContext(rows)).map((v) => ({ ...v, verification: verificationOf(v.lastVerifiedAt) })));
   } catch (err) {
     logger.error({ err }, "TPRM vendors list error");
     res.status(500).json({ error: "Liste yüklenemedi" });
@@ -825,6 +826,25 @@ router.patch("/tprm/vendors/:id/risk-domains", requireCustomer, async (req: Requ
   } catch (err) {
     logger.error({ err }, "TPRM vendor risk-domains error");
     res.status(500).json({ error: "Güncellenemedi" });
+  }
+});
+
+// POST /api/tprm/vendors/:id/verify — yıllık doğrulamayı işaretle (müşteri kendi kanıtına dayanarak; CyberStep doğrulamayı yapmaz, kaydı tutar)
+router.post("/tprm/vendors/:id/verify", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Tedarikçi bulunamadı" }); return; }
+    if (vendor.isOwn) { res.status(400).json({ error: "Kendi alan adları için doğrulama işaretlenmez" }); return; }
+    const raw = (req.body as { note?: unknown })?.note;
+    const note = typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 500) : null;
+    const now = new Date();
+    await db.update(tprmVendorTable).set({ lastVerifiedAt: now, verificationNote: note, verifyRemindedAt: null }).where(eq(tprmVendorTable.id, id));
+    await recordEvent(id, "annual_verified", { note, score: vendor.lastScanScore ?? null, questionnaire: vendor.questionnaireStatus });
+    res.json({ ok: true, verification: verificationOf(now), note });
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor verify error");
+    res.status(500).json({ error: "Doğrulama kaydedilemedi" });
   }
 });
 

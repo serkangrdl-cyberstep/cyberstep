@@ -71,6 +71,7 @@ import SahteDoküman from "./pages/sahte-dokuman";
 import Kvkk from "./pages/kvkk";
 import KullanimKosullari from "./pages/kullanim-kosullari";
 import GizlilikPolitikasi from "./pages/gizlilik-politikasi";
+import VeriVeYapayZeka from "./pages/veri-ve-yapay-zeka";
 import CerezPolitikasi from "./pages/cerez-politikasi";
 
 import AdminLogin from "./pages/admin-panel/login";
@@ -483,6 +484,7 @@ function Router() {
             <Route path="/kvkk" component={Kvkk} />
             <Route path="/kullanim-kosullari" component={KullanimKosullari} />
             <Route path="/gizlilik-politikasi" component={GizlilikPolitikasi} />
+            <Route path="/veri-ve-yapay-zeka" component={VeriVeYapayZeka} />
             <Route path="/cerez-politikasi" component={CerezPolitikasi} />
             <Route path="/blog/:slug" component={BlogPost} />
             <Route path="/blog" component={BlogList} />

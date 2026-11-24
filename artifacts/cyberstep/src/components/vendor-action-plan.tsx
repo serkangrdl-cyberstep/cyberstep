@@ -6,7 +6,7 @@ interface Action { id: number; title: string; detail: string; due_date: string; 
 interface Suggestion { sourceKey: string; title: string; detail: string; dueDays: number }
 interface Plan { actions: Action[]; suggestions: Suggestion[]; supplierUrl: string | null; decision: string | null; decisionNote: string | null }
 
-const STATUS: Record<string, string> = { open: "Açık", supplier_done: "Tedarikçi tamamladı", verified: "Doğrulandı", waived: "Muaf" };
+const STATUS: Record<string, string> = { open: "Açık", supplier_done: "Tedarikçi tamamladı", verified: "Doğrulandı", waived: "Kabul edildi (muaf)" };
 const DECISION: Record<string, string> = { accept: "Riski kabul et", monitor: "İzlemeye devam et", exit: "Tedarikçiden çık" };
 
 export function VendorActionPlan({ vendorId }: { vendorId: number }) {
@@ -16,6 +16,9 @@ export function VendorActionPlan({ vendorId }: { vendorId: number }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [url, setUrl] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [waiveId, setWaiveId] = useState<number | null>(null);
+  const [waiveNote, setWaiveNote] = useState("");
+  const [waiveErr, setWaiveErr] = useState("");
   const refresh = () => qc.invalidateQueries({ queryKey: key });
   const post = (path: string, method: string, body?: unknown) =>
     fetch(`/api/tprm/vendors/${vendorId}/${path}`, { method, credentials: "include", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }).then(r => r.json());
@@ -62,8 +65,19 @@ export function VendorActionPlan({ vendorId }: { vendorId: number }) {
                 <div className="flex gap-3 mt-0.5">
                   {a.status === "supplier_done" && <button className="text-emerald-400" onClick={async () => { await post(`actions/${a.id}`, "PATCH", { status: "verified" }); refresh(); }}>Doğruladım</button>}
                   {a.status === "supplier_done" && <button className="text-amber-400" onClick={async () => { await post(`actions/${a.id}`, "PATCH", { status: "open" }); refresh(); }}>Yeniden aç</button>}
-                  {(a.status === "open" || a.status === "supplier_done") && <button className="text-muted-foreground" onClick={async () => { await post(`actions/${a.id}`, "PATCH", { status: "waived" }); refresh(); }}>Muaf tut</button>}
+                  {(a.status === "open" || a.status === "supplier_done") && <button className="text-muted-foreground" onClick={() => { setWaiveId(waiveId === a.id ? null : a.id); setWaiveNote(""); setWaiveErr(""); }}>Gerekçeyle kabul et</button>}
                 </div>
+                {waiveId === a.id && (
+                  <div className="mt-1 space-y-1">
+                    <input className="w-full rounded-md border bg-background px-2 py-1 text-xs" placeholder="Giderilmeyecekse gerekçe (zorunlu)" maxLength={500} value={waiveNote} onChange={e => setWaiveNote(e.target.value)} />
+                    {waiveErr && <p className="text-red-400 text-[11px]">{waiveErr}</p>}
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      const j = await post(`actions/${a.id}`, "PATCH", { status: "waived", note: waiveNote });
+                      if (j.error) { setWaiveErr(j.error); return; }
+                      setWaiveId(null); setWaiveNote(""); refresh();
+                    }}>Kabul edildi olarak kaydet</Button>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -72,6 +72,11 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   lastVerifiedAt: timestamp("last_verified_at"),
   verificationNote: text("verification_note"),
   verifyRemindedAt: timestamp("verify_reminded_at"),
+  // Bağımsız rapor (ISO 27001, SOC 2, denetim, sızma testi) türü ve geçerlilik bitişi; bitiş doğrulama geçerliliğini kısaltır
+  verificationEvidenceType: text("verification_evidence_type"),
+  verificationEvidenceUntil: timestamp("verification_evidence_until"),
+  // Müşterinin elle girdiği iç sistem bağımlılıkları (envanter, Md. 30/2-ğ)
+  internalDependencies: text("internal_dependencies"),
 });
 
 // Tedarikçi olay geçmişi (yönetim raporu ve zaman çizelgesi için)

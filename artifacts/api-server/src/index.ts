@@ -2619,6 +2619,8 @@ function startBlogAutopilotCron() {
   const runJob = async () => {
     logger.info("Blog autopilot: yazı üretimi başlıyor");
     await generateAndPublishBlogPost();
+    // Yeni yazının İngilizce çevirisi (hata yayını etkilemez)
+    try { const { translateMissingPosts } = await import("./services/blogTranslate"); await translateMissingPosts(3); } catch (err) { logger.warn({ err }, "Blog çeviri adımı atlandı"); }
     // Hataları yutma — wrapCron yakalar, DB'ye hata kaydeder ve mail atar
   };
   cron.schedule("0 6 * * 1", wrapCron("blog_autopilot_mon", "0 6 * * 1", runJob), { timezone: "Europe/Istanbul" }); // Her Pazartesi 09:00 İstanbul

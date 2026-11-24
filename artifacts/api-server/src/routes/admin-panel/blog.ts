@@ -65,6 +65,16 @@ router.post("/admin-panel/blog-autopilot/tprm-mode", requireAdmin, async (req: R
   res.json({ mode });
 });
 
+router.post("/admin-panel/blog/translate-missing", requireAdmin, async (req: Request, res: Response) => {
+  const limit = Math.min(Math.max(Number((req.body as { limit?: number })?.limit) || 5, 1), 20);
+  res.json({ success: true, message: `İngilizcesi eksik yazılar arka planda çevriliyor (en fazla ${limit})` });
+  void (async () => {
+    const { translateMissingPosts } = await import("../../services/blogTranslate");
+    const r = await translateMissingPosts(limit);
+    logger.info(r, "Blog çeviri: toplu çeviri tamamlandı");
+  })().catch(err => logger.error({ err }, "Blog toplu çeviri hatası"));
+});
+
 router.post("/admin-panel/blog-autopilot/run-now", requireAdmin, async (_req, res) => {
   res.json({ success: true, message: "Yazı üretimi arka planda başlatıldı" });
   void (async () => {

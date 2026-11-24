@@ -34,3 +34,13 @@ test("olgu seçimi: atanmışsa yalnızca onlar, KVKK konularında md.12 eklenir
   const free = selectFactsForTopic({ category: "TPRM", title: "X", keywords: "", angle: "" }, -1);
   assert.ok(free.split("\n").length === 2);
 });
+
+test("kaynaklar yalnızca yazıda anılan olgular için eklenir", async () => {
+  const { sourcesForTopic } = await import("./blogTprmPlan");
+  const t = { category: "TPRM", title: "x", keywords: "k", angle: "a", facts: ["arcelik", "visa-mc-jpm"] } as never;
+  const withBoth = sourcesForTopic(t, -1, "Arçelik ve Visa vakaları");
+  assert.equal(withBoth.length, 2);
+  const onlyArcelik = sourcesForTopic(t, -1, "Yalnızca Arçelik anlatıldı");
+  assert.deepEqual(onlyArcelik.map(s => s.url), ["https://www.yuzde100yerli.com/en/tedarik-zincirinde-siber-sizinti-arcelikten-ihlal-bildirimi/"]);
+  assert.equal(sourcesForTopic(t, -1, "kavramsal yazı").length, 0);
+});

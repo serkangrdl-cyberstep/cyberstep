@@ -68,6 +68,10 @@ export const tprmVendorTable = pgTable("tprm_vendors", {
   scoreBeforeRemediation: integer("score_before_remediation"),
   // Müşterinin kendi alan adı (tedarikçi limitine sayılmaz, tedarikçi raporlarına girmez)
   isOwn: boolean("is_own").notNull().default(false),
+  // Yıllık doğrulama (Siber Dayanıklılık Yönetmeliği taslağı Md. 69/5 ile uyumlu takip): müşteri kendi kanıtına dayanarak işaretler
+  lastVerifiedAt: timestamp("last_verified_at"),
+  verificationNote: text("verification_note"),
+  verifyRemindedAt: timestamp("verify_reminded_at"),
 });
 
 // Tedarikçi olay geçmişi (yönetim raporu ve zaman çizelgesi için)

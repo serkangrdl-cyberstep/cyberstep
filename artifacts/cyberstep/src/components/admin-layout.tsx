@@ -71,6 +71,7 @@ const NAV_SECTIONS = [
       { icon: Telescope,       label: "Enterprise: Adaylar",     href: "/panel/enterprise/prospects" },
       { icon: GitBranch,       label: "Enterprise: Pipeline",    href: "/panel/enterprise/pipeline" },
       { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
+      { icon: Target,          label: "KVKK Lead",               href: "/panel/kvkk-lead" },
     ],
   },
   {

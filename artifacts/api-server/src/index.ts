@@ -3718,6 +3718,13 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("TPRM yıllık doğrulama hatırlatma cron kayıtlandı (Pazartesi 09:05 Istanbul)");
 
+    // ─── TPRM aylık kendi alan adı özeti: her ayın 1'i 09:10 ──────────────────
+    cron.schedule("10 9 1 * *", wrapCron("tprm_monthly_own", "10 9 1 * *", async () => {
+      const { runMonthlyOwnDomainSummary } = await import("./services/tprmMonthlyOwn");
+      return runMonthlyOwnDomainSummary();
+    }), { timezone: "Europe/Istanbul" });
+    logger.info("TPRM aylık kendi alan adı özeti cron kayıtlandı (ayın 1'i 09:10 Istanbul)");
+
     // ─── Skor v2 Backfill: Her 10 dakikada en fazla 5.000 tarama ─────────────
     cron.schedule("*/10 * * * *", wrapCron("score_v2_backfill", "*/10 * * * *", async () => {
       const { runScoreV2Backfill } = await import("./services/scoreV2Backfill");

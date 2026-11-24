@@ -486,6 +486,46 @@ router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response)
   }
 });
 
+// ─── GET /api/tprm/vendors/export.csv ─────────────────────────────────────────
+// Portföyün CSV dökümü (envanter ve yıllık raporlama için). ?scope=own kendi alan adları.
+const CSV_DOMAIN_LABEL: Record<string, string> = { data: "Veri", cyber: "Siber", operational: "Operasyon", compliance: "Uyum", ai: "Yapay zekâ", fourthParty: "Dördüncü taraf" };
+function csvCell(v: unknown): string {
+  let t = v === null || v === undefined ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`; // formül enjeksiyonuna karşı
+  return `"${t.replace(/"/g, '""')}"`;
+}
+router.get("/tprm/vendors/export.csv", requireCustomer, async (req: Request, res: Response) => {
+  try {
+    const email = await getSessionCustomerEmail(req);
+    if (!email) { res.status(401).json({ error: "Giriş yapmanız gerekiyor" }); return; }
+    const own = req.query["scope"] === "own";
+    const rows = await db.select().from(tprmVendorTable)
+      .where(and(eq(tprmVendorTable.customerEmail, email), eq(tprmVendorTable.isOwn, own)))
+      .orderBy(tprmVendorTable.addedAt);
+    const VER: Record<string, string> = { verified: "Doğrulandı", expiring: "Süresi yaklaşıyor", expired: "Süresi doldu", never: "Doğrulanmadı" };
+    const d = (x: Date | null | undefined) => (x ? x.toISOString().slice(0, 10) : "");
+    const head = ["Alan adı", "Firma adı", "Kritiklik", "Risk alanları", "Skor", "Risk", "Son tarama", "Anket durumu", "Son doğrulama", "Doğrulama durumu", "Doğrulama geçerlilik", "Eklenme"];
+    const lines = [head.map(csvCell).join(",")];
+    for (const v of rows) {
+      const ver = verificationOf(v.lastVerifiedAt);
+      const doms = v.riskDomains && typeof v.riskDomains === "object"
+        ? Object.entries(v.riskDomains as Record<string, boolean>).filter(([, on]) => on).map(([k]) => CSV_DOMAIN_LABEL[k] ?? k).join("; ") : "";
+      lines.push([
+        v.supplierDomain, v.supplierName ?? "", v.criticality === "kritik" ? "Kritik" : v.criticality === "onemli" ? "Önemli" : "Standart",
+        doms, v.lastScanScore ?? "", v.riskLevel ?? "", d(v.lastScanAt), v.questionnaireStatus,
+        d(v.lastVerifiedAt), own ? "" : VER[ver.status], own ? "" : d(ver.dueAt), d(v.addedAt),
+      ].map(csvCell).join(","));
+    }
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="CyberStep_${own ? "Kendi_Alan_Adlarim" : "Tedarikci_Portfoy"}_${date}.csv"`);
+    res.send("\uFEFF" + lines.join("\r\n"));
+  } catch (err) {
+    logger.error({ err }, "TPRM portfolio csv error");
+    res.status(500).json({ error: "CSV oluşturulamadı" });
+  }
+});
+
 // ─── GET /api/tprm/vendors/report.pdf ─────────────────────────────────────────
 // Portföy raporu (KVKK md. 12 / 7545 / BDDK bağlamıyla) — services/tprmReportPdf.ts
 router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res: Response) => {
@@ -539,6 +579,8 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
           contradictions: qMap.get(v.id)?.contradictions.length ?? 0,
           remediation: { status: v.remediationStatus, before: v.scoreBeforeRemediation, requestedAt: v.remediationRequestedAt, doneAt: v.remediationDoneAt },
           ransomHits: ransomByScan.get(scanIdOf(v) ?? -1) ?? [],
+          criticality: parseCriticality(v.criticality),
+          verification: { ...verificationOf(v.lastVerifiedAt), lastVerifiedAt: v.lastVerifiedAt ?? null },
           events: evRows.filter(e => e.vendorId === v.id).map(e => ({ kind: e.kind, at: e.createdAt, detail: e.detail as Record<string, unknown> | null })),
         };
       }),

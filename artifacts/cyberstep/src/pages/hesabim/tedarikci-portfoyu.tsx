@@ -724,6 +724,14 @@ export default function TedarikciPortfoyu() {
               </a>
             </Button>
           )}
+          {vendors.length > 0 && (
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <a href="/api/tprm/vendors/export.csv" title="Portföyü, kritikliği ve yıllık doğrulama durumunu CSV olarak indirin">
+                <Download className="h-4 w-4" />
+                Dışa Aktar (CSV)
+              </a>
+            </Button>
+          )}
           <Button onClick={() => { resetBulk(); setBulkOpen(true); }} size="sm" variant="outline" className="gap-1.5">
             <Upload className="h-4 w-4" />
             CSV Yükle

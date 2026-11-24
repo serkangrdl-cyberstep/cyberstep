@@ -46,6 +46,9 @@ export interface ReportVendor {
   events?: Array<{ kind: string; at: Date; detail: Record<string, unknown> | null }>;
   /** Fidye sızıntı sitesi duyuruları (alan adı eşleşmesi); doğrulanmamış iddia, skora girmez. */
   ransomHits?: Array<{ group: string; title: string; discovered: string | null }>;
+  /** Kritiklik ve yıllık doğrulama durumu (müşterinin kendi işaretlemesi). */
+  criticality?: "kritik" | "onemli" | "standart";
+  verification?: { status: "verified" | "expiring" | "expired" | "never"; lastVerifiedAt: Date | null; dueAt: Date | null } | null;
 }
 
 export interface PortfolioReportInput {
@@ -198,11 +201,30 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
         const label: Record<string, string> = { questionnaire_completed: "Anket tamamlandı", report_sent: "Rapor tedarikçiye gönderildi",
           reassess_requested: "Düzeltme bildirildi, yeniden değerlendirme istendi", rescan_done: "Yeni tarama tamamlandı", rescan_failed: "Yeni tarama başarısız",
           fourth_party_changed: "Dördüncü taraf sağlayıcıları değişti", actions_created: "Aksiyon planı oluşturuldu", actions_auto_verified: "Aksiyonlar yeniden taramayla doğrulandı", action_supplier_done: "Tedarikçi bir aksiyonu tamamladı",
-          decision_recorded: "Tedarikçi kararı kaydedildi", consent_recorded: "Yazılı onay kaydedildi", consent_revoked: "Yazılı onay iptal edildi" };
+          decision_recorded: "Tedarikçi kararı kaydedildi", consent_recorded: "Yazılı onay kaydedildi", consent_revoked: "Yazılı onay iptal edildi", annual_verified: "Yıllık doğrulama işaretlendi" };
         doc.font("r").fontSize(8).fillColor(MUTED).text(`   ${fmtDate(e.at)} — ${label[e.kind] ?? e.kind}`);
       }
       doc.moveDown(0.4);
     }
+  }
+
+  // Yıllık doğrulama özeti (kritik ve önemli tedarikçiler)
+  const critVendors = sorted.filter(v => v.criticality === "kritik" || v.criticality === "onemli");
+  if (critVendors.length > 0) {
+    if (doc.y > doc.page.height - 140) doc.addPage();
+    doc.moveDown(0.3);
+    doc.font("b").fontSize(9.5).fillColor(NAVY).text("Yıllık doğrulama durumu (kritik ve önemli tedarikçiler)");
+    para("Doğrulama, müşterinin skoru, anket yanıtını ve kanıt belgelerini kontrol ettiğini gösteren kayıttır; 12 ay geçerli sayılır. CyberStep doğrulamayı yapmaz, müşterinin işaretlemesini saklar.", { lineGap: 1 });
+    doc.moveDown(0.3);
+    const ST: Record<string, string> = { verified: "Doğrulandı", expiring: "Süresi yaklaşıyor", expired: "Süresi doldu", never: "Doğrulanmadı" };
+    for (const v of critVendors) {
+      if (doc.y > doc.page.height - 70) doc.addPage();
+      const ver = v.verification;
+      const when = ver?.lastVerifiedAt ? `  ·  Son doğrulama: ${fmtDate(ver.lastVerifiedAt)}${ver.dueAt ? `  ·  Geçerlilik: ${fmtDate(ver.dueAt)}` : ""}` : "";
+      doc.font("b").fontSize(9).fillColor(NAVY).text(`${v.name ?? v.domain}`, { continued: true })
+        .font("r").fillColor(TEXT).text(`  ·  ${v.criticality === "kritik" ? "Kritik" : "Önemli"}  ·  ${ST[ver?.status ?? "never"]}${when}`);
+    }
+    doc.moveDown(0.3);
   }
 
   }

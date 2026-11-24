@@ -37,3 +37,8 @@ test("doğrudan saldırı lead olmaz; yabancı ve şahıs firma olmaz", () => {
   assert.equal(looksLikeTurkishCompany("Çiğdem Kaya (Ortobella Comfort Medikal Sağlık Ürünleri)"), false);
   assert.equal(companyFromTitle("Kamuoyu Duyurusu (Veri İhlali Bildirimi) – Foo AŞ"), "Foo AŞ");
 });
+
+test("Türkçe karakterli şirket ekleri (AŞ, A.Ş.) kurumsal sayılır", () => {
+  for (const n of ["Ethica Sigorta A.Ş.", "Vinero Bağcılık Sanayi ve Ticaret AŞ", "Yazıcı Turizm Marmaris İşletmeleri A.Ş.", "Foo Ltd. Şti.", "Bar Holding"]) assert.equal(looksLikeTurkishCompany(n), true, n);
+  for (const n of ["NCL (Bahamas) Ltd.", "Stemline Therapeutics, Inc.", "DHL AG", "Air India Limited"]) assert.equal(looksLikeTurkishCompany(n), false, n);
+});

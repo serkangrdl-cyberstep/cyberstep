@@ -1,7 +1,7 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { getModel } from "@workspace/ai";
 import { db, kvkkBreachNoticesTable, type SalesScript } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { logAiCost } from "./aiCostTracker";
 import { kvkkGet } from "./kvkkFetch";
@@ -93,6 +93,15 @@ export async function runKvkkLeadWatch(pages = 2): Promise<{ seen: number; added
       }
     }
     await sleep(1200);
+  }
+  // Sınıflama kuralı değiştiyse henüz işlem görmemiş kayıtları yeniden değerlendir
+  const pending = await db.select().from(kvkkBreachNoticesTable).where(and(eq(kvkkBreachNoticesTable.status, "new"), isNull(kvkkBreachNoticesTable.salesScript)));
+  for (const n of pending) {
+    const cls = classifyNotice(n.companyName, n.summary);
+    if (cls.isLead !== n.isLead || cls.supplierLinked !== n.supplierLinked) {
+      await db.update(kvkkBreachNoticesTable).set({ isLead: cls.isLead, supplierLinked: cls.supplierLinked, supplierSignals: cls.signals, updatedAt: new Date() }).where(eq(kvkkBreachNoticesTable.id, n.id));
+    }
+    if (cls.isLead) { leads++; await generateSalesScript(n.id); }
   }
   logger.info({ seen, added, leads }, "KVKK lead takibi tamamlandı");
   return { seen, added, leads };

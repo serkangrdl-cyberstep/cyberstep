@@ -113,3 +113,4 @@ export * from "./internal-scans";
 export * from "./cyber-risk-reports";
 export * from "./domain-scan-alerts";
 export * from "./leakage-incidents";
+export * from "./kvkk-leads";

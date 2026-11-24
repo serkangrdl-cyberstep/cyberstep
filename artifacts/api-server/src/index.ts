@@ -1927,6 +1927,12 @@ async function startup() {
   await maybeSeedDemoCustomer();
   await maybeSeedPaidTestCustomer();
   await ensureBlogContentColumns();
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS kvkk_breach_notices (
+    id SERIAL PRIMARY KEY, notice_id INTEGER NOT NULL UNIQUE, url TEXT NOT NULL, company_name TEXT NOT NULL,
+    published_at DATE, decision_no TEXT, affected_count INTEGER, summary TEXT NOT NULL DEFAULT '',
+    supplier_linked BOOLEAN NOT NULL DEFAULT FALSE, supplier_signals JSONB, is_lead BOOLEAN NOT NULL DEFAULT FALSE,
+    status TEXT NOT NULL DEFAULT 'new', sales_script JSONB, notes TEXT, contacted_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`);
   // Tek seferlik: TPRM blog yazıları onaysız yayınlansın (kullanıcı kararı, 24 Kasım 2026). İşaret anahtarı sonrasında panel tercihini ezmez.
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
@@ -2730,6 +2736,12 @@ startup()
     startInflationReminderCron();
     startEmergingThreatCron();
     startBlogAutopilotCron();
+    // KVKK veri ihlali duyurularını günlük tara; tedarikçi bağlantılı olanlar satış lead'i olur
+    cron.schedule("20 8 * * *", wrapCron("kvkk_lead_watch", "20 8 * * *", async () => {
+      const { runKvkkLeadWatch } = await import("./services/kvkkLeads");
+      const r = await runKvkkLeadWatch(2);
+      return r.added;
+    }), { timezone: "Europe/Istanbul" });
     startSocialMediaWeeklyCron();
     startDigestCron();
     startAiToolMonitorCron();

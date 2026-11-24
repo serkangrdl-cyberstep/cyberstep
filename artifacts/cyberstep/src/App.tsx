@@ -95,6 +95,7 @@ import AdminDanismanlik from "./pages/admin-panel/danismanlik";
 import AdminPartnerlar from "./pages/admin-panel/partnerlar";
 import AdminWhitelabel from "./pages/admin-panel/whitelabel";
 import AdminBlog from "./pages/admin-panel/blog";
+import AdminKvkkLead from "./pages/admin-panel/kvkk-lead";
 import AdminBrandKit from "./pages/admin-panel/brand-kit";
 import AdminDailyDashboard from "./pages/admin-panel/daily-dashboard";
 import AdminSosyalMedya from "./pages/admin-panel/sosyal-medya";
@@ -380,6 +381,7 @@ function Router() {
       <Route path="/panel/partnerlar" component={AdminPartnerlar} />
       <Route path="/panel/whitelabel" component={AdminWhitelabel} />
       <Route path="/panel/blog" component={AdminBlog} />
+      <Route path="/panel/kvkk-lead" component={AdminKvkkLead} />
       <Route path="/panel/marka-kilavuzu" component={AdminBrandKit} />
       <Route path="/panel/ozel-gunler" component={AdminSpecialMessages} />
       <Route path="/panel/sosyal-medya" component={AdminSosyalMedya} />

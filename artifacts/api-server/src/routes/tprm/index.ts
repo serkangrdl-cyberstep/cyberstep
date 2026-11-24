@@ -7,7 +7,7 @@ import { tprmQuestionnaireLinkTable, tprmQuestionnaireResponseTable, tprmVendorT
 import { eq, and, lte, isNull, or, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { verificationOf } from "../../services/tprmVerificationStatus";
+import { verificationOf, parseEvidence, EVIDENCE_TYPES } from "../../services/tprmVerificationStatus";
 import { isEmailConfigured, appBaseUrl, recordEvent, parseEmails, customerContacts, notifyRescanDone, fetchVendorPdf } from "../../services/tprmRemediation";
 import { tprmVendorEventTable } from "@workspace/db";
 import { actionsFromFindings } from "../../services/findingActions";
@@ -479,7 +479,7 @@ router.get("/tprm/vendors", requireCustomer, async (req: Request, res: Response)
     const rows = await db.select().from(tprmVendorTable)
       .where(eq(tprmVendorTable.customerEmail, email))
       .orderBy(tprmVendorTable.addedAt);
-    res.json((await withSectorContext(rows)).map((v) => ({ ...v, verification: verificationOf(v.lastVerifiedAt) })));
+    res.json((await withSectorContext(rows)).map((v) => ({ ...v, verification: verificationOf(v.lastVerifiedAt, new Date(), v.verificationEvidenceUntil) })));
   } catch (err) {
     logger.error({ err }, "TPRM vendors list error");
     res.status(500).json({ error: "Liste yüklenemedi" });
@@ -504,16 +504,17 @@ router.get("/tprm/vendors/export.csv", requireCustomer, async (req: Request, res
       .orderBy(tprmVendorTable.addedAt);
     const VER: Record<string, string> = { verified: "Doğrulandı", expiring: "Süresi yaklaşıyor", expired: "Süresi doldu", never: "Doğrulanmadı" };
     const d = (x: Date | null | undefined) => (x ? x.toISOString().slice(0, 10) : "");
-    const head = ["Alan adı", "Firma adı", "Kritiklik", "Risk alanları", "Skor", "Risk", "Son tarama", "Anket durumu", "Son doğrulama", "Doğrulama durumu", "Doğrulama geçerlilik", "Eklenme"];
+    const head = ["Alan adı", "Firma adı", "Kritiklik", "Risk alanları", "Skor", "Risk", "Son tarama", "Anket durumu", "Son doğrulama", "Doğrulama durumu", "Doğrulama geçerlilik", "Bağımsız rapor", "Rapor geçerlilik", "İç sistem bağımlılıkları", "Eklenme"];
     const lines = [head.map(csvCell).join(",")];
     for (const v of rows) {
-      const ver = verificationOf(v.lastVerifiedAt);
+      const ver = verificationOf(v.lastVerifiedAt, new Date(), v.verificationEvidenceUntil);
       const doms = v.riskDomains && typeof v.riskDomains === "object"
         ? Object.entries(v.riskDomains as Record<string, boolean>).filter(([, on]) => on).map(([k]) => CSV_DOMAIN_LABEL[k] ?? k).join("; ") : "";
       lines.push([
         v.supplierDomain, v.supplierName ?? "", v.criticality === "kritik" ? "Kritik" : v.criticality === "onemli" ? "Önemli" : "Standart",
         doms, v.lastScanScore ?? "", v.riskLevel ?? "", d(v.lastScanAt), v.questionnaireStatus,
-        d(v.lastVerifiedAt), own ? "" : VER[ver.status], own ? "" : d(ver.dueAt), d(v.addedAt),
+        d(v.lastVerifiedAt), own ? "" : VER[ver.status], own ? "" : d(ver.dueAt),
+        v.verificationEvidenceType ? (EVIDENCE_TYPES[v.verificationEvidenceType] ?? v.verificationEvidenceType) : "", d(v.verificationEvidenceUntil), v.internalDependencies ?? "", d(v.addedAt),
       ].map(csvCell).join(","));
     }
     const date = new Date().toISOString().slice(0, 10);
@@ -580,7 +581,7 @@ router.get("/tprm/vendors/report.pdf", requireCustomer, async (req: Request, res
           remediation: { status: v.remediationStatus, before: v.scoreBeforeRemediation, requestedAt: v.remediationRequestedAt, doneAt: v.remediationDoneAt },
           ransomHits: ransomByScan.get(scanIdOf(v) ?? -1) ?? [],
           criticality: parseCriticality(v.criticality),
-          verification: { ...verificationOf(v.lastVerifiedAt), lastVerifiedAt: v.lastVerifiedAt ?? null },
+          verification: { ...verificationOf(v.lastVerifiedAt, new Date(), v.verificationEvidenceUntil), lastVerifiedAt: v.lastVerifiedAt ?? null, evidence: v.verificationEvidenceType ? `${EVIDENCE_TYPES[v.verificationEvidenceType] ?? v.verificationEvidenceType}${v.verificationEvidenceUntil ? ` (geçerlilik ${v.verificationEvidenceUntil.toISOString().slice(0, 10)})` : ""}` : null },
           events: evRows.filter(e => e.vendorId === v.id).map(e => ({ kind: e.kind, at: e.createdAt, detail: e.detail as Record<string, unknown> | null })),
         };
       }),
@@ -878,15 +879,34 @@ router.post("/tprm/vendors/:id/verify", requireCustomer, async (req: Request, re
     const vendor = await getOwnedVendor(req, id);
     if (!vendor) { res.status(404).json({ error: "Tedarikçi bulunamadı" }); return; }
     if (vendor.isOwn) { res.status(400).json({ error: "Kendi alan adları için doğrulama işaretlenmez" }); return; }
-    const raw = (req.body as { note?: unknown })?.note;
-    const note = typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 500) : null;
+    const body = (req.body ?? {}) as { note?: unknown; evidenceType?: unknown; evidenceUntil?: unknown };
+    const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
+    const ev = parseEvidence(body.evidenceType, body.evidenceUntil);
+    if (!ev.ok) { res.status(400).json({ error: ev.error }); return; }
     const now = new Date();
-    await db.update(tprmVendorTable).set({ lastVerifiedAt: now, verificationNote: note, verifyRemindedAt: null }).where(eq(tprmVendorTable.id, id));
-    await recordEvent(id, "annual_verified", { note, score: vendor.lastScanScore ?? null, questionnaire: vendor.questionnaireStatus });
-    res.json({ ok: true, verification: verificationOf(now), note });
+    await db.update(tprmVendorTable).set({ lastVerifiedAt: now, verificationNote: note, verifyRemindedAt: null, verificationEvidenceType: ev.type, verificationEvidenceUntil: ev.until }).where(eq(tprmVendorTable.id, id));
+    await recordEvent(id, "annual_verified", { note, score: vendor.lastScanScore ?? null, questionnaire: vendor.questionnaireStatus, evidenceType: ev.type, evidenceUntil: ev.until ? ev.until.toISOString().slice(0, 10) : null });
+    res.json({ ok: true, verification: verificationOf(now, now, ev.until), note });
   } catch (err) {
     logger.error({ err }, "TPRM vendor verify error");
     res.status(500).json({ error: "Doğrulama kaydedilemedi" });
+  }
+});
+
+// PATCH /api/tprm/vendors/:id/dependencies — iç sistem bağımlılıkları (elle; envanter, Md. 30/2-ğ)
+router.patch("/tprm/vendors/:id/dependencies", requireCustomer, async (req: Request, res: Response) => {
+  const id = parseInt(req.params["id"] as string);
+  try {
+    const vendor = await getOwnedVendor(req, id);
+    if (!vendor) { res.status(404).json({ error: "Tedarikçi bulunamadı" }); return; }
+    const raw = (req.body as { text?: unknown })?.text;
+    if (raw !== null && raw !== undefined && typeof raw !== "string") { res.status(400).json({ error: "Geçersiz değer" }); return; }
+    const text = typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 500) : null;
+    await db.update(tprmVendorTable).set({ internalDependencies: text }).where(eq(tprmVendorTable.id, id));
+    res.json({ ok: true, internalDependencies: text });
+  } catch (err) {
+    logger.error({ err }, "TPRM vendor dependencies error");
+    res.status(500).json({ error: "Kaydedilemedi" });
   }
 });
 
@@ -1493,10 +1513,15 @@ router.patch("/tprm/vendors/:id/actions/:aid", requireCustomer, async (req: Requ
   try {
     const vendor = await getOwnedVendor(req, parseInt(req.params["id"] as string));
     if (!vendor) { res.status(404).json({ error: "Bulunamadı" }); return; }
-    const status = (req.body as { status?: string }).status;
+    const body = req.body as { status?: string; note?: unknown };
+    const status = body.status;
     if (!status || !(ACTION_STATUSES as readonly string[]).includes(status)) { res.status(400).json({ error: "Geçersiz durum" }); return; }
+    const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
+    // Kabul edilen (muaf tutulan) bulgu için gerekçe zorunlu: giderilemeyen zafiyette gerekçe ve takvim istenir (taslak Md. 8/6).
+    if (status === "waived" && !note) { res.status(400).json({ error: "Muaf tutmak için gerekçe girin" }); return; }
     const closed = status === "verified" || status === "waived";
-    const upd = rowsOf(await db.execute(sql`UPDATE tprm_actions SET status = ${status}, closed_at = ${closed ? new Date() : null}
+    const upd = rowsOf(await db.execute(sql`UPDATE tprm_actions SET status = ${status}, closed_at = ${closed ? new Date() : null},
+      closed_note = ${status === "waived" ? note : closed ? sql`closed_note` : null}
       WHERE id = ${parseInt(req.params["aid"] as string)} AND vendor_id = ${vendor.id} RETURNING id`));
     if (!upd.length) { res.status(404).json({ error: "Bulunamadı" }); return; }
     res.json({ ok: true });

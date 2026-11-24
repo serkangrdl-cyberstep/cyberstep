@@ -530,6 +530,9 @@ async function ensureIsrTables() {
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS verification_note TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS verify_reminded_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS verification_evidence_type TEXT`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS verification_evidence_until TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS internal_dependencies TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_status TEXT NOT NULL DEFAULT 'none'`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_requested_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE IF EXISTS tprm_vendors ADD COLUMN IF NOT EXISTS remediation_done_at TIMESTAMP`);

@@ -48,7 +48,7 @@ export interface ReportVendor {
   ransomHits?: Array<{ group: string; title: string; discovered: string | null }>;
   /** Kritiklik ve yıllık doğrulama durumu (müşterinin kendi işaretlemesi). */
   criticality?: "kritik" | "onemli" | "standart";
-  verification?: { status: "verified" | "expiring" | "expired" | "never"; lastVerifiedAt: Date | null; dueAt: Date | null } | null;
+  verification?: { status: "verified" | "expiring" | "expired" | "never"; lastVerifiedAt: Date | null; dueAt: Date | null; evidence?: string | null } | null;
 }
 
 export interface PortfolioReportInput {
@@ -220,7 +220,7 @@ export async function generatePortfolioReport(input: PortfolioReportInput): Prom
     for (const v of critVendors) {
       if (doc.y > doc.page.height - 70) doc.addPage();
       const ver = v.verification;
-      const when = ver?.lastVerifiedAt ? `  ·  Son doğrulama: ${fmtDate(ver.lastVerifiedAt)}${ver.dueAt ? `  ·  Geçerlilik: ${fmtDate(ver.dueAt)}` : ""}` : "";
+      const when = ver?.lastVerifiedAt ? `  ·  Son doğrulama: ${fmtDate(ver.lastVerifiedAt)}${ver.dueAt ? `  ·  Geçerlilik: ${fmtDate(ver.dueAt)}` : ""}${ver.evidence ? `  ·  Rapor: ${ver.evidence}` : ""}` : "";
       doc.font("b").fontSize(9).fillColor(NAVY).text(`${v.name ?? v.domain}`, { continued: true })
         .font("r").fillColor(TEXT).text(`  ·  ${v.criticality === "kritik" ? "Kritik" : "Önemli"}  ·  ${ST[ver?.status ?? "never"]}${when}`);
     }

@@ -18,7 +18,7 @@ export async function runVerificationReminders(now = new Date()): Promise<number
     .where(and(eq(tprmVendorTable.isOwn, false), eq(tprmVendorTable.monitoringActive, true), inArray(tprmVendorTable.criticality, ["kritik", "onemli"])));
   const byCustomer = new Map<string, typeof rows>();
   for (const v of rows) {
-    const { status } = verificationOf(v.lastVerifiedAt, now);
+    const { status } = verificationOf(v.lastVerifiedAt, now, v.verificationEvidenceUntil);
     const due = status === "expired" || status === "expiring" || (status === "never" && now.getTime() - v.addedAt.getTime() > 30 * DAY);
     if (!due) continue;
     if (v.verifyRemindedAt && now.getTime() - v.verifyRemindedAt.getTime() < 30 * DAY) continue;

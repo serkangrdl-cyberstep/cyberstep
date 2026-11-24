@@ -63,6 +63,9 @@ interface Vendor {
   remediationDoneAt?: string | null;
   scoreBeforeRemediation?: number | null;
   verification?: { status: "verified" | "expiring" | "expired" | "never"; dueAt: string | null };
+  verificationEvidenceType?: string | null;
+  verificationEvidenceUntil?: string | null;
+  internalDependencies?: string | null;
   lastVerifiedAt?: string | null;
 }
 
@@ -215,6 +218,20 @@ interface QuestionnaireView {
     categories: Array<{ category: string; score: number; band: "guclu" | "orta" | "zayif" }>;
     redFlags: Array<{ questionId: number; text: string }>;
   } | null;
+}
+
+function InternalDeps({ id, value, onSave, saving }: { id: number; value: string | null | undefined; onSave: (p: { id: number; text: string }) => void; saving: boolean }) {
+  const [text, setText] = useState(value ?? "");
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium">İç sistem bağımlılıkları</p>
+      <p className="text-[11px] text-muted-foreground">Bu tedarikçiye hangi iç sistem veya iş sürecinizin bağlı olduğunu yazın (envanter için; tek hata noktası ise belirtin).</p>
+      <div className="flex gap-2">
+        <Input className="flex-1 text-xs" maxLength={500} value={text} onChange={e => setText(e.target.value)} placeholder="Ör. ödeme sistemi, müşteri portalı (tek hata noktası)" />
+        <Button size="sm" variant="outline" disabled={saving || text === (value ?? "")} onClick={() => onSave({ id, text })}>Kaydet</Button>
+      </div>
+    </div>
+  );
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -609,15 +626,29 @@ export default function TedarikciPortfoyu() {
     onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
   });
 
+  const [verifyFor, setVerifyFor] = useState<{ id: number; name: string } | null>(null);
+  const [verifyType, setVerifyType] = useState("");
+  const [verifyUntil, setVerifyUntil] = useState("");
+  const [verifyNote, setVerifyNote] = useState("");
+  const [verifyErr, setVerifyErr] = useState("");
   const verifyMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/tprm/vendors/${id}/verify`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+    mutationFn: async (p: { id: number; evidenceType: string; evidenceUntil: string; note: string }) => {
+      const res = await fetch(`/api/tprm/vendors/${p.id}/verify`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ evidenceType: p.evidenceType || undefined, evidenceUntil: p.evidenceUntil || undefined, note: p.note }) });
       if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tprm-vendors", email] });
-      toast({ title: "Doğrulama kaydedildi", description: "Bu tedarikçi 12 ay boyunca doğrulanmış görünür." });
+      setVerifyFor(null);
+      toast({ title: "Doğrulama kaydedildi", description: "Bu tedarikçi doğrulanmış görünür (en fazla 12 ay, bağımsız rapor varsa rapor bitişine kadar)." });
     },
+    onError: (e) => setVerifyErr((e as Error).message),
+  });
+  const depsMutation = useMutation({
+    mutationFn: async ({ id, text }: { id: number; text: string }) => {
+      const res = await fetch(`/api/tprm/vendors/${id}/dependencies`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Hata");
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tprm-vendors", email] }); toast({ title: "Bağımlılıklar kaydedildi" }); },
     onError: (e) => toast({ title: "Hata", description: (e as Error).message, variant: "destructive" }),
   });
 
@@ -686,6 +717,40 @@ export default function TedarikciPortfoyu() {
   return (
     <>
     <TprmNav />
+    <Dialog open={!!verifyFor} onOpenChange={(o) => { if (!o) setVerifyFor(null); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Yıllık doğrulama: {verifyFor?.name}</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p className="text-muted-foreground text-xs">Skoru, anket yanıtını ve kanıt belgelerini kontrol ettiğinizi kaydedersiniz. Doğrulama 12 ay geçerlidir; bağımsız rapor varsa en fazla rapor bitişine kadar.</p>
+          <div>
+            <Label className="text-xs">Bağımsız rapor (isteğe bağlı)</Label>
+            <select className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm" value={verifyType} onChange={e => setVerifyType(e.target.value)}>
+              <option value="">Yok</option>
+              <option value="iso27001">ISO 27001</option>
+              <option value="soc2">SOC 2</option>
+              <option value="denetim">Bağımsız denetim raporu</option>
+              <option value="sizma_testi">Sızma testi raporu</option>
+              <option value="diger">Diğer</option>
+            </select>
+          </div>
+          {verifyType && (
+            <div>
+              <Label className="text-xs">Rapor geçerlilik bitişi</Label>
+              <Input type="date" className="mt-1" value={verifyUntil} onChange={e => setVerifyUntil(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <Label className="text-xs">Not (isteğe bağlı)</Label>
+            <Input className="mt-1" maxLength={500} value={verifyNote} onChange={e => setVerifyNote(e.target.value)} placeholder="Ör. sertifika kapsamı hizmeti içeriyor" />
+          </div>
+          {verifyErr && <p className="text-red-500 text-xs">{verifyErr}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setVerifyFor(null)}>Vazgeç</Button>
+          <Button disabled={verifyMutation.isPending} onClick={() => { if (verifyFor) { setVerifyErr(""); verifyMutation.mutate({ id: verifyFor.id, evidenceType: verifyType, evidenceUntil: verifyUntil, note: verifyNote }); } }}>Doğrulandı olarak kaydet</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <VendorFindingsDialog vendorId={findingsFor?.id ?? null} vendorName={findingsFor?.name ?? ""} onClose={() => setFindingsFor(null)} />
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <SupportAccessBanner />
@@ -965,8 +1030,7 @@ export default function TedarikciPortfoyu() {
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7"
                         title="Yıllık doğrulamayı işaretle (skoru, anket yanıtını ve kanıtları kontrol ettiyseniz)"
-                        onClick={() => verifyMutation.mutate(v.id)}
-                        disabled={verifyMutation.isPending && verifyMutation.variables === v.id}
+                        onClick={() => { setVerifyFor({ id: v.id, name: v.supplierName || v.supplierDomain }); setVerifyType(""); setVerifyUntil(""); setVerifyNote(""); setVerifyErr(""); }}
                       >
                         <BadgeCheck className="h-3.5 w-3.5" />
                       </Button>
@@ -990,6 +1054,7 @@ export default function TedarikciPortfoyu() {
                   {isExp && (
                     <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
                       <ScoreBreakdown data={v.lastScanData} />
+                      <InternalDeps key={`${v.id}-${v.internalDependencies ?? ""}`} id={v.id} value={v.internalDependencies} onSave={depsMutation.mutate} saving={depsMutation.isPending} />
 
                       {/* Anket durumu */}
                       <div className="flex items-center justify-between">

@@ -36,12 +36,17 @@ router.post("/admin-panel/kvkk-leads/:id/regenerate-script", requireAdmin, async
   res.status(ok ? 200 : 500).json({ ok });
 });
 
-router.post("/admin-panel/kvkk-leads/run-now", requireAdmin, async (_req: Request, res: Response) => {
+router.post("/admin-panel/kvkk-leads/run-now", requireAdmin, async (req: Request, res: Response) => {
+  const { runKvkkLeadWatch } = await import("../../services/kvkkLeads");
+  const sync = (req.body as { sync?: boolean } | undefined)?.sync === true;
+  if (sync) {
+    // Hata ayıklama: sonucu veya hata iletisini yanıtta döndür
+    try { res.json({ success: true, result: await runKvkkLeadWatch(1) }); }
+    catch (err) { res.status(500).json({ success: false, error: err instanceof Error ? `${err.message}${err.cause ? ` | ${String(err.cause)}` : ""}` : String(err) }); }
+    return;
+  }
   res.json({ success: true, message: "KVKK duyuru taraması arka planda başlatıldı" });
-  void (async () => {
-    const { runKvkkLeadWatch } = await import("../../services/kvkkLeads");
-    await runKvkkLeadWatch(3);
-  })().catch(err => logger.error({ err }, "KVKK lead manuel tarama hatası"));
+  void runKvkkLeadWatch(3).catch(err => logger.error({ error: err instanceof Error ? `${err.message} ${err.cause ?? ""}` : String(err) }, "KVKK lead manuel tarama hatası"));
 });
 
 export default router;

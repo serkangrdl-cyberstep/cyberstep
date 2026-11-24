@@ -14,7 +14,7 @@ import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendNewsletterEmail } from "./email";
 import { logAiCost } from "./aiCostTracker";
-import { TPRM_PLAN, TPRM_WRITING_RULES, selectFactsForTopic } from "../data/blogTprmPlan";
+import { sourcesForTopic, TPRM_PLAN, TPRM_WRITING_RULES, selectFactsForTopic } from "../data/blogTprmPlan";
 import { buildFactCheckPrompt, parseFactCheckOutput } from "./blogFactCheck";
 import { generateBlogCoverDataUrl } from "./blogCover";
 
@@ -227,10 +227,10 @@ async function setAutopilotIndex(index: number): Promise<void> {
 }
 
 // ─── TPRM planı indeksi (ayrı sayaç; liste bitince normal akışa dönülür) ─────────
-/** TPRM yazıları: "draft" (varsayılan; onay bekler) veya "publish" (doğrudan yayın). */
+/** TPRM yazıları: "publish" (varsayılan; doğrudan yayın) veya "draft" (onay bekler). Panelden değiştirilebilir. */
 export async function getTprmMode(): Promise<"draft" | "publish"> {
   const [row] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, "blog_autopilot_tprm_mode"));
-  return row?.value === "publish" ? "publish" : "draft";
+  return row?.value === "draft" ? "draft" : "publish";
 }
 
 export async function setTprmMode(mode: "draft" | "publish"): Promise<void> {
@@ -337,6 +337,7 @@ interface GeneratedContent {
   instagramCarouselTr: CarouselSlide[];
   socialTextTr: string;
   visualPromptsTr: VisualPrompts;
+  refsJson?: { title: string; url: string }[];
 }
 
 export async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): Promise<GeneratedContent> {
@@ -350,6 +351,10 @@ export async function generateBlogPostContent(topic: typeof BLOG_PLAN[number]): 
   }
   if (getCategoryCode(topic.category) === "TP") {
     generated = { ...generated, content: await factCheckTprmContent(generated.content, topic.title, selectFactsForTopic(topic, TPRM_PLAN.findIndex(t => t.title === topic.title))) };
+  }
+  if (getCategoryCode(topic.category) === "TP") {
+    const refs = sourcesForTopic(topic, TPRM_PLAN.findIndex(t => t.title === topic.title), generated.content);
+    if (refs.length) generated = { ...generated, refsJson: refs };
   }
   return generated;
 }
@@ -660,6 +665,7 @@ export async function generateAndPublishBlogPost(): Promise<void> {
     instagramCaptionTr: generated.instagramCaptionTr,
     instagramCarouselTr: generated.instagramCarouselTr,
     visualPromptsTr: generated.visualPromptsTr,
+    refsJson: generated.refsJson ?? null,
   }).returning();
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: yazı yayınlandı");
@@ -771,6 +777,7 @@ export async function generateAndSaveDraft(): Promise<{ postId: number; slug: st
     instagramCaptionTr: generated.instagramCaptionTr,
     instagramCarouselTr: generated.instagramCarouselTr,
     visualPromptsTr: generated.visualPromptsTr,
+    refsJson: generated.refsJson ?? null,
   }).returning();
 
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: taslak kaydedildi");

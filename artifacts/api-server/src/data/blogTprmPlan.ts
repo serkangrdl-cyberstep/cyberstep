@@ -20,18 +20,19 @@ export const TPRM_PLAN: BlogTopic[] = [
 
 // TPRM yazılarında kullanılabilecek doğrulanmış olgular (kaynaklarıyla). Model bunların dışında vaka,
 // rakam veya alıntı üretmemelidir.
-export interface TprmFact { id: string; kind: "case" | "stat" | "law"; text: string }
+export interface TprmSource { title: string; url: string }
+export interface TprmFact { id: string; kind: "case" | "stat" | "law"; text: string; sources?: TprmSource[] }
 
 // Doğrulanmış olgular (kaynaklarıyla). Model bunların dışında vaka, rakam veya alıntı üretmemelidir.
 export const TPRM_FACT_ITEMS: TprmFact[] = [
-  { id: "verizon", kind: "stat", text: "Verizon 2026 DBIR (Kasım 2024 – Ekim 2025 arası olayları kapsar): ihlallerde üçüncü tarafın yer aldığı pay %48; bir önceki yıla göre %60 artış (küresel veridir, Türkiye'ye özel oran yoktur). \"2026 yılında yaşanan ihlaller\" DEME; \"Verizon'un 2026 raporuna göre\" de." },
+  { id: "verizon", kind: "stat", text: "Verizon 2026 DBIR (Kasım 2024 – Ekim 2025 arası olayları kapsar): ihlallerde üçüncü tarafın yer aldığı pay %48; bir önceki yıla göre %60 artış (küresel veridir, Türkiye'ye özel oran yoktur). \"2026 yılında yaşanan ihlaller\" DEME; \"Verizon'un 2026 raporuna göre\" de.", sources: [{ title: "Verizon 2026 DBIR özeti (Help Net Security)", url: "https://www.helpnetsecurity.com/?p=371418" }] },
   { id: "drift", kind: "case", text: "Salesloft Drift (Ağustos 2025): Drift entegrasyonuna ait çalınmış OAuth anahtarlarıyla müşterilerin Salesforce verilerine erişildi; Cloudflare, Palo Alto Networks, Proofpoint gibi şirketler etkilendiklerini açıkladı. Salesforce'un kendi açığı sömürülmedi; bu bir yazılım açığı değil, çalınmış erişim anahtarı vakasıdır (\"açığından sızdı\" DEME)." },
   { id: "change-healthcare", kind: "case", text: "Change Healthcare (Şubat 2024): tek bir sağlayıcının kesintisi ABD'de sağlık hizmetlerini ülke çapında aksattı." },
   { id: "moveit", kind: "case", text: "MOVEit (2023): tek bir yazılımdaki açık binlerce kuruluşu etkiledi." },
-  { id: "visa-mc-jpm", kind: "case", text: "Visa, Mastercard, JPMorgan (19 Kasım 2026): üç şirket de kendi ağlarının ihlal edilmediğini, verinin üçüncü taraf hizmet sağlayıcılardan sızdığını açıkladı; sağlayıcılar adıyla açıklanmadı. Grubun iddia ettiği veri miktarları doğrulanmış değildir." },
+  { id: "visa-mc-jpm", kind: "case", text: "Visa, Mastercard, JPMorgan (19 Kasım 2026): üç şirket de kendi ağlarının ihlal edilmediğini, verinin üçüncü taraf hizmet sağlayıcılardan sızdığını açıkladı; sağlayıcılar adıyla açıklanmadı. Grubun iddia ettiği veri miktarları doğrulanmış değildir.", sources: [{ title: "SecurityWeek: JPMorgan, Visa, Mastercard Cite Third-Party Incidents", url: "https://www.securityweek.com/jpmorgan-visa-mastercard-cite-third-party-incidents-amid-data-leak/" }] },
   { id: "expedia", kind: "case", text: "Expedia (Kasım 2026): şirket, üçüncü taraf bir veri platformu sağlayıcısının ele geçirildiğini doğruladı; grubun iddia ettiği kayıt sayısı doğrulanmadı." },
   { id: "vodafonenet", kind: "case", text: "VodafoneNet (Ocak 2026): KVKK bildirimine göre çalınan veri, bir bölgesel hizmet sağlayıcının (veri işleyen) sisteminden elde edilmiş olabilir; etkilenen kişi sayısı en fazla 321.504 olarak bildirildi. Kaynağın veri işleyen olması kesinleşmiş değildir." },
-  { id: "arcelik", kind: "case", text: "Arçelik (Nisan 2026): saldırganlar, üçüncü taraf bir hizmet sağlayıcının alt yüklenicisi üzerinden iç hizmet yönetim platformuna ulaştı; ana sistemlerin etkilenmediği belirtildi." },
+  { id: "arcelik", kind: "case", text: "Arçelik (Nisan 2026): saldırganlar, üçüncü taraf bir hizmet sağlayıcının alt yüklenicisi üzerinden iç hizmet yönetim platformuna ulaştı; ana sistemlerin etkilenmediği belirtildi.", sources: [{ title: "Yüzde100Yerli: Tedarik zincirinde siber sızıntı, Arçelik'ten ihlal bildirimi (9 Mayıs 2026)", url: "https://www.yuzde100yerli.com/en/tedarik-zincirinde-siber-sizinti-arcelikten-ihlal-bildirimi/" }] },
   { id: "hepsiburada", kind: "case", text: "Hepsiburada (KVKK Kurul kararı 2026/2438, 4 Kasım 2026): sohbet altyapısı sağlayan bir hizmet firması üzerinden 2022 tarihli destek kayıtlarından 9.882 kişi etkilendi; firmanın adı açıklanmadı. KVKK Kurulu yalnızca ihlal bildirimini internet sitesinde yayımlamaya karar verdi; Kurulun şirkete karşı işlem başlattığı, dava açıldığı veya ceza verildiği bilgisi YOKTUR, bunları yazma (\"dava\", \"işlem başlattı\", \"ceza\" DEME)." },
   { id: "kvkk12", kind: "law", text: "KVKK madde 12/2: kişisel veriler veri sorumlusu adına başka bir kişi tarafından işleniyorsa veri sorumlusu, güvenlik tedbirlerinin alınması konusunda bu kişilerle müştereken sorumludur (sorumluluk tedarikçiye devredilmez; tedarikçi ihlale neden olsa da veri sorumlusu KVKK sürecinin muhatabı olabilir). Bu madde TPRM programını açıkça zorunlu kılmaz; \"TPRM zorunlu uyum süreci\" DEME, \"veri sorumlusunun sorumluluğu tedarikçi seçimini ve denetimini önemli kılar\" gibi yaz." },
   { id: "target", kind: "case", text: "Target (Kasım–Aralık 2013): saldırganlar, bir hizmet tedarikçisinden (klima/soğutma firması Fazio Mechanical) çalınan ağ kimlik bilgileriyle Target ağına girdi; Target yaklaşık 40 milyon ödeme kartı kaydının çalındığını, ayrıca yaklaşık 70 milyon müşteriye ait kişisel kaydın etkilendiğini açıkladı." },
@@ -70,6 +71,20 @@ export function selectFactsForTopic(topic: BlogTopic, planIndex: number): string
     .filter((f): f is TprmFact => !!f)
     .map(f => `- ${f.text}`)
     .join("\n");
+}
+
+/** Bir yazıya atanan olguların kaynak bağlantıları (aynı seçim mantığı; yalnızca kaynağı olan olgular). */
+export function sourcesForTopic(topic: BlogTopic, planIndex: number, content?: string): TprmSource[] {
+  const text = selectFactsForTopic(topic, planIndex);
+  const seen = new Set<string>();
+  const out: TprmSource[] = [];
+  for (const f of TPRM_FACT_ITEMS) {
+    if (!f.sources || !text.includes(f.text)) continue;
+    // İçerik verildiyse yalnızca yazıda gerçekten anılan olgunun kaynağı eklenir (olgunun ilk sözcüğü: firma/rapor adı)
+    if (content && !content.toLowerCase().includes(f.text.split(/[ (:,]/)[0].toLowerCase())) continue;
+    for (const src of f.sources) if (!seen.has(src.url)) { seen.add(src.url); out.push(src); }
+  }
+  return out;
 }
 
 function hash(s: string): number {

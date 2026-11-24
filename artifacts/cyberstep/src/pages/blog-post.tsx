@@ -86,6 +86,7 @@ interface BlogPost {
   coverImageBase64: string | null;
   authorName: string;
   publishedAt: string | null;
+  refsJson?: { title: string; url: string }[] | null;
 }
 
 function ShareButtons({ post, lang }: { post: BlogPost; lang: "tr" | "en" }) {
@@ -336,6 +337,17 @@ export default function BlogPost() {
           prose-table:w-full [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full"
         dangerouslySetInnerHTML={{ __html: clean }}
       />
+
+      {post.refsJson && post.refsJson.filter(r => /^https?:\/\//i.test(r.url)).length > 0 && (
+        <aside className="mt-10 rounded-xl border border-border p-5">
+          <h2 className="text-base font-semibold mb-2">{lang === "en" ? "Sources" : "Kaynaklar"}</h2>
+          <ul className="list-disc pl-5 space-y-1 text-sm">
+            {post.refsJson.filter(r => /^https?:\/\//i.test(r.url)).map(r => (
+              <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline break-words">{r.title}</a></li>
+            ))}
+          </ul>
+        </aside>
+      )}
 
       {/* Share + footer */}
       <div className="mt-12 pt-8 border-t border-border space-y-6">

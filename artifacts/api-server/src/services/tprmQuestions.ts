@@ -38,6 +38,11 @@ export const TPRM_QUESTIONS = [
   { id: 27, category: "Operasyonel süreklilik", text: "Hizmet sürekliliği için iş sürekliliği (BCP) ve felaket kurtarma (DR) planınız yazılı ve yılda en az bir kez test ediliyor mu?", weight: 1 },
   { id: 28, category: "Operasyonel süreklilik", text: "Sözleşmede hizmet düzeyi (SLA) ve kabul edilebilir kesinti/geri dönüş süreleri (RTO/RPO) tanımlı mı?", weight: 1 },
   { id: 29, category: "Operasyonel süreklilik", text: "Kritik bir bileşeniniz (bulut, yazılım, alt hizmet sağlayıcı) devre dışı kalırsa alternatif bir yöntem veya sağlayıcıya geçebiliyor musunuz?", weight: 1 },
+  // Sözleşme ve zafiyet yönetimi (Siber Dayanıklılık Yönetmeliği taslağı Md. 43 ve 69 ile uyumlu sorular; beyan niteliğindedir)
+  { id: 30, category: "Sözleşme ve zafiyet yönetimi", text: "Hizmetinizi veya müşteri verisini etkileyebilecek güvenlik açıklarını müşterilerinize sözleşmede belirlenmiş bir sürede bildirmeyi taahhüt ediyor musunuz?", weight: 1 },
+  { id: 31, category: "Sözleşme ve zafiyet yönetimi", text: "Kritik güvenlik yamalarını sözleşmede veya yazılı politikada belirlenmiş sürelerde uyguluyor musunuz?", weight: 1 },
+  { id: 32, category: "Sözleşme ve zafiyet yönetimi", text: "Sözleşme bittiğinde müşterinin sistemlerine erişiminiz derhal kapatılıyor ve müşteri verisi iade ediliyor veya güvenli biçimde imha edilip yazılı teyit veriliyor mu?", weight: 1 },
+  { id: 33, category: "Sözleşme ve zafiyet yönetimi", text: "Müşteriye özel yazılım veya entegrasyon geliştiriyorsanız, canlıya almadan önce kaynak kod güvenlik analizi yapıyor ve gerektiğinde kaynak kod emaneti (escrow) sunabiliyor musunuz?", weight: 1 },
   { id: 23, category: "Kurumsal yönetim", text: "Kişisel veriler için KVKK kapsamında veri sorumlusu/işleyen yükümlülüklerinizi yazılı olarak yönetiyor musunuz (VERBİS, aydınlatma, ihlal prosedürü)?", weight: 1 },
 ];
 
@@ -48,6 +53,7 @@ export function questionsFor(d: RiskDomains | null): typeof TPRM_QUESTIONS {
     if (q.category === "Alt hizmet sağlayıcılar") return d.fourthParty || d.data;
     if (q.category === "Yapay zekâ kullanımı") return d.ai;
     if (q.category === "Operasyonel süreklilik") return d.operational;
+    if (q.category === "Sözleşme ve zafiyet yönetimi") return q.id === 33 ? d.cyber : (d.cyber || d.data);
     return true;
   });
 }

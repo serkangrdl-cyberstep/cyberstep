@@ -72,8 +72,9 @@ export function supplierSignals(text: string): string[] {
 
 /** Şahıs işletmesi ve yurt dışı şirketleri lead dışı bırakmak için kaba kurumsal Türk firma ölçütü. */
 export function looksLikeTurkishCompany(name: string): boolean {
-  if (/\b(Inc|Corp|LLC|GmbH|B\.V|Pte|Ltd\.?\s*\(UK\)|S\.A\.|PLC)\b/i.test(name)) return false;
-  return /\b(A\.?\s?Ş\.?|AŞ|Anonim|Ltd\.?\s*Şti|Limited Şirketi|Şirketi|Holding)\b/i.test(name);
+  if (/(^|[\s,.(])(Inc|Corp|LLC|GmbH|B\.V|Pte|PLC|S\.A)(?=$|[\s,.)])/iu.test(name)) return false;
+  // \b ASCII dışı harflerde (Ş) çalışmadığından Unicode duyarlı sınırlar kullanılır
+  return /(^|[\s,.(])(A\.?\s?Ş\.?|Anonim|Ltd\.?\s*Şti\.?|Limited\s+Şirketi|Şirketi|Holding)(?=$|[\s,.)])/iu.test(name);
 }
 
 export function classifyNotice(company: string, summary: string): { supplierLinked: boolean; signals: string[]; isLead: boolean } {

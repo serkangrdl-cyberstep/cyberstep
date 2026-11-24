@@ -20,7 +20,7 @@ const SECTIONS = [
     icon: Server,
     title: "Barındırma",
     content:
-      "Uygulama sunucusu Avrupa Birliği içinde, Hollanda (Amsterdam bölgesi) veri merkezinde çalışır. Alan adı ve bağlantı trafiği TLS ile şifrelenir.",
+      "Uygulama sunucusu ve veritabanı Avrupa Birliği içinde, Hollanda (Amsterdam bölgesi) veri merkezinde çalışır. Uygulama veritabanına barındırma sağlayıcısının özel ağı üzerinden bağlanır. Alan adı ve bağlantı trafiği TLS ile şifrelenir.",
   },
   {
     icon: Database,

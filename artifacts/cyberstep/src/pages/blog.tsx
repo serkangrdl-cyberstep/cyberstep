@@ -19,6 +19,7 @@ interface BlogPost {
   excerpt: string;
   excerptEn: string | null;
   coverImageBase64: string | null;
+  coverImageEnBase64?: string | null;
   authorName: string;
   publishedAt: string | null;
   readingMinutesTr: number;
@@ -187,7 +188,7 @@ export default function Blog() {
                   <div className="sm:w-44 sm:shrink-0 h-36 sm:h-auto bg-gradient-to-br from-slate-800 to-emerald-900 relative overflow-hidden">
                     {post.coverImageBase64 ? (
                       <img
-                        src={post.coverImageBase64}
+                        src={(lang === "en" && post.coverImageEnBase64) || post.coverImageBase64}
                         alt={getTitle(post)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />

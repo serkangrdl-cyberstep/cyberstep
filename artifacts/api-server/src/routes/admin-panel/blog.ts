@@ -8,7 +8,7 @@ import { requireAdmin } from "./middleware";
 import { logger } from "../../lib/logger";
 import { sendNewsletterEmail } from "../../services/email";
 import { getBlogAutopilotStatus, generateAndPublishBlogPost, startDraftGeneration, getDraftStatus, getTprmMode, setTprmMode, BLOG_PLAN } from "../../services/blog-autopilot";
-import { generateBlogCoverDataUrl, isTprmTitle } from "../../services/blogCover";
+import { generateBlogCoverDataUrl, generateBlogCoverEnDataUrl, isTprmTitle } from "../../services/blogCover";
 import crypto from "crypto";
 
 const router = Router();
@@ -71,6 +71,8 @@ router.post("/admin-panel/blog/translate-missing", requireAdmin, async (req: Req
   void (async () => {
     const { translateMissingPosts } = await import("../../services/blogTranslate");
     const r = await translateMissingPosts(limit);
+    const covers = await (await import("../../services/blogCover")).backfillEnglishCovers();
+    logger.info({ covers }, "Blog: İngilizce kapaklar tamamlandı");
     logger.info(r, "Blog çeviri: toplu çeviri tamamlandı");
   })().catch(err => logger.error({ err }, "Blog toplu çeviri hatası"));
 });
@@ -242,6 +244,18 @@ router.put("/admin-panel/blog/:id", requireAdmin, async (req: Request, res: Resp
     }
   }
 
+  // İngilizce kapak: titleEn değiştiyse ya da henüz yoksa yeniden üret
+  {
+    const [cur] = await db.select({ title: blogPostsTable.title, titleEn: blogPostsTable.titleEn, coverEn: blogPostsTable.coverImageEnBase64 }).from(blogPostsTable).where(eq(blogPostsTable.id, id));
+    if (cur) {
+      const newTitleEn = typeof u.titleEn === "string" ? u.titleEn : cur.titleEn;
+      const newTitle = typeof u.title === "string" ? u.title : cur.title;
+      if (newTitleEn && (!cur.coverEn || newTitleEn !== cur.titleEn)) {
+        u.coverImageEnBase64 = generateBlogCoverEnDataUrl({ titleEn: newTitleEn, tprm: isTprmTitle(newTitle) }).dataUrl;
+      }
+    }
+  }
+
   const [row] = await db.update(blogPostsTable).set(u).where(eq(blogPostsTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Bulunamadı" }); return; }
   res.json(row);
@@ -301,7 +315,8 @@ router.post("/admin-panel/blog/:id/generate-cover", requireAdmin, async (req: Re
   const cover = await generateBlogCoverDataUrl({
     title: post.title, excerpt: post.excerpt, tprm: isTprmTitle(post.title),
   });
-  await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl, updatedAt: new Date() }).where(eq(blogPostsTable.id, id));
+  const coverEn = post.titleEn ? generateBlogCoverEnDataUrl({ titleEn: post.titleEn, tprm: isTprmTitle(post.title) }).dataUrl : undefined;
+  await db.update(blogPostsTable).set({ coverImageBase64: cover.dataUrl, ...(coverEn ? { coverImageEnBase64: coverEn } : {}), updatedAt: new Date() }).where(eq(blogPostsTable.id, id));
   res.json({ success: true });
 });
 
@@ -392,6 +407,7 @@ router.get("/public/blog", async (_req, res) => {
     content: blogPostsTable.content,
     contentEn: blogPostsTable.contentEn,
     coverImageBase64: blogPostsTable.coverImageBase64,
+    coverImageEnBase64: blogPostsTable.coverImageEnBase64,
     authorName: blogPostsTable.authorName,
     publishedAt: blogPostsTable.publishedAt,
     seoTitle: blogPostsTable.seoTitle,
@@ -412,7 +428,7 @@ router.get("/public/blog", async (_req, res) => {
     return {
       id: r.id, title: r.title, titleEn: r.titleEn, slug: r.slug,
       excerpt: r.excerpt, excerptEn: r.excerptEn,
-      coverImageBase64: r.coverImageBase64, authorName: r.authorName, publishedAt: r.publishedAt,
+      coverImageBase64: r.coverImageBase64, coverImageEnBase64: r.coverImageEnBase64, authorName: r.authorName, publishedAt: r.publishedAt,
       seoTitle: r.seoTitle, seoTitleEn: r.seoTitleEn,
       metaDescription: r.metaDescription, metaDescriptionEn: r.metaDescriptionEn,
       focusKeyword: r.focusKeyword, seoTags: r.seoTags,

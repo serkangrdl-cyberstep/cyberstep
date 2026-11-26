@@ -198,7 +198,6 @@ export const ALL_NIGHT_JOBS = [
   { name: "domain_rescan",            label: "Domain Yeniden Tarama",              scheduleLabel: "Her gün 09:30",          scheduleExpr: "30 9 * * *",                             category: "assessment"   },
   { name: "ai_quality_monitor",       label: "AI Kalite İzleme",                   scheduleLabel: "Her gün 09:30",          scheduleExpr: "30 9 * * *",                             category: "assessment"   },
   { name: "annual_report_reminder",   label: "Yıllık Rapor Hatırlatıcı",           scheduleLabel: "Ayın 1'i 09:00",         scheduleExpr: "0 9 1 * *",                              category: "assessment"   },
-  { name: "demo_report_refresh",      label: "Demo Rapor Yenileme",                scheduleLabel: "Ayın 1'i 10:00",         scheduleExpr: "0 10 1 * *",                             category: "assessment"   },
   { name: "health_score",             label: "Müşteri Sağlık Skoru",               scheduleLabel: "Her gece 02:00",         scheduleExpr: "0 2 * * *",                              category: "assessment"   },
   { name: "churn_auto_intervention",  label: "Churn Otomatik Müdahale",            scheduleLabel: "Her gün 08:30",          scheduleExpr: "30 8 * * *",                             category: "assessment"   },
   { name: "customer_activation_monitor", label: "Müşteri Aktivasyon İzleyici",    scheduleLabel: "Her gün 11:00",          scheduleExpr: "0 11 * * *",                             category: "assessment"   },

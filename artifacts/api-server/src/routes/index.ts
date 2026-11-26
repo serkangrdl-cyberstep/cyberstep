@@ -29,7 +29,6 @@ import platformHealthRouter from "./platform-health/index";
 import customerRouter from "./customer/index";
 import adminPanelRouter from "./admin-panel/index";
 import socialMediaRouter from "./social-media/index";
-import demoPublicRouter from "./public/demo";
 import cvePublicRouter from "./cve-public";
 
 import aiCostsRouter from "./admin-panel/ai-costs";
@@ -40,7 +39,6 @@ const router: IRouter = Router();
 router.use(publicRouter);
 router.use(aiCostsRouter);
 router.use(benchmarkPublicRouter);
-router.use("/public/demo", demoPublicRouter);
 router.use(v1Router);
 router.use(assessmentsRouter);
 router.use(geminiRouter);

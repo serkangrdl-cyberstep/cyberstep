@@ -12,7 +12,7 @@
 /** Public sayfalar → ana sayfaya yönlenir. Alt yollar da (örn. /ai-red-team/12) kapsanır. */
 export const ARCHIVED_PUBLIC: readonly string[] = [
   // Servis kataloğu
-  "/hizmetler", "/servisler", "/satin-al",
+  "/hizmetler", "/servisler", "/satin-al", "/demo",
   // AI güvenlik paketi
   "/ai-guvenlik", "/ai-guvenlik-degerlendirmesi", "/ai-phishing-simulasyonu", "/ai-arac-izleme",
   "/ai-politika", "/ai-red-team", "/eu-ai-act", "/ciso-asistan-paketi", "/vciso-erken-erisim",

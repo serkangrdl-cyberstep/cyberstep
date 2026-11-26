@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { handleBenchmarkDownload } from "../../services/growth-engine";
+import { handleBenchmarkDownload } from "../../services/benchmarkDownload";
 
 const router = Router();
 

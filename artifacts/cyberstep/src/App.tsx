@@ -66,7 +66,6 @@ import BlogPost from "./pages/blog-post";
 import Haberler from "./pages/haberler";
 
 import VerifyPage from "./pages/verify";
-import DemoPage from "./pages/demo";
 import DomainScan from "./pages/domain-scan";
 import CustomerLogin from "./pages/customer/login";
 import CustomerRegister from "./pages/customer/register";
@@ -264,7 +263,6 @@ function Router() {
             <Route path="/araclar/subdomain-tarayıcı" component={SubdomainTarayici} />
             <Route path="/araclar" component={TumAraclar} />
             <Route path="/sektor-raporu" component={SektorRaporu} />
-            <Route path="/demo" component={DemoPage} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

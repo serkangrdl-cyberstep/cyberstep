@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assessmentsTable, reportsTable, serviceCatalogTable, demoReportsTable, demoLeadsTable } from "@workspace/db";
+import { assessmentsTable, reportsTable, serviceCatalogTable } from "@workspace/db";
 import { eq, and, desc, sql, asc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { sendCustomerReportEmail } from "../../services/email";
@@ -227,72 +227,5 @@ router.post("/admin/services/:slug/deactivate", requireAdmin, async (req, res) =
   }
 });
 
-// ── Demo Rapor Admin ───────────────────────────────────────────────────────────
-
-// GET /api/admin/demo-reports
-router.get("/admin/demo-reports", requireAdmin, async (_req, res) => {
-  try {
-    const reports = await db.select().from(demoReportsTable).orderBy(desc(demoReportsTable.generatedAt));
-    res.json({ reports });
-  } catch (err) {
-    logger.error({ err }, "Demo reports admin fetch error");
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-// GET /api/admin/demo-leads
-router.get("/admin/demo-leads", requireAdmin, async (_req, res) => {
-  try {
-    const leads = await db.select().from(demoLeadsTable).orderBy(desc(demoLeadsTable.createdAt)).limit(500);
-    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(demoLeadsTable);
-    const [{ withCompany }] = await db.select({ withCompany: sql<number>`count(*)::int` }).from(demoLeadsTable).where(sql`company IS NOT NULL AND company != ''`);
-    res.json({ leads, total, withCompany });
-  } catch (err) {
-    logger.error({ err }, "Demo leads admin fetch error");
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-// POST /api/admin/demo-reports/refresh — tüm demo raporları yenile
-router.post("/admin/demo-reports/refresh", requireAdmin, async (_req, res) => {
-  res.json({ success: true, message: "Demo rapor üretimi arka planda başlatıldı" });
-  setImmediate(async () => {
-    try {
-      const { generateAllDemoReports } = await import("../../services/demoReportGenerator");
-      await generateAllDemoReports();
-      logger.info("Admin triggered demo report refresh — done");
-    } catch (err) {
-      logger.error({ err }, "Admin demo report refresh failed");
-    }
-  });
-});
-
-// POST /api/admin/demo-reports/:type/refresh — tek raporu yenile
-router.post("/admin/demo-reports/:type/refresh", requireAdmin, async (req, res) => {
-  res.json({ success: true, message: "Rapor üretimi başlatıldı" });
-  const type = String(req.params["type"] ?? "");
-  setImmediate(async () => {
-    try {
-      const { generateAllDemoReports } = await import("../../services/demoReportGenerator");
-      await generateAllDemoReports();
-      logger.info({ type }, "Admin triggered single demo report refresh");
-    } catch (err) {
-      logger.error({ err, type }, "Single demo report refresh failed");
-    }
-  });
-});
-
-// POST /api/admin/demo-reports/:type/toggle — aktif/pasif
-router.post("/admin/demo-reports/:type/toggle", requireAdmin, async (req, res) => {
-  const type = String(req.params["type"] ?? "");
-  const { isActive } = req.body as { isActive: boolean };
-  try {
-    await db.update(demoReportsTable).set({ isActive }).where(eq(demoReportsTable.reportType, type));
-    res.json({ success: true });
-  } catch (err) {
-    logger.error({ err }, "Demo report toggle error");
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
 
 export default router;

@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db, pool } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, blogPostsTable, demoReportsTable } from "@workspace/db";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, blogPostsTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
@@ -1248,7 +1248,7 @@ async function startup() {
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
   await import("./services/blogFixups").then(m => m.runBlogFixups().then(() => m.runBlogRefsArchiveFix())).catch((err) => logger.warn({ err: String(err) }, "Blog düzeltmesi atlandı"));
-  await import("./services/dropOldTables").then(m => m.runDropOldTables().then(() => m.runDropOldTablesV2())).catch((err) => logger.warn({ err: String(err).slice(0, 200) }, "Eski tablo temizliği atlandı"));
+  await import("./services/dropOldTables").then(m => m.runDropOldTables().then(() => m.runDropOldTablesV2()).then(() => m.runDropOldTablesV3())).catch((err) => logger.warn({ err: String(err).slice(0, 200) }, "Eski tablo temizliği atlandı"));
   // Tek seferlik (arka planda): mevcut yazıların kaynaklarını Web Archive kopyalarına çevir
   void (async () => {
     const done = await db.execute(sql`SELECT 1 FROM site_settings WHERE key = 'blog_refs_archived_v1'`);
@@ -1456,7 +1456,6 @@ async function startup() {
       END
   `);
   await runLivenessTimeoutBugFixOnce();
-  maybeSeedDemoReports();
 }
 
 // One-time data fix marker table — startup() runs on every process boot (including
@@ -1504,33 +1503,6 @@ async function runLivenessTimeoutBugFixOnce(): Promise<void> {
   `);
 }
 
-function maybeSeedDemoReports(): void {
-  setImmediate(async () => {
-    try {
-      const existing = await db
-        .select({ id: demoReportsTable.id, pdfPath: demoReportsTable.pdfPath })
-        .from(demoReportsTable)
-        .limit(6);
-
-      // DB kayıt yok VEYA herhangi bir PDF dosyası disk üzerinde eksikse yeniden üret
-      const missingFile = existing.some(
-        (r) => !r.pdfPath || !fs.existsSync(r.pdfPath),
-      );
-
-      if (existing.length > 0 && !missingFile) return;
-
-      logger.info(
-        { dbRows: existing.length, missingFile },
-        "Demo raporlar eksik — otomatik uretim baslıyor",
-      );
-      const { generateAllDemoReports } = await import("./services/demoReportGenerator");
-      await generateAllDemoReports();
-      logger.info("Demo rapor seed tamamlandi");
-    } catch (err) {
-      logger.warn({ err }, "Demo rapor seed hatasi");
-    }
-  });
-}
 
 async function ensureIocTables() {
   await db.execute(sql`
@@ -2837,12 +2809,6 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("IOC kredi sıfırlama cron kayıtlandı (ayın 1'i 08:30 Istanbul)");
 
-    // ─── Demo Rapor Yenileme — Her ayın 1'i 10:00 Istanbul ──────────────────
-    cron.schedule("0 10 1 * *", wrapCron("demo_report_refresh", "0 10 1 * *", async () => {
-      const { generateAllDemoReports } = await import("./services/demoReportGenerator");
-      await generateAllDemoReports();
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("Demo rapor yenileme cron kayıtlandı (ayın 1'i 10:00 Istanbul)");
 
     // ─── HITL Approval Queue: Süresi Dolmuş Onayları İşle — Her 15 dakika ──
     cron.schedule("*/15 * * * *", wrapCron("hitl_expire", "*/15 * * * *", async () => {
@@ -3028,7 +2994,6 @@ startup()
         { name: "annual_report_reminder",   thresholdHours: 745 },
         { name: "ciso_board_report",        thresholdHours: 745 },
         { name: "ciso_compliance_monthly",  thresholdHours: 745 },
-        { name: "demo_report_refresh",      thresholdHours: 745 },
         { name: "ioc_credit_reset",         thresholdHours: 745 },
         { name: "kvkk_data_retention",      thresholdHours: 745 },
         { name: "soc_monthly_ai_cost",      thresholdHours: 745 },

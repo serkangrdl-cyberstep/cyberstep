@@ -110,3 +110,9 @@ Kullanıcı kararı: entegrasyon/müşteri yok, hiç çağrılmadı → eski öz
 - **Tablolar:** `services/dropOldTables.ts` — tek seferlik (`old_tables_dropped_v1`), her tablonun satır sayısını loglayıp `DROP TABLE ... CASCADE` yapar. Drizzle şema dosyaları `lib/db/archive/` altında. Geri dönüş: yedek branch `arsiv/oncesi-temizlik-2026-11-26` + veritabanı yedekleri (silinen veri geri gelmez).
 - **İkinci tur (aynı gün):** `soc` ve `growth-engine` router'ları arşive alındı (AI maliyet sayfası `/api/admin/ai-costs`, sektör raporu indirme `/api/public/benchmark-download` küçük router'lara taşındı); ISR modülü (şema `lib/db/archive/isr.ts.txt`, 10 tablo `old_tables_dropped_v2` ile silinir), Lead Keşfi'ndeki "ISR'ye aktar", ISR notları ve teaser gönderme uç noktaları, `musteri-provizyon` sayfası (`artifacts/cyberstep/archive/`) kaldırıldı.
 - **Bilerek bırakılanlar:** `lead_candidates` (Lead Keşfi kullanıyor). `lead-discovery.tsx` içindeki `LEGACY_OUTREACH=false` ile gizli ölü arayüz kodu duruyor.
+
+## 26 Kasım 2026 — Demo rapor ve growth-engine servisi kaldırıldı
+
+- **Neden:** Demo rapor seed'i diskte PDF bulamayınca her deploy/yeniden başlatmada AI ile 6 raporu yeniden üretiyordu (bu ay ≈ 4 $, deploy başına ≈ 45 sn). growth-engine servisi hiçbir yerden çağrılmıyordu.
+- Kaldırılanlar: başlangıç seed'i, aylık `demo_report_refresh` cron'u, `/api/public/demo/*`, `/api/admin/demo-*`, `/demo` sayfası (artık `/`'a yönlenir), digest-admin "Demo Raporlar", `services/growth-engine.ts` (yalnızca `handleBenchmarkDownload` `services/benchmarkDownload.ts`'e taşındı). Kod `archive/` altında.
+- Tablolar (`old_tables_dropped_v3`): demo_reports, demo_leads, growth_triggers, competitor_checks, ekap_tenders, growth_engine_settings.

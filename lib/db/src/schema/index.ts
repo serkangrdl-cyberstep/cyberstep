@@ -92,7 +92,6 @@ export * from "./cti-intel";
 export * from "./index-reports";
 export * from "./ioc-query";
 export * from "./approvals";
-export * from "./demo-reports";
 export * from "./annual-reports";
 export * from "./cyber-risk-reports";
 export * from "./domain-scan-alerts";

@@ -15,7 +15,6 @@ import SosyalMedya from "@/pages/SosyalMedya";
 import IletisimBilgileri from "@/pages/IletisimBilgileri";
 import OzelGunler from "@/pages/OzelGunler";
 import Rozetler from "@/pages/Rozetler";
-import DemoRaporlar from "@/pages/DemoRaporlar";
 // import Referrallar from "@/pages/Referrallar"; // arşivde
 import StepAI from "@/pages/StepAI";
 
@@ -51,7 +50,6 @@ const NAV_SECTIONS = [
   {
     label: "Satış Destek",
     items: [
-      { href: "/demo-raporlar", label: "Demo Raporlar" },
     ],
   },
   {
@@ -235,7 +233,6 @@ function AppLayout() {
             <Route path="/iletisim" component={IletisimBilgileri} />
             <Route path="/ozel-gunler">{() => <Redirect to="/" replace />}</Route>{/* arşivde — bkz. NAV üstündeki not */}
             <Route path="/rozetler">{() => <Redirect to="/" replace />}</Route>
-            <Route path="/demo-raporlar" component={DemoRaporlar} />
             <Route path="/referrallar">{() => <Redirect to="/" replace />}</Route>{/* arşivde — bkz. NAV_SECTIONS notu */}
             <Route path="/step-ai" component={StepAI} />
             <Route component={NotFound} />

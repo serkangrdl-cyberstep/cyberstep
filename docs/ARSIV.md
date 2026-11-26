@@ -81,3 +81,21 @@ TPRM fiyatlandırmasıyla (Başlangıç 59.000, Profesyonel 149.000, Kurumsal 60
 Eski satış yapısının giden e-posta ve ISR cron'ları artık **varsayılan olarak başlamıyor**: `scan_lead_drip`, `free_scan_followup` ve `startIsrImapCron` altındaki hepsi (`isr_imap`, `teaser_reply_poll`, `teaser_followup`, `isr_leadgen_d3`, D+7 takip). Kod yerinde. Geri açmak için Railway'de `LEGACY_OUTREACH_CRONS=true` verip yeniden dağıtmak yeterli.
 
 `email_sequence` açık kalır: kayıt, assessment satın alma ve SOC aktivasyonu gibi müşteri yaşam döngüsü e-postalarını gönderir. Alan keşfi cron'ları (certstream, crt.sh, BGP, RIPE vb.) de çalışmaya devam eder.
+
+## Temizlik: gizli sayfaların ve eski akışların koddan kaldırılması (26 Kasım 2026)
+
+Daha önce yalnızca gizlenen (yönlendirilen) sayfaların kodu artık ağaçtan **kaldırıldı**. Geri dönmek için tam yedek:
+
+- Branch: `arsiv/oncesi-temizlik-2026-11-26` (temizlik öncesi `main`)
+- Eski TPRM öncesi yedek: `arsiv/oncesi-tprm-2026-11`
+
+Kaldırılanlar:
+
+- **Ön yüz:** `ARCHIVED_ADMIN`, `ARCHIVED_PUBLIC` ve `ARCHIVED_PORTAL` listelerindeki tüm sayfalar ve yalnızca onlara bağlı bileşen/hook'lar (`App.tsx` rotaları dahil). Eski adresler `lib/archived-routes.ts` ile hâlâ yönlenir. `pages/archive/` altındaki sayfa sürümleri duruyor.
+- **Teaser e-postası akışı:** aday taraması, teaser raporu/e-postası, halka açık önizleme (`/preview/:token`, artık `/`'a yönlenir), görüşme talebi, takip ve cevap cron'ları, ISR panelleri, müşteri portalı `my-prospect`. Kod: `artifacts/api-server/archive/teaser/` (`.txt`, derlenmez), önizleme sayfası: `pages/archive/preview-legacy.tsx.txt`.
+- **Eski outreach cron'ları:** `startIsrImapCron`, `startScanLeadDripCron`, `startFreeScanFollowupCron` ve `LEGACY_OUTREACH_CRONS` anahtarı.
+- **Kullanılmayan servisler:** `artifacts/api-server/archive/unused/`.
+
+Veritabanı tabloları silinmedi (`teaser_reports`, `prospect_replies`, `meeting_requests`, `lead_candidates` vb.).
+
+Enterprise paneli TPRM'e uyarlandı: aşamalar Yeni / Arandı / Pilot görüşmesi / Teklif / Sözleşme / Kazanıldı / Kaybedildi; sözleşme kataloğu yalnızca TPRM paketleri; KVKK Lead'den "Adaya aktar".

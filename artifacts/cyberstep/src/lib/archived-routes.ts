@@ -36,6 +36,8 @@ export const ARCHIVED_PUBLIC: readonly string[] = [
   "/araclar/WAF-bypass-tarayıcı", "/araclar/WAF-bypass-taray%C4%B1c%C4%B1",
   // Partner portalı ve beyaz etiket (TPRM odağı, 3. tur)
   "/ortak", "/w",
+  // Teaser e-postası önizleme sayfası (teaser akışı kaldırıldı, 26 Kasım 2026)
+  "/preview",
 ];
 
 /** Müşteri portalı (/hesabim) sayfaları → /hesabim'e yönlenir. */

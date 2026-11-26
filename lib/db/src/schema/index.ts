@@ -57,7 +57,6 @@ export * from "./lead-gen";
 export * from "./growth-engine";
 export * from "./status";
 export * from "./remediation";
-export * from "./attack-paths";
 export * from "./badges";
 export * from "./fortinet";
 export * from "./soc";

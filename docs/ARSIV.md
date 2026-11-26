@@ -116,3 +116,7 @@ Kullanıcı kararı: entegrasyon/müşteri yok, hiç çağrılmadı → eski öz
 - **Neden:** Demo rapor seed'i diskte PDF bulamayınca her deploy/yeniden başlatmada AI ile 6 raporu yeniden üretiyordu (bu ay ≈ 4 $, deploy başına ≈ 45 sn). growth-engine servisi hiçbir yerden çağrılmıyordu.
 - Kaldırılanlar: başlangıç seed'i, aylık `demo_report_refresh` cron'u, `/api/public/demo/*`, `/api/admin/demo-*`, `/demo` sayfası (artık `/`'a yönlenir), digest-admin "Demo Raporlar", `services/growth-engine.ts` (yalnızca `handleBenchmarkDownload` `services/benchmarkDownload.ts`'e taşındı). Kod `archive/` altında.
 - Tablolar (`old_tables_dropped_v3`): demo_reports, demo_leads, growth_triggers, competitor_checks, ekap_tenders, growth_engine_settings.
+
+## 26 Kasım 2026 — Attack path analizi kaldırıldı
+
+Gece 02:30 `attack_path_analysis` cron'u, servisi (`attackPathAnalyzer`) ve `attack_paths` tablosu (`old_tables_dropped_v4`) kaldırıldı; kod `archive/` altında.

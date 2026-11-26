@@ -151,7 +151,6 @@ export const ALL_NIGHT_JOBS = [
   { name: "email_sequence",           label: "Email Dizisi",                       scheduleLabel: "Her 30 dakika",          scheduleExpr: "*/30 * * * *",                           category: "lead-gen"     },
   // ─── Güvenlik ─────────────────────────────────────────────────────────────────
   { name: "ct_phishing_monitor",      label: "CT Log Phishing İzleme",             scheduleLabel: "Her 4 saatte",           scheduleExpr: "0 */4 * * *",                            category: "security"     },
-  { name: "attack_path_analysis",     label: "Attack Path Analizi",                scheduleLabel: "Her gece 02:30",         scheduleExpr: "30 2 * * *",                             category: "security"     },
   { name: "cloud_cspm",               label: "Cloud CSPM Tarama",                  scheduleLabel: "Her gece 03:45",         scheduleExpr: "45 3 * * *",                             category: "security"     },
   { name: "github_secrets_scan",      label: "GitHub Secrets Tarama",              scheduleLabel: "Her Pazar 05:00",        scheduleExpr: "0 5 * * 0",                              category: "security"     },
   { name: "tprm_vendor_rescan",       label: "TPRM Tedarikçi Yeniden Tarama",      scheduleLabel: "Her gece 02:00",         scheduleExpr: "0 2 * * *",                              category: "security"     },

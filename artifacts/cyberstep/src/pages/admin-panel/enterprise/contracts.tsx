@@ -137,7 +137,7 @@ export default function EnterpriseContractsPage() {
     .reduce((sum, c) => sum + Number(c.totalAmountTl ?? 0), 0);
 
   return (
-    <AdminLayout title="Enterprise Sözleşmeler" description="Kurumsal müşteri sözleşme yönetimi">
+    <AdminLayout title="Sözleşmeler (TPRM)" description="Tedarikçi risk yönetimi paket sözleşmeleri">
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card className="bg-slate-800 border-slate-700">

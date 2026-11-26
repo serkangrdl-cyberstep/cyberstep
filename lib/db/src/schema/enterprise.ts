@@ -15,6 +15,8 @@ export const enterpriseProspectsTable = pgTable("enterprise_prospects", {
   contactPhone: varchar("contact_phone", { length: 50 }),
   linkedinUrl: varchar("linkedin_url", { length: 500 }),
   source: varchar("source", { length: 50 }).default("manual"),
+  supplierCount: integer("supplier_count"),
+  kvkkNoticeId: integer("kvkk_notice_id"),
   assignedTo: varchar("assigned_to", { length: 100 }),
   status: varchar("status", { length: 30 }).default("new"),
   notes: text("notes"),

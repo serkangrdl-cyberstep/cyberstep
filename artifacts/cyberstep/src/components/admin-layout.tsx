@@ -65,12 +65,12 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    title: "Enterprise & Lead",
+    title: "Satış Adayları & Lead",
     dept: "enterprise",
     items: [
-      { icon: Telescope,       label: "Enterprise: Adaylar",     href: "/panel/enterprise/prospects" },
-      { icon: GitBranch,       label: "Enterprise: Pipeline",    href: "/panel/enterprise/pipeline" },
-      { icon: Handshake,       label: "Enterprise: Sözleşmeler", href: "/panel/enterprise/contracts" },
+      { icon: Telescope,       label: "Satış: Adaylar (TPRM)",     href: "/panel/enterprise/prospects" },
+      { icon: GitBranch,       label: "Satış: Hat (Pipeline)",    href: "/panel/enterprise/pipeline" },
+      { icon: Handshake,       label: "Satış: Sözleşmeler", href: "/panel/enterprise/contracts" },
       { icon: Target,          label: "KVKK Lead",               href: "/panel/kvkk-lead" },
     ],
   },

@@ -1936,6 +1936,9 @@ async function startup() {
     status TEXT NOT NULL DEFAULT 'new', sales_script JSONB, notes TEXT, contacted_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`);
   await db.execute(sql`ALTER TABLE kvkk_breach_notices ADD COLUMN IF NOT EXISTS archive_url TEXT`);
+  await db.execute(sql`ALTER TABLE kvkk_breach_notices ADD COLUMN IF NOT EXISTS prospect_id INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS enterprise_prospects ADD COLUMN IF NOT EXISTS supplier_count INTEGER`);
+  await db.execute(sql`ALTER TABLE IF EXISTS enterprise_prospects ADD COLUMN IF NOT EXISTS kvkk_notice_id INTEGER`);
   // Tek seferlik: TPRM blog yazıları onaysız yayınlansın (kullanıcı kararı, 24 Kasım 2026). İşaret anahtarı sonrasında panel tercihini ezmez.
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);

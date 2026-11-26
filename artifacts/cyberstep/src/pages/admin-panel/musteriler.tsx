@@ -43,7 +43,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 // tprm_*: Tedarikçi Riski yıllık paketleri (pages/pricing.tsx) — tedarikçi limiti api-server/src/routes/tprm/index.ts
-const PLANS = ["tprm_baslangic", "tprm_profesyonel", "tprm_kurumsal", "free", "starter", "pro", "enterprise"];
+// Eski paketler (starter/pro/enterprise) seçimden kaldırıldı; müşteride kayıtlıysa mevcut değer listede görünmeye devam eder.
+const PLANS = ["tprm_baslangic", "tprm_profesyonel", "tprm_kurumsal", "free"];
 const STATUSES = ["active", "inactive", "trial"];
 
 function EditRow({ customer, onClose }: { customer: Customer; onClose: () => void }) {
@@ -79,7 +80,7 @@ function EditRow({ customer, onClose }: { customer: Customer; onClose: () => voi
           className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"
         >
           <option value="">Ücretsiz</option>
-          {PLANS.map(p => <option key={p} value={p}>{p}</option>)}
+          {(customer.subscriptionPlan && !PLANS.includes(customer.subscriptionPlan) ? [...PLANS, customer.subscriptionPlan] : PLANS).map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
       <div className="space-y-1">

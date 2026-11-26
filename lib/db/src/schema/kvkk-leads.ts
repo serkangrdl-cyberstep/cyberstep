@@ -6,6 +6,7 @@ export const kvkkBreachNoticesTable = pgTable("kvkk_breach_notices", {
   noticeId: integer("notice_id").notNull().unique(),
   url: text("url").notNull(),
   archiveUrl: text("archive_url"),
+  prospectId: integer("prospect_id"),
   companyName: text("company_name").notNull(),
   publishedAt: date("published_at"),
   decisionNo: text("decision_no"),

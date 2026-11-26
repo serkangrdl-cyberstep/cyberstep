@@ -197,7 +197,6 @@ export default function Musteri360() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="border-slate-700 text-slate-300 h-8" onClick={() => sendNps.mutate()}><Send className="h-3 w-3 mr-1" />NPS</Button>
-          <Button size="sm" variant="outline" className="border-sky-500/40 text-sky-300 h-8" onClick={() => navigate(`/panel/musteriler/${id}/provizyon`)}><Settings2 className="h-3 w-3 mr-1" />Provizyon</Button>
           {customer.cust_status === "paused" ? (
             <Button size="sm" variant="outline" className="border-emerald-500/40 text-emerald-300 h-8" onClick={() => resume.mutate()}><Play className="h-3 w-3 mr-1" />Devam Et</Button>
           ) : customer.cust_status === "active" ? (

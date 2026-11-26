@@ -79,3 +79,24 @@ export async function runDropOldTables(): Promise<void> {
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES (${MARKER}, '1', NOW()) ON CONFLICT (key) DO NOTHING`);
   logger.info({ dropped }, "Eski tablo temizliği tamamlandı");
 }
+
+const MARKER_V2 = "old_tables_dropped_v2";
+/** ISR (Fortinet satış modülü) tabloları — kullanıcı kararı, 26 Kasım 2026. */
+export const OLD_TABLES_V2 = [
+  "isr_rfq_responses", "isr_quote_lines", "isr_quotes", "isr_margin_rules", "isr_email_inbox",
+  "isr_rfqs", "isr_deals", "isr_distributors", "isr_vendors", "isr_customers",
+] as const;
+
+export async function runDropOldTablesV2(): Promise<void> {
+  const done = await db.execute(sql`SELECT 1 FROM site_settings WHERE key = ${MARKER_V2}`);
+  if ((done as unknown as { rows?: unknown[] }).rows?.length) return;
+  for (const t of OLD_TABLES_V2) {
+    const ex = await db.execute(sql`SELECT to_regclass(${"public." + t}) AS r`);
+    if (!(ex as unknown as { rows?: { r: string | null }[] }).rows?.[0]?.r) continue;
+    const c = await db.execute(sql.raw(`SELECT COUNT(*)::int AS n FROM "${t}"`));
+    const rows = (c as unknown as { rows?: { n: number }[] }).rows?.[0]?.n ?? 0;
+    await db.execute(sql.raw(`DROP TABLE IF EXISTS "${t}" CASCADE`));
+    logger.info({ table: t, rows }, "Eski tablo silindi");
+  }
+  await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES (${MARKER_V2}, '1', NOW()) ON CONFLICT (key) DO NOTHING`);
+}

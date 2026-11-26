@@ -149,7 +149,6 @@ export const ALL_NIGHT_JOBS = [
   { name: "scan_lead_drip",           label: "Tarama Lead Drip",                   scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
   { name: "free_scan_followup",       label: "Ücretsiz Tarama Takip",              scheduleLabel: "Her saat",               scheduleExpr: "0 * * * *",                              category: "lead-gen"     },
   { name: "email_sequence",           label: "Email Dizisi",                       scheduleLabel: "Her 30 dakika",          scheduleExpr: "*/30 * * * *",                           category: "lead-gen"     },
-  { name: "isr_imap",                 label: "ISR IMAP Okuyucu",                   scheduleLabel: "Her 10 dakika",          scheduleExpr: "*/10 * * * *",                           category: "lead-gen"     },
   // ─── Güvenlik ─────────────────────────────────────────────────────────────────
   { name: "ct_phishing_monitor",      label: "CT Log Phishing İzleme",             scheduleLabel: "Her 4 saatte",           scheduleExpr: "0 */4 * * *",                            category: "security"     },
   { name: "attack_path_analysis",     label: "Attack Path Analizi",                scheduleLabel: "Her gece 02:30",         scheduleExpr: "30 2 * * *",                             category: "security"     },

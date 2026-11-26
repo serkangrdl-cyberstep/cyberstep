@@ -1,7 +1,6 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, decimal, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { isrCustomersTable } from "./isr";
 
 
 export const intelligenceReportsTable = pgTable("intelligence_reports", {

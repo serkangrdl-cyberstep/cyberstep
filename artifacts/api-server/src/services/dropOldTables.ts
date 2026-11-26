@@ -118,3 +118,19 @@ export async function runDropOldTablesV3(): Promise<void> {
   }
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES (${MARKER_V3}, '1', NOW()) ON CONFLICT (key) DO NOTHING`);
 }
+
+const MARKER_V4 = "old_tables_dropped_v4";
+/** Attack path analizi (gece AI çağrısı) — 26 Kasım 2026. */
+export async function runDropOldTablesV4(): Promise<void> {
+  const done = await db.execute(sql`SELECT 1 FROM site_settings WHERE key = ${MARKER_V4}`);
+  if ((done as unknown as { rows?: unknown[] }).rows?.length) return;
+  const t = "attack_paths";
+  const ex = await db.execute(sql`SELECT to_regclass(${"public." + t}) AS r`);
+  if ((ex as unknown as { rows?: { r: string | null }[] }).rows?.[0]?.r) {
+    const c = await db.execute(sql.raw(`SELECT COUNT(*)::int AS n FROM "${t}"`));
+    const rows = (c as unknown as { rows?: { n: number }[] }).rows?.[0]?.n ?? 0;
+    await db.execute(sql.raw(`DROP TABLE IF EXISTS "${t}" CASCADE`));
+    logger.info({ table: t, rows }, "Eski tablo silindi");
+  }
+  await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES (${MARKER_V4}, '1', NOW()) ON CONFLICT (key) DO NOTHING`);
+}

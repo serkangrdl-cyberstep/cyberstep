@@ -1248,7 +1248,7 @@ async function startup() {
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
   await import("./services/blogFixups").then(m => m.runBlogFixups().then(() => m.runBlogRefsArchiveFix())).catch((err) => logger.warn({ err: String(err) }, "Blog düzeltmesi atlandı"));
-  await import("./services/dropOldTables").then(m => m.runDropOldTables().then(() => m.runDropOldTablesV2()).then(() => m.runDropOldTablesV3())).catch((err) => logger.warn({ err: String(err).slice(0, 200) }, "Eski tablo temizliği atlandı"));
+  await import("./services/dropOldTables").then(m => m.runDropOldTables().then(() => m.runDropOldTablesV2()).then(() => m.runDropOldTablesV3()).then(() => m.runDropOldTablesV4())).catch((err) => logger.warn({ err: String(err).slice(0, 200) }, "Eski tablo temizliği atlandı"));
   // Tek seferlik (arka planda): mevcut yazıların kaynaklarını Web Archive kopyalarına çevir
   void (async () => {
     const done = await db.execute(sql`SELECT 1 FROM site_settings WHERE key = 'blog_refs_archived_v1'`);
@@ -2231,22 +2231,6 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("KVKK scheduled deletion cron scheduled (04:00 Istanbul)");
 
-    // ─── CASM: Attack Path analizi — Her gece 02:00 ─────────────────────────
-    cron.schedule("30 2 * * *", wrapCron("attack_path_analysis", "30 2 * * *", async () => {
-      const { analyzeAttackPaths, getLatestScan, getActiveCustomers } = await import("./services/attackPathAnalyzer");
-      const customers = await getActiveCustomers();
-      let analyzed = 0;
-      for (const c of customers) {
-        const scan = await getLatestScan(c.id);
-        if (scan) {
-          await analyzeAttackPaths(c.id, scan.id);
-          await new Promise(r => setTimeout(r, 3000));
-          analyzed++;
-        }
-      }
-      return analyzed;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("Attack path analysis cron scheduled (02:30 Istanbul)");
 
     // ─── CASM: Remediation doğrulama kuyruğu — Her saat ─────────────────────
     cron.schedule("0 * * * *", wrapCron("verification_queue", "0 * * * *", async () => {
@@ -2904,7 +2888,6 @@ startup()
         { name: "usom_refresh",             thresholdHours: 25  },
         { name: "vulncheck_kev",            thresholdHours: 25  },
         { name: "intel_feeds",              thresholdHours: 7   },
-        { name: "attack_path_analysis",     thresholdHours: 25  },
         { name: "cve_feed_check",           thresholdHours: 3   },
         { name: "cve_customer_notification", thresholdHours: 5  },
         { name: "cve_patch_recheck",         thresholdHours: 25 },

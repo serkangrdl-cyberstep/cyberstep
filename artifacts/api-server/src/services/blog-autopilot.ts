@@ -17,6 +17,7 @@ import { logAiCost } from "./aiCostTracker";
 import { sourcesForTopic, TPRM_PLAN, TPRM_WRITING_RULES, selectFactsForTopic } from "../data/blogTprmPlan";
 import { buildFactCheckPrompt, parseFactCheckOutput } from "./blogFactCheck";
 import { generateBlogCoverDataUrl } from "./blogCover";
+import { archivePostRefs } from "./webArchive";
 
 const BLOG_MODEL = getModel("blog");
 
@@ -683,6 +684,8 @@ export async function generateAndPublishBlogPost(): Promise<void> {
     logger.warn({ err: String(err), postId: post.id }, "Blog autopilot: kapak görseli kaydedilemedi");
   }
 
+  await archiveRefsForPost(post.id, generated.refsJson);
+
   // Takvim satırını "published" olarak işaretle
   if (tprmTopic) {
     await setTprmIndex(tprmIndex + 1);
@@ -747,6 +750,18 @@ export async function startDraftGeneration(): Promise<{ started: boolean }> {
   return { started: true };
 }
 
+/** Kaynak bağlantılarını Web Archive kopyalarına çevirir (resmî KVKK duyuruları ~60 gün sonra kalkar). Hata yazıyı etkilemez. */
+async function archiveRefsForPost(postId: number, refs: { title: string; url: string }[] | null | undefined): Promise<void> {
+  if (!refs?.length) return;
+  try {
+    const r = await archivePostRefs(refs);
+    if (r.archived > 0) await db.update(blogPostsTable).set({ refsJson: r.refs }).where(eq(blogPostsTable.id, postId));
+    logger.info({ postId, archived: r.archived, failed: r.failed }, "Blog autopilot: kaynaklar arşivlendi");
+  } catch (err) {
+    logger.warn({ err: String(err).slice(0, 200), postId }, "Blog autopilot: kaynak arşivleme atlandı");
+  }
+}
+
 export async function generateAndSaveDraft(): Promise<{ postId: number; slug: string; title: string; coverOk: boolean }> {
   // TPRM planı bitene kadar taslaklar da önce oradan üretilir
   const tprmIndex = await getTprmIndex();
@@ -783,6 +798,8 @@ export async function generateAndSaveDraft(): Promise<{ postId: number; slug: st
   logger.info({ postId: post.id, slug: post.slug, title: post.title }, "Blog autopilot: taslak kaydedildi");
   if (tprmTopic) await setTprmIndex(tprmIndex + 1);
   else await setAutopilotIndex(currentIndex + 1);
+
+  await archiveRefsForPost(post.id, generated.refsJson);
 
   let coverOk = false;
   try {

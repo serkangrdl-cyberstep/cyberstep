@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface SalesScript { opening: string; talkingPoints: string[]; objections: { objection: string; answer: string }[]; emailDraft: string; doNot: string[] }
 interface Lead {
-  id: number; noticeId: number; url: string; companyName: string; publishedAt: string | null; decisionNo: string | null;
+  id: number; noticeId: number; url: string; archiveUrl?: string | null; companyName: string; publishedAt: string | null; decisionNo: string | null;
   affectedCount: number | null; summary: string; supplierLinked: boolean; supplierSignals: string[] | null; isLead: boolean;
   status: string; salesScript: SalesScript | null; notes: string | null; contactedAt: string | null;
 }
@@ -88,7 +88,7 @@ export default function KvkkLeadPage() {
                 </select>
                 {r.salesScript && <Button size="sm" onClick={() => { setOpen(r); setNotes(r.notes ?? ""); }}><Phone className="h-4 w-4 mr-1" /> Arama metni</Button>}
                 {!r.salesScript && r.isLead && <Button size="sm" variant="outline" onClick={() => regen.mutate(r.id)}>Metin üret</Button>}
-                <a href={`https://web.archive.org/web/2026/${r.url}`} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-flex items-center gap-1">Arşiv <ExternalLink className="h-3 w-3" /></a>
+                <a href={r.archiveUrl || `https://web.archive.org/web/2026/${r.url}`} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-flex items-center gap-1">Arşiv <ExternalLink className="h-3 w-3" /></a>
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-flex items-center gap-1">KVKK duyurusu <ExternalLink className="h-3 w-3" /></a>
               </div>
               {r.notes && <p className="text-xs">Not: {r.notes}</p>}

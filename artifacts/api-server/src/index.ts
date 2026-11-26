@@ -1938,7 +1938,7 @@ async function startup() {
   // Tek seferlik: TPRM blog yazıları onaysız yayınlansın (kullanıcı kararı, 24 Kasım 2026). İşaret anahtarı sonrasında panel tercihini ezmez.
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
-  await import("./services/blogFixups").then(m => m.runBlogFixups()).catch((err) => logger.warn({ err: String(err) }, "Blog düzeltmesi atlandı"));
+  await import("./services/blogFixups").then(m => m.runBlogFixups().then(() => m.runBlogRefsArchiveFix())).catch((err) => logger.warn({ err: String(err) }, "Blog düzeltmesi atlandı"));
   await ensureDomainScanEnrichmentColumns();
   await ensureReportEnrichmentColumns();
   await ensureSecurityAdvisoriesTable();

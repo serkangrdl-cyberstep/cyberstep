@@ -1,7 +1,6 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { SpecialDayBanner } from "@/components/special-day-banner";
 import { Shield, ChevronRight, CheckCircle, BarChart, ShieldAlert, Building2, ChevronDown, ChevronUp, Loader2, Globe, Search, XCircle, CheckCircle2, AlertCircle, Lock, AtSign, Mail, Zap, ExternalLink, Brain } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -607,7 +606,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col flex-1">
-      <SpecialDayBanner />
+      {/* SpecialDayBanner kaldırıldı (bkz. docs/ARSIV.md) */}
       {/* Beta Banner */}
       <div className="bg-primary/10 border-b border-primary/20 text-primary py-2.5 px-4 text-sm text-center">
         <span className="inline-flex items-center gap-2">

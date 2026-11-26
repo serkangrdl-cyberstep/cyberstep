@@ -24,7 +24,7 @@ function usd(n: number | undefined) { return `$${Number(n ?? 0).toFixed(4)}`; }
 export default function AdminAiCosts() {
   const { data } = useQuery<AiCostData>({
     queryKey: ["soc-ai-costs"],
-    queryFn: () => fetch("/api/admin/soc/ai-costs", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch("/api/admin/ai-costs", { credentials: "include" }).then(r => r.json()),
     refetchInterval: 60000,
   });
 

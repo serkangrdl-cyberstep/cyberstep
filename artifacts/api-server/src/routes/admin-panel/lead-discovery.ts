@@ -8,8 +8,6 @@ import {
   customerTechStackTable,
   ispPartnersTable,
   domainScansTable,
-  isrCustomersTable,
-  isrDealsTable,
   cveTrackerTable,
   cveDomainMatchesTable,
 } from "@workspace/db";
@@ -27,8 +25,6 @@ import { logger } from "../../lib/logger";
 import { enrichLeadFromTrSources } from "../../services/leadDiscovery/trSourcesEnrichment";
 import { enrichLeadFromWeb } from "../../services/leadDiscovery/webContentEnrichment";
 import { sendMail } from "../../services/email";
-import { buildTeaserEmailHtml, buildDealNotificationHtml } from "../../lib/email-templates/isrEmails";
-import { getIsrEmail, getIsrBaseUrl } from "../../lib/isr/teamConfig";
 
 function requireTenantId(req: Request, res: Response): number | null {
   const tid = (req.session as unknown as Record<string, unknown>)["tenantId"] as number | undefined;
@@ -1018,99 +1014,6 @@ router.patch("/admin-panel/lead-discovery/candidates/:id/contact", requireAdmin,
   res.json({ message: "Kontak bilgisi güncellendi." });
 });
 
-// ─── POST /api/admin-panel/lead-discovery/candidates/:id/promote-to-isr ──────
-router.post("/admin-panel/lead-discovery/candidates/:id/promote-to-isr", requireAdmin, async (req: Request, res: Response) => {
-  const tenantId = requireTenantId(req, res); if (!tenantId) return;
-  const id = parseInt(String(req.params["id"] ?? "0"));
-  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
-  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
-  if (candidate.isrPromotedAt) {
-    res.json({ ok: true, isrCustomerId: candidate.isrCustomerId, alreadyPromoted: true });
-    return;
-  }
-
-  const companyName = candidate.scrapedCompanyName ?? candidate.companyName ?? candidate.domain;
-  const [isrCustomer] = await db.insert(isrCustomersTable).values({
-    tenantId,
-    companyName,
-    contactName: candidate.contactName ?? candidate.officerName ?? null,
-    email: candidate.contactEmail ?? null,
-    phone: candidate.scrapedPhone ?? null,
-    sector: candidate.sector ?? null,
-    notes: [
-      candidate.isrNotes,
-      candidate.riskScore != null ? `Risk skoru: ${candidate.riskScore}` : null,
-      candidate.criticalFindings > 0 ? `Kritik bulgu: ${candidate.criticalFindings}` : null,
-      candidate.findingHighlights?.length ? `Bulgular: ${candidate.findingHighlights.slice(0, 3).join("; ")}` : null,
-    ].filter(Boolean).join("\n") || null,
-  }).returning({ id: isrCustomersTable.id });
-
-  await db.update(leadCandidatesTable).set({
-    isrPromotedAt: new Date(),
-    isrCustomerId: isrCustomer?.id ?? null,
-    updatedAt: new Date(),
-  }).where(eq(leadCandidatesTable.id, id));
-
-  // Otomatik deal oluştur + ISR ekibine bildirim (fire-and-forget)
-  setImmediate(async () => {
-    try {
-      const baseUrl = getIsrBaseUrl();
-      const [newDeal] = await db.insert(isrDealsTable).values({
-        tenantId,
-        customerId: isrCustomer?.id ?? null,
-        customerName: companyName,
-        customerEmail: candidate.contactEmail ?? "",
-        customerCompany: companyName,
-        customerPhone: candidate.scrapedPhone ?? null,
-        status: "new",
-        intakeChannel: "lead_discovery",
-        priority: (candidate.riskScore ?? 0) >= 70 ? "high" : "normal",
-        notes: [
-          `Lead skoru: ${candidate.riskScore ?? "N/A"}`,
-          candidate.criticalFindings > 0 ? `Kritik bulgu: ${candidate.criticalFindings}` : null,
-          "Otomatik oluşturuldu — Lead Discovery",
-        ].filter(Boolean).join("\n"),
-      }).returning({ id: isrDealsTable.id });
-
-      const dealUrl = `${baseUrl}/panel/isr/deal/${newDeal?.id}`;
-      const isrEmail = getIsrEmail("isr-team");
-      await sendMail({
-        to: isrEmail,
-        subject: `Yeni Deal: ${companyName}`,
-        html: buildDealNotificationHtml({
-          companyName,
-          domain: candidate.domain,
-          contactName: candidate.contactName ?? null,
-          contactEmail: candidate.contactEmail ?? null,
-          riskScore: candidate.riskScore ?? null,
-          criticalFindings: candidate.criticalFindings ?? 0,
-          dealId: newDeal?.id ?? 0,
-          dealUrl,
-        }),
-      });
-      logger.info({ id, domain: candidate.domain, dealId: newDeal?.id }, "ISR deal oluşturuldu ve bildirim gönderildi");
-    } catch (err) {
-      logger.error({ err, id }, "ISR deal oluşturma/bildirim hatası");
-    }
-  });
-
-  logger.info({ id, domain: candidate.domain, isrCustomerId: isrCustomer?.id }, "Lead ISR müşteri listesine eklendi");
-  res.json({ ok: true, isrCustomerId: isrCustomer?.id });
-});
-
-// ─── PATCH /api/admin-panel/lead-discovery/candidates/:id/isr-notes ──────────
-router.patch("/admin-panel/lead-discovery/candidates/:id/isr-notes", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(String(req.params["id"] ?? "0"));
-  const { isrNotes } = req.body as { isrNotes?: string };
-  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
-  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
-  await db.update(leadCandidatesTable).set({
-    isrNotes: typeof isrNotes === "string" ? isrNotes.trim() || null : null,
-    updatedAt: new Date(),
-  }).where(eq(leadCandidatesTable.id, id));
-  res.json({ message: "ISR notları güncellendi." });
-});
-
 // ─── POST /api/admin-panel/lead-discovery/web-enrich (batch) ─────────────────
 router.post("/admin-panel/lead-discovery/web-enrich", requireAdmin, async (req: Request, res: Response) => {
   const { limit = 30 } = (req.body ?? {}) as { limit?: number };
@@ -1215,42 +1118,6 @@ router.post("/admin-panel/lead-discovery/candidates/:id/teaser", requireAdmin, a
       logger.error({ id, err: String(e) }, "Manuel teaser üretimi başarısız");
     }
   });
-});
-
-// ─── POST /api/admin-panel/lead-discovery/candidates/:id/send-teaser ─────────
-router.post("/admin-panel/lead-discovery/candidates/:id/send-teaser", requireAdmin, async (req: Request, res: Response) => {
-  const id = parseInt(String(req.params["id"] ?? "0"));
-  const [candidate] = await db.select().from(leadCandidatesTable).where(eq(leadCandidatesTable.id, id));
-  if (!candidate) { res.status(404).json({ error: "Aday bulunamadı" }); return; }
-  if (!candidate.teaserSubject || !candidate.teaserBody) {
-    res.status(400).json({ error: "Önce teaser üretilmeli." }); return;
-  }
-  if (!candidate.contactEmail) {
-    res.status(400).json({ error: "İletişim e-postası bulunamadı." }); return;
-  }
-
-  const html = buildTeaserEmailHtml({
-    companyName: candidate.scrapedCompanyName ?? candidate.companyName ?? candidate.domain,
-    contactName: candidate.contactName ?? null,
-    domain: candidate.domain,
-    teaserBody: candidate.teaserBody,
-    riskScore: candidate.riskScore ?? null,
-    criticalFindings: candidate.criticalFindings ?? 0,
-  });
-
-  setImmediate(async () => {
-    try {
-      await sendMail({ to: candidate.contactEmail!, subject: candidate.teaserSubject!, html });
-      logger.info({ id, to: candidate.contactEmail }, "Teaser e-posta gönderildi");
-    } catch (err) {
-      logger.error({ err, id }, "Teaser e-posta gönderimi başarısız");
-    }
-  });
-
-  await db.update(leadCandidatesTable).set({ teaserSentAt: new Date(), updatedAt: new Date() })
-    .where(eq(leadCandidatesTable.id, id));
-
-  res.json({ message: `Teaser ${candidate.contactEmail} adresine gönderiliyor.`, sentTo: candidate.contactEmail });
 });
 
 // ─── DELETE /api/admin-panel/lead-discovery/candidates/:id ───────────────────

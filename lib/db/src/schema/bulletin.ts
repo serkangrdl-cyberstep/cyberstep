@@ -2,7 +2,6 @@ import {
   pgTable, serial, varchar, text, integer, boolean,
   timestamp, date, numeric, index,
 } from "drizzle-orm/pg-core";
-import { isrCustomersTable } from "./isr";
 
 export const weeklyBulletinsTable = pgTable("weekly_bulletins", {
   id: serial("id").primaryKey(),
@@ -66,7 +65,7 @@ export const bulletinSubscribersTable = pgTable("bulletin_subscribers", {
   lastOpenedAt: timestamp("last_opened_at"),
   engagementScore: integer("engagement_score").default(50),
 
-  isrCustomerId: integer("isr_customer_id").references(() => isrCustomersTable.id),
+  isrCustomerId: integer("isr_customer_id"),
 
   isActive: boolean("is_active").default(true),
   unsubscribedAt: timestamp("unsubscribed_at"),

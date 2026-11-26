@@ -91,7 +91,6 @@ import OnboardingWizard from "./pages/admin-panel/onboarding-wizard";
 import AdminAiCosts from "./pages/admin-panel/ai-costs";
 import AdminApprovals from "./pages/admin-panel/approvals";
 import TedarikciPortfoyu from "./pages/hesabim/tedarikci-portfoyu";
-import MusteriProvizyon from "./pages/admin-panel/musteri-provizyon";
 import HesabimDestek from "./pages/hesabim/destek";
 import YenilePage from "./pages/yenile";
 import NpsPage from "./pages/nps";
@@ -214,7 +213,6 @@ function Router() {
       <Route path="/panel/gunluk-ozet" component={AdminDailyDashboard} />
       <Route path="/panel/status" component={AdminStatusPage} />
       <Route path="/panel/musteriler/:id/onboarding" component={OnboardingWizard} />
-      <Route path="/panel/musteriler/:id/provizyon" component={MusteriProvizyon} />
       <Route path="/panel/ai-costs" component={AdminAiCosts} />
       <Route path="/panel/approvals" component={AdminApprovals} />
       <Route path="/panel" component={AdminDashboard} />

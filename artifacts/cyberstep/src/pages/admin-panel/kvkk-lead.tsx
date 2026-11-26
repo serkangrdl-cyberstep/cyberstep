@@ -12,7 +12,7 @@ interface SalesScript { opening: string; talkingPoints: string[]; objections: { 
 interface Lead {
   id: number; noticeId: number; url: string; archiveUrl?: string | null; companyName: string; publishedAt: string | null; decisionNo: string | null;
   affectedCount: number | null; summary: string; supplierLinked: boolean; supplierSignals: string[] | null; isLead: boolean;
-  status: string; salesScript: SalesScript | null; notes: string | null; contactedAt: string | null;
+  prospectId?: number | null; status: string; salesScript: SalesScript | null; notes: string | null; contactedAt: string | null;
 }
 
 const STATUS: Record<string, string> = { new: "Yeni", contacted: "Arandı", interested: "İlgilendi", closed: "Kapandı", not_fit: "Uygun değil" };
@@ -44,6 +44,11 @@ export default function KvkkLeadPage() {
   const runNow = useMutation({
     mutationFn: () => call(`${BASE}/run-now`, "POST"),
     onSuccess: () => toast({ title: "Tarama başladı", description: "Birkaç dakika sonra listeyi yenileyin." }),
+  });
+  const toProspect = useMutation({
+    mutationFn: (id: number) => call(`${BASE}/${id}/to-prospect`, "POST"),
+    onSuccess: () => { refresh(); toast({ title: "Satış adayına aktarıldı", description: "Satış Hattı > Adaylar'da görünür." }); },
+    onError: () => toast({ title: "Aktarılamadı", variant: "destructive" }),
   });
   const regen = useMutation({
     mutationFn: (id: number) => call(`${BASE}/${id}/regenerate-script`, "POST"),
@@ -87,6 +92,9 @@ export default function KvkkLeadPage() {
                   {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
                 {r.salesScript && <Button size="sm" onClick={() => { setOpen(r); setNotes(r.notes ?? ""); }}><Phone className="h-4 w-4 mr-1" /> Arama metni</Button>}
+                {r.isLead && (r.prospectId
+                  ? <span className="text-xs text-emerald-600">Adaya aktarıldı</span>
+                  : <Button size="sm" variant="outline" onClick={() => toProspect.mutate(r.id)}>Adaya aktar</Button>)}
                 {!r.salesScript && r.isLead && <Button size="sm" variant="outline" onClick={() => regen.mutate(r.id)}>Metin üret</Button>}
                 <a href={r.archiveUrl || `https://web.archive.org/web/2026/${r.url}`} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-flex items-center gap-1">Arşiv <ExternalLink className="h-3 w-3" /></a>
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-flex items-center gap-1">KVKK duyurusu <ExternalLink className="h-3 w-3" /></a>

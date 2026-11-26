@@ -26,7 +26,7 @@ router.get("/enterprise/prospects", requireAdmin, async (req: Request, res: Resp
 });
 
 router.get("/enterprise/prospects/stats", requireAdmin, async (req: Request, res: Response) => {
-  const statuses = ["new", "scanned", "teaser_sent", "interested", "won", "lost"];
+  const statuses = ["new", "contacted", "pilot", "proposal", "contract", "won", "lost"];
   const counts = await Promise.all(
     statuses.map(s =>
       db.select({ count: count() }).from(enterpriseProspectsTable)
@@ -50,9 +50,10 @@ router.get("/enterprise/prospects/:id", requireAdmin, async (req: Request, res: 
 
 router.post("/enterprise/prospects", requireAdmin, async (req: Request, res: Response) => {
   const { companyName, domain, sector, employeeCount, city, contactName, contactTitle, contactEmail, contactPhone, linkedinUrl, source, assignedTo, notes } = req.body as Record<string, string>;
-  if (!companyName || !domain) return void res.status(400).json({ error: "companyName ve domain zorunlu" });
+  const supplierCount = Number((req.body as Record<string, unknown>)["supplierCount"]) || null;
+  if (!companyName) return void res.status(400).json({ error: "companyName zorunlu" });
   const [row] = await db.insert(enterpriseProspectsTable).values({
-    companyName, domain, sector, employeeCount, city,
+    companyName, domain: domain ?? "", sector, employeeCount, city, supplierCount,
     contactName, contactTitle, contactEmail, contactPhone, linkedinUrl,
     source: source ?? "manual",
     assignedTo, notes, status: "new",

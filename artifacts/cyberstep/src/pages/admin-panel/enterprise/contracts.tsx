@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { PLANS } from "@/pages/pricing";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,18 +52,12 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   cancelled: { label: "İptal",      color: "bg-slate-100 text-slate-600" },
 };
 
-const SERVICE_CATALOG = [
-  { slug: "mini-assessment",    name: "Mini Güvenlik Değerlendirmesi",   price: "990" },
-  { slug: "full-assessment",    name: "Tam Güvenlik Değerlendirmesi",    price: "5990" },
-  { slug: "domain-scan",        name: "Sürekli Domain Taraması",         price: "1990" },
-  { slug: "ai-tool-monitoring", name: "AI Araç İzleme (yıllık)",         price: "5880" },
-  { slug: "ai-policy",          name: "AI Güvenlik Politikası",          price: "990" },
-  { slug: "virtual-ciso",       name: "Sanal CISO (aylık)",              price: "8000" },
-  { slug: "pentest-lite",       name: "Pentest Lite",                    price: "4990" },
-  { slug: "board-report",       name: "Yönetim Kurulu Raporu (yıllık)", price: "3990" },
-  { slug: "phishing-sim",       name: "Phishing Simülasyonu",            price: "1990" },
-  { slug: "tprm",               name: "Tedarikçi Risk Yönetimi",         price: "2990" },
-];
+// TPRM paketleri (yıllık, TL, KDV hariç). Fiyatlar pages/pricing.tsx ile aynı kaynaktan gelir; eski hizmet kataloğu pages/archive/enterprise-contracts-legacy.tsx içinde.
+const SERVICE_CATALOG = PLANS.filter(p => p.yearlyTry && p.yearlyTry > 0).map(p => ({
+  slug: `tprm_${p.id}`,
+  name: `Tedarikçi Riski — ${p.name.tr} (${p.suppliers.tr}${p.fromPrice ? ", başlangıç fiyatı" : ""})`,
+  price: String(p.yearlyTry),
+}));
 
 function fmt(tl: string | null): string {
   if (!tl) return "—";

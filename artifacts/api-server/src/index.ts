@@ -1935,10 +1935,31 @@ async function startup() {
     supplier_linked BOOLEAN NOT NULL DEFAULT FALSE, supplier_signals JSONB, is_lead BOOLEAN NOT NULL DEFAULT FALSE,
     status TEXT NOT NULL DEFAULT 'new', sales_script JSONB, notes TEXT, contacted_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`ALTER TABLE kvkk_breach_notices ADD COLUMN IF NOT EXISTS archive_url TEXT`);
   // Tek seferlik: TPRM blog yazıları onaysız yayınlansın (kullanıcı kararı, 24 Kasım 2026). İşaret anahtarı sonrasında panel tercihini ezmez.
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
   await import("./services/blogFixups").then(m => m.runBlogFixups().then(() => m.runBlogRefsArchiveFix())).catch((err) => logger.warn({ err: String(err) }, "Blog düzeltmesi atlandı"));
+  // Tek seferlik (arka planda): mevcut yazıların kaynaklarını Web Archive kopyalarına çevir
+  void (async () => {
+    const done = await db.execute(sql`SELECT 1 FROM site_settings WHERE key = 'blog_refs_archived_v1'`);
+    if ((done as unknown as { rows?: unknown[] }).rows?.length) return;
+    const { archivePostRefs } = await import("./services/webArchive");
+    const { blogPostsTable } = await import("@workspace/db");
+    const { eq } = await import("drizzle-orm");
+    const posts = await db.select({ id: blogPostsTable.id, refs: blogPostsTable.refsJson }).from(blogPostsTable);
+    let okTotal = 0, failTotal = 0;
+    for (const p of posts) {
+      if (!p.refs?.length) continue;
+      const r = await archivePostRefs(p.refs);
+      if (r.archived > 0) await db.update(blogPostsTable).set({ refsJson: r.refs }).where(eq(blogPostsTable.id, p.id));
+      okTotal += r.archived; failTotal += r.failed;
+      logger.info({ postId: p.id, archived: r.archived, failed: r.failed }, "Eski yazı kaynakları arşivlendi");
+    }
+    // Hiçbiri arşivlenemediyse (ör. ağ erişimi yok) işaret konmaz; bir sonraki açılışta yeniden denenir
+    if (failTotal > 0 && okTotal === 0) return;
+    await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_refs_archived_v1', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
+  })().catch((err) => logger.warn({ err: String(err).slice(0, 200) }, "Eski yazı arşivleme atlandı"));
   await ensureDomainScanEnrichmentColumns();
   await ensureReportEnrichmentColumns();
   await ensureSecurityAdvisoriesTable();

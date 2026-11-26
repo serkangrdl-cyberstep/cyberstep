@@ -2,6 +2,7 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { getModel } from "@workspace/ai";
 import { db, kvkkBreachNoticesTable, type SalesScript } from "@workspace/db";
 import { eq, and, isNull } from "drizzle-orm";
+import { archiveUrl } from "./webArchive";
 import { logger } from "../lib/logger";
 import { logAiCost } from "./aiCostTracker";
 import { kvkkGet } from "./kvkkFetch";
@@ -87,12 +88,21 @@ export async function runKvkkLeadWatch(pages = 2): Promise<{ seen: number; added
         }).onConflictDoNothing().returning({ id: kvkkBreachNoticesTable.id });
         if (!row) continue;
         added++;
+        const arch = await archiveUrl(it.url).catch(() => null);
+        if (arch) await db.update(kvkkBreachNoticesTable).set({ archiveUrl: arch }).where(eq(kvkkBreachNoticesTable.id, row.id));
         if (cls.isLead) { leads++; await generateSalesScript(row.id); }
       } catch (err) {
         logger.warn({ err: String(err).slice(0, 200), noticeId: it.noticeId }, "KVKK lead: duyuru işlenemedi");
       }
     }
     await sleep(1200);
+  }
+  // Arşivi olmayan duyurular için (eski kayıtlar, geçici hatalar) her taramada en fazla 8 kopya alınır
+  const unarchived = await db.select({ id: kvkkBreachNoticesTable.id, url: kvkkBreachNoticesTable.url }).from(kvkkBreachNoticesTable).where(isNull(kvkkBreachNoticesTable.archiveUrl)).limit(8);
+  for (const n of unarchived) {
+    const arch = await archiveUrl(n.url).catch(() => null);
+    if (arch) await db.update(kvkkBreachNoticesTable).set({ archiveUrl: arch }).where(eq(kvkkBreachNoticesTable.id, n.id));
+    await sleep(4000);
   }
   // Sınıflama kuralı değiştiyse henüz işlem görmemiş kayıtları yeniden değerlendir
   const pending = await db.select().from(kvkkBreachNoticesTable).where(and(eq(kvkkBreachNoticesTable.status, "new"), isNull(kvkkBreachNoticesTable.salesScript)));

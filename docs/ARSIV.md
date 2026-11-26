@@ -96,6 +96,16 @@ Kaldırılanlar:
 - **Eski outreach cron'ları:** `startIsrImapCron`, `startScanLeadDripCron`, `startFreeScanFollowupCron` ve `LEGACY_OUTREACH_CRONS` anahtarı.
 - **Kullanılmayan servisler:** `artifacts/api-server/archive/unused/`.
 
-Veritabanı tabloları silinmedi (`teaser_reports`, `prospect_replies`, `meeting_requests`, `lead_candidates` vb.).
+Veritabanı tabloları bu aşamada silinmedi; sonraki bölüme bakın.
 
 Enterprise paneli TPRM'e uyarlandı: aşamalar Yeni / Arandı / Pilot görüşmesi / Teklif / Sözleşme / Kazanıldı / Kaybedildi; sözleşme kataloğu yalnızca TPRM paketleri; KVKK Lead'den "Adaya aktar".
+
+
+## 26 Kasım 2026 — Eski arka uç ve tablolar kaldırıldı
+
+Kullanıcı kararı: entegrasyon/müşteri yok, hiç çağrılmadı → eski özelliklerin API'leri, cron'ları ve tabloları kaldırıldı.
+
+- **Rotalar (64 dosya):** AI değerlendirme/politika/izleme, phishing-sim, EU AI Act, red-team, deepfake, lead-gen, fabric, remediation, bulut CSPM, kod sırları, MS365, KVKK bildirim, NOC, CISO, onboarding, partner-auth, iş paketleri, breach-monitor, scan-leads, tech-discovery, internal-scan, kuponlar, ISR yönetimi, ServiceNow/Slack/Telegram/Netgsm/webhook entegrasyonları ve ilgili admin-panel router'ları. Kod: `artifacts/api-server/archive/backend/` (`.txt`).
+- **Cron'lar:** cloud_cspm, github_secrets_scan, ms365_poller, servicenow_*, webhook_retry, noc_*, ciso_*, ai_tool_monitor, quarterly_policy_update, growth_* (3). Başka hiçbir yerden ulaşılamayan servisler de aynı arşive taşındı.
+- **Tablolar:** `services/dropOldTables.ts` — tek seferlik (`old_tables_dropped_v1`), her tablonun satır sayısını loglayıp `DROP TABLE ... CASCADE` yapar. Drizzle şema dosyaları `lib/db/archive/` altında. Geri dönüş: yedek branch `arsiv/oncesi-temizlik-2026-11-26` + veritabanı yedekleri (silinen veri geri gelmez).
+- **Bilerek bırakılanlar:** `soc` (yalnız AI maliyet sayfası), `growth-engine` (sektör raporu indirme), ISR tabloları (lead-discovery "ISR'ye aktar" kullanıyor), `lead_candidates`, `musteri-provizyon` sayfası.

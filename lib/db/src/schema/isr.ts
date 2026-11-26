@@ -191,42 +191,10 @@ export const isrEmailInboxTable = pgTable("isr_email_inbox", {
 
 // ─── Insert schemas ───────────────────────────────────────────────────────────
 // ─── Activities (CRM activity log) ───────────────────────────────────────────
-export const isrActivitiesTable = pgTable("isr_activities", {
-  id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
-  dealId: integer("deal_id").references(() => isrDealsTable.id, { onDelete: "cascade" }),
-  customerId: integer("customer_id").references(() => isrCustomersTable.id, { onDelete: "set null" }),
-  type: text("type").notNull().default("note"), // call | meeting | note | email | task
-  title: text("title").notNull(),
-  description: text("description"),
-  outcome: text("outcome"),
-  scheduledAt: timestamp("scheduled_at"),
-  completedAt: timestamp("completed_at"),
-  isCompleted: boolean("is_completed").notNull().default(false),
-  createdByEmail: text("created_by_email"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
 
 // ─── Reminders ────────────────────────────────────────────────────────────────
-export const isrRemindersTable = pgTable("isr_reminders", {
-  id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
-  dealId: integer("deal_id").references(() => isrDealsTable.id, { onDelete: "cascade" }),
-  remindAt: timestamp("remind_at").notNull(),
-  note: text("note"),
-  isDismissed: boolean("is_dismissed").notNull().default(false),
-  createdByEmail: text("created_by_email"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
 
-export const insertIsrReminderSchema = createInsertSchema(isrRemindersTable).omit({ id: true, createdAt: true });
-export type IsrReminder = typeof isrRemindersTable.$inferSelect;
-export type InsertIsrReminder = z.infer<typeof insertIsrReminderSchema>;
 
-export const insertIsrActivitySchema = createInsertSchema(isrActivitiesTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type IsrActivity = typeof isrActivitiesTable.$inferSelect;
-export type InsertIsrActivity = z.infer<typeof insertIsrActivitySchema>;
 
 export const insertIsrCustomerSchema = createInsertSchema(isrCustomersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertIsrVendorSchema = createInsertSchema(isrVendorsTable).omit({ id: true, createdAt: true, updatedAt: true });
@@ -251,12 +219,4 @@ export type InsertIsrDeal = z.infer<typeof insertIsrDealSchema>;
 export type InsertIsrMarginRule = z.infer<typeof insertIsrMarginRuleSchema>;
 
 // ─── ISR Copilot Cache ────────────────────────────────────────────────────────
-export const isrCopilotCacheTable = pgTable("isr_copilot_cache", {
-  id: serial("id").primaryKey(),
-  dealId: integer("deal_id").unique().notNull().references(() => isrDealsTable.id, { onDelete: "cascade" }),
-  content: jsonb("content").notNull(),
-  modelUsed: text("model_used").default("gemini-2.5-flash"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
 
-export type IsrCopilotCache = typeof isrCopilotCacheTable.$inferSelect;

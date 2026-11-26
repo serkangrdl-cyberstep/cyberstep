@@ -3,28 +3,9 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { isrCustomersTable } from "./isr";
 
-export const marketConfigsTable = pgTable("market_configs", {
-  id: serial("id").primaryKey(),
-  countryCode: varchar("country_code", { length: 5 }).unique().notNull(),
-  countryNameLocal: varchar("country_name_local", { length: 100 }),
-  languageCode: varchar("language_code", { length: 10 }),
-  tlds: text("tlds").array(),
-  currencyCode: varchar("currency_code", { length: 5 }),
-  currencySymbol: varchar("currency_symbol", { length: 5 }),
-  primaryRegulation: varchar("primary_regulation", { length: 100 }),
-  regulationYear: integer("regulation_year"),
-  regulationNote: text("regulation_note"),
-  sectorLabels: jsonb("sector_labels").$type<Record<string, string>>(),
-  linkedinPageId: varchar("linkedin_page_id", { length: 100 }),
-  minDomainsForReport: integer("min_domains_for_report").default(100),
-  isActive: boolean("is_active").default(true),
-  launchedAt: date("launched_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 export const intelligenceReportsTable = pgTable("intelligence_reports", {
   id: serial("id").primaryKey(),
-  countryCode: varchar("country_code", { length: 5 }).references(() => marketConfigsTable.countryCode),
   reportMonth: integer("report_month").notNull(),
   reportYear: integer("report_year").notNull(),
   reportSlug: varchar("report_slug", { length: 100 }).unique(),
@@ -71,68 +52,11 @@ export const intelligenceReportsTable = pgTable("intelligence_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const reportSectorDetailsTable = pgTable("report_sector_details", {
-  id: serial("id").primaryKey(),
-  reportId: integer("report_id").references(() => intelligenceReportsTable.id, { onDelete: "cascade" }),
-  countryCode: varchar("country_code", { length: 5 }),
-  sector: varchar("sector", { length: 50 }),
-  domainCount: integer("domain_count"),
-  avgRiskScore: decimal("avg_risk_score", { precision: 5, scale: 2 }),
-  pctNoDmarc: decimal("pct_no_dmarc", { precision: 5, scale: 2 }),
-  pctNoWaf: decimal("pct_no_waf", { precision: 5, scale: 2 }),
-  pctOutdatedCms: decimal("pct_outdated_cms", { precision: 5, scale: 2 }),
-  pctOpenPort: decimal("pct_open_port", { precision: 5, scale: 2 }),
-  pctDarkWeb: decimal("pct_dark_web", { precision: 5, scale: 2 }),
-  mostCommonWaf: varchar("most_common_waf", { length: 100 }),
-  mostCommonMail: varchar("most_common_mail", { length: 100 }),
-  mostCommonCms: varchar("most_common_cms", { length: 100 }),
-  maturityLevel: varchar("maturity_level", { length: 20 }),
-  yoyChange: decimal("yoy_change", { precision: 5, scale: 2 }),
-  sectorRank: integer("sector_rank"),
-  narrative: text("narrative"),
-});
 
-export const reportCityDetailsTable = pgTable("report_city_details", {
-  id: serial("id").primaryKey(),
-  reportId: integer("report_id").references(() => intelligenceReportsTable.id, { onDelete: "cascade" }),
-  countryCode: varchar("country_code", { length: 5 }),
-  city: varchar("city", { length: 100 }),
-  domainCount: integer("domain_count"),
-  avgRiskScore: decimal("avg_risk_score", { precision: 5, scale: 2 }),
-  riskRank: integer("risk_rank"),
-});
 
-export const reportTechTrendsTable = pgTable("report_tech_trends", {
-  id: serial("id").primaryKey(),
-  reportId: integer("report_id").references(() => intelligenceReportsTable.id, { onDelete: "cascade" }),
-  countryCode: varchar("country_code", { length: 5 }),
-  category: varchar("category", { length: 50 }),
-  vendor: varchar("vendor", { length: 100 }),
-  domainCount: integer("domain_count"),
-  marketSharePct: decimal("market_share_pct", { precision: 5, scale: 2 }),
-  momChange: decimal("mom_change", { precision: 5, scale: 2 }),
-});
 
-export const reportLeadsTable = pgTable("report_leads", {
-  id: serial("id").primaryKey(),
-  reportId: integer("report_id").references(() => intelligenceReportsTable.id),
-  countryCode: varchar("country_code", { length: 5 }),
-  name: varchar("name", { length: 255 }),
-  email: varchar("email", { length: 255 }),
-  company: varchar("company", { length: 255 }),
-  title: varchar("title", { length: 255 }),
-  downloadedAt: timestamp("downloaded_at").defaultNow(),
-  convertedToIsr: boolean("converted_to_isr").default(false),
-  isrCustomerId: integer("isr_customer_id").references(() => isrCustomersTable.id),
-});
 
 export const insertIntelligenceReportSchema = createInsertSchema(intelligenceReportsTable).omit({ id: true, createdAt: true });
-export const insertReportLeadSchema = createInsertSchema(reportLeadsTable).omit({ id: true, downloadedAt: true });
-export const insertMarketConfigSchema = createInsertSchema(marketConfigsTable).omit({ id: true, createdAt: true });
 
-export type MarketConfig = typeof marketConfigsTable.$inferSelect;
 export type IntelligenceReport = typeof intelligenceReportsTable.$inferSelect;
-export type ReportSectorDetail = typeof reportSectorDetailsTable.$inferSelect;
-export type ReportLead = typeof reportLeadsTable.$inferSelect;
 export type InsertIntelligenceReport = z.infer<typeof insertIntelligenceReportSchema>;
-export type InsertReportLead = z.infer<typeof insertReportLeadSchema>;

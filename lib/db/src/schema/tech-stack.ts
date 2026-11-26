@@ -28,32 +28,11 @@ export const customerTechStackTable = pgTable("customer_tech_stack", {
   index("idx_tech_stack_category").on(t.category, t.vendor),
 ]);
 
-export const customerSecurityMaturityTable = pgTable("customer_security_maturity", {
-  id: serial("id").primaryKey(),
-  domain: varchar("domain", { length: 255 }).unique().notNull(),
-  customerId: integer("customer_id").references(() => customersTable.id),
-  leadCandidateId: integer("lead_candidate_id").references(() => leadCandidatesTable.id),
-  maturityScore: integer("maturity_score"),
-  maturityLevel: varchar("maturity_level", { length: 20 }),
-  scoreEmailSecurity: integer("score_email_security"),
-  scoreWebSecurity: integer("score_web_security"),
-  scoreInfrastructure: integer("score_infrastructure"),
-  scoreVisibility: integer("score_visibility"),
-  recommendedService: varchar("recommended_service", { length: 100 }),
-  recommendationReason: text("recommendation_reason"),
-  companySegment: varchar("company_segment", { length: 30 }),
-  segmentSignals: text("segment_signals").array(),
-  calculatedAt: timestamp("calculated_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const insertCustomerTechStackSchema = createInsertSchema(customerTechStackTable).omit({ id: true, firstSeenAt: true });
-export const insertCustomerSecurityMaturitySchema = createInsertSchema(customerSecurityMaturityTable).omit({ id: true, calculatedAt: true });
 
 export type CustomerTechStack = typeof customerTechStackTable.$inferSelect;
-export type CustomerSecurityMaturity = typeof customerSecurityMaturityTable.$inferSelect;
 export type InsertCustomerTechStack = z.infer<typeof insertCustomerTechStackSchema>;
-export type InsertCustomerSecurityMaturity = z.infer<typeof insertCustomerSecurityMaturitySchema>;
 
 export interface TechStackItem {
   category: string;

@@ -4,6 +4,7 @@ import { db, blogPostsTable } from "@workspace/db";
 import { eq, and, or, isNull, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { logAiCost } from "./aiCostTracker";
+import { refreshEnglishCover, backfillEnglishCovers } from "./blogCover";
 import { buildTranslatePrompt, parseTranslation, sameLinks } from "./blogTranslateParse";
 
 const MODEL = getModel("blog");
@@ -27,6 +28,7 @@ export async function translatePostToEnglish(postId: number): Promise<boolean> {
       titleEn: parsed.titleEn, excerptEn: parsed.excerptEn, contentEn: parsed.contentEn,
       seoTitleEn: parsed.seoTitleEn, metaDescriptionEn: parsed.metaDescriptionEn, focusKeywordEn: parsed.focusKeywordEn,
     }).where(eq(blogPostsTable.id, postId));
+    await refreshEnglishCover(postId).catch(err => logger.warn({ err: String(err), postId }, "Blog çeviri: İngilizce kapak üretilemedi"));
     logger.info({ postId }, "Blog çeviri: İngilizce kaydedildi");
     return true;
   } catch (err) {
@@ -41,6 +43,7 @@ export async function translateMissingPosts(limit = 5): Promise<{ done: number; 
     .where(or(isNull(blogPostsTable.contentEn), eq(blogPostsTable.contentEn, "")))
     .orderBy(sql`${blogPostsTable.id} DESC`);
   let done = 0, failed = 0;
+  await backfillEnglishCovers().catch(err => logger.warn({ err: String(err) }, "İngilizce kapak backfill hatası"));
   for (const m of missing.slice(0, limit)) (await translatePostToEnglish(m.id)) ? done++ : failed++;
   return { done, failed, remaining: Math.max(0, missing.length - done) };
 }

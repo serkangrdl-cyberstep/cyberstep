@@ -28,7 +28,7 @@ export function wrapTitle(title: string, maxChars = 24, maxLines = 4): string[] 
 }
 
 /** Arka plan (isteğe bağlı) + başlık metni içeren 16:9 kapak SVG'si. Türkçe karakterler UTF-8 olarak gömülür. */
-export function buildCoverSvg(opts: { title: string; label?: string; backgroundDataUrl?: string }): string {
+export function buildCoverSvg(opts: { title: string; label?: string; backgroundDataUrl?: string; lang?: "tr" | "en" }): string {
   const lines = wrapTitle(opts.title);
   const fontSize = lines.length > 3 ? 64 : 76;
   const lineH = Math.round(fontSize * 1.2);
@@ -37,7 +37,7 @@ export function buildCoverSvg(opts: { title: string; label?: string; backgroundD
     ? `<image href="${opts.backgroundDataUrl}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`
     : "";
   const label = opts.label
-    ? `<text x="100" y="${startY - lineH - 30}" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="4" fill="#2EC4B6">${esc(opts.label.toLocaleUpperCase("tr-TR"))}</text>`
+    ? `<text x="100" y="${startY - lineH - 30}" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="4" fill="#2EC4B6">${esc(opts.label.toLocaleUpperCase(opts.lang === "en" ? "en-US" : "tr-TR"))}</text>`
     : "";
   const tspans = lines
     .map((l, i) => `<tspan x="100" y="${startY + i * lineH}">${esc(l)}</tspan>`)

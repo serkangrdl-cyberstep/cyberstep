@@ -84,6 +84,7 @@ interface BlogPost {
   socialTextTr: string | null;
   socialTextEn: string | null;
   coverImageBase64: string | null;
+  coverImageEnBase64?: string | null;
   authorName: string;
   publishedAt: string | null;
   refsJson?: { title: string; url: string }[] | null;
@@ -186,7 +187,7 @@ function BlogPostMeta({ post, lang }: { post: BlogPost | null | undefined; lang:
   usePageMeta({
     title: displayTitle,
     description: displayExcerpt,
-    ogImage: post?.coverImageBase64 ?? undefined,
+    ogImage: (lang === "en" && post?.coverImageEnBase64) || post?.coverImageBase64 || undefined,
     ogType: "article",
     canonicalPath: post ? `/blog/${post.slug}` : undefined,
     lang,
@@ -220,7 +221,7 @@ function BlogPostMeta({ post, lang }: { post: BlogPost | null | undefined; lang:
         "name": "CyberStep.io",
         "logo": { "@type": "ImageObject", "url": "https://cyberstep.io/favicon.svg" },
       },
-      "image": post.coverImageBase64 || "https://cyberstep.io/opengraph.jpg",
+      "image": (lang === "en" && post.coverImageEnBase64) || post.coverImageBase64 || "https://cyberstep.io/opengraph.jpg",
       "url": `https://cyberstep.io/blog/${post.slug}`,
       "inLanguage": lang === "en" ? "en-US" : "tr-TR",
     });
@@ -274,6 +275,7 @@ export default function BlogPost() {
   const displayTitle = (lang === "en" && post.titleEn) ? post.titleEn : post.title;
   const displayExcerpt = (lang === "en" && post.excerptEn) ? post.excerptEn : post.excerpt;
   const displayContent = (lang === "en" && post.contentEn) ? post.contentEn : post.content;
+  const coverSrc = (lang === "en" && post.coverImageEnBase64) || post.coverImageBase64;
   const noEnTranslation = lang === "en" && !post.contentEn;
 
   const clean = typeof window !== "undefined"
@@ -313,9 +315,9 @@ export default function BlogPost() {
         </div>
       </header>
 
-      {post.coverImageBase64 && (
+      {coverSrc && (
         <div className="mb-8 rounded-xl overflow-hidden">
-          <img src={post.coverImageBase64} alt={displayTitle} loading="lazy" className="w-full max-h-96 object-cover" />
+          <img src={coverSrc} alt={displayTitle} loading="lazy" className="w-full max-h-96 object-cover" />
         </div>
       )}
 

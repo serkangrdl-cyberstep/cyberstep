@@ -1299,6 +1299,8 @@ async function ensureAssessmentsColumns() {
 }
 
 async function ensureBlogContentColumns() {
+  await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS cover_image_en_base64 TEXT`);
+  void import("./services/blogCover").then(m => m.backfillEnglishCovers()).catch(err => logger.warn({ err: String(err) }, "İngilizce kapak backfill atlandı"));
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_title TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS seo_title_en TEXT`);
   await db.execute(sql`ALTER TABLE IF EXISTS blog_posts ADD COLUMN IF NOT EXISTS meta_description TEXT`);

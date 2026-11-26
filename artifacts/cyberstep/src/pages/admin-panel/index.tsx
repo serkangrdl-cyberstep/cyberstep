@@ -487,10 +487,6 @@ export default function AdminDashboard() {
                   className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors">
                   Keşif <ArrowRight className="h-3 w-3" />
                 </button>
-                <button onClick={() => navigate("/panel/lead-gen/queue")}
-                  className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors">
-                  Kuyruk <ArrowRight className="h-3 w-3" />
-                </button>
               </div>
             </div>
             <Card className="bg-slate-800/60 border-slate-700">

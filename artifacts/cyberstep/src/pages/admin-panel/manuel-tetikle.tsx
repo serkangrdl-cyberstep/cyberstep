@@ -9,13 +9,6 @@ interface Customer { id: number; company_name: string; email: string; domain: st
 const SERVICES = [
   { slug: "domain-scan",       label: "Domain Güvenlik Taraması",       endpoint: (id: number) => `/api/domain-scan/trigger/${id}`,         method: "POST", needsDomain: true },
   { slug: "assessment",        label: "Mini Risk Değerlendirmesi",       endpoint: (id: number) => `/api/admin/trigger/assessment/${id}`,    method: "POST", needsDomain: false },
-  { slug: "phishing",          label: "AI Phishing Simülasyonu",         endpoint: (id: number) => `/api/admin/trigger/phishing/${id}`,      method: "POST", needsDomain: false },
-  { slug: "pentest-lite",      label: "Pentest Lite",                    endpoint: (id: number) => `/api/admin/trigger/pentest-lite/${id}`,  method: "POST", needsDomain: false },
-  { slug: "ai-assessment",     label: "AI Güvenlik Değerlendirmesi",     endpoint: (id: number) => `/api/admin/trigger/ai-assessment/${id}`, method: "POST", needsDomain: false },
-  { slug: "deepfake",          label: "Deepfake Tehdit Analizi",         endpoint: (id: number) => `/api/admin/trigger/deepfake/${id}`,      method: "POST", needsDomain: false },
-  { slug: "red-team",          label: "AI Red Team Raporu",              endpoint: (id: number) => `/api/admin/trigger/red-team/${id}`,      method: "POST", needsDomain: false },
-  { slug: "eu-ai-act",         label: "EU AI Act Uyum Skoru",            endpoint: (id: number) => `/api/admin/trigger/eu-ai-act/${id}`,     method: "POST", needsDomain: false },
-  { slug: "board-report",      label: "YK Güvenlik Raporu",              endpoint: (id: number) => `/api/board-report/generate/${id}`,      method: "POST", needsDomain: false },
   { slug: "nps",               label: "NPS Anketi Gönder",               endpoint: (id: number) => `/api/crm/nps/send/${id}`,               method: "POST", needsDomain: false },
   { slug: "health-score",      label: "Sağlık Skoru Hesapla",            endpoint: (id: number) => `/api/admin/health/recalculate/${id}`,    method: "POST", needsDomain: false },
 ];

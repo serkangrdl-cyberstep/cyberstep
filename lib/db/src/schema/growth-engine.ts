@@ -70,18 +70,6 @@ export const benchmarkDownloadsTable = pgTable("benchmark_downloads", {
 export type BenchmarkDownload = typeof benchmarkDownloadsTable.$inferSelect;
 
 // ─── Sector Newsletter Subscribers ───────────────────────────────────────────
-export const sectorNewsletterSubscribersTable = pgTable("sector_newsletter_subscribers", {
-  id: serial("id").primaryKey(),
-  email: varchar("email", { length: 255 }).notNull(),
-  companyName: varchar("company_name", { length: 255 }),
-  domain: varchar("domain", { length: 255 }),
-  sectors: text("sectors").array(),
-  subscribedAt: timestamp("subscribed_at").defaultNow().notNull(),
-  lastSentAt: timestamp("last_sent_at"),
-  leadCreated: boolean("lead_created").default(false),
-  unsubscribedAt: timestamp("unsubscribed_at"),
-});
-export type SectorNewsletterSubscriber = typeof sectorNewsletterSubscribersTable.$inferSelect;
 
 // ─── EKAP Tenders ─────────────────────────────────────────────────────────────
 export const ekapTendersTable = pgTable("ekap_tenders", {
@@ -100,18 +88,6 @@ export const ekapTendersTable = pgTable("ekap_tenders", {
 export type EkapTender = typeof ekapTendersTable.$inferSelect;
 
 // ─── New Companies Registry (MERSİS) ─────────────────────────────────────────
-export const newCompaniesRegistryTable = pgTable("new_companies_registry", {
-  id: serial("id").primaryKey(),
-  mersisNumber: varchar("mersis_number", { length: 50 }).unique(),
-  companyName: varchar("company_name", { length: 500 }).notNull(),
-  city: varchar("city", { length: 100 }),
-  sector: varchar("sector", { length: 100 }),
-  establishmentDate: date("establishment_date"),
-  domain: varchar("domain", { length: 255 }),
-  leadCreated: boolean("lead_created").default(false),
-  discoveredAt: timestamp("discovered_at").defaultNow().notNull(),
-});
-export type NewCompanyRegistry = typeof newCompaniesRegistryTable.$inferSelect;
 
 // ─── Growth Engine Settings ───────────────────────────────────────────────────
 export const growthEngineSettingsTable = pgTable("growth_engine_settings", {

@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db, pool } from "@workspace/db";
-import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, workPackagesTable, blogPostsTable, demoReportsTable } from "@workspace/db";
+import { adminUsersTable, pricingPlansTable, questionsTable, assessmentsTable, reportsTable, domainScansTable, customersTable, partnersTable, blogPostsTable, demoReportsTable } from "@workspace/db";
 import { eq, count, sql, and, isNull, lte } from "drizzle-orm";
 import { checkSPF, checkDMARC, checkDKIM, checkMX, checkSSL, calcScore, refreshUsomList } from "./routes/domain-scan/index";
 import { loadApiKeysFromDb } from "./routes/admin-panel/settings";
@@ -31,9 +31,7 @@ import { checkSubscriptionExpiryReminders } from "./services/subscription-renewa
 import { startSOCCrons } from "./services/soc/soc-cron";
 import { startDnsCrons } from "./services/dns-cron";
 import { ensureCtTable } from "./routes/ct-monitor/index";
-import { ensureMs365Tables } from "./routes/ms365/index";
 import { ensureCustomerServiceConfigsTable } from "./routes/customer/index";
-import { ensureTechDiscoveryTable } from "./routes/tech-discovery/index";
 import { ensureIspTables } from "./routes/admin-panel/lead-discovery";
 import { ensureKvkkTables, checkKvkkDeadlines } from "./services/kvkkAssessor";
 import { ensureServiceNowTables, syncServiceNowIncidents, checkServiceNowConnections } from "./services/serviceNowClient";
@@ -41,7 +39,6 @@ import { ensureWebhookTables, retryFailedWebhooks } from "./services/webhookDisp
 import { ensureTelegramTables } from "./services/telegramNotifier";
 import { ensureNetgsmTables } from "./services/netgsmNotifier";
 import { initSOCWebSocket } from "./services/soc/soc-ws";
-import { runScanLeadDripCron } from "./routes/scan-leads/index";
 import { collectRSSFeeds, seedDefaultSources } from "./routes/digest/rss-collector";
 import { generateWeeklyDigest } from "./routes/digest/claude-processor";
 import { ensureNewsItemColumns, enrichNewsItems } from "./services/news/newsEnricher";
@@ -759,58 +756,6 @@ async function ensureIsrTables() {
     )
   `);
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS teaser_reports (
-      id SERIAL PRIMARY KEY,
-      prospect_id INTEGER REFERENCES enterprise_prospects(id),
-      domain_scan_data JSONB,
-      attack_scenarios JSONB,
-      overall_risk_score INTEGER,
-      risk_level VARCHAR(20),
-      critical_count INTEGER DEFAULT 0,
-      high_count INTEGER DEFAULT 0,
-      medium_count INTEGER DEFAULT 0,
-      low_count INTEGER DEFAULT 0,
-      teaser_headline TEXT,
-      teaser_findings JSONB,
-      teaser_scenario_preview TEXT,
-      locked_sections_hint TEXT,
-      urgency_note TEXT,
-      preview_token VARCHAR(64) UNIQUE NOT NULL,
-      email_sent_at TIMESTAMP,
-      email_opened_at TIMESTAMP,
-      preview_viewed_at TIMESTAMP,
-      cta_clicked_at TIMESTAMP,
-      cta_contact_name VARCHAR(255),
-      cta_contact_email VARCHAR(255),
-      cta_contact_phone VARCHAR(50),
-      cta_message TEXT,
-      followup_1_sent_at TIMESTAMP,
-      followup_2_sent_at TIMESTAMP,
-      approved_by VARCHAR(100),
-      approved_at TIMESTAMP,
-      status VARCHAR(20) DEFAULT 'draft',
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS prospect_replies (
-      id SERIAL PRIMARY KEY,
-      prospect_id INTEGER REFERENCES enterprise_prospects(id),
-      teaser_report_id INTEGER REFERENCES teaser_reports(id),
-      message_id VARCHAR(255) UNIQUE,
-      from_email VARCHAR(255),
-      from_name VARCHAR(255),
-      subject TEXT,
-      body_text TEXT,
-      received_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      is_handled BOOLEAN DEFAULT FALSE,
-      handled_at TIMESTAMP,
-      handled_by VARCHAR(100),
-      handler_notes TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS enterprise_contracts (
       id SERIAL PRIMARY KEY,
       prospect_id INTEGER REFERENCES enterprise_prospects(id),
@@ -946,60 +891,6 @@ async function ensureIsrTables() {
         END
     WHERE sector IS NOT NULL
       AND (enrichment_status IS NULL OR enrichment_status = 'pending')
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS contact_enrichment_log (
-      id SERIAL PRIMARY KEY,
-      customer_id INTEGER,
-      domain VARCHAR(255),
-      apollo_searched_at TIMESTAMP,
-      apollo_contacts_found INTEGER DEFAULT 0,
-      apollo_data JSONB,
-      hunter_searched_at TIMESTAMP,
-      hunter_emails_found INTEGER DEFAULT 0,
-      hunter_data JSONB,
-      linkedin_searched_at TIMESTAMP,
-      linkedin_notes TEXT,
-      selected_contact_name VARCHAR(255),
-      selected_contact_title VARCHAR(100),
-      selected_contact_email VARCHAR(255),
-      selected_contact_phone VARCHAR(50),
-      selected_contact_linkedin VARCHAR(500),
-      selection_confidence VARCHAR(20),
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS sales_team (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      title VARCHAR(100),
-      phone VARCHAR(50),
-      is_active BOOLEAN DEFAULT true,
-      monthly_target_tl DECIMAL(12,2),
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS lead_campaigns (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      target_sectors TEXT[],
-      target_employee_min INTEGER,
-      target_employee_max INTEGER,
-      target_cities TEXT[],
-      sources TEXT[],
-      status VARCHAR(20) DEFAULT 'active',
-      domains_found INTEGER DEFAULT 0,
-      domains_scanned INTEGER DEFAULT 0,
-      leads_imported INTEGER DEFAULT 0,
-      deals_created INTEGER DEFAULT 0,
-      deals_won INTEGER DEFAULT 0,
-      created_by VARCHAR(100),
-      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      completed_at TIMESTAMP
-    )
   `);
 }
 
@@ -1588,31 +1479,6 @@ async function ensurePartnerEcosystemTables() {
       approved_at TIMESTAMP
     )
   `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS work_packages (
-      id SERIAL PRIMARY KEY,
-      tenant_id INTEGER,
-      assessment_id INTEGER,
-      domain_scan_id INTEGER,
-      title TEXT NOT NULL,
-      description TEXT,
-      category TEXT NOT NULL,
-      priority TEXT NOT NULL DEFAULT 'medium',
-      estimated_cost INTEGER,
-      commission_rate INTEGER DEFAULT 15,
-      status TEXT NOT NULL DEFAULT 'open',
-      partner_id INTEGER,
-      assigned_at TIMESTAMP,
-      completed_at TIMESTAMP,
-      verified_at TIMESTAMP,
-      completion_note TEXT,
-      score_before INTEGER,
-      score_after INTEGER,
-      company_name TEXT,
-      domain TEXT,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
 }
 
 async function ensurePasswordResetColumns() {
@@ -1701,16 +1567,6 @@ async function ensurePerformanceIndexes() {
 }
 
 async function ensureBreachMonitorTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS breach_monitor_requests (
-      id          SERIAL PRIMARY KEY,
-      domain      TEXT NOT NULL,
-      ip_hash     TEXT NOT NULL,
-      breach_count INTEGER NOT NULL DEFAULT 0,
-      queried_at  TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS breach_monitor_domain_idx ON breach_monitor_requests (domain)`);
 }
 
 async function ensureVerificationColumns() {
@@ -1768,6 +1624,7 @@ async function startup() {
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) SELECT 'blog_autopilot_tprm_mode', 'publish', NOW() WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE key = 'blog_tprm_publish_migrated') ON CONFLICT (key) DO UPDATE SET value = 'publish', updated_at = NOW()`);
   await db.execute(sql`INSERT INTO site_settings (key, value, updated_at) VALUES ('blog_tprm_publish_migrated', '1', NOW()) ON CONFLICT (key) DO NOTHING`);
   await import("./services/blogFixups").then(m => m.runBlogFixups().then(() => m.runBlogRefsArchiveFix())).catch((err) => logger.warn({ err: String(err) }, "Blog düzeltmesi atlandı"));
+  await import("./services/dropOldTables").then(m => m.runDropOldTables()).catch((err) => logger.warn({ err: String(err).slice(0, 200) }, "Eski tablo temizliği atlandı"));
   // Tek seferlik (arka planda): mevcut yazıların kaynaklarını Web Archive kopyalarına çevir
   void (async () => {
     const done = await db.execute(sql`SELECT 1 FROM site_settings WHERE key = 'blog_refs_archived_v1'`);
@@ -1809,7 +1666,6 @@ async function startup() {
   await ensurePerformanceIndexes();
   await ensureDnsTables();
   await ensureCtTable();
-  await ensureMs365Tables();
   await ensureCustomerServiceConfigsTable();
   await ensureKvkkTables();
   await ensureServiceNowTables();
@@ -1819,7 +1675,6 @@ async function startup() {
   await ensureNewsItemColumns();
   await ensureOnboardingEmailColumns();
   await ensureBadgeAndEmergingColumns();
-  await ensureTechDiscoveryTable();
   await ensureIspTables();
   await ensureLeadCandidatesExtraColumns();
   await ensureWebEnrichColumns();
@@ -2511,62 +2366,14 @@ function startSocialMediaWeeklyCron() {
 
 // ─── Cron: AI Araç Politika İzleme (her Pazar 02:00 İstanbul) ─────────────────
 function startAiToolMonitorCron() {
-  cron.schedule("0 2 * * 0", wrapCron("ai_tool_monitor", "0 2 * * 0", async () => {
-    try {
-      logger.info("AI araç politika kontrolü başlıyor");
-      const { checkAllToolsForChanges } = await import("./services/ai-tool-monitor");
-      await checkAllToolsForChanges();
-    } catch (err) {
-      logger.error({ err }, "AI araç politika kontrol cron hatası");
-    }
-  }), { timezone: "Europe/Istanbul" });
-  logger.info("AI araç politika izleme cron zamanlandı (Pazar 02:00 İstanbul)");
 }
 
 // ─── Cron: AI Politika Çeyreklik Güncelleme (1 Oca/Nis/Tem/Eki 03:00) ─────────
 function startQuarterlyPolicyUpdateCron() {
-  cron.schedule("0 3 1 1,4,7,10 *", wrapCron("quarterly_policy_update", "0 3 1 1,4,7,10 *", async () => {
-    try {
-      logger.info("AI politika çeyreklik güncelleme başlıyor");
-      const { runQuarterlyPolicyUpdate } = await import("./services/policy-generator");
-      await runQuarterlyPolicyUpdate();
-    } catch (err) {
-      logger.error({ err }, "AI politika çeyreklik güncelleme cron hatası");
-    }
-  }), { timezone: "Europe/Istanbul" });
-  logger.info("AI politika çeyreklik güncelleme cron zamanlandı (1 Oca/Nis/Tem/Eki 03:00 İstanbul)");
 }
 
 // ─── Growth Engine Crons ──────────────────────────────────────────────────────
 function startGrowthEngineCrons() {
-  // SSL bitiş taraması — her gece 01:00 İstanbul (22:00 UTC)
-  cron.schedule("0 22 * * *", wrapCron("growth_ssl_expiry", "0 22 * * *", async () => {
-    try {
-      const { runSSLExpiryCron } = await import("./services/growth-engine");
-      await runSSLExpiryCron();
-    } catch (err) {
-      logger.warn({ err }, "SSL expiry growth cron failed");
-    }
-  }));
-  // CVE uyarısı — her gece 02:30 İstanbul (23:30 UTC)
-  cron.schedule("30 23 * * *", wrapCron("growth_cve_alert", "30 23 * * *", async () => {
-    try {
-      const { runCVEAlertCron } = await import("./services/growth-engine");
-      await runCVEAlertCron();
-    } catch (err) {
-      logger.warn({ err }, "CVE alert growth cron failed");
-    }
-  }));
-  // Port değişikliği — her Pazar 04:00 İstanbul (01:00 UTC)
-  cron.schedule("0 1 * * 0", wrapCron("growth_port_change", "0 1 * * 0", async () => {
-    try {
-      const { runPortChangeCron } = await import("./services/growth-engine");
-      await runPortChangeCron();
-    } catch (err) {
-      logger.warn({ err }, "Port change growth cron failed");
-    }
-  }));
-  logger.info("Growth engine crons scheduled (SSL 01:00, CVE 02:30, Port Sun 04:00 Istanbul)");
 }
 
 startup()
@@ -2653,12 +2460,6 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Certstream GitHub dispatch cron scheduled (saatte bir, :05)");
 
-    // ─── Microsoft 365 Graph API poller — her 15 dakikada ────────────────────
-    cron.schedule("*/15 * * * *", wrapCron("ms365_poller", "*/15 * * * *", async () => {
-      const { pollAllMs365Integrations } = await import("./services/ms365Graph");
-      await pollAllMs365Integrations();
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("MS365 Graph API poller scheduled (every 15 min)");
 
     // ─── Onboarding email serisi — Her gün 10:30 (D+3 ve D+7) ───────────────
     cron.schedule("30 10 * * *", wrapCron("onboarding_d3d7", "30 10 * * *", async () => {
@@ -2909,40 +2710,7 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Auto invoice generate cron scheduled (06:00 Istanbul)");
 
-    // ─── CASM: Cloud CSPM taraması — Her gece 03:45 ──────────────────────────
-    cron.schedule("45 3 * * *", wrapCron("cloud_cspm", "45 3 * * *", async () => {
-      const { db: dbI } = await import("@workspace/db");
-      const { cloudConnectionsTable } = await import("@workspace/db");
-      const { eq } = await import("drizzle-orm");
-      const { runCloudScan } = await import("./routes/cloud-cspm/index");
-      const conns = await dbI.select().from(cloudConnectionsTable).where(eq(cloudConnectionsTable.isActive, true));
-      for (const conn of conns) {
-        await runCloudScan(conn, conn.customerId!);
-        await new Promise(r => setTimeout(r, 5000));
-      }
-      return conns.length;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("Cloud CSPM cron scheduled (03:45 Istanbul)");
 
-    // ─── CASM: GitHub secrets tarama — Her Pazar 04:00 ───────────────────────
-    cron.schedule("0 5 * * 0", wrapCron("github_secrets_scan", "0 5 * * 0", async () => {
-      const { getCustomersWithGitHub, scanGitHubOrg } = await import("./services/githubScanner");
-      const { db: dbI } = await import("@workspace/db");
-      const { codeSecretsFindingsTable } = await import("@workspace/db");
-      const customers = await getCustomersWithGitHub();
-      let findingsCount = 0;
-      for (const c of customers) {
-        if (!c.githubOrg) continue;
-        const findings = await scanGitHubOrg(c.githubOrg, c.id);
-        for (const f of findings) {
-          await dbI.insert(codeSecretsFindingsTable).values(f).onConflictDoNothing();
-        }
-        findingsCount += findings.length;
-        await new Promise(r => setTimeout(r, 10000));
-      }
-      return findingsCount;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("GitHub secrets scan cron scheduled (Sunday 05:00 Istanbul)");
 
     cron.schedule("*/30 * * * *", wrapCron("kvkk_deadline", "*/30 * * * *", async () => {
       await checkKvkkDeadlines();
@@ -2950,24 +2718,8 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("KVKK 72h deadline cron scheduled (every 30 min)");
 
-    cron.schedule("*/15 * * * *", wrapCron("servicenow_sync", "*/15 * * * *", async () => {
-      await syncServiceNowIncidents();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("ServiceNow incident sync cron scheduled (every 15 min)");
 
-    // ─── ServiceNow bağlantı sağlık kontrolü — Her saat ──────────────────────
-    cron.schedule("0 * * * *", wrapCron("servicenow_health", "0 * * * *", async () => {
-      await checkServiceNowConnections();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("ServiceNow connection health check cron scheduled (every hour)");
 
-    cron.schedule("*/10 * * * *", wrapCron("webhook_retry", "*/10 * * * *", async () => {
-      await retryFailedWebhooks();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("Webhook retry cron scheduled (every 10 min)");
 
     startRenewalCron();
 
@@ -2978,33 +2730,9 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Email sequence cron scheduled (every 30 min)");
 
-    // ─── NOC: FortiGate polling — her 5 dakika, offset +3 dk ─────────────────
-    cron.schedule("3,8,13,18,23,28,33,38,43,48,53,58 * * * *", wrapCron("noc_poll", "3,8,13,18,23,28,33,38,43,48,53,58 * * * *", async () => {
-      await runFortiGatePollCron();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("NOC FortiGate poll cron scheduled (every 5 min, offset +3)");
 
-    // ─── NOC: Availability monitor — her 5 dakika, offset +4 dk ──────────────
-    cron.schedule("4,9,14,19,24,29,34,39,44,49,54,59 * * * *", wrapCron("noc_availability", "4,9,14,19,24,29,34,39,44,49,54,59 * * * *", async () => {
-      await runAvailabilityCron();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("NOC availability cron scheduled (every 5 min, offset +4)");
 
-    // ─── NOC: Claude triage — her 15 dakika ───────────────────────────────────
-    cron.schedule("*/15 * * * *", wrapCron("noc_triage", "*/15 * * * *", async () => {
-      await runNOCTriageCron();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("NOC triage cron scheduled (every 15 min)");
 
-    // ─── NOC: Baseline tamamlama — her saat ──────────────────────────────────
-    cron.schedule("0 * * * *", wrapCron("noc_baseline", "0 * * * *", async () => {
-      await checkAndCompleteBaselines();
-      return 0;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("NOC baseline check cron scheduled (every hour)");
 
     // ─── Lead Discovery: crt.sh — Her Gece 03:00 ─────────────────────────────
     // Her TLD ayrı try/catch içinde — biri 502 alsa diğerleri devam eder.
@@ -3475,74 +3203,8 @@ startup()
     }), { timezone: "Europe/Istanbul" });
     logger.info("Haftalık DB yedek cron kayıtlandı (Pazar 04:00 Istanbul)");
 
-    // ─── CISO Asistan: Aylık Board Raporu — Her ayın 25'i 09:00 Istanbul ────
-    cron.schedule("0 9 25 * *", wrapCron("ciso_board_report", "0 9 25 * *", async () => {
-      const { db: cisoDb } = await import("@workspace/db");
-      const { cisoAssistantSubscriptionsTable: cisoSubsTable } = await import("@workspace/db");
-      const { eq: eqFn } = await import("drizzle-orm");
-      const { generateBoardReport } = await import("./services/ciso/boardReportGenerator");
-      const subs = await cisoDb.select().from(cisoSubsTable).where(eqFn(cisoSubsTable.isActive, true));
-      logger.info({ count: subs.length }, "CISO board raporu cron başladı");
-      for (const sub of subs) {
-        try { await generateBoardReport(sub.customerId!); await new Promise(r => setTimeout(r, 5000)); }
-        catch (err) { logger.error({ err, customerId: sub.customerId }, "Board raporu hatası"); }
-      }
-      return subs.length;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("CISO board raporu cron kayıtlandı (ayın 25'i 09:00 Istanbul)");
 
-    // ─── CISO Asistan: Haftalık Tehdit Özeti — Her Cuma 09:30 Istanbul (09:00'da market_weekly_summary var) ───
-    cron.schedule("30 9 * * 5", wrapCron("ciso_weekly_threat", "30 9 * * 5", async () => {
-      const { db: cisoDb } = await import("@workspace/db");
-      const { cisoAssistantSubscriptionsTable: cisoSubsTable, customersTable: custTable, domainScansTable: scanTable, weeklyBulletinsTable } = await import("@workspace/db");
-      const { eq: eqFn, desc: descFn } = await import("drizzle-orm");
-      const { sendMail: sendMailFn } = await import("./services/email");
-      const { anthropic: anthropicClient } = await import("@workspace/integrations-anthropic-ai");
-      const subs = await cisoDb.select().from(cisoSubsTable).where(eqFn(cisoSubsTable.isActive, true));
-      const [latestBulletin] = await cisoDb.select().from(weeklyBulletinsTable).where(eqFn(weeklyBulletinsTable.status, "published")).orderBy(descFn(weeklyBulletinsTable.id)).limit(1);
-      logger.info({ count: subs.length, hasBulletin: !!latestBulletin }, "CISO haftalık tehdit cron başladı");
-      for (const sub of subs) {
-        if (!sub.customerId) continue;
-        try {
-          const [customer] = await cisoDb.select().from(custTable).where(eqFn(custTable.id, sub.customerId)).limit(1);
-          if (!customer) continue;
-          const [scan] = await cisoDb.select().from(scanTable).where(eqFn(scanTable.email, customer.email)).orderBy(descFn(scanTable.id)).limit(1);
-          const scoreText = scan ? `Güvenlik skoru: ${scan.overallScore}/100` : "";
-          const { callModel: callAiModel } = await import("@workspace/ai");
-          const intro = await callAiModel({
-            task: "ciso-weekly-digest",
-            system: "Türk KOBİ için kişiselleştirilmiş siber güvenlik haftalık özeti yaz. Kısa, akıcı Türkçe.",
-            messages: [{ role: "user", content: `${customer.companyName ?? customer.email} için haftalık tehdit özeti. ${scoreText}. Bu hafta yapılması gereken 1 şeyi belirt.` }],
-            maxTokens: 200,
-          });
-          const introSafe = intro.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-          await sendMailFn({
-            to: customer.email,
-            subject: `Haftalık Siber Tehdit Özeti — ${new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`,
-            html: `<p>Merhaba ${customer.companyName ?? ""},</p><p>${introSafe}</p>${latestBulletin?.emailHtml ? `<hr style="margin:16px 0">${latestBulletin.emailHtml}` : ""}<br><small style="color:#888">CyberStep CISO Asistan — <a href="mailto:info@cyberstep.io">info@cyberstep.io</a></small>`,
-          });
-          await new Promise(r => setTimeout(r, 2000));
-        } catch (err) { logger.error({ err, customerId: sub.customerId }, "Haftalık tehdit özeti hatası"); }
-      }
-      return subs.length;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("CISO haftalık tehdit cron kayıtlandı (Cuma 09:30 Istanbul)");
 
-    // ─── CISO Asistan: Aylık Uyum Skoru — Her ayın 1'i 08:00 Istanbul ────────
-    cron.schedule("0 8 1 * *", wrapCron("ciso_compliance_monthly", "0 8 1 * *", async () => {
-      const { db: cisoDb } = await import("@workspace/db");
-      const { cisoAssistantSubscriptionsTable: cisoSubsTable } = await import("@workspace/db");
-      const { eq: eqFn } = await import("drizzle-orm");
-      const { calculateComplianceScore } = await import("./services/ciso/complianceCalculator");
-      const subs = await cisoDb.select().from(cisoSubsTable).where(eqFn(cisoSubsTable.isActive, true));
-      for (const sub of subs) {
-        if (!sub.customerId) continue;
-        try { await calculateComplianceScore(sub.customerId); await new Promise(r => setTimeout(r, 1000)); }
-        catch (err) { logger.error({ err, customerId: sub.customerId }, "Uyum skoru güncelleme hatası"); }
-      }
-      return subs.length;
-    }), { timezone: "Europe/Istanbul" });
-    logger.info("CISO uyum skoru cron kayıtlandı (ayın 1'i 08:00 Istanbul)");
 
     // ─── IOC Sorgu: Aylık Kredi Sıfırlama — Her ayın 1'i 08:30 Istanbul (08:00'da ciso_compliance_monthly var) ─────
     cron.schedule("30 8 1 * *", wrapCron("ioc_credit_reset", "30 8 1 * *", async () => {

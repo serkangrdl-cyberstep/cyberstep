@@ -108,73 +108,6 @@ router.post("/admin/trigger/assessment/:customerId", requireAdmin, async (req: R
   }
 });
 
-router.post("/admin/trigger/phishing/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM phishing_sim_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son simülasyon: ${last.status}` : "Aktif simülasyon yok" });
-  } catch (err) {
-    logger.error({ err }, "Failed to check phishing");
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-router.post("/admin/trigger/pentest-lite/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM pentest_lite_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son pentest: ${last.status}` : "Talep yok" });
-  } catch (err) {
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-router.post("/admin/trigger/ai-assessment/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM ai_assessments WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son AI değerlendirme: ${last.status}` : "Değerlendirme yok" });
-  } catch (err) {
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-router.post("/admin/trigger/deepfake/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM deepfake_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son deepfake analiz: ${last.status}` : "Analiz talebi yok" });
-  } catch (err) {
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-router.post("/admin/trigger/red-team/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM red_team_requests WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son red team: ${last.status}` : "Analiz talebi yok" });
-  } catch (err) {
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-router.post("/admin/trigger/eu-ai-act/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM eu_ai_act_assessments WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son EU AI Act: ${last.status}` : "Değerlendirme yok" });
-  } catch (err) {
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
 router.post("/admin/trigger/domain-scan/:customerId", requireAdmin, async (req: Request, res: Response) => {
   const customerId = parseInt(String(req.params["customerId"] ?? "0"));
   try {
@@ -183,18 +116,6 @@ router.post("/admin/trigger/domain-scan/:customerId", requireAdmin, async (req: 
     if (!cust?.domain) { res.status(400).json({ error: "Müşterinin domain kaydı yok" }); return; }
     res.json({ ok: true, message: `${cust.domain} domain taraması kuyruğa alındı` });
   } catch (err) {
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-
-router.post("/admin/trigger/board-report/:customerId", requireAdmin, async (req: Request, res: Response) => {
-  const customerId = parseInt(String(req.params["customerId"] ?? "0"));
-  try {
-    const rows = await queryRows(sql`SELECT id, status FROM board_reports WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 1`);
-    const last = rows[0] as { id: number; status: string } | undefined;
-    res.json({ ok: true, message: last ? `Son YK raporu: ${last.status}` : "Rapor henüz oluşturulmamış" });
-  } catch (err) {
-    logger.error({ err }, "Failed to check board report");
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });

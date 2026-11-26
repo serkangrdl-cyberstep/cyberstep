@@ -27,39 +27,6 @@ export const enterpriseProspectsTable = pgTable("enterprise_prospects", {
 export type EnterpriseProspect = typeof enterpriseProspectsTable.$inferSelect;
 
 // ─── Teaser Reports ──────────────────────────────────────────────────────────
-export const teaserReportsTable = pgTable("teaser_reports", {
-  id: serial("id").primaryKey(),
-  prospectId: integer("prospect_id").references(() => enterpriseProspectsTable.id),
-  domainScanData: jsonb("domain_scan_data"),
-  attackScenarios: jsonb("attack_scenarios"),
-  overallRiskScore: integer("overall_risk_score"),
-  riskLevel: varchar("risk_level", { length: 20 }),
-  criticalCount: integer("critical_count").default(0),
-  highCount: integer("high_count").default(0),
-  mediumCount: integer("medium_count").default(0),
-  lowCount: integer("low_count").default(0),
-  teaserHeadline: text("teaser_headline"),
-  teaserFindings: jsonb("teaser_findings"),
-  teaserScenarioPreview: text("teaser_scenario_preview"),
-  lockedSectionsHint: text("locked_sections_hint"),
-  urgencyNote: text("urgency_note"),
-  previewToken: varchar("preview_token", { length: 64 }).unique().notNull(),
-  emailSentAt: timestamp("email_sent_at"),
-  emailOpenedAt: timestamp("email_opened_at"),
-  previewViewedAt: timestamp("preview_viewed_at"),
-  ctaClickedAt: timestamp("cta_clicked_at"),
-  ctaContactName: varchar("cta_contact_name", { length: 255 }),
-  ctaContactEmail: varchar("cta_contact_email", { length: 255 }),
-  ctaContactPhone: varchar("cta_contact_phone", { length: 50 }),
-  ctaMessage: text("cta_message"),
-  followup1SentAt: timestamp("followup_1_sent_at"),
-  followup2SentAt: timestamp("followup_2_sent_at"),
-  approvedBy: varchar("approved_by", { length: 100 }),
-  approvedAt: timestamp("approved_at"),
-  status: varchar("status", { length: 20 }).default("draft"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-export type TeaserReport = typeof teaserReportsTable.$inferSelect;
 
 // ─── Enterprise Contracts ────────────────────────────────────────────────────
 export const enterpriseContractsTable = pgTable("enterprise_contracts", {
@@ -138,36 +105,5 @@ export const enterpriseInvoicesTable = pgTable("enterprise_invoices", {
 export type EnterpriseInvoice = typeof enterpriseInvoicesTable.$inferSelect;
 
 // ─── Prospect Replies (teaser e-postasına gelen yanıtlar) ───────────────────
-export const prospectRepliesTable = pgTable("prospect_replies", {
-  id: serial("id").primaryKey(),
-  prospectId: integer("prospect_id").references(() => enterpriseProspectsTable.id),
-  teaserReportId: integer("teaser_report_id").references(() => teaserReportsTable.id),
-  messageId: varchar("message_id", { length: 255 }).unique(),
-  fromEmail: varchar("from_email", { length: 255 }),
-  fromName: varchar("from_name", { length: 255 }),
-  subject: text("subject"),
-  bodyText: text("body_text"),
-  receivedAt: timestamp("received_at").defaultNow().notNull(),
-  isHandled: boolean("is_handled").default(false),
-  handledAt: timestamp("handled_at"),
-  handledBy: varchar("handled_by", { length: 100 }),
-  handlerNotes: text("handler_notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-export type ProspectReply = typeof prospectRepliesTable.$inferSelect;
 
 // ─── Meeting Requests (teaser CTA → görüşme talebi) ──────────────────────────
-export const meetingRequestsTable = pgTable("meeting_requests", {
-  id: serial("id").primaryKey(),
-  prospectId: integer("prospect_id").references(() => enterpriseProspectsTable.id),
-  teaserReportId: integer("teaser_report_id").references(() => teaserReportsTable.id),
-  name: varchar("name", { length: 200 }),
-  email: varchar("email", { length: 200 }),
-  phone: varchar("phone", { length: 50 }),
-  message: text("message"),
-  status: varchar("status", { length: 30 }).default("pending"),
-  requestedAt: timestamp("requested_at").defaultNow().notNull(),
-  contactedAt: timestamp("contacted_at"),
-  scheduledAt: timestamp("scheduled_at"),
-});
-export type MeetingRequest = typeof meetingRequestsTable.$inferSelect;

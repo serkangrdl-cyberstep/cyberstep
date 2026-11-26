@@ -78,13 +78,6 @@ export const bulletinSubscribersTable = pgTable("bulletin_subscribers", {
   index("idx_bulletin_subs_active").on(t.isActive),
 ]);
 
-export const bulletinClicksTable = pgTable("bulletin_clicks", {
-  id: serial("id").primaryKey(),
-  bulletinId: integer("bulletin_id").references(() => weeklyBulletinsTable.id),
-  subscriberId: integer("subscriber_id").references(() => bulletinSubscribersTable.id),
-  linkSection: varchar("link_section", { length: 50 }),
-  clickedAt: timestamp("clicked_at").defaultNow(),
-});
 
 export type WeeklyBulletin = typeof weeklyBulletinsTable.$inferSelect;
 export type BulletinSubscriber = typeof bulletinSubscribersTable.$inferSelect;

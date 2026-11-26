@@ -111,7 +111,7 @@ function ShareButtons({ post, lang }: { post: BlogPost; lang: "tr" | "en" }) {
     <div className="flex items-center gap-2 flex-wrap">
       <span className="flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
         <Share2 className="h-4 w-4" />
-        {lang === "en" ? "Share:" : "Paylas:"}
+        {lang === "en" ? "Share:" : "Paylaş:"}
       </span>
 
       {/* X (Twitter) */}
@@ -162,7 +162,7 @@ function ShareButtons({ post, lang }: { post: BlogPost; lang: "tr" | "en" }) {
       <button
         onClick={copyToClipboard}
         className="p-2 rounded-lg border border-border hover:border-primary/40 hover:bg-muted transition-colors"
-        title={lang === "en" ? "Copy for Instagram" : "Instagram icin kopyala"}
+        title={lang === "en" ? "Copy for Instagram" : "Instagram için kopyala"}
       >
         {copied ? (
           <Check className="h-4 w-4 text-emerald-500" />
@@ -174,7 +174,7 @@ function ShareButtons({ post, lang }: { post: BlogPost; lang: "tr" | "en" }) {
       </button>
       {copied && (
         <span className="text-xs text-emerald-600 dark:text-emerald-400">
-          {lang === "en" ? "Copied!" : "Kopyalandi!"}
+          {lang === "en" ? "Copied!" : "Kopyalandı!"}
         </span>
       )}
     </div>
